@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
@@ -13,30 +14,25 @@ export const metadata: Metadata = {
   generator: "v0.app",
   icons: {
     icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
+      { url: "/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
+      { url: "/icon-dark-32x32.png", media: "(prefers-color-scheme: dark)" },
+      { url: "/icon.svg", type: "image/svg+xml" },
     ],
     apple: "/apple-icon.png",
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const cookieStore = await cookies()
+  const theme = cookieStore.get("binderdex_theme")?.value
+  const isDark = theme ? theme !== "light" : true
+
   return (
-    <html lang="en" className="dark bg-background" suppressHydrationWarning>
+    <html lang="en" className={`${isDark ? "dark" : ""} bg-background`} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background">
         {children}
         <Analytics />

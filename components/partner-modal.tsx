@@ -91,7 +91,7 @@ export default function PartnerModal({ isOpen, onClose }: PartnerModalProps) {
                       <div className="space-y-2">
                         {pendingInvites.map((invite) => (
                           <div key={invite.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-                            <span className="text-sm">{invite.invitee_email}</span>
+                            <span className="text-sm">{invite.inviteeEmail || "Unknown"}</span>
                             <span className="text-xs text-muted-foreground">Waiting...</span>
                           </div>
                         ))}
@@ -105,7 +105,7 @@ export default function PartnerModal({ isOpen, onClose }: PartnerModalProps) {
                       <div className="space-y-2">
                         {receivedInvites.map((invite) => (
                           <div key={invite.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-                            <span className="text-sm">From: {invite.inviter_email || "Unknown"}</span>
+                            <span className="text-sm">From: {invite.inviterEmail || "Unknown"}</span>
                             <div className="flex gap-1">
                               <Button size="sm" variant="ghost" onClick={() => acceptInvite(invite.id)}>
                                 <Check className="w-4 h-4 text-green-500" />

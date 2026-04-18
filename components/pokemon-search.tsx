@@ -3,9 +3,10 @@
 import type React from "react"
 
 import { useState, useCallback, useEffect } from "react"
-import { Search, Loader2, ArrowRight } from "lucide-react"
+import { Search, ArrowRight } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { usePokemonCache } from "@/hooks/use-pokemon-cache"
+import { getPokemonSummary } from "@/lib/pokemon-catalog"
 
 interface PokemonSearchProps {
   onSelect: (pokemon: any) => void
@@ -50,10 +51,9 @@ const fuzzySearch = (query: string, items: any[]): any[] => {
 export default function PokemonSearch({ onSelect, pokemonList: propPokemonList }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
   const [suggestions, setSuggestions] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
-  const { pokemonList: cachedList, isLoading: isCacheLoading } = usePokemonCache()
+  const { pokemonList: cachedList } = usePokemonCache()
   
   const pokemonList = propPokemonList || cachedList
 
@@ -83,21 +83,13 @@ export default function PokemonSearch({ onSelect, pokemonList: propPokemonList }
   }, [suggestions, query])
 
   const handleSelectPokemon = useCallback(
-    async (pokemon: any) => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemon.name}`)
-        const fullData = await response.json()
-        onSelect(fullData)
-      } catch (error) {
-        console.error("Error fetching Pokemon details:", error)
-      } finally {
-        setIsLoading(false)
-        setQuery("")
-        setSuggestions([])
-        setShowSuggestions(false)
-        setSelectedIndex(-1)
-      }
+    (pokemon: { id: number; name: string }) => {
+      const summary = getPokemonSummary(pokemon.id)
+      if (summary) onSelect(summary)
+      setQuery("")
+      setSuggestions([])
+      setShowSuggestions(false)
+      setSelectedIndex(-1)
     },
     [onSelect],
   )
@@ -146,13 +138,9 @@ export default function PokemonSearch({ onSelect, pokemonList: propPokemonList }
           }}
           onFocus={() => query && setShowSuggestions(true)}
           onKeyDown={handleKeyDown}
-          disabled={isCacheLoading}
           className="pl-12 h-12 text-lg bg-card border-2 border-primary/20 focus:border-primary"
           autoComplete="off"
         />
-        {(isLoading || isCacheLoading) && (
-          <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary animate-spin" />
-        )}
       </div>
 
       {suggestions.length === 1 && query.trim() && (

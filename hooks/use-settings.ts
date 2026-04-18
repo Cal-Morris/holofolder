@@ -11,59 +11,40 @@ export interface BinderSettings {
 const LOCAL_SETTINGS_KEY = "pokemon_binder_settings"
 const DEFAULT_SETTINGS: BinderSettings = { binderRows: 4, binderCols: 4 }
 
-export function useSettings() {
-  const [settings, setSettings] = useState<BinderSettings>(DEFAULT_SETTINGS)
-  const [user, setUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+interface UseSettingsOptions {
+  initialSettings?: BinderSettings
+  initialUser?: { id: string } | null
+}
+
+export function useSettings(options: UseSettingsOptions = {}) {
+  const { initialSettings, initialUser = null } = options
+  const [settings, setSettings] = useState<BinderSettings>(initialSettings ?? DEFAULT_SETTINGS)
+  const [user, setUser] = useState<{ id: string } | null>(initialUser)
 
   const supabase = createClient()
 
+  // Prefer localStorage on first paint for users who aren't signed in.
   useEffect(() => {
-    const loadUserAndSettings = async () => {
-      setIsLoading(true)
+    if (initialSettings) return
 
-      // Load from localStorage first for instant display
-      try {
-        const local = localStorage.getItem(LOCAL_SETTINGS_KEY)
-        if (local) {
-          const parsed = JSON.parse(local)
-          setSettings({
-            binderRows: parsed.binderRows || parsed.rows || 4,
-            binderCols: parsed.binderCols || parsed.cols || 4,
-          })
-        }
-      } catch {}
-
-      // Check for user
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      setUser(currentUser)
-
-      if (currentUser) {
-        try {
-          const { data } = await supabase
-            .from("user_settings")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .single()
-
-          if (data) {
-            const newSettings = {
-              binderRows: data.binder_rows || 4,
-              binderCols: data.binder_cols || 4,
-            }
-            setSettings(newSettings)
-            localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(newSettings))
-          }
-        } catch {}
+    try {
+      const local = localStorage.getItem(LOCAL_SETTINGS_KEY)
+      if (local) {
+        const parsed = JSON.parse(local)
+        setSettings({
+          binderRows: parsed.binderRows || parsed.rows || DEFAULT_SETTINGS.binderRows,
+          binderCols: parsed.binderCols || parsed.cols || DEFAULT_SETTINGS.binderCols,
+        })
       }
-
-      setIsLoading(false)
+    } catch {
+      // ignore
     }
+  }, [initialSettings])
 
-    loadUserAndSettings()
-
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      const nextUser = session?.user ?? null
+      setUser(nextUser ? { id: nextUser.id } : null)
     })
 
     return () => subscription.unsubscribe()
@@ -99,10 +80,10 @@ export function useSettings() {
           })
         }
       } catch (err) {
-        console.error("Error saving settings:", err)
+        console.error("[binderdex] Error saving settings:", err)
       }
     }
   }, [user, settings, supabase])
 
-  return { settings, isLoading, updateSettings }
+  return { settings, updateSettings }
 }

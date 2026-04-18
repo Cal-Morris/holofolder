@@ -1,24 +1,63 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from '@/lib/auth-redirects'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useState } from 'react'
-import { Mail, Sparkles, Loader2, ArrowLeft } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Mail, Sparkles, Loader2, ArrowLeft, KeyRound } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+
+type AuthMethod = 'magic-link' | 'password'
+type PasswordMode = 'sign-in' | 'sign-up'
+type SuccessState = 'magic-link' | 'password-signup' | 'password-reset' | null
 
 export default function Page() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [success, setSuccess] = useState<SuccessState>(null)
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('magic-link')
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>('sign-in')
+  const [hasRecoverySession, setHasRecoverySession] = useState(false)
+  const [isCheckingRecoverySession, setIsCheckingRecoverySession] = useState(false)
 
-  const getRedirectUrl = () => {
-    // Always use production URL for magic links
-    return "https://binder.cal.gg/auth/callback"
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const recoveryMode = searchParams.get('mode') === 'recovery'
+
+  useEffect(() => {
+    if (!recoveryMode) return
+
+    const checkRecoverySession = async () => {
+      const supabase = createClient()
+      setIsCheckingRecoverySession(true)
+      const { data, error } = await supabase.auth.getUser()
+
+      if (error || !data.user) {
+        setError('This password recovery link is invalid or has expired.')
+      } else {
+        setHasRecoverySession(true)
+        setError(null)
+      }
+
+      setIsCheckingRecoverySession(false)
+    }
+
+    checkRecoverySession()
+  }, [recoveryMode])
+
+  const resetState = () => {
+    setError(null)
+    setSuccess(null)
+    setPassword('')
+    setConfirmPassword('')
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     const supabase = createClient()
     setIsLoading(true)
@@ -28,11 +67,12 @@ export default function Page() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: getRedirectUrl(),
+          emailRedirectTo: getMagicLinkRedirectUrl(),
         },
       })
+
       if (error) throw error
-      setSuccess(true)
+      setSuccess('magic-link')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -40,10 +80,132 @@ export default function Page() {
     }
   }
 
+  const handlePasswordAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      if (passwordMode === 'sign-up') {
+        if (password.length < 8) {
+          throw new Error('Password must be at least 8 characters.')
+        }
+
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match.')
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: getMagicLinkRedirectUrl(),
+          },
+        })
+
+        if (error) throw error
+
+        if (data.session) {
+          router.push('/')
+          router.refresh()
+          return
+        }
+
+        setSuccess('password-signup')
+        return
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) throw error
+      router.push('/')
+      router.refresh()
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Authentication failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError('Enter your email address first.')
+      return
+    }
+
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: getPasswordRecoveryRedirectUrl(),
+      })
+
+      if (error) throw error
+      setSuccess('password-reset')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Could not send a password reset link.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password,
+      })
+
+      if (error) throw error
+
+      router.push('/')
+      router.refresh()
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Could not update your password.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const successTitle =
+    success === 'password-reset'
+      ? 'Check your email'
+      : success === 'password-signup'
+        ? 'Confirm your email'
+        : 'Check your email'
+
+  const successMessage =
+    success === 'password-reset'
+      ? 'We sent you a password reset link.'
+      : success === 'password-signup'
+        ? 'We sent you a confirmation link to finish creating your account.'
+        : 'We sent you a magic link to sign in.'
+
   return (
     <div className="min-h-svh w-full flex flex-col items-center justify-center p-6 bg-background">
       <div className="w-full max-w-sm">
-        <Link 
+        <Link
           href="/"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
         >
@@ -54,80 +216,273 @@ export default function Page() {
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-xl">
           <div className="relative p-8 pb-6">
             <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
-            
+
             <div className="relative flex flex-col items-center text-center">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-5 shadow-lg shadow-primary/20">
                 <Sparkles className="w-8 h-8 text-primary-foreground" />
               </div>
               <h1 className="text-2xl font-bold tracking-tight">
-                {success ? "Check your email" : "Sign in to Binder"}
+                {recoveryMode ? 'Set a new password' : success ? successTitle : 'Sign in to Binder'}
               </h1>
               <p className="text-sm text-muted-foreground mt-2">
-                {success 
-                  ? "We sent you a magic link to sign in" 
-                  : "Enter your email to receive a magic link"
-                }
+                {recoveryMode
+                  ? 'Choose a password for your BinderDex account.'
+                  : success
+                    ? successMessage
+                    : 'Use a magic link or sign in with a password.'}
               </p>
             </div>
           </div>
 
           <div className="px-8 pb-8">
-            {success ? (
-              <div className="space-y-4">
-                <div className="p-5 bg-primary/5 border border-primary/10 rounded-xl text-center">
-                  <Mail className="w-10 h-10 text-primary mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">
-                    Click the link in your email to sign in. You can close this window.
-                  </p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="w-full h-12 rounded-xl" 
-                  onClick={() => {
-                    setSuccess(false)
-                    setEmail("")
-                  }}
-                >
-                  Use a different email
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleLogin} className="space-y-4">
+            {recoveryMode ? (
+              <form onSubmit={handleRecoverySubmit} className="space-y-4">
                 {error && (
                   <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center">
                     {error}
                   </div>
                 )}
 
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    placeholder="you@example.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
-                    autoFocus
-                  />
+                {isCheckingRecoverySession ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : hasRecoverySession ? (
+                  <>
+                    <div className="relative">
+                      <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="New password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="Confirm new password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save new password'}
+                    </Button>
+                  </>
+                ) : null}
+              </form>
+            ) : success ? (
+              <div className="space-y-4">
+                <div className="p-5 bg-primary/5 border border-primary/10 rounded-xl text-center">
+                  <Mail className="w-10 h-10 text-primary mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    {success === 'password-reset'
+                      ? 'Open the reset email and choose a new password.'
+                      : success === 'password-signup'
+                        ? 'Open the confirmation email to finish setting up password sign-in.'
+                        : 'Click the link in your email to sign in. You can close this window.'}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full h-12 rounded-xl"
+                  onClick={() => {
+                    resetState()
+                    setEmail('')
+                  }}
+                >
+                  Use a different email
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {error && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center">
+                    {error}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetState()
+                      setAuthMethod('magic-link')
+                    }}
+                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      authMethod === 'magic-link'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetState()
+                      setAuthMethod('password')
+                    }}
+                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      authMethod === 'password'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    Password
+                  </button>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    "Send magic link"
-                  )}
-                </Button>
+                {authMethod === 'magic-link' ? (
+                  <form onSubmit={handleMagicLink} className="space-y-4">
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        autoFocus
+                      />
+                    </div>
 
-                <p className="text-xs text-center text-muted-foreground pt-2">
-                  No password needed. We&apos;ll email you a secure link.
-                </p>
-              </form>
+                    <Button
+                      type="submit"
+                      className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send magic link'}
+                    </Button>
+
+                    <p className="text-xs text-center text-muted-foreground pt-2">
+                      No password needed. We&apos;ll email you a secure link.
+                    </p>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPasswordMode('sign-in')
+                          setError(null)
+                        }}
+                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                          passwordMode === 'sign-in'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Sign in
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPasswordMode('sign-up')
+                          setError(null)
+                        }}
+                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                          passwordMode === 'sign-up'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Create account
+                      </button>
+                    </div>
+
+                    <form onSubmit={handlePasswordAuth} className="space-y-4">
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                          autoFocus
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          placeholder={passwordMode === 'sign-in' ? 'Password' : 'Create a password'}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        />
+                      </div>
+
+                      {passwordMode === 'sign-up' && (
+                        <div className="relative">
+                          <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            type="password"
+                            placeholder="Confirm password"
+                            required
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                          />
+                        </div>
+                      )}
+
+                      <Button
+                        type="submit"
+                        className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : passwordMode === 'sign-in' ? (
+                          'Sign in with password'
+                        ) : (
+                          'Create password account'
+                        )}
+                      </Button>
+                    </form>
+
+                    {passwordMode === 'sign-in' && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={handlePasswordReset}
+                        disabled={isLoading}
+                      >
+                        Email me a reset link
+                      </Button>
+                    )}
+
+                    <p className="text-xs text-center text-muted-foreground">
+                      {passwordMode === 'sign-in'
+                        ? 'Use this if magic links are being rate limited.'
+                        : 'New password accounts may still require an email confirmation, depending on your Supabase settings.'}
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

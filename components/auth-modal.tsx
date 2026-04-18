@@ -1,24 +1,32 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Loader2, Mail, Sparkles, Fingerprint } from "lucide-react"
+import { X, Loader2, Mail, Sparkles, Fingerprint, KeyRound } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from "@/lib/auth-redirects"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { startRegistration, startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser"
+import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser"
 
 interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
+type AuthMethod = "passkey" | "magic-link" | "password"
+type PasswordMode = "sign-in" | "sign-up"
+type SuccessState = "magic-link" | "password-signup" | "password-reset" | null
+
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [success, setSuccess] = useState<SuccessState>(null)
   const [supportsPasskey, setSupportsPasskey] = useState(false)
-  const [authMethod, setAuthMethod] = useState<"passkey" | "email">("passkey")
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("passkey")
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>("sign-in")
 
   const supabase = createClient()
 
@@ -26,16 +34,23 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const supported = browserSupportsWebAuthn()
     setSupportsPasskey(supported)
     if (!supported) {
-      setAuthMethod("email")
+      setAuthMethod("magic-link")
     }
   }, [])
 
-  const getRedirectUrl = () => {
-    // Always use production URL for magic links
-    return "https://binder.cal.gg/auth/callback"
+  useEffect(() => {
+    if (!isOpen) return
+    setError(null)
+    setSuccess(null)
+    setIsLoading(false)
+  }, [isOpen])
+
+  const closeAndReload = () => {
+    onClose()
+    window.location.reload()
   }
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
@@ -44,13 +59,85 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: getRedirectUrl(),
+          emailRedirectTo: getMagicLinkRedirectUrl(),
         },
       })
+
       if (error) throw error
-      setSuccess(true)
+      setSuccess("magic-link")
     } catch (err: any) {
       setError(err.message || "An error occurred")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      if (passwordMode === "sign-up") {
+        if (password.length < 8) {
+          throw new Error("Password must be at least 8 characters.")
+        }
+
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match.")
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: getMagicLinkRedirectUrl(),
+          },
+        })
+
+        if (error) throw error
+
+        if (data.session) {
+          closeAndReload()
+          return
+        }
+
+        setSuccess("password-signup")
+        return
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) throw error
+      closeAndReload()
+    } catch (err: any) {
+      setError(err.message || "Authentication failed")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError("Enter your email address first.")
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: getPasswordRecoveryRedirectUrl(),
+      })
+
+      if (error) throw error
+      setSuccess("password-reset")
+    } catch (err: any) {
+      setError(err.message || "Could not send a password reset link.")
     } finally {
       setIsLoading(false)
     }
@@ -61,15 +148,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError(null)
 
     try {
-      // Get authentication options from server
       const optionsRes = await fetch("/api/auth/passkey/authenticate/options", {
         method: "POST",
       })
-      
+
       if (!optionsRes.ok) throw new Error("Failed to get authentication options")
       const options = await optionsRes.json()
 
-      // Start WebAuthn authentication
       const credential = await startAuthentication({
         challenge: options.challenge,
         rpId: options.rpId,
@@ -78,7 +163,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         allowCredentials: options.allowCredentials,
       })
 
-      // Verify with server
       const verifyRes = await fetch("/api/auth/passkey/authenticate/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,8 +187,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       }
 
       const result = await verifyRes.json()
-      
-      // Use the token to sign in
+
       if (result.token && result.email) {
         const { error } = await supabase.auth.verifyOtp({
           email: result.email,
@@ -114,14 +197,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         if (error) throw error
       }
 
-      onClose()
-      window.location.reload()
+      closeAndReload()
     } catch (err: any) {
       if (err.name === "NotAllowedError") {
         setError("Authentication was cancelled")
       } else if (err.message?.includes("not found") || err.message?.includes("No passkey")) {
-        setError("No passkey found. Sign in with email first, then add a passkey in settings.")
-        setAuthMethod("email")
+        setError("No passkey found. Use magic link or password first, then add a passkey in settings.")
+        setAuthMethod("password")
       } else {
         setError(err.message || "Passkey authentication failed")
       }
@@ -130,15 +212,35 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
   }
 
+  const resetAuthState = () => {
+    setSuccess(null)
+    setError(null)
+    setPassword("")
+    setConfirmPassword("")
+  }
+
   if (!isOpen) return null
 
+  const successTitle =
+    success === "password-reset"
+      ? "Check your email"
+      : success === "password-signup"
+        ? "Confirm your email"
+        : "Check your email"
+
+  const successMessage =
+    success === "password-reset"
+      ? "We sent you a password reset link."
+      : success === "password-signup"
+        ? "We sent you a confirmation link to finish creating your account."
+        : "We sent you a magic link to sign in."
+
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-card border border-border/50 rounded-2xl w-full max-w-sm overflow-hidden animate-scale-in shadow-2xl">
-        {/* Header with gradient */}
         <div className="relative p-6 pb-4">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
           <button
@@ -147,38 +249,38 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
-          
+
           <div className="relative flex flex-col items-center text-center">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
               <Sparkles className="w-7 h-7 text-primary-foreground" />
             </div>
             <h2 className="text-2xl font-bold tracking-tight">
-              {success ? "Check your email" : "Welcome"}
+              {success ? successTitle : "Welcome"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {success 
-                ? "We sent you a magic link to sign in" 
-                : "Sign in to sync your collection across devices"
-              }
+              {success ? successMessage : "Sign in to sync your collection across devices"}
             </p>
           </div>
         </div>
 
-        {/* Content */}
         <div className="px-6 pb-6">
           {success ? (
             <div className="space-y-4">
               <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl text-center">
                 <Mail className="w-8 h-8 text-primary mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  Click the link in your email to sign in. You can close this window.
+                  {success === "password-reset"
+                    ? "Open the reset email and choose a new password."
+                    : success === "password-signup"
+                      ? "Open the confirmation email to finish setting up password sign-in."
+                      : "Click the link in your email to sign in. You can close this window."}
                 </p>
               </div>
-              <Button 
-                variant="outline" 
-                className="w-full" 
+              <Button
+                variant="outline"
+                className="w-full"
                 onClick={() => {
-                  setSuccess(false)
+                  resetAuthState()
                   setEmail("")
                 }}
               >
@@ -193,12 +295,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </div>
               )}
 
-              {/* Auth Method Toggle */}
-              {supportsPasskey && (
-                <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-xl">
+              <div className={`grid gap-2 p-1 bg-muted/50 rounded-xl ${supportsPasskey ? "grid-cols-3" : "grid-cols-2"}`}>
+                {supportsPasskey && (
                   <button
                     type="button"
-                    onClick={() => setAuthMethod("passkey")}
+                    onClick={() => {
+                      resetAuthState()
+                      setAuthMethod("passkey")
+                    }}
                     className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       authMethod === "passkey"
                         ? "bg-background text-foreground shadow-sm"
@@ -208,27 +312,45 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     <Fingerprint className="w-4 h-4" />
                     Passkey
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setAuthMethod("email")}
-                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      authMethod === "email"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Mail className="w-4 h-4" />
-                    Email
-                  </button>
-                </div>
-              )}
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetAuthState()
+                    setAuthMethod("magic-link")
+                  }}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    authMethod === "magic-link"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Mail className="w-4 h-4" />
+                  Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetAuthState()
+                    setAuthMethod("password")
+                  }}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    authMethod === "password"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <KeyRound className="w-4 h-4" />
+                  Password
+                </button>
+              </div>
 
               {authMethod === "passkey" && supportsPasskey ? (
                 <div className="space-y-4">
-                  <Button 
+                  <Button
                     type="button"
                     onClick={handlePasskeyLogin}
-                    className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow" 
+                    className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -244,8 +366,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     Use Face ID, Touch ID, or Windows Hello to sign in instantly.
                   </p>
                 </div>
-              ) : (
-                <form onSubmit={handleEmailSubmit} className="space-y-4">
+              ) : authMethod === "magic-link" ? (
+                <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <div className="relative">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -261,22 +383,122 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow" 
+                  <Button
+                    type="submit"
+                    className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
                     disabled={isLoading}
                   >
-                    {isLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      "Send magic link"
-                    )}
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send magic link"}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
                     No password needed. We&apos;ll email you a secure link.
                   </p>
                 </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordMode("sign-in")
+                        setError(null)
+                      }}
+                      className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                        passwordMode === "sign-in"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordMode("sign-up")
+                        setError(null)
+                      }}
+                      className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                        passwordMode === "sign-up"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Create account
+                    </button>
+                  </div>
+
+                  <form onSubmit={handlePasswordSubmit} className="space-y-3">
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="pl-10 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={passwordMode === "sign-in" ? "Password" : "Create a password"}
+                        className="pl-10 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        required
+                      />
+                    </div>
+                    {passwordMode === "sign-up" && (
+                      <div className="relative">
+                        <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm password"
+                          className="pl-10 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                          required
+                        />
+                      </div>
+                    )}
+
+                    <Button
+                      type="submit"
+                      className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : passwordMode === "sign-in" ? (
+                        "Sign in with password"
+                      ) : (
+                        "Create password account"
+                      )}
+                    </Button>
+                  </form>
+
+                  {passwordMode === "sign-in" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full"
+                      onClick={handlePasswordReset}
+                      disabled={isLoading}
+                    >
+                      Email me a reset link
+                    </Button>
+                  )}
+
+                  <p className="text-xs text-center text-muted-foreground">
+                    {passwordMode === "sign-in"
+                      ? "Use this if magic links are throttled or you want a normal sign-in."
+                      : "New password accounts may still require an email confirmation, depending on your Supabase settings."}
+                  </p>
+                </div>
               )}
             </div>
           )}

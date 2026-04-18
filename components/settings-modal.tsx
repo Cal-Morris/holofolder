@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { X, Grid3X3 } from "lucide-react"
+import { X, Grid3X3, CloudUpload, Loader2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import type { BinderSettings } from "@/hooks/use-settings"
 import PasskeySettings from "./passkey-settings"
 
@@ -20,9 +21,24 @@ interface SettingsModalProps {
   onClose: () => void
   settings: BinderSettings
   onUpdateSettings: (settings: Partial<BinderSettings>) => void
+  isSignedIn: boolean
+  localCollectedCount: number
+  isSyncingLocalCollection: boolean
+  localCollectionSyncMessage: string | null
+  onSyncLocalCollectionToCloud: () => void
 }
 
-export default function SettingsModal({ isOpen, onClose, settings, onUpdateSettings }: SettingsModalProps) {
+export default function SettingsModal({
+  isOpen,
+  onClose,
+  settings,
+  onUpdateSettings,
+  isSignedIn,
+  localCollectedCount,
+  isSyncingLocalCollection,
+  localCollectionSyncMessage,
+  onSyncLocalCollectionToCloud,
+}: SettingsModalProps) {
   const [language, setLanguage] = useState<"en" | "ja">("en")
 
   if (!isOpen) return null
@@ -108,6 +124,39 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
           {/* Passkey Settings */}
           <div className="pt-4 border-t border-border">
             <PasskeySettings />
+          </div>
+
+          <div className="pt-4 border-t border-border space-y-4">
+            <div className="flex items-center gap-2">
+              <CloudUpload className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold">Collection Sync</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Local collected cards on this device: {localCollectedCount}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              disabled={!isSignedIn || isSyncingLocalCollection}
+              onClick={onSyncLocalCollectionToCloud}
+            >
+              {isSyncingLocalCollection ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
+              Replace cloud collection with local
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              This removes cloud-only collected entries and keeps the local collected state from this device as the source of truth.
+            </p>
+            {localCollectionSyncMessage && (
+              <p className="text-xs text-primary">
+                {localCollectionSyncMessage}
+              </p>
+            )}
+            {!isSignedIn && (
+              <p className="text-xs text-muted-foreground">
+                Sign in first to push the local collection to Supabase.
+              </p>
+            )}
           </div>
 
           {/* About */}

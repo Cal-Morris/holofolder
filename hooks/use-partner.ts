@@ -12,24 +12,26 @@ export interface Partner {
 
 export interface PartnerInvite {
   id: string
-  inviterEmail: string
+  inviterEmail?: string
+  inviteeEmail?: string
   status: string
   createdAt: string
 }
 
-export function usePartner(user: User | null) {
+export function usePartner() {
+  const [user, setUser] = useState<User | null>(null)
   const [partner, setPartner] = useState<Partner | null>(null)
   const [pendingInvites, setPendingInvites] = useState<PartnerInvite[]>([])
-  const [sentInvites, setSentInvites] = useState<PartnerInvite[]>([])
+  const [receivedInvites, setReceivedInvites] = useState<PartnerInvite[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const supabase = createClient()
 
-  const loadPartnerData = useCallback(async () => {
-    if (!user) {
+  const loadPartnerData = useCallback(async (currentUser: User | null) => {
+    if (!currentUser) {
       setPartner(null)
       setPendingInvites([])
-      setSentInvites([])
+      setReceivedInvites([])
       setIsLoading(false)
       return
     }
@@ -40,12 +42,12 @@ export function usePartner(user: User | null) {
       const { data: partnerships } = await supabase
         .from("partnerships")
         .select("*")
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
         .limit(1)
         .single()
 
       if (partnerships) {
-        const partnerId = partnerships.user1_id === user.id ? partnerships.user2_id : partnerships.user1_id
+        const partnerId = partnerships.user1_id === currentUser.id ? partnerships.user2_id : partnerships.user1_id
         const { data: partnerUser } = await supabase.auth.admin?.getUserById?.(partnerId) || {}
         setPartner({
           id: partnerId,
@@ -57,31 +59,36 @@ export function usePartner(user: User | null) {
       }
 
       // Load pending invites received
-      const { data: received } = await supabase
-        .from("partner_invites")
-        .select("*")
-        .eq("invitee_email", user.email)
-        .eq("status", "pending")
+      if (currentUser.email) {
+        const { data: received } = await supabase
+          .from("partner_invites")
+          .select("*")
+          .eq("invitee_email", currentUser.email)
+          .eq("status", "pending")
 
-      setPendingInvites(
-        (received || []).map((i) => ({
-          id: i.id,
-          inviterEmail: "User",
-          status: i.status,
-          createdAt: i.created_at,
-        }))
-      )
+        setReceivedInvites(
+          (received || []).map((i) => ({
+            id: i.id,
+            inviterEmail: i.inviter_email || "User",
+            status: i.status,
+            createdAt: i.created_at,
+          }))
+        )
+      } else {
+        setReceivedInvites([])
+      }
 
       // Load sent invites
       const { data: sent } = await supabase
         .from("partner_invites")
         .select("*")
-        .eq("inviter_id", user.id)
+        .eq("inviter_id", currentUser.id)
+        .eq("status", "pending")
 
-      setSentInvites(
+      setPendingInvites(
         (sent || []).map((i) => ({
           id: i.id,
-          inviterEmail: i.invitee_email,
+          inviteeEmail: i.invitee_email,
           status: i.status,
           createdAt: i.created_at,
         }))
@@ -91,11 +98,25 @@ export function usePartner(user: User | null) {
     } finally {
       setIsLoading(false)
     }
-  }, [user, supabase])
+  }, [supabase])
 
   useEffect(() => {
-    loadPartnerData()
-  }, [loadPartnerData])
+    const loadUserAndPartnerData = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      setUser(currentUser)
+      await loadPartnerData(currentUser)
+    }
+
+    loadUserAndPartnerData()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      await loadPartnerData(currentUser)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [loadPartnerData, supabase])
 
   const sendInvite = useCallback(async (email: string) => {
     if (!user) return { error: "Not logged in" }
@@ -108,7 +129,7 @@ export function usePartner(user: User | null) {
       })
 
       if (error) throw error
-      await loadPartnerData()
+      await loadPartnerData(user)
       return { success: true }
     } catch (err: any) {
       return { error: err.message }
@@ -139,7 +160,7 @@ export function usePartner(user: User | null) {
         .update({ status: "accepted" })
         .eq("id", inviteId)
 
-      await loadPartnerData()
+      await loadPartnerData(user)
       return { success: true }
     } catch (err: any) {
       return { error: err.message }
@@ -155,7 +176,7 @@ export function usePartner(user: User | null) {
         .update({ status: "rejected" })
         .eq("id", inviteId)
 
-      await loadPartnerData()
+      await loadPartnerData(user)
       return { success: true }
     } catch (err: any) {
       return { error: err.message }
@@ -181,12 +202,12 @@ export function usePartner(user: User | null) {
   return {
     partner,
     pendingInvites,
-    sentInvites,
+    receivedInvites,
     isLoading,
     sendInvite,
     acceptInvite,
     rejectInvite,
     removePartner,
-    refresh: loadPartnerData,
+    refresh: () => loadPartnerData(user),
   }
 }
