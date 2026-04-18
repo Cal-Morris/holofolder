@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
+import { generateChallenge, storeChallenge } from "@/lib/webauthn"
+
+export async function POST() {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    }
+
+    const challenge = await generateChallenge()
+    await storeChallenge(`register:${user.id}`, challenge)
+
+    // Get existing credentials to exclude
+    const { data: existingCreds } = await supabase
+      .from("passkey_credentials")
+      .select("credential_id")
+      .eq("user_id", user.id)
+
+    const options = {
+      challenge,
+      rp: {
+        name: "Pokemon Binder",
+        id: process.env.NODE_ENV === "production" ? "binder.cal.gg" : "localhost",
+      },
+      user: {
+        id: Buffer.from(user.id).toString("base64url"),
+        name: user.email || user.id,
+        displayName: user.email?.split("@")[0] || "User",
+      },
+      pubKeyCredParams: [
+        { alg: -7, type: "public-key" as const },   // ES256
+        { alg: -257, type: "public-key" as const }, // RS256
+      ],
+      timeout: 60000,
+      attestation: "none" as const,
+      excludeCredentials: existingCreds?.map(c => ({
+        id: c.credential_id,
+        type: "public-key" as const,
+      })) || [],
+      authenticatorSelection: {
+        authenticatorAttachment: "platform" as const,
+        requireResidentKey: true,
+        residentKey: "required" as const,
+        userVerification: "required" as const,
+      },
+    }
+
+    return NextResponse.json(options)
+  } catch (error) {
+    console.error("[v0] Error generating registration options:", error)
+    return NextResponse.json({ error: "Failed to generate options" }, { status: 500 })
+  }
+}
