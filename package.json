@@ -7,7 +7,6 @@
     "dev": "next dev",
     "lint": "eslint .",
     "sync-card-db": "bun scripts/sync-card-db.ts",
-    "workflow:setup": "bun scripts/setup-workflow-postgres.ts",
     "start": "next start"
   },
   "dependencies": {
@@ -45,7 +44,6 @@
     "@tcgdex/sdk": "2.7.1",
     "@upstash/redis": "latest",
     "@vercel/analytics": "latest",
-    "@workflow/world-postgres": "^4.1.1",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -67,7 +65,6 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
-    "workflow": "^4.2.4",
     "zod": "3.25.76"
   },
   "devDependencies": {

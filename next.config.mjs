@@ -1,5 +1,3 @@
-import { withWorkflow } from "workflow/next"
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -10,4 +8,4 @@ const nextConfig = {
   },
 }
 
-export default withWorkflow(nextConfig)
+export default nextConfig

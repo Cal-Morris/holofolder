@@ -177,8 +177,8 @@ export function withNoVerifySslMode(connectionString: string) {
   return `${connectionString}${separator}sslmode=no-verify`
 }
 
-export function getWorkflowPostgresUrl() {
-  return withNoVerifySslMode(process.env.WORKFLOW_POSTGRES_URL || ensureEnv("POSTGRES_URL_NON_POOLING"))
+export function getMirrorDatabaseUrl() {
+  return withNoVerifySslMode(process.env.POSTGRES_URL_NON_POOLING || ensureEnv("DATABASE_URL"))
 }
 
 async function runCommand(command: string, args: string[], cwd: string | undefined, logger?: (message: string) => void) {
@@ -661,7 +661,7 @@ async function seedMirror(
 export async function runCardDbSync(options: CardDbSyncOptions = {}): Promise<CardDbSyncResult> {
   const projectRoot = getProjectRoot(options.projectRoot)
   const logger = options.logger
-  const connectionString = getWorkflowPostgresUrl()
+  const connectionString = getMirrorDatabaseUrl()
   const repoDir = await ensureCardsDatabaseRepo(projectRoot, logger)
   const repoCommit = await getRepoCommitSha(repoDir)
   logWith(logger, `Using cards-database commit ${repoCommit}`)
