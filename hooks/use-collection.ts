@@ -38,15 +38,37 @@ interface SyncLocalCollectionResult {
 interface UseCollectionOptions {
   initialUser?: User | null
   initialCollection?: CollectedPokemon[]
+  initialCollectionOwnerUserId?: string | null
 }
 
 export function useCollection(options: UseCollectionOptions = {}) {
-  const { initialUser = null, initialCollection = [] } = options
+  const { initialUser = null, initialCollection = [], initialCollectionOwnerUserId = null } = options
   const [user, setUser] = useState<User | null>(initialUser)
   const [collection, setCollection] = useState<CollectedPokemon[]>(initialCollection)
+  const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
   const supabase = createClient()
   const didMount = useRef(false)
+
+  const resolveCollectionOwnerUserId = useCallback(async (currentUser: User | null) => {
+    if (!currentUser) {
+      setCollectionOwnerUserId(null)
+      return null
+    }
+
+    const { data: partnership, error } = await supabase
+      .from("partnerships")
+      .select("owner_user_id")
+      .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+
+    const ownerUserId = partnership?.owner_user_id || currentUser.id
+    setCollectionOwnerUserId(ownerUserId)
+    return ownerUserId
+  }, [supabase])
 
   const refreshLocalCollectedCount = useCallback(() => {
     setLocalCollectedCount(readLocalCollectedIds().length)
@@ -78,14 +100,17 @@ export function useCollection(options: UseCollectionOptions = {}) {
         setUser(currentUser)
 
         if (currentUser) {
+          const ownerUserId = await resolveCollectionOwnerUserId(currentUser)
           const { data, error } = await supabase
             .from("pokemon_collection")
             .select("*")
-            .eq("user_id", currentUser.id)
+            .eq("user_id", ownerUserId)
             .order("pokemon_id", { ascending: true })
 
           if (error) throw error
           setCollection(data || [])
+        } else {
+          setCollection([])
         }
       } catch (error) {
         console.error("[binderdex] Error loading collection:", error)
@@ -93,27 +118,29 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     reloadCollection()
-  }, [supabase])
+  }, [resolveCollectionOwnerUserId, supabase])
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
 
       if (session?.user) {
+        const ownerUserId = await resolveCollectionOwnerUserId(session.user)
         const { data } = await supabase
           .from("pokemon_collection")
           .select("*")
-          .eq("user_id", session.user.id)
+          .eq("user_id", ownerUserId)
           .order("pokemon_id", { ascending: true })
 
         setCollection(data || [])
       } else {
+        setCollectionOwnerUserId(null)
         setCollection([])
       }
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [resolveCollectionOwnerUserId, supabase])
 
   const addToCollection = useCallback(async (
     pokemonId: number,
@@ -124,13 +151,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
     cardSet?: string,
     status: SlotStatus = 'collected'
   ) => {
-    if (!user) return { error: "Not logged in" }
+    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
 
     try {
       const { data, error } = await supabase
         .from("pokemon_collection")
         .upsert({
-          user_id: user.id,
+          user_id: collectionOwnerUserId,
           pokemon_id: pokemonId,
           pokemon_name: pokemonName,
           card_id: cardId,
@@ -164,16 +191,16 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error adding to collection:", error)
       return { error }
     }
-  }, [refreshLocalCollectedCount, supabase, user])
+  }, [collectionOwnerUserId, refreshLocalCollectedCount, supabase, user])
 
   const removeFromCollection = useCallback(async (pokemonId: number) => {
-    if (!user) return { error: "Not logged in" }
+    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
 
     try {
       const { error } = await supabase
         .from("pokemon_collection")
         .delete()
-        .eq("user_id", user.id)
+        .eq("user_id", collectionOwnerUserId)
         .eq("pokemon_id", pokemonId)
 
       if (error) throw error
@@ -187,13 +214,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error removing from collection:", error)
       return { error }
     }
-  }, [refreshLocalCollectedCount, supabase, user])
+  }, [collectionOwnerUserId, refreshLocalCollectedCount, supabase, user])
 
   const syncLocalCollectionToDatabase = useCallback(async (
     pokemonCatalog: PokemonCatalogEntry[],
     options: SyncLocalCollectionOptions = {}
   ): Promise<{ data?: SyncLocalCollectionResult; error?: unknown }> => {
-    if (!user) return { error: "Not logged in" }
+    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
 
     const localIds = readLocalCollectedIds()
     const localSet = new Set(localIds)
@@ -213,7 +240,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         const { error } = await supabase
           .from("pokemon_collection")
           .delete()
-          .eq("user_id", user.id)
+          .eq("user_id", collectionOwnerUserId)
           .in("pokemon_id", idsToRemove)
 
         if (error) throw error
@@ -223,7 +250,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
       if (replaceRemote && localIds.length > 0) {
         const rowsToReplace = localIds.map((pokemonId) => ({
-          user_id: user.id,
+          user_id: collectionOwnerUserId,
           pokemon_id: pokemonId,
           pokemon_name: catalogNames.get(pokemonId) || remoteById.get(pokemonId)?.pokemon_name || `Pokemon #${pokemonId}`,
           card_id: null,
@@ -244,7 +271,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         syncedRows = data || []
       } else if (idsToAdd.length > 0) {
         const rowsToInsert = idsToAdd.map((pokemonId) => ({
-          user_id: user.id,
+          user_id: collectionOwnerUserId,
           pokemon_id: pokemonId,
           pokemon_name: catalogNames.get(pokemonId) || remoteById.get(pokemonId)?.pokemon_name || `Pokemon #${pokemonId}`,
           status: "collected" as SlotStatus,
@@ -282,16 +309,16 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error syncing local collection:", error)
       return { error }
     }
-  }, [collection, refreshLocalCollectedCount, supabase, user])
+  }, [collection, collectionOwnerUserId, refreshLocalCollectedCount, supabase, user])
 
   const updateStatus = useCallback(async (pokemonId: number, status: SlotStatus) => {
-    if (!user) return { error: "Not logged in" }
+    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
 
     try {
       const { data, error } = await supabase
         .from("pokemon_collection")
         .update({ status })
-        .eq("user_id", user.id)
+        .eq("user_id", collectionOwnerUserId)
         .eq("pokemon_id", pokemonId)
         .select()
         .single()
@@ -306,7 +333,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error updating status:", error)
       return { error }
     }
-  }, [supabase, user])
+  }, [collectionOwnerUserId, supabase, user])
 
   const cycleStatus = useCallback(async (pokemonId: number) => {
     const item = collection.find(p => p.pokemon_id === pokemonId)
@@ -334,6 +361,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     setUser(null)
+    setCollectionOwnerUserId(null)
     setCollection([])
   }, [supabase])
 
@@ -352,5 +380,6 @@ export function useCollection(options: UseCollectionOptions = {}) {
     syncLocalCollectionToDatabase,
     localCollectedCount,
     collectionCount: collection.length,
+    collectionOwnerUserId,
   }
 }

@@ -150,6 +150,7 @@ export function usePartner({ user }: UsePartnerOptions) {
       const { error: partnershipError } = await supabase.from("partnerships").upsert({
         user1_id: userIds[0],
         user2_id: userIds[1],
+        owner_user_id: invite.inviter_id,
       }, {
         onConflict: "user1_id,user2_id",
       })

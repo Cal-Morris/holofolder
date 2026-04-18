@@ -65,6 +65,7 @@ interface InitialCollectionRow {
 interface BinderAppProps {
   initialUser: User | null
   initialCollection: InitialCollectionRow[]
+  initialCollectionOwnerUserId: string | null
   initialSettings: BinderSettings
   initialDarkMode: boolean
 }
@@ -193,7 +194,7 @@ function getScannerOverlayLayout(result: BinderPageScanResult, rows: number, col
   }))
 }
 
-export default function BinderApp({ initialUser, initialCollection, initialSettings, initialDarkMode }: BinderAppProps) {
+export default function BinderApp({ initialUser, initialCollection, initialCollectionOwnerUserId, initialSettings, initialDarkMode }: BinderAppProps) {
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonSummary | null>(null)
   const [isDarkMode, setIsDarkMode] = useState(initialDarkMode)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -240,7 +241,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
     collection,
     syncLocalCollectionToDatabase,
     localCollectedCount,
-  } = useCollection({ initialUser, initialCollection })
+  } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId })
   const { settings, updateSettings } = useSettings({ initialSettings, initialUser })
 
   const slotsPerPage = settings.binderRows * settings.binderCols
@@ -836,7 +837,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
               {user && (
                 <div className="hidden md:flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-1">
                   <span className="text-xs font-bold text-primary tabular-nums">{collectionCount}</span>
-                  <span className="text-[10px] text-primary/70">owned</span>
+                  <span className="text-[10px] text-primary/70">collected</span>
                 </div>
               )}
 
@@ -1088,7 +1089,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
                       <p className="text-xs text-primary mt-0.5 truncate">{collectionItem.card_name}</p>
                     )}
                     {collected && !collectionItem?.card_name && (
-                      <p className="text-xs text-muted-foreground mt-0.5">Owned, no card assigned</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Collected, no card assigned</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1099,7 +1100,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
                         variant="outline"
                         size="sm"
                       >
-                        Mark owned
+                        Collect
                       </Button>
                     )}
                     <Button
@@ -1131,7 +1132,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
                   </div>
                 </div>
                 <p className="mt-3 text-[11px] text-muted-foreground">
-                  Mark owned saves it instantly. Pick card lets you assign the exact TCG printing.
+                  Collect saves it instantly. Pick card lets you assign the exact TCG printing.
                 </p>
               </div>
             )}
@@ -1278,7 +1279,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
             {/* Page Info Footer */}
             <div className="flex flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground/70 shrink-0">
               <p className="text-center">
-                Tap a Pokemon to inspect or pick a card. Tap the small check or cross for quick owned/unowned.
+                Tap a Pokemon to inspect or pick a card. Tap the small check or cross for quick collect/remove.
               </p>
               <div className="flex items-center justify-center gap-3">
               <span className="tabular-nums">{settings.binderRows}x{settings.binderCols} Binder</span>
@@ -1328,7 +1329,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
                     size="sm"
                     className="h-8 px-2.5 text-xs"
                   >
-                    Owned
+                    Collect
                   </Button>
                 )}
                 <Button
@@ -1362,7 +1363,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
               </div>
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Owned is the fast path. Pick card opens the TCG list.
+              Collect is the fast path. Pick card opens the TCG list.
             </p>
           </div>
         </div>
@@ -1532,7 +1533,7 @@ function PokemonSlot({
         type="button"
         onClick={handleQuickToggleClick}
         aria-label={isCollected ? `Remove ${pokemon.name} from collection` : `Quick collect ${pokemon.name}`}
-        title={isCollected ? `Mark ${pokemon.name} unowned` : `Mark ${pokemon.name} owned`}
+        title={isCollected ? `Remove ${pokemon.name} from collection` : `Collect ${pokemon.name}`}
         className={`absolute bottom-1 right-1 z-20 flex h-6 w-6 items-center justify-center rounded-full border shadow-lg backdrop-blur-sm transition-all ${
           isCollected
             ? "bg-destructive/85 border-destructive/60 text-white hover:bg-destructive"
