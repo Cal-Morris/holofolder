@@ -39,20 +39,23 @@ export function usePartner() {
     setIsLoading(true)
     try {
       // Load partnerships
-      const { data: partnerships } = await supabase
+      const { data: partnership, error: partnershipError } = await supabase
         .from("partnerships")
         .select("*")
         .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
         .limit(1)
-        .single()
+        .maybeSingle()
 
-      if (partnerships) {
-        const partnerId = partnerships.user1_id === currentUser.id ? partnerships.user2_id : partnerships.user1_id
-        const { data: partnerUser } = await supabase.auth.admin?.getUserById?.(partnerId) || {}
+      if (partnershipError) {
+        throw partnershipError
+      }
+
+      if (partnership) {
+        const partnerId = partnership.user1_id === currentUser.id ? partnership.user2_id : partnership.user1_id
         setPartner({
           id: partnerId,
-          email: partnerUser?.user?.email || "Partner",
-          partneredAt: partnerships.created_at,
+          email: "Partner",
+          partneredAt: partnership.created_at,
         })
       } else {
         setPartner(null)
