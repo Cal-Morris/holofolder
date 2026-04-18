@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { addLocalCollectedId, readLocalCollectedIds, removeLocalCollectedId, writeLocalCollectedIds } from "@/lib/local-collection"
 import type { User } from "@supabase/supabase-js"
 
-export type SlotStatus = 'collected' | 'finalized' | 'considering'
+export type SlotStatus = 'collected' | 'finalized' | 'considering' | 'wishlisted'
 
 interface CollectedPokemon {
   id: string
@@ -41,10 +41,60 @@ interface UseCollectionOptions {
   initialCollectionOwnerUserId?: string | null
 }
 
+function isSlotStatus(value: unknown): value is SlotStatus {
+  return value === "collected" || value === "finalized" || value === "considering" || value === "wishlisted"
+}
+
+function normalizeCollectionItem(item: Partial<CollectedPokemon>): CollectedPokemon {
+  return {
+    id: typeof item.id === "string" ? item.id : crypto.randomUUID(),
+    pokemon_id: typeof item.pokemon_id === "number" ? item.pokemon_id : 0,
+    pokemon_name: typeof item.pokemon_name === "string" ? item.pokemon_name : "Unknown Pokemon",
+    card_id: typeof item.card_id === "string" ? item.card_id : undefined,
+    card_name: typeof item.card_name === "string" ? item.card_name : undefined,
+    card_image: typeof item.card_image === "string" ? item.card_image : undefined,
+    card_set: typeof item.card_set === "string" ? item.card_set : undefined,
+    status: isSlotStatus(item.status) ? item.status : "collected",
+    collected_at: typeof item.collected_at === "string" ? item.collected_at : new Date().toISOString(),
+  }
+}
+
+function normalizeCollectionItems(items: Partial<CollectedPokemon>[] | null | undefined) {
+  return Array.isArray(items) ? items.map((item) => normalizeCollectionItem(item)) : []
+}
+
+function extractErrorMessage(error: unknown) {
+  if (!error) return "Unknown error"
+  if (error instanceof Error) return error.message
+  if (typeof error === "object") {
+    const candidate = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
+    const parts = [candidate.message, candidate.details, candidate.hint, candidate.code].filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    )
+    if (parts.length > 0) {
+      return parts.join(" | ")
+    }
+  }
+  return String(error)
+}
+
+function isMissingStatusColumnError(error: unknown) {
+  const message = extractErrorMessage(error).toLowerCase()
+  return message.includes("status") && (
+    message.includes("column") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist")
+  )
+}
+
+async function readJsonResponse(response: Response) {
+  return response.json().catch(() => null)
+}
+
 export function useCollection(options: UseCollectionOptions = {}) {
   const { initialUser = null, initialCollection = [], initialCollectionOwnerUserId = null } = options
   const [user, setUser] = useState<User | null>(initialUser)
-  const [collection, setCollection] = useState<CollectedPokemon[]>(initialCollection)
+  const [collection, setCollection] = useState<CollectedPokemon[]>(normalizeCollectionItems(initialCollection))
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
   const supabase = createClient()
@@ -108,7 +158,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
             .order("pokemon_id", { ascending: true })
 
           if (error) throw error
-          setCollection(data || [])
+          setCollection(normalizeCollectionItems(data))
         } else {
           setCollection([])
         }
@@ -132,7 +182,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           .eq("user_id", ownerUserId)
           .order("pokemon_id", { ascending: true })
 
-        setCollection(data || [])
+        setCollection(normalizeCollectionItems(data))
       } else {
         setCollectionOwnerUserId(null)
         setCollection([])
@@ -154,42 +204,75 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
 
     try {
-      const { data, error } = await supabase
-        .from("pokemon_collection")
-        .upsert({
-          user_id: collectionOwnerUserId,
-          pokemon_id: pokemonId,
-          pokemon_name: pokemonName,
-          card_id: cardId,
-          card_name: cardName,
-          card_image: cardImage,
-          card_set: cardSet,
-          status,
-        }, {
-          onConflict: "user_id,pokemon_id"
-        })
-        .select()
-        .single()
+      const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+      const nextItem = normalizeCollectionItem({
+        id: existingItem?.id,
+        pokemon_id: pokemonId,
+        pokemon_name: pokemonName,
+        card_id: cardId,
+        card_name: cardName,
+        card_image: cardImage,
+        card_set: cardSet,
+        status,
+        collected_at: existingItem?.collected_at,
+      })
 
-      if (error) throw error
+      const response = await fetch("/api/collection", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          pokemonId,
+          pokemonName,
+          cardId,
+          cardName,
+          cardImage,
+          cardSet,
+          status,
+        })
+      })
+
+      if (!response.ok) {
+        const payload = await readJsonResponse(response)
+        const message = payload?.error || `Failed to save collection item (${response.status})`
+        if (isMissingStatusColumnError(message)) {
+          throw new Error(
+            "The database is missing pokemon_collection.status. Run scripts/008_add_collection_status.sql against Supabase, then retry.",
+          )
+        }
+        throw new Error(message)
+      }
+
+      const payload = await readJsonResponse(response)
+      const savedItem = normalizeCollectionItem(payload?.item ?? nextItem)
 
       setCollection(prev => {
         const existing = prev.findIndex(p => p.pokemon_id === pokemonId)
         if (existing >= 0) {
           const updated = [...prev]
-          updated[existing] = data
+          updated[existing] = savedItem
           return updated
         }
-        return [...prev, data].sort((a, b) => a.pokemon_id - b.pokemon_id)
+        return [...prev, savedItem].sort((a, b) => a.pokemon_id - b.pokemon_id)
       })
 
-      addLocalCollectedId(pokemonId)
+      if (status === "wishlisted") {
+        removeLocalCollectedId(pokemonId)
+      } else {
+        addLocalCollectedId(pokemonId)
+      }
       refreshLocalCollectedCount()
 
-      return { data }
+      return { data: savedItem }
     } catch (error) {
-      console.error("[binderdex] Error adding to collection:", error)
-      return { error }
+      console.error("[binderdex] Error adding to collection:", {
+        message: extractErrorMessage(error),
+        raw: error,
+        pokemonId,
+        status,
+      })
+      return { error: extractErrorMessage(error) }
     }
   }, [collectionOwnerUserId, refreshLocalCollectedCount, supabase, user])
 
@@ -197,13 +280,14 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
 
     try {
-      const { error } = await supabase
-        .from("pokemon_collection")
-        .delete()
-        .eq("user_id", collectionOwnerUserId)
-        .eq("pokemon_id", pokemonId)
+      const response = await fetch(`/api/collection?pokemonId=${pokemonId}`, {
+        method: "DELETE",
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const payload = await readJsonResponse(response)
+        throw new Error(payload?.error || `Failed to delete collection item (${response.status})`)
+      }
 
       setCollection(prev => prev.filter(p => p.pokemon_id !== pokemonId))
       removeLocalCollectedId(pokemonId)
@@ -224,13 +308,15 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const localIds = readLocalCollectedIds()
     const localSet = new Set(localIds)
-    const remoteById = new Map(collection.map((item) => [item.pokemon_id, item] as const))
+    const collectedRows = collection.filter((item) => item.status !== "wishlisted")
+    const wishlistedRows = collection.filter((item) => item.status === "wishlisted")
+    const remoteById = new Map(collectedRows.map((item) => [item.pokemon_id, item] as const))
     const catalogNames = new Map(pokemonCatalog.map((pokemon) => [pokemon.id, pokemon.name] as const))
     const replaceRemote = options.replaceRemote === true
 
     const idsToAdd = localIds.filter((pokemonId) => !remoteById.has(pokemonId))
     const idsToRemove = replaceRemote
-      ? collection
+      ? collectedRows
           .filter((item) => !localSet.has(item.pokemon_id))
           .map((item) => item.pokemon_id)
       : []
@@ -268,7 +354,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           .select()
 
         if (error) throw error
-        syncedRows = data || []
+        syncedRows = normalizeCollectionItems(data)
       } else if (idsToAdd.length > 0) {
         const rowsToInsert = idsToAdd.map((pokemonId) => ({
           user_id: collectionOwnerUserId,
@@ -285,11 +371,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
           .select()
 
         if (error) throw error
-        syncedRows = data || []
+        syncedRows = normalizeCollectionItems(data)
       }
 
       const keptRows = replaceRemote
-        ? []
+        ? wishlistedRows
         : collection.filter((item) => !idsToRemove.includes(item.pokemon_id))
       const nextCollection = [...keptRows, ...syncedRows].sort((a, b) => a.pokemon_id - b.pokemon_id)
 
@@ -315,29 +401,37 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
 
     try {
-      const { data, error } = await supabase
-        .from("pokemon_collection")
-        .update({ status })
-        .eq("user_id", collectionOwnerUserId)
-        .eq("pokemon_id", pokemonId)
-        .select()
-        .single()
+      const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+      const response = await fetch("/api/collection", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ pokemonId, status }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const payload = await readJsonResponse(response)
+        throw new Error(payload?.error || `Failed to update collection item (${response.status})`)
+      }
+
+      const payload = await readJsonResponse(response)
+      const savedItem = payload?.item ? normalizeCollectionItem(payload.item) : (existingItem ? { ...existingItem, status } : null)
 
       setCollection(prev => prev.map(p =>
-        p.pokemon_id === pokemonId ? { ...p, status } : p
+        p.pokemon_id === pokemonId ? (savedItem ?? { ...p, status }) : p
       ))
-      return { data }
+      return { data: savedItem ?? (existingItem ? { ...existingItem, status } : { pokemon_id: pokemonId, status }) }
     } catch (error) {
       console.error("[binderdex] Error updating status:", error)
       return { error }
     }
-  }, [collectionOwnerUserId, supabase, user])
+  }, [collection, collectionOwnerUserId, supabase, user])
 
   const cycleStatus = useCallback(async (pokemonId: number) => {
     const item = collection.find(p => p.pokemon_id === pokemonId)
     if (!item) return { error: "Not in collection" }
+    if (item.status === "wishlisted") return { error: "Wishlisted cards do not have collection status" }
 
     const statusOrder: SlotStatus[] = ['collected', 'considering', 'finalized']
     const currentIndex = statusOrder.indexOf(item.status || 'collected')
@@ -347,7 +441,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [collection, updateStatus])
 
   const isCollected = useCallback((pokemonId: number) => {
-    return collection.some(p => p.pokemon_id === pokemonId)
+    return collection.some((p) => p.pokemon_id === pokemonId && p.status !== "wishlisted")
+  }, [collection])
+
+  const isWishlisted = useCallback((pokemonId: number) => {
+    return collection.some((p) => p.pokemon_id === pokemonId && p.status === "wishlisted")
   }, [collection])
 
   const getCollectedCard = useCallback((pokemonId: number) => {
@@ -374,12 +472,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
     updateStatus,
     cycleStatus,
     isCollected,
+    isWishlisted,
     getCollectedCard,
     getCollectionItem,
     signOut,
     syncLocalCollectionToDatabase,
     localCollectedCount,
-    collectionCount: collection.length,
+    collectionCount: collection.filter((item) => item.status !== "wishlisted").length,
     collectionOwnerUserId,
   }
 }

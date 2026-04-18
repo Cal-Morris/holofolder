@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTCGdex, type TCGCard, type CardFilters } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,13 +14,153 @@ interface CardSelectorProps {
   onSelect: (card: TCGCard | null) => void
   onClose: () => void
   selectedCardId?: string
+  mode?: "collect" | "wishlist"
 }
-
-const ALL_FILTERS_VALUE = "__all__"
 
 interface CardScanMatch {
   card: TCGCard
   similarity: number
+}
+
+interface AggregatedCardMatch {
+  card: TCGCard
+  score: number
+  averageSimilarity: number
+  appearances: number
+}
+
+const ALL_FILTERS_VALUE = "__all__"
+const CARD_SCAN_FRAME_COUNT = 8
+const CARD_SCAN_FRAME_DELAY_MS = 450
+const CARD_SCAN_MIN_USABLE_FRAMES = 3
+const CARD_GUIDE_INSET_X = 0.18
+const CARD_GUIDE_INSET_Y = 0.1
+const CARD_ASPECT_RATIO = 2.5 / 3.5
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function canvasToFile(canvas: HTMLCanvasElement, index: number) {
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92))
+  if (!blob) {
+    throw new Error("Could not encode the card scan frame.")
+  }
+
+  return new File([blob], `card-scan-${index}.jpg`, { type: "image/jpeg" })
+}
+
+function drawVideoCoverFrame(
+  video: HTMLVideoElement,
+  context: CanvasRenderingContext2D,
+  targetWidth: number,
+  targetHeight: number,
+) {
+  const videoWidth = video.videoWidth || 1280
+  const videoHeight = video.videoHeight || 720
+  const scale = Math.max(targetWidth / videoWidth, targetHeight / videoHeight)
+  const drawWidth = videoWidth * scale
+  const drawHeight = videoHeight * scale
+  const offsetX = (targetWidth - drawWidth) / 2
+  const offsetY = (targetHeight - drawHeight) / 2
+
+  context.clearRect(0, 0, targetWidth, targetHeight)
+  context.drawImage(video, offsetX, offsetY, drawWidth, drawHeight)
+}
+
+function cropCanvasToCardGuide(sourceCanvas: HTMLCanvasElement) {
+  const availableWidth = sourceCanvas.width * (1 - CARD_GUIDE_INSET_X * 2)
+  const availableHeight = sourceCanvas.height * (1 - CARD_GUIDE_INSET_Y * 2)
+  let cropWidth = availableWidth
+  let cropHeight = cropWidth / CARD_ASPECT_RATIO
+
+  if (cropHeight > availableHeight) {
+    cropHeight = availableHeight
+    cropWidth = cropHeight * CARD_ASPECT_RATIO
+  }
+
+  const cropX = Math.round((sourceCanvas.width - cropWidth) / 2)
+  const cropY = Math.round((sourceCanvas.height - cropHeight) / 2)
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.max(220, Math.round(cropWidth))
+  canvas.height = Math.max(300, Math.round(cropHeight))
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Could not crop the card guide frame.")
+  }
+
+  context.drawImage(
+    sourceCanvas,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  )
+
+  return canvas
+}
+
+async function captureGuidedCardFrameFile(video: HTMLVideoElement, canvas: HTMLCanvasElement, index: number) {
+  const previewWidth = Math.max(480, Math.round((video.clientWidth || 360) * 2))
+  const previewHeight = Math.max(820, Math.round((video.clientHeight || 640) * 2))
+  canvas.width = previewWidth
+  canvas.height = previewHeight
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Could not capture the card scanner frame.")
+  }
+
+  drawVideoCoverFrame(video, context, previewWidth, previewHeight)
+  const guidedCanvas = cropCanvasToCardGuide(canvas)
+
+  return {
+    file: await canvasToFile(guidedCanvas, index),
+    previewUrl: guidedCanvas.toDataURL("image/jpeg", 0.82),
+  }
+}
+
+function aggregateCardScanMatches(frameMatches: CardScanMatch[][]) {
+  const aggregateMap = new Map<string, AggregatedCardMatch>()
+
+  for (const matches of frameMatches) {
+    matches.slice(0, 6).forEach((match, index) => {
+      const entry = aggregateMap.get(match.card.id) ?? {
+        card: match.card,
+        score: 0,
+        averageSimilarity: 0,
+        appearances: 0,
+      }
+
+      const rankWeight = 1.2 - index * 0.12
+      entry.score += Math.max(0.05, rankWeight) * match.similarity
+      entry.averageSimilarity += match.similarity
+      entry.appearances += 1
+      aggregateMap.set(match.card.id, entry)
+    })
+  }
+
+  return [...aggregateMap.values()]
+    .map((entry) => ({
+      card: entry.card,
+      similarity: entry.averageSimilarity / entry.appearances,
+      score: entry.score,
+      appearances: entry.appearances,
+    }))
+    .sort((left, right) => {
+      if (right.appearances !== left.appearances) {
+        return right.appearances - left.appearances
+      }
+      if (right.score !== left.score) {
+        return right.score - left.score
+      }
+      return right.similarity - left.similarity
+    })
 }
 
 export default function CardSelector({
@@ -29,6 +169,7 @@ export default function CardSelector({
   onSelect,
   onClose,
   selectedCardId,
+  mode = "collect",
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
   const [cards, setCards] = useState<TCGCard[]>([])
@@ -37,13 +178,24 @@ export default function CardSelector({
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null)
   const [scanMatches, setScanMatches] = useState<CardScanMatch[]>([])
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [isCardScannerOpen, setIsCardScannerOpen] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [isCameraReady, setIsCameraReady] = useState(false)
+  const [isCapturingCardScan, setIsCapturingCardScan] = useState(false)
+  const [isApplyingCardResults, setIsApplyingCardResults] = useState(false)
+  const [cardFramesProcessed, setCardFramesProcessed] = useState(0)
+  const [cardUsableFrames, setCardUsableFrames] = useState(0)
+  const [lastFramePreviewUrl, setLastFramePreviewUrl] = useState<string | null>(null)
   const descriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
+  const cameraStreamRef = useRef<MediaStream | null>(null)
+  const cardVideoRef = useRef<HTMLVideoElement | null>(null)
+  const cardCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const isWishlistMode = mode === "wishlist"
 
   useEffect(() => {
     const load = async () => {
       const cardsData = await fetchCardsForPokemon(pokemonId)
-      setCards(cardsData)
+      setCards(cardsData.filter((card) => Boolean(card.image)))
     }
     load()
   }, [pokemonId, fetchCardsForPokemon])
@@ -58,6 +210,7 @@ export default function CardSelector({
       }
       return null
     })
+    setLastFramePreviewUrl(null)
   }, [pokemonId])
 
   useEffect(() => {
@@ -68,16 +221,67 @@ export default function CardSelector({
     }
   }, [scanPreviewUrl])
 
+  useEffect(() => {
+    if (!isCardScannerOpen) {
+      return
+    }
+
+    let cancelled = false
+
+    const startCamera = async () => {
+      setCameraError(null)
+      setIsCameraReady(false)
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        })
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
+
+        cameraStreamRef.current = stream
+        if (cardVideoRef.current) {
+          cardVideoRef.current.srcObject = stream
+          await cardVideoRef.current.play()
+        }
+        setIsCameraReady(true)
+      } catch (cameraError) {
+        setCameraError(cameraError instanceof Error ? cameraError.message : "Could not access the camera.")
+      }
+    }
+
+    startCamera()
+
+    return () => {
+      cancelled = true
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+      cameraStreamRef.current = null
+      if (cardVideoRef.current) {
+        cardVideoRef.current.srcObject = null
+      }
+    }
+  }, [isCardScannerOpen])
+
   const filteredCards = useMemo(() => filterCards(cards, filters), [cards, filters, filterCards])
   const scanRankById = useMemo(() => {
     return new Map(scanMatches.map((match, index) => [match.card.id, index + 1]))
   }, [scanMatches])
   const displayedCards = useMemo(() => {
     if (scanRankById.size === 0) {
-      return filteredCards
+      return filteredCards.filter((card) => Boolean(card.image))
     }
 
-    return [...filteredCards].sort((left, right) => {
+    return [...filteredCards]
+      .filter((card) => Boolean(card.image))
+      .sort((left, right) => {
       const leftRank = scanRankById.get(left.id) ?? Number.POSITIVE_INFINITY
       const rightRank = scanRankById.get(right.id) ?? Number.POSITIVE_INFINITY
 
@@ -85,8 +289,8 @@ export default function CardSelector({
         return leftRank - rightRank
       }
 
-      return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: "base" })
-    })
+        return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: "base" })
+      })
   }, [filteredCards, scanRankById])
 
   const uniqueSets = useMemo(() => {
@@ -99,7 +303,9 @@ export default function CardSelector({
     return [...new Set(cards.map((c) => c.rarity).filter(Boolean))] as string[]
   }, [cards])
 
-  async function getDescriptorForCard(card: TCGCard) {
+  const hasActiveFilters = Boolean(filters.set || filters.rarity || filters.variant || filters.searchQuery)
+
+  const getDescriptorForCard = useCallback(async (card: TCGCard) => {
     if (!card.image) {
       return null
     }
@@ -116,302 +322,510 @@ export default function CardSelector({
     const descriptorPromise = buildCardImageDescriptor(proxyUrl).catch(() => null)
     descriptorCacheRef.current.set(card.id, descriptorPromise)
     return descriptorPromise
-  }
+  }, [])
 
-  async function handleScanFile(file: File) {
+  const scoreSingleCardFrame = useCallback(async (file: File) => {
     const candidates = cards.filter((card) => Boolean(card.image))
     if (candidates.length === 0) {
-      setScanError("There are no card images loaded for this Pokemon yet.")
+      throw new Error("There are no card images loaded for this Pokemon yet.")
+    }
+
+    const queryDescriptor = await buildCardImageDescriptor(file)
+    const scoredMatches = (
+      await Promise.all(
+        candidates.map(async (card) => {
+          const descriptor = await getDescriptorForCard(card)
+          if (!descriptor) {
+            return null
+          }
+
+          const match = compareCardImageDescriptors(queryDescriptor, descriptor)
+          return {
+            card,
+            similarity: match.similarity,
+          }
+        }),
+      )
+    )
+      .filter((match): match is CardScanMatch => Boolean(match))
+      .sort((left, right) => right.similarity - left.similarity)
+
+    if (scoredMatches.length === 0) {
+      throw new Error("The scan could not compare that image to the loaded card set.")
+    }
+
+    return scoredMatches
+  }, [cards, getDescriptorForCard])
+
+  const closeCardScanner = useCallback(() => {
+    setIsCardScannerOpen(false)
+    setCameraError(null)
+    setIsCameraReady(false)
+    setIsCapturingCardScan(false)
+    setIsApplyingCardResults(false)
+    setCardFramesProcessed(0)
+    setCardUsableFrames(0)
+    setLastFramePreviewUrl(null)
+  }, [])
+
+  const openCardScanner = useCallback(() => {
+    if (cards.length === 0 || isLoading) {
       return
     }
 
+    setScanError(null)
+    setCameraError(null)
+    setCardFramesProcessed(0)
+    setCardUsableFrames(0)
+    setLastFramePreviewUrl(null)
+    setIsCardScannerOpen(true)
+  }, [cards.length, isLoading])
+
+  const handleGuidedCardScan = useCallback(async () => {
+    const video = cardVideoRef.current
+    const canvas = cardCanvasRef.current
+
+    if (!video || !canvas || !isCameraReady || isCapturingCardScan) {
+      return
+    }
+
+    setIsCapturingCardScan(true)
     setIsScanningCard(true)
     setScanError(null)
+    setCameraError(null)
+    setCardFramesProcessed(0)
+    setCardUsableFrames(0)
     setScanMatches([])
-    setScanPreviewUrl((currentUrl) => {
-      if (currentUrl) {
-        URL.revokeObjectURL(currentUrl)
-      }
-      return URL.createObjectURL(file)
-    })
 
     try {
-      const queryDescriptor = await buildCardImageDescriptor(file)
-      const scoredMatches = (
-        await Promise.all(
-          candidates.map(async (card) => {
-            const descriptor = await getDescriptorForCard(card)
-            if (!descriptor) {
-              return null
-            }
+      const successfulFrameMatches: CardScanMatch[][] = []
 
-            const match = compareCardImageDescriptors(queryDescriptor, descriptor)
-            return {
-              card,
-              similarity: match.similarity,
-            }
-          }),
-        )
-      )
-        .filter((match): match is CardScanMatch => Boolean(match))
-        .sort((left, right) => right.similarity - left.similarity)
+      for (let index = 0; index < CARD_SCAN_FRAME_COUNT; index += 1) {
+        setCardFramesProcessed(index + 1)
+        const frame = await captureGuidedCardFrameFile(video, canvas, index)
+        setLastFramePreviewUrl(frame.previewUrl)
 
-      if (scoredMatches.length === 0) {
-        setScanError("The scan could not compare that image to the loaded card set.")
-        return
+        try {
+          const matches = await scoreSingleCardFrame(frame.file)
+          successfulFrameMatches.push(matches)
+          setCardUsableFrames(successfulFrameMatches.length)
+          setScanPreviewUrl((currentUrl) => {
+            if (currentUrl) {
+              URL.revokeObjectURL(currentUrl)
+            }
+            return URL.createObjectURL(frame.file)
+          })
+        } catch {
+          // Ignore bad or reflective frames and keep sampling.
+        }
+
+        if (index < CARD_SCAN_FRAME_COUNT - 1) {
+          await delay(CARD_SCAN_FRAME_DELAY_MS)
+        }
       }
 
-      setScanMatches(scoredMatches.slice(0, 6))
+      if (successfulFrameMatches.length < CARD_SCAN_MIN_USABLE_FRAMES) {
+        throw new Error(
+          `Only got ${successfulFrameMatches.length} usable frame${successfulFrameMatches.length === 1 ? "" : "s"} from the scan. Fill the guide with one card and keep it steady.`,
+        )
+      }
+
+      setIsCapturingCardScan(false)
+      setIsApplyingCardResults(true)
+
+      const minimumAppearances = Math.max(2, Math.ceil(successfulFrameMatches.length * 0.45))
+      const aggregatedMatches = aggregateCardScanMatches(successfulFrameMatches)
+        .filter((match) => match.appearances >= minimumAppearances)
+        .slice(0, 6)
+        .map((match) => ({
+          card: match.card,
+          similarity: match.similarity,
+        }))
+
+      if (aggregatedMatches.length === 0) {
+        throw new Error("The scan did not get a stable match. Try again with less glare and the card centered.")
+      }
+
+      setScanMatches(aggregatedMatches)
+      closeCardScanner()
     } catch (scanError) {
       console.error(scanError)
-      setScanError("The card scan failed. Try again with the card filling most of the frame.")
+      const message = scanError instanceof Error ? scanError.message : "The card scan failed."
+      setScanError(message)
+      setCameraError(message)
     } finally {
+      setIsCapturingCardScan(false)
+      setIsApplyingCardResults(false)
       setIsScanningCard(false)
     }
-  }
+  }, [closeCardScanner, isCameraReady, isCapturingCardScan, scoreSingleCardFrame])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
-      <div
-        className="relative w-full max-w-4xl max-h-[90vh] bg-card rounded-xl border border-border overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/50">
-          <div>
-            <h2 className="text-lg font-semibold">Pick Card for {pokemonName}</h2>
-            <p className="text-sm text-muted-foreground">
-              {filteredCards.length} of {cards.length} cards
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Choose a specific printing, or scan one card photo to rank the closest matches from the loaded set.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                event.currentTarget.value = ""
-                if (file) {
-                  void handleScanFile(file)
-                }
-              }}
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading || cards.length === 0 || isScanningCard}
-            >
-              {isScanningCard ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
-              Scan card
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onSelect(null)}>
-              Skip card
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="p-4 border-b border-border bg-muted/30 space-y-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, number, or set..."
-              value={filters.searchQuery || ""}
-              onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
-              className="flex-1"
-            />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Select
-              value={filters.set || ALL_FILTERS_VALUE}
-              onValueChange={(value) => setFilters((f) => ({ ...f, set: value === ALL_FILTERS_VALUE ? undefined : value }))}
-            >
-              <SelectTrigger className="h-11 min-w-[180px] rounded-xl bg-background/80 px-4 text-left shadow-none sm:flex-1 md:flex-none">
-                <SelectValue placeholder="All Sets" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_FILTERS_VALUE}>All Sets</SelectItem>
-                {uniqueSets.map((set) => (
-                  <SelectItem key={set.id} value={set.id}>
-                    {set.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.rarity || ALL_FILTERS_VALUE}
-              onValueChange={(value) =>
-                setFilters((f) => ({ ...f, rarity: value === ALL_FILTERS_VALUE ? undefined : value }))
-              }
-            >
-              <SelectTrigger className="h-11 min-w-[180px] rounded-xl bg-background/80 px-4 text-left shadow-none sm:flex-1 md:flex-none">
-                <SelectValue placeholder="All Rarities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_FILTERS_VALUE}>All Rarities</SelectItem>
-                {uniqueRarities.map((rarity) => (
-                  <SelectItem key={rarity} value={rarity}>
-                    {rarity}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.variant || ALL_FILTERS_VALUE}
-              onValueChange={(value) =>
-                setFilters((f) => ({ ...f, variant: value === ALL_FILTERS_VALUE ? undefined : value }))
-              }
-            >
-              <SelectTrigger className="h-11 min-w-[180px] rounded-xl bg-background/80 px-4 text-left shadow-none sm:flex-1 md:flex-none">
-                <SelectValue placeholder="All Variants" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_FILTERS_VALUE}>All Variants</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="holo">Holo</SelectItem>
-                <SelectItem value="reverse">Reverse Holo</SelectItem>
-                <SelectItem value="firstEdition">1st Edition</SelectItem>
-              </SelectContent>
-            </Select>
-            {(filters.set || filters.rarity || filters.variant || filters.searchQuery) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setFilters({})}
-                className="h-11 rounded-xl px-4 text-muted-foreground"
-              >
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {(isScanningCard || scanError || scanMatches.length > 0 || scanPreviewUrl) && (
-          <div className="border-b border-border bg-background/70 p-4">
-            <div className="flex flex-col gap-4 lg:flex-row">
-              {scanPreviewUrl && (
-                <div className="w-full max-w-[180px] shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
-                  <img src={scanPreviewUrl} alt="Scanned card preview" className="h-full w-full object-cover" />
-                </div>
-              )}
-              <div className="min-w-0 flex-1 space-y-3">
+    <>
+      {isCardScannerOpen && (
+        <div className="fixed inset-0 z-[60] bg-black">
+          <canvas ref={cardCanvasRef} className="hidden" />
+          <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
                 <div>
-                  <p className="text-sm font-medium">Single-card scan</p>
-                  <p className="text-xs text-muted-foreground">
-                    Scan works against the cards already loaded for {pokemonName}. Fill the frame with one card for the best match.
-                  </p>
+                  <p className="text-sm font-semibold">Single Card Scan</p>
+                  <p className="text-xs text-white/65">Guided multi-frame scan using the same camera flow as page scanning.</p>
                 </div>
-                {isScanningCard && (
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Comparing your photo against {cards.length} loaded cards…
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={closeCardScanner}
+                  disabled={isCapturingCardScan || isApplyingCardResults}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="relative min-h-0 flex-1 bg-black">
+                <video
+                  ref={cardVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`h-full w-full object-cover transition-opacity ${lastFramePreviewUrl ? "opacity-25" : "opacity-100"}`}
+                />
+                {lastFramePreviewUrl ? (
+                  <div className="absolute inset-0">
+                    <img
+                      src={lastFramePreviewUrl}
+                      alt="Last scanned card frame"
+                      className="absolute inset-0 h-full w-full object-contain"
+                    />
+                    <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-between rounded-full border border-white/12 bg-black/60 px-3 py-2 text-[11px] text-white/80 backdrop-blur">
+                      <span>Last good frame</span>
+                      <span>{cardUsableFrames} usable</span>
+                      <span>{Math.min(CARD_SCAN_FRAME_COUNT, cardFramesProcessed)}/{CARD_SCAN_FRAME_COUNT}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div
+                      className="rounded-[2.25rem] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.36)]"
+                      style={{
+                        width: `${(1 - CARD_GUIDE_INSET_X * 2) * 100}%`,
+                        aspectRatio: `${CARD_ASPECT_RATIO}`,
+                        maxHeight: `${(1 - CARD_GUIDE_INSET_Y * 2) * 100}%`,
+                      }}
+                    />
                   </div>
                 )}
-                {scanError && <div className="text-sm text-destructive">{scanError}</div>}
-                {scanMatches.length > 0 && (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {scanMatches.map((match, index) => (
-                      <button
-                        key={match.card.id}
-                        onClick={() => onSelect(match.card)}
-                        className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
-                      >
-                        {match.card.image ? (
-                          <img
-                            src={match.card.image}
-                            alt={match.card.name}
-                            className="h-20 w-14 shrink-0 rounded-md object-cover bg-muted"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="h-20 w-14 shrink-0 rounded-md bg-muted" />
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
-                            {index === 0 ? "Best Match" : `Match ${index + 1}`}
-                          </p>
-                          <p className="truncate text-sm font-medium">{match.card.set.name}</p>
-                          <p className="text-xs text-muted-foreground">#{match.card.localId}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Similarity {Math.round(match.similarity * 100)}%
-                          </p>
-                        </div>
-                      </button>
-                    ))}
+                {!isCameraReady && !cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-sm text-white">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Starting camera
+                    </div>
                   </div>
                 )}
               </div>
+
+              <div className="space-y-3 border-t border-white/10 bg-black/85 px-4 py-4 text-white">
+                {cameraError ? (
+                  <p className="text-sm text-red-300">{cameraError}</p>
+                ) : (
+                  <p className="text-sm text-white/70">
+                    Place one card inside the guide and keep it steady. The scanner samples for about{" "}
+                    {Math.round((CARD_SCAN_FRAME_COUNT * CARD_SCAN_FRAME_DELAY_MS) / 1000)} seconds and keeps the last usable frame visible.
+                  </p>
+                )}
+
+                {isCapturingCardScan || isApplyingCardResults ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-white/65">
+                      <span>{isCapturingCardScan ? `Scanning ${cardFramesProcessed}/${CARD_SCAN_FRAME_COUNT}` : "Applying results"}</span>
+                      <span>{cardUsableFrames} usable frame{cardUsableFrames === 1 ? "" : "s"}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-white transition-all"
+                        style={{ width: `${isCapturingCardScan ? (cardFramesProcessed / CARD_SCAN_FRAME_COUNT) * 100 : 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={closeCardScanner}
+                    disabled={isCapturingCardScan || isApplyingCardResults}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleGuidedCardScan}
+                    disabled={!isCameraReady || isCapturingCardScan || isApplyingCardResults}
+                  >
+                    {isCapturingCardScan || isApplyingCardResults ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="mr-2 h-4 w-4" />
+                    )}
+                    {isCapturingCardScan ? "Scanning Card" : isApplyingCardResults ? "Applying Results" : "Start Guided Scan"}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Cards Grid */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">Loading cards...</span>
+      <div className="fixed inset-0 z-50 bg-black/80" onClick={onClose} />
+      <div
+        className="fixed inset-x-0 z-50 overflow-y-auto rounded-t-[1.75rem] border border-border bg-card sm:inset-x-4 sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          top: "calc(env(safe-area-inset-top) + 4.5rem)",
+          bottom: "calc(env(safe-area-inset-bottom) + 0.375rem)",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorY: "contain",
+          touchAction: "pan-y",
+        }}
+      >
+        <div className="flex min-h-full flex-col">
+          <div className="border-b border-border bg-muted/35 px-5 py-4 sm:px-5 sm:py-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-semibold sm:text-lg">
+                  {isWishlistMode ? `Wishlist Card for ${pokemonName}` : `Pick Card for ${pokemonName}`}
+                </h2>
+                <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-sm">
+                  {filteredCards.length} of {cards.length} cards
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" className="mr-0.5 h-8 w-8 shrink-0 rounded-full sm:h-9 sm:w-9" onClick={onClose}>
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
             </div>
-          ) : error ? (
-            <div className="text-center py-12 text-destructive">{error}</div>
-          ) : filteredCards.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              {cards.length === 0 ? "No cards found for this Pokemon" : "No cards match your filters"}
+
+            <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
+              Choose a specific printing, or use the guided scanner to rank the closest loaded cards from repeated camera frames.
+            </p>
+
+            <div className="mt-2 flex items-center gap-2 overflow-x-auto px-1 scrollbar-hide sm:mt-3 sm:flex-wrap sm:gap-2 sm:px-0">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-xl sm:px-3"
+                onClick={openCardScanner}
+                disabled={isLoading || cards.length === 0 || isScanningCard}
+              >
+                {isScanningCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                <span>Scan</span>
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-xl sm:px-3" onClick={() => onSelect(null)}>
+                {isWishlistMode ? "Clear wishlist" : "Skip card"}
+              </Button>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {displayedCards.map((card) => (
-                <button
-                  key={card.id}
-                  onClick={() => onSelect(card)}
-                  className={`relative group rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
-                    selectedCardId === card.id
-                      ? "border-primary ring-2 ring-primary/50"
-                      : "border-transparent hover:border-primary/50"
-                  }`}
-                >
-                  {scanRankById.has(card.id) && (
-                    <div className="absolute left-2 top-2 z-10 rounded-full bg-black/80 px-2 py-1 text-[10px] font-medium text-white">
-                      Match {scanRankById.get(card.id)}
+          </div>
+
+            <div className="border-b border-border bg-muted/15 px-5 py-4 sm:px-5 sm:py-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, number, or set..."
+                    value={filters.searchQuery || ""}
+                    onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
+                    className="h-9 flex-1 rounded-lg text-sm sm:h-10 sm:rounded-xl"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                  <Select
+                    value={filters.set || ALL_FILTERS_VALUE}
+                    onValueChange={(value) => setFilters((f) => ({ ...f, set: value === ALL_FILTERS_VALUE ? undefined : value }))}
+                  >
+                    <SelectTrigger className="h-9 w-full rounded-lg bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:rounded-xl sm:text-sm">
+                      <SelectValue placeholder="All Sets" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTERS_VALUE}>All Sets</SelectItem>
+                      {uniqueSets.map((set) => (
+                        <SelectItem key={set.id} value={set.id}>
+                          {set.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={filters.rarity || ALL_FILTERS_VALUE}
+                    onValueChange={(value) =>
+                      setFilters((f) => ({ ...f, rarity: value === ALL_FILTERS_VALUE ? undefined : value }))
+                    }
+                  >
+                    <SelectTrigger className="h-9 w-full rounded-lg bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:rounded-xl sm:text-sm">
+                      <SelectValue placeholder="All Rarities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTERS_VALUE}>All Rarities</SelectItem>
+                      {uniqueRarities.map((rarity) => (
+                        <SelectItem key={rarity} value={rarity}>
+                          {rarity}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={filters.variant || ALL_FILTERS_VALUE}
+                    onValueChange={(value) =>
+                      setFilters((f) => ({ ...f, variant: value === ALL_FILTERS_VALUE ? undefined : value }))
+                    }
+                  >
+                    <SelectTrigger className="h-9 w-full rounded-lg bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:rounded-xl sm:text-sm">
+                      <SelectValue placeholder="All Variants" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTERS_VALUE}>All Variants</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="holo">Holo</SelectItem>
+                      <SelectItem value="reverse">Reverse Holo</SelectItem>
+                      <SelectItem value="firstEdition">1st Edition</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFilters({})}
+                      className="h-9 rounded-lg px-3 text-xs text-muted-foreground sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {(isScanningCard || scanError || scanMatches.length > 0 || scanPreviewUrl) && (
+              <div className="border-b border-border bg-background/70 p-3 sm:p-4">
+                <div className="flex flex-col gap-3 lg:flex-row">
+                  {scanPreviewUrl && (
+                    <div className="w-full max-w-[140px] shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:max-w-[180px]">
+                      <img src={scanPreviewUrl} alt="Scanned card preview" className="h-full w-full object-cover" />
                     </div>
                   )}
-                  {card.image ? (
-                    <img
-                      src={card.image}
-                      alt={card.name}
-                      className="w-full aspect-[2.5/3.5] object-cover bg-muted"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full aspect-[2.5/3.5] bg-muted flex items-center justify-center">
-                      <span className="text-xs text-muted-foreground">No Image</span>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">Single-card scan</p>
+                      <p className="text-xs text-muted-foreground">
+                        The scanner samples multiple guided frames, throws away unstable captures, and ranks the closest loaded cards by consistency.
+                      </p>
                     </div>
-                  )}
-                  {selectedCardId === card.id && (
-                    <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
-                      <Check className="h-3 w-3" />
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                    <p className="text-xs text-white font-medium truncate">{card.set.name}</p>
-                    <p className="text-[10px] text-white/70">#{card.localId}</p>
+                    {isScanningCard && (
+                      <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Comparing stable guided frames against {cards.length} loaded cards…
+                      </div>
+                    )}
+                    {scanError && <div className="text-sm text-destructive">{scanError}</div>}
+                    {scanMatches.length > 0 && (
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {scanMatches.map((match, index) => (
+                          <button
+                            key={match.card.id}
+                            onClick={() => onSelect(match.card)}
+                            className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
+                          >
+                            {match.card.image ? (
+                              <img
+                                src={match.card.image}
+                                alt={match.card.name}
+                                className="h-20 w-14 shrink-0 rounded-md object-cover bg-muted"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="h-20 w-14 shrink-0 rounded-md bg-muted" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                                {index === 0 ? "Best Match" : `Match ${index + 1}`}
+                              </p>
+                              <p className="truncate text-sm font-medium">{match.card.set.name}</p>
+                              <p className="text-xs text-muted-foreground">#{match.card.localId}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Similarity {Math.round(match.similarity * 100)}%
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </button>
-              ))}
+                </div>
+              </div>
+            )}
+
+            <div className="px-5 py-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] sm:px-5 sm:py-4">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading cards...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 text-destructive">{error}</div>
+            ) : filteredCards.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {cards.length === 0 ? "No cards found for this Pokemon" : "No cards match your filters"}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
+                {displayedCards.map((card) => (
+                  <button
+                    key={card.id}
+                    onClick={() => onSelect(card)}
+                    className={`relative group overflow-hidden rounded-xl border-2 text-left transition-all hover:border-primary/50 sm:hover:scale-[1.03] ${
+                      selectedCardId === card.id ? "border-primary ring-2 ring-primary/50" : "border-transparent"
+                    }`}
+                  >
+                    {scanRankById.has(card.id) && (
+                      <div className="absolute left-2 top-2 z-10 rounded-full bg-black/80 px-2 py-1 text-[10px] font-medium text-white">
+                        Match {scanRankById.get(card.id)}
+                      </div>
+                    )}
+                    <div className="bg-card p-0">
+                      <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-[10px] bg-muted sm:rounded-none">
+                        {card.image ? (
+                          <img
+                            src={card.image}
+                            alt={card.name}
+                            className="absolute inset-0 h-full w-full object-cover bg-muted"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-muted">
+                            <span className="text-xs text-muted-foreground">No Image</span>
+                          </div>
+                        )}
+                        {selectedCardId === card.id && (
+                          <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-primary-foreground">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/80 to-transparent p-2 sm:block">
+                          <p className="truncate text-xs font-medium text-white">{card.set.name}</p>
+                          <p className="text-[10px] text-white/70">#{card.localId}</p>
+                        </div>
+                      </div>
+
+                      <div className="p-1.5 sm:hidden">
+                        <p className="truncate text-[10px] font-semibold text-foreground">{card.set.name}</p>
+                        <p className="mt-0.5 text-[9px] text-muted-foreground">#{card.localId}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
             </div>
-          )}
         </div>
       </div>
-    </div>
+    </>
   )
 }

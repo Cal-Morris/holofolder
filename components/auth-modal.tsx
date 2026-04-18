@@ -237,15 +237,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-card border border-border/50 rounded-2xl w-full max-w-sm overflow-hidden animate-scale-in shadow-2xl">
-        <div className="relative p-6 pb-4">
+      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto w-auto max-w-sm overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <div className="relative px-6 pt-6 pb-4 sm:px-6 sm:pt-6 sm:pb-4">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted/50 transition-colors"
+            className="absolute top-5 right-5 p-2 rounded-full hover:bg-muted/60 transition-colors"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -263,7 +263,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
         </div>
 
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 overflow-y-auto max-h-[calc(100%-7rem)]">
           {success ? (
             <div className="space-y-4">
               <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl text-center">

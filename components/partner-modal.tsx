@@ -63,20 +63,20 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-border">
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">Partner Mode</h2>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
+          <button onClick={onClose} className="mr-0.5 p-2 hover:bg-muted/70 rounded-full transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-4 space-y-6 overflow-y-auto max-h-[60vh]">
+        <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-6 overflow-y-auto flex-1">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

@@ -79,17 +79,25 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--background);
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    background-color: var(--background);
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
-  }
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
   }
   /* Better selection */
   ::selection {

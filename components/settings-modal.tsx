@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { X, Grid3X3, CloudUpload, Loader2 } from "lucide-react"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { BinderSettings } from "@/hooks/use-settings"
 import PasskeySettings from "./passkey-settings"
@@ -51,19 +50,19 @@ export default function SettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <Card 
-        className="relative bg-card max-w-md w-full border border-border shadow-2xl max-h-[85vh] overflow-hidden flex flex-col animate-scale-in"
+    <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
+        <div className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0">
           <h2 className="text-lg font-bold">Settings</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-colors">
+          <button onClick={onClose} className="mr-0.5 rounded-full p-2 hover:bg-muted/70 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-6 overflow-y-auto flex-1">
           {/* Binder Size */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -169,7 +168,7 @@ export default function SettingsModal({
             </p>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

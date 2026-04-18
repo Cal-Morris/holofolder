@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { cookies } from "next/headers"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
@@ -7,11 +7,22 @@ import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const THEME_COLOR_LIGHT = "#fafafd"
+const THEME_COLOR_DARK = "#171a22"
 
 export const metadata: Metadata = {
-  title: "Pokémon Binder Organizer",
-  description: "Search Pokémon and find their National Dex number and binder position for your card collection",
+  title: "BinderDex",
+  description: "Mobile-first Pokemon binder tracking with National Dex positions, collection status, and card matching.",
   generator: "v0.app",
+  applicationName: "BinderDex",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "BinderDex",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: "/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
@@ -20,6 +31,19 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-icon.png",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR_LIGHT },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR_DARK },
+  ],
 }
 
 export default async function RootLayout({
@@ -33,7 +57,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${isDark ? "dark" : ""} bg-background`} suppressHydrationWarning>
-      <body className="font-sans antialiased bg-background">
+      <body className="font-sans antialiased bg-background text-foreground">
         {children}
         <Analytics />
       </body>

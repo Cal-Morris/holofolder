@@ -102,6 +102,7 @@ interface CardDbSyncOptions {
 const REPO_URL = "https://github.com/tcgdex/cards-database"
 const DEFAULT_BATCH_SIZE = 500
 const CARD_DB_SYNC_LOCK_KEY = 10250418
+const EXCLUDED_SERIES_IDS = new Set(["tcgp"])
 
 function getProjectRoot(projectRoot?: string) {
   return projectRoot || process.cwd()
@@ -426,6 +427,10 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
 
     if (!set?.id || !series?.id) {
       throw new Error(`Card file is missing set metadata: ${filePath}`)
+    }
+
+    if (EXCLUDED_SERIES_IDS.has(series.id)) {
+      continue
     }
 
     seriesById.set(series.id, {
