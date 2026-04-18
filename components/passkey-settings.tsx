@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Fingerprint, Plus, Trash2, Loader2, CheckCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser"
+import type { User } from "@supabase/supabase-js"
 
 interface Passkey {
   id: string
@@ -12,7 +13,11 @@ interface Passkey {
   created_at: string
 }
 
-export default function PasskeySettings() {
+interface PasskeySettingsProps {
+  user: User | null
+}
+
+export default function PasskeySettings({ user }: PasskeySettingsProps) {
   const [passkeys, setPasskeys] = useState<Passkey[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRegistering, setIsRegistering] = useState(false)
@@ -24,24 +29,38 @@ export default function PasskeySettings() {
 
   useEffect(() => {
     setSupportsPasskey(browserSupportsWebAuthn())
-    loadPasskeys()
   }, [])
 
-  const loadPasskeys = async () => {
+  const loadPasskeys = useCallback(async (currentUser: User | null) => {
+    if (!currentUser) {
+      setPasskeys([])
+      setError(null)
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
     try {
       const { data, error } = await supabase
         .from("passkey_credentials")
         .select("id, device_type, created_at")
+        .eq("user_id", currentUser.id)
         .order("created_at", { ascending: false })
 
       if (error) throw error
       setPasskeys(data || [])
     } catch (err) {
       console.error("[v0] Error loading passkeys:", err)
+      setError("Could not load your passkeys.")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    void loadPasskeys(user)
+  }, [loadPasskeys, user])
 
   const handleRegisterPasskey = async () => {
     setIsRegistering(true)
@@ -95,7 +114,7 @@ export default function PasskeySettings() {
       }
 
       setSuccess(true)
-      loadPasskeys()
+      await loadPasskeys(user)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
       if (err.name === "NotAllowedError") {
@@ -160,7 +179,11 @@ export default function PasskeySettings() {
         <p className="text-sm text-destructive">{error}</p>
       )}
 
-      {isLoading ? (
+      {!user ? (
+        <p className="text-sm text-muted-foreground py-2">
+          Sign in to register and manage passkeys.
+        </p>
+      ) : isLoading ? (
         <div className="flex items-center justify-center py-4">
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </div>

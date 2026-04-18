@@ -1372,6 +1372,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        user={user}
         settings={settings}
         onUpdateSettings={updateSettings}
         isSignedIn={Boolean(user)}
@@ -1381,7 +1382,7 @@ export default function BinderApp({ initialUser, initialCollection, initialSetti
         onSyncLocalCollectionToCloud={handleSyncLocalCollectionToCloud}
       />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
-      <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} />
+      <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
 
       {isCardSelectorOpen && selectedPokemon && (
         <CardSelector

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { BinderSettings } from "@/hooks/use-settings"
 import PasskeySettings from "./passkey-settings"
+import type { User } from "@supabase/supabase-js"
 
 const BINDER_SIZES = [
   { rows: 1, cols: 1, label: "1x1" },
@@ -19,6 +20,7 @@ const BINDER_SIZES = [
 interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
+  user: User | null
   settings: BinderSettings
   onUpdateSettings: (settings: Partial<BinderSettings>) => void
   isSignedIn: boolean
@@ -31,6 +33,7 @@ interface SettingsModalProps {
 export default function SettingsModal({
   isOpen,
   onClose,
+  user,
   settings,
   onUpdateSettings,
   isSignedIn,
@@ -123,7 +126,7 @@ export default function SettingsModal({
 
           {/* Passkey Settings */}
           <div className="pt-4 border-t border-border">
-            <PasskeySettings />
+            <PasskeySettings user={user} />
           </div>
 
           <div className="pt-4 border-t border-border space-y-4">

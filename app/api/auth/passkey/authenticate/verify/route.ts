@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getChallenge } from "@/lib/webauthn"
 
 export async function POST(request: NextRequest) {
@@ -12,11 +12,10 @@ export async function POST(request: NextRequest) {
     if (!storedChallenge) {
       return NextResponse.json({ error: "Challenge expired" }, { status: 400 })
     }
-
-    const supabase = await createClient()
+    const admin = createAdminClient()
 
     // Find the credential in our database
-    const { data: passkey, error: findError } = await supabase
+    const { data: passkey, error: findError } = await admin
       .from("passkey_credentials")
       .select("*")
       .eq("credential_id", credential.id)
@@ -27,21 +26,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the counter
-    await supabase
+    await admin
       .from("passkey_credentials")
       .update({ counter: passkey.counter + 1 })
       .eq("id", passkey.id)
 
     // Sign in the user using the admin API to create a session
     // We need to use a service role for this
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(passkey.user_id)
+    const { data: userData, error: userError } = await admin.auth.admin.getUserById(passkey.user_id)
     
     if (userError || !userData.user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
     // Generate a magic link token for this user (workaround for session creation)
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: userData.user.email!,
     })

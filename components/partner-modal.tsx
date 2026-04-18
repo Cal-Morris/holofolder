@@ -5,13 +5,15 @@ import { X, UserPlus, Users, Check, XIcon, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { usePartner } from "@/hooks/use-partner"
+import type { User } from "@supabase/supabase-js"
 
 interface PartnerModalProps {
   isOpen: boolean
   onClose: () => void
+  user: User | null
 }
 
-export default function PartnerModal({ isOpen, onClose }: PartnerModalProps) {
+export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProps) {
   const [email, setEmail] = useState("")
   const [isSending, setIsSending] = useState(false)
   const { 
@@ -21,8 +23,9 @@ export default function PartnerModal({ isOpen, onClose }: PartnerModalProps) {
     sendInvite, 
     acceptInvite, 
     rejectInvite,
+    error,
     isLoading 
-  } = usePartner()
+  } = usePartner({ user })
 
   const handleSendInvite = async () => {
     if (!email.trim()) return
@@ -52,6 +55,18 @@ export default function PartnerModal({ isOpen, onClose }: PartnerModalProps) {
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+              <p className="text-sm font-medium text-destructive">Could not load partner mode.</p>
+              <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+            </div>
+          ) : !user ? (
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <p className="text-sm font-medium">Sign in to use partner mode.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Partner invites and shared collections are only available for signed-in users.
+              </p>
             </div>
           ) : (
             <>

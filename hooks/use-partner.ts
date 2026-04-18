@@ -18,12 +18,16 @@ export interface PartnerInvite {
   createdAt: string
 }
 
-export function usePartner() {
-  const [user, setUser] = useState<User | null>(null)
+interface UsePartnerOptions {
+  user: User | null
+}
+
+export function usePartner({ user }: UsePartnerOptions) {
   const [partner, setPartner] = useState<Partner | null>(null)
   const [pendingInvites, setPendingInvites] = useState<PartnerInvite[]>([])
   const [receivedInvites, setReceivedInvites] = useState<PartnerInvite[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -32,11 +36,13 @@ export function usePartner() {
       setPartner(null)
       setPendingInvites([])
       setReceivedInvites([])
+      setError(null)
       setIsLoading(false)
       return
     }
 
     setIsLoading(true)
+    setError(null)
     try {
       // Load partnerships
       const { data: partnership, error: partnershipError } = await supabase
@@ -98,28 +104,15 @@ export function usePartner() {
       )
     } catch (err) {
       console.error("[v0] Error loading partner data:", err)
+      setError(err instanceof Error ? err.message : "Could not load partner data.")
     } finally {
       setIsLoading(false)
     }
   }, [supabase])
 
   useEffect(() => {
-    const loadUserAndPartnerData = async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      setUser(currentUser)
-      await loadPartnerData(currentUser)
-    }
-
-    loadUserAndPartnerData()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      await loadPartnerData(currentUser)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [loadPartnerData, supabase])
+    void loadPartnerData(user)
+  }, [loadPartnerData, user])
 
   const sendInvite = useCallback(async (email: string) => {
     if (!user) return { error: "Not logged in" }
@@ -207,6 +200,7 @@ export function usePartner() {
     pendingInvites,
     receivedInvites,
     isLoading,
+    error,
     sendInvite,
     acceptInvite,
     rejectInvite,
