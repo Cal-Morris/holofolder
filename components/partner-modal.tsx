@@ -16,6 +16,7 @@ interface PartnerModalProps {
 export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProps) {
   const [email, setEmail] = useState("")
   const [isSending, setIsSending] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const { 
     partner, 
     pendingInvites, 
@@ -24,15 +25,39 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
     acceptInvite, 
     rejectInvite,
     error,
+    removePartner,
     isLoading 
   } = usePartner({ user })
 
   const handleSendInvite = async () => {
     if (!email.trim()) return
     setIsSending(true)
-    await sendInvite(email.trim())
-    setEmail("")
+    setActionError(null)
+    const result = await sendInvite(email.trim())
+    if (result.error) {
+      setActionError(result.error)
+    } else {
+      setEmail("")
+    }
     setIsSending(false)
+  }
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    setActionError(null)
+    const result = await acceptInvite(inviteId)
+    if (result.error) setActionError(result.error)
+  }
+
+  const handleRejectInvite = async (inviteId: string) => {
+    setActionError(null)
+    const result = await rejectInvite(inviteId)
+    if (result.error) setActionError(result.error)
+  }
+
+  const handleRemovePartner = async () => {
+    setActionError(null)
+    const result = await removePartner()
+    if (result.error) setActionError(result.error)
   }
 
   if (!isOpen) return null
@@ -70,6 +95,11 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
             </div>
           ) : (
             <>
+              {actionError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+                  <p className="text-sm text-destructive">{actionError}</p>
+                </div>
+              )}
               {partner ? (
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                   <p className="text-sm text-muted-foreground mb-1">Currently partnered with</p>
@@ -77,6 +107,9 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
                   <p className="text-xs text-muted-foreground mt-2">
                     You can both view and manage the same Pokemon collection.
                   </p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={handleRemovePartner}>
+                    Remove partner
+                  </Button>
                 </div>
               ) : (
                 <>
@@ -122,10 +155,10 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
                           <div key={invite.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
                             <span className="text-sm">From: {invite.inviterEmail || "Unknown"}</span>
                             <div className="flex gap-1">
-                              <Button size="sm" variant="ghost" onClick={() => acceptInvite(invite.id)}>
+                              <Button size="sm" variant="ghost" onClick={() => handleAcceptInvite(invite.id)}>
                                 <Check className="w-4 h-4 text-green-500" />
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => rejectInvite(invite.id)}>
+                              <Button size="sm" variant="ghost" onClick={() => handleRejectInvite(invite.id)}>
                                 <XIcon className="w-4 h-4 text-red-500" />
                               </Button>
                             </div>

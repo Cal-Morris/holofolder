@@ -120,6 +120,7 @@ export function usePartner({ user }: UsePartnerOptions) {
     try {
       const { error } = await supabase.from("partner_invites").insert({
         inviter_id: user.id,
+        inviter_email: user.email ?? null,
         invitee_email: email,
         status: "pending",
       })
@@ -145,16 +146,23 @@ export function usePartner({ user }: UsePartnerOptions) {
       if (!invite) throw new Error("Invite not found")
 
       // Create partnership
-      await supabase.from("partnerships").insert({
-        user1_id: invite.inviter_id,
-        user2_id: user.id,
+      const userIds = [invite.inviter_id, user.id].sort()
+      const { error: partnershipError } = await supabase.from("partnerships").upsert({
+        user1_id: userIds[0],
+        user2_id: userIds[1],
+      }, {
+        onConflict: "user1_id,user2_id",
       })
 
+      if (partnershipError) throw partnershipError
+
       // Update invite status
-      await supabase
+      const { error: inviteError } = await supabase
         .from("partner_invites")
         .update({ status: "accepted" })
         .eq("id", inviteId)
+
+      if (inviteError) throw inviteError
 
       await loadPartnerData(user)
       return { success: true }
@@ -167,10 +175,12 @@ export function usePartner({ user }: UsePartnerOptions) {
     if (!user) return { error: "Not logged in" }
 
     try {
-      await supabase
+      const { error } = await supabase
         .from("partner_invites")
         .update({ status: "rejected" })
         .eq("id", inviteId)
+
+      if (error) throw error
 
       await loadPartnerData(user)
       return { success: true }
@@ -183,10 +193,12 @@ export function usePartner({ user }: UsePartnerOptions) {
     if (!user || !partner) return { error: "No partner to remove" }
 
     try {
-      await supabase
+      const { error } = await supabase
         .from("partnerships")
         .delete()
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+
+      if (error) throw error
 
       setPartner(null)
       return { success: true }

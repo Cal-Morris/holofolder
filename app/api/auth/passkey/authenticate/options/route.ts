@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server"
 import { generateChallenge, storeChallenge } from "@/lib/webauthn"
+import { getPasskeyRpId } from "@/lib/passkey-rp"
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const challenge = await generateChallenge()
     const sessionId = crypto.randomUUID()
+    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host")
     
     await storeChallenge(`auth:${sessionId}`, challenge)
 
     const options = {
       challenge,
       sessionId,
-      rpId: process.env.NODE_ENV === "production" ? "binder.cal.gg" : "localhost",
+      rpId: getPasskeyRpId(host),
       timeout: 60000,
       userVerification: "required" as const,
       // Empty allowCredentials = discoverable credentials (passkeys)

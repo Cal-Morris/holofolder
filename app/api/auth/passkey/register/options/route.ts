@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { generateChallenge, storeChallenge } from "@/lib/webauthn"
+import { getPasskeyRpId } from "@/lib/passkey-rp"
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -13,6 +14,7 @@ export async function POST() {
 
     const challenge = await generateChallenge()
     await storeChallenge(`register:${user.id}`, challenge)
+    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host")
 
     // Get existing credentials to exclude
     const { data: existingCreds } = await supabase
@@ -24,7 +26,7 @@ export async function POST() {
       challenge,
       rp: {
         name: "Pokemon Binder",
-        id: process.env.NODE_ENV === "production" ? "binder.cal.gg" : "localhost",
+        id: getPasskeyRpId(host),
       },
       user: {
         id: Buffer.from(user.id).toString("base64url"),
