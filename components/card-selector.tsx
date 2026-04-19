@@ -330,7 +330,7 @@ export default function CardSelector({
       throw new Error("There are no card images loaded for this Pokemon yet.")
     }
 
-    const queryDescriptor = await buildCardImageDescriptor(file)
+    const queryDescriptor = await buildCardImageDescriptor(file, { requireCardBounds: true })
     const scoredMatches = (
       await Promise.all(
         candidates.map(async (card) => {
@@ -579,7 +579,7 @@ export default function CardSelector({
 
       <div className="fixed inset-0 z-50 bg-black/80" onClick={onClose} />
       <div
-        className="fixed inset-x-0 z-50 overflow-y-auto rounded-t-[1.75rem] border border-border bg-card sm:inset-x-4 sm:rounded-2xl"
+        className="fixed inset-x-0 z-50 overflow-y-auto rounded-t-[2.25rem] border border-border bg-card sm:inset-x-4 sm:rounded-[2.25rem]"
         onClick={(e) => e.stopPropagation()}
         style={{
           top: "calc(env(safe-area-inset-top) + 4.5rem)",
@@ -613,14 +613,14 @@ export default function CardSelector({
               <Button
                 variant="secondary"
                 size="sm"
-                className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-xl sm:px-3"
+                className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-2xl sm:px-3"
                 onClick={openCardScanner}
                 disabled={isLoading || cards.length === 0 || isScanningCard}
               >
                 {isScanningCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                 <span>Scan</span>
               </Button>
-              <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-xl sm:px-3" onClick={() => onSelect(null)}>
+              <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-2xl sm:px-3" onClick={() => onSelect(null)}>
                 {isWishlistMode ? "Clear wishlist" : "Skip card"}
               </Button>
             </div>
@@ -634,7 +634,7 @@ export default function CardSelector({
                     placeholder="Search by name, number, or set..."
                     value={filters.searchQuery || ""}
                     onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
-                    className="h-9 flex-1 rounded-lg text-sm sm:h-10 sm:rounded-xl"
+                    className="h-9 flex-1 rounded-2xl text-sm sm:h-10"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
@@ -642,7 +642,7 @@ export default function CardSelector({
                     value={filters.set || ALL_FILTERS_VALUE}
                     onValueChange={(value) => setFilters((f) => ({ ...f, set: value === ALL_FILTERS_VALUE ? undefined : value }))}
                   >
-                    <SelectTrigger className="h-9 w-full rounded-lg bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:rounded-xl sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
                       <SelectValue placeholder="All Sets" />
                     </SelectTrigger>
                     <SelectContent>
@@ -660,7 +660,7 @@ export default function CardSelector({
                       setFilters((f) => ({ ...f, rarity: value === ALL_FILTERS_VALUE ? undefined : value }))
                     }
                   >
-                    <SelectTrigger className="h-9 w-full rounded-lg bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:rounded-xl sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
                       <SelectValue placeholder="All Rarities" />
                     </SelectTrigger>
                     <SelectContent>
@@ -678,7 +678,7 @@ export default function CardSelector({
                       setFilters((f) => ({ ...f, variant: value === ALL_FILTERS_VALUE ? undefined : value }))
                     }
                   >
-                    <SelectTrigger className="h-9 w-full rounded-lg bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:rounded-xl sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
                       <SelectValue placeholder="All Variants" />
                     </SelectTrigger>
                     <SelectContent>
@@ -694,7 +694,7 @@ export default function CardSelector({
                       variant="ghost"
                       size="sm"
                       onClick={() => setFilters({})}
-                      className="h-9 rounded-lg px-3 text-xs text-muted-foreground sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm"
+                      className="h-9 rounded-2xl px-3 text-xs text-muted-foreground sm:h-10 sm:px-4 sm:text-sm"
                     >
                       Clear Filters
                     </Button>
@@ -707,7 +707,7 @@ export default function CardSelector({
               <div className="border-b border-border bg-background/70 p-3 sm:p-4">
                 <div className="flex flex-col gap-3 lg:flex-row">
                   {scanPreviewUrl && (
-                    <div className="w-full max-w-[140px] shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:max-w-[180px]">
+                    <div className="w-full max-w-[140px] shrink-0 overflow-hidden rounded-2xl border border-border bg-muted sm:max-w-[180px]">
                       <img src={scanPreviewUrl} alt="Scanned card preview" className="h-full w-full object-cover" />
                     </div>
                   )}
@@ -719,7 +719,7 @@ export default function CardSelector({
                       </p>
                     </div>
                     {isScanningCard && (
-                      <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Comparing stable guided frames against {cards.length} loaded cards…
                       </div>
@@ -731,7 +731,7 @@ export default function CardSelector({
                           <button
                             key={match.card.id}
                             onClick={() => onSelect(match.card)}
-                            className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
+                            className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
                           >
                             {match.card.image ? (
                               <img

@@ -4,26 +4,26 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Light theme - Clean and modern */
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.15 0.01 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.01 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.01 260);
-  --primary: oklch(0.55 0.18 250);
+  /* Light theme - crisp paper surfaces with soft contrast */
+  --background: oklch(0.958 0.006 250);
+  --foreground: oklch(0.23 0.016 255);
+  --card: oklch(0.992 0.003 255);
+  --card-foreground: oklch(0.23 0.016 255);
+  --popover: oklch(0.996 0.002 255);
+  --popover-foreground: oklch(0.23 0.016 255);
+  --primary: oklch(0.6 0.16 250);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.65 0.12 180);
-  --secondary-foreground: oklch(0.15 0.01 260);
-  --muted: oklch(0.94 0.01 260);
-  --muted-foreground: oklch(0.5 0.01 260);
-  --accent: oklch(0.55 0.18 250);
-  --accent-foreground: oklch(1 0 0);
+  --secondary: oklch(0.945 0.012 205);
+  --secondary-foreground: oklch(0.23 0.016 255);
+  --muted: oklch(0.928 0.006 255);
+  --muted-foreground: oklch(0.52 0.012 255);
+  --accent: oklch(0.938 0.009 248);
+  --accent-foreground: oklch(0.23 0.016 255);
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.01 260);
-  --input: oklch(0.94 0.01 260);
-  --ring: oklch(0.55 0.18 250);
+  --border: oklch(0.865 0.008 255);
+  --input: oklch(0.975 0.004 255);
+  --ring: oklch(0.6 0.16 250);
   --radius: 0.75rem;
 }
 

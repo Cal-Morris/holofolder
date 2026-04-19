@@ -240,7 +240,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto w-auto max-w-sm overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto w-auto max-w-sm overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div className="relative px-6 pt-6 pb-4 sm:px-6 sm:pt-6 sm:pb-4">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
           <button
@@ -266,7 +266,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         <div className="px-6 pb-6 overflow-y-auto max-h-[calc(100%-7rem)]">
           {success ? (
             <div className="space-y-4">
-              <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl text-center">
+              <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-center">
                 <Mail className="w-8 h-8 text-primary mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
                   {success === "password-reset"
@@ -290,12 +290,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           ) : (
             <div className="space-y-4">
               {error && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center">
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-3 text-center text-sm text-destructive">
                   {error}
                 </div>
               )}
 
-              <div className={`grid gap-2 p-1 bg-muted/50 rounded-xl ${supportsPasskey ? "grid-cols-3" : "grid-cols-2"}`}>
+              <div className={`grid gap-2 rounded-2xl bg-muted/50 p-1 ${supportsPasskey ? "grid-cols-3" : "grid-cols-2"}`}>
                 {supportsPasskey && (
                   <button
                     type="button"
@@ -350,7 +350,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <Button
                     type="button"
                     onClick={handlePasskeyLogin}
-                    className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                    className="h-12 w-full rounded-2xl font-semibold text-base shadow-lg shadow-primary/20 transition-shadow hover:shadow-primary/30"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -376,7 +376,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="pl-10 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        className="h-12 rounded-2xl border-border/50 bg-muted/50 pl-10 transition-colors focus:bg-background"
                         required
                         autoFocus
                       />
@@ -385,7 +385,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                   <Button
                     type="submit"
-                    className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                    className="h-12 w-full rounded-2xl font-semibold text-base shadow-lg shadow-primary/20 transition-shadow hover:shadow-primary/30"
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send magic link"}
@@ -397,7 +397,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </form>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-xl">
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted/50 p-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -436,7 +436,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="pl-10 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        className="h-12 rounded-2xl border-border/50 bg-muted/50 pl-10 transition-colors focus:bg-background"
                         required
                         autoFocus
                       />
@@ -448,7 +448,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder={passwordMode === "sign-in" ? "Password" : "Create a password"}
-                        className="pl-10 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        className="h-12 rounded-2xl border-border/50 bg-muted/50 pl-10 transition-colors focus:bg-background"
                         required
                       />
                     </div>
@@ -460,7 +460,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="Confirm password"
-                          className="pl-10 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                          className="h-12 rounded-2xl border-border/50 bg-muted/50 pl-10 transition-colors focus:bg-background"
                           required
                         />
                       </div>
@@ -468,7 +468,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                     <Button
                       type="submit"
-                      className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                      className="h-12 w-full rounded-2xl font-semibold text-base shadow-lg shadow-primary/20 transition-shadow hover:shadow-primary/30"
                       disabled={isLoading}
                     >
                       {isLoading ? (

@@ -2,8 +2,16 @@ import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import BinderApp from "@/components/binder-app"
 import type { BinderSettings } from "@/hooks/use-settings"
+import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
 
-const DEFAULT_BINDER_SETTINGS: BinderSettings = { binderRows: 4, binderCols: 4 }
+const DEFAULT_BINDER_SETTINGS: BinderSettings = {
+  binderRows: 4,
+  binderCols: 4,
+  binderColorId: DEFAULT_BINDER_COLOR_ID,
+  binderPageColors: {},
+  binderSlotGlareEnabled: true,
+  darkMode: true,
+}
 const THEME_COOKIE = "binderdex_theme"
 
 export const dynamic = "force-dynamic"
@@ -37,7 +45,7 @@ export default async function Page() {
         supabase
           .from("user_settings")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", collectionOwnerUserId)
           .maybeSingle(),
       ])
     : [{ data: [] as any[] }, { data: null as any }]
@@ -48,11 +56,15 @@ export default async function Page() {
     ? {
         binderRows: settingsRow.binder_rows ?? DEFAULT_BINDER_SETTINGS.binderRows,
         binderCols: settingsRow.binder_cols ?? DEFAULT_BINDER_SETTINGS.binderCols,
+        binderColorId: settingsRow.binder_color_id ?? DEFAULT_BINDER_SETTINGS.binderColorId,
+        binderPageColors: settingsRow.binder_page_colors ?? DEFAULT_BINDER_SETTINGS.binderPageColors,
+        binderSlotGlareEnabled: settingsRow.binder_slot_glare_enabled ?? DEFAULT_BINDER_SETTINGS.binderSlotGlareEnabled,
+        darkMode: settingsRow.dark_mode ?? DEFAULT_BINDER_SETTINGS.darkMode,
       }
     : DEFAULT_BINDER_SETTINGS
 
   const themeCookie = cookieStore.get(THEME_COOKIE)?.value
-  const initialDarkMode = themeCookie ? themeCookie !== "light" : true
+  const initialDarkMode = settingsRow?.dark_mode ?? (themeCookie ? themeCookie !== "light" : true)
 
   return (
     <BinderApp
@@ -60,6 +72,7 @@ export default async function Page() {
       initialCollection={initialCollection}
       initialCollectionOwnerUserId={collectionOwnerUserId}
       initialSettings={initialSettings}
+      initialHasStoredSettings={Boolean(settingsRow)}
       initialDarkMode={initialDarkMode}
     />
   )

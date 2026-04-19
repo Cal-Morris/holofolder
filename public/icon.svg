@@ -1,26 +1,42 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <style>
-    @media (prefers-color-scheme: light) {
-      .background { fill: black; }
-      .foreground { fill: white; }
+    :root {
+      --bg: #fff7eb;
+      --shadow: #1d27380f;
+      --binder: #e04e39;
+      --ring: #fff4ef;
+      --card-back: #ffd89f;
+      --card-front: #fffdf8;
+      --stroke: #243047;
+      --badge: #5aa9ff;
+      --line: #243047;
     }
+
     @media (prefers-color-scheme: dark) {
-      .background { fill: white; }
-      .foreground { fill: black; }
+      :root {
+        --bg: #151b26;
+        --shadow: #00000028;
+        --binder: #ff6b4a;
+        --ring: #ffe2d8;
+        --card-back: #f2bd63;
+        --card-front: #fff4df;
+        --stroke: #ecf3ff;
+        --badge: #7ab8ff;
+        --line: #243047;
+      }
     }
   </style>
-  <g clip-path="url(#clip0_7960_43945)">
-    <rect class="background" width="180" height="180" rx="37" />
-    <g style="transform: scale(95%); transform-origin: center">
-      <path class="foreground"
-        d="M101.141 53H136.632C151.023 53 162.689 64.6662 162.689 79.0573V112.904H148.112V79.0573C148.112 78.7105 148.098 78.3662 148.072 78.0251L112.581 112.898C112.701 112.902 112.821 112.904 112.941 112.904H148.112V126.672H112.941C98.5504 126.672 86.5638 114.891 86.5638 100.5V66.7434H101.141V100.5C101.141 101.15 101.191 101.792 101.289 102.422L137.56 66.7816C137.255 66.7563 136.945 66.7434 136.632 66.7434H101.141V53Z" />
-      <path class="foreground"
-        d="M65.2926 124.136L14 66.7372H34.6355L64.7495 100.436V66.7372H80.1365V118.47C80.1365 126.278 70.4953 129.958 65.2926 124.136Z" />
-    </g>
-  </g>
-  <defs>
-    <clipPath id="clip0_7960_43945">
-      <rect width="180" height="180" fill="white" />
-    </clipPath>
-  </defs>
+  <rect width="512" height="512" rx="118" fill="var(--bg)" />
+  <rect x="205" y="120" width="184" height="242" rx="32" transform="rotate(-7 205 120)" fill="var(--shadow)" />
+  <rect x="102" y="96" width="126" height="320" rx="34" fill="var(--binder)" />
+  <circle cx="165" cy="178" r="15" fill="var(--ring)" />
+  <circle cx="165" cy="256" r="15" fill="var(--ring)" />
+  <circle cx="165" cy="334" r="15" fill="var(--ring)" />
+  <rect x="226" y="114" width="184" height="242" rx="32" transform="rotate(-7 226 114)" fill="var(--card-back)" stroke="var(--stroke)" stroke-width="14" />
+  <rect x="180" y="164" width="188" height="244" rx="32" transform="rotate(4 180 164)" fill="var(--card-front)" stroke="var(--stroke)" stroke-width="14" />
+  <circle cx="284" cy="242" r="34" fill="var(--badge)" />
+  <rect x="236" y="298" width="96" height="18" rx="9" fill="var(--line)" />
+  <rect x="224" y="332" width="120" height="18" rx="9" fill="var(--line)" />
+  <path d="M300 146L310.5 168.5L333 179L310.5 189.5L300 212L289.5 189.5L267 179L289.5 168.5L300 146Z" fill="var(--card-front)" stroke="var(--stroke)" stroke-width="12" stroke-linejoin="round" />
 </svg>

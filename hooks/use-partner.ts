@@ -58,9 +58,44 @@ export function usePartner({ user }: UsePartnerOptions) {
 
       if (partnership) {
         const partnerId = partnership.user1_id === currentUser.id ? partnership.user2_id : partnership.user1_id
+        const currentUserIsInviter = partnership.owner_user_id === currentUser.id
+        let partnerEmail = "Partner"
+
+        if (currentUserIsInviter) {
+          const { data: acceptedInvite, error: inviteLookupError } = await supabase
+            .from("partner_invites")
+            .select("invitee_email")
+            .eq("inviter_id", currentUser.id)
+            .eq("status", "accepted")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (inviteLookupError) {
+            throw inviteLookupError
+          }
+
+          partnerEmail = acceptedInvite?.invitee_email || partnerEmail
+        } else {
+          const { data: acceptedInvite, error: inviteLookupError } = await supabase
+            .from("partner_invites")
+            .select("inviter_email")
+            .eq("invitee_email", currentUser.email ?? "")
+            .eq("status", "accepted")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (inviteLookupError) {
+            throw inviteLookupError
+          }
+
+          partnerEmail = acceptedInvite?.inviter_email || partnerEmail
+        }
+
         setPartner({
           id: partnerId,
-          email: "Partner",
+          email: partnerEmail,
           partneredAt: partnership.created_at,
         })
       } else {

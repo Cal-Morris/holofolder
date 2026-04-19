@@ -65,7 +65,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
-      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
@@ -82,12 +82,12 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : error ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
               <p className="text-sm font-medium text-destructive">Could not load partner mode.</p>
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
             </div>
           ) : !user ? (
-            <div className="rounded-lg border border-border bg-muted/40 p-4">
+            <div className="rounded-2xl border border-border bg-muted/40 p-4">
               <p className="text-sm font-medium">Sign in to use partner mode.</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Partner invites and shared collections are only available for signed-in users.
@@ -96,12 +96,12 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
           ) : (
             <>
               {actionError && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+                <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
                   <p className="text-sm text-destructive">{actionError}</p>
                 </div>
               )}
               {partner ? (
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4">
                   <p className="text-sm text-muted-foreground mb-1">Currently partnered with</p>
                   <p className="font-medium text-primary">{partner.email}</p>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -138,7 +138,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
                       <label className="text-sm font-medium mb-2 block">Pending Invites</label>
                       <div className="space-y-2">
                         {pendingInvites.map((invite) => (
-                          <div key={invite.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                          <div key={invite.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-3">
                             <span className="text-sm">{invite.inviteeEmail || "Unknown"}</span>
                             <span className="text-xs text-muted-foreground">Waiting...</span>
                           </div>
@@ -152,7 +152,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
                       <label className="text-sm font-medium mb-2 block">Received Invites</label>
                       <div className="space-y-2">
                         {receivedInvites.map((invite) => (
-                          <div key={invite.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                          <div key={invite.id} className="flex items-center justify-between rounded-2xl bg-muted/50 p-3">
                             <span className="text-sm">From: {invite.inviterEmail || "Unknown"}</span>
                             <div className="flex gap-1">
                               <Button size="sm" variant="ghost" onClick={() => handleAcceptInvite(invite.id)}>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
 
@@ -18,6 +19,7 @@ interface CardPriceSnapshot {
 
 const MAX_CARD_IDS = 200
 const FETCH_CONCURRENCY = 8
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const TCGPLAYER_VARIANT_PRIORITY = [
   "normal",
   "holofoil",
@@ -43,6 +45,18 @@ interface FxRates {
   usdToGbp: number
 }
 
+interface CardPriceRow {
+  card_id: string
+  gbp_amount: number | string | null
+  original_amount: number | string | null
+  original_currency: string | null
+  source: string | null
+  variant_label: string | null
+  source_updated_at: string | null
+  fx_date: string | null
+  fetched_at: string
+}
+
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json().catch(() => null)
@@ -55,13 +69,92 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ prices: [] })
     }
 
-    const fxRates = await fetchEcbFxRates()
-    const prices = await mapWithConcurrency(cardIds, FETCH_CONCURRENCY, (cardId) => fetchCardPriceSnapshot(cardId, fxRates))
+    const supabase = createAdminClient()
+    const { data: cachedRows, error: cacheError } = await supabase
+      .from("card_prices")
+      .select("*")
+      .in("card_id", cardIds)
+
+    if (cacheError) {
+      console.error("[binderdex] Failed to read card_prices cache:", cacheError)
+    }
+
+    const now = Date.now()
+    const freshByCardId = new Map<string, CardPriceSnapshot>()
+
+    for (const row of (cachedRows ?? []) as CardPriceRow[]) {
+      const fetchedAtMs = Date.parse(row.fetched_at)
+      if (Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CACHE_TTL_MS) {
+        freshByCardId.set(row.card_id, rowToSnapshot(row))
+      }
+    }
+
+    const missingCardIds = cardIds.filter((cardId) => !freshByCardId.has(cardId))
+
+    let refreshedSnapshots: CardPriceSnapshot[] = []
+    if (missingCardIds.length > 0) {
+      const fxRates = await fetchEcbFxRates()
+      refreshedSnapshots = await mapWithConcurrency(
+        missingCardIds,
+        FETCH_CONCURRENCY,
+        (cardId) => fetchCardPriceSnapshot(cardId, fxRates),
+      )
+
+      const rowsToUpsert = refreshedSnapshots.map((snapshot) => snapshotToRow(snapshot))
+      const { error: upsertError } = await supabase
+        .from("card_prices")
+        .upsert(rowsToUpsert, { onConflict: "card_id" })
+
+      if (upsertError) {
+        console.error("[binderdex] Failed to upsert card_prices rows:", upsertError)
+      }
+    }
+
+    const prices = cardIds.map((cardId) => {
+      const fresh = freshByCardId.get(cardId)
+      if (fresh) return fresh
+      const refreshed = refreshedSnapshots.find((snapshot) => snapshot.cardId === cardId)
+      return refreshed ?? emptySnapshot(cardId)
+    })
+
     return NextResponse.json({ prices })
   } catch (error) {
     console.error("[binderdex] Failed to load card prices:", error)
     return NextResponse.json({ error: "Failed to load card prices." }, { status: 500 })
   }
+}
+
+function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
+  return {
+    cardId: row.card_id,
+    gbpAmount: toFiniteNumber(row.gbp_amount),
+    originalAmount: toFiniteNumber(row.original_amount),
+    originalCurrency: row.original_currency === "USD" || row.original_currency === "EUR" ? row.original_currency : null,
+    source: row.source === "tcgplayer" || row.source === "cardmarket" ? row.source : null,
+    variantLabel: row.variant_label,
+    updatedAt: row.source_updated_at,
+    fxDate: row.fx_date,
+  }
+}
+
+function snapshotToRow(snapshot: CardPriceSnapshot) {
+  return {
+    card_id: snapshot.cardId,
+    gbp_amount: snapshot.gbpAmount,
+    original_amount: snapshot.originalAmount,
+    original_currency: snapshot.originalCurrency,
+    source: snapshot.source,
+    variant_label: snapshot.variantLabel,
+    source_updated_at: snapshot.updatedAt,
+    fx_date: snapshot.fxDate,
+    fetched_at: new Date().toISOString(),
+  }
+}
+
+function toFiniteNumber(value: number | string | null | undefined) {
+  if (value == null) return null
+  const num = typeof value === "number" ? value : Number.parseFloat(value)
+  return Number.isFinite(num) ? num : null
 }
 
 async function mapWithConcurrency<TInput, TOutput>(
