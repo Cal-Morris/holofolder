@@ -11,7 +11,7 @@ import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
 import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
-import { aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
+import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
 import { applyCardTextSignalBoost, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
@@ -22,6 +22,7 @@ import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
 import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } from "@/lib/binder-page-scan-aggregate"
+import { aggregateBinderSlotSweep, getNextSweepSlotIndex, type BinderSlotSweepFrame } from "@/lib/binder-slot-sweep"
 import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
@@ -49,10 +50,15 @@ const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
 const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.45
 const GUIDED_SCAN_MIN_USABLE_FRAMES = 2
+const SLOT_SWEEP_FRAME_COUNT = 5
+const SLOT_SWEEP_FRAME_DELAY_MS = 360
+const SLOT_SWEEP_MIN_USABLE_FRAMES = 2
 const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 1
 const PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT = 2
 const GUIDE_FRAME_INSET_X = 0.12
 const GUIDE_FRAME_INSET_Y = 0.05
+const SLOT_SWEEP_GUIDE_INSET_X = 0.14
+const SLOT_SWEEP_GUIDE_INSET_Y = 0.08
 const BINDER_PAGE_QUERY_PARAM = "page"
 const THEME_COLOR_LIGHT = "#f2f5fb"
 const THEME_COLOR_DARK = "#171a22"
@@ -64,6 +70,7 @@ type SlotGlareState = {
 }
 
 type MotionGlintStatus = "disabled" | "needs-permission" | "requesting" | "active" | "fallback" | "denied" | "unsupported"
+type PageScannerMode = "slot-sweep" | "page-sweep"
 
 const DEFAULT_SLOT_GLARE_STATE = {
   offsetX: -24,
@@ -489,13 +496,13 @@ function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
-async function canvasToFile(canvas: HTMLCanvasElement, index: number) {
+async function canvasToFile(canvas: HTMLCanvasElement, index: number, prefix = "binder-scan") {
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9))
   if (!blob) {
     throw new Error("Could not encode a camera frame.")
   }
 
-  return new File([blob], `binder-burst-${index}.jpg`, { type: "image/jpeg" })
+  return new File([blob], `${prefix}-${index}.jpg`, { type: "image/jpeg" })
 }
 
 function drawVideoCoverFrame(
@@ -563,7 +570,64 @@ async function captureGuidedFrameFile(video: HTMLVideoElement, canvas: HTMLCanva
   drawVideoCoverFrame(video, context, previewWidth, previewHeight)
   const guidedCanvas = cropCanvasByRatios(canvas, GUIDE_FRAME_INSET_X, GUIDE_FRAME_INSET_Y)
 
-  return canvasToFile(guidedCanvas, index)
+  return canvasToFile(guidedCanvas, index, "binder-page-sweep")
+}
+
+function cropCanvasToCardGuide(sourceCanvas: HTMLCanvasElement) {
+  const availableWidth = sourceCanvas.width * (1 - SLOT_SWEEP_GUIDE_INSET_X * 2)
+  const availableHeight = sourceCanvas.height * (1 - SLOT_SWEEP_GUIDE_INSET_Y * 2)
+  let cropWidth = availableWidth
+  let cropHeight = cropWidth / TRADING_CARD_ASPECT_RATIO
+
+  if (cropHeight > availableHeight) {
+    cropHeight = availableHeight
+    cropWidth = cropHeight * TRADING_CARD_ASPECT_RATIO
+  }
+
+  const cropX = Math.round((sourceCanvas.width - cropWidth) / 2)
+  const cropY = Math.round((sourceCanvas.height - cropHeight) / 2)
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.max(260, Math.round(cropWidth))
+  canvas.height = Math.max(360, Math.round(cropHeight))
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Could not crop the slot scanner frame.")
+  }
+
+  context.drawImage(
+    sourceCanvas,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  )
+
+  return canvas
+}
+
+async function captureGuidedSlotFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement, index: number) {
+  const previewWidth = Math.max(480, Math.round((video.clientWidth || 360) * 2))
+  const previewHeight = Math.max(820, Math.round((video.clientHeight || 640) * 2))
+  canvas.width = previewWidth
+  canvas.height = previewHeight
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Could not capture the slot scanner frame.")
+  }
+
+  drawVideoCoverFrame(video, context, previewWidth, previewHeight)
+  const guidedCanvas = cropCanvasToCardGuide(canvas)
+
+  return {
+    file: await canvasToFile(guidedCanvas, index, "binder-slot-sweep"),
+    previewUrl: guidedCanvas.toDataURL("image/jpeg", 0.82),
+  }
 }
 
 function getScannerOverlayLayout(result: BinderPageScanResult, rows: number, cols: number) {
@@ -610,6 +674,7 @@ export default function BinderApp({
   const [pageScanSummary, setPageScanSummary] = useState<PageScanSummary | null>(null)
   const [pageScanError, setPageScanError] = useState<string | null>(null)
   const [isBurstScannerOpen, setIsBurstScannerOpen] = useState(false)
+  const [pageScannerMode, setPageScannerMode] = useState<PageScannerMode>("slot-sweep")
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isCameraReady, setIsCameraReady] = useState(false)
   const [isCapturingBurst, setIsCapturingBurst] = useState(false)
@@ -617,6 +682,10 @@ export default function BinderApp({
   const [burstFramesProcessed, setBurstFramesProcessed] = useState(0)
   const [burstUsableFrames, setBurstUsableFrames] = useState(0)
   const [burstPreviewResult, setBurstPreviewResult] = useState<BinderPageScanResult | null>(null)
+  const [slotSweepSlotIndex, setSlotSweepSlotIndex] = useState(0)
+  const [slotSweepCompletedSlotIndexes, setSlotSweepCompletedSlotIndexes] = useState<number[]>([])
+  const [slotSweepMatchedCards, setSlotSweepMatchedCards] = useState<PageScanCardMatchSummary[]>([])
+  const [slotSweepPreviewUrl, setSlotSweepPreviewUrl] = useState<string | null>(null)
   const [isSyncingLocalCollection, setIsSyncingLocalCollection] = useState(false)
   const [localCollectionSyncMessage, setLocalCollectionSyncMessage] = useState<string | null>(null)
   const [sharePath, setSharePath] = useState<string | null>(shareViewToken ? `/share/${shareViewToken}` : null)
@@ -1257,6 +1326,19 @@ export default function BinderApp({
   const currentPagePokemon = useMemo(
     () => currentPageSlots.filter((pokemon): pokemon is PokemonSummary => Boolean(pokemon)),
     [currentPageSlots],
+  )
+  const firstSweepSlotIndex = useMemo(() => {
+    const index = currentPageSlots.findIndex(Boolean)
+    return index >= 0 ? index : 0
+  }, [currentPageSlots])
+  const slotSweepCompletedSet = useMemo(
+    () => new Set(slotSweepCompletedSlotIndexes),
+    [slotSweepCompletedSlotIndexes],
+  )
+  const slotSweepTargetPokemon = currentPageSlots[slotSweepSlotIndex] ?? null
+  const slotSweepTargetLabel = getSlotLabel(
+    Math.floor(slotSweepSlotIndex / settings.binderCols),
+    slotSweepSlotIndex % settings.binderCols,
   )
   const burstPreviewSlots = useMemo(
     () =>
@@ -2129,6 +2211,14 @@ export default function BinderApp({
 
     if (window.isSecureContext && navigator.mediaDevices) {
       setCameraError(null)
+      setPageScannerMode("slot-sweep")
+      setSlotSweepSlotIndex(firstSweepSlotIndex)
+      setSlotSweepCompletedSlotIndexes([])
+      setSlotSweepMatchedCards([])
+      setSlotSweepPreviewUrl(null)
+      setBurstFramesProcessed(0)
+      setBurstUsableFrames(0)
+      setBurstPreviewResult(null)
       setIsBurstScannerOpen(true)
       return
     }
@@ -2392,6 +2482,9 @@ export default function BinderApp({
     setBurstFramesProcessed(0)
     setBurstUsableFrames(0)
     setBurstPreviewResult(null)
+    setSlotSweepCompletedSlotIndexes([])
+    setSlotSweepMatchedCards([])
+    setSlotSweepPreviewUrl(null)
     setIsBurstScannerOpen(false)
   }, [])
 
@@ -2443,6 +2536,181 @@ export default function BinderApp({
       }
     }
   }, [isBurstScannerOpen])
+
+  const advanceSlotSweep = useCallback((completedSlotIndexes: Set<number>, fromSlotIndex = slotSweepSlotIndex) => {
+    const nextSlotIndex = getNextSweepSlotIndex(currentPageSlots, fromSlotIndex, completedSlotIndexes)
+
+    if (nextSlotIndex !== null) {
+      setSlotSweepSlotIndex(nextSlotIndex)
+    } else {
+      setCameraError("All slots on this page have been scanned or skipped.")
+    }
+  }, [currentPageSlots, slotSweepSlotIndex])
+
+  const handleSlotSweepSkip = useCallback(() => {
+    setCameraError(null)
+    const nextSet = new Set(slotSweepCompletedSlotIndexes)
+    nextSet.add(slotSweepSlotIndex)
+    setSlotSweepCompletedSlotIndexes([...nextSet].sort((left, right) => left - right))
+    advanceSlotSweep(nextSet)
+  }, [advanceSlotSweep, slotSweepCompletedSlotIndexes, slotSweepSlotIndex])
+
+  const handleSlotSweepCapture = useCallback(async () => {
+    const video = burstVideoRef.current
+    const canvas = burstCanvasRef.current
+    const pokemon = currentPageSlots[slotSweepSlotIndex]
+
+    if (readOnlyMode || !video || !canvas || !pokemon || !isCameraReady || isCapturingBurst) {
+      return
+    }
+
+    setIsCapturingBurst(true)
+    setIsScanningPage(true)
+    setPageScanError(null)
+    setCameraError(null)
+    setBurstFramesProcessed(0)
+    setBurstUsableFrames(0)
+    setIsApplyingScanResults(false)
+
+    try {
+      const frameMatches: CardScanFrameMatch<TCGCard>[][] = []
+      const slotFrames: BinderSlotSweepFrame<TCGCard>[] = []
+      const previewUrls: string[] = []
+
+      for (let index = 0; index < SLOT_SWEEP_FRAME_COUNT; index += 1) {
+        setBurstFramesProcessed(index + 1)
+        const frame = await captureGuidedSlotFrame(video, canvas, index)
+        setSlotSweepPreviewUrl(frame.previewUrl)
+        previewUrls.push(frame.previewUrl)
+
+        try {
+          const matches = await scorePageScanSlotCard(frame.previewUrl, pokemon)
+          slotFrames.push({ slotIndex: slotSweepSlotIndex, matches })
+
+          if (matches.length > 0) {
+            frameMatches.push(matches)
+            setBurstUsableFrames(frameMatches.length)
+          }
+        } catch (error) {
+          console.info("[binderdex] Skipping slot sweep frame:", error)
+          slotFrames.push({ slotIndex: slotSweepSlotIndex, matches: [] })
+        }
+
+        if (index < SLOT_SWEEP_FRAME_COUNT - 1) {
+          await delay(SLOT_SWEEP_FRAME_DELAY_MS)
+        }
+      }
+
+      if (frameMatches.length < SLOT_SWEEP_MIN_USABLE_FRAMES) {
+        throw new Error(
+          `Only got ${frameMatches.length} usable frame${frameMatches.length === 1 ? "" : "s"} for ${slotSweepTargetLabel}. Fill the card guide and try that slot again.`,
+        )
+      }
+
+      setIsCapturingBurst(false)
+      setIsApplyingScanResults(true)
+
+      const sweepResult = aggregateBinderSlotSweep(slotFrames, {
+        slotCount: currentPageSlots.length,
+        getCardId: (card) => card.id,
+        minimumFramesPerSlot: SLOT_SWEEP_MIN_USABLE_FRAMES,
+        minimumAppearanceRatio: 0.45,
+        minimumConfidence: 0.58,
+        minimumSimilarity: 0.56,
+      })
+      const slotResult = sweepResult.slots[slotSweepSlotIndex]
+      const baseMatches = slotResult?.matches.length
+        ? slotResult.matches
+        : aggregateCardScanMatches(frameMatches, {
+            getCardId: (card) => card.id,
+            minimumAppearances: Math.max(2, Math.ceil(frameMatches.length * 0.45)),
+            maxResults: 6,
+          })
+      const rankedMatches = await rankPageSlotMatchesWithText(baseMatches, previewUrls)
+      const match = rankedMatches[0]
+
+      if (!match || match.confidence < 0.58 || match.similarity < 0.56) {
+        throw new Error(`Could not confidently match ${slotSweepTargetLabel}. Try again with less glare or skip it for now.`)
+      }
+
+      const existingItem = getCollectionItem(pokemon.id)
+      const wasCollected = isCollected(pokemon.id)
+      const saveResult = await addToCollection(
+        pokemon.id,
+        pokemon.name,
+        match.card.id,
+        match.card.name,
+        match.card.image,
+        match.card.set.name,
+        "en",
+        "collected",
+        {
+          cardFinish: existingItem?.card_finish ?? "normal",
+          wantedCards: existingItem?.wanted_cards ?? [],
+        },
+      )
+
+      if (saveResult?.error && !saveResult.queued) {
+        throw new Error(saveResult.error)
+      }
+
+      const summaryMatch: PageScanCardMatchSummary = {
+        slotIndex: slotSweepSlotIndex,
+        slotLabel: slotSweepTargetLabel,
+        cardId: match.card.id,
+        cardName: match.card.name,
+        setName: match.card.set.name,
+        cardImage: match.card.image,
+        similarity: match.similarity,
+        confidence: match.confidence,
+      }
+
+      const nextMatchedCards = [
+        ...slotSweepMatchedCards.filter((card) => card.slotIndex !== slotSweepSlotIndex),
+        summaryMatch,
+      ].sort((left, right) => left.slotIndex - right.slotIndex)
+      setSlotSweepMatchedCards(nextMatchedCards)
+
+      const nextCompletedSet = new Set(slotSweepCompletedSlotIndexes)
+      nextCompletedSet.add(slotSweepSlotIndex)
+      const nextCompletedIndexes = [...nextCompletedSet].sort((left, right) => left - right)
+      setSlotSweepCompletedSlotIndexes(nextCompletedIndexes)
+      setPageScanSummary((current) => ({
+        detectedOccupied: nextCompletedIndexes.length,
+        newCollected: (current?.newCollected ?? 0) + (wasCollected ? 0 : 1),
+        alreadyCollected: (current?.alreadyCollected ?? 0) + (wasCollected ? 1 : 0),
+        matchedCards: nextMatchedCards.length,
+        cardMatches: nextMatchedCards,
+        page: currentBinderPage,
+      }))
+      advanceSlotSweep(nextCompletedSet)
+    } catch (error) {
+      console.error("[binderdex] Error scanning slot sweep:", error)
+      const message = error instanceof Error ? error.message : "Could not scan that slot."
+      setPageScanError(message)
+      setCameraError(message)
+    } finally {
+      setIsApplyingScanResults(false)
+      setIsCapturingBurst(false)
+      setIsScanningPage(false)
+    }
+  }, [
+    addToCollection,
+    advanceSlotSweep,
+    currentBinderPage,
+    currentPageSlots,
+    getCollectionItem,
+    isCameraReady,
+    isCapturingBurst,
+    isCollected,
+    rankPageSlotMatchesWithText,
+    readOnlyMode,
+    scorePageScanSlotCard,
+    slotSweepCompletedSlotIndexes,
+    slotSweepMatchedCards,
+    slotSweepSlotIndex,
+    slotSweepTargetLabel,
+  ])
 
   const handleBurstCapture = useCallback(async () => {
     const video = burstVideoRef.current
@@ -3835,108 +4103,213 @@ export default function BinderApp({
           <div className="fixed inset-0 z-50 bg-black">
             <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
               <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
-                <div>
-                  <p className="text-sm font-semibold">Video Sweep</p>
-                  <p className="text-xs text-white/65">Move slowly over the page. Stable slots stay locked as the video samples.</p>
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
+                  <div>
+                    <p className="text-sm font-semibold">{pageScannerMode === "slot-sweep" ? "Slot Sweep" : "Whole Page Sweep"}</p>
+                    <p className="text-xs text-white/65">
+                      {pageScannerMode === "slot-sweep"
+                        ? "Scan one pocket at a time for steadier card matches."
+                        : "Move slowly over the full page. Stable slots stay locked."}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={closeBurstScanner} disabled={isCapturingBurst || isApplyingScanResults}>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={closeBurstScanner} disabled={isCapturingBurst}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
 
-              <div className="relative min-h-0 flex-1 bg-black">
-                <video
-                  ref={burstVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="h-full w-full object-cover"
-                />
-                {burstPreviewResult?.previewDataUrl ? (
-                  <div className="pointer-events-none absolute inset-0 bg-black/10">
-                    <div
-                      className="relative h-full w-full overflow-hidden"
-                      style={{ aspectRatio: `${burstPreviewResult.width} / ${burstPreviewResult.height}` }}
-                    >
-                      <img
-                        src={burstPreviewResult.previewDataUrl}
-                        alt="Last detected binder page"
-                        className="absolute inset-0 h-full w-full object-contain opacity-35"
-                      />
-                      <div className="absolute inset-0">
-                        {burstPreviewSlots.map((slot, index) => (
-                          <div
-                            key={index}
-                            className={`absolute rounded-[0.45rem] border-2 ${
-                              slot.occupied
-                                ? "border-emerald-400 bg-emerald-400/20 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]"
-                                : "border-white/30 bg-black/8"
-                            }`}
-                            style={{
-                              left: `${slot.left}%`,
-                              top: `${slot.top}%`,
-                              width: `${slot.width}%`,
-                              height: `${slot.height}%`,
-                            }}
-                          />
-                        ))}
+                <div className="relative min-h-0 flex-1 bg-black">
+                  <video
+                    ref={burstVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-cover"
+                  />
+
+                  {pageScannerMode === "slot-sweep" ? (
+                    <>
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div
+                          className="relative max-h-[82%] w-[72%] max-w-[18rem] rounded-[1.35rem] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.38),0_0_28px_rgba(255,255,255,0.18)]"
+                          style={{ aspectRatio: String(TRADING_CARD_ASPECT_RATIO) }}
+                        >
+                          <div className="absolute inset-x-5 top-5 h-px bg-white/55" />
+                          <div className="absolute inset-x-5 bottom-5 h-px bg-white/30" />
+                        </div>
+                      </div>
+                      <div className="pointer-events-none absolute left-4 top-4 rounded-2xl border border-white/12 bg-black/65 px-3 py-2 text-white shadow-lg backdrop-blur">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">{slotSweepTargetLabel}</p>
+                        <p className="max-w-[11rem] truncate text-sm font-semibold">{slotSweepTargetPokemon?.name ?? "No slot"}</p>
+                      </div>
+                      {slotSweepPreviewUrl ? (
+                        <div className="pointer-events-none absolute right-4 top-4 w-20 overflow-hidden rounded-xl border border-white/15 bg-black/60 shadow-lg">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={slotSweepPreviewUrl} alt="Last slot scan frame" className="aspect-[2.5/3.5] w-full object-cover" />
+                        </div>
+                      ) : null}
+                    </>
+                  ) : burstPreviewResult?.previewDataUrl ? (
+                    <div className="pointer-events-none absolute inset-0 bg-black/10">
+                      <div
+                        className="relative h-full w-full overflow-hidden"
+                        style={{ aspectRatio: `${burstPreviewResult.width} / ${burstPreviewResult.height}` }}
+                      >
+                        <img
+                          src={burstPreviewResult.previewDataUrl}
+                          alt="Last detected binder page"
+                          className="absolute inset-0 h-full w-full object-contain opacity-35"
+                        />
+                        <div className="absolute inset-0">
+                          {burstPreviewSlots.map((slot, index) => (
+                            <div
+                              key={index}
+                              className={`absolute rounded-[0.45rem] border-2 ${
+                                slot.occupied
+                                  ? "border-emerald-400 bg-emerald-400/20 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]"
+                                  : "border-white/30 bg-black/8"
+                              }`}
+                              style={{
+                                left: `${slot.left}%`,
+                                top: `${slot.top}%`,
+                                width: `${slot.width}%`,
+                                height: `${slot.height}%`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-between rounded-full border border-white/12 bg-black/60 px-3 py-2 text-[11px] text-white/80 backdrop-blur">
+                        <span>Detected frame</span>
+                        <span>{burstUsableFrames} usable</span>
+                        <span>{burstPreviewResult.slots.filter((slot) => slot.occupied).length} occupied</span>
                       </div>
                     </div>
-                    <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-between rounded-full border border-white/12 bg-black/60 px-3 py-2 text-[11px] text-white/80 backdrop-blur">
-                      <span>Detected frame</span>
-                      <span>{burstUsableFrames} usable</span>
-                      <span>{burstPreviewResult.slots.filter((slot) => slot.occupied).length} occupied</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="pointer-events-none absolute inset-y-[5%] left-[12%] right-[12%] rounded-[2.25rem] border-2 border-white/75 shadow-[0_0_0_9999px_rgba(0,0,0,0.34)]" />
-                )}
-                {!isCameraReady && !cameraError && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-sm text-white">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Starting camera
-                    </div>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="pointer-events-none absolute inset-y-[5%] left-[12%] right-[12%] rounded-[2.25rem] border-2 border-white/75 shadow-[0_0_0_9999px_rgba(0,0,0,0.34)]" />
+                  )}
 
-              <div className="space-y-3 border-t border-white/10 bg-black/85 px-4 py-4 text-white">
-                {cameraError ? (
-                  <p className="text-sm text-destructive">{cameraError}</p>
-                ) : (
-                  <p className="text-sm text-white/70">
-                    Keep the page roughly in frame and move slowly across the slots. The scanner samples for about {Math.round((GUIDED_SCAN_FRAME_COUNT * GUIDED_SCAN_FRAME_DELAY_MS) / 1000)} seconds and locks slots that agree across the video.
-                  </p>
-                )}
+                  {!isCameraReady && !cameraError && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-sm text-white">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Starting camera
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-                {isCapturingBurst || isApplyingScanResults ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-white/65">
-                      <span>{isCapturingBurst ? `Scanning ${burstFramesProcessed}/${GUIDED_SCAN_FRAME_COUNT}` : "Applying results"}</span>
-                      <span>{burstUsableFrames} usable frame{burstUsableFrames === 1 ? "" : "s"}</span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-white transition-all"
-                        style={{ width: `${isCapturingBurst ? (burstFramesProcessed / GUIDED_SCAN_FRAME_COUNT) * 100 : 100}%` }}
-                      />
-                    </div>
+                <div className="space-y-3 border-t border-white/10 bg-black/85 px-4 py-4 text-white">
+                  <div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-white/6 p-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPageScannerMode("slot-sweep")
+                        setCameraError(null)
+                      }}
+                      disabled={isCapturingBurst || isApplyingScanResults}
+                      className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                        pageScannerMode === "slot-sweep" ? "bg-white text-black" : "text-white/65"
+                      }`}
+                    >
+                      Slot
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPageScannerMode("page-sweep")
+                        setCameraError(null)
+                      }}
+                      disabled={isCapturingBurst || isApplyingScanResults}
+                      className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                        pageScannerMode === "page-sweep" ? "bg-white text-black" : "text-white/65"
+                      }`}
+                    >
+                      Page
+                    </button>
                   </div>
-                ) : null}
 
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" onClick={closeBurstScanner} disabled={isCapturingBurst || isApplyingScanResults}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleBurstCapture} disabled={!isCameraReady || isCapturingBurst || isApplyingScanResults}>
-                    {isCapturingBurst || isApplyingScanResults ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
-                    {isCapturingBurst ? "Sweeping Page" : isApplyingScanResults ? "Applying Results" : "Start Sweep"}
-                  </Button>
+                  {cameraError ? (
+                    <p className="text-sm text-destructive">{cameraError}</p>
+                  ) : pageScannerMode === "slot-sweep" ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-white/70">
+                        Put {slotSweepTargetLabel} in the card frame, then capture. The scanner samples {SLOT_SWEEP_FRAME_COUNT} quick frames and moves to the next slot.
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {currentPageSlots.map((pokemon, index) => {
+                          if (!pokemon) return null
+                          const isDone = slotSweepCompletedSet.has(index)
+                          const isCurrent = index === slotSweepSlotIndex
+
+                          return (
+                            <span
+                              key={index}
+                              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                isCurrent
+                                  ? "border-white bg-white text-black"
+                                  : isDone
+                                    ? "border-emerald-400/35 bg-emerald-400/15 text-emerald-100"
+                                    : "border-white/12 bg-white/5 text-white/55"
+                              }`}
+                            >
+                              {getSlotLabel(Math.floor(index / settings.binderCols), index % settings.binderCols)}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-white/70">
+                      Keep the page roughly in frame and move slowly across the slots. The scanner samples for about {Math.round((GUIDED_SCAN_FRAME_COUNT * GUIDED_SCAN_FRAME_DELAY_MS) / 1000)} seconds and locks slots that agree across the video.
+                    </p>
+                  )}
+
+                  {isCapturingBurst || isApplyingScanResults ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-white/65">
+                        <span>
+                          {isCapturingBurst
+                            ? `Scanning ${burstFramesProcessed}/${pageScannerMode === "slot-sweep" ? SLOT_SWEEP_FRAME_COUNT : GUIDED_SCAN_FRAME_COUNT}`
+                            : "Applying results"}
+                        </span>
+                        <span>{burstUsableFrames} usable frame{burstUsableFrames === 1 ? "" : "s"}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-white transition-all"
+                          style={{
+                            width: `${isCapturingBurst
+                              ? (burstFramesProcessed / (pageScannerMode === "slot-sweep" ? SLOT_SWEEP_FRAME_COUNT : GUIDED_SCAN_FRAME_COUNT)) * 100
+                              : 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="ghost" onClick={closeBurstScanner} disabled={isCapturingBurst || isApplyingScanResults}>
+                      Cancel
+                    </Button>
+                    {pageScannerMode === "slot-sweep" ? (
+                      <>
+                        <Button variant="ghost" onClick={handleSlotSweepSkip} disabled={!isCameraReady || isCapturingBurst || isApplyingScanResults || !slotSweepTargetPokemon}>
+                          Skip
+                        </Button>
+                        <Button onClick={handleSlotSweepCapture} disabled={!isCameraReady || isCapturingBurst || isApplyingScanResults || !slotSweepTargetPokemon}>
+                          {isCapturingBurst || isApplyingScanResults ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+                          {isCapturingBurst ? "Scanning" : isApplyingScanResults ? "Saving" : "Capture Slot"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button onClick={handleBurstCapture} disabled={!isCameraReady || isCapturingBurst || isApplyingScanResults}>
+                        {isCapturingBurst || isApplyingScanResults ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+                        {isCapturingBurst ? "Sweeping Page" : isApplyingScanResults ? "Applying Results" : "Start Sweep"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
             </div>
           </div>
         )}
