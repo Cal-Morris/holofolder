@@ -155,7 +155,7 @@ export default function SettingsModal({
                 : "Fallback"
   const canRequestMotionGlint =
     !isReadOnlyView
-    && settings.binderSlotGlareEnabled
+    && (settings.binderSlotGlareEnabled || settings.cardFinishEffectsEnabled)
     && motionGlintStatus !== "requesting"
     && motionGlintStatus !== "active"
     && motionGlintStatus !== "unsupported"

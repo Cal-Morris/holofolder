@@ -245,12 +245,12 @@
   }
 
   .card-finish-shader {
-    opacity: 0.5;
+    opacity: 0.64;
   }
 
   .card-finish-mobile-sheen {
     border-radius: inherit;
-    opacity: 0.2;
+    opacity: 0.24;
     mix-blend-mode: screen;
     transform: translate3d(-18%, 0, 0) rotate(var(--glint-angle, -24deg));
     animation: card-finish-sheen-sweep 3.6s ease-in-out infinite;
@@ -443,7 +443,7 @@
   .card-finish-mobile-sheen.card-finish-amazing,
   .card-finish-mobile-sheen.card-finish-shiny {
     inset: 0;
-    opacity: 0.2;
+    opacity: 0.24;
     mix-blend-mode: screen;
     animation: card-finish-sheen-sweep 3.6s ease-in-out infinite;
   }

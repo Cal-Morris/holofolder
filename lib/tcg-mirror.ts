@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import type { CardFinish } from "@/hooks/use-collection"
+import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSummary } from "@/lib/tcg-set-slots"
 
 export type MirrorLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
@@ -81,6 +83,27 @@ function buildCardImageUrl(language: string, seriesId: string, setId: string, lo
   const encodedSetId = encodeURIComponent(setId)
   const encodedLocalId = encodeURIComponent(localId)
   return `https://assets.tcgdex.net/${assetLanguage}/${encodedSeriesId}/${encodedSetId}/${encodedLocalId}/high.webp`
+}
+
+function inferCardFinish(rarity: unknown, variants: unknown): CardFinish {
+  const rarityLabel = typeof rarity === "string" ? rarity.toLowerCase() : ""
+  const variantMap = variants && typeof variants === "object"
+    ? variants as Record<string, unknown>
+    : {}
+
+  if (rarityLabel.includes("special illustration")) return "special_illustration_rare"
+  if (rarityLabel.includes("illustration")) return "illustration_rare"
+  if (rarityLabel.includes("hyper")) return "hyper_rare"
+  if (rarityLabel.includes("secret")) return "secret_rare"
+  if (rarityLabel.includes("radiant")) return "radiant_rare"
+  if (rarityLabel.includes("ace")) return "ace_spec"
+  if (rarityLabel.includes("amazing")) return "amazing_rare"
+  if (rarityLabel.includes("shiny")) return "shiny_rare"
+  if (rarityLabel.includes("ultra")) return "ultra_rare"
+  if (rarityLabel.includes("double")) return "double_rare"
+  if (Boolean(variantMap.holo)) return "holo"
+
+  return "normal"
 }
 
 function pickImageLanguage(value: unknown, requestedLanguage: MirrorLanguage) {
@@ -186,4 +209,147 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
     .sort(compareLocalIds)
 
   return cards
+}
+
+export async function searchMirroredSets(query: string, limit = 8): Promise<TCGSetSummary[]> {
+  const admin = createAdminClient()
+  const trimmedQuery = query.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim()
+
+  if (trimmedQuery.length < 2) {
+    return []
+  }
+
+  const { data, error } = await admin
+    .from("tcg_sets")
+    .select(`
+      id,
+      name_json,
+      name_en,
+      official_card_count,
+      release_date,
+      tcg_series!inner(
+        id,
+        name_json,
+        name_en
+      )
+    `)
+    .or(`id.ilike.%${trimmedQuery}%,name_en.ilike.%${trimmedQuery}%`)
+    .order("release_date", { ascending: false, nullsFirst: false })
+    .limit(limit)
+
+  if (error) {
+    throw error
+  }
+
+  return ((data || []) as any[]).map((set) => ({
+    id: set.id,
+    name: pickLocalizedText(set.name_json, "en") || set.name_en || set.id,
+    seriesName: pickLocalizedText(set.tcg_series?.name_json, "en") || set.tcg_series?.name_en || undefined,
+    officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
+    releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
+  }))
+}
+
+export async function getMirroredSetDexSlots(
+  setId: string,
+  language: MirrorLanguage = "en",
+  pokemonNames = new Map<number, string>(),
+): Promise<{ selectedSet: TCGSetSummary | null; slots: TCGSetDexSlot[] }> {
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from("tcg_cards")
+    .select(`
+      id,
+      series_id,
+      set_id,
+      local_id,
+      local_id_sort,
+      name_json,
+      name_en,
+      rarity,
+      image_languages_json,
+      variants_json,
+      tcg_sets!inner(
+        id,
+        name_json,
+        name_en,
+        official_card_count,
+        release_date,
+        tcg_series!inner(
+          id,
+          name_json,
+          name_en
+        )
+      ),
+      tcg_card_dex_ids(
+        dex_id
+      )
+    `)
+    .eq("set_id", setId)
+    .order("local_id_sort", { ascending: true, nullsFirst: false })
+
+  if (error) {
+    throw error
+  }
+
+  const rows = (data || []) as any[]
+  const firstSet = rows[0]?.tcg_sets
+  const selectedSet: TCGSetSummary | null = firstSet?.id
+    ? {
+        id: firstSet.id,
+        name: pickLocalizedText(firstSet.name_json, language) || firstSet.name_en || firstSet.id,
+        seriesName: pickLocalizedText(firstSet.tcg_series?.name_json, language) || firstSet.tcg_series?.name_en || undefined,
+        officialCardCount: typeof firstSet.official_card_count === "number" ? firstSet.official_card_count : undefined,
+        releaseDate: typeof firstSet.release_date === "string" ? firstSet.release_date : undefined,
+      }
+    : null
+  const slotMap = new Map<number, TCGSetDexSlot>()
+
+  for (const card of rows) {
+    const dexLinks = Array.isArray(card.tcg_card_dex_ids) ? card.tcg_card_dex_ids : []
+    if (dexLinks.length === 0 || !card?.id || !card?.local_id || !card?.series_id || !card?.set_id || !card?.tcg_sets?.id) {
+      continue
+    }
+
+    const imageLanguage = pickImageLanguage(card.image_languages_json, language)
+    const setSummary: TCGSetSummary = {
+      id: card.tcg_sets.id,
+      name: pickLocalizedText(card.tcg_sets.name_json, language) || card.tcg_sets.name_en || card.tcg_sets.id,
+      seriesName: pickLocalizedText(card.tcg_sets.tcg_series?.name_json, language) || card.tcg_sets.tcg_series?.name_en || undefined,
+      officialCardCount: typeof card.tcg_sets.official_card_count === "number" ? card.tcg_sets.official_card_count : undefined,
+      releaseDate: typeof card.tcg_sets.release_date === "string" ? card.tcg_sets.release_date : undefined,
+    }
+    const slotCard: TCGSetSlotCard = {
+      id: card.id,
+      localId: card.local_id,
+      name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
+      image: imageLanguage ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id) : undefined,
+      language,
+      set: setSummary,
+      rarity: typeof card.rarity === "string" ? card.rarity : undefined,
+      variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json : undefined,
+      inferredFinish: inferCardFinish(card.rarity, card.variants_json),
+    }
+
+    for (const link of dexLinks) {
+      const dexId = typeof link?.dex_id === "number" ? link.dex_id : null
+      if (!dexId) {
+        continue
+      }
+
+      const entry: TCGSetDexSlot = slotMap.get(dexId) ?? {
+        dexId,
+        pokemonName: pokemonNames.get(dexId) || `Pokemon #${dexId}`,
+        cards: [],
+      }
+      entry.cards.push(slotCard)
+      slotMap.set(dexId, entry)
+    }
+  }
+
+  return {
+    selectedSet,
+    slots: [...slotMap.values()].sort((left, right) => left.dexId - right.dexId),
+  }
 }
