@@ -47,39 +47,51 @@ void main() {
   vec2 dir = normalize(vec2(cos(u_angle), sin(u_angle)));
   vec2 crossDir = vec2(-dir.y, dir.x);
 
-  float sweep = exp(-pow(abs(dot(center, crossDir)) * 7.6, 2.0));
-  float hotSpot = exp(-dot(center, center) * 9.5);
-  float travelling = 0.5 + 0.5 * sin(dot(uv, dir) * 18.0 - u_time * 1.25);
+  float sweep = exp(-pow(abs(dot(center, crossDir)) * 6.4, 2.0));
+  float hotSpot = exp(-dot(center, center) * 8.2);
+  float travelling = 0.5 + 0.5 * sin(dot(uv, dir) * 16.0 - u_time * 1.2);
   float grain = hash(floor((uv + u_time * 0.006) * u_resolution.xy * 0.42));
 
-  float diagonalLines = linePattern(uv + vec2(u_time * 0.015, 0.0), 42.0, 0.13, u_angle + 0.65);
-  float fineLines = linePattern(uv, 96.0, 0.08, u_angle - 0.42);
-  float prism = sweep * (0.48 + travelling * 0.34) + hotSpot * 0.42 + diagonalLines * 0.18 + fineLines * 0.1;
+  float diagonalLines = linePattern(uv + vec2(u_time * 0.015, 0.0), 38.0, 0.14, u_angle + 0.65);
+  float fineLines = linePattern(uv, 86.0, 0.09, u_angle - 0.42);
+  float edgeLight = smoothstep(0.74, 0.98, max(abs(uv.x - 0.5), abs(uv.y - 0.5)) * 2.0);
+  float prism = sweep * (0.56 + travelling * 0.38) + hotSpot * 0.46 + diagonalLines * 0.2 + fineLines * 0.12 + edgeLight * 0.16;
 
   float finishBoost = 1.0;
   float hueShift = 0.0;
   float lineBoost = 0.0;
+  float alphaBase = 0.62;
 
-  if (u_finish < 1.5) {
-    finishBoost = 0.95;
+  if (u_finish < 0.5) {
+    finishBoost = 0.68;
+    hueShift = 0.58;
+    lineBoost = 0.025;
+    alphaBase = 0.5;
+  } else if (u_finish < 1.5) {
+    finishBoost = 1.12;
     hueShift = 0.55;
-    lineBoost = 0.04;
+    lineBoost = 0.08;
+    alphaBase = 0.68;
   } else if (u_finish < 2.5) {
-    finishBoost = 0.82;
+    finishBoost = 0.96;
     hueShift = 0.5;
     lineBoost = 0.28;
+    alphaBase = 0.66;
   } else if (u_finish < 3.5) {
-    finishBoost = 1.05;
+    finishBoost = 1.22;
     hueShift = 0.28;
     lineBoost = 0.16;
+    alphaBase = 0.7;
   } else if (u_finish < 4.5) {
-    finishBoost = 1.25;
+    finishBoost = 1.42;
     hueShift = 0.12;
     lineBoost = 0.24;
+    alphaBase = 0.74;
   } else {
-    finishBoost = 1.36;
+    finishBoost = 1.56;
     hueShift = 0.04;
     lineBoost = 0.34;
+    alphaBase = 0.78;
   }
 
   float hue = fract(hueShift + dot(uv, vec2(0.55, 0.22)) + sweep * 0.28 + u_time * 0.015);
@@ -88,7 +100,7 @@ void main() {
   vec3 color = mix(rainbow, pearl, hotSpot * 0.46);
 
   float texture = diagonalLines * lineBoost + fineLines * lineBoost * 0.45 + grain * 0.035;
-  float alpha = clamp((prism * finishBoost + texture) * 0.58, 0.0, 0.72);
+  float alpha = clamp((prism * finishBoost + texture) * alphaBase, 0.0, 0.86);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -133,6 +145,7 @@ function createProgram(gl: WebGLRenderingContext) {
 }
 
 function getFinishUniformValue(finish: CardFinish) {
+  if (finish === "normal") return 0
   if (finish === "reverse_holo") return 2
   if (finish === "illustration_rare") return 3
   if (finish === "special_illustration_rare") return 4
@@ -252,6 +265,7 @@ export default function CardFinishShader({
     <canvas
       ref={canvasRef}
       aria-hidden="true"
+      data-card-finish={finish}
       className="card-finish-shader pointer-events-none absolute inset-0 z-[2] h-full w-full"
     />
   )

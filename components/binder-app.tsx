@@ -3956,19 +3956,20 @@ function PokemonSlot({
   const previewSurfaceInsetClass = "inset-[3px]"
   const slotRadiusStyle = { borderRadius: TRADING_CARD_CORNER_RADIUS }
   const previewRadiusStyle = { borderRadius: TRADING_CARD_INNER_CORNER_RADIUS }
+  const effectiveCardFinish = cardFinish ?? "normal"
   const finishEffectClass =
-    cardFinish === "reverse_holo"
+    effectiveCardFinish === "reverse_holo"
       ? "card-finish-reverse-holo"
-      : cardFinish === "illustration_rare"
+      : effectiveCardFinish === "illustration_rare"
         ? "card-finish-ir"
-        : cardFinish === "special_illustration_rare"
+        : effectiveCardFinish === "special_illustration_rare"
           ? "card-finish-sir"
-          : cardFinish === "secret_rare" || cardFinish === "hyper_rare"
+          : effectiveCardFinish === "secret_rare" || effectiveCardFinish === "hyper_rare"
             ? "card-finish-secret"
-            : cardFinish === "holo"
+            : effectiveCardFinish === "holo"
               ? "card-finish-holo"
-              : null
-  const shouldShowCardFinish = Boolean(hasCardPreview && showCardFinishEffects && finishEffectClass)
+              : "card-finish-normal"
+  const shouldShowCardFinish = Boolean(hasCardPreview && showCardFinishEffects)
   const shouldShowPocketGlare = showBinderSlotGlare && !shouldShowCardFinish
 
   return (
@@ -4056,11 +4057,11 @@ function PokemonSlot({
             />
             {shouldShowCardFinish ? (
               <CardFinishShader
-                finish={cardFinish ?? "holo"}
+                finish={effectiveCardFinish}
                 glintX={cardFinishGlint.x}
                 glintY={cardFinishGlint.y}
                 glintAngle={cardFinishGlint.angle}
-                fallbackClassName={finishEffectClass ?? ""}
+                fallbackClassName={finishEffectClass}
                 fallbackStyle={cardFinishEffectStyle}
               />
             ) : null}
