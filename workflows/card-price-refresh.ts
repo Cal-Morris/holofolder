@@ -9,6 +9,7 @@ import {
 interface CollectionPriceRow {
   card_id: string | null
   card_language?: string | null
+  wanted_cards?: unknown
 }
 
 interface CardPriceWorkflowResult {
@@ -50,9 +51,8 @@ async function loadTrackedCardPriceLookups(ownerUserId: string): Promise<CardPri
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("pokemon_collection")
-    .select("card_id, card_language")
+    .select("card_id, card_language, wanted_cards")
     .eq("user_id", ownerUserId)
-    .not("card_id", "is", null)
 
   if (error) {
     throw error
@@ -60,15 +60,26 @@ async function loadTrackedCardPriceLookups(ownerUserId: string): Promise<CardPri
 
   const byKey = new Map<string, CardPriceLookup>()
   for (const row of (data ?? []) as CollectionPriceRow[]) {
-    if (!row.card_id) {
-      continue
+    if (row.card_id) {
+      const language = normalizeCardLanguage(row.card_language)
+      byKey.set(`${row.card_id}::${language}`, {
+        cardId: row.card_id,
+        language,
+      })
     }
 
-    const language = normalizeCardLanguage(row.card_language)
-    byKey.set(`${row.card_id}::${language}`, {
-      cardId: row.card_id,
-      language,
-    })
+    if (Array.isArray(row.wanted_cards)) {
+      for (const wantedCard of row.wanted_cards) {
+        if (!wantedCard || typeof wantedCard !== "object") continue
+        const candidate = wantedCard as { card_id?: unknown; card_language?: unknown }
+        if (typeof candidate.card_id !== "string") continue
+        const wantedLanguage = normalizeCardLanguage(candidate.card_language)
+        byKey.set(`${candidate.card_id}::${wantedLanguage}`, {
+          cardId: candidate.card_id,
+          language: wantedLanguage,
+        })
+      }
+    }
   }
 
   return [...byKey.values()]

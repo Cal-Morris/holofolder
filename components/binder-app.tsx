@@ -9,7 +9,7 @@ import AuthModal from "@/components/auth-modal"
 import PartnerModal from "@/components/partner-modal"
 import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
-import { useCollection, type CardLanguage, type SlotStatus } from "@/hooks/use-collection"
+import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
 import { Button } from "@/components/ui/button"
@@ -72,7 +72,7 @@ type DeviceOrientationWithPermission = typeof DeviceOrientationEvent & {
 type DeviceMotionWithPermission = typeof DeviceMotionEvent & {
   requestPermission?: () => Promise<DeviceOrientationPermissionState>
 }
-type CollectionViewFilter = "all" | "needed" | "upgradeable" | "favorite"
+type CollectionViewFilter = "all" | "needed" | "wanted" | "upgradeable" | "favorite"
 
 const COLLECTION_VIEW_FILTERS: Array<{
   id: CollectionViewFilter
@@ -82,6 +82,7 @@ const COLLECTION_VIEW_FILTERS: Array<{
 }> = [
   { id: "all", label: "All", mobileLabel: "All", description: "Show the full binder, including empty, upgradeable, and perfect slots." },
   { id: "needed", label: "Need", mobileLabel: "Need", description: "Only show slots that still need collecting." },
+  { id: "wanted", label: "Wanted", mobileLabel: "Wanted", description: "Only show slots with cards on the want list." },
   { id: "upgradeable", label: "Upgrades", mobileLabel: "Upgrades", description: "Show collected slots that are not marked perfect yet." },
   { id: "favorite", label: "Perfect", mobileLabel: "Perfect", description: "Show slots that are done and marked as the perfect card." },
 ]
@@ -122,6 +123,8 @@ interface InitialCollectionRow {
   card_image?: string
   card_set?: string
   card_language?: CardLanguage
+  card_finish?: CardFinish
+  wanted_cards?: WantedCard[]
   status: SlotStatus
   collected_at: string
 }
@@ -197,8 +200,22 @@ const CARD_LANGUAGE_LABELS: Record<CardLanguage, string> = {
   ko: "Korean",
 }
 
+const CARD_FINISH_LABELS: Record<CardFinish, string> = {
+  normal: "Normal",
+  holo: "Holo",
+  reverse_holo: "Reverse holo",
+  illustration_rare: "IR",
+  special_illustration_rare: "SIR",
+  secret_rare: "Secret",
+  hyper_rare: "Hyper",
+}
+
 function formatCardLanguageLabel(language?: string | null) {
   return CARD_LANGUAGE_LABELS[(language || "en") as CardLanguage] ?? CARD_LANGUAGE_LABELS.en
+}
+
+function formatCardFinishLabel(finish?: string | null) {
+  return CARD_FINISH_LABELS[(finish || "normal") as CardFinish] ?? CARD_FINISH_LABELS.normal
 }
 
 function getCollectionItemPriceKey(item?: { card_id?: string | null; card_language?: string | null } | null) {
@@ -496,7 +513,9 @@ export default function BinderApp({
     isCollected,
     isWishlisted,
     addToCollection,
+    addWantedCard,
     removeFromCollection,
+    removeWantedCard,
     updateStatus,
     collectionCount,
     signOut,
@@ -842,6 +861,10 @@ export default function BinderApp({
         return !item || item.status === "wishlisted"
       }
 
+      if (collectionViewFilter === "wanted") {
+        return Boolean(item?.wanted_cards?.length)
+      }
+
       if (!item || item.status === "wishlisted") {
         return false
       }
@@ -991,6 +1014,20 @@ export default function BinderApp({
         .filter((item): item is CardPriceLookup => item !== null),
     [filteredTrackedCards],
   )
+  const wantedCardEntries = useMemo(
+    () => collection.flatMap((item) =>
+      (item.wanted_cards ?? []).map((card) => ({
+        pokemonId: item.pokemon_id,
+        pokemonName: item.pokemon_name,
+        card,
+      })),
+    ),
+    [collection],
+  )
+  const wantedPriceLookups = useMemo<CardPriceLookup[]>(
+    () => wantedCardEntries.map(({ card }) => ({ cardId: card.card_id, language: card.card_language ?? "en" })),
+    [wantedCardEntries],
+  )
   const selectedTrackedCardItem = selectedPokemon ? getCollectionItem(selectedPokemon.id) ?? null : null
   const selectedTrackedPriceLookup = useMemo<CardPriceLookup | null>(
     () => selectedTrackedCardItem?.card_id
@@ -1006,16 +1043,20 @@ export default function BinderApp({
         byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
       }
 
+      for (const lookup of wantedPriceLookups) {
+        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+      }
+
       if (selectedTrackedPriceLookup) {
         byKey.set(getCardPriceKey(selectedTrackedPriceLookup.cardId, selectedTrackedPriceLookup.language), selectedTrackedPriceLookup)
       }
 
       return [...byKey.values()]
     },
-    [selectedTrackedPriceLookup, trackedPriceLookups],
+    [selectedTrackedPriceLookup, trackedPriceLookups, wantedPriceLookups],
   )
-  const hasTrackedCards = trackedPriceLookups.length > 0
-  const shouldLoadCardPrices = isPriceMode || Boolean(selectedTrackedPriceLookup)
+  const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
+  const shouldLoadCardPrices = isPriceMode || collectionViewFilter === "wanted" || Boolean(selectedTrackedPriceLookup)
   const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
   const filteredPriceSummary = useMemo(
     () => sumPriceSnapshots(filteredTrackedCards.map((item) => {
@@ -1054,15 +1095,22 @@ export default function BinderApp({
     [generationFilteredPokemonList, getCollectionItem],
   )
 
+  const wantedPokemonList = useMemo(
+    () => generationFilteredPokemonList.filter((pokemon) => Boolean(getCollectionItem(pokemon.id)?.wanted_cards?.length)),
+    [generationFilteredPokemonList, getCollectionItem],
+  )
+
   const activeJumpPokemonList = useMemo(() => {
     if (collectionViewFilter === "favorite") return favoritePokemonList
     if (collectionViewFilter === "upgradeable") return upgradeablePokemonList
+    if (collectionViewFilter === "wanted") return wantedPokemonList
     return neededPokemonList
-  }, [collectionViewFilter, favoritePokemonList, neededPokemonList, upgradeablePokemonList])
+  }, [collectionViewFilter, favoritePokemonList, neededPokemonList, upgradeablePokemonList, wantedPokemonList])
 
   const activeJumpLabel = useMemo(() => {
     if (collectionViewFilter === "favorite") return "Perfect"
     if (collectionViewFilter === "upgradeable") return "Upgrade"
+    if (collectionViewFilter === "wanted") return "Wanted"
     return "Needed"
   }, [collectionViewFilter])
 
@@ -1365,28 +1413,41 @@ export default function BinderApp({
         existingItem?.card_set,
         existingItem?.card_language ?? "en",
         "collected",
+        {
+          cardFinish: existingItem?.card_finish ?? "normal",
+          wantedCards: existingItem?.wanted_cards ?? [],
+        },
       )
     }
     setLongPressedPokemon(null)
   }
 
-  const handleCardSelected = async (card: any | null, selectedMode: CardSelectorMode = cardSelectorMode) => {
+  const handleCardSelected = async (card: any | null, selectedMode: CardSelectorMode = cardSelectorMode, finish: CardFinish = "normal") => {
     if (!selectedPokemon) return
     if (readOnlyMode) return
     setCardSelectorMode(selectedMode)
     if (selectedMode === "wishlist") {
       if (!card) {
-        await removeFromCollection(selectedPokemon.id)
+        const firstWantedCardId = collectionItem?.wanted_cards?.[0]?.card_id
+        if (firstWantedCardId) {
+          await removeWantedCard(selectedPokemon.id, firstWantedCardId)
+        }
       } else {
-        await addToCollection(
+        await addWantedCard(
           selectedPokemon.id,
           selectedPokemon.name,
-          card.id,
-          card.name,
-          card.image,
-          card.set?.name,
-          card.language ?? "en",
-          "wishlisted",
+          {
+            card_id: card.id,
+            card_name: card.name,
+            card_image: card.image,
+            card_set: card.set?.name,
+            card_language: card.language ?? "en",
+            card_finish: finish,
+            rarity: card.rarity,
+            local_id: card.localId,
+            set_total: card.set?.officialCardCount,
+            added_at: new Date().toISOString(),
+          },
         )
       }
     } else {
@@ -1399,6 +1460,10 @@ export default function BinderApp({
         card?.set?.name,
         card?.language ?? "en",
         "collected",
+        {
+          cardFinish: finish,
+          wantedCards: collectionItem?.wanted_cards ?? [],
+        },
       )
     }
     setIsCardSelectorOpen(false)
@@ -2238,6 +2303,8 @@ export default function BinderApp({
     const selectedDetailChips = [
       collectionItem?.card_set ? { key: "set", label: collectionItem.card_set } : null,
       collectionItem?.card_id ? { key: "language", label: formatCardLanguageLabel(collectionItem.card_language) } : null,
+      collectionItem?.card_id ? { key: "finish", label: formatCardFinishLabel(collectionItem.card_finish) } : null,
+      collectionItem?.wanted_cards?.length ? { key: "wanted", label: `${collectionItem.wanted_cards.length} wanted` } : null,
       selectedCardPriceLabel ? { key: "price", label: isLoadingPrices ? "Loading price..." : selectedCardPriceLabel } : null,
       !selectedCardPriceLabel && isLoadingPrices && collectionItem?.card_id ? { key: "price-loading", label: "Loading price..." } : null,
       selectedCollectedDateLabel ? { key: "collected", label: `Collected ${selectedCollectedDateLabel}` } : null,
@@ -2404,14 +2471,14 @@ export default function BinderApp({
                         <Button
                           onClick={handleOpenWishlistSelector}
                           disabled={isCollectionLoading}
-                          variant={wishlisted ? "secondary" : "outline"}
+                          variant={collectionItem?.wanted_cards?.length ? "secondary" : "outline"}
                           size="sm"
-                          className={wishlisted
+                          className={collectionItem?.wanted_cards?.length
                             ? "h-11 rounded-xl gap-1.5 px-3 text-xs"
                             : "h-11 rounded-xl gap-1.5 border-amber-400/25 bg-amber-400/8 px-3 text-xs text-amber-600 shadow-none hover:bg-amber-400/12 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"}
                         >
-                          <Heart className={`w-3.5 h-3.5 ${wishlisted ? "fill-current" : ""}`} />
-                          {wishlisted ? "Edit wanted" : "Track wanted"}
+                          <Heart className={`w-3.5 h-3.5 ${collectionItem?.wanted_cards?.length ? "fill-current" : ""}`} />
+                          {collectionItem?.wanted_cards?.length ? "Add wanted" : "Track wanted"}
                         </Button>
                       </div>
                     )}
@@ -2705,7 +2772,7 @@ export default function BinderApp({
             const isSelected = selectedPokemon?.id === pokemon.id
             const isLongPressed = longPressedPokemon?.id === pokemon.id
             const item = getCollectionItem(pokemon.id)
-            const isCurrentWishlisted = item?.status === "wishlisted"
+            const isCurrentWishlisted = item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
             const itemPriceKey = getCollectionItemPriceKey(item)
 
             return (
@@ -2720,11 +2787,13 @@ export default function BinderApp({
                 status={item?.status}
                 cardImage={item?.card_image}
                 cardName={item?.card_name}
+                cardFinish={item?.card_finish}
                 hasAssignedCard={Boolean(item?.card_id)}
                 priceLabel={isPriceMode && itemPriceKey ? formatPriceLabel(pricesByCardId[itemPriceKey]) : null}
                 showPriceMode={isPriceMode}
                 readOnly={readOnlyMode}
                 showBinderSlotGlare={settings.binderSlotGlareEnabled}
+                showCardFinishEffects={settings.cardFinishEffectsEnabled}
                 binderSlotGlareStyle={slotGlareOverlayStyle}
                 onClick={() => {
                   if (pageNumber !== currentBinderPage) {
@@ -3192,6 +3261,43 @@ export default function BinderApp({
               </div>
             )}
 
+            {collectionViewFilter === "wanted" && (
+              <div className="shrink-0 overflow-x-auto rounded-xl border border-amber-400/25 bg-amber-400/8 p-2 scrollbar-hide">
+                <div className="flex min-w-max gap-2">
+                  {wantedCardEntries.length === 0 ? (
+                    <div className="px-2 py-1 text-xs text-muted-foreground">No wanted cards yet</div>
+                  ) : wantedCardEntries.map(({ pokemonId, pokemonName, card }) => {
+                    const priceKey = getCardPriceKey(card.card_id, card.card_language ?? "en")
+                    const priceLabel = formatPriceLabel(pricesByCardId[priceKey])
+
+                    return (
+                      <button
+                        key={`${pokemonId}-${card.card_id}-${card.card_finish ?? "normal"}`}
+                        onClick={() => {
+                          const pokemon = getPokemonSummary(pokemonId)
+                          if (pokemon) {
+                            handlePokemonSelect(pokemon)
+                          }
+                        }}
+                        className="flex w-56 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 bg-card/82 p-2 text-left"
+                      >
+                        {card.card_image ? (
+                          <img src={card.card_image} alt={card.card_name} className="h-14 w-10 rounded object-cover" loading="lazy" />
+                        ) : (
+                          <div className="h-14 w-10 rounded bg-muted" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold">{card.card_name}</p>
+                          <p className="truncate text-[10px] text-muted-foreground">{pokemonName} · {formatCardFinishLabel(card.card_finish)}</p>
+                          <p className="mt-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-300">{priceLabel ?? (isLoadingPrices ? "Loading price" : "No price")}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Binder Grid */}
             <div className="md:min-h-0 md:flex-1 md:flex md:items-center md:justify-center">
               <div
@@ -3612,7 +3718,7 @@ export default function BinderApp({
           pokemonName={selectedPokemon.name}
           onSelect={handleCardSelected}
           onClose={() => setIsCardSelectorOpen(false)}
-          selectedCardId={collectionItem?.card_id}
+          selectedCardId={cardSelectorMode === "wishlist" ? collectionItem?.wanted_cards?.[0]?.card_id : collectionItem?.card_id}
           mode={cardSelectorMode}
         />
       )}
@@ -3643,11 +3749,13 @@ function PokemonSlot({
   status,
   cardImage,
   cardName,
+  cardFinish = "normal",
   hasAssignedCard,
   priceLabel,
   showPriceMode,
   readOnly,
   showBinderSlotGlare,
+  showCardFinishEffects,
   binderSlotGlareStyle,
   onClick,
   onLongPress,
@@ -3665,11 +3773,13 @@ function PokemonSlot({
   status?: SlotStatus
   cardImage?: string | null
   cardName?: string | null
+  cardFinish?: CardFinish | null
   hasAssignedCard: boolean
   priceLabel?: string | null
   showPriceMode: boolean
   readOnly: boolean
   showBinderSlotGlare: boolean
+  showCardFinishEffects: boolean
   binderSlotGlareStyle: {
     transform: string
     opacity: number
@@ -3723,7 +3833,7 @@ function PokemonSlot({
   const hasCardPreview = Boolean(cardImage)
   const statusChip = isWishlisted
     ? {
-        label: "Wanted",
+        label: isCollected ? "Want" : "Wanted",
         className: "border-amber-400/50 bg-amber-500/90 text-white",
       }
     : status === "finalized"
@@ -3747,6 +3857,18 @@ function PokemonSlot({
   const previewSurfaceInsetClass = "inset-[3px]"
   const slotRadiusStyle = { borderRadius: TRADING_CARD_CORNER_RADIUS }
   const previewRadiusStyle = { borderRadius: TRADING_CARD_INNER_CORNER_RADIUS }
+  const finishEffectClass =
+    cardFinish === "reverse_holo"
+      ? "card-finish-reverse-holo"
+      : cardFinish === "illustration_rare"
+        ? "card-finish-ir"
+        : cardFinish === "special_illustration_rare"
+          ? "card-finish-sir"
+          : cardFinish === "secret_rare" || cardFinish === "hyper_rare"
+            ? "card-finish-secret"
+            : cardFinish === "holo"
+              ? "card-finish-holo"
+              : null
 
   return (
     <div className="relative">
@@ -3831,7 +3953,9 @@ function PokemonSlot({
               decoding="async"
               draggable={false}
             />
-            <div className="animate-holographic-foil pointer-events-none absolute inset-0 mix-blend-screen opacity-45" />
+            {showCardFinishEffects && finishEffectClass ? (
+              <div className={`pointer-events-none absolute inset-0 ${finishEffectClass}`} style={binderSlotGlareStyle} />
+            ) : null}
           </div>
         ) : (
           <div

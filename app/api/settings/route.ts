@@ -11,6 +11,7 @@ type UserSettingsRow = {
   binder_color_id?: string | null
   binder_page_colors?: Record<string, BinderColorId> | null
   binder_slot_glare_enabled?: boolean | null
+  card_finish_effects_enabled?: boolean | null
   dark_mode?: boolean | null
 }
 
@@ -30,6 +31,7 @@ function buildSettingsPayload(row: UserSettingsRow | null | undefined) {
     binderColorId: (row?.binder_color_id as BinderColorId | null) ?? DEFAULT_BINDER_COLOR_ID,
     binderPageColors: row?.binder_page_colors ?? {},
     binderSlotGlareEnabled: row?.binder_slot_glare_enabled ?? true,
+    cardFinishEffectsEnabled: row?.card_finish_effects_enabled ?? true,
     darkMode: row?.dark_mode ?? true,
   }
 }
@@ -67,7 +69,7 @@ export async function GET() {
     const settingsOwnerUserId = await resolveSettingsOwnerUserId(user.id)
     const { data, error } = await admin
       .from("user_settings")
-      .select("binder_rows, binder_cols, binder_color_id, binder_page_colors, binder_slot_glare_enabled, dark_mode")
+      .select("binder_rows, binder_cols, binder_color_id, binder_page_colors, binder_slot_glare_enabled, card_finish_effects_enabled, dark_mode")
       .eq("user_id", settingsOwnerUserId)
       .maybeSingle()
 
@@ -109,6 +111,7 @@ export async function PUT(request: NextRequest) {
       binder_color_id: typeof body.binderColorId === "string" ? body.binderColorId : DEFAULT_BINDER_COLOR_ID,
       binder_page_colors: body.binderPageColors && typeof body.binderPageColors === "object" ? body.binderPageColors : {},
       binder_slot_glare_enabled: Boolean(body.binderSlotGlareEnabled),
+      card_finish_effects_enabled: body.cardFinishEffectsEnabled !== false,
       dark_mode: Boolean(body.darkMode),
     })
 
@@ -135,6 +138,7 @@ export async function PUT(request: NextRequest) {
             binder_color_id: nextSettings.binderColorId,
             binder_page_colors: nextSettings.binderPageColors,
             binder_slot_glare_enabled: nextSettings.binderSlotGlareEnabled,
+            card_finish_effects_enabled: nextSettings.cardFinishEffectsEnabled,
             dark_mode: nextSettings.darkMode,
           })
           .eq("user_id", settingsOwnerUserId)
@@ -147,6 +151,7 @@ export async function PUT(request: NextRequest) {
             binder_color_id: nextSettings.binderColorId,
             binder_page_colors: nextSettings.binderPageColors,
             binder_slot_glare_enabled: nextSettings.binderSlotGlareEnabled,
+            card_finish_effects_enabled: nextSettings.cardFinishEffectsEnabled,
             dark_mode: nextSettings.darkMode,
           })
 

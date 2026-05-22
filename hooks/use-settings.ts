@@ -10,6 +10,7 @@ export interface BinderSettings {
   binderColorId: BinderColorId
   binderPageColors: Record<string, BinderColorId>
   binderSlotGlareEnabled: boolean
+  cardFinishEffectsEnabled: boolean
   darkMode: boolean
 }
 
@@ -21,6 +22,7 @@ const DEFAULT_SETTINGS: BinderSettings = {
   binderColorId: DEFAULT_BINDER_COLOR_ID,
   binderPageColors: {},
   binderSlotGlareEnabled: true,
+  cardFinishEffectsEnabled: true,
   darkMode: true,
 }
 
@@ -52,6 +54,7 @@ function normaliseSettings(source: StoredBinderSettings | null | undefined, fall
     binderColorId: source.binderColorId || fallback.binderColorId,
     binderPageColors: source.binderPageColors || fallback.binderPageColors,
     binderSlotGlareEnabled: source.binderSlotGlareEnabled ?? fallback.binderSlotGlareEnabled,
+    cardFinishEffectsEnabled: source.cardFinishEffectsEnabled ?? fallback.cardFinishEffectsEnabled,
     darkMode: source.darkMode ?? fallback.darkMode,
   }
 }

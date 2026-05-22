@@ -12,6 +12,7 @@ const DEFAULT_BINDER_SETTINGS: BinderSettings = {
   binderColorId: DEFAULT_BINDER_COLOR_ID,
   binderPageColors: {},
   binderSlotGlareEnabled: true,
+  cardFinishEffectsEnabled: true,
   darkMode: true,
 }
 
@@ -75,6 +76,7 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
         binderColorId: settingsRow.binder_color_id ?? DEFAULT_BINDER_SETTINGS.binderColorId,
         binderPageColors: settingsRow.binder_page_colors ?? DEFAULT_BINDER_SETTINGS.binderPageColors,
         binderSlotGlareEnabled: settingsRow.binder_slot_glare_enabled ?? DEFAULT_BINDER_SETTINGS.binderSlotGlareEnabled,
+        cardFinishEffectsEnabled: settingsRow.card_finish_effects_enabled ?? DEFAULT_BINDER_SETTINGS.cardFinishEffectsEnabled,
         darkMode: settingsRow.dark_mode ?? DEFAULT_BINDER_SETTINGS.darkMode,
       }
     : DEFAULT_BINDER_SETTINGS

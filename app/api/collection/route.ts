@@ -6,11 +6,39 @@ export const runtime = "nodejs"
 
 const VALID_STATUSES = new Set(["collected", "finalized", "considering", "wishlisted"])
 const VALID_CARD_LANGUAGES = new Set(["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"])
+const VALID_CARD_FINISHES = new Set(["normal", "holo", "reverse_holo", "illustration_rare", "special_illustration_rare", "secret_rare", "hyper_rare"])
 
 function normalizeCardLanguage(value: unknown) {
   if (typeof value !== "string") return "en"
   const normalized = value.trim().toLowerCase()
   return VALID_CARD_LANGUAGES.has(normalized) ? normalized : "en"
+}
+
+function normalizeCardFinish(value: unknown) {
+  return typeof value === "string" && VALID_CARD_FINISHES.has(value) ? value : "normal"
+}
+
+function normalizeWantedCards(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((rawCard) => {
+    if (!rawCard || typeof rawCard !== "object") return []
+    const card = rawCard as Record<string, unknown>
+    if (typeof card.card_id !== "string" || typeof card.card_name !== "string") return []
+
+    return [{
+      card_id: card.card_id,
+      card_name: card.card_name,
+      card_image: typeof card.card_image === "string" ? card.card_image : null,
+      card_set: typeof card.card_set === "string" ? card.card_set : null,
+      card_language: normalizeCardLanguage(card.card_language),
+      card_finish: normalizeCardFinish(card.card_finish),
+      rarity: typeof card.rarity === "string" ? card.rarity : null,
+      local_id: typeof card.local_id === "string" ? card.local_id : null,
+      set_total: typeof card.set_total === "number" && Number.isFinite(card.set_total) ? card.set_total : null,
+      added_at: typeof card.added_at === "string" ? card.added_at : new Date().toISOString(),
+    }]
+  })
 }
 
 async function resolveCollectionOwnerUserId(userId: string) {
@@ -74,6 +102,8 @@ export async function POST(request: NextRequest) {
           card_image: typeof body?.cardImage === "string" ? body.cardImage : null,
           card_set: typeof body?.cardSet === "string" ? body.cardSet : null,
           card_language: normalizeCardLanguage(body?.cardLanguage),
+          card_finish: normalizeCardFinish(body?.cardFinish),
+          wanted_cards: normalizeWantedCards(body?.wantedCards),
           status,
         },
         { onConflict: "user_id,pokemon_id" },

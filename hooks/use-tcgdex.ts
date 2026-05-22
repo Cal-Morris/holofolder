@@ -14,6 +14,7 @@ export interface TCGCard {
     id: string
     name: string
     logo?: string
+    officialCardCount?: number
   }
   rarity?: string
   variants?: {

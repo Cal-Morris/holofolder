@@ -10,6 +10,7 @@ export interface MirroredTCGCard {
   set: {
     id: string
     name: string
+    officialCardCount?: number
   }
   rarity?: string
   variants?: {
@@ -32,6 +33,7 @@ type MirroredCardQueryResult = {
   set: {
     id: string
     name: string
+    officialCardCount?: number
   }
   rarity?: string
   variants?: {
@@ -139,7 +141,8 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
           variants_json,
           tcg_sets!inner(
             id,
-            name_json
+            name_json,
+            official_card_count
         )
       )
     `)
@@ -168,6 +171,7 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
         set: {
           id: set.id,
           name: pickLocalizedText(set.name_json, language) || set.id,
+          officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
         },
         rarity: typeof card.rarity === "string" ? card.rarity : undefined,
         variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json : undefined,

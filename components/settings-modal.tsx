@@ -218,6 +218,20 @@ export default function SettingsModal({
                 disabled={isReadOnlyView}
               />
             </div>
+            <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Card finish glints</p>
+                <p className="text-xs text-muted-foreground">
+                  Shows holo, reverse holo, IR, SIR, and secret rare gleams on selected cards.
+                </p>
+              </div>
+              <Switch
+                checked={settings.cardFinishEffectsEnabled}
+                onCheckedChange={(checked) => onUpdateSettings({ cardFinishEffectsEnabled: checked })}
+                aria-label="Toggle card finish glints"
+                disabled={isReadOnlyView}
+              />
+            </div>
             <div className="rounded-2xl border border-border/50 bg-muted/25 p-4">
               <div className="flex items-center gap-2">
                 <Palette className="w-4 h-4 text-primary" />

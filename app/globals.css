@@ -230,9 +230,67 @@
     animation: holographic-foil 6.25s ease-in-out infinite;
   }
 
+  .card-finish-holo,
+  .card-finish-reverse-holo,
+  .card-finish-ir,
+  .card-finish-sir,
+  .card-finish-secret {
+    mix-blend-mode: screen;
+    opacity: 0.42;
+    transition: transform 160ms ease-out, opacity 160ms ease-out;
+    will-change: transform, opacity;
+  }
+
+  .card-finish-holo {
+    background:
+      linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.22) 18%, rgba(56,189,248,0.32) 28%, rgba(244,114,182,0.24) 42%, transparent 58%),
+      repeating-linear-gradient(128deg, rgba(255,255,255,0.09) 0 1px, transparent 1px 9px);
+    background-size: 220% 100%, 100% 100%;
+    animation: holographic-foil 6s ease-in-out infinite;
+  }
+
+  .card-finish-reverse-holo {
+    inset: 8% 4% 4%;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.28), transparent 28%),
+      repeating-linear-gradient(45deg, rgba(125,211,252,0.2) 0 2px, rgba(244,114,182,0.18) 2px 4px, transparent 4px 9px);
+    opacity: 0.34;
+    animation: holographic-foil 7s ease-in-out infinite reverse;
+  }
+
+  .card-finish-ir {
+    background:
+      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.2) 18%, rgba(134,239,172,0.2) 30%, rgba(96,165,250,0.25) 45%, transparent 62%),
+      radial-gradient(circle at 72% 18%, rgba(255,255,255,0.34), transparent 24%);
+    opacity: 0.38;
+    animation: holographic-foil 5.5s ease-in-out infinite;
+  }
+
+  .card-finish-sir {
+    background:
+      linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.24) 16%, rgba(251,191,36,0.26) 26%, rgba(56,189,248,0.32) 38%, rgba(244,114,182,0.28) 52%, transparent 68%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 7px),
+      radial-gradient(circle at 30% 18%, rgba(255,255,255,0.38), transparent 24%);
+    opacity: 0.5;
+    animation: holographic-foil 4.8s ease-in-out infinite;
+  }
+
+  .card-finish-secret {
+    background:
+      conic-gradient(from 160deg at 50% 50%, rgba(251,191,36,0.2), rgba(244,114,182,0.28), rgba(56,189,248,0.3), rgba(134,239,172,0.2), rgba(251,191,36,0.24)),
+      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.28) 20%, transparent 46%);
+    opacity: 0.54;
+    animation: holographic-foil 4.25s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-slot-glare-sweep,
-    .animate-holographic-foil {
+    .animate-holographic-foil,
+    .card-finish-holo,
+    .card-finish-reverse-holo,
+    .card-finish-ir,
+    .card-finish-sir,
+    .card-finish-secret {
       animation: none;
     }
   }

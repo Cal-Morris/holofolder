@@ -7,8 +7,22 @@ import type { User } from "@supabase/supabase-js"
 
 export type SlotStatus = 'collected' | 'finalized' | 'considering' | 'wishlisted'
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+export type CardFinish = "normal" | "holo" | "reverse_holo" | "illustration_rare" | "special_illustration_rare" | "secret_rare" | "hyper_rare"
 
-interface CollectedPokemon {
+export interface WantedCard {
+  card_id: string
+  card_name: string
+  card_image?: string
+  card_set?: string
+  card_language?: CardLanguage
+  card_finish?: CardFinish
+  rarity?: string
+  local_id?: string
+  set_total?: number
+  added_at: string
+}
+
+export interface CollectedPokemon {
   id: string
   pokemon_id: number
   pokemon_name: string
@@ -17,6 +31,8 @@ interface CollectedPokemon {
   card_image?: string
   card_set?: string
   card_language?: CardLanguage
+  card_finish?: CardFinish
+  wanted_cards: WantedCard[]
   status: SlotStatus
   collected_at: string
 }
@@ -41,9 +57,14 @@ interface SyncLocalCollectionResult {
 
 interface UseCollectionOptions {
   initialUser?: User | null
-  initialCollection?: CollectedPokemon[]
+  initialCollection?: Partial<CollectedPokemon>[]
   initialCollectionOwnerUserId?: string | null
   readOnly?: boolean
+}
+
+interface SaveCollectionOptions {
+  cardFinish?: CardFinish
+  wantedCards?: WantedCard[]
 }
 
 interface LocalCollectionSnapshot {
@@ -73,17 +94,84 @@ function normalizeCardLanguage(value: unknown): CardLanguage {
       : "en"
 }
 
+function normalizeCardFinish(value: unknown): CardFinish {
+  if (typeof value !== "string") return "normal"
+  return value === "normal" ||
+    value === "holo" ||
+    value === "reverse_holo" ||
+    value === "illustration_rare" ||
+    value === "special_illustration_rare" ||
+    value === "secret_rare" ||
+    value === "hyper_rare"
+      ? value
+      : "normal"
+}
+
+function normalizeWantedCard(value: unknown): WantedCard | null {
+  if (!value || typeof value !== "object") return null
+  const item = value as Partial<WantedCard>
+  if (typeof item.card_id !== "string" || typeof item.card_name !== "string") return null
+
+  return {
+    card_id: item.card_id,
+    card_name: item.card_name,
+    card_image: typeof item.card_image === "string" ? item.card_image : undefined,
+    card_set: typeof item.card_set === "string" ? item.card_set : undefined,
+    card_language: normalizeCardLanguage(item.card_language),
+    card_finish: normalizeCardFinish(item.card_finish),
+    rarity: typeof item.rarity === "string" ? item.rarity : undefined,
+    local_id: typeof item.local_id === "string" ? item.local_id : undefined,
+    set_total: typeof item.set_total === "number" && Number.isFinite(item.set_total) ? item.set_total : undefined,
+    added_at: typeof item.added_at === "string" ? item.added_at : new Date().toISOString(),
+  }
+}
+
+function normalizeWantedCards(value: unknown) {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const cards: WantedCard[] = []
+
+  for (const rawCard of value) {
+    const card = normalizeWantedCard(rawCard)
+    if (!card) continue
+    const key = `${card.card_id}:${card.card_language ?? "en"}:${card.card_finish ?? "normal"}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    cards.push(card)
+  }
+
+  return cards
+}
+
 function normalizeCollectionItem(item: Partial<CollectedPokemon>): CollectedPokemon {
+  const wantedCards = normalizeWantedCards(item.wanted_cards)
+  const cardLanguage = normalizeCardLanguage(item.card_language)
+  const cardFinish = normalizeCardFinish(item.card_finish)
+  const status = isSlotStatus(item.status) ? item.status : "collected"
+  const legacyWantedCards = status === "wishlisted" && typeof item.card_id === "string" && typeof item.card_name === "string" && wantedCards.length === 0
+    ? [{
+        card_id: item.card_id,
+        card_name: item.card_name,
+        card_image: typeof item.card_image === "string" ? item.card_image : undefined,
+        card_set: typeof item.card_set === "string" ? item.card_set : undefined,
+        card_language: cardLanguage,
+        card_finish: cardFinish,
+        added_at: typeof item.collected_at === "string" ? item.collected_at : new Date().toISOString(),
+      }]
+    : wantedCards
+
   return {
     id: typeof item.id === "string" ? item.id : crypto.randomUUID(),
     pokemon_id: typeof item.pokemon_id === "number" ? item.pokemon_id : 0,
     pokemon_name: typeof item.pokemon_name === "string" ? item.pokemon_name : "Unknown Pokemon",
-    card_id: typeof item.card_id === "string" ? item.card_id : undefined,
-    card_name: typeof item.card_name === "string" ? item.card_name : undefined,
-    card_image: typeof item.card_image === "string" ? item.card_image : undefined,
-    card_set: typeof item.card_set === "string" ? item.card_set : undefined,
-    card_language: normalizeCardLanguage(item.card_language),
-    status: isSlotStatus(item.status) ? item.status : "collected",
+    card_id: status === "wishlisted" ? undefined : typeof item.card_id === "string" ? item.card_id : undefined,
+    card_name: status === "wishlisted" ? undefined : typeof item.card_name === "string" ? item.card_name : undefined,
+    card_image: status === "wishlisted" ? undefined : typeof item.card_image === "string" ? item.card_image : undefined,
+    card_set: status === "wishlisted" ? undefined : typeof item.card_set === "string" ? item.card_set : undefined,
+    card_language: cardLanguage,
+    card_finish: cardFinish,
+    wanted_cards: legacyWantedCards,
+    status,
     collected_at: typeof item.collected_at === "string" ? item.collected_at : new Date().toISOString(),
   }
 }
@@ -346,7 +434,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
     cardImage?: string,
     cardSet?: string,
     cardLanguage: CardLanguage = "en",
-    status: SlotStatus = 'collected'
+    status: SlotStatus = 'collected',
+    options: SaveCollectionOptions = {},
   ) => {
     if (readOnly) return { error: "Read-only binder" }
     if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
@@ -362,6 +451,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
         card_image: cardImage,
         card_set: cardSet,
         card_language: cardLanguage,
+        card_finish: options.cardFinish ?? existingItem?.card_finish ?? "normal",
+        wanted_cards: options.wantedCards ?? existingItem?.wanted_cards ?? [],
         status,
         collected_at: existingItem?.collected_at,
       })
@@ -379,6 +470,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
           cardImage,
           cardSet,
           cardLanguage,
+          cardFinish: options.cardFinish ?? existingItem?.card_finish ?? "normal",
+          wantedCards: options.wantedCards ?? existingItem?.wanted_cards ?? [],
           status,
         })
       })
@@ -451,6 +544,63 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
   }, [collectionOwnerUserId, readOnly, refreshLocalCollectedCount, supabase, user])
 
+  const addWantedCard = useCallback(async (
+    pokemonId: number,
+    pokemonName: string,
+    wantedCard: WantedCard,
+  ) => {
+    const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+    const existingWantedCards = existingItem?.wanted_cards ?? []
+    const wantedKey = `${wantedCard.card_id}:${wantedCard.card_language ?? "en"}:${wantedCard.card_finish ?? "normal"}`
+    const nextWantedCards = [
+      wantedCard,
+      ...existingWantedCards.filter((card) => `${card.card_id}:${card.card_language ?? "en"}:${card.card_finish ?? "normal"}` !== wantedKey),
+    ]
+    const existingIsOwned = existingItem?.status !== undefined && existingItem.status !== "wishlisted"
+
+    return addToCollection(
+      pokemonId,
+      pokemonName,
+      existingIsOwned ? existingItem?.card_id : undefined,
+      existingIsOwned ? existingItem?.card_name : undefined,
+      existingIsOwned ? existingItem?.card_image : undefined,
+      existingIsOwned ? existingItem?.card_set : undefined,
+      existingItem?.card_language ?? "en",
+      existingIsOwned && existingItem ? existingItem.status : "wishlisted",
+      {
+        cardFinish: existingItem?.card_finish ?? "normal",
+        wantedCards: nextWantedCards,
+      },
+    )
+  }, [addToCollection, collection])
+
+  const removeWantedCard = useCallback(async (pokemonId: number, cardId: string) => {
+    const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+    if (!existingItem) return { error: "Not in collection" }
+
+    const nextWantedCards = existingItem.wanted_cards.filter((card) => card.card_id !== cardId)
+    const existingIsOwned = existingItem.status !== "wishlisted"
+
+    if (!existingIsOwned && nextWantedCards.length === 0) {
+      return removeFromCollection(pokemonId)
+    }
+
+    return addToCollection(
+      pokemonId,
+      existingItem.pokemon_name,
+      existingIsOwned ? existingItem.card_id : undefined,
+      existingIsOwned ? existingItem.card_name : undefined,
+      existingIsOwned ? existingItem.card_image : undefined,
+      existingIsOwned ? existingItem.card_set : undefined,
+      existingItem.card_language ?? "en",
+      existingIsOwned ? existingItem.status : "wishlisted",
+      {
+        cardFinish: existingItem.card_finish ?? "normal",
+        wantedCards: nextWantedCards,
+      },
+    )
+  }, [addToCollection, collection, removeFromCollection])
+
   const syncLocalCollectionToDatabase = useCallback(async (
     pokemonCatalog: PokemonCatalogEntry[],
     options: SyncLocalCollectionOptions = {}
@@ -496,6 +646,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
           card_image: null,
           card_set: null,
           card_language: "en",
+          card_finish: "normal",
+          wanted_cards: [],
           status: "collected" as SlotStatus,
         }))
 
@@ -514,6 +666,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
           pokemon_id: pokemonId,
           pokemon_name: catalogNames.get(pokemonId) || remoteById.get(pokemonId)?.pokemon_name || `Pokemon #${pokemonId}`,
           card_language: "en",
+          card_finish: "normal",
+          wanted_cards: [],
           status: "collected" as SlotStatus,
         }))
 
@@ -606,7 +760,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [collection])
 
   const isWishlisted = useCallback((pokemonId: number) => {
-    return collection.some((p) => p.pokemon_id === pokemonId && p.status === "wishlisted")
+    return collection.some((p) => p.pokemon_id === pokemonId && (p.status === "wishlisted" || p.wanted_cards.length > 0))
   }, [collection])
 
   const getCollectedCard = useCallback((pokemonId: number) => {
@@ -630,7 +784,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
     collection,
     isLoading: false,
     addToCollection,
+    addWantedCard,
     removeFromCollection,
+    removeWantedCard,
     updateStatus,
     cycleStatus,
     isCollected,

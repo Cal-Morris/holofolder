@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/hooks/use-tcgdex"
+import type { CardFinish } from "@/hooks/use-collection"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -13,7 +14,7 @@ export type CardSelectorMode = "collect" | "wishlist"
 interface CardSelectorProps {
   pokemonId: number
   pokemonName: string
-  onSelect: (card: TCGCard | null, mode: CardSelectorMode) => void
+  onSelect: (card: TCGCard | null, mode: CardSelectorMode, finish?: CardFinish) => void
   onClose: () => void
   selectedCardId?: string
   mode?: CardSelectorMode
@@ -48,6 +49,15 @@ const CARD_SCAN_MIN_USABLE_FRAMES = 3
 const CARD_GUIDE_INSET_X = 0.18
 const CARD_GUIDE_INSET_Y = 0.1
 const CARD_ASPECT_RATIO = 2.5 / 3.5
+const CARD_FINISHES: Array<{ id: CardFinish; label: string }> = [
+  { id: "normal", label: "Normal" },
+  { id: "holo", label: "Holo" },
+  { id: "reverse_holo", label: "Reverse" },
+  { id: "illustration_rare", label: "IR" },
+  { id: "special_illustration_rare", label: "SIR" },
+  { id: "secret_rare", label: "Secret" },
+  { id: "hyper_rare", label: "Hyper" },
+]
 
 function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -175,6 +185,28 @@ function aggregateCardScanMatches(frameMatches: CardScanMatch[][]) {
     })
 }
 
+function parseCardNumber(value?: string) {
+  if (!value) return null
+  const match = value.match(/\d+/)
+  if (!match) return null
+  const parsed = Number.parseInt(match[0], 10)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function inferCardFinish(card: TCGCard): CardFinish {
+  const rarity = (card.rarity || "").toLowerCase()
+  const localNumber = parseCardNumber(card.localId)
+  const officialCount = card.set.officialCardCount
+
+  if (rarity.includes("special illustration")) return "special_illustration_rare"
+  if (rarity.includes("illustration")) return "illustration_rare"
+  if (rarity.includes("hyper")) return "hyper_rare"
+  if ((localNumber != null && officialCount != null && localNumber > officialCount) || rarity.includes("secret")) return "secret_rare"
+  if (card.variants?.holo) return "holo"
+  if (card.variants?.reverse) return "reverse_holo"
+  return "normal"
+}
+
 export default function CardSelector({
   pokemonId,
   pokemonName,
@@ -188,6 +220,8 @@ export default function CardSelector({
   const [filters, setFilters] = useState<CardFilters>({})
   const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>("en")
   const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode)
+  const [selectedFinish, setSelectedFinish] = useState<CardFinish>("normal")
+  const [hasManuallySelectedFinish, setHasManuallySelectedFinish] = useState(false)
   const [isScanningCard, setIsScanningCard] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null)
@@ -243,12 +277,12 @@ export default function CardSelector({
   const activeFiltersCount = [filters.set, filters.rarity, filters.variant, filters.searchQuery].filter(Boolean).length
 
   const selectCard = useCallback((card: TCGCard) => {
-    onSelect({ ...card, language: selectedCardLanguage }, selectionMode)
-  }, [onSelect, selectedCardLanguage, selectionMode])
+    onSelect({ ...card, language: selectedCardLanguage }, selectionMode, hasManuallySelectedFinish ? selectedFinish : inferCardFinish(card))
+  }, [hasManuallySelectedFinish, onSelect, selectedCardLanguage, selectedFinish, selectionMode])
 
   const selectWithoutCard = useCallback(() => {
-    onSelect(null, selectionMode)
-  }, [onSelect, selectionMode])
+    onSelect(null, selectionMode, selectedFinish)
+  }, [onSelect, selectedFinish, selectionMode])
 
   useEffect(() => {
     setSelectionMode(mode)
@@ -333,6 +367,11 @@ export default function CardSelector({
   }, [isCardScannerOpen])
 
   const filteredCards = useMemo(() => filterCards(cards, filters), [cards, filters, filterCards])
+  useEffect(() => {
+    const selectedCard = cards.find((card) => card.id === selectedCardId) ?? filteredCards[0]
+    setSelectedFinish(selectedCard ? inferCardFinish(selectedCard) : "normal")
+    setHasManuallySelectedFinish(false)
+  }, [cards, filteredCards, selectedCardId])
   const scanRankById = useMemo(() => {
     return new Map(scanMatches.map((match, index) => [match.card.id, index + 1]))
   }, [scanMatches])
@@ -722,6 +761,27 @@ export default function CardSelector({
                 <Languages className="h-3.5 w-3.5" />
                 <span>{selectedLanguageLabel}</span>
               </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto px-1 scrollbar-hide sm:flex-wrap sm:px-0">
+              {CARD_FINISHES.map((finish) => (
+                <button
+                  key={finish.id}
+                  type="button"
+                  aria-pressed={selectedFinish === finish.id}
+                  onClick={() => {
+                    setSelectedFinish(finish.id)
+                    setHasManuallySelectedFinish(true)
+                  }}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                    selectedFinish === finish.id
+                      ? "border-primary/40 bg-primary/12 text-primary"
+                      : "border-border/50 bg-background/65 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {finish.label}
+                </button>
+              ))}
             </div>
           </div>
 
