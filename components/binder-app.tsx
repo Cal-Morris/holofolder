@@ -21,6 +21,7 @@ import { useTouchGestures } from "@/hooks/use-touch-gestures"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
+import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } from "@/lib/binder-page-scan-aggregate"
 import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
@@ -46,7 +47,7 @@ const BINDER_GRID_GAP_CARD_UNITS = 0.05
 const BINDER_PAGE_PADDING_CARD_UNITS = 0.1
 const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
-const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.6
+const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.45
 const GUIDED_SCAN_MIN_USABLE_FRAMES = 2
 const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 1
 const PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT = 2
@@ -111,11 +112,6 @@ type PageScanSummary = {
   matchedCards: number
   cardMatches: PageScanCardMatchSummary[]
   page: number
-}
-
-type BurstSlotAggregate = {
-  occupiedVotes: number
-  confidenceSum: number
 }
 
 type PageScanCardMatchSummary = {
@@ -568,31 +564,6 @@ async function captureGuidedFrameFile(video: HTMLVideoElement, canvas: HTMLCanva
   const guidedCanvas = cropCanvasByRatios(canvas, GUIDE_FRAME_INSET_X, GUIDE_FRAME_INSET_Y)
 
   return canvasToFile(guidedCanvas, index)
-}
-
-function aggregateBurstResults(
-  results: Awaited<ReturnType<typeof scanBinderPageImage>>[],
-  requiredVotes: number,
-) {
-  const slotCount = results[0]?.slots.length ?? 0
-  const aggregates = Array.from({ length: slotCount }, (): BurstSlotAggregate => ({
-    occupiedVotes: 0,
-    confidenceSum: 0,
-  }))
-
-  for (const result of results) {
-    result.slots.forEach((slot, index) => {
-      if (slot.occupied) {
-        aggregates[index].occupiedVotes += 1
-      }
-      aggregates[index].confidenceSum += slot.confidence
-    })
-  }
-
-  return aggregates.map((aggregate) => ({
-    occupied: aggregate.occupiedVotes >= requiredVotes,
-    averageConfidence: results.length > 0 ? aggregate.confidenceSum / results.length : 0,
-  }))
 }
 
 function getScannerOverlayLayout(result: BinderPageScanResult, rows: number, cols: number) {
@@ -2510,7 +2481,9 @@ export default function BinderApp({
         if (detectedResult) {
           successfulResults.push(detectedResult)
           setBurstUsableFrames(successfulResults.length)
-          setBurstPreviewResult(detectedResult)
+          setBurstPreviewResult(buildAggregatedBinderPageScanPreview(successfulResults, {
+            voteRatio: GUIDED_SCAN_SLOT_VOTE_RATIO,
+          }))
         }
 
         if (index < GUIDED_SCAN_FRAME_COUNT - 1) {
@@ -2527,7 +2500,7 @@ export default function BinderApp({
       setIsCapturingBurst(false)
       setIsApplyingScanResults(true)
       const requiredVotes = Math.max(2, Math.ceil(successfulResults.length * GUIDED_SCAN_SLOT_VOTE_RATIO))
-      const aggregatedSlots = aggregateBurstResults(successfulResults, requiredVotes)
+      const aggregatedSlots = aggregateBinderPageScanResults(successfulResults, { requiredVotes }).slots
       const cardMatches = await matchPageScanCards(successfulResults)
       const matchedCardsBySlotIndex = new Map(
         cardMatches
@@ -3864,8 +3837,8 @@ export default function BinderApp({
               <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
                 <div>
-                  <p className="text-sm font-semibold">Burst Scan</p>
-                  <p className="text-xs text-white/65">Capture several frames and keep only stable occupied slots.</p>
+                  <p className="text-sm font-semibold">Video Sweep</p>
+                  <p className="text-xs text-white/65">Move slowly over the page. Stable slots stay locked as the video samples.</p>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={closeBurstScanner} disabled={isCapturingBurst}>
                   <X className="h-4 w-4" />
@@ -3878,20 +3851,18 @@ export default function BinderApp({
                   autoPlay
                   playsInline
                   muted
-                  className={`h-full w-full object-cover transition-opacity ${
-                    burstPreviewResult ? "opacity-25" : "opacity-100"
-                  }`}
+                  className="h-full w-full object-cover"
                 />
                 {burstPreviewResult?.previewDataUrl ? (
-                  <div className="absolute inset-0">
+                  <div className="pointer-events-none absolute inset-0 bg-black/10">
                     <div
-                      className="relative h-full w-full overflow-hidden bg-black"
+                      className="relative h-full w-full overflow-hidden"
                       style={{ aspectRatio: `${burstPreviewResult.width} / ${burstPreviewResult.height}` }}
                     >
                       <img
                         src={burstPreviewResult.previewDataUrl}
                         alt="Last detected binder page"
-                        className="absolute inset-0 h-full w-full object-contain"
+                        className="absolute inset-0 h-full w-full object-contain opacity-35"
                       />
                       <div className="absolute inset-0">
                         {burstPreviewSlots.map((slot, index) => (
@@ -3936,7 +3907,7 @@ export default function BinderApp({
                   <p className="text-sm text-destructive">{cameraError}</p>
                 ) : (
                   <p className="text-sm text-white/70">
-                    Line up one binder page inside the frame. The scanner samples for about {Math.round((GUIDED_SCAN_FRAME_COUNT * GUIDED_SCAN_FRAME_DELAY_MS) / 1000)} seconds and keeps the last successful slot detection visible.
+                    Keep the page roughly in frame and move slowly across the slots. The scanner samples for about {Math.round((GUIDED_SCAN_FRAME_COUNT * GUIDED_SCAN_FRAME_DELAY_MS) / 1000)} seconds and locks slots that agree across the video.
                   </p>
                 )}
 
@@ -3961,7 +3932,7 @@ export default function BinderApp({
                   </Button>
                   <Button onClick={handleBurstCapture} disabled={!isCameraReady || isCapturingBurst || isApplyingScanResults}>
                     {isCapturingBurst || isApplyingScanResults ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
-                    {isCapturingBurst ? "Scanning Page" : isApplyingScanResults ? "Applying Results" : "Start Guided Scan"}
+                    {isCapturingBurst ? "Sweeping Page" : isApplyingScanResults ? "Applying Results" : "Start Sweep"}
                   </Button>
                 </div>
               </div>
