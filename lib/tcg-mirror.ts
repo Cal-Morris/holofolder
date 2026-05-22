@@ -50,6 +50,28 @@ type MirroredCardQueryResult = {
   illustrator?: string
 } | null
 
+const MIRRORED_CARD_SELECT = `
+  dex_id,
+  tcg_cards!inner(
+    id,
+    series_id,
+    set_id,
+    local_id,
+    name_json,
+    rarity,
+    hp,
+    illustrator,
+    types_json,
+    image_languages_json,
+    variants_json,
+    tcg_sets!inner(
+      id,
+      name_json,
+      official_card_count
+    )
+  )
+`
+
 const IMAGE_LANGUAGE_FALLBACKS = ["en", "ja", "fr", "de", "es", "it", "pt-br", "ko"] as const
 
 function pickLocalizedText(value: unknown, language: MirrorLanguage) {
@@ -148,27 +170,7 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("tcg_card_dex_ids")
-    .select(`
-      dex_id,
-        tcg_cards!inner(
-          id,
-          series_id,
-          set_id,
-          local_id,
-          name_json,
-          rarity,
-          hp,
-          illustrator,
-          types_json,
-          image_languages_json,
-          variants_json,
-          tcg_sets!inner(
-            id,
-            name_json,
-            official_card_count
-        )
-      )
-    `)
+    .select(MIRRORED_CARD_SELECT)
     .eq("dex_id", pokemonId)
 
   if (error) {

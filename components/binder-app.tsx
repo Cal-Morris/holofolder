@@ -184,18 +184,29 @@ function hashSlotValue(seed: number, salt: number) {
 }
 
 function getSlotFinishGlint(baseGlint: { x: number; y: number; angle: number }, seed: number) {
-  const xOffset = hashSlotValue(seed, 1) * 0.14 - 0.07
-  const yOffset = hashSlotValue(seed, 2) * 0.12 - 0.06
-  const angleOffset = hashSlotValue(seed, 3) * 18 - 9
-  const phase = hashSlotValue(seed, 4) * 3.6
-  const patternSeed = seed * 0.017 + hashSlotValue(seed, 5) * 11
+  const xMotionScale = 0.72 + hashSlotValue(seed, 1) * 0.64
+  const yMotionScale = 0.78 + hashSlotValue(seed, 2) * 0.52
+  const angleMotionScale = 0.82 + hashSlotValue(seed, 3) * 0.42
+  const xOffset = hashSlotValue(seed, 4) * 0.2 - 0.1
+  const yOffset = hashSlotValue(seed, 5) * 0.18 - 0.09
+  const angleOffset = hashSlotValue(seed, 6) * 32 - 16
+  const phase = hashSlotValue(seed, 7) * 5.8
+  const patternSeed = seed * 0.017 + hashSlotValue(seed, 8) * 17
+  const intensity = 0.86 + hashSlotValue(seed, 9) * 0.32
+  const hueOffset = hashSlotValue(seed, 10) * 0.22 - 0.11
+  const patternScale = 0.82 + hashSlotValue(seed, 11) * 0.42
+  const centeredX = baseGlint.x - 0.5
+  const centeredY = baseGlint.y - 0.5
 
   return {
-    x: clampGlareValue(baseGlint.x + xOffset, 0.04, 0.96),
-    y: clampGlareValue(baseGlint.y + yOffset, 0.04, 0.96),
-    angle: baseGlint.angle + angleOffset,
+    x: clampGlareValue(0.5 + centeredX * xMotionScale + xOffset, 0.04, 0.96),
+    y: clampGlareValue(0.5 + centeredY * yMotionScale + yOffset, 0.04, 0.96),
+    angle: baseGlint.angle * angleMotionScale + angleOffset,
     phase,
     patternSeed,
+    intensity,
+    hueOffset,
+    patternScale,
   }
 }
 
@@ -4374,6 +4385,8 @@ function PokemonSlot({
     "--glint-shift-x": `${(slotCardFinishGlint.x * 100 - 50) * 0.34}%`,
     "--glint-shift-y": `${(slotCardFinishGlint.y * 100 - 50) * 0.2}%`,
     "--glint-streak-x": `${(slotCardFinishGlint.x * 100 - 50) * 0.42}%`,
+    "--slot-shader-opacity": String(0.56 + slotCardFinishGlint.intensity * 0.1),
+    "--slot-mobile-sheen-opacity": String(0.2 + slotCardFinishGlint.intensity * 0.05),
   } as CSSProperties
   const finishEffectClass = getCardFinishEffectClass(effectiveCardFinish)
   const shouldShowCardFinish = Boolean(hasCardPreview && showCardFinishEffects)
@@ -4470,6 +4483,9 @@ function PokemonSlot({
                 glintAngle={slotCardFinishGlint.angle}
                 glintPhase={slotCardFinishGlint.phase}
                 patternSeed={slotCardFinishGlint.patternSeed}
+                finishIntensity={slotCardFinishGlint.intensity}
+                hueOffset={slotCardFinishGlint.hueOffset}
+                patternScale={slotCardFinishGlint.patternScale}
                 fallbackClassName={finishEffectClass}
                 fallbackStyle={slotCardFinishEffectStyle}
               />

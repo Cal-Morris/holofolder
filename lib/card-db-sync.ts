@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url"
 import { Client } from "pg"
 
 type SupportedLanguage = "en" | "ja"
+type JsonObject = Record<string, unknown>
 
 type MirrorSeriesRow = {
   id: string
@@ -39,7 +40,16 @@ type MirrorCardRow = {
   types_json: string[]
   image_languages_json: string[]
   variants_json: Partial<Record<"normal" | "reverse" | "holo" | "firstEdition" | "wPromo", boolean>>
-  raw_json: Record<string, unknown>
+  external_ids_json: JsonObject
+  raw_json: JsonObject
+}
+
+type MirrorCardExternalSourceRow = {
+  card_id: string
+  source: "pokemon_tcg"
+  source_card_id: string
+  source_set_id: string | null
+  raw_json: JsonObject
 }
 
 type TCGSeries = {
@@ -65,10 +75,12 @@ type TCGCard = {
   hp?: number | string
   illustrator?: string
   types?: string[]
+  thirdParty?: Record<string, unknown>
   variants?:
     | Array<{
         type?: string
         stamp?: string[]
+        thirdParty?: Record<string, unknown>
       }>
     | {
         normal?: boolean
@@ -78,6 +90,37 @@ type TCGCard = {
         wPromo?: boolean
       }
   dexId?: number[]
+}
+
+type PokemonTcgSet = {
+  id: string
+  name?: string
+  series?: string
+  printedTotal?: number
+  total?: number
+  releaseDate?: string
+  images?: {
+    symbol?: string
+    logo?: string
+  }
+  legalities?: JsonObject
+  ptcgoCode?: string
+  updatedAt?: string
+}
+
+type PokemonTcgCard = {
+  id: string
+  name?: string
+  supertype?: string
+  hp?: string
+  types?: string[]
+  number?: string
+  artist?: string
+  rarity?: string
+  images?: {
+    small?: string
+    large?: string
+  }
 }
 
 interface AssetManifestNode {
@@ -92,14 +135,19 @@ export interface CardDbSyncResult {
   setCount: number
   cardCount: number
   dexLinkCount: number
+  externalSourceCount: number
+  pokemonTcgSetCount: number
+  pokemonTcgCardCount: number
 }
 
 interface CardDbSyncOptions {
   logger?: (message: string) => void
   projectRoot?: string
+  dryRun?: boolean
 }
 
 const REPO_URL = "https://github.com/tcgdex/cards-database"
+const POKEMON_TCG_DATA_BASE_URL = "https://raw.githubusercontent.com/PokemonTCG/pokemon-tcg-data/master"
 const DEFAULT_BATCH_SIZE = 500
 const CARD_DB_SYNC_LOCK_KEY = 10250418
 const EXCLUDED_SERIES_IDS = new Set(["tcgp"])
@@ -374,6 +422,146 @@ function normalizeReleaseDate(value: string | Record<string, string> | undefined
   return /^\d{4}-\d{2}-\d{2}$/.test(resolved) ? resolved : null
 }
 
+function normalizeStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((candidate): candidate is string => typeof candidate === "string" && candidate.length > 0)
+    : []
+}
+
+function normalizeJsonObject(value: unknown): JsonObject {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as JsonObject : {}
+}
+
+function normalizeSetDate(value: string | null | undefined) {
+  if (!value) return null
+  const normalized = value.replaceAll("/", "-")
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null
+}
+
+function normalizeSetMatchText(value: string | null | undefined) {
+  return (value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+}
+
+function buildSetMatchKey(name: string | null | undefined, releaseDate: string | null | undefined, printedTotal: number | null | undefined) {
+  const normalizedName = normalizeSetMatchText(name)
+  const normalizedDate = normalizeSetDate(releaseDate)
+
+  if (!normalizedName || !normalizedDate || typeof printedTotal !== "number") {
+    return null
+  }
+
+  return `${normalizedName}:${normalizedDate}:${printedTotal}`
+}
+
+function normalizeCardNumber(value: string | null | undefined) {
+  if (!value) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  if (/^\d+$/.test(trimmed)) {
+    return String(Number.parseInt(trimmed, 10))
+  }
+
+  return trimmed.toLowerCase()
+}
+
+function buildExternalIds(card: TCGCard, pokemonTcgCard?: PokemonTcgCard, pokemonTcgSetId?: string | null): JsonObject {
+  const externalIds: JsonObject = {}
+  const cardThirdParty = normalizeJsonObject(card.thirdParty)
+
+  if (Object.keys(cardThirdParty).length > 0) {
+    externalIds.tcgdex = { thirdParty: cardThirdParty }
+  }
+
+  if (Array.isArray(card.variants)) {
+    const variantThirdParty = card.variants
+      .map((variant) => normalizeJsonObject(variant?.thirdParty))
+      .filter((thirdParty) => Object.keys(thirdParty).length > 0)
+
+    if (variantThirdParty.length > 0) {
+      externalIds.tcgdex = {
+        ...(normalizeJsonObject(externalIds.tcgdex)),
+        variantThirdParty,
+      }
+    }
+  }
+
+  if (pokemonTcgCard) {
+    externalIds.pokemon_tcg = {
+      cardId: pokemonTcgCard.id,
+      setId: pokemonTcgSetId || null,
+      imageSmall: pokemonTcgCard.images?.small || null,
+      imageLarge: pokemonTcgCard.images?.large || null,
+    }
+  }
+
+  return externalIds
+}
+
+async function fetchJson<T>(url: string, logger?: (message: string) => void): Promise<T | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "binderdex-card-db-sync",
+      },
+    })
+
+    if (!response.ok) {
+      logWith(logger, `Skipping ${url}: HTTP ${response.status}`)
+      return null
+    }
+
+    return await response.json() as T
+  } catch (error) {
+    logWith(logger, `Skipping ${url}: ${error instanceof Error ? error.message : String(error)}`)
+    return null
+  }
+}
+
+async function fetchPokemonTcgSets(logger?: (message: string) => void) {
+  const sets = await fetchJson<PokemonTcgSet[]>(`${POKEMON_TCG_DATA_BASE_URL}/sets/en.json`, logger)
+  return Array.isArray(sets) ? sets : []
+}
+
+function buildPokemonTcgSetIndex(sets: PokemonTcgSet[]) {
+  const index = new Map<string, PokemonTcgSet>()
+
+  for (const set of sets) {
+    const key = buildSetMatchKey(set.name, set.releaseDate, set.printedTotal)
+    if (key && !index.has(key)) {
+      index.set(key, set)
+    }
+  }
+
+  return index
+}
+
+async function fetchPokemonTcgCardsBySet(setId: string, logger?: (message: string) => void) {
+  const cards = await fetchJson<PokemonTcgCard[]>(
+    `${POKEMON_TCG_DATA_BASE_URL}/cards/en/${encodeURIComponent(setId)}.json`,
+    logger,
+  )
+
+  if (!Array.isArray(cards)) {
+    return new Map<string, PokemonTcgCard>()
+  }
+
+  const cardsByNumber = new Map<string, PokemonTcgCard>()
+  for (const card of cards) {
+    const normalizedNumber = normalizeCardNumber(card.number)
+    if (normalizedNumber && !cardsByNumber.has(normalizedNumber)) {
+      cardsByNumber.set(normalizedNumber, card)
+    }
+  }
+
+  return cardsByNumber
+}
+
 async function fetchAssetManifest(logger?: (message: string) => void): Promise<AssetManifest> {
   logWith(logger, "Fetching TCGdex asset manifest")
   const response = await fetch("https://assets.tcgdex.net/datas.json")
@@ -412,8 +600,14 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
   const seriesById = new Map<string, MirrorSeriesRow>()
   const setsById = new Map<string, MirrorSetRow>()
   const cardsById = new Map<string, MirrorCardRow>()
+  const externalSourcesByCardId = new Map<string, MirrorCardExternalSourceRow>()
   const dexLinks = new Set<string>()
   const assetManifest = await fetchAssetManifest(logger)
+  const pokemonTcgSets = await fetchPokemonTcgSets(logger)
+  const pokemonTcgSetIndex = buildPokemonTcgSetIndex(pokemonTcgSets)
+  const pokemonTcgCardsBySetId = new Map<string, Map<string, PokemonTcgCard>>()
+  const matchedPokemonTcgSetIds = new Set<string>()
+  const matchedPokemonTcgCardIds = new Set<string>()
 
   const cardFiles = await findCardFiles(getDataDir(projectRoot))
   logWith(logger, `Found ${cardFiles.length} card files`)
@@ -440,17 +634,58 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
       raw_json: series as unknown as Record<string, unknown>,
     })
 
+    const releaseDate = normalizeReleaseDate(set.releaseDate)
+    const officialCardCount = typeof set.cardCount?.official === "number" ? set.cardCount.official : null
+    const setNameEn = pickLocalizedText(set.name, "en")
+    const pokemonTcgSetKey = buildSetMatchKey(setNameEn, releaseDate, officialCardCount)
+    const pokemonTcgSet = pokemonTcgSetKey ? pokemonTcgSetIndex.get(pokemonTcgSetKey) : undefined
+
     setsById.set(set.id, {
       id: set.id,
       series_id: series.id,
       name_json: normalizeLocalizedMap(set.name),
-      name_en: pickLocalizedText(set.name, "en"),
-      official_card_count: typeof set.cardCount?.official === "number" ? set.cardCount.official : null,
-      release_date: normalizeReleaseDate(set.releaseDate),
-      raw_json: set as unknown as Record<string, unknown>,
+      name_en: setNameEn,
+      official_card_count: officialCardCount,
+      release_date: releaseDate,
+      raw_json: pokemonTcgSet
+        ? {
+            ...(set as unknown as JsonObject),
+            supplementalSources: {
+              pokemon_tcg: pokemonTcgSet,
+            },
+          }
+        : set as unknown as JsonObject,
     })
 
     const cardId = `${set.id}-${localId}`
+    let pokemonTcgCard: PokemonTcgCard | undefined
+
+    if (pokemonTcgSet?.id) {
+      matchedPokemonTcgSetIds.add(pokemonTcgSet.id)
+      let pokemonTcgCards = pokemonTcgCardsBySetId.get(pokemonTcgSet.id)
+
+      if (!pokemonTcgCards) {
+        pokemonTcgCards = await fetchPokemonTcgCardsBySet(pokemonTcgSet.id, logger)
+        pokemonTcgCardsBySetId.set(pokemonTcgSet.id, pokemonTcgCards)
+      }
+
+      const normalizedLocalId = normalizeCardNumber(localId)
+      pokemonTcgCard = normalizedLocalId ? pokemonTcgCards.get(normalizedLocalId) : undefined
+
+      if (pokemonTcgCard?.id) {
+        matchedPokemonTcgCardIds.add(pokemonTcgCard.id)
+        externalSourcesByCardId.set(cardId, {
+          card_id: cardId,
+          source: "pokemon_tcg",
+          source_card_id: pokemonTcgCard.id,
+          source_set_id: pokemonTcgSet.id,
+          raw_json: pokemonTcgCard as unknown as JsonObject,
+        })
+      }
+    }
+
+    const types = Array.isArray(card.types) ? card.types.filter((value): value is string => typeof value === "string") : []
+
     cardsById.set(cardId, {
       id: cardId,
       series_id: series.id,
@@ -458,15 +693,23 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
       local_id: localId,
       local_id_sort: normalizeLocalIdSort(localId),
       name_json: normalizeLocalizedMap(card.name),
-      name_en: pickLocalizedText(card.name, "en"),
-      category: typeof card.category === "string" ? card.category : null,
-      rarity: typeof card.rarity === "string" ? card.rarity : null,
-      hp: normalizeInteger(card.hp),
-      illustrator: typeof card.illustrator === "string" ? card.illustrator : null,
-      types_json: Array.isArray(card.types) ? card.types.filter((value): value is string => typeof value === "string") : [],
+      name_en: pickLocalizedText(card.name, "en") || pokemonTcgCard?.name || null,
+      category: typeof card.category === "string" ? card.category : pokemonTcgCard?.supertype || null,
+      rarity: typeof card.rarity === "string" ? card.rarity : pokemonTcgCard?.rarity || null,
+      hp: normalizeInteger(card.hp) ?? normalizeInteger(pokemonTcgCard?.hp),
+      illustrator: typeof card.illustrator === "string" ? card.illustrator : pokemonTcgCard?.artist || null,
+      types_json: types.length > 0 ? types : normalizeStringArray(pokemonTcgCard?.types),
       image_languages_json: getImageLanguages(assetManifest, series.id, set.id, localId),
       variants_json: normalizeVariants(card.variants),
-      raw_json: card as unknown as Record<string, unknown>,
+      external_ids_json: buildExternalIds(card, pokemonTcgCard, pokemonTcgSet?.id),
+      raw_json: pokemonTcgCard
+        ? {
+            ...(card as unknown as JsonObject),
+            supplementalSources: {
+              pokemon_tcg: pokemonTcgCard,
+            },
+          }
+        : card as unknown as JsonObject,
     })
 
     for (const dexId of Array.isArray(card.dexId) ? card.dexId : []) {
@@ -484,6 +727,7 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
     series: [...seriesById.values()].sort((a, b) => a.id.localeCompare(b.id)),
     sets: [...setsById.values()].sort((a, b) => a.id.localeCompare(b.id)),
     cards: [...cardsById.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    externalSources: [...externalSourcesByCardId.values()].sort((a, b) => a.card_id.localeCompare(b.card_id)),
     dexLinks: [...dexLinks]
       .map((key) => {
         const [cardId, dexId] = key.split(":")
@@ -493,6 +737,8 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
         }
       })
       .sort((a, b) => (a.dex_id - b.dex_id) || a.card_id.localeCompare(b.card_id)),
+    pokemonTcgSetCount: matchedPokemonTcgSetIds.size,
+    pokemonTcgCardCount: matchedPokemonTcgCardIds.size,
   }
 }
 
@@ -531,14 +777,14 @@ async function seedMirror(
 ) {
   logWith(
     logger,
-    `Seeding ${payload.series.length} series, ${payload.sets.length} sets, ${payload.cards.length} cards, ${payload.dexLinks.length} dex links`,
+    `Seeding ${payload.series.length} series, ${payload.sets.length} sets, ${payload.cards.length} cards, ${payload.externalSources.length} external source links, ${payload.dexLinks.length} dex links`,
   )
 
   await client.query("BEGIN")
 
   try {
     await client.query(
-      "TRUNCATE TABLE public.tcg_card_dex_ids, public.tcg_cards, public.tcg_sets, public.tcg_series RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE public.tcg_card_dex_ids, public.tcg_card_external_sources, public.tcg_cards, public.tcg_sets, public.tcg_series RESTART IDENTITY CASCADE",
     )
 
     await insertJsonBatch(
@@ -600,6 +846,7 @@ async function seedMirror(
           types_json,
           image_languages_json,
           variants_json,
+          external_ids_json,
           raw_json
         )
         SELECT
@@ -617,6 +864,7 @@ async function seedMirror(
           types_json,
           image_languages_json,
           variants_json,
+          external_ids_json,
           raw_json
         FROM jsonb_to_recordset($1::jsonb) AS row(
           id text,
@@ -633,11 +881,31 @@ async function seedMirror(
           types_json jsonb,
           image_languages_json jsonb,
           variants_json jsonb,
+          external_ids_json jsonb,
           raw_json jsonb
         )
       `,
       logger,
       400,
+    )
+
+    await insertJsonBatch(
+      client,
+      "external sources",
+      payload.externalSources,
+      `
+        INSERT INTO public.tcg_card_external_sources (card_id, source, source_card_id, source_set_id, raw_json)
+        SELECT card_id, source, source_card_id, source_set_id, raw_json
+        FROM jsonb_to_recordset($1::jsonb) AS row(
+          card_id text,
+          source text,
+          source_card_id text,
+          source_set_id text,
+          raw_json jsonb
+        )
+      `,
+      logger,
+      1000,
     )
 
     await insertJsonBatch(
@@ -666,12 +934,31 @@ async function seedMirror(
 export async function runCardDbSync(options: CardDbSyncOptions = {}): Promise<CardDbSyncResult> {
   const projectRoot = getProjectRoot(options.projectRoot)
   const logger = options.logger
-  const connectionString = getMirrorDatabaseUrl()
   const repoDir = await ensureCardsDatabaseRepo(projectRoot, logger)
   const repoCommit = await getRepoCommitSha(repoDir)
   logWith(logger, `Using cards-database commit ${repoCommit}`)
 
   const payload = await buildMirrorPayload(projectRoot, logger)
+  const result = {
+    repoCommit,
+    seriesCount: payload.series.length,
+    setCount: payload.sets.length,
+    cardCount: payload.cards.length,
+    dexLinkCount: payload.dexLinks.length,
+    externalSourceCount: payload.externalSources.length,
+    pokemonTcgSetCount: payload.pokemonTcgSetCount,
+    pokemonTcgCardCount: payload.pokemonTcgCardCount,
+  }
+
+  if (options.dryRun) {
+    logWith(
+      logger,
+      `Dry run complete. Parsed ${result.seriesCount} series, ${result.setCount} sets, ${result.cardCount} cards, ${result.externalSourceCount} external source links, and ${result.dexLinkCount} dex links from ${repoCommit}. PokemonTCG matched ${result.pokemonTcgSetCount} sets and ${result.pokemonTcgCardCount} cards. No database writes were made.`,
+    )
+    return result
+  }
+
+  const connectionString = getMirrorDatabaseUrl()
   const client = new Client({
     connectionString,
   })
@@ -698,17 +985,9 @@ export async function runCardDbSync(options: CardDbSyncOptions = {}): Promise<Ca
     await client.end()
   }
 
-  const result = {
-    repoCommit,
-    seriesCount: payload.series.length,
-    setCount: payload.sets.length,
-    cardCount: payload.cards.length,
-    dexLinkCount: payload.dexLinks.length,
-  }
-
   logWith(
     logger,
-    `Done. Seeded ${result.seriesCount} series, ${result.setCount} sets, ${result.cardCount} cards, and ${result.dexLinkCount} dex links from ${repoCommit}.`,
+    `Done. Seeded ${result.seriesCount} series, ${result.setCount} sets, ${result.cardCount} cards, ${result.externalSourceCount} external source links, and ${result.dexLinkCount} dex links from ${repoCommit}. PokemonTCG matched ${result.pokemonTcgSetCount} sets and ${result.pokemonTcgCardCount} cards.`,
   )
 
   return result

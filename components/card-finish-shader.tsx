@@ -26,6 +26,9 @@ uniform float u_angle;
 uniform float u_time;
 uniform float u_finish;
 uniform float u_seed;
+uniform float u_hue_offset;
+uniform float u_pattern_scale;
+uniform float u_intensity;
 
 varying vec2 v_uv;
 
@@ -59,13 +62,14 @@ void main() {
   vec2 crossDir = vec2(-dir.y, dir.x);
 
   float seedOffset = fract(sin(u_seed * 91.7) * 371.13);
-  float sweep = exp(-pow(abs(dot(center, crossDir)) * (6.1 + seedOffset * 0.7), 2.0));
+  float patternScale = clamp(u_pattern_scale, 0.72, 1.32);
+  float sweep = exp(-pow(abs(dot(center, crossDir)) * (5.6 + seedOffset * 1.2) * patternScale, 2.0));
   float hotSpot = exp(-dot(center, center) * 8.2);
-  float travelling = 0.5 + 0.5 * sin(dot(uv, dir) * (15.0 + seedOffset * 3.2) - u_time * 1.2 + u_seed);
+  float travelling = 0.5 + 0.5 * sin(dot(uv, dir) * (13.5 + seedOffset * 5.8) * patternScale - u_time * (1.0 + seedOffset * 0.45) + u_seed);
   float grain = hash(floor((uv + vec2(seedOffset * 0.19, u_time * 0.006)) * u_resolution.xy * 0.42));
 
-  float diagonalLines = linePattern(uv + vec2(u_time * 0.015 + seedOffset * 0.11, 0.0), 36.0 + seedOffset * 8.0, 0.14, u_angle + 0.54 + seedOffset * 0.28);
-  float fineLines = linePattern(uv + vec2(seedOffset * 0.07, seedOffset * 0.03), 82.0 + seedOffset * 16.0, 0.09, u_angle - 0.5 + seedOffset * 0.24);
+  float diagonalLines = linePattern(uv + vec2(u_time * 0.015 + seedOffset * 0.11, 0.0), (34.0 + seedOffset * 14.0) * patternScale, 0.14, u_angle + 0.54 + seedOffset * 0.58);
+  float fineLines = linePattern(uv + vec2(seedOffset * 0.07, seedOffset * 0.03), (76.0 + seedOffset * 28.0) * patternScale, 0.09, u_angle - 0.5 + seedOffset * 0.44);
   float edgeLight = smoothstep(0.74, 0.98, max(abs(uv.x - 0.5), abs(uv.y - 0.5)) * 2.0);
   float tileGrid = max(
     linePattern(uv + vec2(seedOffset * 0.04, 0.0), 22.0, 0.055, 0.0),
@@ -156,7 +160,7 @@ void main() {
     alphaBase = 0.72;
   }
 
-  float hue = fract(hueShift + dot(uv, vec2(0.55, 0.22)) + sweep * 0.28 + u_time * 0.015);
+  float hue = fract(hueShift + u_hue_offset + dot(uv, vec2(0.55, 0.22)) + sweep * (0.22 + seedOffset * 0.18) + u_time * 0.015);
   vec3 rainbow = hsv2rgb(vec3(hue, 0.76, 1.0));
   vec3 pearl = vec3(1.0, 0.96, 0.88);
   vec3 color = mix(rainbow, pearl, hotSpot * 0.46);
@@ -193,7 +197,7 @@ void main() {
   }
 
   float texture = (diagonalLines * lineBoost + fineLines * lineBoost * 0.45 + reverseTile + specialtyTexture + grain * 0.035) * surfaceMask;
-  float alpha = clamp((prism * finishBoost + texture) * alphaBase * 0.82, 0.0, 0.62);
+  float alpha = clamp((prism * finishBoost + texture) * alphaBase * 0.82 * clamp(u_intensity, 0.72, 1.28), 0.0, 0.62);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -260,6 +264,9 @@ interface CardFinishShaderProps {
   glintAngle: number
   glintPhase: number
   patternSeed: number
+  finishIntensity: number
+  hueOffset: number
+  patternScale: number
   fallbackClassName: string
   fallbackStyle: CSSProperties
 }
@@ -271,6 +278,9 @@ export default function CardFinishShader({
   glintAngle,
   glintPhase,
   patternSeed,
+  finishIntensity,
+  hueOffset,
+  patternScale,
   fallbackClassName,
   fallbackStyle,
 }: CardFinishShaderProps) {
@@ -281,6 +291,9 @@ export default function CardFinishShader({
     glintPhase,
     glintX,
     glintY,
+    finishIntensity,
+    hueOffset,
+    patternScale,
     patternSeed,
   })
   const [isActive, setIsActive] = useState(true)
@@ -293,9 +306,12 @@ export default function CardFinishShader({
       glintPhase,
       glintX,
       glintY,
+      finishIntensity,
+      hueOffset,
+      patternScale,
       patternSeed,
     }
-  }, [finish, glintAngle, glintPhase, glintX, glintY, patternSeed])
+  }, [finish, finishIntensity, glintAngle, glintPhase, glintX, glintY, hueOffset, patternScale, patternSeed])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -371,6 +387,9 @@ export default function CardFinishShader({
     const timeLocation = gl.getUniformLocation(program, "u_time")
     const finishLocation = gl.getUniformLocation(program, "u_finish")
     const seedLocation = gl.getUniformLocation(program, "u_seed")
+    const hueOffsetLocation = gl.getUniformLocation(program, "u_hue_offset")
+    const patternScaleLocation = gl.getUniformLocation(program, "u_pattern_scale")
+    const intensityLocation = gl.getUniformLocation(program, "u_intensity")
     let frameId = 0
     let lastFrameTime = -TARGET_FRAME_MS
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -409,6 +428,9 @@ export default function CardFinishShader({
       gl.uniform1f(timeLocation, time / 1000 + uniforms.glintPhase)
       gl.uniform1f(finishLocation, getFinishUniformValue(uniforms.finish))
       gl.uniform1f(seedLocation, uniforms.patternSeed)
+      gl.uniform1f(hueOffsetLocation, uniforms.hueOffset)
+      gl.uniform1f(patternScaleLocation, uniforms.patternScale)
+      gl.uniform1f(intensityLocation, uniforms.finishIntensity)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
       frameId = window.requestAnimationFrame(render)

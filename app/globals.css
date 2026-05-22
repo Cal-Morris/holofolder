@@ -245,12 +245,12 @@
   }
 
   .card-finish-shader {
-    opacity: 0.64;
+    opacity: var(--slot-shader-opacity, 0.64);
   }
 
   .card-finish-mobile-sheen {
     border-radius: inherit;
-    opacity: 0.24;
+    opacity: var(--slot-mobile-sheen-opacity, 0.24);
     mix-blend-mode: screen;
     transform: translate3d(-18%, 0, 0) rotate(var(--glint-angle, -24deg));
     animation: card-finish-sheen-sweep 3.6s ease-in-out infinite;
@@ -259,15 +259,15 @@
 
   @keyframes card-finish-sheen-sweep {
     0% {
-      opacity: 0.07;
+      opacity: calc(var(--slot-mobile-sheen-opacity, 0.24) * 0.3);
       transform: translate3d(calc(var(--glint-shift-x, 0%) - 22%), calc(var(--glint-shift-y, 0%) - 6%), 0) rotate(var(--glint-angle, -24deg)) scale(1.06);
     }
     48% {
-      opacity: 0.24;
+      opacity: var(--slot-mobile-sheen-opacity, 0.24);
       transform: translate3d(var(--glint-shift-x, 0%), var(--glint-shift-y, 0%), 0) rotate(var(--glint-angle, -24deg)) scale(1.09);
     }
     100% {
-      opacity: 0.08;
+      opacity: calc(var(--slot-mobile-sheen-opacity, 0.24) * 0.34);
       transform: translate3d(calc(var(--glint-shift-x, 0%) + 24%), calc(var(--glint-shift-y, 0%) + 7%), 0) rotate(var(--glint-angle, -24deg)) scale(1.06);
     }
   }
@@ -443,7 +443,7 @@
   .card-finish-mobile-sheen.card-finish-amazing,
   .card-finish-mobile-sheen.card-finish-shiny {
     inset: 0;
-    opacity: 0.24;
+    opacity: var(--slot-mobile-sheen-opacity, 0.24);
     mix-blend-mode: screen;
     animation: card-finish-sheen-sweep 3.6s ease-in-out infinite;
   }
