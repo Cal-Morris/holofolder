@@ -114,6 +114,7 @@ type PokemonTcgCard = {
   supertype?: string
   hp?: string
   types?: string[]
+  nationalPokedexNumbers?: number[]
   number?: string
   artist?: string
   rarity?: string
@@ -712,7 +713,12 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
         : card as unknown as JsonObject,
     })
 
-    for (const dexId of Array.isArray(card.dexId) ? card.dexId : []) {
+    const linkedDexIds = new Set([
+      ...(Array.isArray(card.dexId) ? card.dexId : []),
+      ...(Array.isArray(pokemonTcgCard?.nationalPokedexNumbers) ? pokemonTcgCard.nationalPokedexNumbers : []),
+    ])
+
+    for (const dexId of linkedDexIds) {
       if (Number.isInteger(dexId) && dexId > 0) {
         dexLinks.add(`${cardId}:${dexId}`)
       }
