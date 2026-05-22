@@ -6,6 +6,7 @@ import { addLocalCollectedId, readLocalCollectedIds, removeLocalCollectedId, wri
 import type { User } from "@supabase/supabase-js"
 
 export type SlotStatus = 'collected' | 'finalized' | 'considering' | 'wishlisted'
+export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
 interface CollectedPokemon {
   id: string
@@ -15,6 +16,7 @@ interface CollectedPokemon {
   card_name?: string
   card_image?: string
   card_set?: string
+  card_language?: CardLanguage
   status: SlotStatus
   collected_at: string
 }
@@ -56,6 +58,21 @@ function isSlotStatus(value: unknown): value is SlotStatus {
   return value === "collected" || value === "finalized" || value === "considering" || value === "wishlisted"
 }
 
+function normalizeCardLanguage(value: unknown): CardLanguage {
+  if (typeof value !== "string") return "en"
+  const normalized = value.trim().toLowerCase()
+  return normalized === "en" ||
+    normalized === "fr" ||
+    normalized === "de" ||
+    normalized === "es" ||
+    normalized === "it" ||
+    normalized === "pt-br" ||
+    normalized === "ja" ||
+    normalized === "ko"
+      ? normalized
+      : "en"
+}
+
 function normalizeCollectionItem(item: Partial<CollectedPokemon>): CollectedPokemon {
   return {
     id: typeof item.id === "string" ? item.id : crypto.randomUUID(),
@@ -65,6 +82,7 @@ function normalizeCollectionItem(item: Partial<CollectedPokemon>): CollectedPoke
     card_name: typeof item.card_name === "string" ? item.card_name : undefined,
     card_image: typeof item.card_image === "string" ? item.card_image : undefined,
     card_set: typeof item.card_set === "string" ? item.card_set : undefined,
+    card_language: normalizeCardLanguage(item.card_language),
     status: isSlotStatus(item.status) ? item.status : "collected",
     collected_at: typeof item.collected_at === "string" ? item.collected_at : new Date().toISOString(),
   }
@@ -327,6 +345,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     cardName?: string,
     cardImage?: string,
     cardSet?: string,
+    cardLanguage: CardLanguage = "en",
     status: SlotStatus = 'collected'
   ) => {
     if (readOnly) return { error: "Read-only binder" }
@@ -342,6 +361,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         card_name: cardName,
         card_image: cardImage,
         card_set: cardSet,
+        card_language: cardLanguage,
         status,
         collected_at: existingItem?.collected_at,
       })
@@ -358,6 +378,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           cardName,
           cardImage,
           cardSet,
+          cardLanguage,
           status,
         })
       })
@@ -474,6 +495,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           card_name: null,
           card_image: null,
           card_set: null,
+          card_language: "en",
           status: "collected" as SlotStatus,
         }))
 
@@ -491,6 +513,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           user_id: collectionOwnerUserId,
           pokemon_id: pokemonId,
           pokemon_name: catalogNames.get(pokemonId) || remoteById.get(pokemonId)?.pokemon_name || `Pokemon #${pokemonId}`,
+          card_language: "en",
           status: "collected" as SlotStatus,
         }))
 

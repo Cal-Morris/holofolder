@@ -2,11 +2,14 @@
 
 import { useState, useCallback } from "react"
 
+export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+
 export interface TCGCard {
   id: string
   localId: string
   name: string
   image?: string
+  language?: CardLanguage
   set: {
     id: string
     name: string
@@ -35,19 +38,21 @@ export function useTCGdex() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchCardsForPokemon = useCallback(async (dexId: number): Promise<TCGCard[]> => {
+  const fetchCardsForPokemon = useCallback(async (dexId: number, language: CardLanguage = "en"): Promise<TCGCard[]> => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`/api/tcgdex-cache?pokemonId=${dexId}&language=en`)
+      const response = await fetch(`/api/tcgdex-cache?pokemonId=${dexId}&language=${encodeURIComponent(language)}`)
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         throw new Error(payload?.error || `API error: ${response.status}`)
       }
 
       const data = await response.json()
-      const cards: TCGCard[] = Array.isArray(data.cards) ? data.cards : []
+      const cards: TCGCard[] = Array.isArray(data.cards)
+        ? data.cards.map((card: TCGCard) => ({ ...card, language }))
+        : []
 
       setIsLoading(false)
       return cards

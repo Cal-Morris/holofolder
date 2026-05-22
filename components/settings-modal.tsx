@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff } from "lucide-react"
+import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { BinderSettings } from "@/hooks/use-settings"
@@ -52,6 +52,10 @@ interface SettingsModalProps {
   shareMessage: string | null
   onEnableReadOnlyShare: () => void
   onDisableReadOnlyShare: () => void
+  trackedCardCount: number
+  isRefreshingPrices: boolean
+  priceRefreshMessage: string | null
+  onRefreshPrices: () => void
 }
 
 export default function SettingsModal({
@@ -87,8 +91,11 @@ export default function SettingsModal({
   shareMessage,
   onEnableReadOnlyShare,
   onDisableReadOnlyShare,
+  trackedCardCount,
+  isRefreshingPrices,
+  priceRefreshMessage,
+  onRefreshPrices,
 }: SettingsModalProps) {
-  const [language, setLanguage] = useState<"en" | "ja">("en")
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage))
@@ -195,7 +202,7 @@ export default function SettingsModal({
               <div className="space-y-1">
                 <p className="text-sm font-medium">Binder slot glare</p>
                 <p className="text-xs text-muted-foreground">
-                  Adds a pocket glare across the binder. Uses device motion when available, otherwise falls back to a static sheen.
+                  Adds moving pocket glare and foil shine. Uses device motion when available, otherwise runs a subtle app-side sweep.
                 </p>
               </div>
               <Switch
@@ -349,6 +356,44 @@ export default function SettingsModal({
           {!isReadOnlyView && (
             <div className="pt-4 border-t border-border space-y-4">
               <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold">Pricing</h3>
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-muted/25 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">Background price refresh</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Recalculates cached prices for every assigned card. The job runs on Vercel and keeps going if one card has no market price.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {trackedCardCount} cards
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 w-full gap-2"
+                  disabled={!isSignedIn || trackedCardCount === 0 || isRefreshingPrices}
+                  onClick={onRefreshPrices}
+                >
+                  {isRefreshingPrices ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Refresh prices in background
+                </Button>
+                {priceRefreshMessage && (
+                  <p className="mt-2 text-xs text-primary">{priceRefreshMessage}</p>
+                )}
+                {!isSignedIn && (
+                  <p className="mt-2 text-xs text-muted-foreground">Sign in first to refresh your binder prices.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!isReadOnlyView && (
+            <div className="pt-4 border-t border-border space-y-4">
+              <div className="flex items-center gap-2">
                 <Link2 className="w-4 h-4 text-primary" />
                 <h3 className="font-semibold">Read-Only Share Link</h3>
               </div>
@@ -386,36 +431,6 @@ export default function SettingsModal({
               )}
             </div>
           )}
-
-          {/* Language Settings */}
-          <div className="space-y-4">
-            <h3 className="font-semibold">Card Language</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setLanguage("en")}
-                className={`flex-1 px-4 py-3 rounded-2xl text-sm font-medium border-2 transition-all ${
-                  language === "en"
-                    ? "bg-primary/10 text-primary border-primary"
-                    : "bg-muted/50 border-border/50 hover:border-primary/50 text-muted-foreground"
-                }`}
-              >
-                English
-              </button>
-              <button
-                onClick={() => setLanguage("ja")}
-                className={`flex-1 px-4 py-3 rounded-2xl text-sm font-medium border-2 transition-all ${
-                  language === "ja"
-                    ? "bg-primary/10 text-primary border-primary"
-                    : "bg-muted/50 border-border/50 hover:border-primary/50 text-muted-foreground"
-                }`}
-              >
-                Japanese
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Sets the language for card images when selecting specific cards
-            </p>
-          </div>
 
           {/* Passkey Settings */}
           {!isReadOnlyView && (

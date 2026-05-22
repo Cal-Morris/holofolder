@@ -77,16 +77,7 @@ export default function PasskeySettings({ user }: PasskeySettingsProps) {
       const options = await optionsRes.json()
 
       // Start WebAuthn registration
-      const credential = await startRegistration({
-        challenge: options.challenge,
-        rp: options.rp,
-        user: options.user,
-        pubKeyCredParams: options.pubKeyCredParams,
-        timeout: options.timeout,
-        attestation: options.attestation,
-        excludeCredentials: options.excludeCredentials,
-        authenticatorSelection: options.authenticatorSelection,
-      })
+      const credential = await startRegistration({ optionsJSON: options })
 
       // Verify with server
       const verifyRes = await fetch("/api/auth/passkey/register/verify", {

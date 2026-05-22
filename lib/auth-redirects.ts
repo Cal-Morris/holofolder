@@ -20,13 +20,13 @@ function getConfiguredBaseUrl() {
 }
 
 function getBaseUrl() {
+  if (typeof window !== "undefined") {
+    return window.location.origin.replace(/\/$/, "")
+  }
+
   const configuredBaseUrl = getConfiguredBaseUrl()
   if (configuredBaseUrl) {
     return configuredBaseUrl
-  }
-
-  if (typeof window !== "undefined") {
-    return window.location.origin.replace(/\/$/, "")
   }
 
   if (process.env.NODE_ENV !== "production") {

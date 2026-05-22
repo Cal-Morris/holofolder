@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
-import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, ChevronsLeft, ChevronsRight, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen } from "lucide-react"
+import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, ChevronsLeft, ChevronsRight, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import SettingsModal from "@/components/settings-modal"
 import AuthModal from "@/components/auth-modal"
 import PartnerModal from "@/components/partner-modal"
-import CardSelector from "@/components/card-selector"
-import { useCardPrices, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
-import { useCollection, type SlotStatus } from "@/hooks/use-collection"
+import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
+import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
+import { useCollection, type CardLanguage, type SlotStatus } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
 import { Button } from "@/components/ui/button"
@@ -121,6 +121,7 @@ interface InitialCollectionRow {
   card_name?: string
   card_image?: string
   card_set?: string
+  card_language?: CardLanguage
   status: SlotStatus
   collected_at: string
 }
@@ -185,6 +186,25 @@ function formatPriceLabel(price: CardPriceSnapshot | undefined) {
   return `${primary} (${formatCurrencyAmount(price.originalAmount, price.originalCurrency)} ${price.originalCurrency})`
 }
 
+const CARD_LANGUAGE_LABELS: Record<CardLanguage, string> = {
+  en: "English",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+  it: "Italian",
+  "pt-br": "Portuguese",
+  ja: "Japanese",
+  ko: "Korean",
+}
+
+function formatCardLanguageLabel(language?: string | null) {
+  return CARD_LANGUAGE_LABELS[(language || "en") as CardLanguage] ?? CARD_LANGUAGE_LABELS.en
+}
+
+function getCollectionItemPriceKey(item?: { card_id?: string | null; card_language?: string | null } | null) {
+  return item?.card_id ? getCardPriceKey(item.card_id, item.card_language) : null
+}
+
 function formatCollectedDate(value?: string | null) {
   if (!value) {
     return null
@@ -243,6 +263,49 @@ function formatPriceTotals(
   }
 
   return originalParts.length > 0 ? `${primary} (${originalParts.join(" + ")})` : primary
+}
+
+function BinderSlotGlare({
+  glareStyle,
+  innerRadius,
+}: {
+  glareStyle: CSSProperties
+  innerRadius: string
+}) {
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute inset-[3px] z-[2]"
+        style={{
+          borderRadius: innerRadius,
+          background: "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.16) 20%, rgba(255,255,255,0) 42%)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-[3px] z-[3]"
+        style={{
+          borderRadius: innerRadius,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 24%, rgba(255,255,255,0) 56%)",
+        }}
+      />
+      <div
+        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[36%] -top-[28%] z-[4] h-[90%] rounded-[999px] blur-[1px] shadow-[0_0_18px_rgba(255,255,255,0.28)] transition-[transform,opacity] duration-200 ease-out will-change-transform dark:shadow-[0_0_16px_rgba(255,255,255,0.12)]"
+        style={{
+          ...glareStyle,
+          "--glare-transform": glareStyle.transform,
+          background:
+            "linear-gradient(132deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.82) 13%, rgba(255,255,255,0.48) 24%, rgba(255,255,255,0.14) 36%, rgba(255,255,255,0) 56%)",
+        } as CSSProperties}
+      />
+      <div
+        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[4] w-[12%] rounded-[999px] blur-[1px]"
+        style={{
+          background: "linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.24) 34%, rgba(255,255,255,0) 100%)",
+          opacity: 0.72,
+        }}
+      />
+    </>
+  )
 }
 
 function delay(ms: number) {
@@ -378,7 +441,7 @@ export default function BinderApp({
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isPartnerOpen, setIsPartnerOpen] = useState(false)
   const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false)
-  const [cardSelectorMode, setCardSelectorMode] = useState<"collect" | "wishlist">("collect")
+  const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
   const [selectedGen, setSelectedGen] = useState(0)
@@ -407,6 +470,8 @@ export default function BinderApp({
   const [isShareEnabled, setIsShareEnabled] = useState(Boolean(shareViewToken))
   const [isShareLoading, setIsShareLoading] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [isRefreshingPrices, setIsRefreshingPrices] = useState(false)
+  const [priceRefreshMessage, setPriceRefreshMessage] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(true)
   const [isInstalledApp, setIsInstalledApp] = useState(false)
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
@@ -919,20 +984,44 @@ export default function BinderApp({
       ),
     [collection, filteredPokemonIds],
   )
-  const trackedCardIds = useMemo(
-    () => filteredTrackedCards.map((item) => item.card_id!).filter(Boolean),
+  const trackedPriceLookups = useMemo<CardPriceLookup[]>(
+    () =>
+      filteredTrackedCards
+        .map<CardPriceLookup | null>((item) => item.card_id ? { cardId: item.card_id, language: item.card_language ?? "en" } : null)
+        .filter((item): item is CardPriceLookup => item !== null),
     [filteredTrackedCards],
   )
-  const selectedTrackedCardId = selectedPokemon ? getCollectionItem(selectedPokemon.id)?.card_id ?? null : null
-  const priceLookupCardIds = useMemo(
-    () => [...new Set(selectedTrackedCardId ? [...trackedCardIds, selectedTrackedCardId] : trackedCardIds)],
-    [selectedTrackedCardId, trackedCardIds],
+  const selectedTrackedCardItem = selectedPokemon ? getCollectionItem(selectedPokemon.id) ?? null : null
+  const selectedTrackedPriceLookup = useMemo<CardPriceLookup | null>(
+    () => selectedTrackedCardItem?.card_id
+      ? { cardId: selectedTrackedCardItem.card_id, language: selectedTrackedCardItem.card_language ?? "en" }
+      : null,
+    [selectedTrackedCardItem?.card_id, selectedTrackedCardItem?.card_language],
   )
-  const hasTrackedCards = trackedCardIds.length > 0
-  const shouldLoadCardPrices = isPriceMode || Boolean(selectedTrackedCardId)
-  const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCardIds, shouldLoadCardPrices)
+  const priceLookupCards = useMemo(
+    () => {
+      const byKey = new Map<string, CardPriceLookup>()
+
+      for (const lookup of trackedPriceLookups) {
+        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+      }
+
+      if (selectedTrackedPriceLookup) {
+        byKey.set(getCardPriceKey(selectedTrackedPriceLookup.cardId, selectedTrackedPriceLookup.language), selectedTrackedPriceLookup)
+      }
+
+      return [...byKey.values()]
+    },
+    [selectedTrackedPriceLookup, trackedPriceLookups],
+  )
+  const hasTrackedCards = trackedPriceLookups.length > 0
+  const shouldLoadCardPrices = isPriceMode || Boolean(selectedTrackedPriceLookup)
+  const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
   const filteredPriceSummary = useMemo(
-    () => sumPriceSnapshots(filteredTrackedCards.map((item) => (item.card_id ? pricesByCardId[item.card_id] : undefined))),
+    () => sumPriceSnapshots(filteredTrackedCards.map((item) => {
+      const priceKey = getCollectionItemPriceKey(item)
+      return priceKey ? pricesByCardId[priceKey] : undefined
+    })),
     [filteredTrackedCards, pricesByCardId],
   )
   const filteredTotalLabel = useMemo(
@@ -1034,7 +1123,10 @@ export default function BinderApp({
     [collection, visiblePagePokemonIds],
   )
   const visiblePagePriceSummary = useMemo(
-    () => sumPriceSnapshots(visiblePageTrackedCards.map((item) => (item.card_id ? pricesByCardId[item.card_id] : undefined))),
+    () => sumPriceSnapshots(visiblePageTrackedCards.map((item) => {
+      const priceKey = getCollectionItemPriceKey(item)
+      return priceKey ? pricesByCardId[priceKey] : undefined
+    })),
     [pricesByCardId, visiblePageTrackedCards],
   )
   const visiblePageTotalLabel = useMemo(
@@ -1271,16 +1363,18 @@ export default function BinderApp({
         existingItem?.card_name,
         existingItem?.card_image,
         existingItem?.card_set,
+        existingItem?.card_language ?? "en",
         "collected",
       )
     }
     setLongPressedPokemon(null)
   }
 
-  const handleCardSelected = async (card: any | null) => {
+  const handleCardSelected = async (card: any | null, selectedMode: CardSelectorMode = cardSelectorMode) => {
     if (!selectedPokemon) return
     if (readOnlyMode) return
-    if (cardSelectorMode === "wishlist") {
+    setCardSelectorMode(selectedMode)
+    if (selectedMode === "wishlist") {
       if (!card) {
         await removeFromCollection(selectedPokemon.id)
       } else {
@@ -1291,6 +1385,7 @@ export default function BinderApp({
           card.name,
           card.image,
           card.set?.name,
+          card.language ?? "en",
           "wishlisted",
         )
       }
@@ -1302,6 +1397,7 @@ export default function BinderApp({
         card?.name,
         card?.image,
         card?.set?.name,
+        card?.language ?? "en",
         "collected",
       )
     }
@@ -1970,6 +2066,34 @@ export default function BinderApp({
     }
   }, [sharePath])
 
+  const handleRefreshPrices = useCallback(async () => {
+    if (readOnlyMode) return
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+
+    setIsRefreshingPrices(true)
+    setPriceRefreshMessage(null)
+
+    try {
+      const response = await fetch("/api/card-prices/refresh", {
+        method: "POST",
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(payload?.error || `Failed to start price refresh (${response.status})`)
+      }
+
+      setPriceRefreshMessage("Price refresh started in the background.")
+    } catch (error) {
+      setPriceRefreshMessage(error instanceof Error ? error.message : "Could not start price refresh.")
+    } finally {
+      setIsRefreshingPrices(false)
+    }
+  }, [readOnlyMode, user])
+
   const collected = selectedPokemon ? isCollected(selectedPokemon.id) : false
   const wishlisted = selectedPokemon ? isWishlisted(selectedPokemon.id) : false
   const collectionItem = selectedPokemon ? getCollectionItem(selectedPokemon.id) : null
@@ -1978,7 +2102,8 @@ export default function BinderApp({
   const selectedPokemonDisplayImage = selectedPokemon ? getDisplayArtwork(selectedPokemon, collectionItem?.card_image) : null
   const selectedPokemonDisplayFit = getDisplayArtworkFit(collectionItem?.card_image)
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
-  const selectedCardPriceLabel = collectionItem?.card_id ? formatPriceLabel(pricesByCardId[collectionItem.card_id]) : null
+  const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
+  const selectedCardPriceLabel = selectedCardPriceKey ? formatPriceLabel(pricesByCardId[selectedCardPriceKey]) : null
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
 
   const registerSlotButtonRef = useCallback((pokemonId: number, node: HTMLButtonElement | null) => {
@@ -1996,6 +2121,11 @@ export default function BinderApp({
       return
     }
 
+    if (!isDesktopViewport) {
+      setQuickPanelPosition(null)
+      return
+    }
+
     const slotButton = slotButtonRefs.current.get(selectedPokemon.id)
     const quickPanelNode = quickPanelRef.current
 
@@ -2007,9 +2137,9 @@ export default function BinderApp({
     const panelRect = quickPanelNode.getBoundingClientRect()
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
-    const edgePadding = isDesktopViewport ? 16 : 12
-    const bottomClearance = isDesktopViewport ? 16 : 92
-    const verticalGap = isDesktopViewport ? 14 : 12
+    const edgePadding = 16
+    const bottomClearance = 16
+    const verticalGap = 14
     const spaceAbove = slotRect.top - edgePadding - verticalGap
     const spaceBelow = viewportHeight - slotRect.bottom - bottomClearance - verticalGap
     const placeBelow = spaceBelow >= panelRect.height || spaceBelow > spaceAbove
@@ -2039,6 +2169,11 @@ export default function BinderApp({
 
   useEffect(() => {
     if (!selectedPokemon || isSearchOpen || typeof window === "undefined") {
+      setQuickPanelPosition(null)
+      return
+    }
+
+    if (!isDesktopViewport) {
       setQuickPanelPosition(null)
       return
     }
@@ -2102,6 +2237,7 @@ export default function BinderApp({
             : "Choose how you want to track this slot."
     const selectedDetailChips = [
       collectionItem?.card_set ? { key: "set", label: collectionItem.card_set } : null,
+      collectionItem?.card_id ? { key: "language", label: formatCardLanguageLabel(collectionItem.card_language) } : null,
       selectedCardPriceLabel ? { key: "price", label: isLoadingPrices ? "Loading price..." : selectedCardPriceLabel } : null,
       !selectedCardPriceLabel && isLoadingPrices && collectionItem?.card_id ? { key: "price-loading", label: "Loading price..." } : null,
       selectedCollectedDateLabel ? { key: "collected", label: `Collected ${selectedCollectedDateLabel}` } : null,
@@ -2116,7 +2252,7 @@ export default function BinderApp({
     const quickPanel = (
       <div
         ref={quickPanelRef}
-        className="fixed z-30 w-[min(calc(100vw-1.5rem),28rem)] transition-[top,left] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
+        className="fixed z-30 w-[min(calc(100vw-1.5rem),28rem)] transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
         style={quickPanelPosition
           ? {
               top: quickPanelPosition.top,
@@ -2135,7 +2271,7 @@ export default function BinderApp({
                 width: "min(calc(100vw - 1.5rem), 24rem)",
               }}
       >
-        <div className="rounded-[1.6rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
+        <div className="rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
           <div className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
               <div className="relative mt-0.5 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -2175,7 +2311,7 @@ export default function BinderApp({
                     </span>
                   ) : null}
                 </div>
-                <p className={`mt-1.5 min-h-[1rem] text-[11px] leading-relaxed ${
+                <p className={`mt-1.5 min-h-[1rem] truncate text-[11px] leading-relaxed ${
                   wishlisted && collectionItem?.card_name
                     ? "text-amber-400"
                   : collectionItem?.card_name
@@ -2185,11 +2321,11 @@ export default function BinderApp({
                   {selectedCardSummaryLabel}
                 </p>
                 {selectedDetailChips.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-2 flex items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap">
                     {selectedDetailChips.map((detailChip) => (
                       <span
                         key={detailChip.key}
-                        className="rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
+                        className="shrink-0 rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
                       >
                         {detailChip.label}
                       </span>
@@ -2242,20 +2378,43 @@ export default function BinderApp({
               <div className="flex flex-col gap-2">
                 {!readOnlyMode && (
                   <>
-                    <Button
-                      onClick={collected ? handleOpenCardSelector : handleToggleCollected}
-                      disabled={isCollectionLoading}
-                      variant={collected ? "default" : "secondary"}
-                      size="sm"
-                      className="h-10 w-full rounded-xl gap-1.5 px-3 text-sm shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
-                    >
-                      {collected ? <Check className="w-3.5 h-3.5" /> : null}
-                      {collected
-                        ? selectedPokemonHasAssignedCard
-                          ? "Edit owned card"
-                          : "Add owned card"
-                        : "Pick owned card"}
-                    </Button>
+                    {collected ? (
+                      <Button
+                        onClick={handleOpenCardSelector}
+                        disabled={isCollectionLoading}
+                        variant="default"
+                        size="sm"
+                        className="h-10 w-full rounded-xl gap-1.5 px-3 text-sm shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        {selectedPokemonHasAssignedCard ? "Edit owned card" : "Add owned card"}
+                      </Button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          onClick={handleOpenCardSelector}
+                          disabled={isCollectionLoading}
+                          variant="secondary"
+                          size="sm"
+                          className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-[0_12px_24px_-18px_rgba(52,211,153,0.8)]"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Pick owned
+                        </Button>
+                        <Button
+                          onClick={handleOpenWishlistSelector}
+                          disabled={isCollectionLoading}
+                          variant={wishlisted ? "secondary" : "outline"}
+                          size="sm"
+                          className={wishlisted
+                            ? "h-11 rounded-xl gap-1.5 px-3 text-xs"
+                            : "h-11 rounded-xl gap-1.5 border-amber-400/25 bg-amber-400/8 px-3 text-xs text-amber-600 shadow-none hover:bg-amber-400/12 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${wishlisted ? "fill-current" : ""}`} />
+                          {wishlisted ? "Edit wanted" : "Track wanted"}
+                        </Button>
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-2">
                       {!collected && (
@@ -2266,20 +2425,7 @@ export default function BinderApp({
                           size="sm"
                           className="h-9 shrink-0 rounded-xl !border-0 bg-background/55 px-3 text-xs text-muted-foreground shadow-none hover:bg-background/75 hover:text-foreground dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
                         >
-                          Mark owned
-                        </Button>
-                      )}
-                      {!collected && (
-                        <Button
-                          onClick={handleOpenWishlistSelector}
-                          disabled={isCollectionLoading}
-                          variant={wishlisted ? "secondary" : "outline"}
-                          size="sm"
-                          className={wishlisted
-                            ? "h-9 shrink-0 rounded-xl px-3 text-xs"
-                            : "h-9 shrink-0 rounded-xl !border-0 bg-background/55 px-3 text-xs text-muted-foreground shadow-none hover:bg-background/75 hover:text-foreground dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"}
-                        >
-                          {wishlisted ? "Edit wanted card" : "Wanted card"}
+                          Mark owned without card
                         </Button>
                       )}
                       {collected && selectedPokemonHasAssignedCard && (
@@ -2301,7 +2447,7 @@ export default function BinderApp({
                 )}
               </div>
               </div>
-              <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/90">
+              <p className="hidden px-1 text-[11px] leading-relaxed text-muted-foreground/90 sm:block">
                 {panelHelperText}
               </p>
             </div>
@@ -2545,16 +2691,12 @@ export default function BinderApp({
                     style={{ borderRadius: TRADING_CARD_INNER_CORNER_RADIUS }}
                   />
                   <div className="absolute inset-x-[7px] top-[7px] h-px bg-white/65 dark:bg-white/10" />
-	                  {settings.binderSlotGlareEnabled ? (
-	                    <>
-	                      <div className="pointer-events-none absolute inset-[3px] z-[1] rounded-[0.85rem] bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.12)_20%,rgba(255,255,255,0)_42%)] dark:bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.04)_22%,rgba(255,255,255,0)_42%)] mix-blend-screen" />
-	                      <div
-	                        className="pointer-events-none absolute -inset-x-[34%] -top-[28%] z-[2] h-[88%] rounded-[999px] bg-[linear-gradient(132deg,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.8)_13%,rgba(255,255,255,0.38)_24%,rgba(255,255,255,0.1)_36%,rgba(255,255,255,0)_54%)] dark:bg-[linear-gradient(132deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.22)_16%,rgba(255,255,255,0.1)_28%,rgba(255,255,255,0.03)_40%,rgba(255,255,255,0)_58%)] mix-blend-screen blur-[1px] transition-[transform,opacity] duration-200 ease-out will-change-transform"
-	                        style={slotGlareOverlayStyle}
-	                      />
-	                      <div className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[2] w-[12%] rounded-[999px] bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(255,255,255,0.22)_34%,rgba(255,255,255,0)_100%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0.06)_34%,rgba(255,255,255,0)_100%)] mix-blend-screen blur-[1px]" />
-	                    </>
-	                  ) : null}
+                  {settings.binderSlotGlareEnabled ? (
+                    <BinderSlotGlare
+                      glareStyle={slotGlareOverlayStyle}
+                      innerRadius={TRADING_CARD_INNER_CORNER_RADIUS}
+                    />
+                  ) : null}
                 </div>
               )
             }
@@ -2564,6 +2706,7 @@ export default function BinderApp({
             const isLongPressed = longPressedPokemon?.id === pokemon.id
             const item = getCollectionItem(pokemon.id)
             const isCurrentWishlisted = item?.status === "wishlisted"
+            const itemPriceKey = getCollectionItemPriceKey(item)
 
             return (
               <PokemonSlot
@@ -2578,7 +2721,7 @@ export default function BinderApp({
                 cardImage={item?.card_image}
                 cardName={item?.card_name}
                 hasAssignedCard={Boolean(item?.card_id)}
-                priceLabel={isPriceMode && item?.card_id ? formatPriceLabel(pricesByCardId[item.card_id]) : null}
+                priceLabel={isPriceMode && itemPriceKey ? formatPriceLabel(pricesByCardId[itemPriceKey]) : null}
                 showPriceMode={isPriceMode}
                 readOnly={readOnlyMode}
                 showBinderSlotGlare={settings.binderSlotGlareEnabled}
@@ -2706,7 +2849,7 @@ export default function BinderApp({
             </div>
           </div>
 
-          <div className={`${isMobileNavExpanded ? "block" : "hidden"} border-t border-border/40 px-2 py-1.5 md:block`}>
+          <div className="hidden border-t border-border/40 px-2 py-1.5 md:block">
 	            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap">
 	              <div className="flex shrink-0 rounded-xl border border-border/50 bg-card/70 p-0.5 dark:border-border/30 dark:bg-muted/40">
                 <button
@@ -3173,6 +3316,118 @@ export default function BinderApp({
         </div>
       )}
 
+      {isMobileNavExpanded && !isSearchOpen && (
+        <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm md:hidden" onClick={() => setIsMobileNavExpanded(false)}>
+          <div
+            className="absolute inset-x-0 bottom-0 rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60" />
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Controls</p>
+                <p className="text-xs text-muted-foreground">{collectionStats.percentage}% complete</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-full"
+                onClick={() => setIsMobileNavExpanded(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-2xl border border-border/60 bg-background/62 p-1 dark:border-border/40 dark:bg-muted/35">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev > 0 ? prev - 1 : GENERATIONS.length - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <select
+                  value={selectedGen}
+                  onChange={(e) => setSelectedGen(Number(e.target.value))}
+                  className="h-9 min-w-0 bg-transparent text-center text-sm font-semibold cursor-pointer focus:outline-none"
+                >
+                  {GENERATIONS.map((gen) => (
+                    <option key={gen.id} value={gen.id}>
+                      {gen.id === 0 ? "All Pokemon" : `Gen ${gen.id}${gen.region ? ` ${gen.region}` : ""}`}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev < GENERATIONS.length - 1 ? prev + 1 : 0)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {isCompactViewport && (
+                <button
+                  onClick={() => setIsMobileSpreadPreview((current) => !current)}
+                  aria-pressed={isMobileSpreadPreview}
+                  className={`flex h-11 w-full items-center justify-between rounded-2xl border px-4 text-sm font-semibold transition-all ${
+                    isMobileSpreadPreview
+                      ? "border-primary/30 bg-primary/12 text-primary"
+                      : "border-border/60 bg-background/62 text-foreground dark:border-border/40 dark:bg-muted/35"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Spread preview
+                  </span>
+                  <span className="text-xs text-muted-foreground">{isMobileSpreadPreview ? "On" : "Off"}</span>
+                </button>
+              )}
+
+              {canFilterCollection && (
+                <div className="grid grid-cols-2 gap-2">
+                  {COLLECTION_VIEW_FILTERS.map((filterOption) => {
+                    const isActive = collectionViewFilter === filterOption.id
+
+                    return (
+                      <button
+                        key={filterOption.id}
+                        onClick={() => {
+                          setCollectionViewFilter(filterOption.id)
+                          setIsMobileNavExpanded(false)
+                        }}
+                        className={`h-11 rounded-2xl border px-3 text-sm font-semibold transition-all ${
+                          isActive
+                            ? "border-primary/35 bg-primary/12 text-primary"
+                            : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
+                        }`}
+                      >
+                        {filterOption.mobileLabel}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className={`grid gap-2 ${hasTrackedCards ? "grid-cols-2" : "grid-cols-1"}`}>
+                {hasTrackedCards && (
+                  <button
+                    onClick={() => setIsPriceMode((current) => !current)}
+                    className={`h-11 rounded-2xl border px-3 text-sm font-semibold transition-all ${
+                      isPriceMode
+                        ? "border-primary/35 bg-primary/12 text-primary"
+                        : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
+                    }`}
+                  >
+                    {isLoadingPrices && isPriceMode ? "Loading prices" : "Prices"}
+                  </button>
+                )}
+                <button
+                  onClick={handlePhotoButtonClick}
+                  disabled={isScanningPage || isFilteredBinderLayout || currentPagePokemon.length === 0}
+                  className="h-11 rounded-2xl border border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
+                >
+                  {isScanningPage ? "Scanning" : "Scan page"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isMobileFilterSheetOpen && !isSearchOpen && (
         <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm md:hidden" onClick={() => setIsMobileFilterSheetOpen(false)}>
           <div
@@ -3180,12 +3435,10 @@ export default function BinderApp({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border/60" />
-            <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Binder View</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Choose what the binder shows, and what the jump button targets next.
-                </p>
+                <p className="text-xs text-muted-foreground">{filteredPokemonList.length} visible</p>
               </div>
               <Button
                 variant="ghost"
@@ -3217,9 +3470,6 @@ export default function BinderApp({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">{filterOption.label}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                          {filterOption.description}
-                        </p>
                       </div>
                       <div
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
@@ -3232,16 +3482,6 @@ export default function BinderApp({
                   </button>
                 )
               })}
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-border/60 bg-card/78 px-4 py-3 dark:border-border/40 dark:bg-card/55">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Current Mode
-              </p>
-              <p className="mt-2 text-sm font-medium">{activeCollectionFilterOption.label}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                The `Next` button will jump through {activeJumpLabel.toLowerCase()} slots while this mode is active.
-              </p>
             </div>
           </div>
         </div>
@@ -3348,6 +3588,10 @@ export default function BinderApp({
         shareMessage={shareMessage}
         onEnableReadOnlyShare={handleEnableReadOnlyShare}
         onDisableReadOnlyShare={handleDisableReadOnlyShare}
+        trackedCardCount={trackedPriceLookups.length}
+        isRefreshingPrices={isRefreshingPrices}
+        priceRefreshMessage={priceRefreshMessage}
+        onRefreshPrices={handleRefreshPrices}
       />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
       <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
@@ -3555,14 +3799,10 @@ function PokemonSlot({
         )}
 
         {showBinderSlotGlare ? (
-          <>
-            <div className="pointer-events-none absolute inset-[3px] z-[2] rounded-[calc(5%-1px)] bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.14)_20%,rgba(255,255,255,0)_42%)] dark:bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.05)_22%,rgba(255,255,255,0)_42%)] mix-blend-screen" />
-            <div
-              className="pointer-events-none absolute -inset-x-[34%] -top-[28%] z-[4] h-[88%] rounded-[999px] bg-[linear-gradient(132deg,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.8)_13%,rgba(255,255,255,0.42)_24%,rgba(255,255,255,0.12)_36%,rgba(255,255,255,0)_54%)] dark:bg-[linear-gradient(132deg,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.26)_16%,rgba(255,255,255,0.12)_28%,rgba(255,255,255,0.04)_40%,rgba(255,255,255,0)_58%)] mix-blend-screen blur-[1px] transition-[transform,opacity] duration-200 ease-out will-change-transform"
-              style={binderSlotGlareStyle}
-            />
-            <div className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[4] w-[12%] rounded-[999px] bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(255,255,255,0.24)_34%,rgba(255,255,255,0)_100%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0.08)_34%,rgba(255,255,255,0)_100%)] mix-blend-screen blur-[1px]" />
-          </>
+          <BinderSlotGlare
+            glareStyle={binderSlotGlareStyle}
+            innerRadius={TRADING_CARD_INNER_CORNER_RADIUS}
+          />
         ) : null}
 
         {hasCardPreview ? (
@@ -3581,6 +3821,7 @@ function PokemonSlot({
               decoding="async"
               draggable={false}
             />
+            <div className="animate-holographic-foil pointer-events-none absolute inset-0 mix-blend-screen opacity-45" />
           </div>
         ) : (
           <div

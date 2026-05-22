@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 
-export type MirrorLanguage = "en" | "ja"
+export type MirrorLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
 export interface MirroredTCGCard {
   id: string

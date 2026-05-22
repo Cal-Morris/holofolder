@@ -1,0 +1,421 @@
+import { createAdminClient } from "@/lib/supabase/admin"
+
+export type SupportedCurrency = "USD" | "EUR" | "GBP"
+export type PriceSource = "tcgplayer" | "cardmarket"
+export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+
+export interface CardPriceLookup {
+  cardId: string
+  language: CardLanguage
+}
+
+export interface CardPriceSnapshot {
+  cardId: string
+  language: CardLanguage
+  gbpAmount: number | null
+  originalAmount: number | null
+  originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
+  source: PriceSource | null
+  variantLabel: string | null
+  updatedAt: string | null
+  fxDate: string | null
+}
+
+interface FxRates {
+  date: string
+  eurToGbp: number
+  usdToGbp: number
+}
+
+interface CardPriceRow {
+  card_id: string
+  language?: string | null
+  gbp_amount: number | string | null
+  original_amount: number | string | null
+  original_currency: string | null
+  source: string | null
+  variant_label: string | null
+  source_updated_at: string | null
+  fx_date: string | null
+  fetched_at: string
+}
+
+export interface CardPriceRefreshResult {
+  prices: CardPriceSnapshot[]
+  refreshed: number
+  cached: number
+  unpriced: number
+}
+
+const FETCH_CONCURRENCY = 8
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
+const CARDMARKET_FIRST_LANGUAGES = new Set<CardLanguage>(["fr", "de", "es", "it", "pt-br"])
+const TCGPLAYER_VARIANT_PRIORITY = [
+  "normal",
+  "reverse",
+  "holo",
+  "holofoil",
+  "reverseHolofoil",
+  "reverse-holofoil",
+  "1st-edition",
+  "1st-edition-holofoil",
+  "unlimited",
+  "unlimited-holofoil",
+] as const
+
+const CARDMARKET_FIELD_PRIORITY = [
+  "trend",
+  "avg30",
+  "avg7",
+  "avg1",
+  "avg",
+  "trend-holo",
+  "avg30-holo",
+  "avg7-holo",
+  "avg1-holo",
+  "avg-holo",
+  "low",
+  "low-holo",
+] as const
+
+export function normalizeCardLanguage(value: unknown): CardLanguage {
+  if (typeof value !== "string") return "en"
+  const normalized = value.trim().toLowerCase()
+  return SUPPORTED_CARD_LANGUAGES.includes(normalized as CardLanguage) ? normalized as CardLanguage : "en"
+}
+
+export function getCardPriceKey(cardId: string, language: unknown = "en") {
+  return `${cardId}::${normalizeCardLanguage(language)}`
+}
+
+export function normalizeCardPriceLookups(values: unknown[]): CardPriceLookup[] {
+  const byKey = new Map<string, CardPriceLookup>()
+
+  for (const value of values) {
+    const cardId = typeof value === "string"
+      ? value.trim()
+      : value && typeof value === "object" && typeof (value as { cardId?: unknown }).cardId === "string"
+        ? ((value as { cardId: string }).cardId).trim()
+        : ""
+
+    if (!cardId) {
+      continue
+    }
+
+    const language = normalizeCardLanguage(
+      typeof value === "string" ? "en" : (value as { language?: unknown }).language,
+    )
+    byKey.set(getCardPriceKey(cardId, language), { cardId, language })
+  }
+
+  return [...byKey.values()]
+}
+
+export async function refreshCardPriceLookups(
+  lookups: CardPriceLookup[],
+  options: { force?: boolean } = {},
+): Promise<CardPriceRefreshResult> {
+  const uniqueLookups = normalizeCardPriceLookups(lookups)
+
+  if (uniqueLookups.length === 0) {
+    return { prices: [], refreshed: 0, cached: 0, unpriced: 0 }
+  }
+
+  const cardIds = [...new Set(uniqueLookups.map((lookup) => lookup.cardId))]
+  const languages = [...new Set(uniqueLookups.map((lookup) => lookup.language))]
+  const supabase = createAdminClient()
+  const freshByLookupKey = new Map<string, CardPriceSnapshot>()
+
+  if (!options.force) {
+    const { data: cachedRows, error: cacheError } = await supabase
+      .from("card_prices")
+      .select("*")
+      .in("card_id", cardIds)
+      .in("language", languages)
+
+    if (cacheError) {
+      console.error("[binderdex] Failed to read card_prices cache:", cacheError)
+    }
+
+    const now = Date.now()
+    for (const row of (cachedRows ?? []) as CardPriceRow[]) {
+      const fetchedAtMs = Date.parse(row.fetched_at)
+      if (Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CACHE_TTL_MS) {
+        const snapshot = rowToSnapshot(row)
+        freshByLookupKey.set(getCardPriceKey(snapshot.cardId, snapshot.language), snapshot)
+      }
+    }
+  }
+
+  const missingLookups = uniqueLookups.filter(
+    (lookup) => !freshByLookupKey.has(getCardPriceKey(lookup.cardId, lookup.language)),
+  )
+
+  let refreshedSnapshots: CardPriceSnapshot[] = []
+  if (missingLookups.length > 0) {
+    const fxRates = await fetchEcbFxRates().catch((error) => {
+      console.error("[binderdex] Failed to load ECB FX rates for card prices:", error)
+      return null
+    })
+    refreshedSnapshots = fxRates
+      ? await mapWithConcurrency(
+          missingLookups,
+          FETCH_CONCURRENCY,
+          (lookup) => fetchCardPriceSnapshot(lookup.cardId, lookup.language, fxRates),
+        )
+      : missingLookups.map((lookup) => emptySnapshot(lookup.cardId, lookup.language))
+
+    const rowsToUpsert = refreshedSnapshots.map((snapshot) => snapshotToRow(snapshot))
+    const { error: upsertError } = await supabase
+      .from("card_prices")
+      .upsert(rowsToUpsert, { onConflict: "card_id,language" })
+
+    if (upsertError) {
+      console.error("[binderdex] Failed to upsert card_prices rows:", upsertError)
+    }
+  }
+
+  const prices = uniqueLookups.map((lookup) => {
+    const lookupKey = getCardPriceKey(lookup.cardId, lookup.language)
+    const fresh = freshByLookupKey.get(lookupKey)
+    if (fresh) return fresh
+    return refreshedSnapshots.find((snapshot) => getCardPriceKey(snapshot.cardId, snapshot.language) === lookupKey)
+      ?? emptySnapshot(lookup.cardId, lookup.language)
+  })
+
+  return {
+    prices,
+    refreshed: refreshedSnapshots.length,
+    cached: freshByLookupKey.size,
+    unpriced: prices.filter((snapshot) => snapshot.gbpAmount == null).length,
+  }
+}
+
+function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
+  return {
+    cardId: row.card_id,
+    language: normalizeCardLanguage(row.language),
+    gbpAmount: toFiniteNumber(row.gbp_amount),
+    originalAmount: toFiniteNumber(row.original_amount),
+    originalCurrency: row.original_currency === "USD" || row.original_currency === "EUR" ? row.original_currency : null,
+    source: row.source === "tcgplayer" || row.source === "cardmarket" ? row.source : null,
+    variantLabel: row.variant_label,
+    updatedAt: row.source_updated_at,
+    fxDate: row.fx_date,
+  }
+}
+
+function snapshotToRow(snapshot: CardPriceSnapshot) {
+  return {
+    card_id: snapshot.cardId,
+    language: snapshot.language,
+    gbp_amount: snapshot.gbpAmount,
+    original_amount: snapshot.originalAmount,
+    original_currency: snapshot.originalCurrency,
+    source: snapshot.source,
+    variant_label: snapshot.variantLabel,
+    source_updated_at: snapshot.updatedAt,
+    fx_date: snapshot.fxDate,
+    fetched_at: new Date().toISOString(),
+  }
+}
+
+function toFiniteNumber(value: number | string | null | undefined) {
+  if (value == null) return null
+  const num = typeof value === "number" ? value : Number.parseFloat(value)
+  return Number.isFinite(num) ? num : null
+}
+
+async function mapWithConcurrency<TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  worker: (item: TInput) => Promise<TOutput>,
+) {
+  const results = new Array<TOutput>(items.length)
+  let index = 0
+
+  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (index < items.length) {
+      const currentIndex = index
+      index += 1
+      results[currentIndex] = await worker(items[currentIndex])
+    }
+  })
+
+  await Promise.all(runners)
+  return results
+}
+
+async function fetchCardPriceSnapshot(cardId: string, language: CardLanguage, fxRates: FxRates): Promise<CardPriceSnapshot> {
+  try {
+    const response = await fetch(`https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(cardId)}`, {
+      headers: {
+        Accept: "application/json",
+      },
+      next: { revalidate: 60 * 60 * 12 },
+    })
+
+    if (!response.ok) {
+      return emptySnapshot(cardId, language)
+    }
+
+    const payload = await response.json()
+    const tcgplayerPrice = pickTcgplayerPrice(cardId, language, payload?.pricing?.tcgplayer, fxRates)
+    const cardmarketPrice = pickCardmarketPrice(cardId, language, payload?.pricing?.cardmarket, fxRates)
+
+    return CARDMARKET_FIRST_LANGUAGES.has(language)
+      ? cardmarketPrice || tcgplayerPrice || emptySnapshot(cardId, language)
+      : tcgplayerPrice || cardmarketPrice || emptySnapshot(cardId, language)
+  } catch (error) {
+    console.error(`[binderdex] Failed to fetch price for ${cardId} (${language}):`, error)
+    return emptySnapshot(cardId, language)
+  }
+}
+
+function pickTcgplayerPrice(
+  cardId: string,
+  language: CardLanguage,
+  tcgplayer: Record<string, unknown> | null | undefined,
+  fxRates: FxRates,
+): CardPriceSnapshot | null {
+  if (!tcgplayer || typeof tcgplayer !== "object") {
+    return null
+  }
+
+  for (const variantKey of TCGPLAYER_VARIANT_PRIORITY) {
+    const variant = tcgplayer[variantKey]
+    if (!variant || typeof variant !== "object") {
+      continue
+    }
+
+    const amount =
+      readFiniteNumber((variant as Record<string, unknown>).marketPrice) ??
+      readFiniteNumber((variant as Record<string, unknown>).midPrice) ??
+      readFiniteNumber((variant as Record<string, unknown>).lowPrice)
+
+    if (amount == null) {
+      continue
+    }
+
+    return {
+      cardId,
+      language,
+      gbpAmount: roundPrice(amount * fxRates.usdToGbp),
+      originalAmount: amount,
+      originalCurrency: "USD",
+      source: "tcgplayer",
+      variantLabel: humanizeVariantLabel(variantKey),
+      updatedAt: readTimestamp(tcgplayer.updated),
+      fxDate: fxRates.date,
+    }
+  }
+
+  return null
+}
+
+function pickCardmarketPrice(
+  cardId: string,
+  language: CardLanguage,
+  cardmarket: Record<string, unknown> | null | undefined,
+  fxRates: FxRates,
+): CardPriceSnapshot | null {
+  if (!cardmarket || typeof cardmarket !== "object") {
+    return null
+  }
+
+  for (const fieldKey of CARDMARKET_FIELD_PRIORITY) {
+    const amount = readFiniteNumber(cardmarket[fieldKey])
+
+    if (amount == null) {
+      continue
+    }
+
+    return {
+      cardId,
+      language,
+      gbpAmount: roundPrice(amount * fxRates.eurToGbp),
+      originalAmount: amount,
+      originalCurrency: "EUR",
+      source: "cardmarket",
+      variantLabel: humanizeVariantLabel(fieldKey),
+      updatedAt: readTimestamp(cardmarket.updated),
+      fxDate: fxRates.date,
+    }
+  }
+
+  return null
+}
+
+function emptySnapshot(cardId: string, language: CardLanguage): CardPriceSnapshot {
+  return {
+    cardId,
+    language,
+    gbpAmount: null,
+    originalAmount: null,
+    originalCurrency: null,
+    source: null,
+    variantLabel: null,
+    updatedAt: null,
+    fxDate: null,
+  }
+}
+
+function readFiniteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
+function readTimestamp(value: unknown) {
+  if (typeof value === "string" && value.length > 0) {
+    return value
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString()
+  }
+
+  return null
+}
+
+function humanizeVariantLabel(value: string) {
+  return value
+    .replaceAll("-", " ")
+    .replaceAll("1st", "1st")
+    .replace(/\b\w/g, (match) => match.toUpperCase())
+}
+
+async function fetchEcbFxRates(): Promise<FxRates> {
+  const response = await fetch("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", {
+    headers: {
+      Accept: "application/xml,text/xml;q=0.9,*/*;q=0.8",
+    },
+    next: { revalidate: 60 * 60 * 12 },
+  })
+
+  if (!response.ok) {
+    throw new Error(`ECB FX feed returned ${response.status}`)
+  }
+
+  const xml = await response.text()
+  const dateMatch = xml.match(/time=['"](\d{4}-\d{2}-\d{2})['"]/)
+  const usdMatch = xml.match(/currency=['"]USD['"]\s+rate=['"]([0-9.]+)['"]/)
+  const gbpMatch = xml.match(/currency=['"]GBP['"]\s+rate=['"]([0-9.]+)['"]/)
+
+  const date = dateMatch?.[1]
+  const eurToUsd = usdMatch?.[1] ? Number.parseFloat(usdMatch[1]) : NaN
+  const eurToGbp = gbpMatch?.[1] ? Number.parseFloat(gbpMatch[1]) : NaN
+
+  if (!date || !Number.isFinite(eurToUsd) || !Number.isFinite(eurToGbp) || eurToUsd <= 0 || eurToGbp <= 0) {
+    throw new Error("ECB FX feed did not include usable USD/GBP rates")
+  }
+
+  return {
+    date,
+    eurToGbp,
+    usdToGbp: eurToGbp / eurToUsd,
+  }
+}
+
+function roundPrice(amount: number) {
+  return Math.round(amount * 100) / 100
+}
