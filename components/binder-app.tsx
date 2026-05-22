@@ -11,8 +11,9 @@ import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
 import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
-import { aggregatePageSlotScanMatches, type CardScanFrameMatch } from "@/lib/card-scan-matching"
+import { aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
+import { applyCardTextSignalBoost, type CardTextSignals } from "@/lib/card-scan-text"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
@@ -2218,16 +2219,56 @@ export default function BinderApp({
       .slice(0, 6)
   }, [getPageScanCardsForPokemon, getPageScanDescriptorForCard])
 
+  const readPageScanSlotTextSignals = useCallback(async (cardImageDataUrl: string): Promise<CardTextSignals | null> => {
+    try {
+      const { recognizeCardTextSignalsFromImage } = await import("@/lib/card-scan-ocr")
+      return await recognizeCardTextSignalsFromImage(cardImageDataUrl)
+    } catch (error) {
+      console.info("[binderdex] Skipping page slot OCR scan:", error)
+      return null
+    }
+  }, [])
+
+  const rankPageSlotMatchesWithText = useCallback(async (
+    matches: AggregatedCardScanMatch<TCGCard>[],
+    cardImageDataUrl?: string,
+  ) => {
+    if (!cardImageDataUrl || matches.length <= 1) return matches
+
+    const textSignals = await readPageScanSlotTextSignals(cardImageDataUrl)
+    if (!textSignals) return matches
+
+    const matchByCardId = new Map(matches.map((match) => [match.card.id, match]))
+
+    return applyCardTextSignalBoost(matches, textSignals)
+      .map((match) => {
+        const originalMatch = matchByCardId.get(match.card.id)
+        return {
+          ...(originalMatch ?? match),
+          similarity: match.similarity,
+          confidence: Math.min(1, (originalMatch?.confidence ?? 0) + match.textScore * 0.12),
+        }
+      })
+      .sort((left, right) => {
+        if (right.similarity !== left.similarity) return right.similarity - left.similarity
+        return right.confidence - left.confidence
+      })
+  }, [readPageScanSlotTextSignals])
+
   const matchPageScanCards = useCallback(async (
     results: BinderPageScanResult[],
   ): Promise<PageScanCardMatchSummary[]> => {
     const slotFrames = new Map<number, CardScanFrameMatch<TCGCard>[][]>()
+    const slotCropImageByIndex = new Map<number, string>()
 
     for (const result of results) {
       await Promise.all(
         result.slots.map(async (slot) => {
           const pokemon = currentPageSlots[slot.index]
           if (!slot.occupied || !slot.cardImageDataUrl || !pokemon) return
+          if (!slotCropImageByIndex.has(slot.index)) {
+            slotCropImageByIndex.set(slot.index, slot.cardImageDataUrl)
+          }
 
           try {
             const matches = await scorePageScanSlotCard(slot.cardImageDataUrl, pokemon)
@@ -2248,15 +2289,16 @@ export default function BinderApp({
       {
         getCardId: (card) => card.id,
         minimumAppearances: results.length > 1 ? Math.max(1, Math.ceil(results.length * 0.34)) : 1,
-        maxResultsPerSlot: 1,
+        maxResultsPerSlot: 6,
       },
     )
 
-    return aggregatedSlots.flatMap((slot) => {
-      const match = slot.matches[0]
-      if (!match) return []
+    const summaries = await Promise.all(aggregatedSlots.map(async (slot): Promise<PageScanCardMatchSummary | null> => {
+      const rankedMatches = await rankPageSlotMatchesWithText(slot.matches, slotCropImageByIndex.get(slot.slotIndex))
+      const match = rankedMatches[0]
+      if (!match) return null
 
-      return [{
+      return {
         slotIndex: slot.slotIndex,
         slotLabel: getSlotLabel(Math.floor(slot.slotIndex / settings.binderCols), slot.slotIndex % settings.binderCols),
         cardId: match.card.id,
@@ -2265,9 +2307,11 @@ export default function BinderApp({
         cardImage: match.card.image,
         similarity: match.similarity,
         confidence: match.confidence,
-      }]
-    })
-  }, [currentPageSlots, scorePageScanSlotCard, settings.binderCols])
+      }
+    }))
+
+    return summaries.filter((summary): summary is PageScanCardMatchSummary => Boolean(summary))
+  }, [currentPageSlots, rankPageSlotMatchesWithText, scorePageScanSlotCard, settings.binderCols])
 
   const handlePagePhotoSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]

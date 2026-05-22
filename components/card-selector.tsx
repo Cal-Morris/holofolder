@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
 import { aggregateCardScanMatches, type CardScanFrameMatch } from "@/lib/card-scan-matching"
+import { applyCardTextSignalBoost, type CardTextSignals } from "@/lib/card-scan-text"
 import { X, Search, Check, Loader2, Camera, Languages, Heart } from "lucide-react"
 
 export type CardSelectorMode = "collect" | "wishlist"
@@ -355,12 +356,12 @@ export default function CardSelector({
     return [...filteredCards]
       .filter((card) => Boolean(card.image))
       .sort((left, right) => {
-      const leftRank = scanRankById.get(left.id) ?? Number.POSITIVE_INFINITY
-      const rightRank = scanRankById.get(right.id) ?? Number.POSITIVE_INFINITY
+        const leftRank = scanRankById.get(left.id) ?? Number.POSITIVE_INFINITY
+        const rightRank = scanRankById.get(right.id) ?? Number.POSITIVE_INFINITY
 
-      if (leftRank !== rightRank) {
-        return leftRank - rightRank
-      }
+        if (leftRank !== rightRank) {
+          return leftRank - rightRank
+        }
 
         return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: "base" })
       })
@@ -472,6 +473,20 @@ export default function CardSelector({
 
     try {
       const successfulFrameMatches: CardScanMatch[][] = []
+      let scanTextSignalsPromise: Promise<CardTextSignals | null> | null = null
+
+      const startTextScan = (previewUrl: string) => {
+        if (scanTextSignalsPromise) return scanTextSignalsPromise
+
+        scanTextSignalsPromise = import("@/lib/card-scan-ocr")
+          .then(({ recognizeCardTextSignalsFromImage }) => recognizeCardTextSignalsFromImage(previewUrl))
+          .catch((error) => {
+            console.info("[binderdex] Skipping card OCR scan:", error)
+            return null
+          })
+
+        return scanTextSignalsPromise
+      }
 
       for (let index = 0; index < CARD_SCAN_FRAME_COUNT; index += 1) {
         setCardFramesProcessed(index + 1)
@@ -480,6 +495,7 @@ export default function CardSelector({
 
         try {
           const matches = await scoreSingleCardFrame(frame.file)
+          void startTextScan(frame.previewUrl)
           successfulFrameMatches.push(matches)
           setCardUsableFrames(successfulFrameMatches.length)
           setScanPreviewUrl((currentUrl) => {
@@ -507,11 +523,15 @@ export default function CardSelector({
       setIsApplyingCardResults(true)
 
       const minimumAppearances = Math.max(2, Math.ceil(successfulFrameMatches.length * 0.45))
-      const aggregatedMatches = aggregateCardScanMatches(successfulFrameMatches, {
-        getCardId: (card) => card.id,
-        minimumAppearances,
-        maxResults: 6,
-      })
+      const textSignals = scanTextSignalsPromise ? await scanTextSignalsPromise : null
+      const aggregatedMatches = applyCardTextSignalBoost(
+        aggregateCardScanMatches(successfulFrameMatches, {
+          getCardId: (card) => card.id,
+          minimumAppearances,
+          maxResults: 6,
+        }),
+        textSignals,
+      )
         .slice(0, 6)
         .map((match) => ({
           card: match.card,
