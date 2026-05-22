@@ -13,7 +13,7 @@ import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
 import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
-import { mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
+import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
@@ -56,8 +56,8 @@ const GUIDED_SCAN_MIN_USABLE_FRAMES = 2
 const SLOT_SWEEP_FRAME_COUNT = 8
 const SLOT_SWEEP_FRAME_DELAY_MS = 360
 const SLOT_SWEEP_MIN_USABLE_FRAMES = 2
-const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 1
-const PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT = 2
+const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 2
+const PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT = 4
 const GUIDE_FRAME_INSET_X = 0.12
 const GUIDE_FRAME_INSET_Y = 0.05
 const SLOT_SWEEP_GUIDE_INSET_X = 0.14
@@ -721,6 +721,7 @@ export default function BinderApp({
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
   const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
   const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
+  const pageScanCardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals | null>>>(new Map())
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
   const isRequestingMotionPermissionRef = useRef(false)
@@ -2292,6 +2293,38 @@ export default function BinderApp({
     return descriptorPromise
   }, [])
 
+  const getPageScanTextSignalsForCard = useCallback((card: TCGCard) => {
+    const existingPromise = pageScanCardTextSignalCacheRef.current.get(card.id)
+    if (existingPromise) return existingPromise
+
+    const metadataSignals = buildCardMetadataTextSignals(card)
+    const proxyUrl = card.image?.startsWith("/")
+      ? card.image
+      : card.image
+        ? `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+        : null
+    const textSignalPromise = proxyUrl
+      ? import("@/lib/card-scan-ocr")
+          .then(({ recognizeCardTextSignalsFromImage }) => recognizeCardTextSignalsFromImage(proxyUrl, { exhaustive: true }))
+          .then((imageSignals) => mergeCardTextSignals([metadataSignals, imageSignals]) ?? metadataSignals)
+          .catch((error) => {
+            console.info("[binderdex] Skipping candidate card OCR scan:", error)
+            return metadataSignals
+          })
+      : Promise.resolve(metadataSignals)
+
+    pageScanCardTextSignalCacheRef.current.set(card.id, textSignalPromise)
+    return textSignalPromise
+  }, [])
+
+  const getPageScanTextSignalsForCards = useCallback(async (candidateCards: TCGCard[]) => {
+    const entries = await Promise.all(
+      candidateCards.map(async (card) => [card.id, await getPageScanTextSignalsForCard(card)] as const),
+    )
+
+    return new Map(entries)
+  }, [getPageScanTextSignalsForCard])
+
   const scorePageScanSlotCard = useCallback(async (
     cardImageDataUrl: string,
     pokemon: { id: number; name: string },
@@ -2323,7 +2356,7 @@ export default function BinderApp({
   const readPageScanSlotTextSignals = useCallback(async (cardImageDataUrl: string): Promise<CardTextSignals | null> => {
     try {
       const { recognizeCardTextSignalsFromImage } = await import("@/lib/card-scan-ocr")
-      return await recognizeCardTextSignalsFromImage(cardImageDataUrl)
+      return await recognizeCardTextSignalsFromImage(cardImageDataUrl, { exhaustive: true })
     } catch (error) {
       console.info("[binderdex] Skipping page slot OCR scan:", error)
       return null
@@ -2344,12 +2377,16 @@ export default function BinderApp({
       evidenceImages.map((cardImageDataUrl) => readPageScanSlotTextSignals(cardImageDataUrl)),
     ))
     if (!textSignals) return matches
+    const candidateTextSignals = candidateCards?.length
+      ? await getPageScanTextSignalsForCards(candidateCards)
+      : undefined
 
     return rankAggregatedCardScanMatchesWithText(matches, textSignals, {
       candidateCards,
+      candidateTextSignals,
       getCardId: (card) => card.id,
     })
-  }, [readPageScanSlotTextSignals])
+  }, [getPageScanTextSignalsForCards, readPageScanSlotTextSignals])
 
   const matchPageScanCards = useCallback(async (
     results: BinderPageScanResult[],

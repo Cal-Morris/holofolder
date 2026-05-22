@@ -58,3 +58,21 @@ test("rankAggregatedCardScanMatchesWithText recalculates margins after OCR chang
   assert.equal(ranked[0]?.card.id, "text")
   assert.equal(Number(ranked[0]?.margin.toFixed(2)), Number((ranked[0].similarity - ranked[1].similarity).toFixed(2)))
 })
+
+test("rankAggregatedCardScanMatchesWithText can use candidate asset OCR evidence", () => {
+  const ranked = rankAggregatedCardScanMatchesWithText<TestCard>(
+    [aggregated(visualCard, 0.7)],
+    extractCardTextSignals("Sparkling Gale Moonlight Blade 088/197"),
+    {
+      candidateCards: [visualCard, textCard],
+      candidateTextSignals: new Map([
+        [visualCard.id, extractCardTextSignals("Static Shock Gnaw 006/102")],
+        [textCard.id, extractCardTextSignals("Sparkling Gale Moonlight Blade 088/197")],
+      ]),
+      getCardId: (card) => card.id,
+    },
+  )
+
+  assert.equal(ranked[0]?.card.id, "text")
+  assert.ok(ranked[0]?.confidence > ranked[1]?.confidence)
+})

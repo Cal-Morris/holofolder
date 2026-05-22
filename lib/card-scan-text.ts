@@ -1,5 +1,6 @@
 const MAX_TEXT_BOOST = 0.24
 const OCR_WORD_MIN_LENGTH = 2
+const OCR_FUZZY_WORD_MIN_LENGTH = 3
 const OCR_DIGIT_CONFUSIONS: Record<string, string> = {
   o: "0",
   i: "1",
@@ -19,6 +20,32 @@ const STANDALONE_COLLECTOR_PREFIXES = new Set([
   "swsh",
   "tg",
   "xy",
+])
+const OCR_LOW_SIGNAL_WORDS = new Set([
+  "active",
+  "attach",
+  "basic",
+  "bench",
+  "card",
+  "cards",
+  "coin",
+  "damage",
+  "discard",
+  "draw",
+  "energy",
+  "evolution",
+  "flip",
+  "from",
+  "have",
+  "opponent",
+  "pokemon",
+  "resistance",
+  "retreat",
+  "stage",
+  "this",
+  "turn",
+  "weakness",
+  "your",
 ])
 
 interface ParsedCollectorSide {
@@ -41,6 +68,11 @@ export interface TextMatchableCard {
     id?: string
     name?: string
   }
+  rarity?: string
+  hp?: number
+  types?: string[]
+  illustrator?: string
+  variants?: Record<string, boolean | undefined>
 }
 
 export interface TextBoostedCardMatch<TCard> {
@@ -51,6 +83,7 @@ export interface TextBoostedCardMatch<TCard> {
 
 export interface ApplyCardTextSignalBoostOptions<TCard> {
   candidateCards?: TCard[]
+  candidateTextSignals?: Map<string, CardTextSignals | null | undefined>
   getCardId?: (card: TCard) => string
   minimumTextOnlyScore?: number
   textOnlyBaseSimilarity?: number
@@ -223,6 +256,26 @@ export function mergeCardTextSignals(signals: Array<CardTextSignals | null | und
   return merged.normalizedText || merged.words.size > 0 || merged.collectorNumbers.length > 0 ? merged : null
 }
 
+export function buildCardMetadataTextSignals(card: TextMatchableCard) {
+  const variantWords = card.variants
+    ? Object.entries(card.variants)
+        .filter(([, enabled]) => enabled)
+        .map(([variant]) => variant)
+    : []
+
+  return extractCardTextSignals([
+    card.name,
+    card.localId,
+    card.set?.id,
+    card.set?.name,
+    card.rarity,
+    card.hp ? `HP ${card.hp}` : null,
+    ...(card.types ?? []),
+    card.illustrator,
+    ...variantWords,
+  ].filter(Boolean).join("\n"))
+}
+
 function getCardNumberAliases(localId?: string) {
   if (!localId) return []
 
@@ -274,6 +327,122 @@ function scoreWordOverlap(signals: CardTextSignals, words: string[]) {
   return hits / words.length
 }
 
+function getFuzzyWords(signals: CardTextSignals | null | undefined) {
+  if (!signals) return []
+  return [...signals.words].filter((word) => word.length >= OCR_FUZZY_WORD_MIN_LENGTH && !OCR_LOW_SIGNAL_WORDS.has(word))
+}
+
+function getBigrams(value: string) {
+  if (value.length <= 1) return [value]
+
+  const bigrams: string[] = []
+  for (let index = 0; index < value.length - 1; index += 1) {
+    bigrams.push(value.slice(index, index + 2))
+  }
+  return bigrams
+}
+
+function scoreWordSimilarity(left: string, right: string) {
+  if (left === right) return 1
+  if (left.length < OCR_FUZZY_WORD_MIN_LENGTH || right.length < OCR_FUZZY_WORD_MIN_LENGTH) return 0
+  if (left.includes(right) || right.includes(left)) {
+    return Math.min(left.length, right.length) / Math.max(left.length, right.length)
+  }
+
+  const leftBigrams = getBigrams(left)
+  const rightBigrams = getBigrams(right)
+  const rightCounts = new Map<string, number>()
+  let hits = 0
+
+  for (const bigram of rightBigrams) {
+    rightCounts.set(bigram, (rightCounts.get(bigram) ?? 0) + 1)
+  }
+
+  for (const bigram of leftBigrams) {
+    const count = rightCounts.get(bigram) ?? 0
+    if (count <= 0) continue
+    hits += 1
+    rightCounts.set(bigram, count - 1)
+  }
+
+  return (hits * 2) / Math.max(leftBigrams.length + rightBigrams.length, 1)
+}
+
+function scoreFuzzyWordSetOverlap(queryWords: string[], candidateWords: string[]) {
+  if (queryWords.length === 0 || candidateWords.length === 0) return 0
+
+  let queryScore = 0
+  for (const queryWord of queryWords) {
+    let best = 0
+    for (const candidateWord of candidateWords) {
+      best = Math.max(best, scoreWordSimilarity(queryWord, candidateWord))
+    }
+    if (best >= 0.58) {
+      queryScore += best
+    }
+  }
+
+  let candidateScore = 0
+  for (const candidateWord of candidateWords) {
+    let best = 0
+    for (const queryWord of queryWords) {
+      best = Math.max(best, scoreWordSimilarity(queryWord, candidateWord))
+    }
+    if (best >= 0.58) {
+      candidateScore += best
+    }
+  }
+
+  const queryCoverage = queryScore / queryWords.length
+  const candidateCoverage = candidateScore / candidateWords.length
+
+  return Math.sqrt(queryCoverage * candidateCoverage)
+}
+
+function scoreCollectorNumberSimilarity(querySignals: CardTextSignals, candidateSignals: CardTextSignals) {
+  if (querySignals.collectorNumbers.length === 0 || candidateSignals.collectorNumbers.length === 0) return 0
+
+  const candidateNumbers = new Set(candidateSignals.collectorNumbers)
+  let best = 0
+
+  for (const queryNumber of querySignals.collectorNumbers) {
+    if (candidateNumbers.has(queryNumber)) {
+      best = Math.max(best, queryNumber.includes("/") ? 1 : /[a-z]/.test(queryNumber) ? 0.86 : 0.72)
+      continue
+    }
+
+    const queryNumeric = normalizeNumberToken(queryNumber)
+    if (queryNumeric && candidateNumbers.has(queryNumeric)) {
+      best = Math.max(best, queryNumeric.includes("/") ? 0.82 : 0.58)
+    }
+  }
+
+  return best
+}
+
+function scoreTextDiceSimilarity(left: string, right: string) {
+  const leftText = left.replace(/\s+/g, " ").trim()
+  const rightText = right.replace(/\s+/g, " ").trim()
+
+  if (!leftText || !rightText) return 0
+  if (leftText === rightText) return 1
+
+  return scoreWordSimilarity(leftText, rightText)
+}
+
+export function scoreCardTextSignalSimilarity(
+  querySignals: CardTextSignals | null | undefined,
+  candidateSignals: CardTextSignals | null | undefined,
+) {
+  if (!querySignals || !candidateSignals) return 0
+
+  const collectorScore = scoreCollectorNumberSimilarity(querySignals, candidateSignals)
+  const wordScore = scoreFuzzyWordSetOverlap(getFuzzyWords(querySignals), getFuzzyWords(candidateSignals))
+  const textScore = scoreTextDiceSimilarity(querySignals.normalizedText, candidateSignals.normalizedText)
+
+  return Math.min(1, collectorScore * 0.52 + wordScore * 0.38 + textScore * 0.1)
+}
+
 export function scoreCardTextSignals(signals: CardTextSignals | null | undefined, card: TextMatchableCard) {
   if (!signals || (!signals.normalizedText && signals.words.size === 0 && signals.collectorNumbers.length === 0)) {
     return 0
@@ -297,6 +466,17 @@ export function scoreCardTextSignals(signals: CardTextSignals | null | undefined
   )
 }
 
+export function scoreCardTextEvidence(
+  signals: CardTextSignals | null | undefined,
+  card: TextMatchableCard,
+  candidateSignals?: CardTextSignals | null,
+) {
+  const metadataScore = scoreCardTextSignals(signals, card)
+  const candidateSignalScore = scoreCardTextSignalSimilarity(signals, candidateSignals)
+
+  return Math.min(1, Math.max(metadataScore, candidateSignalScore) + Math.min(metadataScore, candidateSignalScore) * 0.18)
+}
+
 export function applyCardTextSignalBoost<TCard extends TextMatchableCard>(
   matches: Array<{ card: TCard; similarity: number }>,
   signals: CardTextSignals | null | undefined,
@@ -308,8 +488,12 @@ export function applyCardTextSignalBoost<TCard extends TextMatchableCard>(
   const seenCardIds = new Set<string>()
   const boostedMatches = matches
     .map((match) => {
-      const textScore = scoreCardTextSignals(signals, match.card)
       const cardId = getCardId?.(match.card)
+      const textScore = scoreCardTextEvidence(
+        signals,
+        match.card,
+        cardId ? options.candidateTextSignals?.get(cardId) : undefined,
+      )
       if (cardId) {
         seenCardIds.add(cardId)
       }
@@ -326,7 +510,11 @@ export function applyCardTextSignalBoost<TCard extends TextMatchableCard>(
       const cardId = getCardId?.(card)
       if (cardId && seenCardIds.has(cardId)) continue
 
-      const textScore = scoreCardTextSignals(signals, card)
+      const textScore = scoreCardTextEvidence(
+        signals,
+        card,
+        cardId ? options.candidateTextSignals?.get(cardId) : undefined,
+      )
       if (textScore < minimumTextOnlyScore) continue
 
       boostedMatches.push({

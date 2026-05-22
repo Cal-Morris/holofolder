@@ -32,6 +32,10 @@ export interface CardOcrRegion {
   height: number
 }
 
+export interface RecognizeCardTextSignalsOptions {
+  exhaustive?: boolean
+}
+
 interface PreparedOcrImage {
   region: CardOcrRegion
   canvas: HTMLCanvasElement
@@ -244,7 +248,10 @@ function recognizeWithQueuedTesseract(ocrCanvas: HTMLCanvasElement) {
   return recognitionPromise
 }
 
-export async function recognizeCardTextSignalsFromImage(source: OcrImageSource): Promise<CardTextSignals | null> {
+export async function recognizeCardTextSignalsFromImage(
+  source: OcrImageSource,
+  options: RecognizeCardTextSignalsOptions = {},
+): Promise<CardTextSignals | null> {
   if (typeof window === "undefined") return null
 
   const ocrImages = await prepareImagesForOcr(source)
@@ -265,7 +272,7 @@ export async function recognizeCardTextSignalsFromImage(source: OcrImageSource):
     }
 
     const mergedNativeSignals = mergeCardTextSignals(nativeSignals)
-    if (mergedNativeSignals?.collectorNumbers.length) return mergedNativeSignals
+    if (!options.exhaustive && mergedNativeSignals?.collectorNumbers.length) return mergedNativeSignals
   }
 
   const tesseractSignals: Array<CardTextSignals | null> = []
@@ -288,7 +295,7 @@ export async function recognizeCardTextSignalsFromImage(source: OcrImageSource):
     }
 
     const mergedSignals = mergeCardTextSignals([...nativeSignals, ...tesseractSignals])
-    if (mergedSignals?.collectorNumbers.length) {
+    if (!options.exhaustive && mergedSignals?.collectorNumbers.length) {
       return mergedSignals
     }
   }

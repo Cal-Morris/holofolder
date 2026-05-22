@@ -2,8 +2,11 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
   applyCardTextSignalBoost,
+  buildCardMetadataTextSignals,
   extractCardTextSignals,
   mergeCardTextSignals,
+  scoreCardTextEvidence,
+  scoreCardTextSignalSimilarity,
   scoreCardTextSignals,
 } from "../lib/card-scan-text"
 
@@ -65,6 +68,25 @@ test("scoreCardTextSignals rewards prefixed localId matches over plain number co
   assert.ok(scoreCardTextSignals(signals, prefixedCard) > scoreCardTextSignals(signals, plainCard))
 })
 
+test("buildCardMetadataTextSignals includes useful card metadata as OCR fallback evidence", () => {
+  const signals = buildCardMetadataTextSignals({
+    name: "Pikachu",
+    localId: "TG05",
+    set: { id: "swsh11tg", name: "Trainer Gallery" },
+    rarity: "Illustration Rare",
+    hp: 60,
+    types: ["Lightning"],
+    illustrator: "Mitsuhiro Arita",
+    variants: { holo: true, reverse: false },
+  })
+
+  assert.ok(signals.collectorNumbers.includes("tg5"))
+  assert.equal(signals.words.has("pikachu"), true)
+  assert.equal(signals.words.has("lightning"), true)
+  assert.equal(signals.words.has("mitsuhiro"), true)
+  assert.equal(signals.words.has("holo"), true)
+})
+
 test("scoreCardTextSignals strongly rewards collector number and set matches", () => {
   const signals = extractCardTextSignals("025/102 Base Set")
 
@@ -107,6 +129,88 @@ test("applyCardTextSignalBoost can admit strong text-only collector matches", ()
 
   assert.equal(boosted[0].card.id, "text")
   assert.ok(boosted[0].textScore > 0.5)
+})
+
+test("scoreCardTextSignalSimilarity fuzzily compares OCR text from scanned and candidate card images", () => {
+  const querySignals = extractCardTextSignals("Pikachu Thundr Jolt Flip a coin 063/165")
+  const candidateSignals = extractCardTextSignals("Pikachu Thunder Jolt Flip a coin 063/165")
+  const wrongCandidateSignals = extractCardTextSignals("Squirtle Bubble Beam Water Gun 007/102")
+
+  assert.ok(scoreCardTextSignalSimilarity(querySignals, candidateSignals) > 0.72)
+  assert.ok(scoreCardTextSignalSimilarity(querySignals, wrongCandidateSignals) < 0.45)
+})
+
+test("scoreCardTextSignalSimilarity prefers full collector numbers over local-number collisions", () => {
+  const querySignals = extractCardTextSignals("Pikachu 025/102 Base Set Thunder Jolt")
+  const exactSignals = extractCardTextSignals("Pikachu 025/102 Base Set Thunder Jolt")
+  const collisionSignals = extractCardTextSignals("Pikachu 025/198 Scarlet Violet Static Shock")
+
+  assert.ok(scoreCardTextSignalSimilarity(querySignals, exactSignals) > scoreCardTextSignalSimilarity(querySignals, collisionSignals) + 0.22)
+})
+
+test("scoreCardTextSignalSimilarity tolerates OCR digit and word noise from candidate assets", () => {
+  const querySignals = extractCardTextSignals("Trainer Gallery TGOS/TG3O Pikachn Thunderbolt")
+  const candidateSignals = extractCardTextSignals("Trainer Gallery TG05/TG30 Pikachu Thunderbolt")
+
+  assert.ok(scoreCardTextSignalSimilarity(querySignals, candidateSignals) > 0.78)
+})
+
+test("scoreCardTextSignalSimilarity uses card-specific attack text to split similar Pokemon cards", () => {
+  const querySignals = extractCardTextSignals("Charmander Ember Flare Tail 004/102")
+  const rightSignals = extractCardTextSignals("Charmander Ember Flare Tail 004/102")
+  const samePokemonWrongMoveSignals = extractCardTextSignals("Charmander Scratch Firebreathing 004/102")
+
+  assert.ok(scoreCardTextSignalSimilarity(querySignals, rightSignals) > scoreCardTextSignalSimilarity(querySignals, samePokemonWrongMoveSignals) + 0.14)
+})
+
+test("scoreCardTextSignalSimilarity does not over-rank card boilerplate OCR", () => {
+  const querySignals = extractCardTextSignals("Pokemon HP Weakness Resistance Retreat Energy")
+  const candidateSignals = extractCardTextSignals("Pokemon HP Weakness Resistance Retreat Energy")
+
+  assert.ok(scoreCardTextSignalSimilarity(querySignals, candidateSignals) < 0.42)
+})
+
+test("applyCardTextSignalBoost can promote candidate asset OCR when visual ranking misses it", () => {
+  const querySignals = extractCardTextSignals("Raging Surf Hydro Pump 063/165")
+  const visualCard = { id: "visual", name: "Pikachu", localId: "001", set: { id: "sv1", name: "Scarlet & Violet" } }
+  const assetCard = { id: "asset", name: "Pikachu", localId: "088", set: { id: "sv3", name: "Obsidian Flames" } }
+  const boosted = applyCardTextSignalBoost(
+    [{ card: visualCard, similarity: 0.68 }],
+    querySignals,
+    {
+      candidateCards: [visualCard, assetCard],
+      candidateTextSignals: new Map([
+        [assetCard.id, extractCardTextSignals("Raging Surf Hydro Pump 063/165")],
+      ]),
+      getCardId: (card) => card.id,
+      minimumTextOnlyScore: 0.5,
+    },
+  )
+
+  assert.equal(boosted[0].card.id, "asset")
+  assert.ok(scoreCardTextEvidence(querySignals, assetCard, extractCardTextSignals("Raging Surf Hydro Pump 063/165")) > 0.7)
+})
+
+test("applyCardTextSignalBoost uses candidate asset OCR to reorder close visual matches", () => {
+  const querySignals = extractCardTextSignals("Mewtwo Psyburn Barrier 150/165")
+  const wrongVisualCard = { id: "wrong", name: "Mewtwo", localId: "150", set: { id: "sv2", name: "Paldea Evolved" } }
+  const rightAssetCard = { id: "right", name: "Mewtwo", localId: "151", set: { id: "sv3", name: "Obsidian Flames" } }
+  const boosted = applyCardTextSignalBoost(
+    [
+      { card: wrongVisualCard, similarity: 0.72 },
+      { card: rightAssetCard, similarity: 0.66 },
+    ],
+    querySignals,
+    {
+      candidateTextSignals: new Map([
+        [wrongVisualCard.id, extractCardTextSignals("Mewtwo Mind Bend Telekinesis 099/198")],
+        [rightAssetCard.id, extractCardTextSignals("Mewtwo Psyburn Barrier 150/165")],
+      ]),
+      getCardId: (card) => card.id,
+    },
+  )
+
+  assert.equal(boosted[0].card.id, "right")
 })
 
 test("mergeCardTextSignals combines useful evidence across OCR passes", () => {

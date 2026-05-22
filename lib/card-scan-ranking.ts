@@ -7,6 +7,7 @@ import {
 
 export interface RankAggregatedCardScanMatchesWithTextOptions<TCard> {
   candidateCards?: TCard[]
+  candidateTextSignals?: Map<string, CardTextSignals | null | undefined>
   getCardId: (card: TCard) => string
 }
 
@@ -22,6 +23,7 @@ export function rankAggregatedCardScanMatchesWithText<TCard extends TextMatchabl
   const matchByCardId = new Map(matches.map((match) => [options.getCardId(match.card), match]))
   const boostedMatches = applyCardTextSignalBoost(matches, textSignals, {
     candidateCards: options.candidateCards,
+    candidateTextSignals: options.candidateTextSignals,
     getCardId: options.getCardId,
   }).map((match): AggregatedCardScanMatch<TCard> => {
     const originalMatch = matchByCardId.get(options.getCardId(match.card))
