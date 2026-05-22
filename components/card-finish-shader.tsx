@@ -193,7 +193,7 @@ void main() {
   }
 
   float texture = (diagonalLines * lineBoost + fineLines * lineBoost * 0.45 + reverseTile + specialtyTexture + grain * 0.035) * surfaceMask;
-  float alpha = clamp((prism * finishBoost + texture) * alphaBase * 0.62, 0.0, 0.48);
+  float alpha = clamp((prism * finishBoost + texture) * alphaBase * 0.72, 0.0, 0.56);
 
   gl_FragColor = vec4(color, alpha);
 }

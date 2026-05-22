@@ -586,6 +586,8 @@ export default function BinderApp({
   const quickPanelRef = useRef<HTMLDivElement | null>(null)
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
   const motionSensorsEnabledRef = useRef(false)
+  const hasAutoRequestedMotionPermissionRef = useRef(false)
+  const isRequestingMotionPermissionRef = useRef(false)
 
   const pokemonList = POKEMON_CATALOG
   const {
@@ -701,47 +703,96 @@ export default function BinderApp({
       return
     }
 
+    if (isRequestingMotionPermissionRef.current) {
+      return
+    }
+
+    isRequestingMotionPermissionRef.current = true
+    hasAutoRequestedMotionPermissionRef.current = true
+
+    try {
+      const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined
+      const motionApi = window.DeviceMotionEvent as DeviceMotionWithPermission | undefined
+      const requests: Array<Promise<DeviceOrientationPermissionState>> = []
+
+      if (orientationApi && typeof orientationApi.requestPermission === "function") {
+        requests.push(orientationApi.requestPermission().catch(() => "denied"))
+      }
+
+      if (motionApi && typeof motionApi.requestPermission === "function") {
+        requests.push(motionApi.requestPermission().catch(() => "denied"))
+      }
+
+      if (requests.length === 0) {
+        motionSensorsEnabledRef.current = Boolean(orientationApi || motionApi)
+        setMotionSensorVersion((version) => version + 1)
+        setMotionGlintStatus(motionSensorsEnabledRef.current ? "fallback" : "unsupported")
+        setMotionGlintMessage(
+          motionSensorsEnabledRef.current
+            ? "Listening for device motion. Pointer movement stays on as fallback."
+            : "This browser is using pointer movement because motion sensors are not exposed.",
+        )
+        return
+      }
+
+      setMotionGlintStatus("requesting")
+      setMotionGlintMessage(null)
+
+      const results = await Promise.all(requests)
+      if (results.some((result) => result === "granted")) {
+        motionSensorsEnabledRef.current = true
+        setMotionSensorVersion((version) => version + 1)
+        setMotionGlintStatus("active")
+        setMotionGlintMessage("Motion glint is enabled. Tilt the phone to move the shine.")
+        return
+      }
+
+      motionSensorsEnabledRef.current = false
+      setMotionSensorVersion((version) => version + 1)
+      setMotionGlintStatus("denied")
+      setMotionGlintMessage("Motion permission was denied. Touch and pointer movement still drive the shine.")
+    } finally {
+      isRequestingMotionPermissionRef.current = false
+    }
+  }, [settings.binderSlotGlareEnabled])
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined"
+      || !settings.binderSlotGlareEnabled
+      || motionGlintStatus !== "needs-permission"
+      || hasAutoRequestedMotionPermissionRef.current
+    ) {
+      return
+    }
+
     const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined
     const motionApi = window.DeviceMotionEvent as DeviceMotionWithPermission | undefined
-    const requests: Array<Promise<DeviceOrientationPermissionState>> = []
+    const canRequestPermission =
+      Boolean(orientationApi && typeof orientationApi.requestPermission === "function")
+      || Boolean(motionApi && typeof motionApi.requestPermission === "function")
 
-    if (orientationApi && typeof orientationApi.requestPermission === "function") {
-      requests.push(orientationApi.requestPermission().catch(() => "denied"))
-    }
-
-    if (motionApi && typeof motionApi.requestPermission === "function") {
-      requests.push(motionApi.requestPermission().catch(() => "denied"))
-    }
-
-    if (requests.length === 0) {
-      motionSensorsEnabledRef.current = Boolean(orientationApi || motionApi)
-      setMotionSensorVersion((version) => version + 1)
-      setMotionGlintStatus(motionSensorsEnabledRef.current ? "fallback" : "unsupported")
-      setMotionGlintMessage(
-        motionSensorsEnabledRef.current
-          ? "Listening for device motion. Pointer movement stays on as fallback."
-          : "This browser is using pointer movement because motion sensors are not exposed.",
-      )
+    if (!canRequestPermission) {
       return
     }
 
-    setMotionGlintStatus("requesting")
-    setMotionGlintMessage(null)
+    const requestFromGesture = () => {
+      if (hasAutoRequestedMotionPermissionRef.current) {
+        return
+      }
 
-    const results = await Promise.all(requests)
-    if (results.some((result) => result === "granted")) {
-      motionSensorsEnabledRef.current = true
-      setMotionSensorVersion((version) => version + 1)
-      setMotionGlintStatus("active")
-      setMotionGlintMessage("Motion glint is enabled. Tilt the phone to move the shine.")
-      return
+      hasAutoRequestedMotionPermissionRef.current = true
+      void handleRequestMotionGlint()
     }
 
-    motionSensorsEnabledRef.current = false
-    setMotionSensorVersion((version) => version + 1)
-    setMotionGlintStatus("denied")
-    setMotionGlintMessage("Motion permission was denied. Touch and pointer movement still drive the shine.")
-  }, [settings.binderSlotGlareEnabled])
+    window.addEventListener("click", requestFromGesture, { capture: true, once: true })
+    window.addEventListener("touchend", requestFromGesture, { capture: true, once: true })
+
+    return () => {
+      window.removeEventListener("click", requestFromGesture, true)
+      window.removeEventListener("touchend", requestFromGesture, true)
+    }
+  }, [handleRequestMotionGlint, motionGlintStatus, settings.binderSlotGlareEnabled])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -797,12 +848,22 @@ export default function BinderApp({
       }
 
       const gamma = Math.max(-35, Math.min(35, event.gamma))
-      const beta = Math.max(-45, Math.min(45, event.beta))
+      const beta = Math.max(-15, Math.min(70, event.beta))
+      const screenAngle = typeof window.screen?.orientation?.angle === "number"
+        ? window.screen.orientation.angle
+        : typeof (window as Window & { orientation?: number }).orientation === "number"
+          ? (window as Window & { orientation?: number }).orientation ?? 0
+          : 0
+      const portraitTiltX = gamma / 32
+      const portraitTiltY = (beta - 35) / 38
+      const isLandscape = Math.abs(screenAngle) === 90 || Math.abs(screenAngle) === 270
+      const tiltX = isLandscape ? portraitTiltY * Math.sign(screenAngle || 1) : portraitTiltX
+      const tiltY = isLandscape ? -portraitTiltX * Math.sign(screenAngle || 1) : portraitTiltY
 
       queueState(getSlotGlareState(
-        gamma * 0.95 - 24,
-        beta * 0.38 - 18,
-        gamma * 1.45 - 26,
+        clampGlareValue(tiltX, -1, 1) * 34 - 18,
+        clampGlareValue(tiltY, -1, 1) * 28 - 12,
+        clampGlareValue(tiltX, -1, 1) * 24 - clampGlareValue(tiltY, -1, 1) * 10 - 24,
         1
       ), "sensor")
     }
@@ -876,7 +937,7 @@ export default function BinderApp({
       }
     }
 
-    const canUseFallbackInput = () => Date.now() - lastSensorUpdateAt >= 250
+    const canUseFallbackInput = () => Date.now() - lastSensorUpdateAt >= 900
 
     const handlePointerMove = (event: PointerEvent) => {
       if (event.pointerType === "touch") {
@@ -978,6 +1039,9 @@ export default function BinderApp({
     "--glint-y": `${glintY}%`,
     "--glint-angle": `${slotGlareState.angle}deg`,
     "--glint-opacity": String(slotGlareState.opacity),
+    "--glint-shift-x": `${(glintX - 50) * 0.34}%`,
+    "--glint-shift-y": `${(glintY - 50) * 0.2}%`,
+    "--glint-streak-x": `${(glintX - 50) * 0.42}%`,
   }) as CSSProperties, [glintX, glintY, slotGlareState])
   const cardFinishGlint = useMemo(() => ({
     x: glintX / 100,
@@ -3483,13 +3547,13 @@ export default function BinderApp({
               <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-[1.35rem] border border-border/60 bg-card/88 p-1.5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/72">
                 <Button
                   variant="ghost"
-                  className="h-14 min-w-0 justify-start gap-2 rounded-[1rem] px-3 text-sm font-semibold sm:px-4"
+                  size="icon"
+                  className="h-14 w-full min-w-0 rounded-[1rem] text-muted-foreground disabled:pointer-events-none disabled:opacity-35 enabled:hover:bg-muted/70 enabled:hover:text-foreground sm:h-16"
                   onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage}
                   disabled={!canGoToPreviousVisiblePage}
                   aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}
                 >
-                  <ChevronLeft className="h-6 w-6 shrink-0" />
-                  <span className="truncate">{isSpreadLayout ? "Previous spread" : "Previous page"}</span>
+                  <ChevronLeft className="h-8 w-8 shrink-0" />
                 </Button>
 
                 <div className="flex min-w-[4.5rem] flex-col items-center justify-center px-1 text-center">
@@ -3499,13 +3563,13 @@ export default function BinderApp({
 
                 <Button
                   variant="ghost"
-                  className="h-14 min-w-0 justify-end gap-2 rounded-[1rem] px-3 text-sm font-semibold sm:px-4"
+                  size="icon"
+                  className="h-14 w-full min-w-0 rounded-[1rem] text-muted-foreground disabled:pointer-events-none disabled:opacity-35 enabled:hover:bg-muted/70 enabled:hover:text-foreground sm:h-16"
                   onClick={isSpreadLayout ? goToNextSpread : goToNextPage}
                   disabled={!canGoToNextVisiblePage}
                   aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}
                 >
-                  <span className="truncate">{isSpreadLayout ? "Next spread" : "Next page"}</span>
-                  <ChevronRight className="h-6 w-6 shrink-0" />
+                  <ChevronRight className="h-8 w-8 shrink-0" />
                 </Button>
               </div>
             </div>
@@ -4052,6 +4116,9 @@ function PokemonSlot({
     "--glint-x": `${slotCardFinishGlint.x * 100}%`,
     "--glint-y": `${slotCardFinishGlint.y * 100}%`,
     "--glint-angle": `${slotCardFinishGlint.angle}deg`,
+    "--glint-shift-x": `${(slotCardFinishGlint.x * 100 - 50) * 0.34}%`,
+    "--glint-shift-y": `${(slotCardFinishGlint.y * 100 - 50) * 0.2}%`,
+    "--glint-streak-x": `${(slotCardFinishGlint.x * 100 - 50) * 0.42}%`,
   } as CSSProperties
   const finishEffectClass = getCardFinishEffectClass(effectiveCardFinish)
   const shouldShowCardFinish = Boolean(hasCardPreview && showCardFinishEffects)
