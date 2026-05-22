@@ -4466,6 +4466,7 @@ function PokemonSlot({
   const previewImage = cardImageSource || fallbackPreviewImage
   const [previewImageSrc, setPreviewImageSrc] = useState(previewImage)
   const [didFallbackPreviewImage, setDidFallbackPreviewImage] = useState(false)
+  const [isPreviewImageLoaded, setIsPreviewImageLoaded] = useState(false)
   const previewFitClass = "object-contain"
   const previewToneClass = isCollected
     ? ""
@@ -4519,12 +4520,15 @@ function PokemonSlot({
   const finishEffectClass = getCardFinishEffectClass(effectiveCardFinish)
   const shouldShowCardFinish = Boolean(
     hasCardPreview &&
+    isPreviewImageLoaded &&
     !didFallbackPreviewImage &&
     showCardFinishEffects &&
     effectiveCardFinish !== "normal"
   )
   const shouldShowPocketGlare = showBinderSlotGlare && !shouldShowCardFinish
   const handlePreviewImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    setIsPreviewImageLoaded(false)
+
     if (previewImageSrc !== fallbackPreviewImage) {
       setPreviewImageSrc(fallbackPreviewImage)
       setDidFallbackPreviewImage(true)
@@ -4537,6 +4541,7 @@ function PokemonSlot({
   useEffect(() => {
     setPreviewImageSrc(previewImage)
     setDidFallbackPreviewImage(false)
+    setIsPreviewImageLoaded(false)
   }, [previewImage])
 
   return (
@@ -4621,6 +4626,7 @@ function PokemonSlot({
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
               draggable={false}
+              onLoad={() => setIsPreviewImageLoaded(true)}
               onError={handlePreviewImageError}
             />
             {shouldShowCardFinish ? (
@@ -4655,6 +4661,7 @@ function PokemonSlot({
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
               draggable={false}
+              onLoad={() => setIsPreviewImageLoaded(true)}
               onError={handlePreviewImageError}
             />
           </div>

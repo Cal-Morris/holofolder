@@ -223,10 +223,18 @@ function compileShader(gl: WebGLRenderingContext, type: number, source: string) 
 function createProgram(gl: WebGLRenderingContext) {
   const vertexShader = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE)
   const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE)
-  if (!vertexShader || !fragmentShader) return null
+  if (!vertexShader || !fragmentShader) {
+    if (vertexShader) gl.deleteShader(vertexShader)
+    if (fragmentShader) gl.deleteShader(fragmentShader)
+    return null
+  }
 
   const program = gl.createProgram()
-  if (!program) return null
+  if (!program) {
+    gl.deleteShader(vertexShader)
+    gl.deleteShader(fragmentShader)
+    return null
+  }
 
   gl.attachShader(program, vertexShader)
   gl.attachShader(program, fragmentShader)
@@ -275,6 +283,19 @@ function shouldUseCssFinishFallback() {
   return false
 }
 
+function getMaxActiveWebGlShaders() {
+  if (typeof window === "undefined") return 0
+
+  const navigatorWithMemory = window.navigator as Navigator & { deviceMemory?: number }
+  const viewportIsCompact = window.matchMedia("(max-width: 767px)").matches
+  const deviceMemory = navigatorWithMemory.deviceMemory ?? 8
+  const hardwareConcurrency = window.navigator.hardwareConcurrency || 8
+
+  if (viewportIsCompact) return deviceMemory >= 8 && hardwareConcurrency >= 6 ? 6 : 4
+  if (deviceMemory >= 8 && hardwareConcurrency >= 8) return 12
+  return MAX_ACTIVE_WEBGL_SHADERS
+}
+
 interface CardFinishShaderProps {
   finish: CardFinish
   glintX: number
@@ -303,6 +324,7 @@ export default function CardFinishShader({
   fallbackStyle,
 }: CardFinishShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const canvasSizeRef = useRef({ width: 1, height: 1 })
   const uniformsRef = useRef({
     finish,
     glintAngle,
@@ -314,7 +336,7 @@ export default function CardFinishShader({
     patternScale,
     patternSeed,
   })
-  const [isActive, setIsActive] = useState(true)
+  const [isActive, setIsActive] = useState(false)
   const [hasWebGl, setHasWebGl] = useState(true)
 
   useEffect(() => {
@@ -333,9 +355,17 @@ export default function CardFinishShader({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || typeof IntersectionObserver === "undefined") return
+    if (!canvas) return
 
-    let isVisible = true
+    if (typeof IntersectionObserver === "undefined") {
+      setIsActive(document.visibilityState !== "hidden")
+      const handleVisibilityChange = () => setIsActive(document.visibilityState !== "hidden")
+      document.addEventListener("visibilitychange", handleVisibilityChange)
+
+      return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+
+    let isVisible = false
     let isDocumentVisible = document.visibilityState !== "hidden"
     const updateActiveState = () => setIsActive(isVisible && isDocumentVisible)
     const observer = new IntersectionObserver(
@@ -361,7 +391,7 @@ export default function CardFinishShader({
 
   useEffect(() => {
     if (!isActive) return
-    if (shouldUseCssFinishFallback() || activeWebGlShaderCount >= MAX_ACTIVE_WEBGL_SHADERS) {
+    if (shouldUseCssFinishFallback() || activeWebGlShaderCount >= getMaxActiveWebGlShaders()) {
       setHasWebGl(false)
       return
     }
@@ -373,6 +403,8 @@ export default function CardFinishShader({
       alpha: true,
       antialias: false,
       depth: false,
+      failIfMajorPerformanceCaveat: true,
+      powerPreference: "low-power",
       stencil: false,
       premultipliedAlpha: true,
       preserveDrawingBuffer: false,
@@ -391,9 +423,16 @@ export default function CardFinishShader({
 
     const positionBuffer = gl.createBuffer()
     if (!positionBuffer) {
+      gl.deleteProgram(program)
       setHasWebGl(false)
       return
     }
+
+    const handleContextLost = (event: Event) => {
+      event.preventDefault()
+      setHasWebGl(false)
+    }
+    canvas.addEventListener("webglcontextlost", handleContextLost)
 
     activeWebGlShaderCount += 1
 
@@ -418,6 +457,30 @@ export default function CardFinishShader({
     let lastFrameTime = -TARGET_FRAME_MS
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     const targetFrameMs = prefersReducedMotion ? REDUCED_MOTION_FRAME_MS : TARGET_FRAME_MS
+    const syncCanvasSize = () => {
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_SHADER_PIXEL_RATIO)
+      const width = Math.max(1, Math.round(canvas.clientWidth * pixelRatio))
+      const height = Math.max(1, Math.round(canvas.clientHeight * pixelRatio))
+
+      canvasSizeRef.current = { width, height }
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width
+        canvas.height = height
+      }
+    }
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncCanvasSize)
+
+    gl.disable(gl.DEPTH_TEST)
+    gl.disable(gl.STENCIL_TEST)
+    gl.disable(gl.CULL_FACE)
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    gl.useProgram(program)
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
+    gl.enableVertexAttribArray(positionLocation)
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
+    syncCanvasSize()
+    resizeObserver?.observe(canvas)
 
     const render = (time: number) => {
       if (time - lastFrameTime < targetFrameMs) {
@@ -426,26 +489,17 @@ export default function CardFinishShader({
       }
 
       lastFrameTime = time
-      const rect = canvas.getBoundingClientRect()
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_SHADER_PIXEL_RATIO)
-      const width = Math.max(1, Math.round(rect.width * pixelRatio))
-      const height = Math.max(1, Math.round(rect.height * pixelRatio))
+      const { width, height } = canvasSizeRef.current
       const uniforms = uniformsRef.current
 
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width
-        canvas.height = height
+      if (gl.isContextLost()) {
+        setHasWebGl(false)
+        return
       }
 
       gl.viewport(0, 0, width, height)
       gl.clearColor(0, 0, 0, 0)
       gl.clear(gl.COLOR_BUFFER_BIT)
-      gl.enable(gl.BLEND)
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-      gl.useProgram(program)
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-      gl.enableVertexAttribArray(positionLocation)
-      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
       gl.uniform2f(resolutionLocation, width, height)
       gl.uniform2f(glintLocation, uniforms.glintX, uniforms.glintY)
       gl.uniform1f(angleLocation, uniforms.glintAngle * Math.PI / 180)
@@ -464,6 +518,8 @@ export default function CardFinishShader({
 
     return () => {
       window.cancelAnimationFrame(frameId)
+      resizeObserver?.disconnect()
+      canvas.removeEventListener("webglcontextlost", handleContextLost)
       gl.deleteBuffer(positionBuffer)
       gl.deleteProgram(program)
       activeWebGlShaderCount = Math.max(0, activeWebGlShaderCount - 1)
