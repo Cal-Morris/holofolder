@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { start } from "workflow/api"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { refreshCardPricesWorkflow } from "@/workflows/card-price-refresh"
 
 export const runtime = "nodejs"
 
@@ -32,6 +30,14 @@ export async function POST() {
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(user.id)
+    if (process.env.WORKFLOW_TARGET_WORLD === "@workflow/world-postgres") {
+      await import("@workflow/world-postgres")
+    }
+
+    const [{ start }, { refreshCardPricesWorkflow }] = await Promise.all([
+      import("workflow/api"),
+      import("@/workflows/card-price-refresh"),
+    ])
     const run = await start(refreshCardPricesWorkflow, [ownerUserId])
 
     return NextResponse.json({
