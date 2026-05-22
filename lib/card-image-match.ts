@@ -2,6 +2,10 @@ const MATCH_CANVAS_WIDTH = 120
 const MATCH_CANVAS_HEIGHT = 168
 const REGION_COLS = 5
 const REGION_ROWS = 6
+const MICRO_COLOR_COLS = 10
+const MICRO_COLOR_ROWS = 14
+const EDGE_SIGNATURE_COLS = 5
+const EDGE_SIGNATURE_ROWS = 7
 const EDGE_PROFILE_BANDS = 12
 const HASH_WIDTH = 13
 const HASH_HEIGHT = 18
@@ -64,6 +68,8 @@ export interface CardImageDescriptor {
   rowProfile: number[]
   columnProfile: number[]
   borderProfile: number[]
+  microColorSignature: number[]
+  edgeOrientationSignature: number[]
   focusPatches: FocusPatchDescriptor[]
 }
 
@@ -452,6 +458,93 @@ function buildAxisProfile(sourceCanvas: HTMLCanvasElement, axis: "row" | "column
   return profile
 }
 
+function buildMicroColorSignature(sourceCanvas: HTMLCanvasElement) {
+  const { context } = createCanvas(MICRO_COLOR_COLS, MICRO_COLOR_ROWS, true)
+  drawImageToCanvas(context, sourceCanvas, sourceCanvas.width, sourceCanvas.height, MICRO_COLOR_COLS, MICRO_COLOR_ROWS, "stretch")
+  const { data } = context.getImageData(0, 0, MICRO_COLOR_COLS, MICRO_COLOR_ROWS)
+  const cells: Array<{ luma: number; saturation: number; rg: number; by: number }> = []
+  let lumaSum = 0
+
+  for (let index = 0; index < data.length; index += 4) {
+    const r = data[index] / 255
+    const g = data[index + 1] / 255
+    const b = data[index + 2] / 255
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    const cell = {
+      luma,
+      saturation: max - min,
+      rg: (r - g) * 0.5 + 0.5,
+      by: ((r + g) * 0.5 - b) * 0.5 + 0.5,
+    }
+
+    cells.push(cell)
+    lumaSum += luma
+  }
+
+  const mean = lumaSum / Math.max(cells.length, 1)
+  let variance = 0
+  for (const cell of cells) {
+    const delta = cell.luma - mean
+    variance += delta * delta
+  }
+  const std = Math.sqrt(variance / Math.max(cells.length, 1)) || 1
+
+  return cells.flatMap((cell) => [
+    clamp((cell.luma - mean) / (std * 3) * 0.5 + 0.5, 0, 1),
+    clamp(cell.saturation, 0, 1),
+    clamp(cell.rg, 0, 1),
+    clamp(cell.by, 0, 1),
+  ])
+}
+
+function getEdgeOrientationBin(dx: number, dy: number) {
+  const absX = Math.abs(dx)
+  const absY = Math.abs(dy)
+
+  if (absX > absY * 1.45) return 0
+  if (absY > absX * 1.45) return 1
+  return dx * dy >= 0 ? 2 : 3
+}
+
+function buildEdgeOrientationSignature(sourceCanvas: HTMLCanvasElement) {
+  const luma = buildLumaGrid(sourceCanvas)
+  const width = sourceCanvas.width
+  const height = sourceCanvas.height
+  const bins = new Float32Array(EDGE_SIGNATURE_COLS * EDGE_SIGNATURE_ROWS * 4)
+  const cellTotals = new Float32Array(EDGE_SIGNATURE_COLS * EDGE_SIGNATURE_ROWS)
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const index = y * width + x
+      const dx = luma[index + 1] - luma[index - 1]
+      const dy = luma[index + width] - luma[index - width]
+      const magnitude = Math.sqrt(dx * dx + dy * dy)
+
+      if (magnitude < 0.015) continue
+
+      const col = Math.min(EDGE_SIGNATURE_COLS - 1, Math.floor((x / width) * EDGE_SIGNATURE_COLS))
+      const row = Math.min(EDGE_SIGNATURE_ROWS - 1, Math.floor((y / height) * EDGE_SIGNATURE_ROWS))
+      const cellIndex = row * EDGE_SIGNATURE_COLS + col
+      const bin = getEdgeOrientationBin(dx, dy)
+
+      bins[cellIndex * 4 + bin] += magnitude
+      cellTotals[cellIndex] += magnitude
+    }
+  }
+
+  const signature: number[] = []
+  for (let cellIndex = 0; cellIndex < cellTotals.length; cellIndex += 1) {
+    const total = cellTotals[cellIndex] || 1
+    for (let bin = 0; bin < 4; bin += 1) {
+      signature.push(clamp(bins[cellIndex * 4 + bin] / total, 0, 1))
+    }
+  }
+
+  return signature
+}
+
 function buildFocusPatchDescriptor(
   sourceCanvas: HTMLCanvasElement,
   spec: (typeof FOCUS_PATCH_SPECS)[number],
@@ -637,6 +730,8 @@ function analyzeNormalizedCardCanvas(canvas: HTMLCanvasElement): CardImageDescri
     rowProfile: normalizedRowProfile,
     columnProfile: normalizedColumnProfile,
     borderProfile: normalizedBorderProfile,
+    microColorSignature: buildMicroColorSignature(canvas),
+    edgeOrientationSignature: buildEdgeOrientationSignature(canvas),
     focusPatches: FOCUS_PATCH_SPECS.map((spec) => buildFocusPatchDescriptor(canvas, spec)),
   }
 }
@@ -744,6 +839,8 @@ export function compareCardImageDescriptors(
   const horizontalHashDistance = compareHashBits(query.horizontalHashBits, candidate.horizontalHashBits)
   const verticalHashDistance = compareHashBits(query.verticalHashBits, candidate.verticalHashBits)
   const averageHashDistance = compareHashBits(query.averageHashBits, candidate.averageHashBits)
+  const microColorDistance = compareFloatArrays(query.microColorSignature, candidate.microColorSignature)
+  const edgeOrientationDistance = compareFloatArrays(query.edgeOrientationSignature, candidate.edgeOrientationSignature)
   const numberLeftDistance = compareFocusPatch(
     getFocusPatchByKey(query.focusPatches, "number_left"),
     getFocusPatchByKey(candidate.focusPatches, "number_left"),
@@ -795,12 +892,17 @@ export function compareCardImageDescriptors(
     { distance: verticalHashDistance, weight: 0.07 },
     { distance: averageHashDistance, weight: 0.08 },
   ])
+  const fineDetailDistance = combineDistances([
+    { distance: microColorDistance, weight: 0.58 },
+    { distance: edgeOrientationDistance, weight: 0.42 },
+  ])
 
   const distance =
-    numberDistance * 0.64 +
-    setRightDistance * 0.1 +
+    numberDistance * 0.42 +
+    setRightDistance * 0.08 +
     topDistance * 0.08 +
     structuralDistance * 0.18 +
+    fineDetailDistance * 0.24 +
     Math.max(0, numberDistance - 0.34) * 0.22
 
   return {
