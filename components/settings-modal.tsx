@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw } from "lucide-react"
+import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { BinderSettings } from "@/hooks/use-settings"
@@ -56,6 +56,9 @@ interface SettingsModalProps {
   isRefreshingPrices: boolean
   priceRefreshMessage: string | null
   onRefreshPrices: () => void
+  motionGlintStatus: "disabled" | "needs-permission" | "requesting" | "active" | "fallback" | "denied" | "unsupported"
+  motionGlintMessage: string | null
+  onRequestMotionGlint: () => void
 }
 
 export default function SettingsModal({
@@ -95,6 +98,9 @@ export default function SettingsModal({
   isRefreshingPrices,
   priceRefreshMessage,
   onRefreshPrices,
+  motionGlintStatus,
+  motionGlintMessage,
+  onRequestMotionGlint,
 }: SettingsModalProps) {
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
@@ -133,6 +139,26 @@ export default function SettingsModal({
   const safePageRangeEnd = Number.isInteger(parsedPageRangeEnd)
     ? Math.min(Math.max(parsedPageRangeEnd, 1), totalBinderPages)
     : currentBinderPage
+  const motionGlintStatusLabel =
+    motionGlintStatus === "active"
+      ? "Active"
+      : motionGlintStatus === "needs-permission"
+        ? "Needs permission"
+        : motionGlintStatus === "requesting"
+          ? "Requesting"
+          : motionGlintStatus === "denied"
+            ? "Denied"
+            : motionGlintStatus === "unsupported"
+              ? "Fallback"
+              : motionGlintStatus === "disabled"
+                ? "Off"
+                : "Fallback"
+  const canRequestMotionGlint =
+    !isReadOnlyView
+    && settings.binderSlotGlareEnabled
+    && motionGlintStatus !== "requesting"
+    && motionGlintStatus !== "active"
+    && motionGlintStatus !== "unsupported"
 
   return (
     <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm" onClick={onClose}>
@@ -217,6 +243,42 @@ export default function SettingsModal({
                 aria-label="Toggle binder slot glare"
                 disabled={isReadOnlyView}
               />
+            </div>
+            <div className="rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background/70 text-primary">
+                    <Smartphone className="size-4" />
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium">Motion glint</p>
+                      <span className="rounded-full border border-border/50 bg-background/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        {motionGlintStatusLabel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Lets iPhone tilt data drive the shine when BinderDex is saved to the Home Screen.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onRequestMotionGlint}
+                  disabled={!canRequestMotionGlint}
+                  className="shrink-0 rounded-full"
+                >
+                  {motionGlintStatus === "requesting" ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                  Enable
+                </Button>
+              </div>
+              {motionGlintMessage ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {motionGlintMessage}
+                </p>
+              ) : null}
             </div>
             <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
               <div className="space-y-1">

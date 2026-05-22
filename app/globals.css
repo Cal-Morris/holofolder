@@ -178,16 +178,16 @@
 
   @keyframes holographic-foil {
     0% {
-      background-position: 0% 50%, 100% 0%, 0% 0%;
-      opacity: 0.28;
+      background-position: calc(var(--glint-x, 44%) - 44%) var(--glint-y, 38%), 100% 0%, 0% 0%;
+      filter: hue-rotate(0deg) saturate(1.08);
     }
     45% {
-      background-position: 90% 50%, 0% 100%, 80% 0%;
-      opacity: 0.5;
+      background-position: calc(var(--glint-x, 44%) + 36%) var(--glint-y, 38%), 0% 100%, 80% 0%;
+      filter: hue-rotate(14deg) saturate(1.25);
     }
     100% {
-      background-position: 0% 50%, 100% 0%, 0% 0%;
-      opacity: 0.32;
+      background-position: calc(var(--glint-x, 44%) - 44%) var(--glint-y, 38%), 100% 0%, 0% 0%;
+      filter: hue-rotate(0deg) saturate(1.08);
     }
   }
 
@@ -235,51 +235,75 @@
   .card-finish-ir,
   .card-finish-sir,
   .card-finish-secret {
+    border-radius: inherit;
+    overflow: hidden;
     mix-blend-mode: screen;
-    opacity: 0.42;
-    transition: transform 160ms ease-out, opacity 160ms ease-out;
-    will-change: transform, opacity;
+    opacity: var(--finish-opacity, 0.56);
+    background-blend-mode: screen, overlay, normal;
+    transition: transform 120ms ease-out, opacity 120ms ease-out, background-position 120ms ease-out;
+    will-change: transform, opacity, background-position;
+  }
+
+  .card-finish-holo::after,
+  .card-finish-reverse-holo::after,
+  .card-finish-ir::after,
+  .card-finish-sir::after,
+  .card-finish-secret::after {
+    content: "";
+    position: absolute;
+    inset: -35%;
+    transform: rotate(var(--glint-angle, -24deg)) translateX(-8%);
+    background: linear-gradient(105deg, transparent 26%, rgba(255,255,255,0.92) 43%, rgba(255,255,255,0.18) 50%, transparent 64%);
+    opacity: 0.78;
+    mix-blend-mode: screen;
+    pointer-events: none;
   }
 
   .card-finish-holo {
+    --finish-opacity: 0.62;
     background:
-      linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.22) 18%, rgba(56,189,248,0.32) 28%, rgba(244,114,182,0.24) 42%, transparent 58%),
-      repeating-linear-gradient(128deg, rgba(255,255,255,0.09) 0 1px, transparent 1px 9px);
-    background-size: 220% 100%, 100% 100%;
+      radial-gradient(circle at var(--glint-x, 36%) var(--glint-y, 32%), rgba(255,255,255,0.9) 0%, rgba(125,211,252,0.36) 18%, transparent 46%),
+      linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.26) 18%, rgba(56,189,248,0.44) 28%, rgba(244,114,182,0.34) 42%, transparent 60%),
+      repeating-linear-gradient(128deg, rgba(255,255,255,0.13) 0 1px, transparent 1px 8px);
+    background-size: 120% 120%, 220% 100%, 100% 100%;
     animation: holographic-foil 6s ease-in-out infinite;
   }
 
   .card-finish-reverse-holo {
+    --finish-opacity: 0.54;
     inset: 8% 4% 4%;
     background:
-      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.28), transparent 28%),
-      repeating-linear-gradient(45deg, rgba(125,211,252,0.2) 0 2px, rgba(244,114,182,0.18) 2px 4px, transparent 4px 9px);
-    opacity: 0.34;
+      radial-gradient(circle at var(--glint-x, 28%) var(--glint-y, 24%), rgba(255,255,255,0.86), transparent 30%),
+      repeating-linear-gradient(45deg, rgba(125,211,252,0.3) 0 2px, rgba(244,114,182,0.26) 2px 4px, transparent 4px 9px),
+      linear-gradient(135deg, rgba(255,255,255,0.14), transparent 38%);
     animation: holographic-foil 7s ease-in-out infinite reverse;
   }
 
   .card-finish-ir {
+    --finish-opacity: 0.58;
     background:
-      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.2) 18%, rgba(134,239,172,0.2) 30%, rgba(96,165,250,0.25) 45%, transparent 62%),
-      radial-gradient(circle at 72% 18%, rgba(255,255,255,0.34), transparent 24%);
-    opacity: 0.38;
+      radial-gradient(circle at var(--glint-x, 60%) var(--glint-y, 30%), rgba(255,255,255,0.92), rgba(134,239,172,0.26) 22%, transparent 48%),
+      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.22) 18%, rgba(134,239,172,0.34) 30%, rgba(96,165,250,0.38) 45%, transparent 64%),
+      radial-gradient(circle at 72% 18%, rgba(255,255,255,0.42), transparent 24%);
     animation: holographic-foil 5.5s ease-in-out infinite;
   }
 
   .card-finish-sir {
+    --finish-opacity: 0.72;
     background:
-      linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.24) 16%, rgba(251,191,36,0.26) 26%, rgba(56,189,248,0.32) 38%, rgba(244,114,182,0.28) 52%, transparent 68%),
-      repeating-linear-gradient(135deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 7px),
+      radial-gradient(circle at var(--glint-x, 48%) var(--glint-y, 34%), rgba(255,255,255,0.96), rgba(251,191,36,0.34) 17%, rgba(56,189,248,0.24) 31%, transparent 54%),
+      linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.3) 16%, rgba(251,191,36,0.38) 26%, rgba(56,189,248,0.46) 38%, rgba(244,114,182,0.4) 52%, transparent 70%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.18) 0 1px, transparent 1px 6px),
       radial-gradient(circle at 30% 18%, rgba(255,255,255,0.38), transparent 24%);
-    opacity: 0.5;
     animation: holographic-foil 4.8s ease-in-out infinite;
   }
 
   .card-finish-secret {
+    --finish-opacity: 0.76;
     background:
-      conic-gradient(from 160deg at 50% 50%, rgba(251,191,36,0.2), rgba(244,114,182,0.28), rgba(56,189,248,0.3), rgba(134,239,172,0.2), rgba(251,191,36,0.24)),
-      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.28) 20%, transparent 46%);
-    opacity: 0.54;
+      radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 38%), rgba(255,255,255,0.98), rgba(251,191,36,0.34) 18%, transparent 44%),
+      conic-gradient(from 160deg at 50% 50%, rgba(251,191,36,0.3), rgba(244,114,182,0.36), rgba(56,189,248,0.4), rgba(134,239,172,0.28), rgba(251,191,36,0.34)),
+      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.34) 20%, transparent 48%);
     animation: holographic-foil 4.25s ease-in-out infinite;
   }
 

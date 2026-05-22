@@ -52,12 +52,18 @@ type SlotGlareState = {
   opacity: number
 }
 
+type MotionGlintStatus = "disabled" | "needs-permission" | "requesting" | "active" | "fallback" | "denied" | "unsupported"
+
 const DEFAULT_SLOT_GLARE_STATE = {
   offsetX: -24,
   offsetY: -18,
   angle: -26,
   opacity: 1,
 } satisfies SlotGlareState
+
+function clampGlareValue(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
 
 function getSlotGlareState(offsetX: number, offsetY: number, angle: number, opacity = 1): SlotGlareState {
   return { offsetX, offsetY, angle, opacity }
@@ -292,30 +298,41 @@ function BinderSlotGlare({
   return (
     <>
       <div
+        className="pointer-events-none absolute inset-[3px] z-[4] mix-blend-screen"
+        style={{
+          ...glareStyle,
+          borderRadius: innerRadius,
+          background:
+            "radial-gradient(circle at var(--glint-x, 30%) var(--glint-y, 26%), rgba(255,255,255,0.78) 0%, rgba(125,211,252,0.34) 17%, rgba(244,114,182,0.24) 29%, rgba(255,255,255,0) 55%)",
+          transform: "none",
+          opacity: 0.74,
+        } as CSSProperties}
+      />
+      <div
         className="pointer-events-none absolute inset-[3px] z-[2]"
         style={{
           borderRadius: innerRadius,
-          background: "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.16) 20%, rgba(255,255,255,0) 42%)",
+          background: "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.22) 20%, rgba(255,255,255,0) 44%)",
         }}
       />
       <div
         className="pointer-events-none absolute inset-[3px] z-[3]"
         style={{
           borderRadius: innerRadius,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 24%, rgba(255,255,255,0) 56%)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.1) 24%, rgba(255,255,255,0) 58%)",
         }}
       />
       <div
-        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[36%] -top-[28%] z-[4] h-[90%] rounded-[999px] blur-[1px] shadow-[0_0_18px_rgba(255,255,255,0.28)] transition-[transform,opacity] duration-200 ease-out will-change-transform dark:shadow-[0_0_16px_rgba(255,255,255,0.12)]"
+        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[42%] -top-[30%] z-[6] h-[96%] rounded-[999px] blur-[1px] shadow-[0_0_22px_rgba(255,255,255,0.4)] transition-[transform,opacity] duration-150 ease-out will-change-transform dark:shadow-[0_0_18px_rgba(255,255,255,0.2)]"
         style={{
           ...glareStyle,
           "--glare-transform": glareStyle.transform,
           background:
-            "linear-gradient(132deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.82) 13%, rgba(255,255,255,0.48) 24%, rgba(255,255,255,0.14) 36%, rgba(255,255,255,0) 56%)",
+            "linear-gradient(132deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.94) 12%, rgba(125,211,252,0.52) 23%, rgba(244,114,182,0.38) 32%, rgba(255,255,255,0.16) 43%, rgba(255,255,255,0) 62%)",
         } as CSSProperties}
       />
       <div
-        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[4] w-[12%] rounded-[999px] blur-[1px]"
+        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[5] w-[12%] rounded-[999px] blur-[1px]"
         style={{
           background: "linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.24) 34%, rgba(255,255,255,0) 100%)",
           opacity: 0.72,
@@ -498,6 +515,9 @@ export default function BinderApp({
   const [isWideBinderSpread, setIsWideBinderSpread] = useState(false)
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false)
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE)
+  const [motionGlintStatus, setMotionGlintStatus] = useState<MotionGlintStatus>("fallback")
+  const [motionGlintMessage, setMotionGlintMessage] = useState<string | null>(null)
+  const [motionSensorVersion, setMotionSensorVersion] = useState(0)
   const [quickPanelPosition, setQuickPanelPosition] = useState<QuickPanelPosition | null>(null)
   const pagePhotoInputRef = useRef<HTMLInputElement | null>(null)
   const burstVideoRef = useRef<HTMLVideoElement | null>(null)
@@ -506,6 +526,7 @@ export default function BinderApp({
   const hasHydratedPageFromQueryRef = useRef(false)
   const quickPanelRef = useRef<HTMLDivElement | null>(null)
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
+  const motionSensorsEnabledRef = useRef(false)
 
   const pokemonList = POKEMON_CATALOG
   const {
@@ -608,6 +629,61 @@ export default function BinderApp({
     }
   }, [isCompactViewport, isMobileSpreadPreview])
 
+  const handleRequestMotionGlint = useCallback(async () => {
+    if (typeof window === "undefined") {
+      setMotionGlintStatus("unsupported")
+      setMotionGlintMessage("Motion glint is not available in this browser.")
+      return
+    }
+
+    if (!settings.binderSlotGlareEnabled) {
+      setMotionGlintStatus("disabled")
+      setMotionGlintMessage("Turn on binder slot glare first.")
+      return
+    }
+
+    const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined
+    const motionApi = window.DeviceMotionEvent as DeviceMotionWithPermission | undefined
+    const requests: Array<Promise<DeviceOrientationPermissionState>> = []
+
+    if (orientationApi && typeof orientationApi.requestPermission === "function") {
+      requests.push(orientationApi.requestPermission().catch(() => "denied"))
+    }
+
+    if (motionApi && typeof motionApi.requestPermission === "function") {
+      requests.push(motionApi.requestPermission().catch(() => "denied"))
+    }
+
+    if (requests.length === 0) {
+      motionSensorsEnabledRef.current = Boolean(orientationApi || motionApi)
+      setMotionSensorVersion((version) => version + 1)
+      setMotionGlintStatus(motionSensorsEnabledRef.current ? "fallback" : "unsupported")
+      setMotionGlintMessage(
+        motionSensorsEnabledRef.current
+          ? "Listening for device motion. Pointer movement stays on as fallback."
+          : "This browser is using pointer movement because motion sensors are not exposed.",
+      )
+      return
+    }
+
+    setMotionGlintStatus("requesting")
+    setMotionGlintMessage(null)
+
+    const results = await Promise.all(requests)
+    if (results.some((result) => result === "granted")) {
+      motionSensorsEnabledRef.current = true
+      setMotionSensorVersion((version) => version + 1)
+      setMotionGlintStatus("active")
+      setMotionGlintMessage("Motion glint is enabled. Tilt the phone to move the shine.")
+      return
+    }
+
+    motionSensorsEnabledRef.current = false
+    setMotionSensorVersion((version) => version + 1)
+    setMotionGlintStatus("denied")
+    setMotionGlintMessage("Motion permission was denied. Touch and pointer movement still drive the shine.")
+  }, [settings.binderSlotGlareEnabled])
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return
@@ -616,14 +692,23 @@ export default function BinderApp({
     setSlotGlareState(DEFAULT_SLOT_GLARE_STATE)
 
     if (!settings.binderSlotGlareEnabled) {
+      motionSensorsEnabledRef.current = false
+      setMotionGlintStatus("disabled")
+      setMotionGlintMessage(null)
       return
     }
 
     let frameId = 0
     let nextState = DEFAULT_SLOT_GLARE_STATE
-    let didRequestOrientationPermission = false
     let lastSensorUpdateAt = 0
     let hasBoundSensorListeners = false
+    let sensorFallbackTimer = 0
+    const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined
+    const motionApi = window.DeviceMotionEvent as DeviceMotionWithPermission | undefined
+    const needsExplicitPermission =
+      Boolean(orientationApi && typeof orientationApi.requestPermission === "function")
+      || Boolean(motionApi && typeof motionApi.requestPermission === "function")
+    const hasSensorApi = Boolean(orientationApi || motionApi)
 
     const flush = () => {
       frameId = 0
@@ -634,6 +719,12 @@ export default function BinderApp({
       nextState = state
       if (source === "sensor") {
         lastSensorUpdateAt = Date.now()
+        if (sensorFallbackTimer) {
+          window.clearTimeout(sensorFallbackTimer)
+          sensorFallbackTimer = 0
+        }
+        setMotionGlintStatus((status) => (status === "active" ? status : "active"))
+        setMotionGlintMessage(null)
       }
 
       if (!frameId) {
@@ -691,9 +782,20 @@ export default function BinderApp({
       }
 
       hasBoundSensorListeners = true
-      window.addEventListener("deviceorientation", handleOrientation, true)
-      window.addEventListener("deviceorientationabsolute", handleOrientationAbsolute as EventListener, true)
-      window.addEventListener("devicemotion", handleMotion, true)
+      if (orientationApi) {
+        window.addEventListener("deviceorientation", handleOrientation, true)
+        window.addEventListener("deviceorientationabsolute", handleOrientationAbsolute as EventListener, true)
+      }
+      if (motionApi) {
+        window.addEventListener("devicemotion", handleMotion, true)
+      }
+
+      sensorFallbackTimer = window.setTimeout(() => {
+        if (lastSensorUpdateAt === 0) {
+          setMotionGlintStatus("fallback")
+          setMotionGlintMessage("Motion sensors did not send data yet. Touch and pointer movement are active.")
+        }
+      }, 1800)
     }
 
     const unbindSensorListeners = () => {
@@ -702,40 +804,17 @@ export default function BinderApp({
       }
 
       hasBoundSensorListeners = false
-      window.removeEventListener("deviceorientation", handleOrientation, true)
-      window.removeEventListener("deviceorientationabsolute", handleOrientationAbsolute as EventListener, true)
-      window.removeEventListener("devicemotion", handleMotion, true)
-    }
-
-    const requestOrientationPermission = () => {
-      if (didRequestOrientationPermission) {
-        return
+      if (sensorFallbackTimer) {
+        window.clearTimeout(sensorFallbackTimer)
+        sensorFallbackTimer = 0
       }
-
-      const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined
-      const motionApi = window.DeviceMotionEvent as DeviceMotionWithPermission | undefined
-      const requests: Array<Promise<DeviceOrientationPermissionState>> = []
-
-      if (orientationApi && typeof orientationApi.requestPermission === "function") {
-        requests.push(orientationApi.requestPermission().catch(() => "denied"))
+      if (orientationApi) {
+        window.removeEventListener("deviceorientation", handleOrientation, true)
+        window.removeEventListener("deviceorientationabsolute", handleOrientationAbsolute as EventListener, true)
       }
-
-      if (motionApi && typeof motionApi.requestPermission === "function") {
-        requests.push(motionApi.requestPermission().catch(() => "denied"))
+      if (motionApi) {
+        window.removeEventListener("devicemotion", handleMotion, true)
       }
-
-      if (requests.length === 0) {
-        didRequestOrientationPermission = true
-        bindSensorListeners()
-        return
-      }
-
-      didRequestOrientationPermission = true
-      void Promise.all(requests).then((results) => {
-        if (results.some((result) => result === "granted")) {
-          bindSensorListeners()
-        }
-      })
     }
 
     const canUseFallbackInput = () => Date.now() - lastSensorUpdateAt >= 250
@@ -793,29 +872,23 @@ export default function BinderApp({
       queueState(DEFAULT_SLOT_GLARE_STATE)
     }
 
-    const handleFirstTouchEnd = () => {
-      requestOrientationPermission()
-    }
-
-    const handleClick = () => {
-      requestOrientationPermission()
-    }
-
     window.addEventListener("pointermove", handlePointerMove, true)
     window.addEventListener("pointerleave", handlePointerLeave, true)
     window.addEventListener("touchmove", handleTouchMove, { passive: true, capture: true })
     window.addEventListener("touchend", handleTouchEnd, true)
     window.addEventListener("touchcancel", handleTouchEnd, true)
-    window.addEventListener("touchend", handleFirstTouchEnd, true)
-    window.addEventListener("click", handleClick, true)
 
-    const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined
-    const motionApi = window.DeviceMotionEvent as DeviceMotionWithPermission | undefined
-    if (
-      (!orientationApi || typeof orientationApi.requestPermission !== "function") &&
-      (!motionApi || typeof motionApi.requestPermission !== "function")
-    ) {
+    if (!hasSensorApi) {
+      motionSensorsEnabledRef.current = false
+      setMotionGlintStatus("unsupported")
+      setMotionGlintMessage("Motion sensors are not exposed here. Touch and pointer movement still move the shine.")
+    } else if (needsExplicitPermission && !motionSensorsEnabledRef.current) {
+      setMotionGlintStatus((status) => (status === "denied" ? status : "needs-permission"))
+      setMotionGlintMessage((message) => message ?? "Tap Enable motion glint in settings, then tilt the phone.")
+    } else {
+      motionSensorsEnabledRef.current = true
       bindSensorListeners()
+      setMotionGlintStatus((status) => (status === "active" ? status : "fallback"))
     }
 
     return () => {
@@ -825,18 +898,29 @@ export default function BinderApp({
       window.removeEventListener("touchmove", handleTouchMove, true)
       window.removeEventListener("touchend", handleTouchEnd, true)
       window.removeEventListener("touchcancel", handleTouchEnd, true)
-      window.removeEventListener("touchend", handleFirstTouchEnd, true)
-      window.removeEventListener("click", handleClick, true)
       if (frameId) {
         window.cancelAnimationFrame(frameId)
       }
     }
-  }, [settings.binderSlotGlareEnabled])
+  }, [motionSensorVersion, settings.binderSlotGlareEnabled])
 
+  const glintX = clampGlareValue(50 + slotGlareState.offsetX * 1.15, 6, 94)
+  const glintY = clampGlareValue(50 + slotGlareState.offsetY * 1.35, 6, 94)
   const slotGlareOverlayStyle = useMemo(() => ({
+    "--glint-x": `${glintX}%`,
+    "--glint-y": `${glintY}%`,
+    "--glint-angle": `${slotGlareState.angle}deg`,
+    "--glint-opacity": String(slotGlareState.opacity),
     transform: `translate3d(${slotGlareState.offsetX}px, ${slotGlareState.offsetY}px, 0) rotate(${slotGlareState.angle}deg) scale(1.14)`,
     opacity: slotGlareState.opacity,
-  }), [slotGlareState])
+  }) as CSSProperties, [glintX, glintY, slotGlareState])
+  const cardFinishEffectStyle = useMemo(() => ({
+    "--glint-x": `${glintX}%`,
+    "--glint-y": `${glintY}%`,
+    "--glint-angle": `${slotGlareState.angle}deg`,
+    "--glint-opacity": String(slotGlareState.opacity),
+    transform: `translate3d(${slotGlareState.offsetX * 0.36}px, ${slotGlareState.offsetY * 0.36}px, 0) rotate(${slotGlareState.angle * 0.55}deg) scale(1.08)`,
+  }) as CSSProperties, [glintX, glintY, slotGlareState])
 
   const generationFilteredPokemonList = useMemo(() => {
     let list = pokemonList
@@ -2795,6 +2879,7 @@ export default function BinderApp({
                 showBinderSlotGlare={settings.binderSlotGlareEnabled}
                 showCardFinishEffects={settings.cardFinishEffectsEnabled}
                 binderSlotGlareStyle={slotGlareOverlayStyle}
+                cardFinishEffectStyle={cardFinishEffectStyle}
                 onClick={() => {
                   if (pageNumber !== currentBinderPage) {
                     setCurrentBinderPage(pageNumber)
@@ -3708,6 +3793,9 @@ export default function BinderApp({
         isRefreshingPrices={isRefreshingPrices}
         priceRefreshMessage={priceRefreshMessage}
         onRefreshPrices={handleRefreshPrices}
+        motionGlintStatus={motionGlintStatus}
+        motionGlintMessage={motionGlintMessage}
+        onRequestMotionGlint={handleRequestMotionGlint}
       />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
       <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
@@ -3757,6 +3845,7 @@ function PokemonSlot({
   showBinderSlotGlare,
   showCardFinishEffects,
   binderSlotGlareStyle,
+  cardFinishEffectStyle,
   onClick,
   onLongPress,
   onQuickCollect,
@@ -3780,10 +3869,8 @@ function PokemonSlot({
   readOnly: boolean
   showBinderSlotGlare: boolean
   showCardFinishEffects: boolean
-  binderSlotGlareStyle: {
-    transform: string
-    opacity: number
-  }
+  binderSlotGlareStyle: CSSProperties
+  cardFinishEffectStyle: CSSProperties
   onClick: () => void
   onLongPress: () => void
   onQuickCollect: () => void
@@ -3954,7 +4041,7 @@ function PokemonSlot({
               draggable={false}
             />
             {showCardFinishEffects && finishEffectClass ? (
-              <div className={`pointer-events-none absolute inset-0 ${finishEffectClass}`} style={binderSlotGlareStyle} />
+              <div className={`pointer-events-none absolute inset-0 ${finishEffectClass}`} style={cardFinishEffectStyle} />
             ) : null}
           </div>
         ) : (
