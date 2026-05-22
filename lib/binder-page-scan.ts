@@ -34,6 +34,7 @@ export interface BinderPageScanSlotResult {
   score: number
   confidence: number
   metrics: BinderPageScanSlotMetrics
+  cardImageDataUrl?: string
 }
 
 export interface BinderPageScanResult {
@@ -139,6 +140,9 @@ const MIN_GRID_CONFIDENCE = 4.2
 const PAGE_EDGE_SAMPLE_STEP = 3
 const PAGE_EDGE_THRESHOLD_FLOOR = 52
 const PAGE_EDGE_SEARCH_PADDING = 0.32
+const SLOT_CARD_CROP_INSET = 0.04
+const SLOT_CARD_CROP_WIDTH = 240
+const SLOT_CARD_CROP_HEIGHT = 336
 
 let scanicScannerPromise: Promise<ScanicScanner> | null = null
 
@@ -303,6 +307,9 @@ function classifySlotsForGrid(
       const glareLikeRejected = shouldRejectAsGlareLike(metrics, score)
       const occupied = !glareLikeRejected && isOccupied(metrics, score)
       const confidence = scoreSlotConfidence(metrics, score)
+      const cardImageDataUrl = occupied
+        ? cropSlotCardImageDataUrl(image.canvas, slotX, slotY, slotWidth, slotHeight)
+        : undefined
 
       slots.push({
         index: row * cols + col,
@@ -316,11 +323,17 @@ function classifySlotsForGrid(
         score,
         confidence,
         metrics,
+        cardImageDataUrl,
       })
     }
   }
 
   refineOccupiedSlots(slots)
+  slots.forEach((slot) => {
+    if (!slot.occupied) {
+      slot.cardImageDataUrl = undefined
+    }
+  })
 
   return {
     width: image.width,
@@ -329,6 +342,43 @@ function classifySlotsForGrid(
     slots,
     previewDataUrl: image.canvas.toDataURL("image/jpeg", 0.82),
   }
+}
+
+function cropSlotCardImageDataUrl(
+  sourceCanvas: HTMLCanvasElement,
+  slotX: number,
+  slotY: number,
+  slotWidth: number,
+  slotHeight: number,
+) {
+  const sourceInsetX = slotWidth * SLOT_CARD_CROP_INSET
+  const sourceInsetY = slotHeight * SLOT_CARD_CROP_INSET
+  const sourceX = clamp(slotX + sourceInsetX, 0, sourceCanvas.width - 1)
+  const sourceY = clamp(slotY + sourceInsetY, 0, sourceCanvas.height - 1)
+  const sourceWidth = clamp(slotWidth - sourceInsetX * 2, 1, sourceCanvas.width - sourceX)
+  const sourceHeight = clamp(slotHeight - sourceInsetY * 2, 1, sourceCanvas.height - sourceY)
+  const canvas = document.createElement("canvas")
+  canvas.width = SLOT_CARD_CROP_WIDTH
+  canvas.height = SLOT_CARD_CROP_HEIGHT
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    return undefined
+  }
+
+  context.drawImage(
+    sourceCanvas,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    0,
+    0,
+    SLOT_CARD_CROP_WIDTH,
+    SLOT_CARD_CROP_HEIGHT,
+  )
+
+  return canvas.toDataURL("image/jpeg", 0.86)
 }
 
 function estimateGuidedGridRegion(width: number, height: number, rows: number, cols: number): BinderPageGridRegion {

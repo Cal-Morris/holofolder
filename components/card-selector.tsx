@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
+import { aggregateCardScanMatches, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import { X, Search, Check, Loader2, Camera, Languages, Heart } from "lucide-react"
 
 export type CardSelectorMode = "collect" | "wishlist"
@@ -22,17 +23,7 @@ interface CardSelectorProps {
   mode?: CardSelectorMode
 }
 
-interface CardScanMatch {
-  card: TCGCard
-  similarity: number
-}
-
-interface AggregatedCardMatch {
-  card: TCGCard
-  score: number
-  averageSimilarity: number
-  appearances: number
-}
+type CardScanMatch = CardScanFrameMatch<TCGCard>
 
 const ALL_FILTERS_VALUE = "__all__"
 const CARD_LANGUAGES: Array<{ id: CardLanguage; label: string; shortLabel: string }> = [
@@ -153,44 +144,6 @@ async function captureGuidedCardFrameFile(video: HTMLVideoElement, canvas: HTMLC
     file: await canvasToFile(guidedCanvas, index),
     previewUrl: guidedCanvas.toDataURL("image/jpeg", 0.82),
   }
-}
-
-function aggregateCardScanMatches(frameMatches: CardScanMatch[][]) {
-  const aggregateMap = new Map<string, AggregatedCardMatch>()
-
-  for (const matches of frameMatches) {
-    matches.slice(0, 6).forEach((match, index) => {
-      const entry = aggregateMap.get(match.card.id) ?? {
-        card: match.card,
-        score: 0,
-        averageSimilarity: 0,
-        appearances: 0,
-      }
-
-      const rankWeight = 1.2 - index * 0.12
-      entry.score += Math.max(0.05, rankWeight) * match.similarity
-      entry.averageSimilarity += match.similarity
-      entry.appearances += 1
-      aggregateMap.set(match.card.id, entry)
-    })
-  }
-
-  return [...aggregateMap.values()]
-    .map((entry) => ({
-      card: entry.card,
-      similarity: entry.averageSimilarity / entry.appearances,
-      score: entry.score,
-      appearances: entry.appearances,
-    }))
-    .sort((left, right) => {
-      if (right.appearances !== left.appearances) {
-        return right.appearances - left.appearances
-      }
-      if (right.score !== left.score) {
-        return right.score - left.score
-      }
-      return right.similarity - left.similarity
-    })
 }
 
 function parseCardNumber(value?: string) {
@@ -554,8 +507,11 @@ export default function CardSelector({
       setIsApplyingCardResults(true)
 
       const minimumAppearances = Math.max(2, Math.ceil(successfulFrameMatches.length * 0.45))
-      const aggregatedMatches = aggregateCardScanMatches(successfulFrameMatches)
-        .filter((match) => match.appearances >= minimumAppearances)
+      const aggregatedMatches = aggregateCardScanMatches(successfulFrameMatches, {
+        getCardId: (card) => card.id,
+        minimumAppearances,
+        maxResults: 6,
+      })
         .slice(0, 6)
         .map((match) => ({
           card: match.card,

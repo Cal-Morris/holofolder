@@ -11,10 +11,13 @@ import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
 import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
+import { aggregatePageSlotScanMatches, type CardScanFrameMatch } from "@/lib/card-scan-matching"
+import type { CardImageDescriptor } from "@/lib/card-image-match"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
+import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
 import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
@@ -102,12 +105,25 @@ type PageScanSummary = {
   detectedOccupied: number
   newCollected: number
   alreadyCollected: number
+  matchedCards: number
+  cardMatches: PageScanCardMatchSummary[]
   page: number
 }
 
 type BurstSlotAggregate = {
   occupiedVotes: number
   confidenceSum: number
+}
+
+type PageScanCardMatchSummary = {
+  slotIndex: number
+  slotLabel: string
+  cardId: string
+  cardName: string
+  setName: string
+  cardImage?: string
+  similarity: number
+  confidence: number
 }
 
 type QuickPanelPosition = {
@@ -327,6 +343,10 @@ function getCardFinishEffectClass(finish: CardFinish) {
 
 function getCollectionItemPriceKey(item?: { card_id?: string | null; card_language?: string | null } | null) {
   return item?.card_id ? getCardPriceKey(item.card_id, item.card_language) : null
+}
+
+function getSlotLabel(row: number, col: number) {
+  return `${String.fromCharCode(65 + row)}${col + 1}`
 }
 
 function formatCollectedDate(value?: string | null) {
@@ -651,6 +671,8 @@ export default function BinderApp({
   const hasHydratedPageFromQueryRef = useRef(false)
   const quickPanelRef = useRef<HTMLDivElement | null>(null)
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
+  const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
+  const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
   const isRequestingMotionPermissionRef = useRef(false)
@@ -681,6 +703,7 @@ export default function BinderApp({
     readOnly: readOnlyMode,
     hasRemoteSettings: initialHasStoredSettings,
   })
+  const { fetchCardsForPokemon } = useTCGdex()
 
   const canEditBinder = !readOnlyMode
   const canFilterCollection = readOnlyMode || Boolean(user)
@@ -1340,34 +1363,48 @@ export default function BinderApp({
       : null,
     [selectedTrackedCardItem],
   )
+  const selectedWantedPriceLookups = useMemo<CardPriceLookup[]>(
+    () => (selectedTrackedCardItem?.wanted_cards ?? []).map((card) => ({
+      cardId: card.card_id,
+      language: card.card_language ?? "en",
+    })),
+    [selectedTrackedCardItem],
+  )
+  const shouldLoadCollectionPriceLookups = isPriceMode || collectionViewFilter === "wanted" || activeMainView === "list" || activeMainView === "sets"
   const priceLookupCards = useMemo(
     () => {
       const byKey = new Map<string, CardPriceLookup>()
 
-      if (collectionViewFilter === "wanted") {
+      if (shouldLoadCollectionPriceLookups && collectionViewFilter === "wanted") {
         for (const lookup of ownedPriceLookups) {
           byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
         }
       }
 
-      for (const lookup of trackedPriceLookups) {
-        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
-      }
+      if (shouldLoadCollectionPriceLookups) {
+        for (const lookup of trackedPriceLookups) {
+          byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+        }
 
-      for (const lookup of wantedPriceLookups) {
-        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+        for (const lookup of wantedPriceLookups) {
+          byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+        }
       }
 
       if (selectedTrackedPriceLookup) {
         byKey.set(getCardPriceKey(selectedTrackedPriceLookup.cardId, selectedTrackedPriceLookup.language), selectedTrackedPriceLookup)
       }
 
+      for (const lookup of selectedWantedPriceLookups) {
+        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+      }
+
       return [...byKey.values()]
     },
-    [collectionViewFilter, ownedPriceLookups, selectedTrackedPriceLookup, trackedPriceLookups, wantedPriceLookups],
+    [collectionViewFilter, ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
-  const shouldLoadCardPrices = isPriceMode || collectionViewFilter === "wanted" || activeMainView === "list" || activeMainView === "sets" || Boolean(selectedTrackedPriceLookup)
+  const shouldLoadCardPrices = shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
   const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
   const filteredPriceSummary = useMemo(
     () => sumPriceSnapshots(filteredTrackedCards.map((item) => {
@@ -2125,6 +2162,113 @@ export default function BinderApp({
     pagePhotoInputRef.current?.click()
   }
 
+  const getPageScanCardsForPokemon = useCallback((pokemonId: number) => {
+    const existingPromise = pageScanCardCandidatesCacheRef.current.get(pokemonId)
+    if (existingPromise) return existingPromise
+
+    const cardsPromise = fetchCardsForPokemon(pokemonId, "en").then((cards) => cards.filter((card) => Boolean(card.image)))
+    pageScanCardCandidatesCacheRef.current.set(pokemonId, cardsPromise)
+    return cardsPromise
+  }, [fetchCardsForPokemon])
+
+  const getPageScanDescriptorForCard = useCallback((card: TCGCard) => {
+    if (!card.image) {
+      return Promise.resolve(null)
+    }
+
+    const existingPromise = pageScanCardDescriptorCacheRef.current.get(card.id)
+    if (existingPromise) return existingPromise
+
+    const proxyUrl = card.image.startsWith("/")
+      ? card.image
+      : `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+    const descriptorPromise = import("@/lib/card-image-match")
+      .then(({ buildCardImageDescriptor }) => buildCardImageDescriptor(proxyUrl))
+      .catch(() => null)
+
+    pageScanCardDescriptorCacheRef.current.set(card.id, descriptorPromise)
+    return descriptorPromise
+  }, [])
+
+  const scorePageScanSlotCard = useCallback(async (
+    cardImageDataUrl: string,
+    pokemon: { id: number; name: string },
+  ): Promise<CardScanFrameMatch<TCGCard>[]> => {
+    const candidates = await getPageScanCardsForPokemon(pokemon.id)
+    if (candidates.length === 0) return []
+
+    const { buildCardImageDescriptor, compareCardImageDescriptors } = await import("@/lib/card-image-match")
+    const queryDescriptor = await buildCardImageDescriptor(cardImageDataUrl)
+    const matches = await Promise.all(
+      candidates.map(async (card) => {
+        const descriptor = await getPageScanDescriptorForCard(card)
+        if (!descriptor) return null
+
+        const match = compareCardImageDescriptors(queryDescriptor, descriptor)
+        return {
+          card,
+          similarity: match.similarity,
+        }
+      }),
+    )
+
+    return matches
+      .filter((match): match is CardScanFrameMatch<TCGCard> => Boolean(match))
+      .sort((left, right) => right.similarity - left.similarity)
+      .slice(0, 6)
+  }, [getPageScanCardsForPokemon, getPageScanDescriptorForCard])
+
+  const matchPageScanCards = useCallback(async (
+    results: BinderPageScanResult[],
+  ): Promise<PageScanCardMatchSummary[]> => {
+    const slotFrames = new Map<number, CardScanFrameMatch<TCGCard>[][]>()
+
+    for (const result of results) {
+      await Promise.all(
+        result.slots.map(async (slot) => {
+          const pokemon = currentPageSlots[slot.index]
+          if (!slot.occupied || !slot.cardImageDataUrl || !pokemon) return
+
+          try {
+            const matches = await scorePageScanSlotCard(slot.cardImageDataUrl, pokemon)
+            if (matches.length === 0) return
+
+            const frameMatches = slotFrames.get(slot.index) ?? []
+            frameMatches.push(matches)
+            slotFrames.set(slot.index, frameMatches)
+          } catch (error) {
+            console.info("[binderdex] Skipping page slot card match:", error)
+          }
+        }),
+      )
+    }
+
+    const aggregatedSlots = aggregatePageSlotScanMatches(
+      [...slotFrames.entries()].map(([slotIndex, frameMatches]) => ({ slotIndex, frameMatches })),
+      {
+        getCardId: (card) => card.id,
+        minimumAppearances: results.length > 1 ? Math.max(1, Math.ceil(results.length * 0.34)) : 1,
+        maxResultsPerSlot: 1,
+      },
+    )
+
+    return aggregatedSlots.flatMap((slot) => {
+      const match = slot.matches[0]
+      if (!match) return []
+
+      return [{
+        slotIndex: slot.slotIndex,
+        slotLabel: getSlotLabel(Math.floor(slot.slotIndex / settings.binderCols), slot.slotIndex % settings.binderCols),
+        cardId: match.card.id,
+        cardName: match.card.name,
+        setName: match.card.set.name,
+        cardImage: match.card.image,
+        similarity: match.similarity,
+        confidence: match.confidence,
+      }]
+    })
+  }, [currentPageSlots, scorePageScanSlotCard, settings.binderCols])
+
   const handlePagePhotoSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ""
@@ -2148,14 +2292,20 @@ export default function BinderApp({
 
     try {
       const result = await scanBinderPageImage(file, settings.binderRows, settings.binderCols)
-      const mappedOccupiedPokemon = result.slots
+      const cardMatches = await matchPageScanCards([result])
+      const matchedCardsBySlotIndex = new Map(
+        cardMatches
+          .filter((match) => match.confidence >= 0.62 && match.similarity >= 0.58)
+          .map((match) => [match.slotIndex, match]),
+      )
+      const mappedOccupiedSlots = result.slots
         .filter((slot) => slot.occupied)
-        .map((slot) => currentPageSlots[slot.index])
-        .filter((pokemon): pokemon is { id: number; name: string } => Boolean(pokemon))
+        .map((slot) => ({ slotIndex: slot.index, pokemon: currentPageSlots[slot.index] }))
+        .filter((slot): slot is { slotIndex: number; pokemon: { id: number; name: string } } => Boolean(slot.pokemon))
 
       let alreadyCollected = 0
-      const pokemonToCollect = mappedOccupiedPokemon
-        .filter((pokemon) => {
+      const slotsToCollect = mappedOccupiedSlots
+        .filter(({ pokemon }) => {
           if (isCollected(pokemon.id)) {
             alreadyCollected += 1
             return false
@@ -2165,14 +2315,27 @@ export default function BinderApp({
         })
 
       const collectResults = await Promise.all(
-        pokemonToCollect.map((pokemon) => addToCollection(pokemon.id, pokemon.name))
+        slotsToCollect.map(({ pokemon, slotIndex }) => {
+          const cardMatch = matchedCardsBySlotIndex.get(slotIndex)
+
+          return addToCollection(
+            pokemon.id,
+            pokemon.name,
+            cardMatch?.cardId,
+            cardMatch?.cardName,
+            cardMatch?.cardImage,
+            cardMatch?.setName,
+          )
+        })
       )
       const newCollected = collectResults.filter((result) => !result?.error).length
 
       setPageScanSummary({
-        detectedOccupied: mappedOccupiedPokemon.length,
+        detectedOccupied: mappedOccupiedSlots.length,
         newCollected,
         alreadyCollected,
+        matchedCards: cardMatches.length,
+        cardMatches,
         page: currentBinderPage,
       })
     } catch (error) {
@@ -2186,6 +2349,7 @@ export default function BinderApp({
     currentBinderPage,
     currentPageSlots,
     isCollected,
+    matchPageScanCards,
     settings.binderCols,
     settings.binderRows,
     isFilteredBinderLayout,
@@ -2312,14 +2476,20 @@ export default function BinderApp({
       setIsApplyingScanResults(true)
       const requiredVotes = Math.max(2, Math.ceil(successfulResults.length * GUIDED_SCAN_SLOT_VOTE_RATIO))
       const aggregatedSlots = aggregateBurstResults(successfulResults, requiredVotes)
-      const mappedOccupiedPokemon = aggregatedSlots
-        .map((slot, index) => (slot.occupied ? currentPageSlots[index] : null))
-        .filter((pokemon): pokemon is { id: number; name: string } => Boolean(pokemon))
+      const cardMatches = await matchPageScanCards(successfulResults)
+      const matchedCardsBySlotIndex = new Map(
+        cardMatches
+          .filter((match) => match.confidence >= 0.62 && match.similarity >= 0.58)
+          .map((match) => [match.slotIndex, match]),
+      )
+      const mappedOccupiedSlots = aggregatedSlots
+        .map((slot, index) => slot.occupied ? { slotIndex: index, pokemon: currentPageSlots[index] } : null)
+        .filter((slot): slot is { slotIndex: number; pokemon: { id: number; name: string } } => Boolean(slot?.pokemon))
 
       closeBurstScanner()
 
       let alreadyCollected = 0
-      const pokemonToCollect = mappedOccupiedPokemon.filter((pokemon) => {
+      const slotsToCollect = mappedOccupiedSlots.filter(({ pokemon }) => {
         if (isCollected(pokemon.id)) {
           alreadyCollected += 1
           return false
@@ -2329,14 +2499,27 @@ export default function BinderApp({
       })
 
       const collectResults = await Promise.all(
-        pokemonToCollect.map((pokemon) => addToCollection(pokemon.id, pokemon.name))
+        slotsToCollect.map(({ pokemon, slotIndex }) => {
+          const cardMatch = matchedCardsBySlotIndex.get(slotIndex)
+
+          return addToCollection(
+            pokemon.id,
+            pokemon.name,
+            cardMatch?.cardId,
+            cardMatch?.cardName,
+            cardMatch?.cardImage,
+            cardMatch?.setName,
+          )
+        })
       )
       const newCollected = collectResults.filter((result) => !result?.error).length
 
       setPageScanSummary({
-        detectedOccupied: mappedOccupiedPokemon.length,
+        detectedOccupied: mappedOccupiedSlots.length,
         newCollected,
         alreadyCollected,
+        matchedCards: cardMatches.length,
+        cardMatches,
         page: currentBinderPage,
       })
     } catch (error) {
@@ -2357,6 +2540,7 @@ export default function BinderApp({
     isCameraReady,
     isCapturingBurst,
     isCollected,
+    matchPageScanCards,
     settings.binderRows,
     readOnlyMode,
     settings.binderCols,
@@ -2614,6 +2798,29 @@ export default function BinderApp({
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
   const selectedCardPriceLabel = selectedCardPriceKey ? formatPriceLabel(pricesByCardId[selectedCardPriceKey]) : null
+  const selectedWantedCards = collectionItem?.wanted_cards ?? []
+  const selectedWantedPriceLabel = (() => {
+    if (selectedWantedCards.length === 0) {
+      return null
+    }
+
+    if (selectedWantedCards.length === 1) {
+      const [card] = selectedWantedCards
+      return formatPriceLabel(pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")])
+    }
+
+    const selectedWantedPriceSummary = sumPriceSnapshots(
+      selectedWantedCards.map((card) => pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")]),
+    )
+    return formatPriceTotals(selectedWantedPriceSummary.gbpTotal, selectedWantedPriceSummary.originalTotals) || null
+  })()
+  const selectedWantedPriceChipLabel = selectedWantedCards.length > 0
+    ? selectedWantedPriceLabel ?? (isLoadingPrices ? "Loading price..." : "No price yet")
+    : null
+  const selectedAssignedPriceChipLabel = selectedCardPriceLabel ?? (isLoadingPrices && collectionItem?.card_id ? "Loading price..." : null)
+  const selectedDetailPriceLabel = wishlisted
+    ? selectedWantedPriceChipLabel ?? selectedAssignedPriceChipLabel
+    : selectedAssignedPriceChipLabel
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
 
   const registerSlotButtonRef = useCallback((pokemonId: number, node: HTMLButtonElement | null) => {
@@ -2750,8 +2957,7 @@ export default function BinderApp({
       collectionItem?.card_id ? { key: "language", label: formatCardLanguageLabel(collectionItem.card_language) } : null,
       collectionItem?.card_id ? { key: "finish", label: formatCardFinishLabel(collectionItem.card_finish) } : null,
       collectionItem?.wanted_cards?.length ? { key: "wanted", label: `${collectionItem.wanted_cards.length} wanted` } : null,
-      selectedCardPriceLabel ? { key: "price", label: isLoadingPrices ? "Loading price..." : selectedCardPriceLabel } : null,
-      !selectedCardPriceLabel && isLoadingPrices && collectionItem?.card_id ? { key: "price-loading", label: "Loading price..." } : null,
+      selectedDetailPriceLabel ? { key: "price", label: selectedDetailPriceLabel } : null,
       selectedCollectedDateLabel ? { key: "collected", label: `Collected ${selectedCollectedDateLabel}` } : null,
     ].filter((value): value is { key: string; label: string } => Boolean(value))
 
@@ -3797,15 +4003,27 @@ export default function BinderApp({
                 {pageScanError ? (
                   <p>{pageScanError}</p>
                 ) : pageScanSummary ? (
-                  <p>
-                    Page {pageScanSummary.page}: detected {pageScanSummary.detectedOccupied} occupied slot{pageScanSummary.detectedOccupied === 1 ? "" : "s"}, added {pageScanSummary.newCollected} new card{pageScanSummary.newCollected === 1 ? "" : "s"}
-                    {pageScanSummary.alreadyCollected > 0 ? `, ${pageScanSummary.alreadyCollected} already collected` : ""}.
-                  </p>
+                  <div className="space-y-1">
+                    <p>
+                      Page {pageScanSummary.page}: detected {pageScanSummary.detectedOccupied} occupied slot{pageScanSummary.detectedOccupied === 1 ? "" : "s"}, added {pageScanSummary.newCollected} new card{pageScanSummary.newCollected === 1 ? "" : "s"}
+                      {pageScanSummary.alreadyCollected > 0 ? `, ${pageScanSummary.alreadyCollected} already collected` : ""}
+                      {pageScanSummary.matchedCards > 0 ? `, matched ${pageScanSummary.matchedCards} card${pageScanSummary.matchedCards === 1 ? "" : "s"}` : ""}.
+                    </p>
+                    {pageScanSummary.cardMatches.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {pageScanSummary.cardMatches.slice(0, 4).map((match) => (
+                          <span key={`${match.slotLabel}-${match.cardName}-${match.setName}`} className="rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[11px] text-foreground dark:border-border/50 dark:bg-background/40">
+                            {match.slotLabel} {match.cardName} · {Math.round(match.confidence * 100)}%
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <p>Scanning is disabled while a card-status filter is on, because those pages no longer match your binder layout.</p>
                 )}
                 <p className="mt-1 text-[11px] text-muted-foreground/80">
-                  The scanner checks slot occupancy from the page photo. Fill the frame with one page and keep the pockets sharp.
+                  The scanner checks slot occupancy and compares occupied pockets against the closest cards for each slot. Fill the frame with one page and keep the pockets sharp.
                 </p>
               </div>
             )}
