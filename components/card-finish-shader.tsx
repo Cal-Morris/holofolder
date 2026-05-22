@@ -6,6 +6,8 @@ import type { CardFinish } from "@/hooks/use-collection"
 const TARGET_FRAME_MS = 1000 / 30
 const REDUCED_MOTION_FRAME_MS = 1000 / 12
 const MAX_SHADER_PIXEL_RATIO = 1.35
+const MAX_ACTIVE_WEBGL_SHADERS = 10
+let activeWebGlShaderCount = 0
 
 const VERTEX_SHADER_SOURCE = `
 attribute vec2 a_position;
@@ -257,6 +259,22 @@ function getFinishUniformValue(finish: CardFinish) {
   return 1
 }
 
+function shouldUseCssFinishFallback() {
+  if (typeof window === "undefined") return true
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true
+
+  const navigatorWithMemory = window.navigator as Navigator & {
+    deviceMemory?: number
+    connection?: { saveData?: boolean }
+  }
+
+  if (navigatorWithMemory.connection?.saveData) return true
+  if (typeof navigatorWithMemory.deviceMemory === "number" && navigatorWithMemory.deviceMemory <= 4) return true
+  if (window.navigator.hardwareConcurrency && window.navigator.hardwareConcurrency <= 4) return true
+
+  return false
+}
+
 interface CardFinishShaderProps {
   finish: CardFinish
   glintX: number
@@ -343,6 +361,10 @@ export default function CardFinishShader({
 
   useEffect(() => {
     if (!isActive) return
+    if (shouldUseCssFinishFallback() || activeWebGlShaderCount >= MAX_ACTIVE_WEBGL_SHADERS) {
+      setHasWebGl(false)
+      return
+    }
 
     const canvas = canvasRef.current
     if (!canvas) return
@@ -372,6 +394,8 @@ export default function CardFinishShader({
       setHasWebGl(false)
       return
     }
+
+    activeWebGlShaderCount += 1
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
     gl.bufferData(
@@ -442,6 +466,7 @@ export default function CardFinishShader({
       window.cancelAnimationFrame(frameId)
       gl.deleteBuffer(positionBuffer)
       gl.deleteProgram(program)
+      activeWebGlShaderCount = Math.max(0, activeWebGlShaderCount - 1)
     }
   }, [isActive])
 

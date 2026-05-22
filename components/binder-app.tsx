@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent } from "react"
 import { createPortal } from "react-dom"
 import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, ChevronsLeft, ChevronsRight, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3 } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
@@ -158,6 +158,17 @@ function getPokemonArtwork(pokemon: PokemonSummary) {
 
 function getDisplayArtwork(pokemon: PokemonSummary, cardImage?: string | null) {
   return cardImage || getPokemonArtwork(pokemon)
+}
+
+function getPokemonOfficialArtworkUrl(pokemonId: number) {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`
+}
+
+function getUsableImageSource(value?: string | null) {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return null
+  return trimmed
 }
 
 function getDisplayArtworkFit(cardImage?: string | null) {
@@ -4450,7 +4461,11 @@ function PokemonSlot({
     }
   }
 
-  const previewImage = cardImage || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon.id}.png`
+  const cardImageSource = getUsableImageSource(cardImage)
+  const fallbackPreviewImage = getPokemonOfficialArtworkUrl(pokemon.id)
+  const previewImage = cardImageSource || fallbackPreviewImage
+  const [previewImageSrc, setPreviewImageSrc] = useState(previewImage)
+  const [didFallbackPreviewImage, setDidFallbackPreviewImage] = useState(false)
   const previewFitClass = "object-contain"
   const previewToneClass = isCollected
     ? ""
@@ -4461,7 +4476,7 @@ function PokemonSlot({
   const subtitleLabel = isWishlisted && cardName
     ? `Wanted for #${String(pokemon.id).padStart(4, "0")}`
     : `#${String(pokemon.id).padStart(4, "0")}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
-  const hasCardPreview = Boolean(cardImage)
+  const hasCardPreview = Boolean(cardImageSource)
   const statusChip = isWishlisted
     ? {
         label: isCollected ? "Want" : "Wanted",
@@ -4502,8 +4517,27 @@ function PokemonSlot({
     "--slot-mobile-sheen-opacity": String(0.2 + slotCardFinishGlint.intensity * 0.05),
   } as CSSProperties
   const finishEffectClass = getCardFinishEffectClass(effectiveCardFinish)
-  const shouldShowCardFinish = Boolean(hasCardPreview && showCardFinishEffects)
+  const shouldShowCardFinish = Boolean(
+    hasCardPreview &&
+    !didFallbackPreviewImage &&
+    showCardFinishEffects &&
+    effectiveCardFinish !== "normal"
+  )
   const shouldShowPocketGlare = showBinderSlotGlare && !shouldShowCardFinish
+  const handlePreviewImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    if (previewImageSrc !== fallbackPreviewImage) {
+      setPreviewImageSrc(fallbackPreviewImage)
+      setDidFallbackPreviewImage(true)
+      return
+    }
+
+    event.currentTarget.style.visibility = "hidden"
+  }
+
+  useEffect(() => {
+    setPreviewImageSrc(previewImage)
+    setDidFallbackPreviewImage(false)
+  }, [previewImage])
 
   return (
     <div className="relative">
@@ -4580,13 +4614,14 @@ function PokemonSlot({
             }}
           >
             <img
-              src={previewImage}
+              src={previewImageSrc}
               alt={cardName || pokemon.name}
-              className={`h-full w-full object-contain ${previewToneClass} transition-transform duration-150 group-hover:scale-[1.015]`}
+              className={`h-full w-full object-contain ${previewToneClass} ${didFallbackPreviewImage ? "p-3 opacity-85" : ""} transition-transform duration-150 group-hover:scale-[1.015]`}
               loading={priority ? "eager" : "lazy"}
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
               draggable={false}
+              onError={handlePreviewImageError}
             />
             {shouldShowCardFinish ? (
               <CardFinishShader
@@ -4613,13 +4648,14 @@ function PokemonSlot({
             }}
           >
             <img
-              src={previewImage}
+              src={previewImageSrc}
               alt={cardName || pokemon.name}
               className={`h-full w-full ${previewFitClass} ${previewToneClass} group-hover:scale-[1.025] transition-transform duration-150`}
               loading={priority ? "eager" : "lazy"}
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
               draggable={false}
+              onError={handlePreviewImageError}
             />
           </div>
         )}
