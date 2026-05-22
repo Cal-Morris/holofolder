@@ -6,7 +6,21 @@ export const runtime = "nodejs"
 
 const VALID_STATUSES = new Set(["collected", "finalized", "considering", "wishlisted"])
 const VALID_CARD_LANGUAGES = new Set(["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"])
-const VALID_CARD_FINISHES = new Set(["normal", "holo", "reverse_holo", "illustration_rare", "special_illustration_rare", "secret_rare", "hyper_rare"])
+const VALID_CARD_FINISHES = new Set([
+  "normal",
+  "holo",
+  "reverse_holo",
+  "double_rare",
+  "ultra_rare",
+  "illustration_rare",
+  "special_illustration_rare",
+  "secret_rare",
+  "hyper_rare",
+  "radiant_rare",
+  "ace_spec",
+  "amazing_rare",
+  "shiny_rare",
+])
 
 function normalizeCardLanguage(value: unknown) {
   if (typeof value !== "string") return "en"

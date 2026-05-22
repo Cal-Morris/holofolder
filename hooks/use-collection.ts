@@ -7,7 +7,20 @@ import type { User } from "@supabase/supabase-js"
 
 export type SlotStatus = 'collected' | 'finalized' | 'considering' | 'wishlisted'
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
-export type CardFinish = "normal" | "holo" | "reverse_holo" | "illustration_rare" | "special_illustration_rare" | "secret_rare" | "hyper_rare"
+export type CardFinish =
+  | "normal"
+  | "holo"
+  | "reverse_holo"
+  | "double_rare"
+  | "ultra_rare"
+  | "illustration_rare"
+  | "special_illustration_rare"
+  | "secret_rare"
+  | "hyper_rare"
+  | "radiant_rare"
+  | "ace_spec"
+  | "amazing_rare"
+  | "shiny_rare"
 
 export interface WantedCard {
   card_id: string
@@ -99,10 +112,16 @@ function normalizeCardFinish(value: unknown): CardFinish {
   return value === "normal" ||
     value === "holo" ||
     value === "reverse_holo" ||
+    value === "double_rare" ||
+    value === "ultra_rare" ||
     value === "illustration_rare" ||
     value === "special_illustration_rare" ||
     value === "secret_rare" ||
-    value === "hyper_rare"
+    value === "hyper_rare" ||
+    value === "radiant_rare" ||
+    value === "ace_spec" ||
+    value === "amazing_rare" ||
+    value === "shiny_rare"
       ? value
       : "normal"
 }

@@ -53,10 +53,16 @@ const CARD_FINISHES: Array<{ id: CardFinish; label: string }> = [
   { id: "normal", label: "Normal" },
   { id: "holo", label: "Holo" },
   { id: "reverse_holo", label: "Reverse" },
+  { id: "double_rare", label: "Double" },
+  { id: "ultra_rare", label: "Ultra" },
   { id: "illustration_rare", label: "IR" },
   { id: "special_illustration_rare", label: "SIR" },
   { id: "secret_rare", label: "Secret" },
   { id: "hyper_rare", label: "Hyper" },
+  { id: "radiant_rare", label: "Radiant" },
+  { id: "ace_spec", label: "ACE" },
+  { id: "amazing_rare", label: "Amazing" },
+  { id: "shiny_rare", label: "Shiny" },
 ]
 
 function delay(ms: number) {
@@ -198,9 +204,15 @@ function inferCardFinish(card: TCGCard): CardFinish {
   const localNumber = parseCardNumber(card.localId)
   const officialCount = card.set.officialCardCount
 
+  if (rarity.includes("ace spec")) return "ace_spec"
+  if (rarity.includes("amazing")) return "amazing_rare"
+  if (rarity.includes("radiant")) return "radiant_rare"
+  if (rarity.includes("shiny")) return "shiny_rare"
   if (rarity.includes("special illustration")) return "special_illustration_rare"
   if (rarity.includes("illustration")) return "illustration_rare"
   if (rarity.includes("hyper")) return "hyper_rare"
+  if (rarity.includes("ultra")) return "ultra_rare"
+  if (rarity.includes("double")) return "double_rare"
   if ((localNumber != null && officialCount != null && localNumber > officialCount) || rarity.includes("secret")) return "secret_rare"
   if (card.variants?.holo) return "holo"
   if (card.variants?.reverse) return "reverse_holo"

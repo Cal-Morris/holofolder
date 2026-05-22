@@ -241,9 +241,15 @@
   .card-finish-normal,
   .card-finish-holo,
   .card-finish-reverse-holo,
+  .card-finish-double,
+  .card-finish-ultra,
   .card-finish-ir,
   .card-finish-sir,
-  .card-finish-secret {
+  .card-finish-secret,
+  .card-finish-radiant,
+  .card-finish-ace,
+  .card-finish-amazing,
+  .card-finish-shiny {
     border-radius: inherit;
     overflow: hidden;
     mix-blend-mode: normal;
@@ -256,9 +262,15 @@
   .card-finish-normal::after,
   .card-finish-holo::after,
   .card-finish-reverse-holo::after,
+  .card-finish-double::after,
+  .card-finish-ultra::after,
   .card-finish-ir::after,
   .card-finish-sir::after,
-  .card-finish-secret::after {
+  .card-finish-secret::after,
+  .card-finish-radiant::after,
+  .card-finish-ace::after,
+  .card-finish-amazing::after,
+  .card-finish-shiny::after {
     content: "";
     position: absolute;
     inset: -35%;
@@ -300,6 +312,24 @@
     animation: holographic-foil 7s ease-in-out infinite reverse;
   }
 
+  .card-finish-double {
+    --finish-opacity: 0.66;
+    background:
+      radial-gradient(circle at var(--glint-x, 42%) var(--glint-y, 34%), rgba(255,255,255,0.34), rgba(125,211,252,0.16) 22%, transparent 48%),
+      repeating-linear-gradient(30deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 12px),
+      linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.18) 22%, transparent 50%);
+    animation: holographic-foil 5.8s ease-in-out infinite;
+  }
+
+  .card-finish-ultra {
+    --finish-opacity: 0.76;
+    background:
+      radial-gradient(circle at var(--glint-x, 52%) var(--glint-y, 30%), rgba(255,255,255,0.36), rgba(203,213,225,0.2) 20%, transparent 48%),
+      repeating-linear-gradient(118deg, rgba(255,255,255,0.13) 0 1px, rgba(125,211,252,0.08) 1px 3px, transparent 3px 8px),
+      linear-gradient(128deg, transparent 0%, rgba(255,255,255,0.16) 20%, transparent 58%);
+    animation: holographic-foil 5.1s ease-in-out infinite;
+  }
+
   .card-finish-ir {
     --finish-opacity: 0.72;
     background:
@@ -330,15 +360,57 @@
     animation: holographic-foil 4.25s ease-in-out infinite;
   }
 
+  .card-finish-radiant {
+    --finish-opacity: 0.8;
+    background:
+      radial-gradient(circle at var(--glint-x, 44%) var(--glint-y, 32%), rgba(255,255,255,0.42), rgba(56,189,248,0.2) 18%, transparent 46%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(135deg, rgba(244,114,182,0.12) 0 1px, transparent 1px 9px);
+    animation: holographic-foil 4.7s ease-in-out infinite;
+  }
+
+  .card-finish-ace {
+    --finish-opacity: 0.78;
+    background:
+      radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 32%), rgba(255,255,255,0.38), rgba(236,72,153,0.24) 20%, transparent 50%),
+      linear-gradient(112deg, transparent 0%, rgba(236,72,153,0.28) 24%, rgba(255,255,255,0.18) 36%, transparent 62%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 8px);
+    animation: holographic-foil 4.6s ease-in-out infinite;
+  }
+
+  .card-finish-amazing {
+    --finish-opacity: 0.82;
+    background:
+      radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 42%), rgba(255,255,255,0.38), rgba(251,191,36,0.2) 18%, rgba(56,189,248,0.16) 34%, transparent 58%),
+      conic-gradient(from 90deg at 50% 50%, rgba(244,114,182,0.2), rgba(251,191,36,0.2), rgba(134,239,172,0.18), rgba(56,189,248,0.2), rgba(244,114,182,0.2)),
+      repeating-linear-gradient(128deg, rgba(255,255,255,0.1) 0 1px, transparent 1px 7px);
+    animation: holographic-foil 4.4s ease-in-out infinite;
+  }
+
+  .card-finish-shiny {
+    --finish-opacity: 0.76;
+    background:
+      radial-gradient(circle at var(--glint-x, 46%) var(--glint-y, 34%), rgba(255,255,255,0.44), rgba(191,219,254,0.18) 20%, transparent 48%),
+      repeating-linear-gradient(35deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 10px),
+      linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 26%, transparent 54%);
+    animation: holographic-foil 5.2s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-slot-glare-sweep,
     .animate-holographic-foil,
     .card-finish-normal,
     .card-finish-holo,
     .card-finish-reverse-holo,
+    .card-finish-double,
+    .card-finish-ultra,
     .card-finish-ir,
     .card-finish-sir,
-    .card-finish-secret {
+    .card-finish-secret,
+    .card-finish-radiant,
+    .card-finish-ace,
+    .card-finish-amazing,
+    .card-finish-shiny {
       animation: none;
     }
   }

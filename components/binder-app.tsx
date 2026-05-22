@@ -174,6 +174,27 @@ function getCardPreviewPose(seed: number) {
   return `translate(${translateX.toFixed(2)}%, ${translateY.toFixed(2)}%) rotate(${rotate.toFixed(2)}deg) skewX(${skewX.toFixed(2)}deg) scale(${scale.toFixed(3)})`
 }
 
+function hashSlotValue(seed: number, salt: number) {
+  const value = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453
+  return value - Math.floor(value)
+}
+
+function getSlotFinishGlint(baseGlint: { x: number; y: number; angle: number }, seed: number) {
+  const xOffset = hashSlotValue(seed, 1) * 0.14 - 0.07
+  const yOffset = hashSlotValue(seed, 2) * 0.12 - 0.06
+  const angleOffset = hashSlotValue(seed, 3) * 18 - 9
+  const phase = hashSlotValue(seed, 4) * 3.6
+  const patternSeed = seed * 0.017 + hashSlotValue(seed, 5) * 11
+
+  return {
+    x: clampGlareValue(baseGlint.x + xOffset, 0.04, 0.96),
+    y: clampGlareValue(baseGlint.y + yOffset, 0.04, 0.96),
+    angle: baseGlint.angle + angleOffset,
+    phase,
+    patternSeed,
+  }
+}
+
 function formatCurrencyAmount(amount: number, currency: SupportedCurrency) {
   return new Intl.NumberFormat(currency === "GBP" ? "en-GB" : "en-US", {
     style: "currency",
@@ -211,10 +232,16 @@ const CARD_FINISH_LABELS: Record<CardFinish, string> = {
   normal: "Normal",
   holo: "Holo",
   reverse_holo: "Reverse holo",
+  double_rare: "Double rare",
+  ultra_rare: "Ultra rare",
   illustration_rare: "IR",
   special_illustration_rare: "SIR",
   secret_rare: "Secret",
   hyper_rare: "Hyper",
+  radiant_rare: "Radiant",
+  ace_spec: "ACE SPEC",
+  amazing_rare: "Amazing",
+  shiny_rare: "Shiny",
 }
 
 function formatCardLanguageLabel(language?: string | null) {
@@ -223,6 +250,37 @@ function formatCardLanguageLabel(language?: string | null) {
 
 function formatCardFinishLabel(finish?: string | null) {
   return CARD_FINISH_LABELS[(finish || "normal") as CardFinish] ?? CARD_FINISH_LABELS.normal
+}
+
+function getCardFinishEffectClass(finish: CardFinish) {
+  switch (finish) {
+    case "holo":
+      return "card-finish-holo"
+    case "reverse_holo":
+      return "card-finish-reverse-holo"
+    case "double_rare":
+      return "card-finish-double"
+    case "ultra_rare":
+      return "card-finish-ultra"
+    case "illustration_rare":
+      return "card-finish-ir"
+    case "special_illustration_rare":
+      return "card-finish-sir"
+    case "secret_rare":
+    case "hyper_rare":
+      return "card-finish-secret"
+    case "radiant_rare":
+      return "card-finish-radiant"
+    case "ace_spec":
+      return "card-finish-ace"
+    case "amazing_rare":
+      return "card-finish-amazing"
+    case "shiny_rare":
+      return "card-finish-shiny"
+    case "normal":
+    default:
+      return "card-finish-normal"
+  }
 }
 
 function getCollectionItemPriceKey(item?: { card_id?: string | null; card_language?: string | null } | null) {
@@ -3957,18 +4015,14 @@ function PokemonSlot({
   const slotRadiusStyle = { borderRadius: TRADING_CARD_CORNER_RADIUS }
   const previewRadiusStyle = { borderRadius: TRADING_CARD_INNER_CORNER_RADIUS }
   const effectiveCardFinish = cardFinish ?? "normal"
-  const finishEffectClass =
-    effectiveCardFinish === "reverse_holo"
-      ? "card-finish-reverse-holo"
-      : effectiveCardFinish === "illustration_rare"
-        ? "card-finish-ir"
-        : effectiveCardFinish === "special_illustration_rare"
-          ? "card-finish-sir"
-          : effectiveCardFinish === "secret_rare" || effectiveCardFinish === "hyper_rare"
-            ? "card-finish-secret"
-            : effectiveCardFinish === "holo"
-              ? "card-finish-holo"
-              : "card-finish-normal"
+  const slotCardFinishGlint = getSlotFinishGlint(cardFinishGlint, pokemon.id)
+  const slotCardFinishEffectStyle = {
+    ...cardFinishEffectStyle,
+    "--glint-x": `${slotCardFinishGlint.x * 100}%`,
+    "--glint-y": `${slotCardFinishGlint.y * 100}%`,
+    "--glint-angle": `${slotCardFinishGlint.angle}deg`,
+  } as CSSProperties
+  const finishEffectClass = getCardFinishEffectClass(effectiveCardFinish)
   const shouldShowCardFinish = Boolean(hasCardPreview && showCardFinishEffects)
   const shouldShowPocketGlare = showBinderSlotGlare && !shouldShowCardFinish
 
@@ -4058,11 +4112,13 @@ function PokemonSlot({
             {shouldShowCardFinish ? (
               <CardFinishShader
                 finish={effectiveCardFinish}
-                glintX={cardFinishGlint.x}
-                glintY={cardFinishGlint.y}
-                glintAngle={cardFinishGlint.angle}
+                glintX={slotCardFinishGlint.x}
+                glintY={slotCardFinishGlint.y}
+                glintAngle={slotCardFinishGlint.angle}
+                glintPhase={slotCardFinishGlint.phase}
+                patternSeed={slotCardFinishGlint.patternSeed}
                 fallbackClassName={finishEffectClass}
-                fallbackStyle={cardFinishEffectStyle}
+                fallbackStyle={slotCardFinishEffectStyle}
               />
             ) : null}
           </div>
