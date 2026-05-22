@@ -6,15 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
-import { X, Search, Check, Loader2, Camera, Languages } from "lucide-react"
+import { X, Search, Check, Loader2, Camera, Languages, Heart } from "lucide-react"
+
+export type CardSelectorMode = "collect" | "wishlist"
 
 interface CardSelectorProps {
   pokemonId: number
   pokemonName: string
-  onSelect: (card: TCGCard | null) => void
+  onSelect: (card: TCGCard | null, mode: CardSelectorMode) => void
   onClose: () => void
   selectedCardId?: string
-  mode?: "collect" | "wishlist"
+  mode?: CardSelectorMode
 }
 
 interface CardScanMatch {
@@ -185,6 +187,7 @@ export default function CardSelector({
   const [cards, setCards] = useState<TCGCard[]>([])
   const [filters, setFilters] = useState<CardFilters>({})
   const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>("en")
+  const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode)
   const [isScanningCard, setIsScanningCard] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null)
@@ -201,12 +204,55 @@ export default function CardSelector({
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const cardVideoRef = useRef<HTMLVideoElement | null>(null)
   const cardCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const isWishlistMode = mode === "wishlist"
+  const isWishlistMode = selectionMode === "wishlist"
   const selectedLanguageLabel = CARD_LANGUAGES.find((language) => language.id === selectedCardLanguage)?.label ?? "English"
+  const intentCopy = isWishlistMode
+    ? {
+        title: `Choose wanted card for ${pokemonName}`,
+        label: "Wanted",
+        shortLabel: "Want",
+        actionLabel: "Track as wanted",
+        scanLabel: "Scan wanted",
+        emptyActionLabel: "Clear wanted card",
+        helper: "Selecting a card keeps this slot open and tracks the printing you want to find.",
+        searchPlaceholder: "Search wanted card, number, set...",
+        currentLabel: "Current wanted",
+        activeClass: "border-amber-400/60 bg-amber-400/15 text-amber-700 shadow-[0_10px_24px_-18px_rgba(251,191,36,0.85)] dark:text-amber-300",
+        accentClass: "border-amber-400/40 bg-amber-400/12 text-amber-700 dark:text-amber-300",
+      }
+    : {
+        title: `Choose owned card for ${pokemonName}`,
+        label: "Owned",
+        shortLabel: "Own",
+        actionLabel: "Save as owned",
+        scanLabel: "Scan owned",
+        emptyActionLabel: "Mark owned without card",
+        helper: "Selecting a card marks the slot collected and attaches this printing to your binder.",
+        searchPlaceholder: "Search owned card, number, set...",
+        currentLabel: "Current owned",
+        activeClass: "border-emerald-400/55 bg-emerald-400/14 text-emerald-700 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)] dark:text-emerald-300",
+        accentClass: "border-emerald-400/40 bg-emerald-400/12 text-emerald-700 dark:text-emerald-300",
+      }
+  const intentTextClass = isWishlistMode ? "text-amber-600 dark:text-amber-300" : "text-emerald-600 dark:text-emerald-300"
+  const intentSelectedCardClass = isWishlistMode
+    ? "border-amber-400 ring-2 ring-amber-400/45"
+    : "border-emerald-400 ring-2 ring-emerald-400/45"
+  const intentHoverCardClass = isWishlistMode
+    ? "hover:border-amber-400/65 hover:ring-2 hover:ring-amber-400/20"
+    : "hover:border-emerald-400/65 hover:ring-2 hover:ring-emerald-400/20"
+  const activeFiltersCount = [filters.set, filters.rarity, filters.variant, filters.searchQuery].filter(Boolean).length
 
   const selectCard = useCallback((card: TCGCard) => {
-    onSelect({ ...card, language: selectedCardLanguage })
-  }, [onSelect, selectedCardLanguage])
+    onSelect({ ...card, language: selectedCardLanguage }, selectionMode)
+  }, [onSelect, selectedCardLanguage, selectionMode])
+
+  const selectWithoutCard = useCallback(() => {
+    onSelect(null, selectionMode)
+  }, [onSelect, selectionMode])
+
+  useEffect(() => {
+    setSelectionMode(mode)
+  }, [mode])
 
   useEffect(() => {
     const load = async () => {
@@ -593,9 +639,9 @@ export default function CardSelector({
         </div>
       )}
 
-      <div className="fixed inset-0 z-50 bg-black/80" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="fixed inset-x-0 z-50 overflow-y-auto rounded-t-[2.25rem] border border-border bg-card sm:inset-x-4 sm:rounded-[2.25rem]"
+        className="fixed inset-x-0 z-50 overflow-y-auto rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-4 sm:rounded-[2.25rem]"
         onClick={(e) => e.stopPropagation()}
         style={{
           top: "calc(env(safe-area-inset-top) + 4.5rem)",
@@ -606,14 +652,23 @@ export default function CardSelector({
         }}
       >
         <div className="flex min-h-full flex-col">
-          <div className="border-b border-border bg-muted/35 px-5 py-4 sm:px-5 sm:py-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h2 className="truncate text-sm font-semibold sm:text-lg">
-                  {isWishlistMode ? `Wishlist Card for ${pokemonName}` : `Pick Card for ${pokemonName}`}
+          <div className="sticky top-0 z-20 border-b border-border bg-card/96 px-4 py-3 backdrop-blur-xl sm:px-5">
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${intentCopy.accentClass}`}>
+                    {intentCopy.label}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground sm:text-xs">
+                    {filteredCards.length} of {cards.length} cards
+                  </span>
+                </div>
+                <h2 className="mt-2 truncate text-base font-semibold leading-tight tracking-normal sm:text-lg">
+                  {intentCopy.title}
                 </h2>
-                <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-sm">
-                  {filteredCards.length} of {cards.length} cards
+                <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground sm:max-w-2xl sm:text-xs">
+                  {intentCopy.helper}
                 </p>
               </div>
               <Button variant="ghost" size="icon" className="mr-0.5 h-8 w-8 shrink-0 rounded-full sm:h-9 sm:w-9" onClick={onClose}>
@@ -621,11 +676,36 @@ export default function CardSelector({
               </Button>
             </div>
 
-            <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
-              Choose a specific printing, or use the guided scanner to rank the closest loaded cards from repeated camera frames.
-            </p>
+            <div className="mt-3 grid grid-cols-2 rounded-2xl border border-border/60 bg-background/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <button
+                type="button"
+                aria-pressed={selectionMode === "collect"}
+                onClick={() => setSelectionMode("collect")}
+                className={`flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
+                  selectionMode === "collect"
+                    ? "border border-emerald-400/50 bg-emerald-400/14 text-emerald-300 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)]"
+                    : "text-muted-foreground hover:bg-background/70 hover:text-foreground dark:hover:bg-white/[0.06]"
+                }`}
+              >
+                <Check className="h-4 w-4" />
+                <span>Owned</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={selectionMode === "wishlist"}
+                onClick={() => setSelectionMode("wishlist")}
+                className={`flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
+                  selectionMode === "wishlist"
+                    ? "border border-amber-400/55 bg-amber-400/15 text-amber-300 shadow-[0_10px_24px_-18px_rgba(251,191,36,0.85)]"
+                    : "text-muted-foreground hover:bg-background/70 hover:text-foreground dark:hover:bg-white/[0.06]"
+                }`}
+              >
+                <Heart className={`h-4 w-4 ${selectionMode === "wishlist" ? "fill-current" : ""}`} />
+                <span>Wanted</span>
+              </button>
+            </div>
 
-            <div className="mt-2 flex items-center gap-2 overflow-x-auto px-1 scrollbar-hide sm:mt-3 sm:flex-wrap sm:gap-2 sm:px-0">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto px-1 scrollbar-hide sm:flex-wrap sm:gap-2 sm:px-0">
               <Button
                 variant="secondary"
                 size="sm"
@@ -634,10 +714,10 @@ export default function CardSelector({
                 disabled={isLoading || cards.length === 0 || isScanningCard}
               >
                 {isScanningCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                <span>Scan</span>
+                <span>{intentCopy.scanLabel}</span>
               </Button>
-              <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-2xl sm:px-3" onClick={() => onSelect(null)}>
-                {isWishlistMode ? "Clear wishlist" : "Skip card"}
+              <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-2xl sm:px-3" onClick={selectWithoutCard}>
+                {intentCopy.emptyActionLabel}
               </Button>
               <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[12px] text-muted-foreground sm:rounded-2xl">
                 <Languages className="h-3.5 w-3.5" />
@@ -646,8 +726,17 @@ export default function CardSelector({
             </div>
           </div>
 
-            <div className="border-b border-border bg-muted/15 px-5 py-4 sm:px-5 sm:py-4">
-              <div className="space-y-2">
+            <div className="border-b border-border bg-muted/15 px-4 py-3 sm:px-5 sm:py-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder={intentCopy.searchPlaceholder}
+                    value={filters.searchQuery || ""}
+                    onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
+                    className="h-11 flex-1 rounded-2xl bg-background/85 text-sm shadow-none"
+                  />
+                </div>
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   {CARD_LANGUAGES.map((language) => {
                     const isSelected = selectedCardLanguage === language.id
@@ -672,15 +761,6 @@ export default function CardSelector({
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Card art stays on the English print, but pricing is refreshed for the selected card language.
                 </p>
-                <div className="flex items-center gap-2">
-                  <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, number, or set..."
-                    value={filters.searchQuery || ""}
-                    onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
-                    className="h-9 flex-1 rounded-2xl text-sm sm:h-10"
-                  />
-                </div>
                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
                   <Select
                     value={filters.set || ALL_FILTERS_VALUE}
@@ -740,7 +820,7 @@ export default function CardSelector({
                       onClick={() => setFilters({})}
                       className="h-9 rounded-2xl px-3 text-xs text-muted-foreground sm:h-10 sm:px-4 sm:text-sm"
                     >
-                      Clear Filters
+                      Clear {activeFiltersCount}
                     </Button>
                   )}
                 </div>
@@ -775,7 +855,7 @@ export default function CardSelector({
                           <button
                             key={match.card.id}
                             onClick={() => selectCard(match.card)}
-                            className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
+                            className={`flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-all hover:bg-muted/60 ${intentHoverCardClass}`}
                           >
                             {match.card.image ? (
                               <img
@@ -788,7 +868,7 @@ export default function CardSelector({
                               <div className="h-20 w-14 shrink-0 rounded-md bg-muted" />
                             )}
                             <div className="min-w-0">
-                              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                              <p className={`text-xs font-medium uppercase tracking-[0.2em] ${intentTextClass}`}>
                                 {index === 0 ? "Best Match" : `Match ${index + 1}`}
                               </p>
                               <p className="truncate text-sm font-medium">{match.card.set.name}</p>
@@ -796,6 +876,7 @@ export default function CardSelector({
                               <p className="mt-1 text-xs text-muted-foreground">
                                 Similarity {Math.round(match.similarity * 100)}%
                               </p>
+                              <p className={`mt-1 text-xs font-medium ${intentTextClass}`}>{intentCopy.actionLabel}</p>
                             </div>
                           </button>
                         ))}
@@ -824,8 +905,8 @@ export default function CardSelector({
                   <button
                     key={card.id}
                     onClick={() => selectCard(card)}
-                    className={`relative group overflow-hidden rounded-xl border-2 text-left transition-all hover:border-primary/50 sm:hover:scale-[1.03] ${
-                      selectedCardId === card.id ? "border-primary ring-2 ring-primary/50" : "border-transparent"
+                    className={`relative group overflow-hidden rounded-xl border-2 bg-card text-left transition-all sm:hover:scale-[1.03] ${
+                      selectedCardId === card.id ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
                     }`}
                   >
                     {scanRankById.has(card.id) && (
@@ -848,19 +929,27 @@ export default function CardSelector({
                           </div>
                         )}
                         {selectedCardId === card.id && (
-                          <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-primary-foreground">
-                            <Check className="h-3 w-3" />
+                          <div className={`absolute right-2 top-2 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] backdrop-blur ${intentCopy.activeClass}`}>
+                            {intentCopy.currentLabel}
                           </div>
                         )}
-                        <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/80 to-transparent p-2 sm:block">
+                        <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/85 to-transparent p-2 sm:block">
                           <p className="truncate text-xs font-medium text-white">{card.set.name}</p>
-                          <p className="text-[10px] text-white/70">#{card.localId}</p>
+                          <div className="mt-1 flex items-center justify-between gap-2">
+                            <p className="text-[10px] text-white/70">#{card.localId}</p>
+                            <p className={`rounded-full bg-black/45 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${intentTextClass}`}>
+                              {intentCopy.shortLabel}
+                            </p>
+                          </div>
                         </div>
                       </div>
 
                       <div className="p-1.5 sm:hidden">
                         <p className="truncate text-[10px] font-semibold text-foreground">{card.set.name}</p>
-                        <p className="mt-0.5 text-[9px] text-muted-foreground">#{card.localId}</p>
+                        <div className="mt-0.5 flex items-center justify-between gap-1">
+                          <p className="text-[9px] text-muted-foreground">#{card.localId}</p>
+                          <p className={`text-[9px] font-semibold uppercase ${intentTextClass}`}>{intentCopy.shortLabel}</p>
+                        </div>
                       </div>
                     </div>
                   </button>

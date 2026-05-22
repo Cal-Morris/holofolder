@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
-import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, ChevronsLeft, ChevronsRight, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen } from "lucide-react"
+import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, ChevronsLeft, ChevronsRight, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import SettingsModal from "@/components/settings-modal"
 import AuthModal from "@/components/auth-modal"
 import PartnerModal from "@/components/partner-modal"
-import CardSelector from "@/components/card-selector"
+import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardLanguage, type SlotStatus } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
@@ -441,7 +441,7 @@ export default function BinderApp({
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isPartnerOpen, setIsPartnerOpen] = useState(false)
   const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false)
-  const [cardSelectorMode, setCardSelectorMode] = useState<"collect" | "wishlist">("collect")
+  const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
   const [selectedGen, setSelectedGen] = useState(0)
@@ -1370,10 +1370,11 @@ export default function BinderApp({
     setLongPressedPokemon(null)
   }
 
-  const handleCardSelected = async (card: any | null) => {
+  const handleCardSelected = async (card: any | null, selectedMode: CardSelectorMode = cardSelectorMode) => {
     if (!selectedPokemon) return
     if (readOnlyMode) return
-    if (cardSelectorMode === "wishlist") {
+    setCardSelectorMode(selectedMode)
+    if (selectedMode === "wishlist") {
       if (!card) {
         await removeFromCollection(selectedPokemon.id)
       } else {
@@ -2367,20 +2368,43 @@ export default function BinderApp({
               <div className="flex flex-col gap-2">
                 {!readOnlyMode && (
                   <>
-                    <Button
-                      onClick={collected ? handleOpenCardSelector : handleToggleCollected}
-                      disabled={isCollectionLoading}
-                      variant={collected ? "default" : "secondary"}
-                      size="sm"
-                      className="h-10 w-full rounded-xl gap-1.5 px-3 text-sm shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
-                    >
-                      {collected ? <Check className="w-3.5 h-3.5" /> : null}
-                      {collected
-                        ? selectedPokemonHasAssignedCard
-                          ? "Edit owned card"
-                          : "Add owned card"
-                        : "Pick owned card"}
-                    </Button>
+                    {collected ? (
+                      <Button
+                        onClick={handleOpenCardSelector}
+                        disabled={isCollectionLoading}
+                        variant="default"
+                        size="sm"
+                        className="h-10 w-full rounded-xl gap-1.5 px-3 text-sm shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        {selectedPokemonHasAssignedCard ? "Edit owned card" : "Add owned card"}
+                      </Button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          onClick={handleOpenCardSelector}
+                          disabled={isCollectionLoading}
+                          variant="secondary"
+                          size="sm"
+                          className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-[0_12px_24px_-18px_rgba(52,211,153,0.8)]"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Pick owned
+                        </Button>
+                        <Button
+                          onClick={handleOpenWishlistSelector}
+                          disabled={isCollectionLoading}
+                          variant={wishlisted ? "secondary" : "outline"}
+                          size="sm"
+                          className={wishlisted
+                            ? "h-11 rounded-xl gap-1.5 px-3 text-xs"
+                            : "h-11 rounded-xl gap-1.5 border-amber-400/25 bg-amber-400/8 px-3 text-xs text-amber-600 shadow-none hover:bg-amber-400/12 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${wishlisted ? "fill-current" : ""}`} />
+                          {wishlisted ? "Edit wanted" : "Track wanted"}
+                        </Button>
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-2">
                       {!collected && (
@@ -2391,20 +2415,7 @@ export default function BinderApp({
                           size="sm"
                           className="h-9 shrink-0 rounded-xl !border-0 bg-background/55 px-3 text-xs text-muted-foreground shadow-none hover:bg-background/75 hover:text-foreground dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
                         >
-                          Mark owned
-                        </Button>
-                      )}
-                      {!collected && (
-                        <Button
-                          onClick={handleOpenWishlistSelector}
-                          disabled={isCollectionLoading}
-                          variant={wishlisted ? "secondary" : "outline"}
-                          size="sm"
-                          className={wishlisted
-                            ? "h-9 shrink-0 rounded-xl px-3 text-xs"
-                            : "h-9 shrink-0 rounded-xl !border-0 bg-background/55 px-3 text-xs text-muted-foreground shadow-none hover:bg-background/75 hover:text-foreground dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"}
-                        >
-                          {wishlisted ? "Edit wanted card" : "Wanted card"}
+                          Mark owned without card
                         </Button>
                       )}
                       {collected && selectedPokemonHasAssignedCard && (
