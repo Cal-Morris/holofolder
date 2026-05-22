@@ -69,9 +69,21 @@ export function aggregateCardScanMatches<TCard>(
   const aggregateMap = new Map<string, MutableAggregatedCardScanMatch<TCard>>()
 
   for (const matches of frameMatches) {
+    const bestFrameMatchByCardId = new Map<string, CardScanFrameMatch<TCard> & { index: number }>()
+
     matches.slice(0, maxFrameMatches).forEach((match, index) => {
       const cardId = options.getCardId(match.card)
       if (!cardId) return
+
+      const existing = bestFrameMatchByCardId.get(cardId)
+      if (!existing || match.similarity > existing.similarity) {
+        bestFrameMatchByCardId.set(cardId, { ...match, index })
+      }
+    })
+
+    for (const match of bestFrameMatchByCardId.values()) {
+      const cardId = options.getCardId(match.card)
+      if (!cardId) continue
 
       const entry = aggregateMap.get(cardId) ?? {
         card: match.card,
@@ -79,14 +91,14 @@ export function aggregateCardScanMatches<TCard>(
         similaritySum: 0,
         appearances: 0,
       }
-      const rankWeight = Math.max(0.08, 1.2 - index * rankDecay)
+      const rankWeight = Math.max(0.08, 1.2 - match.index * rankDecay)
       const normalizedSimilarity = clamp(match.similarity, 0, 1)
 
       entry.weightedScore += rankWeight * normalizedSimilarity
       entry.similaritySum += normalizedSimilarity
       entry.appearances += 1
       aggregateMap.set(cardId, entry)
-    })
+    }
   }
 
   const ranked = [...aggregateMap.values()]

@@ -58,6 +58,24 @@ test("aggregateCardScanMatches keeps a close second when it is stable enough", (
   assert.ok(aggregated[0].margin < 0.1)
 })
 
+test("aggregateCardScanMatches counts duplicate card candidates once per frame", () => {
+  const aggregated = aggregateCardScanMatches<TestCard>(
+    [
+      [match(alpha, 0.9), match(alpha, 0.82), match(beta, 0.72)],
+      [match(beta, 0.74)],
+    ],
+    {
+      getCardId: (card) => card.id,
+      minimumAppearances: 2,
+      maxResults: 3,
+    },
+  )
+
+  assert.equal(aggregated.some((entry) => entry.card.id === "alpha"), false)
+  assert.equal(aggregated[0]?.card.id, "beta")
+  assert.equal(aggregated[0]?.appearances, 2)
+})
+
 test("aggregatePageSlotScanMatches aggregates each binder slot independently", () => {
   const slots = aggregatePageSlotScanMatches<TestCard>(
     [
