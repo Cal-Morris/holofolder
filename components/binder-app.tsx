@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button"
 import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
 import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } from "@/lib/binder-page-scan-aggregate"
 import { aggregateBinderSlotSweep, getNextSweepSlotIndex, type BinderSlotSweepFrame } from "@/lib/binder-slot-sweep"
+import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
 import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
@@ -130,6 +131,8 @@ type PageScanCardMatchSummary = {
   cardImage?: string
   similarity: number
   confidence: number
+  margin: number
+  appearanceRatio: number
 }
 
 type QuickPanelPosition = {
@@ -2295,7 +2298,7 @@ export default function BinderApp({
   const rankPageSlotMatchesWithText = useCallback(async (
     matches: AggregatedCardScanMatch<TCGCard>[],
     cardImageDataUrls?: string[],
-  ) => {
+  ): Promise<AggregatedCardScanMatch<TCGCard>[]> => {
     if (!cardImageDataUrls || cardImageDataUrls.length === 0 || matches.length <= 1) return matches
 
     const topMargin = Math.abs(matches[0].similarity - (matches[1]?.similarity ?? 0))
@@ -2308,12 +2311,25 @@ export default function BinderApp({
     const matchByCardId = new Map(matches.map((match) => [match.card.id, match]))
 
     return applyCardTextSignalBoost(matches, textSignals)
-      .map((match) => {
+      .map((match): AggregatedCardScanMatch<TCGCard> => {
         const originalMatch = matchByCardId.get(match.card.id)
+
+        if (!originalMatch) {
+          return {
+            card: match.card,
+            similarity: match.similarity,
+            score: match.similarity,
+            appearances: 1,
+            appearanceRatio: 1,
+            confidence: Math.min(1, match.textScore * 0.12),
+            margin: 0,
+          }
+        }
+
         return {
-          ...(originalMatch ?? match),
+          ...originalMatch,
           similarity: match.similarity,
-          confidence: Math.min(1, (originalMatch?.confidence ?? 0) + match.textScore * 0.12),
+          confidence: Math.min(1, originalMatch.confidence + match.textScore * 0.12),
         }
       })
       .sort((left, right) => {
@@ -2376,6 +2392,8 @@ export default function BinderApp({
         cardImage: match.card.image,
         similarity: match.similarity,
         confidence: match.confidence,
+        margin: match.margin,
+        appearanceRatio: match.appearanceRatio,
       }
     }))
 
@@ -2408,7 +2426,7 @@ export default function BinderApp({
       const cardMatches = await matchPageScanCards([result])
       const matchedCardsBySlotIndex = new Map(
         cardMatches
-          .filter((match) => match.confidence >= 0.62 && match.similarity >= 0.58)
+          .filter((match) => canAutoAcceptCardScanMatch(match))
           .map((match) => [match.slotIndex, match]),
       )
       const mappedOccupiedSlots = result.slots
@@ -2629,7 +2647,7 @@ export default function BinderApp({
       const rankedMatches = await rankPageSlotMatchesWithText(baseMatches, previewUrls)
       const match = rankedMatches[0]
 
-      if (!match || match.confidence < 0.58 || match.similarity < 0.56) {
+      if (!match || !canAutoAcceptCardScanMatch(match, { minimumConfidence: 0.58, minimumSimilarity: 0.56 })) {
         throw new Error(`Could not confidently match ${slotSweepTargetLabel}. Try again with less glare or skip it for now.`)
       }
 
@@ -2663,6 +2681,8 @@ export default function BinderApp({
         cardImage: match.card.image,
         similarity: match.similarity,
         confidence: match.confidence,
+        margin: match.margin,
+        appearanceRatio: match.appearanceRatio,
       }
 
       const nextMatchedCards = [
@@ -2772,7 +2792,7 @@ export default function BinderApp({
       const cardMatches = await matchPageScanCards(successfulResults)
       const matchedCardsBySlotIndex = new Map(
         cardMatches
-          .filter((match) => match.confidence >= 0.62 && match.similarity >= 0.58)
+          .filter((match) => canAutoAcceptCardScanMatch(match))
           .map((match) => [match.slotIndex, match]),
       )
       const mappedOccupiedSlots = aggregatedSlots
