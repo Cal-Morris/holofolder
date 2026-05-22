@@ -170,7 +170,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
 
     const absX = Math.abs(horizontalDelta)
     const absY = Math.abs(deltaY)
-    if (absX < 6 || absX < absY * 0.5) return
+    if (absX < 8 || absX < absY * 1.15) return
 
     e.preventDefault()
     setIsSwiping(true)
@@ -186,9 +186,9 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
 
     didSwipeRef.current = true
     if (wheelDeltaXRef.current > 0) {
-      onSwipeRight?.()
-    } else {
       onSwipeLeft?.()
+    } else {
+      onSwipeRight?.()
     }
     scheduleDidSwipeReset()
 

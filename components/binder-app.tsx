@@ -8,6 +8,7 @@ import SettingsModal from "@/components/settings-modal"
 import AuthModal from "@/components/auth-modal"
 import PartnerModal from "@/components/partner-modal"
 import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
+import CardFinishShader from "@/components/card-finish-shader"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
@@ -920,6 +921,11 @@ export default function BinderApp({
     "--glint-angle": `${slotGlareState.angle}deg`,
     "--glint-opacity": String(slotGlareState.opacity),
   }) as CSSProperties, [glintX, glintY, slotGlareState])
+  const cardFinishGlint = useMemo(() => ({
+    x: glintX / 100,
+    y: glintY / 100,
+    angle: slotGlareState.angle,
+  }), [glintX, glintY, slotGlareState.angle])
 
   const generationFilteredPokemonList = useMemo(() => {
     let list = pokemonList
@@ -2879,6 +2885,7 @@ export default function BinderApp({
                 showCardFinishEffects={settings.cardFinishEffectsEnabled}
                 binderSlotGlareStyle={slotGlareOverlayStyle}
                 cardFinishEffectStyle={cardFinishEffectStyle}
+                cardFinishGlint={cardFinishGlint}
                 onClick={() => {
                   if (pageNumber !== currentBinderPage) {
                     setCurrentBinderPage(pageNumber)
@@ -3845,6 +3852,7 @@ function PokemonSlot({
   showCardFinishEffects,
   binderSlotGlareStyle,
   cardFinishEffectStyle,
+  cardFinishGlint,
   onClick,
   onLongPress,
   onQuickCollect,
@@ -3870,6 +3878,11 @@ function PokemonSlot({
   showCardFinishEffects: boolean
   binderSlotGlareStyle: CSSProperties
   cardFinishEffectStyle: CSSProperties
+  cardFinishGlint: {
+    x: number
+    y: number
+    angle: number
+  }
   onClick: () => void
   onLongPress: () => void
   onQuickCollect: () => void
@@ -4042,7 +4055,14 @@ function PokemonSlot({
               draggable={false}
             />
             {shouldShowCardFinish ? (
-              <div className={`card-finish-layer pointer-events-none absolute inset-0 z-[2] ${finishEffectClass}`} style={cardFinishEffectStyle} />
+              <CardFinishShader
+                finish={cardFinish ?? "holo"}
+                glintX={cardFinishGlint.x}
+                glintY={cardFinishGlint.y}
+                glintAngle={cardFinishGlint.angle}
+                fallbackClassName={finishEffectClass ?? ""}
+                fallbackStyle={cardFinishEffectStyle}
+              />
             ) : null}
           </div>
         ) : (
