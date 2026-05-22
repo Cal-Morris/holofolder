@@ -5,6 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin"
 export const runtime = "nodejs"
 
 const VALID_STATUSES = new Set(["collected", "finalized", "considering", "wishlisted"])
+const VALID_CARD_LANGUAGES = new Set(["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"])
+
+function normalizeCardLanguage(value: unknown) {
+  if (typeof value !== "string") return "en"
+  const normalized = value.trim().toLowerCase()
+  return VALID_CARD_LANGUAGES.has(normalized) ? normalized : "en"
+}
 
 async function resolveCollectionOwnerUserId(userId: string) {
   const admin = createAdminClient()
@@ -66,6 +73,7 @@ export async function POST(request: NextRequest) {
           card_name: typeof body?.cardName === "string" ? body.cardName : null,
           card_image: typeof body?.cardImage === "string" ? body.cardImage : null,
           card_set: typeof body?.cardSet === "string" ? body.cardSet : null,
+          card_language: normalizeCardLanguage(body?.cardLanguage),
           status,
         },
         { onConflict: "user_id,pokemon_id" },

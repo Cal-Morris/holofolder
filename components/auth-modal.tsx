@@ -155,13 +155,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (!optionsRes.ok) throw new Error("Failed to get authentication options")
       const options = await optionsRes.json()
 
-      const credential = await startAuthentication({
-        challenge: options.challenge,
-        rpId: options.rpId,
-        timeout: options.timeout,
-        userVerification: options.userVerification,
-        allowCredentials: options.allowCredentials,
-      })
+      const { sessionId, ...optionsJSON } = options
+      const credential = await startAuthentication({ optionsJSON })
 
       const verifyRes = await fetch("/api/auth/passkey/authenticate/verify", {
         method: "POST",
@@ -177,7 +172,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             },
             type: credential.type,
           },
-          sessionId: options.sessionId,
+          sessionId,
         }),
       })
 

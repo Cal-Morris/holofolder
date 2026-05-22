@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, ChevronsLeft, ChevronsRight, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
@@ -8,8 +8,8 @@ import SettingsModal from "@/components/settings-modal"
 import AuthModal from "@/components/auth-modal"
 import PartnerModal from "@/components/partner-modal"
 import CardSelector from "@/components/card-selector"
-import { useCardPrices, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
-import { useCollection, type SlotStatus } from "@/hooks/use-collection"
+import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
+import { useCollection, type CardLanguage, type SlotStatus } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
 import { Button } from "@/components/ui/button"
@@ -121,6 +121,7 @@ interface InitialCollectionRow {
   card_name?: string
   card_image?: string
   card_set?: string
+  card_language?: CardLanguage
   status: SlotStatus
   collected_at: string
 }
@@ -185,6 +186,25 @@ function formatPriceLabel(price: CardPriceSnapshot | undefined) {
   return `${primary} (${formatCurrencyAmount(price.originalAmount, price.originalCurrency)} ${price.originalCurrency})`
 }
 
+const CARD_LANGUAGE_LABELS: Record<CardLanguage, string> = {
+  en: "English",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+  it: "Italian",
+  "pt-br": "Portuguese",
+  ja: "Japanese",
+  ko: "Korean",
+}
+
+function formatCardLanguageLabel(language?: string | null) {
+  return CARD_LANGUAGE_LABELS[(language || "en") as CardLanguage] ?? CARD_LANGUAGE_LABELS.en
+}
+
+function getCollectionItemPriceKey(item?: { card_id?: string | null; card_language?: string | null } | null) {
+  return item?.card_id ? getCardPriceKey(item.card_id, item.card_language) : null
+}
+
 function formatCollectedDate(value?: string | null) {
   if (!value) {
     return null
@@ -243,6 +263,49 @@ function formatPriceTotals(
   }
 
   return originalParts.length > 0 ? `${primary} (${originalParts.join(" + ")})` : primary
+}
+
+function BinderSlotGlare({
+  glareStyle,
+  innerRadius,
+}: {
+  glareStyle: CSSProperties
+  innerRadius: string
+}) {
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute inset-[3px] z-[2]"
+        style={{
+          borderRadius: innerRadius,
+          background: "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.16) 20%, rgba(255,255,255,0) 42%)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-[3px] z-[3]"
+        style={{
+          borderRadius: innerRadius,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 24%, rgba(255,255,255,0) 56%)",
+        }}
+      />
+      <div
+        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[36%] -top-[28%] z-[4] h-[90%] rounded-[999px] blur-[1px] shadow-[0_0_18px_rgba(255,255,255,0.28)] transition-[transform,opacity] duration-200 ease-out will-change-transform dark:shadow-[0_0_16px_rgba(255,255,255,0.12)]"
+        style={{
+          ...glareStyle,
+          "--glare-transform": glareStyle.transform,
+          background:
+            "linear-gradient(132deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.82) 13%, rgba(255,255,255,0.48) 24%, rgba(255,255,255,0.14) 36%, rgba(255,255,255,0) 56%)",
+        } as CSSProperties}
+      />
+      <div
+        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[4] w-[12%] rounded-[999px] blur-[1px]"
+        style={{
+          background: "linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.24) 34%, rgba(255,255,255,0) 100%)",
+          opacity: 0.72,
+        }}
+      />
+    </>
+  )
 }
 
 function delay(ms: number) {
@@ -407,6 +470,8 @@ export default function BinderApp({
   const [isShareEnabled, setIsShareEnabled] = useState(Boolean(shareViewToken))
   const [isShareLoading, setIsShareLoading] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [isRefreshingPrices, setIsRefreshingPrices] = useState(false)
+  const [priceRefreshMessage, setPriceRefreshMessage] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(true)
   const [isInstalledApp, setIsInstalledApp] = useState(false)
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
@@ -919,20 +984,44 @@ export default function BinderApp({
       ),
     [collection, filteredPokemonIds],
   )
-  const trackedCardIds = useMemo(
-    () => filteredTrackedCards.map((item) => item.card_id!).filter(Boolean),
+  const trackedPriceLookups = useMemo<CardPriceLookup[]>(
+    () =>
+      filteredTrackedCards
+        .map<CardPriceLookup | null>((item) => item.card_id ? { cardId: item.card_id, language: item.card_language ?? "en" } : null)
+        .filter((item): item is CardPriceLookup => item !== null),
     [filteredTrackedCards],
   )
-  const selectedTrackedCardId = selectedPokemon ? getCollectionItem(selectedPokemon.id)?.card_id ?? null : null
-  const priceLookupCardIds = useMemo(
-    () => [...new Set(selectedTrackedCardId ? [...trackedCardIds, selectedTrackedCardId] : trackedCardIds)],
-    [selectedTrackedCardId, trackedCardIds],
+  const selectedTrackedCardItem = selectedPokemon ? getCollectionItem(selectedPokemon.id) ?? null : null
+  const selectedTrackedPriceLookup = useMemo<CardPriceLookup | null>(
+    () => selectedTrackedCardItem?.card_id
+      ? { cardId: selectedTrackedCardItem.card_id, language: selectedTrackedCardItem.card_language ?? "en" }
+      : null,
+    [selectedTrackedCardItem?.card_id, selectedTrackedCardItem?.card_language],
   )
-  const hasTrackedCards = trackedCardIds.length > 0
-  const shouldLoadCardPrices = isPriceMode || Boolean(selectedTrackedCardId)
-  const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCardIds, shouldLoadCardPrices)
+  const priceLookupCards = useMemo(
+    () => {
+      const byKey = new Map<string, CardPriceLookup>()
+
+      for (const lookup of trackedPriceLookups) {
+        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+      }
+
+      if (selectedTrackedPriceLookup) {
+        byKey.set(getCardPriceKey(selectedTrackedPriceLookup.cardId, selectedTrackedPriceLookup.language), selectedTrackedPriceLookup)
+      }
+
+      return [...byKey.values()]
+    },
+    [selectedTrackedPriceLookup, trackedPriceLookups],
+  )
+  const hasTrackedCards = trackedPriceLookups.length > 0
+  const shouldLoadCardPrices = isPriceMode || Boolean(selectedTrackedPriceLookup)
+  const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
   const filteredPriceSummary = useMemo(
-    () => sumPriceSnapshots(filteredTrackedCards.map((item) => (item.card_id ? pricesByCardId[item.card_id] : undefined))),
+    () => sumPriceSnapshots(filteredTrackedCards.map((item) => {
+      const priceKey = getCollectionItemPriceKey(item)
+      return priceKey ? pricesByCardId[priceKey] : undefined
+    })),
     [filteredTrackedCards, pricesByCardId],
   )
   const filteredTotalLabel = useMemo(
@@ -1034,7 +1123,10 @@ export default function BinderApp({
     [collection, visiblePagePokemonIds],
   )
   const visiblePagePriceSummary = useMemo(
-    () => sumPriceSnapshots(visiblePageTrackedCards.map((item) => (item.card_id ? pricesByCardId[item.card_id] : undefined))),
+    () => sumPriceSnapshots(visiblePageTrackedCards.map((item) => {
+      const priceKey = getCollectionItemPriceKey(item)
+      return priceKey ? pricesByCardId[priceKey] : undefined
+    })),
     [pricesByCardId, visiblePageTrackedCards],
   )
   const visiblePageTotalLabel = useMemo(
@@ -1271,6 +1363,7 @@ export default function BinderApp({
         existingItem?.card_name,
         existingItem?.card_image,
         existingItem?.card_set,
+        existingItem?.card_language ?? "en",
         "collected",
       )
     }
@@ -1291,6 +1384,7 @@ export default function BinderApp({
           card.name,
           card.image,
           card.set?.name,
+          card.language ?? "en",
           "wishlisted",
         )
       }
@@ -1302,6 +1396,7 @@ export default function BinderApp({
         card?.name,
         card?.image,
         card?.set?.name,
+        card?.language ?? "en",
         "collected",
       )
     }
@@ -1970,6 +2065,34 @@ export default function BinderApp({
     }
   }, [sharePath])
 
+  const handleRefreshPrices = useCallback(async () => {
+    if (readOnlyMode) return
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+
+    setIsRefreshingPrices(true)
+    setPriceRefreshMessage(null)
+
+    try {
+      const response = await fetch("/api/card-prices/refresh", {
+        method: "POST",
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(payload?.error || `Failed to start price refresh (${response.status})`)
+      }
+
+      setPriceRefreshMessage("Price refresh started in the background.")
+    } catch (error) {
+      setPriceRefreshMessage(error instanceof Error ? error.message : "Could not start price refresh.")
+    } finally {
+      setIsRefreshingPrices(false)
+    }
+  }, [readOnlyMode, user])
+
   const collected = selectedPokemon ? isCollected(selectedPokemon.id) : false
   const wishlisted = selectedPokemon ? isWishlisted(selectedPokemon.id) : false
   const collectionItem = selectedPokemon ? getCollectionItem(selectedPokemon.id) : null
@@ -1978,7 +2101,8 @@ export default function BinderApp({
   const selectedPokemonDisplayImage = selectedPokemon ? getDisplayArtwork(selectedPokemon, collectionItem?.card_image) : null
   const selectedPokemonDisplayFit = getDisplayArtworkFit(collectionItem?.card_image)
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
-  const selectedCardPriceLabel = collectionItem?.card_id ? formatPriceLabel(pricesByCardId[collectionItem.card_id]) : null
+  const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
+  const selectedCardPriceLabel = selectedCardPriceKey ? formatPriceLabel(pricesByCardId[selectedCardPriceKey]) : null
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
 
   const registerSlotButtonRef = useCallback((pokemonId: number, node: HTMLButtonElement | null) => {
@@ -2102,6 +2226,7 @@ export default function BinderApp({
             : "Choose how you want to track this slot."
     const selectedDetailChips = [
       collectionItem?.card_set ? { key: "set", label: collectionItem.card_set } : null,
+      collectionItem?.card_id ? { key: "language", label: formatCardLanguageLabel(collectionItem.card_language) } : null,
       selectedCardPriceLabel ? { key: "price", label: isLoadingPrices ? "Loading price..." : selectedCardPriceLabel } : null,
       !selectedCardPriceLabel && isLoadingPrices && collectionItem?.card_id ? { key: "price-loading", label: "Loading price..." } : null,
       selectedCollectedDateLabel ? { key: "collected", label: `Collected ${selectedCollectedDateLabel}` } : null,
@@ -2545,16 +2670,12 @@ export default function BinderApp({
                     style={{ borderRadius: TRADING_CARD_INNER_CORNER_RADIUS }}
                   />
                   <div className="absolute inset-x-[7px] top-[7px] h-px bg-white/65 dark:bg-white/10" />
-	                  {settings.binderSlotGlareEnabled ? (
-	                    <>
-	                      <div className="pointer-events-none absolute inset-[3px] z-[1] rounded-[0.85rem] bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.12)_20%,rgba(255,255,255,0)_42%)] dark:bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.04)_22%,rgba(255,255,255,0)_42%)] mix-blend-screen" />
-	                      <div
-	                        className="pointer-events-none absolute -inset-x-[34%] -top-[28%] z-[2] h-[88%] rounded-[999px] bg-[linear-gradient(132deg,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.8)_13%,rgba(255,255,255,0.38)_24%,rgba(255,255,255,0.1)_36%,rgba(255,255,255,0)_54%)] dark:bg-[linear-gradient(132deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.22)_16%,rgba(255,255,255,0.1)_28%,rgba(255,255,255,0.03)_40%,rgba(255,255,255,0)_58%)] mix-blend-screen blur-[1px] transition-[transform,opacity] duration-200 ease-out will-change-transform"
-	                        style={slotGlareOverlayStyle}
-	                      />
-	                      <div className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[2] w-[12%] rounded-[999px] bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(255,255,255,0.22)_34%,rgba(255,255,255,0)_100%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0.06)_34%,rgba(255,255,255,0)_100%)] mix-blend-screen blur-[1px]" />
-	                    </>
-	                  ) : null}
+                  {settings.binderSlotGlareEnabled ? (
+                    <BinderSlotGlare
+                      glareStyle={slotGlareOverlayStyle}
+                      innerRadius={TRADING_CARD_INNER_CORNER_RADIUS}
+                    />
+                  ) : null}
                 </div>
               )
             }
@@ -2564,6 +2685,7 @@ export default function BinderApp({
             const isLongPressed = longPressedPokemon?.id === pokemon.id
             const item = getCollectionItem(pokemon.id)
             const isCurrentWishlisted = item?.status === "wishlisted"
+            const itemPriceKey = getCollectionItemPriceKey(item)
 
             return (
               <PokemonSlot
@@ -2578,7 +2700,7 @@ export default function BinderApp({
                 cardImage={item?.card_image}
                 cardName={item?.card_name}
                 hasAssignedCard={Boolean(item?.card_id)}
-                priceLabel={isPriceMode && item?.card_id ? formatPriceLabel(pricesByCardId[item.card_id]) : null}
+                priceLabel={isPriceMode && itemPriceKey ? formatPriceLabel(pricesByCardId[itemPriceKey]) : null}
                 showPriceMode={isPriceMode}
                 readOnly={readOnlyMode}
                 showBinderSlotGlare={settings.binderSlotGlareEnabled}
@@ -3348,6 +3470,10 @@ export default function BinderApp({
         shareMessage={shareMessage}
         onEnableReadOnlyShare={handleEnableReadOnlyShare}
         onDisableReadOnlyShare={handleDisableReadOnlyShare}
+        trackedCardCount={trackedPriceLookups.length}
+        isRefreshingPrices={isRefreshingPrices}
+        priceRefreshMessage={priceRefreshMessage}
+        onRefreshPrices={handleRefreshPrices}
       />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
       <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
@@ -3555,14 +3681,10 @@ function PokemonSlot({
         )}
 
         {showBinderSlotGlare ? (
-          <>
-            <div className="pointer-events-none absolute inset-[3px] z-[2] rounded-[calc(5%-1px)] bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.14)_20%,rgba(255,255,255,0)_42%)] dark:bg-[radial-gradient(circle_at_18%_14%,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.05)_22%,rgba(255,255,255,0)_42%)] mix-blend-screen" />
-            <div
-              className="pointer-events-none absolute -inset-x-[34%] -top-[28%] z-[4] h-[88%] rounded-[999px] bg-[linear-gradient(132deg,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.8)_13%,rgba(255,255,255,0.42)_24%,rgba(255,255,255,0.12)_36%,rgba(255,255,255,0)_54%)] dark:bg-[linear-gradient(132deg,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.26)_16%,rgba(255,255,255,0.12)_28%,rgba(255,255,255,0.04)_40%,rgba(255,255,255,0)_58%)] mix-blend-screen blur-[1px] transition-[transform,opacity] duration-200 ease-out will-change-transform"
-              style={binderSlotGlareStyle}
-            />
-            <div className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[4] w-[12%] rounded-[999px] bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(255,255,255,0.24)_34%,rgba(255,255,255,0)_100%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0.08)_34%,rgba(255,255,255,0)_100%)] mix-blend-screen blur-[1px]" />
-          </>
+          <BinderSlotGlare
+            glareStyle={binderSlotGlareStyle}
+            innerRadius={TRADING_CARD_INNER_CORNER_RADIUS}
+          />
         ) : null}
 
         {hasCardPreview ? (
@@ -3581,6 +3703,7 @@ function PokemonSlot({
               decoding="async"
               draggable={false}
             />
+            <div className="animate-holographic-foil pointer-events-none absolute inset-0 mix-blend-screen opacity-45" />
           </div>
         ) : (
           <div

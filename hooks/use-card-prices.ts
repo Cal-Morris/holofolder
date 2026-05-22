@@ -4,9 +4,16 @@ import { useEffect, useMemo, useState } from "react"
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP"
 export type PriceSource = "tcgplayer" | "cardmarket"
+export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+
+export interface CardPriceLookup {
+  cardId: string
+  language?: CardLanguage | string | null
+}
 
 export interface CardPriceSnapshot {
   cardId: string
+  language: CardLanguage
   gbpAmount: number | null
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
@@ -17,44 +24,73 @@ export interface CardPriceSnapshot {
   fetchedAt: number
 }
 
-const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v2"
+const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v3"
 const CARD_PRICE_CACHE_TTL_MS = 12 * 60 * 60 * 1000
+const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
 
-export function useCardPrices(cardIds: string[], enabled: boolean) {
+export function normalizeCardLanguage(value: unknown): CardLanguage {
+  if (typeof value !== "string") return "en"
+  const normalized = value.trim().toLowerCase()
+  return SUPPORTED_CARD_LANGUAGES.includes(normalized as CardLanguage) ? normalized as CardLanguage : "en"
+}
+
+export function getCardPriceKey(cardId: string, language: unknown = "en") {
+  return `${cardId}::${normalizeCardLanguage(language)}`
+}
+
+export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enabled: boolean) {
   const [pricesByCardId, setPricesByCardId] = useState<Record<string, CardPriceSnapshot>>({})
   const [isLoading, setIsLoading] = useState(false)
 
-  const stableCardIds = useMemo(
-    () =>
-      [...new Set(cardIds.filter((value) => typeof value === "string" && value.length > 0))]
-        .sort((left, right) => left.localeCompare(right)),
-    [cardIds],
+  const stableLookups = useMemo(
+    () => {
+      const byKey = new Map<string, CardPriceLookup>()
+
+      for (const lookup of cardLookups) {
+        const cardId = typeof lookup === "string" ? lookup : lookup?.cardId
+        if (typeof cardId !== "string" || cardId.length === 0) {
+          continue
+        }
+
+        const language = normalizeCardLanguage(typeof lookup === "string" ? "en" : lookup.language)
+        byKey.set(getCardPriceKey(cardId, language), { cardId, language })
+      }
+
+      return [...byKey.values()].sort((left, right) => {
+        const cardComparison = left.cardId.localeCompare(right.cardId)
+        return cardComparison === 0
+          ? normalizeCardLanguage(left.language).localeCompare(normalizeCardLanguage(right.language))
+          : cardComparison
+      })
+    },
+    [cardLookups],
   )
 
-  const requestKey = stableCardIds.join(",")
+  const requestKey = stableLookups.map((lookup) => getCardPriceKey(lookup.cardId, lookup.language)).join(",")
 
   useEffect(() => {
-    if (!enabled || stableCardIds.length === 0) {
+    if (!enabled || stableLookups.length === 0) {
       return
     }
 
     const cache = readPriceCache()
     const nextState: Record<string, CardPriceSnapshot> = {}
-    const missingCardIds: string[] = []
+    const missingLookups: CardPriceLookup[] = []
 
-    for (const cardId of stableCardIds) {
-      const cached = cache[cardId]
+    for (const lookup of stableLookups) {
+      const cacheKey = getCardPriceKey(lookup.cardId, lookup.language)
+      const cached = cache[cacheKey]
 
       if (cached && Date.now() - cached.fetchedAt < CARD_PRICE_CACHE_TTL_MS) {
-        nextState[cardId] = cached
+        nextState[cacheKey] = cached
       } else {
-        missingCardIds.push(cardId)
+        missingLookups.push(lookup)
       }
     }
 
     setPricesByCardId((current) => ({ ...current, ...nextState }))
 
-    if (missingCardIds.length === 0) {
+    if (missingLookups.length === 0) {
       return
     }
 
@@ -66,7 +102,7 @@ export function useCardPrices(cardIds: string[], enabled: boolean) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ cardIds: missingCardIds }),
+      body: JSON.stringify({ cards: missingLookups }),
     })
       .then(async (response) => {
         if (!response.ok) {
@@ -85,6 +121,7 @@ export function useCardPrices(cardIds: string[], enabled: boolean) {
 
           const snapshot: CardPriceSnapshot = {
             cardId: price.cardId,
+            language: normalizeCardLanguage(price.language),
             gbpAmount: typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount) ? price.gbpAmount : null,
             originalAmount: typeof price.originalAmount === "number" && Number.isFinite(price.originalAmount) ? price.originalAmount : null,
             originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
@@ -94,9 +131,10 @@ export function useCardPrices(cardIds: string[], enabled: boolean) {
             fxDate: typeof price.fxDate === "string" ? price.fxDate : null,
             fetchedAt: Date.now(),
           }
+          const cacheKey = getCardPriceKey(snapshot.cardId, snapshot.language)
 
-          updates[snapshot.cardId] = snapshot
-          mergedCache[snapshot.cardId] = snapshot
+          updates[cacheKey] = snapshot
+          mergedCache[cacheKey] = snapshot
         }
 
         writePriceCache(mergedCache)
@@ -117,7 +155,7 @@ export function useCardPrices(cardIds: string[], enabled: boolean) {
     return () => {
       cancelled = true
     }
-  }, [enabled, requestKey, stableCardIds])
+  }, [enabled, requestKey, stableLookups])
 
   return {
     pricesByCardId,

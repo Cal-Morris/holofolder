@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
-import { useTCGdex, type TCGCard, type CardFilters } from "@/hooks/use-tcgdex"
+import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
-import { X, Search, Check, Loader2, Camera } from "lucide-react"
+import { X, Search, Check, Loader2, Camera, Languages } from "lucide-react"
 
 interface CardSelectorProps {
   pokemonId: number
@@ -30,6 +30,16 @@ interface AggregatedCardMatch {
 }
 
 const ALL_FILTERS_VALUE = "__all__"
+const CARD_LANGUAGES: Array<{ id: CardLanguage; label: string; shortLabel: string }> = [
+  { id: "en", label: "English", shortLabel: "EN" },
+  { id: "it", label: "Italian", shortLabel: "IT" },
+  { id: "fr", label: "French", shortLabel: "FR" },
+  { id: "de", label: "German", shortLabel: "DE" },
+  { id: "es", label: "Spanish", shortLabel: "ES" },
+  { id: "pt-br", label: "Portuguese", shortLabel: "PT" },
+  { id: "ja", label: "Japanese", shortLabel: "JA" },
+  { id: "ko", label: "Korean", shortLabel: "KO" },
+]
 const CARD_SCAN_FRAME_COUNT = 8
 const CARD_SCAN_FRAME_DELAY_MS = 450
 const CARD_SCAN_MIN_USABLE_FRAMES = 3
@@ -174,6 +184,7 @@ export default function CardSelector({
   const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
   const [cards, setCards] = useState<TCGCard[]>([])
   const [filters, setFilters] = useState<CardFilters>({})
+  const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>("en")
   const [isScanningCard, setIsScanningCard] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null)
@@ -191,10 +202,15 @@ export default function CardSelector({
   const cardVideoRef = useRef<HTMLVideoElement | null>(null)
   const cardCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const isWishlistMode = mode === "wishlist"
+  const selectedLanguageLabel = CARD_LANGUAGES.find((language) => language.id === selectedCardLanguage)?.label ?? "English"
+
+  const selectCard = useCallback((card: TCGCard) => {
+    onSelect({ ...card, language: selectedCardLanguage })
+  }, [onSelect, selectedCardLanguage])
 
   useEffect(() => {
     const load = async () => {
-      const cardsData = await fetchCardsForPokemon(pokemonId)
+      const cardsData = await fetchCardsForPokemon(pokemonId, "en")
       setCards(cardsData.filter((card) => Boolean(card.image)))
     }
     load()
@@ -623,11 +639,39 @@ export default function CardSelector({
               <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-2xl sm:px-3" onClick={() => onSelect(null)}>
                 {isWishlistMode ? "Clear wishlist" : "Skip card"}
               </Button>
+              <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[12px] text-muted-foreground sm:rounded-2xl">
+                <Languages className="h-3.5 w-3.5" />
+                <span>{selectedLanguageLabel}</span>
+              </div>
             </div>
           </div>
 
             <div className="border-b border-border bg-muted/15 px-5 py-4 sm:px-5 sm:py-4">
               <div className="space-y-2">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {CARD_LANGUAGES.map((language) => {
+                    const isSelected = selectedCardLanguage === language.id
+
+                    return (
+                      <button
+                        key={language.id}
+                        type="button"
+                        onClick={() => setSelectedCardLanguage(language.id)}
+                        className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                          isSelected
+                            ? "border-primary/40 bg-primary/12 text-primary"
+                            : "border-border/50 bg-background/65 text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <span className="sm:hidden">{language.shortLabel}</span>
+                        <span className="hidden sm:inline">{language.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Card art stays on the English print, but pricing is refreshed for the selected card language.
+                </p>
                 <div className="flex items-center gap-2">
                   <Search className="h-3.5 w-3.5 text-muted-foreground" />
                   <Input
@@ -730,7 +774,7 @@ export default function CardSelector({
                         {scanMatches.map((match, index) => (
                           <button
                             key={match.card.id}
-                            onClick={() => onSelect(match.card)}
+                            onClick={() => selectCard(match.card)}
                             className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/60"
                           >
                             {match.card.image ? (
@@ -779,7 +823,7 @@ export default function CardSelector({
                 {displayedCards.map((card) => (
                   <button
                     key={card.id}
-                    onClick={() => onSelect(card)}
+                    onClick={() => selectCard(card)}
                     className={`relative group overflow-hidden rounded-xl border-2 text-left transition-all hover:border-primary/50 sm:hover:scale-[1.03] ${
                       selectedCardId === card.id ? "border-primary ring-2 ring-primary/50" : "border-transparent"
                     }`}
