@@ -661,6 +661,7 @@ export default function BinderApp({
     collection,
     syncLocalCollectionToDatabase,
     localCollectedCount,
+    localPendingSyncCount,
   } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId, readOnly: readOnlyMode })
   const { settings, updateSettings } = useSettings({
     initialSettings,
@@ -4308,6 +4309,7 @@ export default function BinderApp({
         isSignedIn={Boolean(user)}
         cloudCollectedCount={collectionCount}
         localCollectedCount={localCollectedCount}
+        localPendingSyncCount={localPendingSyncCount}
         isSyncingLocalCollection={isSyncingLocalCollection}
         localCollectionSyncMessage={localCollectionSyncMessage}
         onSyncLocalCollectionToCloud={handleSyncLocalCollectionToCloud}

@@ -37,6 +37,7 @@ interface SettingsModalProps {
   isSignedIn: boolean
   cloudCollectedCount: number
   localCollectedCount: number
+  localPendingSyncCount: number
   isSyncingLocalCollection: boolean
   localCollectionSyncMessage: string | null
   onSyncLocalCollectionToCloud: () => void
@@ -79,6 +80,7 @@ export default function SettingsModal({
   isSignedIn,
   cloudCollectedCount,
   localCollectedCount,
+  localPendingSyncCount,
   isSyncingLocalCollection,
   localCollectionSyncMessage,
   onSyncLocalCollectionToCloud,
@@ -543,14 +545,19 @@ export default function SettingsModal({
                 </p>
                 <p className="mt-1 text-lg font-bold tabular-nums">{localCollectedCount}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Browser-local collected entries kept for offline recovery and manual sync-back.
+                  Browser-local owned cards kept for offline recovery and sync-back.
                 </p>
               </div>
             </div>
             <div className="rounded-2xl border border-border/40 bg-muted/20 px-3 py-3">
               <p className="text-xs leading-relaxed text-muted-foreground">
-                These numbers do not need to match. The cloud binder is your live source of truth. The offline cache only matters if you collected cards on this device while offline and want to push that local state back up.
+                Owned cards and wanted cards are saved locally as you edit. If a cloud save cannot finish, the change stays queued and retries when you are signed in and online.
               </p>
+              {localPendingSyncCount > 0 && (
+                <p className="mt-2 text-xs font-medium text-primary">
+                  {localPendingSyncCount} local change{localPendingSyncCount === 1 ? "" : "s"} waiting to sync.
+                </p>
+              )}
             </div>
             <Button
               type="button"

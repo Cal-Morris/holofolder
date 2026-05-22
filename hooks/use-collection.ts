@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { addLocalCollectedId, readLocalCollectedIds, removeLocalCollectedId, writeLocalCollectedIds } from "@/lib/local-collection"
+import { readLocalCollectedIds, writeLocalCollectedIds } from "@/lib/local-collection"
 import type { User } from "@supabase/supabase-js"
 
 export type SlotStatus = 'collected' | 'finalized' | 'considering' | 'wishlisted'
@@ -86,7 +86,34 @@ interface LocalCollectionSnapshot {
   collection: CollectedPokemon[]
 }
 
+type PendingCollectionOperation =
+  | {
+      id: string
+      type: "upsert"
+      pokemonId: number
+      item: CollectedPokemon
+      queuedAt: string
+    }
+  | {
+      id: string
+      type: "delete"
+      pokemonId: number
+      queuedAt: string
+    }
+
+type PendingCollectionOperationInput =
+  | {
+      type: "upsert"
+      pokemonId: number
+      item: CollectedPokemon
+    }
+  | {
+      type: "delete"
+      pokemonId: number
+    }
+
 const LOCAL_COLLECTION_SNAPSHOT_KEY = "pokemon_collection_snapshot_v1"
+const LOCAL_COLLECTION_PENDING_OPS_KEY = "pokemon_collection_pending_ops_v1"
 
 function isSlotStatus(value: unknown): value is SlotStatus {
   return value === "collected" || value === "finalized" || value === "considering" || value === "wishlisted"
@@ -199,6 +226,21 @@ function normalizeCollectionItems(items: Partial<CollectedPokemon>[] | null | un
   return Array.isArray(items) ? items.map((item) => normalizeCollectionItem(item)) : []
 }
 
+function upsertCollectionItem(items: CollectedPokemon[], item: CollectedPokemon) {
+  const existing = items.findIndex((currentItem) => currentItem.pokemon_id === item.pokemon_id)
+  if (existing >= 0) {
+    const updated = [...items]
+    updated[existing] = item
+    return updated.sort((a, b) => a.pokemon_id - b.pokemon_id)
+  }
+
+  return [...items, item].sort((a, b) => a.pokemon_id - b.pokemon_id)
+}
+
+function removeCollectionItem(items: CollectedPokemon[], pokemonId: number) {
+  return items.filter((item) => item.pokemon_id !== pokemonId)
+}
+
 function numberArraysEqual(a: number[], b: number[]) {
   if (a.length !== b.length) return false
 
@@ -271,14 +313,161 @@ function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot) {
   }
 }
 
+function readPendingCollectionOperations(): PendingCollectionOperation[] {
+  if (typeof window === "undefined") return []
+
+  try {
+    const stored = window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
+    if (!stored) return []
+
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed.flatMap((operation): PendingCollectionOperation[] => {
+      if (!operation || typeof operation !== "object") return []
+      const item = operation as Partial<PendingCollectionOperation>
+      if (typeof item.id !== "string" || typeof item.type !== "string") return []
+      if (typeof item.pokemonId !== "number" || !Number.isInteger(item.pokemonId) || item.pokemonId <= 0) return []
+
+      if (item.type === "delete") {
+        return [{
+          id: item.id,
+          type: "delete",
+          pokemonId: item.pokemonId,
+          queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
+        }]
+      }
+
+      if (item.type === "upsert" && "item" in item && item.item) {
+        return [{
+          id: item.id,
+          type: "upsert",
+          pokemonId: item.pokemonId,
+          item: normalizeCollectionItem(item.item),
+          queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
+        }]
+      }
+
+      return []
+    })
+  } catch {
+    return []
+  }
+}
+
+function writePendingCollectionOperations(operations: PendingCollectionOperation[]) {
+  if (typeof window === "undefined") return
+
+  try {
+    window.localStorage.setItem(LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(operations))
+  } catch {
+    // ignore quota failures
+  }
+}
+
+function createPendingOperationId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function queuePendingCollectionOperation(operation: PendingCollectionOperationInput) {
+  const nextOperation = {
+    ...operation,
+    id: createPendingOperationId(),
+    queuedAt: new Date().toISOString(),
+  } as PendingCollectionOperation
+  const operations = readPendingCollectionOperations()
+    .filter((queuedOperation) => queuedOperation.pokemonId !== operation.pokemonId)
+
+  writePendingCollectionOperations([...operations, nextOperation])
+}
+
+function removePendingCollectionOperation(operationId: string) {
+  writePendingCollectionOperations(
+    readPendingCollectionOperations().filter((operation) => operation.id !== operationId),
+  )
+}
+
+function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null) {
+  writeLocalCollectionSnapshot({
+    ownerUserId,
+    savedAt: new Date().toISOString(),
+    collection,
+  })
+  writeLocalCollectedIds(
+    collection
+      .filter((item) => item.status !== "wishlisted")
+      .map((item) => item.pokemon_id),
+  )
+}
+
+function isOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false
+}
+
+function getCollectionRequestBody(item: CollectedPokemon) {
+  return {
+    pokemonId: item.pokemon_id,
+    pokemonName: item.pokemon_name,
+    cardId: item.card_id,
+    cardName: item.card_name,
+    cardImage: item.card_image,
+    cardSet: item.card_set,
+    cardLanguage: item.card_language ?? "en",
+    cardFinish: item.card_finish ?? "normal",
+    wantedCards: item.wanted_cards ?? [],
+    status: item.status,
+  }
+}
+
+async function saveRemoteCollectionItem(item: CollectedPokemon) {
+  const response = await fetch("/api/collection", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(getCollectionRequestBody(item)),
+  })
+
+  if (!response.ok) {
+    const payload = await readJsonResponse(response)
+    const message = payload?.error || `Failed to save collection item (${response.status})`
+    if (isMissingStatusColumnError(message)) {
+      throw new Error(
+        "The database is missing pokemon_collection.status. Run scripts/008_add_collection_status.sql against Supabase, then retry.",
+      )
+    }
+    throw new Error(message)
+  }
+
+  const payload = await readJsonResponse(response)
+  return normalizeCollectionItem(payload?.item ?? item)
+}
+
+async function deleteRemoteCollectionItem(pokemonId: number) {
+  const response = await fetch(`/api/collection?pokemonId=${pokemonId}`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const payload = await readJsonResponse(response)
+    throw new Error(payload?.error || `Failed to delete collection item (${response.status})`)
+  }
+}
+
 export function useCollection(options: UseCollectionOptions = {}) {
   const { initialUser = null, initialCollection = [], initialCollectionOwnerUserId = null, readOnly = false } = options
   const [user, setUser] = useState<User | null>(initialUser)
   const [collection, setCollection] = useState<CollectedPokemon[]>(normalizeCollectionItems(initialCollection))
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
+  const [localPendingSyncCount, setLocalPendingSyncCount] = useState(0)
   const supabase = createClient()
   const didMount = useRef(false)
+  const isFlushingPendingOperationsRef = useRef(false)
 
   const getSanitizedLocalCollectedIds = useCallback(() => {
     const rawIds = readLocalCollectedIds()
@@ -320,18 +509,35 @@ export function useCollection(options: UseCollectionOptions = {}) {
     setLocalCollectedCount(getSanitizedLocalCollectedIds().length)
   }, [getSanitizedLocalCollectedIds])
 
+  const refreshLocalPendingSyncCount = useCallback(() => {
+    setLocalPendingSyncCount(readPendingCollectionOperations().length)
+  }, [])
+
+  const applyLocalCollection = useCallback((nextCollection: CollectedPokemon[]) => {
+    setCollection(nextCollection)
+    persistLocalCollectionState(nextCollection, collectionOwnerUserId)
+    refreshLocalCollectedCount()
+  }, [collectionOwnerUserId, refreshLocalCollectedCount])
+
+  const queueLocalCollectionOperation = useCallback((operation: PendingCollectionOperationInput) => {
+    queuePendingCollectionOperation(operation)
+    refreshLocalPendingSyncCount()
+  }, [refreshLocalPendingSyncCount])
+
   useEffect(() => {
     refreshLocalCollectedCount()
+    refreshLocalPendingSyncCount()
 
     const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key === "pokemon_collected") {
+      if (!event.key || event.key === "pokemon_collected" || event.key === LOCAL_COLLECTION_PENDING_OPS_KEY) {
         refreshLocalCollectedCount()
+        refreshLocalPendingSyncCount()
       }
     }
 
     window.addEventListener("storage", handleStorage)
     return () => window.removeEventListener("storage", handleStorage)
-  }, [refreshLocalCollectedCount])
+  }, [refreshLocalCollectedCount, refreshLocalPendingSyncCount])
 
   useEffect(() => {
     if (readOnly || !user) {
@@ -436,14 +642,76 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   useEffect(() => {
     if (readOnly) return
-    if (!collectionOwnerUserId || collection.length === 0) return
+    if (!collectionOwnerUserId && collection.length === 0) return
 
-    writeLocalCollectionSnapshot({
-      ownerUserId: collectionOwnerUserId,
-      savedAt: new Date().toISOString(),
-      collection,
-    })
+    persistLocalCollectionState(collection, collectionOwnerUserId)
   }, [collection, collectionOwnerUserId, readOnly])
+
+  const flushPendingCollectionOperations = useCallback(async () => {
+    if (readOnly || !user || !collectionOwnerUserId || isOffline()) return
+    if (isFlushingPendingOperationsRef.current) return
+
+    const operations = readPendingCollectionOperations()
+    if (operations.length === 0) {
+      if (localPendingSyncCount !== 0) {
+        setLocalPendingSyncCount(0)
+      }
+      return
+    }
+
+    isFlushingPendingOperationsRef.current = true
+
+    try {
+      let nextCollection = collection
+
+      for (const operation of operations) {
+        try {
+          if (operation.type === "upsert") {
+            const savedItem = await saveRemoteCollectionItem(operation.item)
+            nextCollection = upsertCollectionItem(nextCollection, savedItem)
+          } else {
+            await deleteRemoteCollectionItem(operation.pokemonId)
+            nextCollection = removeCollectionItem(nextCollection, operation.pokemonId)
+          }
+
+          removePendingCollectionOperation(operation.id)
+          refreshLocalPendingSyncCount()
+        } catch (error) {
+          console.error("[binderdex] Pending collection sync paused:", {
+            message: extractErrorMessage(error),
+            pokemonId: operation.pokemonId,
+            operation: operation.type,
+          })
+          break
+        }
+      }
+
+      if (nextCollection !== collection) {
+        applyLocalCollection(nextCollection)
+      }
+    } finally {
+      isFlushingPendingOperationsRef.current = false
+    }
+  }, [
+    applyLocalCollection,
+    collection,
+    collectionOwnerUserId,
+    localPendingSyncCount,
+    readOnly,
+    refreshLocalPendingSyncCount,
+    user,
+  ])
+
+  useEffect(() => {
+    flushPendingCollectionOperations()
+  }, [flushPendingCollectionOperations, localPendingSyncCount])
+
+  useEffect(() => {
+    if (readOnly || typeof window === "undefined") return
+
+    window.addEventListener("online", flushPendingCollectionOperations)
+    return () => window.removeEventListener("online", flushPendingCollectionOperations)
+  }, [flushPendingCollectionOperations, readOnly])
 
   const addToCollection = useCallback(async (
     pokemonId: number,
@@ -457,111 +725,71 @@ export function useCollection(options: UseCollectionOptions = {}) {
     options: SaveCollectionOptions = {},
   ) => {
     if (readOnly) return { error: "Read-only binder" }
-    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
+
+    const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+    const nextItem = normalizeCollectionItem({
+      id: existingItem?.id,
+      pokemon_id: pokemonId,
+      pokemon_name: pokemonName,
+      card_id: cardId,
+      card_name: cardName,
+      card_image: cardImage,
+      card_set: cardSet,
+      card_language: cardLanguage,
+      card_finish: options.cardFinish ?? existingItem?.card_finish ?? "normal",
+      wanted_cards: options.wantedCards ?? existingItem?.wanted_cards ?? [],
+      status,
+      collected_at: existingItem?.collected_at ?? new Date().toISOString(),
+    })
+    const nextCollection = upsertCollectionItem(collection, nextItem)
+
+    applyLocalCollection(nextCollection)
+
+    if (!user || !collectionOwnerUserId || isOffline()) {
+      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
+      return { data: nextItem, queued: true }
+    }
 
     try {
-      const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
-      const nextItem = normalizeCollectionItem({
-        id: existingItem?.id,
-        pokemon_id: pokemonId,
-        pokemon_name: pokemonName,
-        card_id: cardId,
-        card_name: cardName,
-        card_image: cardImage,
-        card_set: cardSet,
-        card_language: cardLanguage,
-        card_finish: options.cardFinish ?? existingItem?.card_finish ?? "normal",
-        wanted_cards: options.wantedCards ?? existingItem?.wanted_cards ?? [],
-        status,
-        collected_at: existingItem?.collected_at,
-      })
+      const savedItem = await saveRemoteCollectionItem(nextItem)
+      const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
 
-      const response = await fetch("/api/collection", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          pokemonId,
-          pokemonName,
-          cardId,
-          cardName,
-          cardImage,
-          cardSet,
-          cardLanguage,
-          cardFinish: options.cardFinish ?? existingItem?.card_finish ?? "normal",
-          wantedCards: options.wantedCards ?? existingItem?.wanted_cards ?? [],
-          status,
-        })
-      })
-
-      if (!response.ok) {
-        const payload = await readJsonResponse(response)
-        const message = payload?.error || `Failed to save collection item (${response.status})`
-        if (isMissingStatusColumnError(message)) {
-          throw new Error(
-            "The database is missing pokemon_collection.status. Run scripts/008_add_collection_status.sql against Supabase, then retry.",
-          )
-        }
-        throw new Error(message)
-      }
-
-      const payload = await readJsonResponse(response)
-      const savedItem = normalizeCollectionItem(payload?.item ?? nextItem)
-
-      setCollection(prev => {
-        const existing = prev.findIndex(p => p.pokemon_id === pokemonId)
-        if (existing >= 0) {
-          const updated = [...prev]
-          updated[existing] = savedItem
-          return updated
-        }
-        return [...prev, savedItem].sort((a, b) => a.pokemon_id - b.pokemon_id)
-      })
-
-      if (status === "wishlisted") {
-        removeLocalCollectedId(pokemonId)
-      } else {
-        addLocalCollectedId(pokemonId)
-      }
-      refreshLocalCollectedCount()
+      applyLocalCollection(syncedCollection)
 
       return { data: savedItem }
     } catch (error) {
+      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
       console.error("[binderdex] Error adding to collection:", {
         message: extractErrorMessage(error),
         raw: error,
         pokemonId,
         status,
       })
-      return { error: extractErrorMessage(error) }
+      return { data: nextItem, queued: true, error: extractErrorMessage(error) }
     }
-  }, [collectionOwnerUserId, readOnly, refreshLocalCollectedCount, supabase, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user])
 
   const removeFromCollection = useCallback(async (pokemonId: number) => {
     if (readOnly) return { error: "Read-only binder" }
-    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
+    const nextCollection = removeCollectionItem(collection, pokemonId)
+
+    applyLocalCollection(nextCollection)
+
+    if (!user || !collectionOwnerUserId || isOffline()) {
+      queueLocalCollectionOperation({ type: "delete", pokemonId })
+      return { success: true, queued: true }
+    }
 
     try {
-      const response = await fetch(`/api/collection?pokemonId=${pokemonId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const payload = await readJsonResponse(response)
-        throw new Error(payload?.error || `Failed to delete collection item (${response.status})`)
-      }
-
-      setCollection(prev => prev.filter(p => p.pokemon_id !== pokemonId))
-      removeLocalCollectedId(pokemonId)
-      refreshLocalCollectedCount()
+      await deleteRemoteCollectionItem(pokemonId)
 
       return { success: true }
     } catch (error) {
+      queueLocalCollectionOperation({ type: "delete", pokemonId })
       console.error("[binderdex] Error removing from collection:", error)
-      return { error }
+      return { success: true, queued: true, error }
     }
-  }, [collectionOwnerUserId, readOnly, refreshLocalCollectedCount, supabase, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user])
 
   const addWantedCard = useCallback(async (
     pokemonId: number,
@@ -706,13 +934,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         : collection.filter((item) => !idsToRemove.includes(item.pokemon_id))
       const nextCollection = [...keptRows, ...syncedRows].sort((a, b) => a.pokemon_id - b.pokemon_id)
 
-      setCollection(nextCollection)
-      writeLocalCollectedIds(
-        nextCollection
-          .filter((item) => item.status !== "wishlisted")
-          .map((item) => item.pokemon_id),
-      )
-      refreshLocalCollectedCount()
+      applyLocalCollection(nextCollection)
 
       return {
         data: {
@@ -728,39 +950,34 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error syncing local collection:", error)
       return { error }
     }
-  }, [collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, refreshLocalCollectedCount, supabase, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, supabase, user])
 
   const updateStatus = useCallback(async (pokemonId: number, status: SlotStatus) => {
     if (readOnly) return { error: "Read-only binder" }
-    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
+    const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+    if (!existingItem) return { error: "Not in collection" }
+    const nextItem = normalizeCollectionItem({ ...existingItem, status })
+    const nextCollection = upsertCollectionItem(collection, nextItem)
+
+    applyLocalCollection(nextCollection)
+
+    if (!user || !collectionOwnerUserId || isOffline()) {
+      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
+      return { data: nextItem, queued: true }
+    }
 
     try {
-      const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
-      const response = await fetch("/api/collection", {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ pokemonId, status }),
-      })
+      const savedItem = await saveRemoteCollectionItem(nextItem)
+      const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
 
-      if (!response.ok) {
-        const payload = await readJsonResponse(response)
-        throw new Error(payload?.error || `Failed to update collection item (${response.status})`)
-      }
-
-      const payload = await readJsonResponse(response)
-      const savedItem = payload?.item ? normalizeCollectionItem(payload.item) : (existingItem ? { ...existingItem, status } : null)
-
-      setCollection(prev => prev.map(p =>
-        p.pokemon_id === pokemonId ? (savedItem ?? { ...p, status }) : p
-      ))
-      return { data: savedItem ?? (existingItem ? { ...existingItem, status } : { pokemon_id: pokemonId, status }) }
+      applyLocalCollection(syncedCollection)
+      return { data: savedItem }
     } catch (error) {
+      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
       console.error("[binderdex] Error updating status:", error)
-      return { error }
+      return { data: nextItem, queued: true, error }
     }
-  }, [collection, collectionOwnerUserId, readOnly, supabase, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user])
 
   const cycleStatus = useCallback(async (pokemonId: number) => {
     const item = collection.find(p => p.pokemon_id === pokemonId)
@@ -815,6 +1032,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     signOut,
     syncLocalCollectionToDatabase,
     localCollectedCount,
+    localPendingSyncCount,
     collectionCount: collection.filter((item) => item.status !== "wishlisted").length,
     collectionOwnerUserId,
   }
