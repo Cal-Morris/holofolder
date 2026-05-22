@@ -2121,6 +2121,11 @@ export default function BinderApp({
       return
     }
 
+    if (!isDesktopViewport) {
+      setQuickPanelPosition(null)
+      return
+    }
+
     const slotButton = slotButtonRefs.current.get(selectedPokemon.id)
     const quickPanelNode = quickPanelRef.current
 
@@ -2132,9 +2137,9 @@ export default function BinderApp({
     const panelRect = quickPanelNode.getBoundingClientRect()
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
-    const edgePadding = isDesktopViewport ? 16 : 12
-    const bottomClearance = isDesktopViewport ? 16 : 92
-    const verticalGap = isDesktopViewport ? 14 : 12
+    const edgePadding = 16
+    const bottomClearance = 16
+    const verticalGap = 14
     const spaceAbove = slotRect.top - edgePadding - verticalGap
     const spaceBelow = viewportHeight - slotRect.bottom - bottomClearance - verticalGap
     const placeBelow = spaceBelow >= panelRect.height || spaceBelow > spaceAbove
@@ -2164,6 +2169,11 @@ export default function BinderApp({
 
   useEffect(() => {
     if (!selectedPokemon || isSearchOpen || typeof window === "undefined") {
+      setQuickPanelPosition(null)
+      return
+    }
+
+    if (!isDesktopViewport) {
       setQuickPanelPosition(null)
       return
     }
@@ -2242,7 +2252,7 @@ export default function BinderApp({
     const quickPanel = (
       <div
         ref={quickPanelRef}
-        className="fixed z-30 w-[min(calc(100vw-1.5rem),28rem)] transition-[top,left] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
+        className="fixed z-30 w-[min(calc(100vw-1.5rem),28rem)] transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
         style={quickPanelPosition
           ? {
               top: quickPanelPosition.top,
@@ -2261,7 +2271,7 @@ export default function BinderApp({
                 width: "min(calc(100vw - 1.5rem), 24rem)",
               }}
       >
-        <div className="rounded-[1.6rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
+        <div className="rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
           <div className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
               <div className="relative mt-0.5 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -2301,7 +2311,7 @@ export default function BinderApp({
                     </span>
                   ) : null}
                 </div>
-                <p className={`mt-1.5 min-h-[1rem] text-[11px] leading-relaxed ${
+                <p className={`mt-1.5 min-h-[1rem] truncate text-[11px] leading-relaxed ${
                   wishlisted && collectionItem?.card_name
                     ? "text-amber-400"
                   : collectionItem?.card_name
@@ -2311,11 +2321,11 @@ export default function BinderApp({
                   {selectedCardSummaryLabel}
                 </p>
                 {selectedDetailChips.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-2 flex items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap">
                     {selectedDetailChips.map((detailChip) => (
                       <span
                         key={detailChip.key}
-                        className="rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
+                        className="shrink-0 rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
                       >
                         {detailChip.label}
                       </span>
@@ -2437,7 +2447,7 @@ export default function BinderApp({
                 )}
               </div>
               </div>
-              <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/90">
+              <p className="hidden px-1 text-[11px] leading-relaxed text-muted-foreground/90 sm:block">
                 {panelHelperText}
               </p>
             </div>
@@ -2839,7 +2849,7 @@ export default function BinderApp({
             </div>
           </div>
 
-          <div className={`${isMobileNavExpanded ? "block" : "hidden"} border-t border-border/40 px-2 py-1.5 md:block`}>
+          <div className="hidden border-t border-border/40 px-2 py-1.5 md:block">
 	            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap">
 	              <div className="flex shrink-0 rounded-xl border border-border/50 bg-card/70 p-0.5 dark:border-border/30 dark:bg-muted/40">
                 <button
@@ -3306,6 +3316,118 @@ export default function BinderApp({
         </div>
       )}
 
+      {isMobileNavExpanded && !isSearchOpen && (
+        <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm md:hidden" onClick={() => setIsMobileNavExpanded(false)}>
+          <div
+            className="absolute inset-x-0 bottom-0 rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60" />
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Controls</p>
+                <p className="text-xs text-muted-foreground">{collectionStats.percentage}% complete</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-full"
+                onClick={() => setIsMobileNavExpanded(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-2xl border border-border/60 bg-background/62 p-1 dark:border-border/40 dark:bg-muted/35">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev > 0 ? prev - 1 : GENERATIONS.length - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <select
+                  value={selectedGen}
+                  onChange={(e) => setSelectedGen(Number(e.target.value))}
+                  className="h-9 min-w-0 bg-transparent text-center text-sm font-semibold cursor-pointer focus:outline-none"
+                >
+                  {GENERATIONS.map((gen) => (
+                    <option key={gen.id} value={gen.id}>
+                      {gen.id === 0 ? "All Pokemon" : `Gen ${gen.id}${gen.region ? ` ${gen.region}` : ""}`}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev < GENERATIONS.length - 1 ? prev + 1 : 0)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {isCompactViewport && (
+                <button
+                  onClick={() => setIsMobileSpreadPreview((current) => !current)}
+                  aria-pressed={isMobileSpreadPreview}
+                  className={`flex h-11 w-full items-center justify-between rounded-2xl border px-4 text-sm font-semibold transition-all ${
+                    isMobileSpreadPreview
+                      ? "border-primary/30 bg-primary/12 text-primary"
+                      : "border-border/60 bg-background/62 text-foreground dark:border-border/40 dark:bg-muted/35"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Spread preview
+                  </span>
+                  <span className="text-xs text-muted-foreground">{isMobileSpreadPreview ? "On" : "Off"}</span>
+                </button>
+              )}
+
+              {canFilterCollection && (
+                <div className="grid grid-cols-2 gap-2">
+                  {COLLECTION_VIEW_FILTERS.map((filterOption) => {
+                    const isActive = collectionViewFilter === filterOption.id
+
+                    return (
+                      <button
+                        key={filterOption.id}
+                        onClick={() => {
+                          setCollectionViewFilter(filterOption.id)
+                          setIsMobileNavExpanded(false)
+                        }}
+                        className={`h-11 rounded-2xl border px-3 text-sm font-semibold transition-all ${
+                          isActive
+                            ? "border-primary/35 bg-primary/12 text-primary"
+                            : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
+                        }`}
+                      >
+                        {filterOption.mobileLabel}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className={`grid gap-2 ${hasTrackedCards ? "grid-cols-2" : "grid-cols-1"}`}>
+                {hasTrackedCards && (
+                  <button
+                    onClick={() => setIsPriceMode((current) => !current)}
+                    className={`h-11 rounded-2xl border px-3 text-sm font-semibold transition-all ${
+                      isPriceMode
+                        ? "border-primary/35 bg-primary/12 text-primary"
+                        : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
+                    }`}
+                  >
+                    {isLoadingPrices && isPriceMode ? "Loading prices" : "Prices"}
+                  </button>
+                )}
+                <button
+                  onClick={handlePhotoButtonClick}
+                  disabled={isScanningPage || isFilteredBinderLayout || currentPagePokemon.length === 0}
+                  className="h-11 rounded-2xl border border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
+                >
+                  {isScanningPage ? "Scanning" : "Scan page"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isMobileFilterSheetOpen && !isSearchOpen && (
         <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm md:hidden" onClick={() => setIsMobileFilterSheetOpen(false)}>
           <div
@@ -3313,12 +3435,10 @@ export default function BinderApp({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border/60" />
-            <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Binder View</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Choose what the binder shows, and what the jump button targets next.
-                </p>
+                <p className="text-xs text-muted-foreground">{filteredPokemonList.length} visible</p>
               </div>
               <Button
                 variant="ghost"
@@ -3350,9 +3470,6 @@ export default function BinderApp({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">{filterOption.label}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                          {filterOption.description}
-                        </p>
                       </div>
                       <div
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
@@ -3365,16 +3482,6 @@ export default function BinderApp({
                   </button>
                 )
               })}
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-border/60 bg-card/78 px-4 py-3 dark:border-border/40 dark:bg-card/55">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Current Mode
-              </p>
-              <p className="mt-2 text-sm font-medium">{activeCollectionFilterOption.label}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                The `Next` button will jump through {activeJumpLabel.toLowerCase()} slots while this mode is active.
-              </p>
             </div>
           </div>
         </div>
