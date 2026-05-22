@@ -438,7 +438,7 @@ function detectSlotBoundsFromGrid(
   count: number,
   orientation: "vertical" | "horizontal",
 ) {
-  const lineOffsets = getGridLinePositions(
+  const lineOffsets = getBinderSlotBoundaryOffsets(
     orientation === "vertical" ? grid.width : grid.height,
     count,
     orientation === "vertical" ? TOTAL_GAP_SHARE_X : TOTAL_GAP_SHARE_Y,
@@ -1094,8 +1094,8 @@ function scoreBinderGridCandidate(
     return -Infinity
   }
 
-  const verticalLines = getGridLinePositions(rectWidth, cols, TOTAL_GAP_SHARE_X)
-  const horizontalLines = getGridLinePositions(rectHeight, rows, TOTAL_GAP_SHARE_Y)
+  const verticalLines = getBinderSlotBoundaryOffsets(rectWidth, cols, TOTAL_GAP_SHARE_X)
+  const horizontalLines = getBinderSlotBoundaryOffsets(rectHeight, rows, TOTAL_GAP_SHARE_Y)
   const verticalLineScores = verticalLines.map((offset) =>
     rectMean(maps.verticalIntegral, imageWidth, x + Math.round(offset) - bandWidth, y, bandWidth * 2 + 1, rectHeight)
   )
@@ -1123,8 +1123,12 @@ function scoreBinderGridCandidate(
   )
 }
 
-function getGridLinePositions(length: number, count: number, totalGapShare: number) {
-  const positions = [0, length]
+export function getBinderSlotBoundaryOffsets(length: number, count: number, totalGapShare: number) {
+  if (count <= 1) {
+    return [0, length]
+  }
+
+  const positions: number[] = []
   const gap = count > 1 ? (length * totalGapShare) / (count - 1) : 0
   const slot = (length - gap * (count - 1)) / count
 
@@ -1132,10 +1136,7 @@ function getGridLinePositions(length: number, count: number, totalGapShare: numb
     const slotStart = index * (slot + gap)
     const slotEnd = slotStart + slot
 
-    if (index > 0) {
-      positions.push(slotStart)
-    }
-
+    positions.push(slotStart)
     positions.push(slotEnd)
   }
 
