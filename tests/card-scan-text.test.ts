@@ -27,6 +27,24 @@ test("extractCardTextSignals preserves prefixed collector numbers from trainer g
   assert.deepEqual(signals.collectorNumbers, ["tg5/tg30", "tg5", "tg30", "5/30", "5", "30"])
 })
 
+test("extractCardTextSignals normalizes OCR-confused collector digits", () => {
+  const signals = extractCardTextSignals("Trainer Gallery TGOS/TG3O")
+
+  assert.deepEqual(signals.collectorNumbers, ["tg5/tg30", "tg5", "tg30", "5/30", "5", "30"])
+})
+
+test("extractCardTextSignals recovers collector numbers when OCR drops the slash", () => {
+  const signals = extractCardTextSignals("Pikachu HP 60 025 102 Base Set")
+
+  assert.deepEqual(signals.collectorNumbers, ["25/102", "25", "102"])
+})
+
+test("extractCardTextSignals does not invent collector numbers from slash-separated words", () => {
+  const signals = extractCardTextSignals("weakness/resistance loss/boss illustrator")
+
+  assert.deepEqual(signals.collectorNumbers, [])
+})
+
 test("scoreCardTextSignals rewards prefixed localId matches over plain number collisions", () => {
   const signals = extractCardTextSignals("TG05/TG30")
   const prefixedCard = { id: "tg", name: "Pikachu", localId: "TG05", set: { id: "swsh11tg", name: "Trainer Gallery" } }

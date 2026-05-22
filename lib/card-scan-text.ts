@@ -1,5 +1,19 @@
 const MAX_TEXT_BOOST = 0.24
 const OCR_WORD_MIN_LENGTH = 2
+const OCR_DIGIT_CONFUSIONS: Record<string, string> = {
+  o: "0",
+  i: "1",
+  l: "1",
+  s: "5",
+  b: "8",
+}
+const COLLECTOR_SIDE_PATTERN = /^[a-z]{0,4}[0-9oilsb]{1,4}$/
+
+interface ParsedCollectorSide {
+  normalized: string
+  prefix: string
+  hasActualDigit: boolean
+}
 
 export interface CardTextSignals {
   rawText: string
@@ -42,17 +56,34 @@ function normalizeText(value: string) {
     .trim()
 }
 
-function normalizeCollectorSide(value: string | undefined, preservePrefix: boolean) {
-  if (!value) return ""
+function parseCollectorSide(value: string | undefined, preservePrefix: boolean): ParsedCollectorSide | null {
+  if (!value) return null
   const compact = value.toLowerCase().replace(/[^a-z0-9]/g, "")
-  const match = compact.match(/^([a-z]*)(\d{1,4})$/)
-  if (!match) return ""
+  const match = compact.match(/^([a-z]*?)([0-9oilsb]{1,4})$/)
+  if (!match) return null
 
   const prefix = preservePrefix ? match[1] : ""
-  const parsed = Number.parseInt(match[2], 10)
-  if (!Number.isFinite(parsed)) return ""
+  const normalizedDigits = match[2].replace(/[oilsb]/g, (char) => OCR_DIGIT_CONFUSIONS[char] ?? char)
+  const parsed = Number.parseInt(normalizedDigits, 10)
+  if (!Number.isFinite(parsed)) return null
 
-  return `${prefix}${parsed}`
+  return {
+    normalized: `${prefix}${parsed}`,
+    prefix: match[1],
+    hasActualDigit: /\d/.test(match[2]),
+  }
+}
+
+function normalizeCollectorSide(value: string | undefined, preservePrefix: boolean) {
+  return parseCollectorSide(value, preservePrefix)?.normalized ?? ""
+}
+
+function isCollectorSideCandidate(value: string) {
+  if (!COLLECTOR_SIDE_PATTERN.test(value)) return false
+  const parsed = parseCollectorSide(value, true)
+  if (!parsed) return false
+
+  return parsed.hasActualDigit || parsed.prefix.length > 0
 }
 
 function normalizeNumberToken(value: string, preservePrefix = false) {
@@ -74,18 +105,20 @@ function addCollectorNumber(numbers: string[], seen: Set<string>, value: string,
 
 export function extractCardTextSignals(rawText: string): CardTextSignals {
   const normalizedText = normalizeText(rawText)
+  const textTokens = normalizedText.split(/\s+/).filter(Boolean)
   const words = new Set(
-    normalizedText
-      .split(/\s+/)
+    textTokens
       .map((word) => word.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ""))
       .filter((word) => word.length >= OCR_WORD_MIN_LENGTH && /[a-z]/.test(word)),
   )
   const collectorNumbers: string[] = []
   const seenNumbers = new Set<string>()
 
-  for (const match of normalizedText.matchAll(/\b([a-z]{0,4}\d{1,4})\s*\/\s*([a-z]{0,4}\d{1,4})\b/g)) {
+  for (const match of normalizedText.matchAll(/\b([a-z]{0,4}[0-9oilsb]{1,4})\s*\/\s*([a-z]{0,4}[0-9oilsb]{1,4})\b/g)) {
     const left = match[1]
     const right = match[2]
+    if (!isCollectorSideCandidate(left) || !isCollectorSideCandidate(right)) continue
+
     const hasPrefix = /[a-z]/.test(left) || /[a-z]/.test(right)
 
     if (hasPrefix) {
@@ -101,6 +134,41 @@ export function extractCardTextSignals(rawText: string): CardTextSignals {
 
   for (const match of normalizedText.matchAll(/(?:\bno\.?|#)\s*(\d{1,4})\b/g)) {
     addCollectorNumber(collectorNumbers, seenNumbers, match[1])
+  }
+
+  for (let index = 0; index < textTokens.length - 1; index += 1) {
+    const left = textTokens[index].replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "")
+    const right = textTokens[index + 1].replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "")
+    const leftHasDigit = /\d/.test(left)
+    const rightHasDigit = /\d/.test(right)
+
+    if (!leftHasDigit || !rightHasDigit) continue
+    if (!isCollectorSideCandidate(left) || !isCollectorSideCandidate(right)) continue
+
+    const hasPrefix = /[a-z]/.test(left) || /[a-z]/.test(right)
+    const leftNumeric = normalizeNumberToken(left)
+    const rightNumeric = normalizeNumberToken(right)
+    const numericLeftValue = Number.parseInt(leftNumeric, 10)
+    const numericRightValue = Number.parseInt(rightNumeric, 10)
+
+    if (
+      !Number.isFinite(numericLeftValue) ||
+      !Number.isFinite(numericRightValue) ||
+      numericRightValue < numericLeftValue ||
+      numericRightValue > 999
+    ) {
+      continue
+    }
+
+    if (hasPrefix) {
+      addCollectorNumber(collectorNumbers, seenNumbers, `${left}/${right}`, true)
+      addCollectorNumber(collectorNumbers, seenNumbers, left, true)
+      addCollectorNumber(collectorNumbers, seenNumbers, right, true)
+    }
+
+    addCollectorNumber(collectorNumbers, seenNumbers, `${left}/${right}`)
+    addCollectorNumber(collectorNumbers, seenNumbers, left)
+    addCollectorNumber(collectorNumbers, seenNumbers, right)
   }
 
   return {
