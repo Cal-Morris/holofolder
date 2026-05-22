@@ -24,6 +24,7 @@ import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-pag
 import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } from "@/lib/binder-page-scan-aggregate"
 import { aggregateBinderSlotSweep, getNextSweepSlotIndex, type BinderSlotSweepFrame } from "@/lib/binder-slot-sweep"
 import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
+import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib/card-scan-evidence"
 import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
@@ -2297,14 +2298,15 @@ export default function BinderApp({
 
   const rankPageSlotMatchesWithText = useCallback(async (
     matches: AggregatedCardScanMatch<TCGCard>[],
-    cardImageDataUrls?: string[],
+    cardImageCandidates?: CardScanImageCandidate[],
   ): Promise<AggregatedCardScanMatch<TCGCard>[]> => {
-    if (!cardImageDataUrls || cardImageDataUrls.length === 0 || matches.length <= 1) return matches
+    if (!cardImageCandidates || cardImageCandidates.length === 0 || matches.length <= 1) return matches
 
     const topMargin = Math.abs(matches[0].similarity - (matches[1]?.similarity ?? 0))
     const cropLimit = topMargin < 0.08 ? PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT : PAGE_SCAN_OCR_BASE_CROP_LIMIT
+    const evidenceImages = selectCardScanEvidenceImages(cardImageCandidates, cropLimit)
     const textSignals = mergeCardTextSignals(await Promise.all(
-      cardImageDataUrls.slice(0, cropLimit).map((cardImageDataUrl) => readPageScanSlotTextSignals(cardImageDataUrl)),
+      evidenceImages.map((cardImageDataUrl) => readPageScanSlotTextSignals(cardImageDataUrl)),
     ))
     if (!textSignals) return matches
 
@@ -2342,7 +2344,7 @@ export default function BinderApp({
     results: BinderPageScanResult[],
   ): Promise<PageScanCardMatchSummary[]> => {
     const slotFrames = new Map<number, CardScanFrameMatch<TCGCard>[][]>()
-    const slotCropImagesByIndex = new Map<number, string[]>()
+    const slotCropImagesByIndex = new Map<number, CardScanImageCandidate[]>()
 
     for (const result of results) {
       await Promise.all(
@@ -2350,10 +2352,8 @@ export default function BinderApp({
           const pokemon = currentPageSlots[slot.index]
           if (!slot.occupied || !slot.cardImageDataUrl || !pokemon) return
           const slotCropImages = slotCropImagesByIndex.get(slot.index) ?? []
-          if (slotCropImages.length < PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT) {
-            slotCropImages.push(slot.cardImageDataUrl)
-            slotCropImagesByIndex.set(slot.index, slotCropImages)
-          }
+          slotCropImages.push({ dataUrl: slot.cardImageDataUrl, quality: slot.confidence })
+          slotCropImagesByIndex.set(slot.index, slotCropImages)
 
           try {
             const matches = await scorePageScanSlotCard(slot.cardImageDataUrl, pokemon)
@@ -2593,16 +2593,16 @@ export default function BinderApp({
     try {
       const frameMatches: CardScanFrameMatch<TCGCard>[][] = []
       const slotFrames: BinderSlotSweepFrame<TCGCard>[] = []
-      const previewUrls: string[] = []
+      const previewCandidates: CardScanImageCandidate[] = []
 
       for (let index = 0; index < SLOT_SWEEP_FRAME_COUNT; index += 1) {
         setBurstFramesProcessed(index + 1)
         const frame = await captureGuidedSlotFrame(video, canvas, index)
         setSlotSweepPreviewUrl(frame.previewUrl)
-        previewUrls.push(frame.previewUrl)
 
         try {
           const matches = await scorePageScanSlotCard(frame.previewUrl, pokemon)
+          previewCandidates.push({ dataUrl: frame.previewUrl, quality: matches[0]?.similarity ?? 0 })
           slotFrames.push({ slotIndex: slotSweepSlotIndex, matches })
 
           if (matches.length > 0) {
@@ -2611,6 +2611,7 @@ export default function BinderApp({
           }
         } catch (error) {
           console.info("[binderdex] Skipping slot sweep frame:", error)
+          previewCandidates.push({ dataUrl: frame.previewUrl, quality: 0 })
           slotFrames.push({ slotIndex: slotSweepSlotIndex, matches: [] })
         }
 
@@ -2644,7 +2645,7 @@ export default function BinderApp({
             minimumAppearances: Math.max(2, Math.ceil(frameMatches.length * 0.45)),
             maxResults: 6,
           })
-      const rankedMatches = await rankPageSlotMatchesWithText(baseMatches, previewUrls)
+      const rankedMatches = await rankPageSlotMatchesWithText(baseMatches, previewCandidates)
       const match = rankedMatches[0]
 
       if (!match || !canAutoAcceptCardScanMatch(match, { minimumConfidence: 0.58, minimumSimilarity: 0.56 })) {
