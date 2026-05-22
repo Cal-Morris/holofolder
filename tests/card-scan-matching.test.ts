@@ -76,6 +76,25 @@ test("aggregateCardScanMatches counts duplicate card candidates once per frame",
   assert.equal(aggregated[0]?.appearances, 2)
 })
 
+test("aggregateCardScanMatches ignores weak per-frame candidates when a frame similarity floor is set", () => {
+  const aggregated = aggregateCardScanMatches<TestCard>(
+    [
+      [match(alpha, 0.54), match(beta, 0.68)],
+      [match(alpha, 0.53), match(beta, 0.67)],
+      [match(alpha, 0.52)],
+    ],
+    {
+      getCardId: (card) => card.id,
+      minimumAppearances: 2,
+      minimumFrameSimilarity: 0.56,
+      maxResults: 3,
+    },
+  )
+
+  assert.deepEqual(aggregated.map((entry) => entry.card.id), ["beta"])
+  assert.equal(aggregated[0]?.appearances, 2)
+})
+
 test("aggregatePageSlotScanMatches aggregates each binder slot independently", () => {
   const slots = aggregatePageSlotScanMatches<TestCard>(
     [

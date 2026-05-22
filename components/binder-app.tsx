@@ -2374,6 +2374,7 @@ export default function BinderApp({
       {
         getCardId: (card) => card.id,
         minimumAppearances: results.length > 1 ? Math.max(1, Math.ceil(results.length * 0.34)) : 1,
+        minimumFrameSimilarity: 0.55,
         maxResultsPerSlot: 6,
       },
     )
@@ -2634,6 +2635,7 @@ export default function BinderApp({
         getCardId: (card) => card.id,
         minimumFramesPerSlot: SLOT_SWEEP_MIN_USABLE_FRAMES,
         minimumAppearanceRatio: 0.45,
+        minimumFrameSimilarity: 0.55,
         minimumConfidence: 0.58,
         minimumSimilarity: 0.56,
       })
@@ -2643,6 +2645,7 @@ export default function BinderApp({
         : aggregateCardScanMatches(frameMatches, {
             getCardId: (card) => card.id,
             minimumAppearances: Math.max(2, Math.ceil(frameMatches.length * 0.45)),
+            minimumFrameSimilarity: 0.55,
             maxResults: 6,
           })
       const rankedMatches = await rankPageSlotMatchesWithText(baseMatches, previewCandidates)

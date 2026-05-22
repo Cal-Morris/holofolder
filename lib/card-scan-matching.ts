@@ -22,6 +22,7 @@ export interface AggregatedCardScanMatch<TCard> {
 export interface AggregateCardScanMatchesOptions<TCard> {
   getCardId: (card: TCard) => string
   minimumAppearances?: number
+  minimumFrameSimilarity?: number
   maxFrameMatches?: number
   maxResults?: number
   rankDecay?: number
@@ -59,6 +60,7 @@ export function aggregateCardScanMatches<TCard>(
   const maxFrameMatches = options.maxFrameMatches ?? DEFAULT_MAX_FRAME_MATCHES
   const maxResults = options.maxResults ?? DEFAULT_MAX_RESULTS
   const minimumAppearances = options.minimumAppearances ?? DEFAULT_MINIMUM_APPEARANCES
+  const minimumFrameSimilarity = options.minimumFrameSimilarity ?? 0
   const rankDecay = options.rankDecay ?? DEFAULT_RANK_DECAY
   const usableFrameCount = frameMatches.filter((matches) => matches.length > 0).length
 
@@ -74,6 +76,7 @@ export function aggregateCardScanMatches<TCard>(
     matches.slice(0, maxFrameMatches).forEach((match, index) => {
       const cardId = options.getCardId(match.card)
       if (!cardId) return
+      if (match.similarity < minimumFrameSimilarity) return
 
       const existing = bestFrameMatchByCardId.get(cardId)
       if (!existing || match.similarity > existing.similarity) {

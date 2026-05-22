@@ -33,6 +33,7 @@ export interface AggregateBinderSlotSweepOptions<TCard> {
   getCardId: (card: TCard) => string
   minimumFramesPerSlot?: number
   minimumAppearanceRatio?: number
+  minimumFrameSimilarity?: number
   minimumConfidence?: number
   minimumSimilarity?: number
   maxResultsPerSlot?: number
@@ -51,6 +52,7 @@ export function aggregateBinderSlotSweep<TCard>(
   const slotCount = Math.max(0, options.slotCount)
   const minimumFramesPerSlot = options.minimumFramesPerSlot ?? DEFAULT_MINIMUM_FRAMES_PER_SLOT
   const minimumAppearanceRatio = options.minimumAppearanceRatio ?? DEFAULT_MINIMUM_APPEARANCE_RATIO
+  const minimumFrameSimilarity = options.minimumFrameSimilarity ?? 0
   const minimumConfidence = options.minimumConfidence ?? DEFAULT_MINIMUM_CONFIDENCE
   const minimumSimilarity = options.minimumSimilarity ?? DEFAULT_MINIMUM_SIMILARITY
   const maxResultsPerSlot = options.maxResultsPerSlot ?? DEFAULT_MAX_RESULTS_PER_SLOT
@@ -72,6 +74,7 @@ export function aggregateBinderSlotSweep<TCard>(
     const matches = aggregateCardScanMatches(slotFrames, {
       getCardId: options.getCardId,
       minimumAppearances,
+      minimumFrameSimilarity,
       maxResults: maxResultsPerSlot,
     })
     const match = matches[0] ?? null
