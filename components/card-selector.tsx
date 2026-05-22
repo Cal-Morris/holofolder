@@ -641,18 +641,17 @@ export default function CardSelector({
 
       <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="fixed inset-x-0 z-50 overflow-y-auto rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-4 sm:rounded-[2.25rem]"
+        className="fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-4 sm:rounded-[2.25rem]"
         onClick={(e) => e.stopPropagation()}
         style={{
           top: "calc(env(safe-area-inset-top) + 4.5rem)",
           bottom: "calc(env(safe-area-inset-bottom) + 0.375rem)",
-          WebkitOverflowScrolling: "touch",
           overscrollBehaviorY: "contain",
           touchAction: "pan-y",
         }}
       >
-        <div className="flex min-h-full flex-col">
-          <div className="sticky top-0 z-20 border-b border-border bg-card/96 px-4 py-3 backdrop-blur-xl sm:px-5">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="z-20 shrink-0 border-b border-border bg-card/96 px-4 py-3 backdrop-blur-xl sm:px-5">
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -726,6 +725,13 @@ export default function CardSelector({
             </div>
           </div>
 
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-y",
+            }}
+          >
             <div className="border-b border-border bg-muted/15 px-4 py-3 sm:px-5 sm:py-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -957,6 +963,7 @@ export default function CardSelector({
               </div>
             )}
             </div>
+          </div>
         </div>
       </div>
     </>

@@ -235,8 +235,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto w-auto max-w-sm overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
-        <div className="relative px-6 pt-6 pb-4 sm:px-6 sm:pt-6 sm:pb-4">
+      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-sm flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85vh,44rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <div className="relative shrink-0 px-6 pt-6 pb-4 sm:px-6 sm:pt-6 sm:pb-4">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
           <button
             onClick={onClose}
@@ -258,7 +258,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
         </div>
 
-        <div className="px-6 pb-6 overflow-y-auto max-h-[calc(100%-7rem)]">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6"
+          style={{
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y",
+          }}
+        >
           {success ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4 text-center">

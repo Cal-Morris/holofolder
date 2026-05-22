@@ -147,7 +147,13 @@ export default function SettingsModal({
           </button>
         </div>
 
-        <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-6 overflow-y-auto flex-1">
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6 space-y-6"
+          style={{
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y",
+          }}
+        >
           {/* Binder Size */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">

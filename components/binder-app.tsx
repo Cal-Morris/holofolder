@@ -3319,8 +3319,13 @@ export default function BinderApp({
       {isMobileNavExpanded && !isSearchOpen && (
         <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm md:hidden" onClick={() => setIsMobileNavExpanded(false)}>
           <div
-            className="absolute inset-x-0 bottom-0 rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
             onClick={(event) => event.stopPropagation()}
+            style={{
+              maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-y",
+            }}
           >
             <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60" />
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -3431,8 +3436,13 @@ export default function BinderApp({
       {isMobileFilterSheetOpen && !isSearchOpen && (
         <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm md:hidden" onClick={() => setIsMobileFilterSheetOpen(false)}>
           <div
-            className="absolute inset-x-0 bottom-0 rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
             onClick={(event) => event.stopPropagation()}
+            style={{
+              maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-y",
+            }}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border/60" />
             <div className="mb-4 flex items-center justify-between gap-3">

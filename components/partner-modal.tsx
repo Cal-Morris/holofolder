@@ -76,7 +76,13 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
           </button>
         </div>
 
-        <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-6 overflow-y-auto flex-1">
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6 space-y-6"
+          style={{
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y",
+          }}
+        >
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
