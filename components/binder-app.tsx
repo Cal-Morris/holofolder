@@ -335,7 +335,13 @@ function formatCollectedDate(value?: string | null) {
   }).format(date)
 }
 
-function sumPriceSnapshots(prices: Array<CardPriceSnapshot | undefined>) {
+type PriceSummary = {
+  gbpTotal: number
+  originalTotals: Partial<Record<Exclude<SupportedCurrency, "GBP">, number>>
+  unpricedCount: number
+}
+
+function sumPriceSnapshots(prices: Array<CardPriceSnapshot | undefined>): PriceSummary {
   let gbpTotal = 0
   const originalTotals: Partial<Record<Exclude<SupportedCurrency, "GBP">, number>> = {}
   let unpricedCount = 0
@@ -354,6 +360,23 @@ function sumPriceSnapshots(prices: Array<CardPriceSnapshot | undefined>) {
   }
 
   return { gbpTotal, originalTotals, unpricedCount }
+}
+
+function combinePriceSummaries(summaries: PriceSummary[]): PriceSummary {
+  const combined: PriceSummary = { gbpTotal: 0, originalTotals: {}, unpricedCount: 0 }
+
+  for (const summary of summaries) {
+    combined.gbpTotal += summary.gbpTotal
+    combined.unpricedCount += summary.unpricedCount
+
+    for (const [currency, amount] of Object.entries(summary.originalTotals)) {
+      if (!amount) continue
+      const supportedCurrency = currency as Exclude<SupportedCurrency, "GBP">
+      combined.originalTotals[supportedCurrency] = (combined.originalTotals[supportedCurrency] || 0) + amount
+    }
+  }
+
+  return combined
 }
 
 function formatPriceTotals(
@@ -1256,6 +1279,20 @@ export default function BinderApp({
     return { collected, total: genPokemon.length, percentage: Math.round((collected / genPokemon.length) * 100) || 0 }
   }, [pokemonList, selectedGen, isCollected])
 
+  const ownedTrackedCards = useMemo(
+    () =>
+      collection.filter(
+        (item) => Boolean(item.card_id) && item.status !== "wishlisted",
+      ),
+    [collection],
+  )
+  const ownedPriceLookups = useMemo<CardPriceLookup[]>(
+    () =>
+      ownedTrackedCards
+        .map<CardPriceLookup | null>((item) => item.card_id ? { cardId: item.card_id, language: item.card_language ?? "en" } : null)
+        .filter((item): item is CardPriceLookup => item !== null),
+    [ownedTrackedCards],
+  )
   const filteredTrackedCards = useMemo(
     () =>
       collection.filter(
@@ -1295,6 +1332,12 @@ export default function BinderApp({
     () => {
       const byKey = new Map<string, CardPriceLookup>()
 
+      if (collectionViewFilter === "wanted") {
+        for (const lookup of ownedPriceLookups) {
+          byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+        }
+      }
+
       for (const lookup of trackedPriceLookups) {
         byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
       }
@@ -1309,7 +1352,7 @@ export default function BinderApp({
 
       return [...byKey.values()]
     },
-    [selectedTrackedPriceLookup, trackedPriceLookups, wantedPriceLookups],
+    [collectionViewFilter, ownedPriceLookups, selectedTrackedPriceLookup, trackedPriceLookups, wantedPriceLookups],
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
   const shouldLoadCardPrices = isPriceMode || collectionViewFilter === "wanted" || activeMainView === "list" || activeMainView === "sets" || Boolean(selectedTrackedPriceLookup)
@@ -1324,6 +1367,36 @@ export default function BinderApp({
   const filteredTotalLabel = useMemo(
     () => formatPriceTotals(filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals),
     [filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals],
+  )
+  const ownedPriceSummary = useMemo(
+    () => sumPriceSnapshots(ownedTrackedCards.map((item) => {
+      const priceKey = getCollectionItemPriceKey(item)
+      return priceKey ? pricesByCardId[priceKey] : undefined
+    })),
+    [ownedTrackedCards, pricesByCardId],
+  )
+  const ownedTotalLabel = useMemo(
+    () => formatPriceTotals(ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals),
+    [ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals],
+  )
+  const wantedPriceSummary = useMemo(
+    () => sumPriceSnapshots(wantedCardEntries.map(({ card }) => {
+      const priceKey = getCardPriceKey(card.card_id, card.card_language ?? "en")
+      return pricesByCardId[priceKey]
+    })),
+    [pricesByCardId, wantedCardEntries],
+  )
+  const wantedTotalLabel = useMemo(
+    () => formatPriceTotals(wantedPriceSummary.gbpTotal, wantedPriceSummary.originalTotals),
+    [wantedPriceSummary.gbpTotal, wantedPriceSummary.originalTotals],
+  )
+  const wantedModeCombinedPriceSummary = useMemo(
+    () => combinePriceSummaries([ownedPriceSummary, wantedPriceSummary]),
+    [ownedPriceSummary, wantedPriceSummary],
+  )
+  const wantedModeCombinedTotalLabel = useMemo(
+    () => formatPriceTotals(wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals),
+    [wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals],
   )
 
   useEffect(() => {
@@ -2838,16 +2911,30 @@ export default function BinderApp({
                 {!readOnlyMode && (
                   <>
                     {collected ? (
-                      <Button
-                        onClick={handleOpenCardSelector}
-                        disabled={isCollectionLoading}
-                        variant="default"
-                        size="sm"
-                        className="h-10 w-full rounded-xl gap-1.5 px-3 text-sm shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        {selectedPokemonHasAssignedCard ? "Edit card" : "Add card"}
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          onClick={handleOpenCardSelector}
+                          disabled={isCollectionLoading}
+                          variant="default"
+                          size="sm"
+                          className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          {selectedPokemonHasAssignedCard ? "Edit card" : "Add card"}
+                        </Button>
+                        <Button
+                          onClick={handleOpenWishlistSelector}
+                          disabled={isCollectionLoading}
+                          variant={collectionItem?.wanted_cards?.length ? "secondary" : "outline"}
+                          size="sm"
+                          className={collectionItem?.wanted_cards?.length
+                            ? "h-11 rounded-xl gap-1.5 px-3 text-xs"
+                            : "h-11 rounded-xl gap-1.5 border-amber-400/25 bg-amber-400/8 px-3 text-xs text-amber-600 shadow-none hover:bg-amber-400/12 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${collectionItem?.wanted_cards?.length ? "fill-current" : ""}`} />
+                          {collectionItem?.wanted_cards?.length ? "Add wanted" : "Want card"}
+                        </Button>
+                      </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
                         <Button
@@ -3712,38 +3799,60 @@ export default function BinderApp({
             )}
 
             {collectionViewFilter === "wanted" && (
-              <div className="shrink-0 overflow-x-auto rounded-xl border border-amber-400/25 bg-amber-400/8 p-2 scrollbar-hide">
-                <div className="flex min-w-max gap-2">
-                  {wantedCardEntries.length === 0 ? (
-                    <div className="px-2 py-1 text-xs text-muted-foreground">No wanted cards yet</div>
-                  ) : wantedCardEntries.map(({ pokemonId, pokemonName, card }) => {
-                    const priceKey = getCardPriceKey(card.card_id, card.card_language ?? "en")
-                    const priceLabel = formatPriceLabel(pricesByCardId[priceKey])
+              <div className="shrink-0 rounded-xl border border-amber-400/25 bg-amber-400/8 p-2">
+                <div className="mb-2 grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-lg border border-amber-400/18 bg-card/78 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">All tracked</p>
+                    <p className="mt-0.5 text-sm font-semibold tabular-nums">{wantedModeCombinedTotalLabel || (isLoadingPrices ? "Loading prices" : "No prices yet")}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{ownedTrackedCards.length + wantedCardEntries.length} cards, owned and wanted</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-400/18 bg-card/78 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Owned value</p>
+                    <p className="mt-0.5 text-sm font-semibold tabular-nums">{ownedTotalLabel || (isLoadingPrices ? "Loading prices" : "No prices yet")}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{ownedTrackedCards.length} owned card{ownedTrackedCards.length === 1 ? "" : "s"}</p>
+                  </div>
+                  <div className="rounded-lg border border-amber-400/22 bg-card/78 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">To buy</p>
+                    <p className="mt-0.5 text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-300">{wantedTotalLabel || (isLoadingPrices ? "Loading prices" : "No prices yet")}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {wantedCardEntries.length} wanted card{wantedCardEntries.length === 1 ? "" : "s"}
+                      {wantedModeCombinedPriceSummary.unpricedCount > 0 ? `, ${wantedModeCombinedPriceSummary.unpricedCount} unpriced` : ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto scrollbar-hide">
+                  <div className="flex min-w-max gap-2">
+                    {wantedCardEntries.length === 0 ? (
+                      <div className="px-2 py-1 text-xs text-muted-foreground">No wanted cards yet</div>
+                    ) : wantedCardEntries.map(({ pokemonId, pokemonName, card }) => {
+                      const priceKey = getCardPriceKey(card.card_id, card.card_language ?? "en")
+                      const priceLabel = formatPriceLabel(pricesByCardId[priceKey])
 
-                    return (
-                      <button
-                        key={`${pokemonId}-${card.card_id}-${card.card_finish ?? "normal"}`}
-                        onClick={() => {
-                          const pokemon = getPokemonSummary(pokemonId)
-                          if (pokemon) {
-                            handlePokemonSelect(pokemon)
-                          }
-                        }}
-                        className="flex w-56 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 bg-card/82 p-2 text-left"
-                      >
-                        {card.card_image ? (
-                          <img src={card.card_image} alt={card.card_name} className="h-14 w-10 rounded object-cover" loading="lazy" />
-                        ) : (
-                          <div className="h-14 w-10 rounded bg-muted" />
-                        )}
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold">{card.card_name}</p>
-                          <p className="truncate text-[10px] text-muted-foreground">{pokemonName} · {formatCardFinishLabel(card.card_finish)}</p>
-                          <p className="mt-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-300">{priceLabel ?? (isLoadingPrices ? "Loading price" : "No price")}</p>
-                        </div>
-                      </button>
-                    )
-                  })}
+                      return (
+                        <button
+                          key={`${pokemonId}-${card.card_id}-${card.card_finish ?? "normal"}`}
+                          onClick={() => {
+                            const pokemon = getPokemonSummary(pokemonId)
+                            if (pokemon) {
+                              handlePokemonSelect(pokemon)
+                            }
+                          }}
+                          className="flex w-56 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 bg-card/82 p-2 text-left"
+                        >
+                          {card.card_image ? (
+                            <img src={card.card_image} alt={card.card_name} className="h-14 w-10 rounded object-cover" loading="lazy" />
+                          ) : (
+                            <div className="h-14 w-10 rounded bg-muted" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold">{card.card_name}</p>
+                            <p className="truncate text-[10px] text-muted-foreground">{pokemonName} · {formatCardFinishLabel(card.card_finish)}</p>
+                            <p className="mt-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-300">{priceLabel ?? (isLoadingPrices ? "Loading price" : "No price")}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -4232,6 +4341,8 @@ export default function BinderApp({
           onSelect={handleCardSelected}
           onClose={() => setIsCardSelectorOpen(false)}
           selectedCardId={cardSelectorMode === "wishlist" ? collectionItem?.wanted_cards?.[0]?.card_id : collectionItem?.card_id}
+          selectedCollectedCardId={collectionItem?.card_id}
+          selectedWantedCardId={collectionItem?.wanted_cards?.[0]?.card_id}
           mode={cardSelectorMode}
         />
       )}

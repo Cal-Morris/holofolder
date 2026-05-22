@@ -17,6 +17,8 @@ interface CardSelectorProps {
   onSelect: (card: TCGCard | null, mode: CardSelectorMode, finish?: CardFinish) => void
   onClose: () => void
   selectedCardId?: string
+  selectedCollectedCardId?: string
+  selectedWantedCardId?: string
   mode?: CardSelectorMode
 }
 
@@ -225,6 +227,8 @@ export default function CardSelector({
   onSelect,
   onClose,
   selectedCardId,
+  selectedCollectedCardId,
+  selectedWantedCardId,
   mode = "collect",
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
@@ -251,6 +255,9 @@ export default function CardSelector({
   const cardVideoRef = useRef<HTMLVideoElement | null>(null)
   const cardCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const isWishlistMode = selectionMode === "wishlist"
+  const activeSelectedCardId = isWishlistMode
+    ? selectedWantedCardId ?? (mode === "wishlist" ? selectedCardId : undefined)
+    : selectedCollectedCardId ?? (mode === "collect" ? selectedCardId : undefined)
   const selectedLanguageLabel = CARD_LANGUAGES.find((language) => language.id === selectedCardLanguage)?.label ?? "English"
   const intentCopy = isWishlistMode
     ? {
@@ -380,10 +387,10 @@ export default function CardSelector({
 
   const filteredCards = useMemo(() => filterCards(cards, filters), [cards, filters, filterCards])
   useEffect(() => {
-    const selectedCard = cards.find((card) => card.id === selectedCardId) ?? filteredCards[0]
+    const selectedCard = cards.find((card) => card.id === activeSelectedCardId) ?? filteredCards[0]
     setSelectedFinish(selectedCard ? inferCardFinish(selectedCard) : "normal")
     setHasManuallySelectedFinish(false)
-  }, [cards, filteredCards, selectedCardId])
+  }, [activeSelectedCardId, cards, filteredCards])
   const scanRankById = useMemo(() => {
     return new Map(scanMatches.map((match, index) => [match.card.id, index + 1]))
   }, [scanMatches])
@@ -984,7 +991,7 @@ export default function CardSelector({
                     key={card.id}
                     onClick={() => selectCard(card)}
                     className={`relative group overflow-hidden rounded-xl border-2 bg-card text-left transition-all sm:hover:scale-[1.03] ${
-                      selectedCardId === card.id ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
+                      activeSelectedCardId === card.id ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
                     }`}
                   >
                     {scanRankById.has(card.id) && (
@@ -1006,7 +1013,7 @@ export default function CardSelector({
                             <span className="text-xs text-muted-foreground">No Image</span>
                           </div>
                         )}
-                        {selectedCardId === card.id && (
+                        {activeSelectedCardId === card.id && (
                           <div className={`absolute right-2 top-2 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] backdrop-blur ${intentCopy.activeClass}`}>
                             {intentCopy.currentLabel}
                           </div>
