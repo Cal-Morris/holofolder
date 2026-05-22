@@ -3019,7 +3019,7 @@ export default function BinderApp({
                   alt={selectedPreviewAlt}
                   className={`${selectedPreviewImageClass} ${selectedPreviewFit} ${selectedPreviewTone}`}
                 />
-                {collected && (
+                {collected && !selectedPreviewIsCard && (
                   <div className={`absolute w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow ${selectedPreviewBadgeClass}`}>
                     <Check className="w-2.5 h-2.5 text-white" />
                   </div>
@@ -3491,6 +3491,16 @@ export default function BinderApp({
             const isLongPressed = longPressedPokemon?.id === pokemon.id
             const item = getCollectionItem(pokemon.id)
             const isCurrentWishlisted = item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
+            const wantedCardPreview = item?.wanted_cards?.[0] ?? null
+            const slotCardImage = isCurrentWishlisted && wantedCardPreview?.card_image
+              ? wantedCardPreview.card_image
+              : item?.card_image
+            const slotCardName = isCurrentWishlisted && wantedCardPreview?.card_name
+              ? wantedCardPreview.card_name
+              : item?.card_name
+            const slotCardFinish = isCurrentWishlisted && wantedCardPreview?.card_finish
+              ? wantedCardPreview.card_finish
+              : item?.card_finish
             const itemPriceKey = getCollectionItemPriceKey(item)
 
             return (
@@ -3503,9 +3513,9 @@ export default function BinderApp({
                 isLongPressed={isLongPressed}
                 slotLabel={slotLabel}
                 status={item?.status}
-                cardImage={item?.card_image}
-                cardName={item?.card_name}
-                cardFinish={item?.card_finish}
+                cardImage={slotCardImage}
+                cardName={slotCardName}
+                cardFinish={slotCardFinish}
                 hasAssignedCard={Boolean(item?.card_id)}
                 priceLabel={isPriceMode && itemPriceKey ? formatPriceLabel(pricesByCardId[itemPriceKey]) : null}
                 showPriceMode={isPriceMode}
@@ -4706,8 +4716,9 @@ function PokemonSlot({
   const [previewImageSrc, setPreviewImageSrc] = useState(previewImage)
   const [didFallbackPreviewImage, setDidFallbackPreviewImage] = useState(false)
   const [isPreviewImageLoaded, setIsPreviewImageLoaded] = useState(false)
+  const isVisuallyCollected = isCollected && !isWishlisted
   const previewFitClass = "object-contain"
-  const previewToneClass = isCollected
+  const previewToneClass = isVisuallyCollected
     ? ""
     : isWishlisted
       ? "grayscale saturate-[0.75] brightness-[0.92] contrast-[0.95] opacity-90"
@@ -4799,14 +4810,14 @@ function PokemonSlot({
         className={`relative isolate h-full w-full overflow-hidden transition-all duration-150 group ${
           isSelected
             ? "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.03] z-10"
-            : status === "finalized"
-              ? "ring-1 ring-amber-500/60 shadow-[0_0_0_1px_rgba(245,158,11,0.18)]"
-            : isCollected && hasCardPreview
-              ? "ring-1 ring-black/5 shadow-[0_6px_14px_rgba(15,23,42,0.04)] dark:ring-white/6 dark:shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
-              : isCollected
-              ? "ring-1 ring-green-500/40"
             : isWishlisted
               ? "ring-1 ring-amber-500/40"
+            : status === "finalized"
+              ? "ring-1 ring-amber-500/60 shadow-[0_0_0_1px_rgba(245,158,11,0.18)]"
+            : isVisuallyCollected && hasCardPreview
+              ? "ring-1 ring-black/5 shadow-[0_6px_14px_rgba(15,23,42,0.04)] dark:ring-white/6 dark:shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
+              : isVisuallyCollected
+              ? "ring-1 ring-green-500/40"
               : "hover:ring-1 hover:ring-primary/30 active:scale-[0.98]"
         }`}
         style={slotRadiusStyle}
@@ -4827,7 +4838,7 @@ function PokemonSlot({
         )}
         {!hasCardPreview && (
           <div className={`absolute inset-0 transition-colors ${
-            isCollected
+            isVisuallyCollected
               ? "bg-gradient-to-br from-green-500/15 to-emerald-500/5"
               : isWishlisted
                 ? "bg-gradient-to-br from-amber-500/12 to-orange-500/5"
