@@ -34,7 +34,7 @@
 - [x] Add a mobile and desktop List entry point.
 - [x] Render filtered dex slots as dense rows with card art, status, wanted count, and price.
 - [x] Wire row actions into existing `addToCollection`, `removeFromCollection`, `CardSelector`, and favorite status.
-- [ ] Add bulk actions for page/set-selected rows after the first slice is stable.
+- [x] Add bulk actions for set-selected rows after the first slice is stable.
 
 ### Task 3: Set Population View
 
@@ -46,7 +46,7 @@
 - [x] Show set summary counts: dex slots, owned, missing, wanted.
 - [x] Render every Pokedex slot the selected set can populate.
 - [x] Let users add the primary set card directly as owned or wanted.
-- [ ] Add alternate-card chooser inside the set row when multiple cards in a set map to the same dex slot.
+- [x] Add alternate-card chooser inside the set row when multiple cards in a set map to the same dex slot.
 
 ### Task 4: UX Pass
 
@@ -60,8 +60,8 @@
 - [x] Keep selected-card variant changes inline so finish updates do not require re-selecting the card.
 - [x] Keep page navigation arrow-only and disabled at the start/end of the binder.
 - [x] Let mobile gyro drive card finish glints even when binder slot glare is disabled.
-- [ ] Add persistent view-specific search/filter chips after user testing the first slice.
-- [ ] Add empty-state shortcuts for common sets once the API shape is proven in production.
+- [x] Add persistent view-specific search/filter chips after user testing the first slice.
+- [x] Add empty-state shortcuts for common sets once the API shape is proven in production.
 
 ### Task 5: Verification And Release
 
@@ -73,4 +73,4 @@
 - [x] Verify `/api/tcg-set-slots?setId=sv03.5` returns 151 dex slots.
 - [x] Smoke test the List and Sets views in a browser screenshot.
 - [x] Simulate `deviceorientation` and verify the glint CSS position updates.
-- [ ] Commit, push to `main`, and verify the Vercel production bundle.
+- [x] Commit, push to `main`, and verify the Vercel production bundle.

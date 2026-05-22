@@ -1729,6 +1729,18 @@ export default function BinderApp({
     )
   }, [addWantedCard, readOnlyMode, user])
 
+  const handleCollectSetCards = useCallback(async (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => {
+    for (const { slot, card } of cards) {
+      await handleCollectSetCard(slot, card)
+    }
+  }, [handleCollectSetCard])
+
+  const handleWantSetCards = useCallback(async (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => {
+    for (const { slot, card } of cards) {
+      await handleWantSetCard(slot, card)
+    }
+  }, [handleWantSetCard])
+
   const handleCardSelected = async (card: any | null, selectedMode: CardSelectorMode = cardSelectorMode, finish: CardFinish = "normal") => {
     if (!selectedPokemon) return
     if (readOnlyMode) return
@@ -3583,6 +3595,8 @@ export default function BinderApp({
               onSelectSlot={handleSelectSetSlot}
               onCollectCard={handleCollectSetCard}
               onWantCard={handleWantSetCard}
+              onCollectCards={handleCollectSetCards}
+              onWantCards={handleWantSetCards}
               readOnly={readOnlyMode}
             />
           ) : (

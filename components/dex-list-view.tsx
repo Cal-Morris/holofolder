@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import { Check, Heart, Star, X, Search, Plus, BadgeCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -19,6 +20,17 @@ interface DexListViewProps {
   onTogglePerfect: (pokemonId: number) => void
   readOnly: boolean
 }
+
+type DexListFilter = "all" | "missing" | "owned" | "wanted" | "perfect" | "upgrade"
+
+const DEX_LIST_FILTERS: Array<{ id: DexListFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "missing", label: "Missing" },
+  { id: "owned", label: "Owned" },
+  { id: "wanted", label: "Wanted" },
+  { id: "perfect", label: "Perfect" },
+  { id: "upgrade", label: "Upgrade" },
+]
 
 function formatDexNumber(id: number) {
   return `#${String(id).padStart(4, "0")}`
@@ -77,22 +89,125 @@ export default function DexListView({
   onTogglePerfect,
   readOnly,
 }: DexListViewProps) {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeFilter, setActiveFilter] = useState<DexListFilter>("all")
+  const filterCounts = useMemo(() => {
+    const counts: Record<DexListFilter, number> = {
+      all: pokemonList.length,
+      missing: 0,
+      owned: 0,
+      wanted: 0,
+      perfect: 0,
+      upgrade: 0,
+    }
+
+    for (const pokemon of pokemonList) {
+      const item = collectionByPokemonId.get(pokemon.id)
+      const isOwned = Boolean(item && item.status !== "wishlisted")
+      const isWanted = Boolean(item?.wanted_cards?.length || item?.status === "wishlisted")
+
+      if (!item) counts.missing += 1
+      if (isOwned) counts.owned += 1
+      if (isWanted) counts.wanted += 1
+      if (item?.status === "finalized") counts.perfect += 1
+      if (isOwned && item?.status !== "finalized") counts.upgrade += 1
+    }
+
+    return counts
+  }, [collectionByPokemonId, pokemonList])
+  const filteredPokemonList = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase()
+
+    return pokemonList.filter((pokemon) => {
+      const item = collectionByPokemonId.get(pokemon.id)
+      const isOwned = Boolean(item && item.status !== "wishlisted")
+      const isWanted = Boolean(item?.wanted_cards?.length || item?.status === "wishlisted")
+      const matchesFilter =
+        activeFilter === "all"
+        || (activeFilter === "missing" && !item)
+        || (activeFilter === "owned" && isOwned)
+        || (activeFilter === "wanted" && isWanted)
+        || (activeFilter === "perfect" && item?.status === "finalized")
+        || (activeFilter === "upgrade" && isOwned && item?.status !== "finalized")
+
+      if (!matchesFilter) return false
+      if (!normalizedSearch) return true
+
+      const haystack = [
+        pokemon.name,
+        String(pokemon.id),
+        `#${pokemon.id}`,
+        item?.card_name,
+        item?.card_set,
+      ].filter(Boolean).join(" ").toLowerCase()
+
+      return haystack.includes(normalizedSearch)
+    })
+  }, [activeFilter, collectionByPokemonId, pokemonList, searchQuery])
+
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.6rem] border border-border/60 bg-card/88 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/70">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/45 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">List View</p>
-          <h2 className="truncate text-lg font-semibold tracking-tight">Manage the dex quickly</h2>
+      <div className="shrink-0 border-b border-border/45 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">List View</p>
+            <h2 className="truncate text-lg font-semibold tracking-tight">Manage the dex quickly</h2>
+          </div>
+          <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-background/55 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:flex">
+            <Search className="h-3.5 w-3.5" />
+            <span>{filteredPokemonList.length}/{pokemonList.length} slots</span>
+          </div>
         </div>
-        <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-background/55 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:flex">
-          <Search className="h-3.5 w-3.5" />
-          <span>{pokemonList.length} slots</span>
+        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border/55 bg-background/58 px-3 py-2 dark:border-white/10 dark:bg-background/35">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search Pokemon, card, set, or dex number..."
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Clear list search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+          {DEX_LIST_FILTERS.map((filter) => {
+            const isActive = activeFilter === filter.id
+            const count = filterCounts[filter.id]
+
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setActiveFilter(filter.id)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                  isActive
+                    ? "border-primary/45 bg-primary text-primary-foreground"
+                    : "border-border/55 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10"
+                }`}
+              >
+                {filter.label} <span className="tabular-nums opacity-75">{count}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="space-y-1.5">
-          {pokemonList.map((pokemon) => {
+          {filteredPokemonList.length === 0 ? (
+            <div className="rounded-2xl border border-border/45 bg-background/45 p-4 text-sm text-muted-foreground">
+              No dex slots match the current filters.
+            </div>
+          ) : null}
+          {filteredPokemonList.map((pokemon) => {
             const item = collectionByPokemonId.get(pokemon.id)
             const state = getSlotState(item)
             const StateIcon = state.icon

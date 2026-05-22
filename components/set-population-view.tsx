@@ -13,10 +13,29 @@ interface SetPopulationViewProps {
   getPriceKey: (item?: { card_id?: string | null; card_language?: string | null } | null) => string | null
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
   onSelectSlot: (slot: TCGSetDexSlot) => void
-  onCollectCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void
-  onWantCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void
+  onCollectCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void | Promise<void>
+  onWantCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void | Promise<void>
+  onCollectCards?: (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => void | Promise<void>
+  onWantCards?: (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => void | Promise<void>
   readOnly: boolean
 }
+
+type SetSlotFilter = "all" | "open" | "owned" | "wanted" | "multiple"
+
+const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "open", label: "Open" },
+  { id: "owned", label: "Owned" },
+  { id: "wanted", label: "Wanted" },
+  { id: "multiple", label: "Variants" },
+]
+
+const SET_SHORTCUTS = [
+  { label: "151", query: "151" },
+  { label: "Prismatic", query: "Prismatic" },
+  { label: "Surging", query: "Surging Sparks" },
+  { label: "Evolving", query: "Evolving Skies" },
+]
 
 function formatDexNumber(id: number) {
   return `#${String(id).padStart(4, "0")}`
@@ -30,6 +49,10 @@ function formatSetMeta(set: TCGSetSummary) {
   ].filter(Boolean).join(" · ")
 }
 
+function getSelectedSetCard(slot: TCGSetDexSlot, selectedCardIdsByDexId: Record<number, string>) {
+  return slot.cards.find((card) => card.id === selectedCardIdsByDexId[slot.dexId]) ?? slot.cards[0]
+}
+
 export default function SetPopulationView({
   collectionByPokemonId,
   pricesByKey,
@@ -38,6 +61,8 @@ export default function SetPopulationView({
   onSelectSlot,
   onCollectCard,
   onWantCard,
+  onCollectCards,
+  onWantCards,
   readOnly,
 }: SetPopulationViewProps) {
   const [query, setQuery] = useState("")
@@ -47,6 +72,10 @@ export default function SetPopulationView({
   const [slots, setSlots] = useState<TCGSetDexSlot[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [slotSearch, setSlotSearch] = useState("")
+  const [slotFilter, setSlotFilter] = useState<SetSlotFilter>("all")
+  const [selectedCardIdsByDexId, setSelectedCardIdsByDexId] = useState<Record<number, string>>({})
+  const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
 
   useEffect(() => {
     const trimmedQuery = query.trim()
@@ -100,6 +129,34 @@ export default function SetPopulationView({
     }
   }, [query, selectedSetId])
 
+  useEffect(() => {
+    const validDexIds = new Set(slots.map((slot) => slot.dexId))
+    const validCardIdsByDexId = new Map(slots.map((slot) => [slot.dexId, new Set(slot.cards.map((card) => card.id))]))
+
+    setSelectedCardIdsByDexId((current) => {
+      const next: Record<number, string> = {}
+
+      for (const [dexIdValue, cardId] of Object.entries(current)) {
+        const dexId = Number(dexIdValue)
+        if (validCardIdsByDexId.get(dexId)?.has(cardId)) {
+          next[dexId] = cardId
+        }
+      }
+
+      return next
+    })
+
+    setSelectedDexIds((current) => {
+      const next = new Set<number>()
+      for (const dexId of current) {
+        if (validDexIds.has(dexId)) {
+          next.add(dexId)
+        }
+      }
+      return next
+    })
+  }, [slots])
+
   const summary = useMemo(() => {
     let owned = 0
     let wanted = 0
@@ -117,6 +174,83 @@ export default function SetPopulationView({
       missing: Math.max(0, slots.length - owned),
     }
   }, [collectionByPokemonId, slots])
+
+  const filterCounts = useMemo(() => {
+    const counts: Record<SetSlotFilter, number> = {
+      all: slots.length,
+      open: 0,
+      owned: 0,
+      wanted: 0,
+      multiple: 0,
+    }
+
+    for (const slot of slots) {
+      const item = collectionByPokemonId.get(slot.dexId)
+      const isOwned = Boolean(item && item.status !== "wishlisted")
+      const isWanted = Boolean(item?.wanted_cards?.length)
+
+      if (!isOwned) counts.open += 1
+      if (isOwned) counts.owned += 1
+      if (isWanted) counts.wanted += 1
+      if (slot.cards.length > 1) counts.multiple += 1
+    }
+
+    return counts
+  }, [collectionByPokemonId, slots])
+
+  const filteredSlots = useMemo(() => {
+    const normalizedSearch = slotSearch.trim().toLowerCase()
+
+    return slots.filter((slot) => {
+      const item = collectionByPokemonId.get(slot.dexId)
+      const isOwned = Boolean(item && item.status !== "wishlisted")
+      const isWanted = Boolean(item?.wanted_cards?.length)
+      const matchesFilter =
+        slotFilter === "all"
+        || (slotFilter === "open" && !isOwned)
+        || (slotFilter === "owned" && isOwned)
+        || (slotFilter === "wanted" && isWanted)
+        || (slotFilter === "multiple" && slot.cards.length > 1)
+
+      if (!matchesFilter) return false
+      if (!normalizedSearch) return true
+
+      const haystack = [
+        slot.pokemonName,
+        String(slot.dexId),
+        `#${slot.dexId}`,
+        ...slot.cards.map((card) => `${card.name} ${card.localId} ${card.rarity ?? ""}`),
+      ].join(" ").toLowerCase()
+
+      return haystack.includes(normalizedSearch)
+    })
+  }, [collectionByPokemonId, slotFilter, slotSearch, slots])
+
+  const selectedBulkCards = useMemo(
+    () =>
+      filteredSlots
+        .filter((slot) => selectedDexIds.has(slot.dexId))
+        .map((slot) => ({ slot, card: getSelectedSetCard(slot, selectedCardIdsByDexId) }))
+        .filter((entry): entry is { slot: TCGSetDexSlot; card: TCGSetSlotCard } => Boolean(entry.card)),
+    [filteredSlots, selectedCardIdsByDexId, selectedDexIds],
+  )
+
+  const setShortcutQuery = (nextQuery: string) => {
+    setQuery(nextQuery)
+    setSelectedSetId(null)
+  }
+
+  const toggleSelectedDexId = (dexId: number) => {
+    setSelectedDexIds((current) => {
+      const next = new Set(current)
+      if (next.has(dexId)) {
+        next.delete(dexId)
+      } else {
+        next.add(dexId)
+      }
+      return next
+    })
+  }
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.6rem] border border-border/60 bg-card/88 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/70">
@@ -200,6 +334,100 @@ export default function SetPopulationView({
             ))}
           </div>
         ) : null}
+
+        {selectedSet ? (
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-border/45 bg-background/45 px-3 py-2 dark:border-white/10">
+              <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <input
+                value={slotSearch}
+                onChange={(event) => setSlotSearch(event.target.value)}
+                placeholder="Filter slots, names, numbers, rarities..."
+                className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/70"
+              />
+              {slotSearch ? (
+                <button
+                  type="button"
+                  onClick={() => setSlotSearch("")}
+                  className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Clear slot filter"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+              {SET_SLOT_FILTERS.map((filter) => {
+                const isActive = slotFilter === filter.id
+                const count = filterCounts[filter.id]
+
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setSlotFilter(filter.id)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                      isActive
+                        ? "border-primary/45 bg-primary text-primary-foreground"
+                        : "border-border/55 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10"
+                    }`}
+                  >
+                    {filter.label} <span className="tabular-nums opacity-75">{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {!readOnly && selectedDexIds.size > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/8 px-3 py-2">
+                <span className="mr-auto text-xs font-semibold text-primary">
+                  {selectedBulkCards.length} selected
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-[11px]"
+                  disabled={selectedBulkCards.length === 0}
+                  onClick={() => {
+                    if (onCollectCards) {
+                      void onCollectCards(selectedBulkCards)
+                    } else {
+                      selectedBulkCards.forEach(({ slot, card }) => void onCollectCard(slot, card))
+                    }
+                    setSelectedDexIds(new Set())
+                  }}
+                >
+                  Add selected
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-[11px]"
+                  disabled={selectedBulkCards.length === 0}
+                  onClick={() => {
+                    if (onWantCards) {
+                      void onWantCards(selectedBulkCards)
+                    } else {
+                      selectedBulkCards.forEach(({ slot, card }) => void onWantCard(slot, card))
+                    }
+                    setSelectedDexIds(new Set())
+                  }}
+                >
+                  Want selected
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-full px-2.5 text-[11px]"
+                  onClick={() => setSelectedDexIds(new Set())}
+                >
+                  Clear
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
@@ -213,6 +441,18 @@ export default function SetPopulationView({
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 Search a set, pick the right release, then mark the dex slots that set can populate.
               </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {SET_SHORTCUTS.map((shortcut) => (
+                  <button
+                    key={shortcut.label}
+                    type="button"
+                    onClick={() => setShortcutQuery(shortcut.query)}
+                    className="rounded-full border border-border/55 bg-background/55 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
+                  >
+                    {shortcut.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : selectedSet && slots.length === 0 && !isLoading ? (
@@ -221,13 +461,19 @@ export default function SetPopulationView({
           </div>
         ) : (
           <div className="space-y-1.5">
-            {slots.map((slot) => {
+            {filteredSlots.length === 0 ? (
+              <div className="rounded-2xl border border-border/45 bg-background/45 p-4 text-sm text-muted-foreground">
+                No slots match the current filters.
+              </div>
+            ) : null}
+            {filteredSlots.map((slot) => {
               const item = collectionByPokemonId.get(slot.dexId)
               const isOwned = Boolean(item && item.status !== "wishlisted")
               const wantedCount = item?.wanted_cards?.length ?? 0
-              const primaryCard = slot.cards[0]
+              const primaryCard = getSelectedSetCard(slot, selectedCardIdsByDexId)
               const priceKey = getPriceKey(item)
               const priceLabel = priceKey ? formatPrice(pricesByKey[priceKey]) : null
+              const isSelected = selectedDexIds.has(slot.dexId)
 
               return (
                 <div
@@ -241,8 +487,30 @@ export default function SetPopulationView({
                       onSelectSlot(slot)
                     }
                   }}
-                  className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-transparent bg-background/35 p-2.5 text-left transition-all hover:border-border/60 hover:bg-background/70 dark:bg-background/22 dark:hover:border-white/10"
+                  className={`grid w-full ${readOnly ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-[auto_auto_minmax(0,1fr)]"} items-center gap-3 rounded-2xl border p-2.5 text-left transition-all hover:border-border/60 hover:bg-background/70 dark:hover:border-white/10 ${
+                    isSelected
+                      ? "border-primary/35 bg-primary/8"
+                      : "border-transparent bg-background/35 dark:bg-background/22"
+                  }`}
                 >
+                  {!readOnly ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleSelectedDexId(slot.dexId)
+                      }}
+                      aria-pressed={isSelected}
+                      aria-label={`${isSelected ? "Deselect" : "Select"} ${slot.pokemonName}`}
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                        isSelected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border/55 bg-background/55 text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
+                      }`}
+                    >
+                      {isSelected ? <Check className="h-4 w-4" /> : null}
+                    </button>
+                  ) : null}
                   <div className="relative flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/45 bg-muted/45">
                     {primaryCard?.image ? (
                       <img src={primaryCard.image} alt={primaryCard.name} className="h-full w-full object-contain" loading="lazy" />
@@ -280,6 +548,40 @@ export default function SetPopulationView({
                         <span className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
                           {priceLabel}
                         </span>
+                      ) : null}
+                      {slot.cards.length > 1 ? (
+                        <div className="flex w-full gap-1 overflow-x-auto pb-0.5 scrollbar-hide">
+                          {slot.cards.map((card) => {
+                            const isActiveCard = primaryCard?.id === card.id
+
+                            return (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  setSelectedCardIdsByDexId((current) => ({
+                                    ...current,
+                                    [slot.dexId]: card.id,
+                                  }))
+                                }}
+                                aria-pressed={isActiveCard}
+                                className={`min-w-24 shrink-0 rounded-xl border px-2 py-1 text-left transition-colors ${
+                                  isActiveCard
+                                    ? "border-primary/45 bg-primary/12 text-foreground"
+                                    : "border-border/45 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10"
+                                }`}
+                              >
+                                <p className="truncate text-[10px] font-semibold">
+                                  {card.localId}/{card.set.officialCardCount ?? "?"}
+                                </p>
+                                <p className="truncate text-[9px]">
+                                  {card.rarity ?? "Unknown"}
+                                </p>
+                              </button>
+                            )
+                          })}
+                        </div>
                       ) : null}
                       {!readOnly && primaryCard ? (
                         <span className="ml-auto flex items-center gap-1">
