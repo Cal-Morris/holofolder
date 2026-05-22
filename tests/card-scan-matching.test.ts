@@ -93,6 +93,7 @@ test("aggregateCardScanMatches ignores weak per-frame candidates when a frame si
 
   assert.deepEqual(aggregated.map((entry) => entry.card.id), ["beta"])
   assert.equal(aggregated[0]?.appearances, 2)
+  assert.equal(aggregated[0]?.appearanceRatio, 1)
 })
 
 test("aggregatePageSlotScanMatches aggregates each binder slot independently", () => {

@@ -6,6 +6,7 @@ const MICRO_COLOR_COLS = 10
 const MICRO_COLOR_ROWS = 14
 const EDGE_SIGNATURE_COLS = 5
 const EDGE_SIGNATURE_ROWS = 7
+const COLOR_BLOB_HUE_BINS = 8
 const EDGE_PROFILE_BANDS = 12
 const HASH_WIDTH = 13
 const HASH_HEIGHT = 18
@@ -70,6 +71,7 @@ export interface CardImageDescriptor {
   borderProfile: number[]
   microColorSignature: number[]
   edgeOrientationSignature: number[]
+  colorBlobSignature: number[]
   focusPatches: FocusPatchDescriptor[]
 }
 
@@ -545,6 +547,81 @@ function buildEdgeOrientationSignature(sourceCanvas: HTMLCanvasElement) {
   return signature
 }
 
+function getHue(red: number, green: number, blue: number) {
+  const max = Math.max(red, green, blue)
+  const min = Math.min(red, green, blue)
+  const delta = max - min
+
+  if (delta <= EPSILON) return 0
+
+  let hue = 0
+  if (max === red) {
+    hue = ((green - blue) / delta) % 6
+  } else if (max === green) {
+    hue = (blue - red) / delta + 2
+  } else {
+    hue = (red - green) / delta + 4
+  }
+
+  return (hue / 6 + (hue < 0 ? 1 : 0)) % 1
+}
+
+function buildColorBlobSignature(sourceCanvas: HTMLCanvasElement) {
+  const context = sourceCanvas.getContext("2d", { willReadFrequently: true })
+  if (!context) {
+    throw new Error("Could not read the normalized card canvas.")
+  }
+
+  const { data } = context.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
+  const mass = new Float32Array(COLOR_BLOB_HUE_BINS)
+  const xMass = new Float32Array(COLOR_BLOB_HUE_BINS)
+  const yMass = new Float32Array(COLOR_BLOB_HUE_BINS)
+  const centerSpreadMass = new Float32Array(COLOR_BLOB_HUE_BINS)
+  let totalMass = 0
+
+  for (let y = 0; y < sourceCanvas.height; y += 1) {
+    for (let x = 0; x < sourceCanvas.width; x += 1) {
+      const index = (y * sourceCanvas.width + x) * 4
+      const alpha = data[index + 3] / 255
+      if (alpha <= 0.01) continue
+
+      const red = data[index] / 255
+      const green = data[index + 1] / 255
+      const blue = data[index + 2] / 255
+      const max = Math.max(red, green, blue)
+      const min = Math.min(red, green, blue)
+      const saturation = max - min
+      if (saturation < 0.08) continue
+
+      const hue = getHue(red, green, blue)
+      const bin = Math.min(COLOR_BLOB_HUE_BINS - 1, Math.floor(hue * COLOR_BLOB_HUE_BINS))
+      const pixelMass = saturation * alpha
+      const nx = x / Math.max(sourceCanvas.width - 1, 1)
+      const ny = y / Math.max(sourceCanvas.height - 1, 1)
+      const centerDistance = Math.sqrt((nx - 0.5) * (nx - 0.5) + (ny - 0.5) * (ny - 0.5)) / Math.SQRT1_2
+
+      mass[bin] += pixelMass
+      xMass[bin] += nx * pixelMass
+      yMass[bin] += ny * pixelMass
+      centerSpreadMass[bin] += clamp(centerDistance, 0, 1) * pixelMass
+      totalMass += pixelMass
+    }
+  }
+
+  const signature: number[] = []
+  for (let bin = 0; bin < COLOR_BLOB_HUE_BINS; bin += 1) {
+    const binMass = mass[bin]
+    signature.push(
+      clamp(binMass / Math.max(totalMass, EPSILON), 0, 1),
+      binMass > EPSILON ? clamp(xMass[bin] / binMass, 0, 1) : 0.5,
+      binMass > EPSILON ? clamp(yMass[bin] / binMass, 0, 1) : 0.5,
+      binMass > EPSILON ? clamp(centerSpreadMass[bin] / binMass, 0, 1) : 0.5,
+    )
+  }
+
+  return signature
+}
+
 function buildFocusPatchDescriptor(
   sourceCanvas: HTMLCanvasElement,
   spec: (typeof FOCUS_PATCH_SPECS)[number],
@@ -732,6 +809,7 @@ function analyzeNormalizedCardCanvas(canvas: HTMLCanvasElement): CardImageDescri
     borderProfile: normalizedBorderProfile,
     microColorSignature: buildMicroColorSignature(canvas),
     edgeOrientationSignature: buildEdgeOrientationSignature(canvas),
+    colorBlobSignature: buildColorBlobSignature(canvas),
     focusPatches: FOCUS_PATCH_SPECS.map((spec) => buildFocusPatchDescriptor(canvas, spec)),
   }
 }
@@ -841,6 +919,7 @@ export function compareCardImageDescriptors(
   const averageHashDistance = compareHashBits(query.averageHashBits, candidate.averageHashBits)
   const microColorDistance = compareFloatArrays(query.microColorSignature, candidate.microColorSignature)
   const edgeOrientationDistance = compareFloatArrays(query.edgeOrientationSignature, candidate.edgeOrientationSignature)
+  const colorBlobDistance = compareFloatArrays(query.colorBlobSignature, candidate.colorBlobSignature)
   const numberLeftDistance = compareFocusPatch(
     getFocusPatchByKey(query.focusPatches, "number_left"),
     getFocusPatchByKey(candidate.focusPatches, "number_left"),
@@ -893,16 +972,17 @@ export function compareCardImageDescriptors(
     { distance: averageHashDistance, weight: 0.08 },
   ])
   const fineDetailDistance = combineDistances([
-    { distance: microColorDistance, weight: 0.58 },
-    { distance: edgeOrientationDistance, weight: 0.42 },
+    { distance: microColorDistance, weight: 0.54 },
+    { distance: edgeOrientationDistance, weight: 0.46 },
   ])
 
   const distance =
     numberDistance * 0.42 +
     setRightDistance * 0.08 +
     topDistance * 0.08 +
-    structuralDistance * 0.18 +
-    fineDetailDistance * 0.24 +
+    structuralDistance * 0.14 +
+    fineDetailDistance * 0.22 +
+    colorBlobDistance * 0.08 +
     Math.max(0, numberDistance - 0.34) * 0.22
 
   return {

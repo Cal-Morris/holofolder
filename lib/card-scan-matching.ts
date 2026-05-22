@@ -62,11 +62,7 @@ export function aggregateCardScanMatches<TCard>(
   const minimumAppearances = options.minimumAppearances ?? DEFAULT_MINIMUM_APPEARANCES
   const minimumFrameSimilarity = options.minimumFrameSimilarity ?? 0
   const rankDecay = options.rankDecay ?? DEFAULT_RANK_DECAY
-  const usableFrameCount = frameMatches.filter((matches) => matches.length > 0).length
-
-  if (usableFrameCount === 0) {
-    return []
-  }
+  let usableFrameCount = 0
 
   const aggregateMap = new Map<string, MutableAggregatedCardScanMatch<TCard>>()
 
@@ -83,6 +79,12 @@ export function aggregateCardScanMatches<TCard>(
         bestFrameMatchByCardId.set(cardId, { ...match, index })
       }
     })
+
+    if (bestFrameMatchByCardId.size === 0) {
+      continue
+    }
+
+    usableFrameCount += 1
 
     for (const match of bestFrameMatchByCardId.values()) {
       const cardId = options.getCardId(match.card)
@@ -102,6 +104,10 @@ export function aggregateCardScanMatches<TCard>(
       entry.appearances += 1
       aggregateMap.set(cardId, entry)
     }
+  }
+
+  if (usableFrameCount === 0) {
+    return []
   }
 
   const ranked = [...aggregateMap.values()]

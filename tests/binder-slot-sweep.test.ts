@@ -71,6 +71,30 @@ test("aggregateBinderSlotSweep does not mark weak or under-sampled slots as matc
   assert.equal(result.matchedSlots, 0)
 })
 
+test("aggregateBinderSlotSweep bases appearance requirements on frames above the similarity floor", () => {
+  const result = aggregateBinderSlotSweep(
+    [
+      frame(0, [match(alpha, 0.8)]),
+      frame(0, [match(alpha, 0.82)]),
+      frame(0, [match(beta, 0.52)]),
+    ],
+    {
+      slotCount: 1,
+      getCardId: (card) => card.id,
+      minimumFramesPerSlot: 3,
+      minimumAppearanceRatio: 0.75,
+      minimumFrameSimilarity: 0.56,
+      minimumConfidence: 0.5,
+      minimumSimilarity: 0.72,
+    },
+  )
+
+  assert.equal(result.slots[0]?.usableFrames, 2)
+  assert.equal(result.slots[0]?.state, "matched")
+  assert.equal(result.slots[0]?.match?.card.id, "alpha")
+  assert.equal(result.slots[0]?.match?.appearanceRatio, 1)
+})
+
 test("getNextSweepSlotIndex skips empty page slots and wraps inside the page", () => {
   const pageSlots = [null, { id: 1 }, null, { id: 2 }, { id: 3 }, null]
 

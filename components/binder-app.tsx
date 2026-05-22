@@ -52,7 +52,7 @@ const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
 const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.45
 const GUIDED_SCAN_MIN_USABLE_FRAMES = 2
-const SLOT_SWEEP_FRAME_COUNT = 5
+const SLOT_SWEEP_FRAME_COUNT = 8
 const SLOT_SWEEP_FRAME_DELAY_MS = 360
 const SLOT_SWEEP_MIN_USABLE_FRAMES = 2
 const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 1
@@ -1813,6 +1813,39 @@ export default function BinderApp({
     setIsCardSelectorOpen(true)
   }
 
+  const handleOpenSelectedSlotScanner = () => {
+    if (!selectedPokemon) return
+    if (readOnlyMode) return
+
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+
+    if (!window.isSecureContext || !navigator.mediaDevices) {
+      setPageScanError("Camera scanning needs a secure browser context.")
+      return
+    }
+
+    const slotIndex = currentPageSlots.findIndex((pokemon) => pokemon?.id === selectedPokemon.id)
+    if (slotIndex < 0) {
+      setPageScanError("Open the page containing this slot before scanning it.")
+      return
+    }
+
+    setCameraError(null)
+    setPageScannerMode("slot-sweep")
+    setSlotSweepSlotIndex(slotIndex)
+    setSlotSweepCompletedSlotIndexes([])
+    setSlotSweepMatchedCards([])
+    setSlotSweepPreviewUrl(null)
+    setBurstFramesProcessed(0)
+    setBurstUsableFrames(0)
+    setBurstPreviewResult(null)
+    setSelectedPokemon(null)
+    setIsBurstScannerOpen(true)
+  }
+
   const openCardSelectorForPokemon = useCallback((pokemon: PokemonSummary, mode: CardSelectorMode) => {
     if (readOnlyMode) return
 
@@ -3519,6 +3552,16 @@ export default function BinderApp({
                     )}
 
                     <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        onClick={handleOpenSelectedSlotScanner}
+                        disabled={isCollectionLoading}
+                        variant="outline"
+                        size="sm"
+                        className="h-9 shrink-0 rounded-xl gap-1 !border-0 bg-background/55 px-3 text-xs text-muted-foreground shadow-none hover:bg-background/75 hover:text-foreground dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
+                      >
+                        <Camera className="h-3 w-3" />
+                        Scan card
+                      </Button>
                       {!collected && (
                         <Button
                           onClick={handleQuickCollectSelectedPokemon}

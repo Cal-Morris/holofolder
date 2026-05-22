@@ -45,6 +45,10 @@ function clampIndex(index: number, slotCount: number) {
   return Math.floor(index)
 }
 
+function hasUsableFrameMatch<TCard>(matches: CardScanFrameMatch<TCard>[], minimumFrameSimilarity: number) {
+  return matches.some((match) => match.similarity >= minimumFrameSimilarity)
+}
+
 export function aggregateBinderSlotSweep<TCard>(
   frames: BinderSlotSweepFrame<TCard>[],
   options: AggregateBinderSlotSweepOptions<TCard>,
@@ -69,7 +73,7 @@ export function aggregateBinderSlotSweep<TCard>(
 
   const slots = Array.from({ length: slotCount }, (_, slotIndex): BinderSlotSweepSlot<TCard> => {
     const slotFrames = frameMatchesBySlot.get(slotIndex) ?? []
-    const usableFrames = slotFrames.filter((matches) => matches.length > 0).length
+    const usableFrames = slotFrames.filter((matches) => hasUsableFrameMatch(matches, minimumFrameSimilarity)).length
     const minimumAppearances = Math.max(1, Math.ceil(Math.max(usableFrames, 1) * minimumAppearanceRatio))
     const matches = aggregateCardScanMatches(slotFrames, {
       getCardId: options.getCardId,

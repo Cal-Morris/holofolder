@@ -23,6 +23,7 @@ function descriptor(overrides: Partial<CardImageDescriptor> = {}): CardImageDesc
     focusPatches: [],
     microColorSignature: bits(10 * 14 * 4, 0.5),
     edgeOrientationSignature: bits(5 * 7 * 4, 0.25),
+    colorBlobSignature: bits(8 * 4, 0.25),
     ...overrides,
   }
 }
@@ -59,4 +60,21 @@ test("compareCardImageDescriptors uses oriented edge detail when color and hashe
   const wrongMatch = compareCardImageDescriptors(query, wrongCandidate)
 
   assert.ok(closeMatch.similarity > wrongMatch.similarity + 0.03)
+})
+
+test("compareCardImageDescriptors uses hue blob position for full-art style colour layouts", () => {
+  const query = descriptor({
+    colorBlobSignature: signature(8 * 4, [0.58, 0.22, 0.26, 0.18]),
+  })
+  const closeCandidate = descriptor({
+    colorBlobSignature: signature(8 * 4, [0.56, 0.25, 0.27, 0.2]),
+  })
+  const wrongCandidate = descriptor({
+    colorBlobSignature: signature(8 * 4, [0.58, 0.78, 0.72, 0.5]),
+  })
+
+  const closeMatch = compareCardImageDescriptors(query, closeCandidate)
+  const wrongMatch = compareCardImageDescriptors(query, wrongCandidate)
+
+  assert.ok(closeMatch.similarity > wrongMatch.similarity + 0.025)
 })
