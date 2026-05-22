@@ -298,44 +298,44 @@ function BinderSlotGlare({
   return (
     <>
       <div
-        className="pointer-events-none absolute inset-[3px] z-[4] mix-blend-screen"
+        className="pointer-events-none absolute inset-[3px] z-[2] mix-blend-screen"
         style={{
           ...glareStyle,
           borderRadius: innerRadius,
           background:
-            "radial-gradient(circle at var(--glint-x, 30%) var(--glint-y, 26%), rgba(255,255,255,0.78) 0%, rgba(125,211,252,0.34) 17%, rgba(244,114,182,0.24) 29%, rgba(255,255,255,0) 55%)",
+            "radial-gradient(circle at var(--glint-x, 30%) var(--glint-y, 26%), rgba(255,255,255,0.3) 0%, rgba(125,211,252,0.12) 17%, rgba(244,114,182,0.08) 29%, rgba(255,255,255,0) 55%)",
           transform: "none",
-          opacity: 0.74,
+          opacity: 0.28,
         } as CSSProperties}
       />
       <div
         className="pointer-events-none absolute inset-[3px] z-[2]"
         style={{
           borderRadius: innerRadius,
-          background: "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.22) 20%, rgba(255,255,255,0) 44%)",
+          background: "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.09) 20%, rgba(255,255,255,0) 44%)",
         }}
       />
       <div
         className="pointer-events-none absolute inset-[3px] z-[3]"
         style={{
           borderRadius: innerRadius,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.1) 24%, rgba(255,255,255,0) 58%)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 24%, rgba(255,255,255,0) 58%)",
         }}
       />
       <div
-        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[42%] -top-[30%] z-[6] h-[96%] rounded-[999px] blur-[1px] shadow-[0_0_22px_rgba(255,255,255,0.4)] transition-[transform,opacity] duration-150 ease-out will-change-transform dark:shadow-[0_0_18px_rgba(255,255,255,0.2)]"
+        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[40%] -top-[30%] z-[3] h-[92%] rounded-[999px] blur-[1px] shadow-[0_0_12px_rgba(255,255,255,0.12)] transition-[transform,opacity] duration-150 ease-out will-change-transform dark:shadow-[0_0_12px_rgba(255,255,255,0.08)]"
         style={{
           ...glareStyle,
           "--glare-transform": glareStyle.transform,
           background:
-            "linear-gradient(132deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.94) 12%, rgba(125,211,252,0.52) 23%, rgba(244,114,182,0.38) 32%, rgba(255,255,255,0.16) 43%, rgba(255,255,255,0) 62%)",
+            "linear-gradient(132deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.3) 12%, rgba(125,211,252,0.16) 23%, rgba(244,114,182,0.12) 32%, rgba(255,255,255,0.05) 43%, rgba(255,255,255,0) 62%)",
         } as CSSProperties}
       />
       <div
-        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[5] w-[12%] rounded-[999px] blur-[1px]"
+        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[3] w-[10%] rounded-[999px] blur-[1px]"
         style={{
-          background: "linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.24) 34%, rgba(255,255,255,0) 100%)",
-          opacity: 0.72,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.1) 34%, rgba(255,255,255,0) 100%)",
+          opacity: 0.34,
         }}
       />
     </>
@@ -919,7 +919,6 @@ export default function BinderApp({
     "--glint-y": `${glintY}%`,
     "--glint-angle": `${slotGlareState.angle}deg`,
     "--glint-opacity": String(slotGlareState.opacity),
-    transform: `translate3d(${slotGlareState.offsetX * 0.36}px, ${slotGlareState.offsetY * 0.36}px, 0) rotate(${slotGlareState.angle * 0.55}deg) scale(1.08)`,
   }) as CSSProperties, [glintX, glintY, slotGlareState])
 
   const generationFilteredPokemonList = useMemo(() => {
@@ -3956,6 +3955,8 @@ function PokemonSlot({
             : cardFinish === "holo"
               ? "card-finish-holo"
               : null
+  const shouldShowCardFinish = Boolean(hasCardPreview && showCardFinishEffects && finishEffectClass)
+  const shouldShowPocketGlare = showBinderSlotGlare && !shouldShowCardFinish
 
   return (
     <div className="relative">
@@ -4017,7 +4018,7 @@ function PokemonSlot({
           <div className="absolute inset-x-[7px] top-[7px] h-px bg-white/65 dark:bg-white/10" />
         )}
 
-        {showBinderSlotGlare ? (
+        {shouldShowPocketGlare ? (
           <BinderSlotGlare
             glareStyle={binderSlotGlareStyle}
             innerRadius={TRADING_CARD_INNER_CORNER_RADIUS}
@@ -4040,8 +4041,8 @@ function PokemonSlot({
               decoding="async"
               draggable={false}
             />
-            {showCardFinishEffects && finishEffectClass ? (
-              <div className={`pointer-events-none absolute inset-0 ${finishEffectClass}`} style={cardFinishEffectStyle} />
+            {shouldShowCardFinish ? (
+              <div className={`card-finish-layer pointer-events-none absolute inset-0 z-[2] ${finishEffectClass}`} style={cardFinishEffectStyle} />
             ) : null}
           </div>
         ) : (
