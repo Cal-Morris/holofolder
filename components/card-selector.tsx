@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
-import { aggregateCardScanMatches, type CardScanFrameMatch } from "@/lib/card-scan-matching"
+import { aggregateCardScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
+import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { X, Search, Check, Loader2, Camera, Languages, Heart } from "lucide-react"
@@ -42,6 +43,7 @@ const CARD_SCAN_FRAME_COUNT = 8
 const CARD_SCAN_FRAME_DELAY_MS = 450
 const CARD_SCAN_MIN_USABLE_FRAMES = 3
 const CARD_SCAN_OCR_FRAME_LIMIT = 4
+const CARD_SCAN_CANDIDATE_ASSET_OCR_LIMIT = 18
 const CARD_GUIDE_INSET_X = 0.18
 const CARD_GUIDE_INSET_Y = 0.1
 const CARD_ASPECT_RATIO = 2.5 / 3.5
@@ -207,7 +209,7 @@ export default function CardSelector({
   const [cardUsableFrames, setCardUsableFrames] = useState(0)
   const [lastFramePreviewUrl, setLastFramePreviewUrl] = useState<string | null>(null)
   const descriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
-  const cardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals | null>>>(new Map())
+  const cardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map())
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const cardVideoRef = useRef<HTMLVideoElement | null>(null)
   const cardCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -429,12 +431,24 @@ export default function CardSelector({
     return textSignalPromise
   }, [])
 
-  const getTextSignalsForCards = useCallback(async (candidateCards: TCGCard[]) => {
-    const entries = await Promise.all(
-      candidateCards.map(async (card) => [card.id, await getTextSignalsForCard(card)] as const),
+  const getTextSignalsForCards = useCallback(async (
+    candidateCards: TCGCard[],
+    visualMatches: AggregatedCardScanMatch<TCGCard>[],
+    querySignals: CardTextSignals | null | undefined,
+  ) => {
+    const textSignalMap = new Map(
+      candidateCards.map((card) => [card.id, buildCardMetadataTextSignals(card)] as const),
     )
+    const assetOcrCandidates = selectCandidateCardsForAssetTextOcr(candidateCards, visualMatches, querySignals, {
+      getCardId: (card) => card.id,
+      maxCards: CARD_SCAN_CANDIDATE_ASSET_OCR_LIMIT,
+    })
 
-    return new Map(entries)
+    for (const card of assetOcrCandidates) {
+      textSignalMap.set(card.id, await getTextSignalsForCard(card))
+    }
+
+    return textSignalMap
   }, [getTextSignalsForCard])
 
   const scoreSingleCardFrame = useCallback(async (file: File) => {
@@ -567,13 +581,16 @@ export default function CardSelector({
 
       const minimumAppearances = Math.max(2, Math.ceil(successfulFrameMatches.length * 0.45))
       const textSignals = mergeCardTextSignals(await Promise.all(scanTextSignalPromises))
-      const candidateTextSignals = textSignals ? await getTextSignalsForCards(candidates) : undefined
+      const visualMatches = aggregateCardScanMatches(successfulFrameMatches, {
+        getCardId: (card) => card.id,
+        minimumAppearances,
+        maxResults: 6,
+      })
+      const candidateTextSignals = textSignals
+        ? await getTextSignalsForCards(candidates, visualMatches, textSignals)
+        : undefined
       const aggregatedMatches = rankAggregatedCardScanMatchesWithText(
-        aggregateCardScanMatches(successfulFrameMatches, {
-          getCardId: (card) => card.id,
-          minimumAppearances,
-          maxResults: 6,
-        }),
+        visualMatches,
         textSignals,
         {
           candidateCards: candidates,

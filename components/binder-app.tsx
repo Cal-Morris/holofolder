@@ -13,6 +13,7 @@ import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
 import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
+import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
@@ -58,6 +59,7 @@ const SLOT_SWEEP_FRAME_DELAY_MS = 360
 const SLOT_SWEEP_MIN_USABLE_FRAMES = 2
 const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 2
 const PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT = 4
+const PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT = 18
 const GUIDE_FRAME_INSET_X = 0.12
 const GUIDE_FRAME_INSET_Y = 0.05
 const SLOT_SWEEP_GUIDE_INSET_X = 0.14
@@ -721,7 +723,7 @@ export default function BinderApp({
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
   const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
   const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
-  const pageScanCardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals | null>>>(new Map())
+  const pageScanCardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map())
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
   const isRequestingMotionPermissionRef = useRef(false)
@@ -2317,12 +2319,24 @@ export default function BinderApp({
     return textSignalPromise
   }, [])
 
-  const getPageScanTextSignalsForCards = useCallback(async (candidateCards: TCGCard[]) => {
-    const entries = await Promise.all(
-      candidateCards.map(async (card) => [card.id, await getPageScanTextSignalsForCard(card)] as const),
+  const getPageScanTextSignalsForCards = useCallback(async (
+    candidateCards: TCGCard[],
+    visualMatches: AggregatedCardScanMatch<TCGCard>[],
+    querySignals: CardTextSignals | null | undefined,
+  ) => {
+    const textSignalMap = new Map(
+      candidateCards.map((card) => [card.id, buildCardMetadataTextSignals(card)] as const),
     )
+    const assetOcrCandidates = selectCandidateCardsForAssetTextOcr(candidateCards, visualMatches, querySignals, {
+      getCardId: (card) => card.id,
+      maxCards: PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT,
+    })
 
-    return new Map(entries)
+    for (const card of assetOcrCandidates) {
+      textSignalMap.set(card.id, await getPageScanTextSignalsForCard(card))
+    }
+
+    return textSignalMap
   }, [getPageScanTextSignalsForCard])
 
   const scorePageScanSlotCard = useCallback(async (
@@ -2378,7 +2392,7 @@ export default function BinderApp({
     ))
     if (!textSignals) return matches
     const candidateTextSignals = candidateCards?.length
-      ? await getPageScanTextSignalsForCards(candidateCards)
+      ? await getPageScanTextSignalsForCards(candidateCards, matches, textSignals)
       : undefined
 
     return rankAggregatedCardScanMatchesWithText(matches, textSignals, {
