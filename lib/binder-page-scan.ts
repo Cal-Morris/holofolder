@@ -382,7 +382,7 @@ function cropSlotCardImageDataUrl(
 }
 
 function estimateGuidedGridRegion(width: number, height: number, rows: number, cols: number): BinderPageGridRegion {
-  const targetAspect = (cols * SLOT_ASPECT_RATIO) / rows
+  const targetAspect = getBinderGridAspectRatio(rows, cols)
   const maxWidth = width * GUIDED_GRID_FILL_RATIO
   const maxHeight = height * GUIDED_GRID_FILL_RATIO
   let gridWidth = Math.min(maxWidth, maxHeight * targetAspect)
@@ -1014,7 +1014,7 @@ function searchBinderGridCandidates(
   positionStep: number,
   focus?: BinderPageGridRegion
 ): BinderPageGridRegion | null {
-  const targetAspect = cols / rows
+  const targetAspect = getBinderGridAspectRatio(rows, cols)
   const maxWidth = Math.round(Math.min(imageWidth * MAX_GRID_COVERAGE, imageHeight * MAX_GRID_COVERAGE * targetAspect))
   const minWidth = Math.round(maxWidth * MIN_GRID_COVERAGE)
   let best: BinderPageGridRegion | null = null
@@ -1141,6 +1141,10 @@ export function getBinderSlotBoundaryOffsets(length: number, count: number, tota
   }
 
   return positions
+}
+
+export function getBinderGridAspectRatio(rows: number, cols: number) {
+  return (cols * SLOT_ASPECT_RATIO) / Math.max(rows, 1)
 }
 
 function rectMean(

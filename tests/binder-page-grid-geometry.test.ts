@@ -1,6 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { getBinderSlotBoundaryOffsets } from "../lib/binder-page-scan"
+import { getBinderGridAspectRatio, getBinderSlotBoundaryOffsets } from "../lib/binder-page-scan"
+
+test("getBinderGridAspectRatio uses card slot proportions instead of a square row-column ratio", () => {
+  assert.equal(getBinderGridAspectRatio(4, 4), 2.5 / 3.5)
+  assert.ok(Math.abs(getBinderGridAspectRatio(3, 4) - (4 * 2.5) / (3 * 3.5)) < 1e-12)
+})
 
 test("getBinderSlotBoundaryOffsets returns ordered start and end offsets for each slot", () => {
   const offsets = getBinderSlotBoundaryOffsets(400, 4, 0.05)
