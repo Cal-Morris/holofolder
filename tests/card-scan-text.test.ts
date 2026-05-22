@@ -21,6 +21,20 @@ test("extractCardTextSignals parses collector numbers and useful words from nois
   assert.equal(signals.words.has("base"), true)
 })
 
+test("extractCardTextSignals preserves prefixed collector numbers from trainer gallery style cards", () => {
+  const signals = extractCardTextSignals("Trainer Gallery TG05/TG30\\nIllustration rare")
+
+  assert.deepEqual(signals.collectorNumbers, ["tg5/tg30", "tg5", "tg30", "5/30", "5", "30"])
+})
+
+test("scoreCardTextSignals rewards prefixed localId matches over plain number collisions", () => {
+  const signals = extractCardTextSignals("TG05/TG30")
+  const prefixedCard = { id: "tg", name: "Pikachu", localId: "TG05", set: { id: "swsh11tg", name: "Trainer Gallery" } }
+  const plainCard = { id: "plain", name: "Pikachu", localId: "005", set: { id: "base1", name: "Base Set" } }
+
+  assert.ok(scoreCardTextSignals(signals, prefixedCard) > scoreCardTextSignals(signals, plainCard))
+})
+
 test("scoreCardTextSignals strongly rewards collector number and set matches", () => {
   const signals = extractCardTextSignals("025/102 Base Set")
 
@@ -43,6 +57,26 @@ test("applyCardTextSignalBoost can move exact text matches above similar art mat
 
   assert.equal(boosted[0].card.id, "b")
   assert.ok(boosted[0].similarity > 0.9)
+})
+
+test("applyCardTextSignalBoost can admit strong text-only collector matches", () => {
+  const signals = extractCardTextSignals("TG05/TG30")
+  const boosted = applyCardTextSignalBoost(
+    [
+      { card: { id: "visual", name: "Pikachu", localId: "006", set: { id: "base1", name: "Base Set" } }, similarity: 0.63 },
+    ],
+    signals,
+    {
+      candidateCards: [
+        { id: "visual", name: "Pikachu", localId: "006", set: { id: "base1", name: "Base Set" } },
+        { id: "text", name: "Pikachu", localId: "TG05", set: { id: "swsh11tg", name: "Trainer Gallery" } },
+      ],
+      getCardId: (card) => card.id,
+    },
+  )
+
+  assert.equal(boosted[0].card.id, "text")
+  assert.ok(boosted[0].textScore > 0.5)
 })
 
 test("mergeCardTextSignals combines useful evidence across OCR passes", () => {

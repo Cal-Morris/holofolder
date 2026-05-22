@@ -11,7 +11,7 @@ import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
 import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
-import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
+import { aggregateCardScanMatches, aggregatePageSlotScanMatches, rerankAggregatedCardScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
 import { applyCardTextSignalBoost, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
@@ -2332,10 +2332,11 @@ export default function BinderApp({
   const rankPageSlotMatchesWithText = useCallback(async (
     matches: AggregatedCardScanMatch<TCGCard>[],
     cardImageCandidates?: CardScanImageCandidate[],
+    candidateCards?: TCGCard[],
   ): Promise<AggregatedCardScanMatch<TCGCard>[]> => {
-    if (!cardImageCandidates || cardImageCandidates.length === 0 || matches.length <= 1) return matches
+    if (!cardImageCandidates || cardImageCandidates.length === 0 || (matches.length <= 1 && !candidateCards?.length)) return matches
 
-    const topMargin = Math.abs(matches[0].similarity - (matches[1]?.similarity ?? 0))
+    const topMargin = matches.length > 0 ? Math.abs(matches[0].similarity - (matches[1]?.similarity ?? 0)) : 0
     const cropLimit = topMargin < 0.08 ? PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT : PAGE_SCAN_OCR_BASE_CROP_LIMIT
     const evidenceImages = selectCardScanEvidenceImages(cardImageCandidates, cropLimit)
     const textSignals = mergeCardTextSignals(await Promise.all(
@@ -2345,7 +2346,10 @@ export default function BinderApp({
 
     const matchByCardId = new Map(matches.map((match) => [match.card.id, match]))
 
-    return applyCardTextSignalBoost(matches, textSignals)
+    const boostedMatches = applyCardTextSignalBoost(matches, textSignals, {
+      candidateCards,
+      getCardId: (card) => card.id,
+    })
       .map((match): AggregatedCardScanMatch<TCGCard> => {
         const originalMatch = matchByCardId.get(match.card.id)
 
@@ -2356,7 +2360,7 @@ export default function BinderApp({
             score: match.similarity,
             appearances: 1,
             appearanceRatio: 1,
-            confidence: Math.min(1, match.textScore * 0.12),
+            confidence: Math.min(1, 0.52 + match.textScore * 0.24),
             margin: 0,
           }
         }
@@ -2367,10 +2371,8 @@ export default function BinderApp({
           confidence: Math.min(1, originalMatch.confidence + match.textScore * 0.12),
         }
       })
-      .sort((left, right) => {
-        if (right.similarity !== left.similarity) return right.similarity - left.similarity
-        return right.confidence - left.confidence
-      })
+
+    return rerankAggregatedCardScanMatches(boostedMatches)
   }, [readPageScanSlotTextSignals])
 
   const matchPageScanCards = useCallback(async (
@@ -2413,7 +2415,9 @@ export default function BinderApp({
     )
 
     const summaries = await Promise.all(aggregatedSlots.map(async (slot): Promise<PageScanCardMatchSummary | null> => {
-      const rankedMatches = await rankPageSlotMatchesWithText(slot.matches, slotCropImagesByIndex.get(slot.slotIndex))
+      const pokemon = currentPageSlots[slot.slotIndex]
+      const candidateCards = pokemon ? await getPageScanCardsForPokemon(pokemon.id) : undefined
+      const rankedMatches = await rankPageSlotMatchesWithText(slot.matches, slotCropImagesByIndex.get(slot.slotIndex), candidateCards)
       const match = rankedMatches[0]
       if (!match) return null
 
@@ -2432,7 +2436,7 @@ export default function BinderApp({
     }))
 
     return summaries.filter((summary): summary is PageScanCardMatchSummary => Boolean(summary))
-  }, [currentPageSlots, rankPageSlotMatchesWithText, scorePageScanSlotCard, settings.binderCols])
+  }, [currentPageSlots, getPageScanCardsForPokemon, rankPageSlotMatchesWithText, scorePageScanSlotCard, settings.binderCols])
 
   const handlePagePhotoSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -2681,7 +2685,8 @@ export default function BinderApp({
             minimumFrameSimilarity: 0.55,
             maxResults: 6,
           })
-      const rankedMatches = await rankPageSlotMatchesWithText(baseMatches, previewCandidates)
+      const candidateCards = await getPageScanCardsForPokemon(pokemon.id)
+      const rankedMatches = await rankPageSlotMatchesWithText(baseMatches, previewCandidates, candidateCards)
       const match = rankedMatches[0]
 
       if (!match || !canAutoAcceptCardScanMatch(match, { minimumConfidence: 0.58, minimumSimilarity: 0.56 })) {
@@ -2757,6 +2762,7 @@ export default function BinderApp({
     currentBinderPage,
     currentPageSlots,
     getCollectionItem,
+    getPageScanCardsForPokemon,
     isCameraReady,
     isCapturingBurst,
     isCollected,

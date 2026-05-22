@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import {
   aggregateCardScanMatches,
   aggregatePageSlotScanMatches,
+  rerankAggregatedCardScanMatches,
   type CardScanFrameMatch,
 } from "../lib/card-scan-matching"
 
@@ -127,4 +128,30 @@ test("aggregatePageSlotScanMatches aggregates each binder slot independently", (
   assert.equal(slots[0]?.matches[0]?.card.id, "alpha")
   assert.equal(slots[1]?.slotIndex, 1)
   assert.equal(slots[1]?.matches[0]?.card.id, "beta")
+})
+
+test("rerankAggregatedCardScanMatches recalculates margin after text-assisted reranking", () => {
+  const reranked = rerankAggregatedCardScanMatches([
+    {
+      card: beta,
+      similarity: 0.63,
+      score: 0.63,
+      appearances: 2,
+      appearanceRatio: 1,
+      confidence: 0.62,
+      margin: 0,
+    },
+    {
+      card: alpha,
+      similarity: 0.69,
+      score: 0.69,
+      appearances: 1,
+      appearanceRatio: 1,
+      confidence: 0.72,
+      margin: 0,
+    },
+  ])
+
+  assert.equal(reranked[0]?.card.id, "alpha")
+  assert.equal(Number(reranked[0]?.margin.toFixed(2)), 0.06)
 })

@@ -23,33 +23,49 @@ export interface TextBoostedCardMatch<TCard> {
   textScore: number
 }
 
+export interface ApplyCardTextSignalBoostOptions<TCard> {
+  candidateCards?: TCard[]
+  getCardId?: (card: TCard) => string
+  minimumTextOnlyScore?: number
+  textOnlyBaseSimilarity?: number
+}
+
 function normalizeText(value: string) {
   return value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    .replace(/\\[nr]/g, " ")
     .replace(/[|]/g, "/")
     .replace(/[^a-z0-9/\s.-]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
 }
 
-function normalizeNumberToken(value: string) {
+function normalizeCollectorSide(value: string | undefined, preservePrefix: boolean) {
+  if (!value) return ""
+  const compact = value.toLowerCase().replace(/[^a-z0-9]/g, "")
+  const match = compact.match(/^([a-z]*)(\d{1,4})$/)
+  if (!match) return ""
+
+  const prefix = preservePrefix ? match[1] : ""
+  const parsed = Number.parseInt(match[2], 10)
+  if (!Number.isFinite(parsed)) return ""
+
+  return `${prefix}${parsed}`
+}
+
+function normalizeNumberToken(value: string, preservePrefix = false) {
   const [left, right] = value.split("/")
-  const normalizeSide = (side?: string) => {
-    if (!side) return ""
-    const parsed = Number.parseInt(side.replace(/\D/g, ""), 10)
-    return Number.isFinite(parsed) ? String(parsed) : ""
-  }
-  const normalizedLeft = normalizeSide(left)
-  const normalizedRight = normalizeSide(right)
+  const normalizedLeft = normalizeCollectorSide(left, preservePrefix)
+  const normalizedRight = normalizeCollectorSide(right, preservePrefix)
 
   if (normalizedLeft && normalizedRight) return `${normalizedLeft}/${normalizedRight}`
   return normalizedLeft || normalizedRight
 }
 
-function addCollectorNumber(numbers: string[], seen: Set<string>, value: string) {
-  const normalized = normalizeNumberToken(value)
+function addCollectorNumber(numbers: string[], seen: Set<string>, value: string, preservePrefix = false) {
+  const normalized = normalizeNumberToken(value, preservePrefix)
   if (!normalized || seen.has(normalized)) return
 
   seen.add(normalized)
@@ -67,9 +83,17 @@ export function extractCardTextSignals(rawText: string): CardTextSignals {
   const collectorNumbers: string[] = []
   const seenNumbers = new Set<string>()
 
-  for (const match of normalizedText.matchAll(/\b([a-z]{0,3}\d{1,4})\s*\/\s*(\d{1,4})\b/g)) {
-    const left = match[1].replace(/^[a-z]+/, "")
+  for (const match of normalizedText.matchAll(/\b([a-z]{0,4}\d{1,4})\s*\/\s*([a-z]{0,4}\d{1,4})\b/g)) {
+    const left = match[1]
     const right = match[2]
+    const hasPrefix = /[a-z]/.test(left) || /[a-z]/.test(right)
+
+    if (hasPrefix) {
+      addCollectorNumber(collectorNumbers, seenNumbers, `${left}/${right}`, true)
+      addCollectorNumber(collectorNumbers, seenNumbers, left, true)
+      addCollectorNumber(collectorNumbers, seenNumbers, right, true)
+    }
+
     addCollectorNumber(collectorNumbers, seenNumbers, `${left}/${right}`)
     addCollectorNumber(collectorNumbers, seenNumbers, left)
     addCollectorNumber(collectorNumbers, seenNumbers, right)
@@ -128,6 +152,19 @@ function getCardNumberAliases(localId?: string) {
   return [...aliases].filter(Boolean)
 }
 
+function getPrefixedCardNumberAliases(localId?: string) {
+  if (!localId || !/[a-z]/i.test(localId)) return []
+
+  const aliases = new Set<string>()
+  const normalized = normalizeNumberToken(localId, true)
+  if (normalized) {
+    aliases.add(normalized)
+    normalized.split("/").filter(Boolean).forEach((part) => aliases.add(part))
+  }
+
+  return [...aliases].filter(Boolean)
+}
+
 function getWords(value?: string) {
   if (!value) return []
   return normalizeText(value)
@@ -154,15 +191,18 @@ export function scoreCardTextSignals(signals: CardTextSignals | null | undefined
   }
 
   const cardNumberAliases = getCardNumberAliases(card.localId)
+  const prefixedCardNumberAliases = getPrefixedCardNumberAliases(card.localId)
   const numberHit = cardNumberAliases.some((alias) => signals.collectorNumbers.includes(alias))
+  const prefixedNumberHit = prefixedCardNumberAliases.some((alias) => signals.collectorNumbers.includes(alias))
   const fullNumberHit = cardNumberAliases.some((alias) => alias.includes("/") && signals.collectorNumbers.includes(alias))
+  const fullPrefixedNumberHit = prefixedCardNumberAliases.some((alias) => alias.includes("/") && signals.collectorNumbers.includes(alias))
   const nameScore = scoreWordOverlap(signals, getWords(card.name))
   const setNameScore = scoreWordOverlap(signals, getWords(card.set?.name))
   const setIdScore = card.set?.id && signals.normalizedText.includes(normalizeText(card.set.id)) ? 1 : 0
 
   return Math.min(
     1,
-    (fullNumberHit ? 0.62 : numberHit ? 0.38 : 0) +
+    (fullPrefixedNumberHit ? 0.72 : fullNumberHit ? 0.62 : prefixedNumberHit ? 0.54 : numberHit ? 0.38 : 0) +
       nameScore * 0.18 +
       Math.max(setNameScore, setIdScore) * 0.2,
   )
@@ -171,16 +211,44 @@ export function scoreCardTextSignals(signals: CardTextSignals | null | undefined
 export function applyCardTextSignalBoost<TCard extends TextMatchableCard>(
   matches: Array<{ card: TCard; similarity: number }>,
   signals: CardTextSignals | null | undefined,
+  options: ApplyCardTextSignalBoostOptions<TCard> = {},
 ): Array<TextBoostedCardMatch<TCard>> {
-  return matches
+  const getCardId = options.getCardId
+  const minimumTextOnlyScore = options.minimumTextOnlyScore ?? 0.54
+  const textOnlyBaseSimilarity = options.textOnlyBaseSimilarity ?? 0.55
+  const seenCardIds = new Set<string>()
+  const boostedMatches = matches
     .map((match) => {
       const textScore = scoreCardTextSignals(signals, match.card)
+      const cardId = getCardId?.(match.card)
+      if (cardId) {
+        seenCardIds.add(cardId)
+      }
+
       return {
         card: match.card,
         textScore,
         similarity: Math.min(1, match.similarity + textScore * MAX_TEXT_BOOST),
       }
     })
+
+  if (signals && options.candidateCards) {
+    for (const card of options.candidateCards) {
+      const cardId = getCardId?.(card)
+      if (cardId && seenCardIds.has(cardId)) continue
+
+      const textScore = scoreCardTextSignals(signals, card)
+      if (textScore < minimumTextOnlyScore) continue
+
+      boostedMatches.push({
+        card,
+        textScore,
+        similarity: Math.min(1, textOnlyBaseSimilarity + textScore * MAX_TEXT_BOOST),
+      })
+    }
+  }
+
+  return boostedMatches
     .sort((left, right) => {
       if (right.similarity !== left.similarity) return right.similarity - left.similarity
       return right.textScore - left.textScore

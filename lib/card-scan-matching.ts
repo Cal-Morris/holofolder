@@ -172,3 +172,22 @@ export function aggregatePageSlotScanMatches<TCard>(
     .filter((slot) => slot.matches.length > 0)
     .sort((left, right) => left.slotIndex - right.slotIndex)
 }
+
+export function rerankAggregatedCardScanMatches<TCard>(
+  matches: AggregatedCardScanMatch<TCard>[],
+): AggregatedCardScanMatch<TCard>[] {
+  const ranked = [...matches].sort((left, right) => {
+    if (right.similarity !== left.similarity) return right.similarity - left.similarity
+    if (right.confidence !== left.confidence) return right.confidence - left.confidence
+    if (right.appearances !== left.appearances) return right.appearances - left.appearances
+    return right.score - left.score
+  })
+
+  return ranked.map((match, index) => {
+    const nextSimilarity = ranked[index + 1]?.similarity ?? 0
+    return {
+      ...match,
+      margin: Math.max(0, match.similarity - nextSimilarity),
+    }
+  })
+}
