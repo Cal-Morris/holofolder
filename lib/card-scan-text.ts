@@ -8,6 +8,18 @@ const OCR_DIGIT_CONFUSIONS: Record<string, string> = {
   b: "8",
 }
 const COLLECTOR_SIDE_PATTERN = /^[a-z]{0,4}[0-9oilsb]{1,4}$/
+const STANDALONE_COLLECTOR_PREFIXES = new Set([
+  "bw",
+  "dp",
+  "gg",
+  "hgss",
+  "pop",
+  "sm",
+  "svp",
+  "swsh",
+  "tg",
+  "xy",
+])
 
 interface ParsedCollectorSide {
   normalized: string
@@ -134,6 +146,15 @@ export function extractCardTextSignals(rawText: string): CardTextSignals {
 
   for (const match of normalizedText.matchAll(/(?:\bno\.?|#)\s*(\d{1,4})\b/g)) {
     addCollectorNumber(collectorNumbers, seenNumbers, match[1])
+  }
+
+  for (const token of textTokens) {
+    const cleanedToken = token.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "")
+    const parsed = parseCollectorSide(cleanedToken, true)
+    if (!parsed || !parsed.prefix || !STANDALONE_COLLECTOR_PREFIXES.has(parsed.prefix)) continue
+
+    addCollectorNumber(collectorNumbers, seenNumbers, cleanedToken, true)
+    addCollectorNumber(collectorNumbers, seenNumbers, cleanedToken)
   }
 
   for (let index = 0; index < textTokens.length - 1; index += 1) {

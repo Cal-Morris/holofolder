@@ -39,8 +39,20 @@ test("extractCardTextSignals recovers collector numbers when OCR drops the slash
   assert.deepEqual(signals.collectorNumbers, ["25/102", "25", "102"])
 })
 
+test("extractCardTextSignals reads standalone prefixed promo and gallery numbers", () => {
+  const signals = extractCardTextSignals("Black Star Promo SWSH001\\nTrainer Gallery TG05")
+
+  assert.deepEqual(signals.collectorNumbers, ["swsh1", "1", "tg5", "5"])
+})
+
 test("extractCardTextSignals does not invent collector numbers from slash-separated words", () => {
   const signals = extractCardTextSignals("weakness/resistance loss/boss illustrator")
+
+  assert.deepEqual(signals.collectorNumbers, [])
+})
+
+test("extractCardTextSignals does not treat HP text as a standalone collector number", () => {
+  const signals = extractCardTextSignals("Pikachu HP60 Weakness")
 
   assert.deepEqual(signals.collectorNumbers, [])
 })
