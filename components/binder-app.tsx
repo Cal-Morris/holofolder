@@ -2799,6 +2799,7 @@ export default function BinderApp({
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
   const selectedCardPriceLabel = selectedCardPriceKey ? formatPriceLabel(pricesByCardId[selectedCardPriceKey]) : null
   const selectedWantedCards = collectionItem?.wanted_cards ?? []
+  const selectedWantedCardPreview = selectedWantedCards[0] ?? null
   const selectedWantedPriceLabel = (() => {
     if (selectedWantedCards.length === 0) {
       return null
@@ -2933,29 +2934,49 @@ export default function BinderApp({
             ? { label: "Owned", className: "border-emerald-500/25 bg-emerald-500/10 text-emerald-400" }
             : { label: "Open Slot", className: "border-border/60 bg-background/35 text-muted-foreground" }
 
-    const selectedCardLabel = wishlisted && collectionItem?.card_name
-      ? `Wishlisted: ${collectionItem.card_name}`
-      : collectionItem?.card_name
-        ? collectionItem.card_name
-        : collected
-          ? "No card assigned yet"
-          : "Choose how you want to track this slot."
     const selectedCardSummaryLabel =
-      wishlisted && collectionItem?.card_name
-        ? `Wanted card: ${collectionItem.card_name}`
-        : collectionItem?.card_name
-          ? collectionItem.card_name.toLowerCase() === selectedPokemon.name.toLowerCase()
-            ? selectedPokemonHasAssignedCard
-              ? "Assigned card selected"
-              : "Tracked card selected"
-            : collectionItem.card_name
-          : collected
-            ? "No card assigned yet"
-            : "Choose how you want to track this slot."
+      wishlisted && selectedWantedCardPreview?.card_name
+        ? `Wanted card: ${selectedWantedCardPreview.card_name}`
+        : wishlisted && collectionItem?.card_name
+          ? `Wanted card: ${collectionItem.card_name}`
+          : collectionItem?.card_name
+            ? collectionItem.card_name.toLowerCase() === selectedPokemon.name.toLowerCase()
+              ? selectedPokemonHasAssignedCard
+                ? "Assigned card selected"
+                : "Tracked card selected"
+              : collectionItem.card_name
+            : collected
+              ? "No card assigned yet"
+              : "Choose how you want to track this slot."
+    const selectedPreviewImage = wishlisted && selectedWantedCardPreview?.card_image
+      ? selectedWantedCardPreview.card_image
+      : selectedPokemonDisplayImage || getPokemonArtwork(selectedPokemon)
+    const selectedPreviewAlt = wishlisted && selectedWantedCardPreview?.card_name
+      ? selectedWantedCardPreview.card_name
+      : selectedPokemon.name
+    const selectedPreviewIsCard = Boolean(wishlisted && selectedWantedCardPreview?.card_image)
+    const selectedPreviewTone = selectedPreviewIsCard ? "" : selectedPokemonDisplayTone
+    const selectedPreviewFit = selectedPreviewIsCard ? "object-cover" : selectedPokemonDisplayFit
+    const selectedPreviewFrameClass = selectedPreviewIsCard
+      ? "h-[4.6rem] w-[3.35rem] rounded-lg"
+      : "h-14 w-14 rounded-2xl"
+    const selectedPreviewImageClass = selectedPreviewIsCard
+      ? "absolute inset-0 h-full w-full"
+      : "absolute inset-1 max-w-[calc(100%-0.5rem)] max-h-[calc(100%-0.5rem)] m-auto"
+    const selectedPreviewBadgeClass = selectedPreviewIsCard ? "-top-1.5 -right-1.5" : "-top-1 -right-1"
+    const selectedWantedSetLabel = selectedPokemonHasAssignedCard
+      ? collectionItem?.card_set
+      : selectedWantedCardPreview?.card_set
+    const selectedWantedLanguageLabel = selectedPokemonHasAssignedCard
+      ? collectionItem?.card_language
+      : selectedWantedCardPreview?.card_language
+    const selectedWantedFinishLabel = selectedPokemonHasAssignedCard
+      ? collectionItem?.card_finish
+      : selectedWantedCardPreview?.card_finish
     const selectedDetailChips = [
-      collectionItem?.card_set ? { key: "set", label: collectionItem.card_set } : null,
-      collectionItem?.card_id ? { key: "language", label: formatCardLanguageLabel(collectionItem.card_language) } : null,
-      collectionItem?.card_id ? { key: "finish", label: formatCardFinishLabel(collectionItem.card_finish) } : null,
+      selectedWantedSetLabel ? { key: "set", label: selectedWantedSetLabel } : null,
+      selectedPokemonHasAssignedCard || selectedWantedCardPreview?.card_language ? { key: "language", label: formatCardLanguageLabel(selectedWantedLanguageLabel) } : null,
+      selectedPokemonHasAssignedCard || selectedWantedCardPreview?.card_finish ? { key: "finish", label: formatCardFinishLabel(selectedWantedFinishLabel) } : null,
       collectionItem?.wanted_cards?.length ? { key: "wanted", label: `${collectionItem.wanted_cards.length} wanted` } : null,
       selectedDetailPriceLabel ? { key: "price", label: selectedDetailPriceLabel } : null,
       selectedCollectedDateLabel ? { key: "collected", label: `Collected ${selectedCollectedDateLabel}` } : null,
@@ -2992,14 +3013,14 @@ export default function BinderApp({
         <div className="rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
           <div className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
-              <div className="relative mt-0.5 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <div className={`relative mt-0.5 flex shrink-0 items-center justify-center overflow-hidden border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${selectedPreviewFrameClass}`}>
                 <img
-                  src={selectedPokemonDisplayImage || getPokemonArtwork(selectedPokemon)}
-                  alt={selectedPokemon.name}
-                  className={`absolute inset-1 max-w-[calc(100%-0.5rem)] max-h-[calc(100%-0.5rem)] m-auto ${selectedPokemonDisplayFit} ${selectedPokemonDisplayTone}`}
+                  src={selectedPreviewImage}
+                  alt={selectedPreviewAlt}
+                  className={`${selectedPreviewImageClass} ${selectedPreviewFit} ${selectedPreviewTone}`}
                 />
                 {collected && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow">
+                  <div className={`absolute w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow ${selectedPreviewBadgeClass}`}>
                     <Check className="w-2.5 h-2.5 text-white" />
                   </div>
                 )}
