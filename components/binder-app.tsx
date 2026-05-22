@@ -2460,8 +2460,8 @@ export default function BinderApp({
     const panelHelperText = readOnlyMode
       ? "This shared binder is read-only. You can browse, search, filter, and view prices, but only the owner can change collection state."
       : collected
-        ? "Add or edit the owned card for this slot, or clear it if you no longer have one."
-        : "Pick owned card adds a specific card, Mark owned leaves it cardless, and Wanted card tracks a target without counting it owned."
+        ? "Add or edit the card for this slot, or clear it if you no longer have one."
+        : "Add card picks a specific printing, Mark owned leaves it cardless, and Wanted card tracks a target without counting it owned."
 
     const quickPanel = (
       <div
@@ -2601,7 +2601,7 @@ export default function BinderApp({
                         className="h-10 w-full rounded-xl gap-1.5 px-3 text-sm shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        {selectedPokemonHasAssignedCard ? "Edit owned card" : "Add owned card"}
+                        {selectedPokemonHasAssignedCard ? "Edit card" : "Add card"}
                       </Button>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
@@ -2613,7 +2613,7 @@ export default function BinderApp({
                           className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-[0_12px_24px_-18px_rgba(52,211,153,0.8)]"
                         >
                           <Check className="w-3.5 h-3.5" />
-                          Pick owned
+                          Add card
                         </Button>
                         <Button
                           onClick={handleOpenWishlistSelector}
@@ -3476,6 +3476,37 @@ export default function BinderApp({
                     return renderBinderGridPage(page.pageNumber, page.side)
                   })}
                 </div>
+              </div>
+            </div>
+
+            <div className="shrink-0 px-0.5">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-[1.35rem] border border-border/60 bg-card/88 p-1.5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/72">
+                <Button
+                  variant="ghost"
+                  className="h-14 min-w-0 justify-start gap-2 rounded-[1rem] px-3 text-sm font-semibold sm:px-4"
+                  onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage}
+                  disabled={!canGoToPreviousVisiblePage}
+                  aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}
+                >
+                  <ChevronLeft className="h-6 w-6 shrink-0" />
+                  <span className="truncate">{isSpreadLayout ? "Previous spread" : "Previous page"}</span>
+                </Button>
+
+                <div className="flex min-w-[4.5rem] flex-col items-center justify-center px-1 text-center">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Page</span>
+                  <span className="text-sm font-bold tabular-nums text-foreground">{currentBinderPage}/{totalBinderPages}</span>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  className="h-14 min-w-0 justify-end gap-2 rounded-[1rem] px-3 text-sm font-semibold sm:px-4"
+                  onClick={isSpreadLayout ? goToNextSpread : goToNextPage}
+                  disabled={!canGoToNextVisiblePage}
+                  aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}
+                >
+                  <span className="truncate">{isSpreadLayout ? "Next spread" : "Next page"}</span>
+                  <ChevronRight className="h-6 w-6 shrink-0" />
+                </Button>
               </div>
             </div>
 

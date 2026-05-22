@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react"
 import type { CardFinish } from "@/hooks/use-collection"
 
 const TARGET_FRAME_MS = 1000 / 30
+const REDUCED_MOTION_FRAME_MS = 1000 / 12
 const MAX_SHADER_PIXEL_RATIO = 1.35
 
 const VERTEX_SHADER_SOURCE = `
@@ -192,7 +193,7 @@ void main() {
   }
 
   float texture = (diagonalLines * lineBoost + fineLines * lineBoost * 0.45 + reverseTile + specialtyTexture + grain * 0.035) * surfaceMask;
-  float alpha = clamp((prism * finishBoost + texture) * alphaBase, 0.0, 0.86);
+  float alpha = clamp((prism * finishBoost + texture) * alphaBase * 0.62, 0.0, 0.48);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -373,9 +374,10 @@ export default function CardFinishShader({
     let frameId = 0
     let lastFrameTime = -TARGET_FRAME_MS
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const targetFrameMs = prefersReducedMotion ? REDUCED_MOTION_FRAME_MS : TARGET_FRAME_MS
 
     const render = (time: number) => {
-      if (!prefersReducedMotion && time - lastFrameTime < TARGET_FRAME_MS) {
+      if (time - lastFrameTime < targetFrameMs) {
         frameId = window.requestAnimationFrame(render)
         return
       }
@@ -409,9 +411,7 @@ export default function CardFinishShader({
       gl.uniform1f(seedLocation, uniforms.patternSeed)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-      if (!prefersReducedMotion) {
-        frameId = window.requestAnimationFrame(render)
-      }
+      frameId = window.requestAnimationFrame(render)
     }
 
     frameId = window.requestAnimationFrame(render)
@@ -428,11 +428,14 @@ export default function CardFinishShader({
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      data-card-finish={finish}
-      className="card-finish-shader pointer-events-none absolute inset-0 z-[2] h-full w-full"
-    />
+    <div className="card-finish-composite pointer-events-none absolute inset-0 z-[2]" style={fallbackStyle}>
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        data-card-finish={finish}
+        className="card-finish-shader absolute inset-0 h-full w-full"
+      />
+      <div className={`card-finish-mobile-sheen absolute inset-0 ${fallbackClassName}`} aria-hidden="true" />
+    </div>
   )
 }

@@ -238,6 +238,40 @@
     transform: none;
   }
 
+  .card-finish-composite {
+    border-radius: inherit;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .card-finish-shader {
+    opacity: 0.44;
+  }
+
+  .card-finish-mobile-sheen {
+    border-radius: inherit;
+    opacity: 0.16;
+    mix-blend-mode: screen;
+    transform: translate3d(-18%, 0, 0) rotate(var(--glint-angle, -24deg));
+    animation: card-finish-sheen-sweep 3.6s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  @keyframes card-finish-sheen-sweep {
+    0% {
+      opacity: 0.05;
+      transform: translate3d(-28%, -7%, 0) rotate(var(--glint-angle, -24deg)) scale(1.06);
+    }
+    48% {
+      opacity: 0.18;
+      transform: translate3d(calc((var(--glint-x, 50%) - 50%) * 0.14), calc((var(--glint-y, 50%) - 50%) * 0.06), 0) rotate(var(--glint-angle, -24deg)) scale(1.09);
+    }
+    100% {
+      opacity: 0.06;
+      transform: translate3d(30%, 7%, 0) rotate(var(--glint-angle, -24deg)) scale(1.06);
+    }
+  }
+
   .card-finish-normal,
   .card-finish-holo,
   .card-finish-reverse-holo,
@@ -282,7 +316,7 @@
   }
 
   .card-finish-normal {
-    --finish-opacity: 0.56;
+    --finish-opacity: 0.24;
     background:
       radial-gradient(circle at var(--glint-x, 38%) var(--glint-y, 32%), rgba(255,255,255,0.28), rgba(125,211,252,0.12) 20%, transparent 46%),
       linear-gradient(112deg, transparent 0%, rgba(255,255,255,0.14) 21%, rgba(56,189,248,0.12) 34%, transparent 58%),
@@ -292,7 +326,7 @@
   }
 
   .card-finish-holo {
-    --finish-opacity: 0.74;
+    --finish-opacity: 0.32;
     background:
       radial-gradient(circle at var(--glint-x, 36%) var(--glint-y, 32%), rgba(255,255,255,0.34) 0%, rgba(125,211,252,0.2) 18%, transparent 46%),
       linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.12) 18%, rgba(56,189,248,0.2) 28%, rgba(244,114,182,0.16) 42%, transparent 60%),
@@ -303,7 +337,7 @@
   }
 
   .card-finish-reverse-holo {
-    --finish-opacity: 0.68;
+    --finish-opacity: 0.3;
     inset: 8% 4% 4%;
     background:
       radial-gradient(circle at var(--glint-x, 28%) var(--glint-y, 24%), rgba(255,255,255,0.3), transparent 30%),
@@ -313,7 +347,7 @@
   }
 
   .card-finish-double {
-    --finish-opacity: 0.66;
+    --finish-opacity: 0.3;
     background:
       radial-gradient(circle at var(--glint-x, 42%) var(--glint-y, 34%), rgba(255,255,255,0.34), rgba(125,211,252,0.16) 22%, transparent 48%),
       repeating-linear-gradient(30deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 12px),
@@ -322,7 +356,7 @@
   }
 
   .card-finish-ultra {
-    --finish-opacity: 0.76;
+    --finish-opacity: 0.36;
     background:
       radial-gradient(circle at var(--glint-x, 52%) var(--glint-y, 30%), rgba(255,255,255,0.36), rgba(203,213,225,0.2) 20%, transparent 48%),
       repeating-linear-gradient(118deg, rgba(255,255,255,0.13) 0 1px, rgba(125,211,252,0.08) 1px 3px, transparent 3px 8px),
@@ -331,7 +365,7 @@
   }
 
   .card-finish-ir {
-    --finish-opacity: 0.72;
+    --finish-opacity: 0.34;
     background:
       radial-gradient(circle at var(--glint-x, 60%) var(--glint-y, 30%), rgba(255,255,255,0.32), rgba(134,239,172,0.15) 22%, transparent 48%),
       linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.12) 18%, rgba(134,239,172,0.18) 30%, rgba(96,165,250,0.2) 45%, transparent 64%),
@@ -341,7 +375,7 @@
   }
 
   .card-finish-sir {
-    --finish-opacity: 0.82;
+    --finish-opacity: 0.4;
     background:
       radial-gradient(circle at var(--glint-x, 48%) var(--glint-y, 34%), rgba(255,255,255,0.38), rgba(251,191,36,0.2) 17%, rgba(56,189,248,0.14) 31%, transparent 54%),
       linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.15) 16%, rgba(251,191,36,0.2) 26%, rgba(56,189,248,0.24) 38%, rgba(244,114,182,0.21) 52%, transparent 70%),
@@ -351,7 +385,7 @@
   }
 
   .card-finish-secret {
-    --finish-opacity: 0.86;
+    --finish-opacity: 0.42;
     background:
       radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 38%), rgba(255,255,255,0.42), rgba(251,191,36,0.2) 18%, transparent 44%),
       conic-gradient(from 160deg at 50% 50%, rgba(251,191,36,0.16), rgba(244,114,182,0.2), rgba(56,189,248,0.22), rgba(134,239,172,0.16), rgba(251,191,36,0.18)),
@@ -361,7 +395,7 @@
   }
 
   .card-finish-radiant {
-    --finish-opacity: 0.8;
+    --finish-opacity: 0.38;
     background:
       radial-gradient(circle at var(--glint-x, 44%) var(--glint-y, 32%), rgba(255,255,255,0.42), rgba(56,189,248,0.2) 18%, transparent 46%),
       repeating-linear-gradient(45deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 7px),
@@ -370,7 +404,7 @@
   }
 
   .card-finish-ace {
-    --finish-opacity: 0.78;
+    --finish-opacity: 0.36;
     background:
       radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 32%), rgba(255,255,255,0.38), rgba(236,72,153,0.24) 20%, transparent 50%),
       linear-gradient(112deg, transparent 0%, rgba(236,72,153,0.28) 24%, rgba(255,255,255,0.18) 36%, transparent 62%),
@@ -379,7 +413,7 @@
   }
 
   .card-finish-amazing {
-    --finish-opacity: 0.82;
+    --finish-opacity: 0.4;
     background:
       radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 42%), rgba(255,255,255,0.38), rgba(251,191,36,0.2) 18%, rgba(56,189,248,0.16) 34%, transparent 58%),
       conic-gradient(from 90deg at 50% 50%, rgba(244,114,182,0.2), rgba(251,191,36,0.2), rgba(134,239,172,0.18), rgba(56,189,248,0.2), rgba(244,114,182,0.2)),
@@ -388,12 +422,45 @@
   }
 
   .card-finish-shiny {
-    --finish-opacity: 0.76;
+    --finish-opacity: 0.36;
     background:
       radial-gradient(circle at var(--glint-x, 46%) var(--glint-y, 34%), rgba(255,255,255,0.44), rgba(191,219,254,0.18) 20%, transparent 48%),
       repeating-linear-gradient(35deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 10px),
       linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 26%, transparent 54%);
     animation: holographic-foil 5.2s ease-in-out infinite;
+  }
+
+  .card-finish-mobile-sheen.card-finish-normal,
+  .card-finish-mobile-sheen.card-finish-holo,
+  .card-finish-mobile-sheen.card-finish-reverse-holo,
+  .card-finish-mobile-sheen.card-finish-double,
+  .card-finish-mobile-sheen.card-finish-ultra,
+  .card-finish-mobile-sheen.card-finish-ir,
+  .card-finish-mobile-sheen.card-finish-sir,
+  .card-finish-mobile-sheen.card-finish-secret,
+  .card-finish-mobile-sheen.card-finish-radiant,
+  .card-finish-mobile-sheen.card-finish-ace,
+  .card-finish-mobile-sheen.card-finish-amazing,
+  .card-finish-mobile-sheen.card-finish-shiny {
+    inset: 0;
+    opacity: 0.16;
+    mix-blend-mode: screen;
+    animation: card-finish-sheen-sweep 3.6s ease-in-out infinite;
+  }
+
+  .card-finish-mobile-sheen.card-finish-normal::after,
+  .card-finish-mobile-sheen.card-finish-holo::after,
+  .card-finish-mobile-sheen.card-finish-reverse-holo::after,
+  .card-finish-mobile-sheen.card-finish-double::after,
+  .card-finish-mobile-sheen.card-finish-ultra::after,
+  .card-finish-mobile-sheen.card-finish-ir::after,
+  .card-finish-mobile-sheen.card-finish-sir::after,
+  .card-finish-mobile-sheen.card-finish-secret::after,
+  .card-finish-mobile-sheen.card-finish-radiant::after,
+  .card-finish-mobile-sheen.card-finish-ace::after,
+  .card-finish-mobile-sheen.card-finish-amazing::after,
+  .card-finish-mobile-sheen.card-finish-shiny::after {
+    opacity: 0.18;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -411,7 +478,23 @@
     .card-finish-ace,
     .card-finish-amazing,
     .card-finish-shiny {
-      animation: none;
+      animation-duration: 12s;
+    }
+
+    .card-finish-mobile-sheen.card-finish-normal,
+    .card-finish-mobile-sheen.card-finish-holo,
+    .card-finish-mobile-sheen.card-finish-reverse-holo,
+    .card-finish-mobile-sheen.card-finish-double,
+    .card-finish-mobile-sheen.card-finish-ultra,
+    .card-finish-mobile-sheen.card-finish-ir,
+    .card-finish-mobile-sheen.card-finish-sir,
+    .card-finish-mobile-sheen.card-finish-secret,
+    .card-finish-mobile-sheen.card-finish-radiant,
+    .card-finish-mobile-sheen.card-finish-ace,
+    .card-finish-mobile-sheen.card-finish-amazing,
+    .card-finish-mobile-sheen.card-finish-shiny {
+      opacity: 0.12;
+      animation-duration: 9s;
     }
   }
 

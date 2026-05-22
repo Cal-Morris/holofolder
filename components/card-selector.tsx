@@ -267,15 +267,15 @@ export default function CardSelector({
         accentClass: "border-amber-400/40 bg-amber-400/12 text-amber-700 dark:text-amber-300",
       }
     : {
-        title: `Choose owned card for ${pokemonName}`,
-        label: "Owned",
-        shortLabel: "Own",
-        actionLabel: "Save as owned",
-        scanLabel: "Scan owned",
+        title: `Add card for ${pokemonName}`,
+        label: "Add card",
+        shortLabel: "Add",
+        actionLabel: "Add card",
+        scanLabel: "Scan card",
         emptyActionLabel: "Mark owned without card",
         helper: "Selecting a card marks the slot collected and attaches this printing to your binder.",
-        searchPlaceholder: "Search owned card, number, set...",
-        currentLabel: "Current owned",
+        searchPlaceholder: "Search card, number, set...",
+        currentLabel: "Current card",
         activeClass: "border-emerald-400/55 bg-emerald-400/14 text-emerald-700 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)] dark:text-emerald-300",
         accentClass: "border-emerald-400/40 bg-emerald-400/12 text-emerald-700 dark:text-emerald-300",
       }
@@ -692,11 +692,11 @@ export default function CardSelector({
 
       <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-4 sm:rounded-[2.25rem]"
+        className="fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-3 sm:rounded-[2.25rem] lg:inset-x-8 xl:left-1/2 xl:right-auto xl:w-[min(calc(100vw-4rem),92rem)] xl:-translate-x-1/2"
         onClick={(e) => e.stopPropagation()}
         style={{
-          top: "calc(env(safe-area-inset-top) + 4.5rem)",
-          bottom: "calc(env(safe-area-inset-bottom) + 0.375rem)",
+          top: "calc(env(safe-area-inset-top) + 1rem)",
+          bottom: "calc(env(safe-area-inset-bottom) + 0.25rem)",
           overscrollBehaviorY: "contain",
           touchAction: "pan-y",
         }}
@@ -738,7 +738,7 @@ export default function CardSelector({
                 }`}
               >
                 <Check className="h-4 w-4" />
-                <span>Owned</span>
+                <span>Add card</span>
               </button>
               <button
                 type="button"
