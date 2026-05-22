@@ -1327,7 +1327,7 @@ export default function BinderApp({
     () => selectedTrackedCardItem?.card_id
       ? { cardId: selectedTrackedCardItem.card_id, language: selectedTrackedCardItem.card_language ?? "en" }
       : null,
-    [selectedTrackedCardItem?.card_id, selectedTrackedCardItem?.card_language],
+    [selectedTrackedCardItem],
   )
   const priceLookupCards = useMemo(
     () => {
