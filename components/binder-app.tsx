@@ -13,7 +13,7 @@ import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
 import { aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
-import { applyCardTextSignalBoost, type CardTextSignals } from "@/lib/card-scan-text"
+import { applyCardTextSignalBoost, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
@@ -48,6 +48,8 @@ const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
 const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.6
 const GUIDED_SCAN_MIN_USABLE_FRAMES = 2
+const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 1
+const PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT = 2
 const GUIDE_FRAME_INSET_X = 0.12
 const GUIDE_FRAME_INSET_Y = 0.05
 const BINDER_PAGE_QUERY_PARAM = "page"
@@ -2231,11 +2233,15 @@ export default function BinderApp({
 
   const rankPageSlotMatchesWithText = useCallback(async (
     matches: AggregatedCardScanMatch<TCGCard>[],
-    cardImageDataUrl?: string,
+    cardImageDataUrls?: string[],
   ) => {
-    if (!cardImageDataUrl || matches.length <= 1) return matches
+    if (!cardImageDataUrls || cardImageDataUrls.length === 0 || matches.length <= 1) return matches
 
-    const textSignals = await readPageScanSlotTextSignals(cardImageDataUrl)
+    const topMargin = Math.abs(matches[0].similarity - (matches[1]?.similarity ?? 0))
+    const cropLimit = topMargin < 0.08 ? PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT : PAGE_SCAN_OCR_BASE_CROP_LIMIT
+    const textSignals = mergeCardTextSignals(await Promise.all(
+      cardImageDataUrls.slice(0, cropLimit).map((cardImageDataUrl) => readPageScanSlotTextSignals(cardImageDataUrl)),
+    ))
     if (!textSignals) return matches
 
     const matchByCardId = new Map(matches.map((match) => [match.card.id, match]))
@@ -2259,15 +2265,17 @@ export default function BinderApp({
     results: BinderPageScanResult[],
   ): Promise<PageScanCardMatchSummary[]> => {
     const slotFrames = new Map<number, CardScanFrameMatch<TCGCard>[][]>()
-    const slotCropImageByIndex = new Map<number, string>()
+    const slotCropImagesByIndex = new Map<number, string[]>()
 
     for (const result of results) {
       await Promise.all(
         result.slots.map(async (slot) => {
           const pokemon = currentPageSlots[slot.index]
           if (!slot.occupied || !slot.cardImageDataUrl || !pokemon) return
-          if (!slotCropImageByIndex.has(slot.index)) {
-            slotCropImageByIndex.set(slot.index, slot.cardImageDataUrl)
+          const slotCropImages = slotCropImagesByIndex.get(slot.index) ?? []
+          if (slotCropImages.length < PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT) {
+            slotCropImages.push(slot.cardImageDataUrl)
+            slotCropImagesByIndex.set(slot.index, slotCropImages)
           }
 
           try {
@@ -2294,7 +2302,7 @@ export default function BinderApp({
     )
 
     const summaries = await Promise.all(aggregatedSlots.map(async (slot): Promise<PageScanCardMatchSummary | null> => {
-      const rankedMatches = await rankPageSlotMatchesWithText(slot.matches, slotCropImageByIndex.get(slot.slotIndex))
+      const rankedMatches = await rankPageSlotMatchesWithText(slot.matches, slotCropImagesByIndex.get(slot.slotIndex))
       const match = rankedMatches[0]
       if (!match) return null
 

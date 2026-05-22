@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { filterAndRankCards } from "@/lib/card-search"
 
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
@@ -65,25 +66,7 @@ export function useTCGdex() {
   }, [])
 
   const filterCards = useCallback((cards: TCGCard[], filters: CardFilters): TCGCard[] => {
-    return cards.filter((card) => {
-      if (filters.set && card.set.id !== filters.set) return false
-      if (filters.rarity && card.rarity !== filters.rarity) return false
-      if (filters.variant) {
-        if (filters.variant === "normal" && !card.variants?.normal) return false
-        if (filters.variant === "reverse" && !card.variants?.reverse) return false
-        if (filters.variant === "holo" && !card.variants?.holo) return false
-        if (filters.variant === "firstEdition" && !card.variants?.firstEdition) return false
-      }
-      if (filters.searchQuery) {
-        const query = filters.searchQuery.toLowerCase()
-        if (!card.name.toLowerCase().includes(query) && 
-            !card.localId.toLowerCase().includes(query) &&
-            !card.set.name.toLowerCase().includes(query)) {
-          return false
-        }
-      }
-      return true
-    })
+    return filterAndRankCards(cards, filters)
   }, [])
 
   return { fetchCardsForPokemon, filterCards, isLoading, error }

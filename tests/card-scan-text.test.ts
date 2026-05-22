@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import {
   applyCardTextSignalBoost,
   extractCardTextSignals,
+  mergeCardTextSignals,
   scoreCardTextSignals,
 } from "../lib/card-scan-text"
 
@@ -42,4 +43,19 @@ test("applyCardTextSignalBoost can move exact text matches above similar art mat
 
   assert.equal(boosted[0].card.id, "b")
   assert.ok(boosted[0].similarity > 0.9)
+})
+
+test("mergeCardTextSignals combines useful evidence across OCR passes", () => {
+  const merged = mergeCardTextSignals([
+    extractCardTextSignals("Pikachu HP 60"),
+    null,
+    extractCardTextSignals("025/102 Base Set"),
+    extractCardTextSignals("Base Set 025/102"),
+  ])
+
+  assert.ok(merged)
+  assert.deepEqual(merged?.collectorNumbers, ["25/102", "25", "102"])
+  assert.equal(merged?.words.has("pikachu"), true)
+  assert.equal(merged?.words.has("base"), true)
+  assert.match(merged?.rawText ?? "", /Pikachu/)
 })

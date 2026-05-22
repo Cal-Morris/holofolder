@@ -87,6 +87,29 @@ export function extractCardTextSignals(rawText: string): CardTextSignals {
   }
 }
 
+export function mergeCardTextSignals(signals: Array<CardTextSignals | null | undefined>): CardTextSignals | null {
+  const usefulSignals = signals.filter((signal): signal is CardTextSignals => Boolean(signal))
+  if (usefulSignals.length === 0) return null
+
+  const rawText = usefulSignals.map((signal) => signal.rawText).filter(Boolean).join("\n")
+  const merged = extractCardTextSignals(rawText)
+  const collectorNumberSet = new Set(merged.collectorNumbers)
+
+  for (const signal of usefulSignals) {
+    for (const collectorNumber of signal.collectorNumbers) {
+      if (collectorNumberSet.has(collectorNumber)) continue
+      collectorNumberSet.add(collectorNumber)
+      merged.collectorNumbers.push(collectorNumber)
+    }
+
+    for (const word of signal.words) {
+      merged.words.add(word)
+    }
+  }
+
+  return merged.normalizedText || merged.words.size > 0 || merged.collectorNumbers.length > 0 ? merged : null
+}
+
 function getCardNumberAliases(localId?: string) {
   if (!localId) return []
 
