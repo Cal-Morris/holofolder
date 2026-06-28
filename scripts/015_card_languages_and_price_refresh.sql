@@ -25,6 +25,15 @@ ADD COLUMN IF NOT EXISTS market_gbp_amount NUMERIC(10, 2);
 ALTER TABLE public.card_prices
 ADD COLUMN IF NOT EXISTS good_gbp_amount NUMERIC(10, 2);
 
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS low_gbp_amount NUMERIC(10, 2);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS high_gbp_amount NUMERIC(10, 2);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS confidence TEXT NOT NULL DEFAULT 'unknown';
+
 UPDATE public.card_prices
 SET language = 'en'
 WHERE language IS NULL OR language = '';
@@ -35,6 +44,13 @@ DROP CONSTRAINT IF EXISTS card_prices_language_check;
 ALTER TABLE public.card_prices
 ADD CONSTRAINT card_prices_language_check
 CHECK (language IN ('en', 'fr', 'de', 'es', 'it', 'pt-br', 'ja', 'ko'));
+
+ALTER TABLE public.card_prices
+DROP CONSTRAINT IF EXISTS card_prices_confidence_check;
+
+ALTER TABLE public.card_prices
+ADD CONSTRAINT card_prices_confidence_check
+CHECK (confidence IN ('high', 'medium', 'low', 'unknown'));
 
 ALTER TABLE public.card_prices
 DROP CONSTRAINT IF EXISTS card_prices_pkey;

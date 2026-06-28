@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 export type SupportedCurrency = "USD" | "EUR" | "GBP"
 export type PriceSource = "tcgplayer" | "cardmarket"
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+export type PriceConfidence = "high" | "medium" | "low" | "unknown"
 
 export interface CardPriceLookup {
   cardId: string
@@ -15,6 +16,9 @@ export interface CardPriceSnapshot {
   gbpAmount: number | null
   marketGbpAmount: number | null
   goodGbpAmount: number | null
+  lowGbpAmount: number | null
+  highGbpAmount: number | null
+  confidence: PriceConfidence
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
   source: PriceSource | null
@@ -35,6 +39,9 @@ interface CardPriceRow {
   gbp_amount: number | string | null
   market_gbp_amount?: number | string | null
   good_gbp_amount?: number | string | null
+  low_gbp_amount?: number | string | null
+  high_gbp_amount?: number | string | null
+  confidence?: string | null
   original_amount: number | string | null
   original_currency: string | null
   source: string | null
@@ -203,12 +210,26 @@ export async function refreshCardPriceLookups(
 
 function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
   const gbpAmount = toFiniteNumber(row.gbp_amount)
+  const marketGbpAmount = toFiniteNumber(row.market_gbp_amount) ?? gbpAmount
+  const goodGbpAmount = toFiniteNumber(row.good_gbp_amount)
+  const lowGbpAmount = toFiniteNumber(row.low_gbp_amount)
+  const highGbpAmount = toFiniteNumber(row.high_gbp_amount)
+  const fallbackRangeLow = goodGbpAmount != null && marketGbpAmount != null
+    ? Math.min(goodGbpAmount, marketGbpAmount)
+    : goodGbpAmount ?? marketGbpAmount
+  const fallbackRangeHigh = goodGbpAmount != null && marketGbpAmount != null
+    ? Math.max(goodGbpAmount, marketGbpAmount)
+    : marketGbpAmount ?? goodGbpAmount
+
   return {
     cardId: row.card_id,
     language: normalizeCardLanguage(row.language),
     gbpAmount,
-    marketGbpAmount: toFiniteNumber(row.market_gbp_amount) ?? gbpAmount,
-    goodGbpAmount: toFiniteNumber(row.good_gbp_amount),
+    marketGbpAmount,
+    goodGbpAmount,
+    lowGbpAmount: lowGbpAmount ?? fallbackRangeLow ?? null,
+    highGbpAmount: highGbpAmount ?? fallbackRangeHigh ?? null,
+    confidence: normalizePriceConfidence(row.confidence),
     originalAmount: toFiniteNumber(row.original_amount),
     originalCurrency: row.original_currency === "USD" || row.original_currency === "EUR" ? row.original_currency : null,
     source: row.source === "tcgplayer" || row.source === "cardmarket" ? row.source : null,
@@ -225,6 +246,9 @@ function snapshotToRow(snapshot: CardPriceSnapshot) {
     gbp_amount: snapshot.gbpAmount,
     market_gbp_amount: snapshot.marketGbpAmount,
     good_gbp_amount: snapshot.goodGbpAmount,
+    low_gbp_amount: snapshot.lowGbpAmount,
+    high_gbp_amount: snapshot.highGbpAmount,
+    confidence: snapshot.confidence,
     original_amount: snapshot.originalAmount,
     original_currency: snapshot.originalCurrency,
     source: snapshot.source,
@@ -239,6 +263,37 @@ function toFiniteNumber(value: number | string | null | undefined) {
   if (value == null) return null
   const num = typeof value === "number" ? value : Number.parseFloat(value)
   return Number.isFinite(num) ? num : null
+}
+
+function normalizePriceConfidence(value: unknown): PriceConfidence {
+  return value === "high" || value === "medium" || value === "low" ? value : "unknown"
+}
+
+function buildPriceRange(marketAmount: number, lowAmount: number | null, highAmount: number | null, fallbackSpread = 0.15) {
+  const inferredLow = lowAmount ?? marketAmount * (1 - fallbackSpread)
+  const inferredHigh = highAmount ?? marketAmount * (1 + fallbackSpread)
+  const rangeLow = Math.min(inferredLow, marketAmount, inferredHigh)
+  const rangeHigh = Math.max(inferredLow, marketAmount, inferredHigh)
+
+  return { rangeLow, rangeHigh }
+}
+
+function priceConfidence({
+  hasMarket,
+  hasLow,
+  hasHigh,
+  usedFallbackMarket,
+}: {
+  hasMarket: boolean
+  hasLow: boolean
+  hasHigh: boolean
+  usedFallbackMarket?: boolean
+}): PriceConfidence {
+  if (!hasMarket) return usedFallbackMarket ? "low" : "unknown"
+  if (usedFallbackMarket) return "low"
+  if (hasLow && hasHigh) return "high"
+  if (hasLow) return "high"
+  return "medium"
 }
 
 async function mapWithConcurrency<TInput, TOutput>(
@@ -314,17 +369,19 @@ function pickTcgplayerPrice(
       continue
     }
 
-    const marketAmount =
-      readFiniteNumber((variant as Record<string, unknown>).marketPrice) ??
-      readFiniteNumber((variant as Record<string, unknown>).midPrice) ??
-      readFiniteNumber((variant as Record<string, unknown>).lowPrice)
+    const variantRecord = variant as Record<string, unknown>
+    const providerMarketAmount = readFiniteNumber(variantRecord.marketPrice)
+    const midAmount = readFiniteNumber(variantRecord.midPrice)
+    const lowAmount = readFiniteNumber(variantRecord.lowPrice)
+    const highAmount = readFiniteNumber(variantRecord.highPrice)
+    const marketAmount = providerMarketAmount ?? midAmount ?? lowAmount
 
     if (marketAmount == null) {
       continue
     }
 
-    const lowAmount = readFiniteNumber((variant as Record<string, unknown>).lowPrice)
     const marketGbpAmount = roundPrice(marketAmount * fxRates.usdToGbp)
+    const { rangeLow, rangeHigh } = buildPriceRange(marketAmount, lowAmount, highAmount)
 
     return {
       cardId,
@@ -332,6 +389,14 @@ function pickTcgplayerPrice(
       gbpAmount: marketGbpAmount,
       marketGbpAmount,
       goodGbpAmount: roundPrice((lowAmount ?? marketAmount * 0.8) * fxRates.usdToGbp),
+      lowGbpAmount: roundPrice(rangeLow * fxRates.usdToGbp),
+      highGbpAmount: roundPrice(rangeHigh * fxRates.usdToGbp),
+      confidence: priceConfidence({
+        hasMarket: providerMarketAmount != null || midAmount != null,
+        hasLow: lowAmount != null,
+        hasHigh: highAmount != null,
+        usedFallbackMarket: providerMarketAmount == null && midAmount == null,
+      }),
       originalAmount: marketAmount,
       originalCurrency: "USD",
       source: "tcgplayer",
@@ -361,7 +426,9 @@ function pickCardmarketPrice(
       continue
     }
 
-    const goodAmount = pickCardmarketGoodAmount(cardmarket, fieldKey) ?? amount * 0.8
+    const cardmarketLowAmount = pickCardmarketGoodAmount(cardmarket, fieldKey)
+    const goodAmount = cardmarketLowAmount ?? amount * 0.8
+    const { rangeLow, rangeHigh } = buildPriceRange(amount, cardmarketLowAmount, null)
     const marketGbpAmount = roundPrice(amount * fxRates.eurToGbp)
 
     return {
@@ -370,6 +437,14 @@ function pickCardmarketPrice(
       gbpAmount: marketGbpAmount,
       marketGbpAmount,
       goodGbpAmount: roundPrice(goodAmount * fxRates.eurToGbp),
+      lowGbpAmount: roundPrice(rangeLow * fxRates.eurToGbp),
+      highGbpAmount: roundPrice(rangeHigh * fxRates.eurToGbp),
+      confidence: priceConfidence({
+        hasMarket: !fieldKey.startsWith("low"),
+        hasLow: cardmarketLowAmount != null,
+        hasHigh: false,
+        usedFallbackMarket: fieldKey.startsWith("low"),
+      }),
       originalAmount: amount,
       originalCurrency: "EUR",
       source: "cardmarket",
@@ -404,6 +479,9 @@ function emptySnapshot(cardId: string, language: CardLanguage): CardPriceSnapsho
     gbpAmount: null,
     marketGbpAmount: null,
     goodGbpAmount: null,
+    lowGbpAmount: null,
+    highGbpAmount: null,
+    confidence: "unknown",
     originalAmount: null,
     originalCurrency: null,
     source: null,

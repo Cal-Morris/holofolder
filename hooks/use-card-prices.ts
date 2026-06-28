@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP"
 export type PriceSource = "tcgplayer" | "cardmarket"
+export type PriceConfidence = "high" | "medium" | "low" | "unknown"
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
 export interface CardPriceLookup {
@@ -17,6 +18,9 @@ export interface CardPriceSnapshot {
   gbpAmount: number | null
   marketGbpAmount: number | null
   goodGbpAmount: number | null
+  lowGbpAmount: number | null
+  highGbpAmount: number | null
+  confidence: PriceConfidence
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
   source: PriceSource | null
@@ -26,9 +30,59 @@ export interface CardPriceSnapshot {
   fetchedAt: number
 }
 
-const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v4"
-const CARD_PRICE_CACHE_TTL_MS = 12 * 60 * 60 * 1000
+const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v5"
+export const CARD_PRICE_CACHE_STALE_MS = 2 * 60 * 60 * 1000
+const CARD_PRICE_REQUEST_BATCH_SIZE = 200
 const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
+
+export interface CardPriceFetchBatch {
+  force: boolean
+  lookups: CardPriceLookup[]
+}
+
+export interface CardPriceFetchPlan {
+  cachedPrices: Record<string, CardPriceSnapshot>
+  fetchBatches: CardPriceFetchBatch[]
+}
+
+export function buildCardPriceFetchPlan(
+  lookups: Array<string | CardPriceLookup>,
+  cache: Record<string, CardPriceSnapshot>,
+  options: { isOnline?: boolean; now?: number; batchSize?: number } = {},
+): CardPriceFetchPlan {
+  const now = options.now ?? Date.now()
+  const batchSize = options.batchSize ?? CARD_PRICE_REQUEST_BATCH_SIZE
+  const cachedPrices: Record<string, CardPriceSnapshot> = {}
+  const missingLookups: CardPriceLookup[] = []
+  const staleLookups: CardPriceLookup[] = []
+
+  for (const lookup of normalizeCardPriceLookups(lookups)) {
+    const cacheKey = getCardPriceKey(lookup.cardId, lookup.language)
+    const cached = cache[cacheKey]
+
+    if (!cached) {
+      missingLookups.push(lookup)
+      continue
+    }
+
+    cachedPrices[cacheKey] = cached
+    if (now - cached.fetchedAt >= CARD_PRICE_CACHE_STALE_MS) {
+      staleLookups.push(lookup)
+    }
+  }
+
+  const fetchBatches: CardPriceFetchBatch[] = []
+  if (options.isOnline !== false) {
+    for (const batch of chunkCardPriceLookups(staleLookups, batchSize)) {
+      fetchBatches.push({ force: true, lookups: batch })
+    }
+    for (const batch of chunkCardPriceLookups(missingLookups, batchSize)) {
+      fetchBatches.push({ force: false, lookups: batch })
+    }
+  }
+
+  return { cachedPrices, fetchBatches }
+}
 
 export function normalizeCardLanguage(value: unknown): CardLanguage {
   if (typeof value !== "string") return "en"
@@ -40,31 +94,33 @@ export function getCardPriceKey(cardId: string, language: unknown = "en") {
   return `${cardId}::${normalizeCardLanguage(language)}`
 }
 
+export function normalizeCardPriceLookups(cardLookups: Array<string | CardPriceLookup>) {
+  const byKey = new Map<string, CardPriceLookup>()
+
+  for (const lookup of cardLookups) {
+    const cardId = typeof lookup === "string" ? lookup : lookup?.cardId
+    if (typeof cardId !== "string" || cardId.length === 0) {
+      continue
+    }
+
+    const language = normalizeCardLanguage(typeof lookup === "string" ? "en" : lookup.language)
+    byKey.set(getCardPriceKey(cardId, language), { cardId, language })
+  }
+
+  return [...byKey.values()].sort((left, right) => {
+    const cardComparison = left.cardId.localeCompare(right.cardId)
+    return cardComparison === 0
+      ? normalizeCardLanguage(left.language).localeCompare(normalizeCardLanguage(right.language))
+      : cardComparison
+  })
+}
+
 export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enabled: boolean) {
   const [pricesByCardId, setPricesByCardId] = useState<Record<string, CardPriceSnapshot>>({})
   const [isLoading, setIsLoading] = useState(false)
 
   const stableLookups = useMemo(
-    () => {
-      const byKey = new Map<string, CardPriceLookup>()
-
-      for (const lookup of cardLookups) {
-        const cardId = typeof lookup === "string" ? lookup : lookup?.cardId
-        if (typeof cardId !== "string" || cardId.length === 0) {
-          continue
-        }
-
-        const language = normalizeCardLanguage(typeof lookup === "string" ? "en" : lookup.language)
-        byKey.set(getCardPriceKey(cardId, language), { cardId, language })
-      }
-
-      return [...byKey.values()].sort((left, right) => {
-        const cardComparison = left.cardId.localeCompare(right.cardId)
-        return cardComparison === 0
-          ? normalizeCardLanguage(left.language).localeCompare(normalizeCardLanguage(right.language))
-          : cardComparison
-      })
-    },
+    () => normalizeCardPriceLookups(cardLookups),
     [cardLookups],
   )
 
@@ -76,35 +132,25 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
     }
 
     const cache = readPriceCache()
-    const nextState: Record<string, CardPriceSnapshot> = {}
-    const missingLookups: CardPriceLookup[] = []
+    const plan = buildCardPriceFetchPlan(stableLookups, cache, {
+      isOnline: typeof navigator === "undefined" ? true : navigator.onLine,
+    })
 
-    for (const lookup of stableLookups) {
-      const cacheKey = getCardPriceKey(lookup.cardId, lookup.language)
-      const cached = cache[cacheKey]
+    setPricesByCardId((current) => ({ ...current, ...plan.cachedPrices }))
 
-      if (cached && Date.now() - cached.fetchedAt < CARD_PRICE_CACHE_TTL_MS) {
-        nextState[cacheKey] = cached
-      } else {
-        missingLookups.push(lookup)
-      }
-    }
-
-    setPricesByCardId((current) => ({ ...current, ...nextState }))
-
-    if (missingLookups.length === 0) {
+    if (plan.fetchBatches.length === 0) {
       return
     }
 
     let cancelled = false
     setIsLoading(true)
 
-    void fetch("/api/card-prices", {
+    void Promise.all(plan.fetchBatches.map((batch) => fetch("/api/card-prices", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ cards: missingLookups }),
+      body: JSON.stringify({ cards: batch.lookups, force: batch.force }),
     })
       .then(async (response) => {
         if (!response.ok) {
@@ -112,37 +158,44 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         }
 
         const payload = await response.json()
-        const fetchedPrices = Array.isArray(payload?.prices) ? payload.prices : []
+        return Array.isArray(payload?.prices) ? payload.prices : []
+      })))
+      .then((priceBatches) => {
         const mergedCache = readPriceCache()
         const updates: Record<string, CardPriceSnapshot> = {}
 
-        for (const price of fetchedPrices) {
-          if (!price || typeof price.cardId !== "string") {
-            continue
-          }
+        for (const fetchedPrices of priceBatches) {
+          for (const price of fetchedPrices) {
+            if (!price || typeof price.cardId !== "string") {
+              continue
+            }
 
-          const snapshot: CardPriceSnapshot = {
-            cardId: price.cardId,
-            language: normalizeCardLanguage(price.language),
-            gbpAmount: typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount) ? price.gbpAmount : null,
-            marketGbpAmount: typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount)
-              ? price.marketGbpAmount
-              : typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount)
-                ? price.gbpAmount
-                : null,
-            goodGbpAmount: typeof price.goodGbpAmount === "number" && Number.isFinite(price.goodGbpAmount) ? price.goodGbpAmount : null,
-            originalAmount: typeof price.originalAmount === "number" && Number.isFinite(price.originalAmount) ? price.originalAmount : null,
-            originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
-            source: price.source === "tcgplayer" || price.source === "cardmarket" ? price.source : null,
-            variantLabel: typeof price.variantLabel === "string" ? price.variantLabel : null,
-            updatedAt: typeof price.updatedAt === "string" ? price.updatedAt : null,
-            fxDate: typeof price.fxDate === "string" ? price.fxDate : null,
-            fetchedAt: Date.now(),
-          }
-          const cacheKey = getCardPriceKey(snapshot.cardId, snapshot.language)
+            const snapshot: CardPriceSnapshot = {
+              cardId: price.cardId,
+              language: normalizeCardLanguage(price.language),
+              gbpAmount: typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount) ? price.gbpAmount : null,
+              marketGbpAmount: typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount)
+                ? price.marketGbpAmount
+                : typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount)
+                  ? price.gbpAmount
+                  : null,
+              goodGbpAmount: typeof price.goodGbpAmount === "number" && Number.isFinite(price.goodGbpAmount) ? price.goodGbpAmount : null,
+              lowGbpAmount: typeof price.lowGbpAmount === "number" && Number.isFinite(price.lowGbpAmount) ? price.lowGbpAmount : null,
+              highGbpAmount: typeof price.highGbpAmount === "number" && Number.isFinite(price.highGbpAmount) ? price.highGbpAmount : null,
+              confidence: normalizePriceConfidence(price.confidence),
+              originalAmount: typeof price.originalAmount === "number" && Number.isFinite(price.originalAmount) ? price.originalAmount : null,
+              originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
+              source: price.source === "tcgplayer" || price.source === "cardmarket" ? price.source : null,
+              variantLabel: typeof price.variantLabel === "string" ? price.variantLabel : null,
+              updatedAt: typeof price.updatedAt === "string" ? price.updatedAt : null,
+              fxDate: typeof price.fxDate === "string" ? price.fxDate : null,
+              fetchedAt: Date.now(),
+            }
+            const cacheKey = getCardPriceKey(snapshot.cardId, snapshot.language)
 
-          updates[cacheKey] = snapshot
-          mergedCache[cacheKey] = snapshot
+            updates[cacheKey] = snapshot
+            mergedCache[cacheKey] = snapshot
+          }
         }
 
         writePriceCache(mergedCache)
@@ -194,12 +247,33 @@ function readPriceCache(): Record<string, CardPriceSnapshot> {
         goodGbpAmount: typeof snapshot.goodGbpAmount === "number" && Number.isFinite(snapshot.goodGbpAmount)
           ? snapshot.goodGbpAmount
           : null,
+        lowGbpAmount: typeof snapshot.lowGbpAmount === "number" && Number.isFinite(snapshot.lowGbpAmount)
+          ? snapshot.lowGbpAmount
+          : null,
+        highGbpAmount: typeof snapshot.highGbpAmount === "number" && Number.isFinite(snapshot.highGbpAmount)
+          ? snapshot.highGbpAmount
+          : null,
+        confidence: normalizePriceConfidence(snapshot.confidence),
       }
     }
     return normalized
   } catch {
     return {}
   }
+}
+
+function normalizePriceConfidence(value: unknown): PriceConfidence {
+  return value === "high" || value === "medium" || value === "low" ? value : "unknown"
+}
+
+function chunkCardPriceLookups(lookups: CardPriceLookup[], batchSize: number) {
+  if (lookups.length === 0) return []
+
+  const chunks: CardPriceLookup[][] = []
+  for (let index = 0; index < lookups.length; index += batchSize) {
+    chunks.push(lookups.slice(index, index + batchSize))
+  }
+  return chunks
 }
 
 function writePriceCache(cache: Record<string, CardPriceSnapshot>) {

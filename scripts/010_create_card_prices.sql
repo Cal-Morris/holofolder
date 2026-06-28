@@ -4,6 +4,9 @@ CREATE TABLE IF NOT EXISTS public.card_prices (
   gbp_amount NUMERIC(10, 2),
   market_gbp_amount NUMERIC(10, 2),
   good_gbp_amount NUMERIC(10, 2),
+  low_gbp_amount NUMERIC(10, 2),
+  high_gbp_amount NUMERIC(10, 2),
+  confidence TEXT NOT NULL DEFAULT 'unknown',
   original_amount NUMERIC(10, 2),
   original_currency TEXT,
   source TEXT,
@@ -21,6 +24,22 @@ ADD COLUMN IF NOT EXISTS market_gbp_amount NUMERIC(10, 2);
 
 ALTER TABLE public.card_prices
 ADD COLUMN IF NOT EXISTS good_gbp_amount NUMERIC(10, 2);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS low_gbp_amount NUMERIC(10, 2);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS high_gbp_amount NUMERIC(10, 2);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS confidence TEXT NOT NULL DEFAULT 'unknown';
+
+ALTER TABLE public.card_prices
+DROP CONSTRAINT IF EXISTS card_prices_confidence_check;
+
+ALTER TABLE public.card_prices
+ADD CONSTRAINT card_prices_confidence_check
+CHECK (confidence IN ('high', 'medium', 'low', 'unknown'));
 
 ALTER TABLE public.card_prices ENABLE ROW LEVEL SECURITY;
 

@@ -16,6 +16,7 @@ test("buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
         lowPrice: 8,
         midPrice: 12,
         marketPrice: 10,
+        highPrice: 14,
       },
     },
     cardmarket: {
@@ -28,6 +29,9 @@ test("buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
   assert.equal(snapshot.gbpAmount, 7.5)
   assert.equal(snapshot.marketGbpAmount, 7.5)
   assert.equal(snapshot.goodGbpAmount, 6)
+  assert.equal(snapshot.lowGbpAmount, 6)
+  assert.equal(snapshot.highGbpAmount, 10.5)
+  assert.equal(snapshot.confidence, "high")
   assert.equal(snapshot.source, "tcgplayer")
   assert.equal(snapshot.variantLabel, "Normal")
 })
@@ -51,6 +55,26 @@ test("buildCardPriceSnapshotFromPricing prefers Cardmarket trend for European la
   assert.equal(snapshot.gbpAmount, 15.3)
   assert.equal(snapshot.marketGbpAmount, 15.3)
   assert.equal(snapshot.goodGbpAmount, 10.2)
+  assert.equal(snapshot.lowGbpAmount, 10.2)
+  assert.equal(snapshot.highGbpAmount, 17.6)
+  assert.equal(snapshot.confidence, "high")
   assert.equal(snapshot.source, "cardmarket")
   assert.equal(snapshot.variantLabel, "Trend")
+})
+
+test("buildCardPriceSnapshotFromPricing marks inferred price ranges as medium confidence", () => {
+  const snapshot = buildCardPriceSnapshotFromPricing("sv1-003", "en", {
+    tcgplayer: {
+      updated: "2026-06-27T10:00:00.000Z",
+      normal: {
+        marketPrice: 10,
+      },
+    },
+  }, fxRates)
+
+  assert.equal(snapshot.marketGbpAmount, 7.5)
+  assert.equal(snapshot.goodGbpAmount, 6)
+  assert.equal(snapshot.lowGbpAmount, 6.38)
+  assert.equal(snapshot.highGbpAmount, 8.63)
+  assert.equal(snapshot.confidence, "medium")
 })

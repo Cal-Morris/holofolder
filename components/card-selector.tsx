@@ -77,9 +77,17 @@ function formatGbpAmount(amount: number | null | undefined) {
 }
 
 function getCardSelectorPriceLabels(price: CardPriceSnapshot | undefined) {
+  const low = formatGbpAmount(price?.lowGbpAmount)
+  const high = formatGbpAmount(price?.highGbpAmount)
+  const confidence = price?.confidence && price.confidence !== "unknown"
+    ? price.confidence.charAt(0).toUpperCase() + price.confidence.slice(1)
+    : null
+
   return {
     good: formatGbpAmount(price?.goodGbpAmount),
     market: formatGbpAmount(price?.marketGbpAmount ?? price?.gbpAmount),
+    range: low && high ? (low === high ? low : `${low}-${high}`) : low || high,
+    confidence,
   }
 }
 
@@ -1075,6 +1083,14 @@ export default function CardSelector({
                                     Market {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}
                                   </span>
                                 </div>
+                                {(priceLabels.range || priceLabels.confidence) ? (
+                                  <p className="mt-1 truncate text-[10px] text-muted-foreground">
+                                    {[
+                                      priceLabels.range ? `Range ${priceLabels.range}` : null,
+                                      priceLabels.confidence ? `${priceLabels.confidence} confidence` : null,
+                                    ].filter(Boolean).join(" · ")}
+                                  </p>
+                                ) : null}
                                 <p className={`mt-1 text-xs font-medium ${intentTextClass}`}>{intentCopy.actionLabel}</p>
                               </div>
                             </button>
@@ -1139,6 +1155,14 @@ export default function CardSelector({
                               <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-emerald-200">G {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
                               <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-white">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
                             </div>
+                            {(priceLabels.range || priceLabels.confidence) ? (
+                              <p className="mt-1 truncate text-[9px] font-medium text-white/66">
+                                {[
+                                  priceLabels.range ? `R ${priceLabels.range}` : null,
+                                  priceLabels.confidence ? priceLabels.confidence : null,
+                                ].filter(Boolean).join(" · ")}
+                              </p>
+                            ) : null}
                             <div className="mt-1 flex items-center justify-between gap-2">
                               <p className="text-[10px] text-white/70">#{card.localId}</p>
                               <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/58">{intentCopy.shortLabel} mode</p>
@@ -1152,6 +1176,14 @@ export default function CardSelector({
                             <span className="rounded-md bg-muted px-1 py-0.5 text-emerald-600 dark:text-emerald-300">G {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
                             <span className="rounded-md bg-muted px-1 py-0.5 text-foreground">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
                           </div>
+                          {(priceLabels.range || priceLabels.confidence) ? (
+                            <p className="mt-1 truncate text-[9px] text-muted-foreground">
+                              {[
+                                priceLabels.range ? `R ${priceLabels.range}` : null,
+                                priceLabels.confidence,
+                              ].filter(Boolean).join(" · ")}
+                            </p>
+                          ) : null}
                           <div className="mt-0.5 flex items-center justify-between gap-1">
                             <p className="text-[9px] text-muted-foreground">#{card.localId}</p>
                             <p className={`text-[9px] font-semibold uppercase ${intentTextClass}`}>{intentCopy.shortLabel}</p>

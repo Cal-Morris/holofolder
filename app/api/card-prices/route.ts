@@ -12,12 +12,13 @@ export async function POST(request: NextRequest) {
         ? payload.cardIds
         : []
     const lookups = normalizeCardPriceLookups(requestedCards).slice(0, MAX_CARD_IDS)
+    const force = payload?.force === true
 
     if (lookups.length === 0) {
       return NextResponse.json({ prices: [] })
     }
 
-    const result = await refreshCardPriceLookups(lookups)
+    const result = await refreshCardPriceLookups(lookups, { force })
     return NextResponse.json({ prices: result.prices })
   } catch (error) {
     console.error("[binderdex] Failed to load card prices:", error)

@@ -280,6 +280,25 @@ function formatGbpPriceAmount(amount: number | null | undefined) {
     : null
 }
 
+function formatGbpPriceRange(lowAmount: number | null | undefined, highAmount: number | null | undefined) {
+  const low = formatGbpPriceAmount(lowAmount)
+  const high = formatGbpPriceAmount(highAmount)
+
+  if (low && high) {
+    return low === high ? low : `${low}-${high}`
+  }
+
+  return low || high
+}
+
+function formatPriceConfidenceLabel(price: CardPriceSnapshot | undefined) {
+  if (!price || price.confidence === "unknown") {
+    return null
+  }
+
+  return `${price.confidence.charAt(0).toUpperCase()}${price.confidence.slice(1)} confidence`
+}
+
 function formatPriceSourceLabel(price: CardPriceSnapshot | undefined) {
   if (!price?.source) {
     return null
@@ -3325,6 +3344,8 @@ export default function BinderApp({
     : selectedAssignedPriceSnapshot
   const selectedMarketPriceLabel = formatGbpPriceAmount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount)
   const selectedGoodPriceLabel = formatGbpPriceAmount(selectedDetailPriceSnapshot?.goodGbpAmount)
+  const selectedRangePriceLabel = formatGbpPriceRange(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount)
+  const selectedConfidenceLabel = formatPriceConfidenceLabel(selectedDetailPriceSnapshot)
   const selectedPriceSourceLabel = formatPriceSourceLabel(selectedDetailPriceSnapshot)
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
 
@@ -3649,6 +3670,20 @@ export default function BinderApp({
                     </p>
                   </div>
                 </div>
+                {(selectedRangePriceLabel || selectedConfidenceLabel) ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+                    {selectedRangePriceLabel ? (
+                      <span className="rounded-full border border-border/50 bg-background/35 px-2 py-0.5 dark:border-white/10 dark:bg-white/[0.04]">
+                        Range {selectedRangePriceLabel}
+                      </span>
+                    ) : null}
+                    {selectedConfidenceLabel ? (
+                      <span className="rounded-full border border-border/50 bg-background/35 px-2 py-0.5 dark:border-white/10 dark:bg-white/[0.04]">
+                        {selectedConfidenceLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
                 {selectedPriceSourceLabel ? (
                   <p className="mt-2 truncate px-1 text-[10px] text-muted-foreground">{selectedPriceSourceLabel}</p>
                 ) : null}
@@ -4191,6 +4226,8 @@ export default function BinderApp({
                 const price = pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")]
                 const goodPriceLabel = formatGbpPriceAmount(price?.goodGbpAmount)
                 const marketPriceLabel = formatGbpPriceAmount(price?.marketGbpAmount ?? price?.gbpAmount)
+                const rangePriceLabel = formatGbpPriceRange(price?.lowGbpAmount, price?.highGbpAmount)
+                const confidenceLabel = formatPriceConfidenceLabel(price)
                 const sourceLabel = formatPriceSourceLabel(price)
                 const cardMeta = [
                   card.card_set,
@@ -4238,6 +4275,20 @@ export default function BinderApp({
                           <p className="text-sm font-bold tabular-nums">{marketPriceLabel ?? (isLoadingPrices ? "Loading" : "No price")}</p>
                         </div>
                       </div>
+                      {(rangePriceLabel || confidenceLabel) ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+                          {rangePriceLabel ? (
+                            <span className="rounded-full border border-border/50 bg-background/45 px-2 py-0.5 dark:border-white/10 dark:bg-white/[0.04]">
+                              Range {rangePriceLabel}
+                            </span>
+                          ) : null}
+                          {confidenceLabel ? (
+                            <span className="rounded-full border border-border/50 bg-background/45 px-2 py-0.5 dark:border-white/10 dark:bg-white/[0.04]">
+                              {confidenceLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
                       {sourceLabel ? (
                         <p className="mt-1 truncate text-[10px] text-muted-foreground">{sourceLabel}</p>
                       ) : null}
