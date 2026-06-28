@@ -5,6 +5,26 @@ export type PriceSource = "tcgplayer" | "cardmarket"
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 export type PriceConfidence = "high" | "medium" | "low" | "unknown"
 
+export interface CardPriceSourceSummary {
+  source: PriceSource
+  label: string
+  variantLabel: string | null
+  marketGbpAmount: number | null
+  lowGbpAmount: number | null
+  originalMarketAmount: number | null
+  originalLowAmount: number | null
+  originalCurrency: Exclude<SupportedCurrency, "GBP">
+  updatedAt: string | null
+}
+
+export interface CardPriceTrendPoint {
+  label: string
+  source: PriceSource
+  gbpAmount: number
+  originalAmount: number
+  originalCurrency: Exclude<SupportedCurrency, "GBP">
+}
+
 export interface CardPriceLookup {
   cardId: string
   language: CardLanguage
@@ -19,6 +39,8 @@ export interface CardPriceSnapshot {
   lowGbpAmount: number | null
   highGbpAmount: number | null
   confidence: PriceConfidence
+  sourcePrices: CardPriceSourceSummary[]
+  trendPoints: CardPriceTrendPoint[]
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
   source: PriceSource | null
@@ -42,6 +64,8 @@ interface CardPriceRow {
   low_gbp_amount?: number | string | null
   high_gbp_amount?: number | string | null
   confidence?: string | null
+  source_prices?: unknown
+  trend_points?: unknown
   original_amount: number | string | null
   original_currency: string | null
   source: string | null
@@ -230,6 +254,8 @@ function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
     lowGbpAmount: lowGbpAmount ?? fallbackRangeLow ?? null,
     highGbpAmount: highGbpAmount ?? fallbackRangeHigh ?? null,
     confidence: normalizePriceConfidence(row.confidence),
+    sourcePrices: normalizeSourcePrices(row.source_prices),
+    trendPoints: normalizeTrendPoints(row.trend_points),
     originalAmount: toFiniteNumber(row.original_amount),
     originalCurrency: row.original_currency === "USD" || row.original_currency === "EUR" ? row.original_currency : null,
     source: row.source === "tcgplayer" || row.source === "cardmarket" ? row.source : null,
@@ -249,6 +275,8 @@ function snapshotToRow(snapshot: CardPriceSnapshot) {
     low_gbp_amount: snapshot.lowGbpAmount,
     high_gbp_amount: snapshot.highGbpAmount,
     confidence: snapshot.confidence,
+    source_prices: snapshot.sourcePrices,
+    trend_points: snapshot.trendPoints,
     original_amount: snapshot.originalAmount,
     original_currency: snapshot.originalCurrency,
     source: snapshot.source,
@@ -267,6 +295,72 @@ function toFiniteNumber(value: number | string | null | undefined) {
 
 function normalizePriceConfidence(value: unknown): PriceConfidence {
   return value === "high" || value === "medium" || value === "low" ? value : "unknown"
+}
+
+function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
+  const values = parseJsonArray(value)
+
+  return values.flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+
+    const record = item as Record<string, unknown>
+    const source = record.source === "tcgplayer" || record.source === "cardmarket" ? record.source : null
+    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR"
+      ? record.originalCurrency
+      : null
+
+    if (!source || !originalCurrency) return []
+
+    return [{
+      source,
+      label: typeof record.label === "string" ? record.label : source === "tcgplayer" ? "TCGplayer" : "Cardmarket",
+      variantLabel: typeof record.variantLabel === "string" ? record.variantLabel : null,
+      marketGbpAmount: toFiniteNumber(record.marketGbpAmount as number | string | null | undefined),
+      lowGbpAmount: toFiniteNumber(record.lowGbpAmount as number | string | null | undefined),
+      originalMarketAmount: toFiniteNumber(record.originalMarketAmount as number | string | null | undefined),
+      originalLowAmount: toFiniteNumber(record.originalLowAmount as number | string | null | undefined),
+      originalCurrency,
+      updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : null,
+    }]
+  })
+}
+
+function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
+  const values = parseJsonArray(value)
+
+  return values.flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+
+    const record = item as Record<string, unknown>
+    const source = record.source === "tcgplayer" || record.source === "cardmarket" ? record.source : null
+    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR"
+      ? record.originalCurrency
+      : null
+    const gbpAmount = toFiniteNumber(record.gbpAmount as number | string | null | undefined)
+    const originalAmount = toFiniteNumber(record.originalAmount as number | string | null | undefined)
+
+    if (!source || !originalCurrency || gbpAmount == null || originalAmount == null) return []
+
+    return [{
+      label: typeof record.label === "string" ? record.label : "",
+      source,
+      gbpAmount,
+      originalAmount,
+      originalCurrency,
+    }]
+  })
+}
+
+function parseJsonArray(value: unknown) {
+  if (Array.isArray(value)) return value
+  if (typeof value !== "string" || value.length === 0) return []
+
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }
 
 function buildPriceRange(marketAmount: number, lowAmount: number | null, highAmount: number | null, fallbackSpread = 0.15) {
@@ -350,7 +444,9 @@ export function buildCardPriceSnapshotFromPricing(
     ? cardmarketPrice || tcgplayerPrice
     : tcgplayerPrice || cardmarketPrice
 
-  return preferredPrice || emptySnapshot(cardId, language)
+  return preferredPrice
+    ? combineSourceEvidence(preferredPrice, [tcgplayerPrice, cardmarketPrice])
+    : emptySnapshot(cardId, language)
 }
 
 function readRecord(value: unknown) {
@@ -384,7 +480,10 @@ function pickTcgplayerPrice(
     }
 
     const marketGbpAmount = roundPrice(marketAmount * fxRates.usdToGbp)
+    const lowGbpAmount = roundPrice((lowAmount ?? marketAmount) * fxRates.usdToGbp)
     const { rangeLow, rangeHigh } = buildPriceRange(marketAmount, lowAmount, null)
+    const variantLabel = humanizeVariantLabel(variantKey)
+    const updatedAt = readTimestamp(tcgplayer.updated)
 
     return {
       cardId,
@@ -400,11 +499,23 @@ function pickTcgplayerPrice(
         hasHigh: false,
         usedFallbackMarket: providerMarketAmount == null && midAmount == null,
       }),
+      sourcePrices: [{
+        source: "tcgplayer",
+        label: "TCGplayer",
+        variantLabel,
+        marketGbpAmount,
+        lowGbpAmount,
+        originalMarketAmount: marketAmount,
+        originalLowAmount: lowAmount,
+        originalCurrency: "USD",
+        updatedAt,
+      }],
+      trendPoints: [],
       originalAmount: marketAmount,
       originalCurrency: "USD",
       source: "tcgplayer",
-      variantLabel: humanizeVariantLabel(variantKey),
-      updatedAt: readTimestamp(tcgplayer.updated),
+      variantLabel,
+      updatedAt,
       fxDate: fxRates.date,
     }
   }
@@ -433,6 +544,9 @@ function pickCardmarketPrice(
     const goodAmount = cardmarketLowAmount ?? amount * 0.8
     const { rangeLow, rangeHigh } = buildPriceRange(amount, cardmarketLowAmount, null)
     const marketGbpAmount = roundPrice(amount * fxRates.eurToGbp)
+    const lowGbpAmount = roundPrice((cardmarketLowAmount ?? amount) * fxRates.eurToGbp)
+    const variantLabel = humanizeVariantLabel(fieldKey)
+    const updatedAt = readTimestamp(cardmarket.updated)
 
     return {
       cardId,
@@ -448,16 +562,83 @@ function pickCardmarketPrice(
         hasHigh: false,
         usedFallbackMarket: fieldKey.startsWith("low"),
       }),
+      sourcePrices: [{
+        source: "cardmarket",
+        label: "Cardmarket",
+        variantLabel,
+        marketGbpAmount,
+        lowGbpAmount,
+        originalMarketAmount: amount,
+        originalLowAmount: cardmarketLowAmount,
+        originalCurrency: "EUR",
+        updatedAt,
+      }],
+      trendPoints: buildCardmarketTrendPoints(cardmarket, fieldKey, fxRates),
       originalAmount: amount,
       originalCurrency: "EUR",
       source: "cardmarket",
-      variantLabel: humanizeVariantLabel(fieldKey),
-      updatedAt: readTimestamp(cardmarket.updated),
+      variantLabel,
+      updatedAt,
       fxDate: fxRates.date,
     }
   }
 
   return null
+}
+
+function buildCardmarketTrendPoints(cardmarket: Record<string, unknown>, fieldKey: string, fxRates: FxRates): CardPriceTrendPoint[] {
+  const suffix = fieldKey.endsWith("-holo") ? "-holo" : ""
+
+  return [
+    ["30d", `avg30${suffix}`],
+    ["7d", `avg7${suffix}`],
+    ["1d", `avg1${suffix}`],
+    ["Trend", fieldKey],
+  ].flatMap(([label, key]) => {
+    const originalAmount = readFiniteNumber(cardmarket[key])
+    if (originalAmount == null) return []
+
+    return [{
+      label,
+      source: "cardmarket" as const,
+      gbpAmount: roundPrice(originalAmount * fxRates.eurToGbp),
+      originalAmount,
+      originalCurrency: "EUR" as const,
+    }]
+  })
+}
+
+function combineSourceEvidence(
+  preferredPrice: CardPriceSnapshot,
+  candidates: Array<CardPriceSnapshot | null>,
+): CardPriceSnapshot {
+  const sourcePrices = candidates.flatMap((candidate) => candidate?.sourcePrices ?? [])
+  const trendPoints = candidates.flatMap((candidate) => candidate?.trendPoints ?? [])
+  const rangeLows = candidates.flatMap((candidate) => typeof candidate?.lowGbpAmount === "number" ? [candidate.lowGbpAmount] : [])
+  const rangeHighs = candidates.flatMap((candidate) => typeof candidate?.highGbpAmount === "number" ? [candidate.highGbpAmount] : [])
+  const sourceMarkets = sourcePrices.flatMap((source) => typeof source.marketGbpAmount === "number" ? [source.marketGbpAmount] : [])
+
+  return {
+    ...preferredPrice,
+    lowGbpAmount: rangeLows.length > 0 ? roundPrice(Math.min(...rangeLows)) : preferredPrice.lowGbpAmount,
+    highGbpAmount: rangeHighs.length > 0 ? roundPrice(Math.max(...rangeHighs)) : preferredPrice.highGbpAmount,
+    confidence: reconcileSourceConfidence(preferredPrice.confidence, sourceMarkets),
+    sourcePrices,
+    trendPoints,
+  }
+}
+
+function reconcileSourceConfidence(current: PriceConfidence, sourceMarkets: number[]): PriceConfidence {
+  if (sourceMarkets.length < 2) return current
+
+  const lowest = Math.min(...sourceMarkets)
+  const highest = Math.max(...sourceMarkets)
+  if (lowest <= 0) return "low"
+
+  const spread = (highest - lowest) / lowest
+  if (spread > 0.35) return "low"
+  if (spread > 0.2 && current === "high") return "medium"
+  return current
 }
 
 function pickCardmarketGoodAmount(cardmarket: Record<string, unknown>, marketFieldKey: string) {
@@ -485,6 +666,8 @@ function emptySnapshot(cardId: string, language: CardLanguage): CardPriceSnapsho
     lowGbpAmount: null,
     highGbpAmount: null,
     confidence: "unknown",
+    sourcePrices: [],
+    trendPoints: [],
     originalAmount: null,
     originalCurrency: null,
     source: null,

@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS public.card_prices (
   low_gbp_amount NUMERIC(10, 2),
   high_gbp_amount NUMERIC(10, 2),
   confidence TEXT NOT NULL DEFAULT 'unknown',
+  source_prices JSONB NOT NULL DEFAULT '[]'::jsonb,
+  trend_points JSONB NOT NULL DEFAULT '[]'::jsonb,
   original_amount NUMERIC(10, 2),
   original_currency TEXT,
   source TEXT,
@@ -33,6 +35,12 @@ ADD COLUMN IF NOT EXISTS high_gbp_amount NUMERIC(10, 2);
 
 ALTER TABLE public.card_prices
 ADD COLUMN IF NOT EXISTS confidence TEXT NOT NULL DEFAULT 'unknown';
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS source_prices JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS trend_points JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 ALTER TABLE public.card_prices
 DROP CONSTRAINT IF EXISTS card_prices_confidence_check;

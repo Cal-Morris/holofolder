@@ -34,6 +34,12 @@ ADD COLUMN IF NOT EXISTS high_gbp_amount NUMERIC(10, 2);
 ALTER TABLE public.card_prices
 ADD COLUMN IF NOT EXISTS confidence TEXT NOT NULL DEFAULT 'unknown';
 
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS source_prices JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS trend_points JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 UPDATE public.card_prices
 SET language = 'en'
 WHERE language IS NULL OR language = '';
