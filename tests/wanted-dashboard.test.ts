@@ -70,13 +70,13 @@ test("buildWantedDashboardSummary groups wanted cards into buying price bands", 
   assert.equal(summary.unpricedCount, 1)
   assert.equal(summary.marketTotalGbp, 98)
   assert.deepEqual(
-    summary.priceBands.map((band) => [band.id, band.count, band.totalGbp]),
+    summary.priceBands.map((band) => [band.id, band.label, band.count, band.totalGbp]),
     [
-      ["under-5", 1, 4],
-      ["five-to-15", 1, 14],
-      ["fifteen-to-50", 0, 0],
-      ["over-50", 1, 80],
-      ["unpriced", 1, 0],
+      ["under-5", "Under £5", 1, 4],
+      ["five-to-15", "£5-£15", 1, 14],
+      ["fifteen-to-50", "£15-£50", 0, 0],
+      ["over-50", "£50+", 1, 80],
+      ["unpriced", "Unpriced", 1, 0],
     ],
   )
   assert.equal(summary.highestCards[0]?.card.card_id, "high")

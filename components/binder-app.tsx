@@ -38,6 +38,7 @@ import { OFFLINE_CACHE_WARMUP_MESSAGE_TYPE, buildOfflineCacheWarmupUrls } from "
 import {
   buildWantedDashboardSummary,
   sortWantedDashboardEntries,
+  WANTED_PRICE_BAND_LABELS,
   type WantedDashboardPriceBandId,
   type WantedDashboardSort,
 } from "@/lib/wanted-dashboard"
@@ -4634,7 +4635,7 @@ export default function BinderApp({
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${bandStyle.chip}`}>
-                          {wantedCard.isPriced ? wantedCard.priceBandId.replaceAll("-", " ") : "unpriced"}
+                          {WANTED_PRICE_BAND_LABELS[wantedCard.priceBandId]}
                         </span>
                         <span className="text-[11px] font-semibold text-muted-foreground">#{String(pokemonId).padStart(4, "0")}</span>
                       </div>

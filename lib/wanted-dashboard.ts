@@ -48,12 +48,20 @@ export interface WantedDashboardSummary {
   finishBreakdown: WantedDashboardBreakdown[]
 }
 
+export const WANTED_PRICE_BAND_LABELS: Record<WantedDashboardPriceBandId, string> = {
+  "under-5": "Under £5",
+  "five-to-15": "£5-£15",
+  "fifteen-to-50": "£15-£50",
+  "over-50": "£50+",
+  unpriced: "Unpriced",
+}
+
 const PRICE_BANDS: Array<Pick<WantedDashboardPriceBand, "id" | "label">> = [
-  { id: "under-5", label: "Under GBP 5" },
-  { id: "five-to-15", label: "GBP 5-15" },
-  { id: "fifteen-to-50", label: "GBP 15-50" },
-  { id: "over-50", label: "GBP 50+" },
-  { id: "unpriced", label: "Unpriced" },
+  { id: "under-5", label: WANTED_PRICE_BAND_LABELS["under-5"] },
+  { id: "five-to-15", label: WANTED_PRICE_BAND_LABELS["five-to-15"] },
+  { id: "fifteen-to-50", label: WANTED_PRICE_BAND_LABELS["fifteen-to-50"] },
+  { id: "over-50", label: WANTED_PRICE_BAND_LABELS["over-50"] },
+  { id: "unpriced", label: WANTED_PRICE_BAND_LABELS.unpriced },
 ]
 
 const SUPPORTED_CARD_LANGUAGES = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
