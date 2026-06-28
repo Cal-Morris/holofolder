@@ -37,6 +37,7 @@ import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
 import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
 import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
 import { normalizeSlotPreviewImage, pickRepresentativeSlotPreviewCard, type SlotPreviewCard } from "@/lib/slot-preview-card"
+import { getSettingsLocalCollectedCount } from "@/lib/settings-collection-sync"
 import {
   OFFLINE_CACHE_WARMUP_MESSAGE_TYPE,
   buildOfflineCacheWarmupUrls,
@@ -868,6 +869,12 @@ export default function BinderApp({
     localCollectedCount,
     localPendingSyncCount,
   } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId, readOnly: readOnlyMode })
+  const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
+    isSignedIn: Boolean(user),
+    cloudCollectedCount: collectionCount,
+    localCollectedCount,
+    localPendingSyncCount,
+  })
   const { settings, updateSettings } = useSettings({
     initialSettings,
     initialUser,
@@ -6354,7 +6361,7 @@ export default function BinderApp({
         onToggleDarkMode={toggleDarkMode}
         isSignedIn={Boolean(user)}
         cloudCollectedCount={collectionCount}
-        localCollectedCount={localCollectedCount}
+        localCollectedCount={settingsLocalCollectedCount}
         localPendingSyncCount={localPendingSyncCount}
         isSyncingLocalCollection={isSyncingLocalCollection}
         localCollectionSyncMessage={localCollectionSyncMessage}
