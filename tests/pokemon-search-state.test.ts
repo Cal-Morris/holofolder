@@ -3,6 +3,9 @@ import assert from "node:assert/strict"
 import {
   getInitialPokemonSearchFilter,
   getPokemonSearchPageJump,
+  getPokemonSearchTerms,
+  normalizePokemonSearchText,
+  searchPokemonItems,
 } from "../lib/pokemon-search-state"
 
 test("getInitialPokemonSearchFilter defaults search to all Pokemon", () => {
@@ -18,4 +21,34 @@ test("getPokemonSearchPageJump rejects out-of-range and mixed search queries", (
   assert.equal(getPokemonSearchPageJump("0", 10), null)
   assert.equal(getPokemonSearchPageJump("11", 10), null)
   assert.equal(getPokemonSearchPageJump("muk 6", 10), null)
+})
+
+test("normalizePokemonSearchText strips punctuation and normalizes gender symbols", () => {
+  assert.equal(normalizePokemonSearchText("Mr. Mime"), "mr mime")
+  assert.equal(normalizePokemonSearchText("Nidoran♀"), "nidoran female")
+  assert.equal(normalizePokemonSearchText("Oricorio-Baile"), "oricorio baile")
+})
+
+test("getPokemonSearchTerms adds base form and gender aliases", () => {
+  assert.deepEqual(getPokemonSearchTerms("oricorio-baile").sort(), ["oricorio", "oricoriobaile", "oricorio baile"].sort())
+  assert.ok(getPokemonSearchTerms("nidoran-f").includes("nidoran female"))
+  assert.ok(getPokemonSearchTerms("nidoran-m").includes("nidoran male"))
+})
+
+test("searchPokemonItems matches form suffixes, compact punctuation, and gender words", () => {
+  const pokemon = [
+    { id: 29, name: "nidoran-f" },
+    { id: 32, name: "nidoran-m" },
+    { id: 122, name: "mr-mime" },
+    { id: 741, name: "oricorio-baile" },
+    { id: 772, name: "type-null" },
+  ]
+
+  assert.equal(searchPokemonItems("oricorio", pokemon)[0]?.id, 741)
+  assert.equal(searchPokemonItems("nidoran female", pokemon)[0]?.id, 29)
+  assert.equal(searchPokemonItems("nidoran male", pokemon)[0]?.id, 32)
+  assert.equal(searchPokemonItems("female", pokemon)[0]?.id, 29)
+  assert.equal(searchPokemonItems("male", pokemon)[0]?.id, 32)
+  assert.equal(searchPokemonItems("mr mime", pokemon)[0]?.id, 122)
+  assert.equal(searchPokemonItems("typenull", pokemon)[0]?.id, 772)
 })

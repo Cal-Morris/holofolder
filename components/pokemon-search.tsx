@@ -10,6 +10,7 @@ import { getPokemonSummary } from "@/lib/pokemon-catalog"
 import {
   getInitialPokemonSearchFilter,
   getPokemonSearchPageJump,
+  searchPokemonItems,
   type PokemonSearchStateFilter,
 } from "@/lib/pokemon-search-state"
 
@@ -36,41 +37,6 @@ interface PokemonSearchProps {
   currentPagePokemonList?: { id: number; name: string }[]
   totalPages?: number
   onJumpToPage?: (page: number) => void
-}
-
-const fuzzySearch = (query: string, items: any[]): any[] => {
-  if (!query.trim()) return []
-
-  const lowerQuery = query.toLowerCase()
-  const scored = items.map((item) => {
-    const name = item.name.toLowerCase()
-    let score = 0
-
-    // Exact match gets highest priority
-    if (name === lowerQuery) score = 1000
-    // Starts with query
-    else if (name.startsWith(lowerQuery)) score = 900
-    // Contains query consecutively
-    else if (name.includes(lowerQuery)) score = 800
-    // Fuzzy match - all chars in order
-    else {
-      let queryIndex = 0
-      for (let i = 0; i < name.length && queryIndex < lowerQuery.length; i++) {
-        if (name[i] === lowerQuery[queryIndex]) {
-          queryIndex++
-          score += 100
-        }
-      }
-      if (queryIndex !== lowerQuery.length) score = 0
-    }
-
-    return { ...item, score }
-  })
-
-  return scored
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
 }
 
 const SEARCH_FILTERS: Array<{
@@ -152,7 +118,7 @@ export default function PokemonSearch({
       return byFilter.slice(0, 60)
     }
 
-    return fuzzySearch(query, byFilter).slice(0, 40)
+    return searchPokemonItems(query, byFilter, 40)
   }, [activeFilter, matchesFilter, pokemonList, query])
 
   const pageJump = useMemo(() => {
