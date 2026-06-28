@@ -814,12 +814,14 @@ export default function BinderApp({
   const [motionGlintMessage, setMotionGlintMessage] = useState<string | null>(null)
   const [motionSensorVersion, setMotionSensorVersion] = useState(0)
   const [quickPanelPosition, setQuickPanelPosition] = useState<QuickPanelPosition | null>(null)
+  const [binderStageSize, setBinderStageSize] = useState({ width: 0, height: 0 })
   const pagePhotoInputRef = useRef<HTMLInputElement | null>(null)
   const burstVideoRef = useRef<HTMLVideoElement | null>(null)
   const burstCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const hasHydratedPageFromQueryRef = useRef(false)
   const quickPanelRef = useRef<HTMLDivElement | null>(null)
+  const binderStageRef = useRef<HTMLDivElement | null>(null)
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
   const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
   const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
@@ -939,6 +941,45 @@ export default function BinderApp({
       setIsMobileSpreadPreview(false)
     }
   }, [isCompactViewport, isMobileSpreadPreview])
+
+  useEffect(() => {
+    const stage = binderStageRef.current
+    if (!stage || typeof ResizeObserver === "undefined") {
+      return
+    }
+
+    let frame = 0
+    const updateStageSize = () => {
+      const rect = stage.getBoundingClientRect()
+      const width = Math.floor(rect.width)
+      const height = Math.floor(rect.height)
+
+      setBinderStageSize((current) => {
+        if (current.width === width && current.height === height) {
+          return current
+        }
+
+        return { width, height }
+      })
+    }
+    const observer = new ResizeObserver(() => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
+
+      frame = window.requestAnimationFrame(updateStageSize)
+    })
+
+    updateStageSize()
+    observer.observe(stage)
+
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
+      observer.disconnect()
+    }
+  }, [activeMainView])
 
   const handleRequestMotionGlint = useCallback(async () => {
     if (typeof window === "undefined") {
@@ -1778,6 +1819,25 @@ export default function BinderApp({
   const displayedBinderAspectRatio = isSpreadLayout
     ? binderPageAspectRatio * 2 + 0.12
     : binderPageAspectRatio
+  const binderFitSize = useMemo(() => {
+    if (
+      binderStageSize.width <= 0
+      || binderStageSize.height <= 0
+      || !Number.isFinite(displayedBinderAspectRatio)
+      || displayedBinderAspectRatio <= 0
+    ) {
+      return null
+    }
+
+    const widthFromStageHeight = binderStageSize.height * displayedBinderAspectRatio
+    const width = Math.min(binderStageSize.width, widthFromStageHeight)
+    const height = width / displayedBinderAspectRatio
+
+    return {
+      width: Math.floor(width),
+      height: Math.floor(height),
+    }
+  }, [binderStageSize.height, binderStageSize.width, displayedBinderAspectRatio])
 
   const navigateToPage = useCallback((page: number, direction: "left" | "right") => {
     if (page < 1 || page > totalBinderPages || page === currentBinderPage) return
@@ -3633,7 +3693,7 @@ export default function BinderApp({
     const quickPanel = (
       <div
         ref={quickPanelRef}
-        className="fixed z-30 w-[min(calc(100vw-1.5rem),28rem)] transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
+        className="fixed z-30 max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(calc(100vw-1.5rem),28rem)] overflow-y-auto overscroll-contain transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
         style={quickPanelPosition
           ? {
               top: quickPanelPosition.top,
@@ -5564,10 +5624,10 @@ export default function BinderApp({
             )}
 
             {/* Binder Grid */}
-            <div className="md:min-h-0 md:flex-1 md:flex md:items-center md:justify-center">
+            <div ref={binderStageRef} className="min-h-0 flex-1 overflow-hidden md:flex md:items-center md:justify-center">
               <div
                 ref={binderRef}
-                className={`relative w-full max-w-full transition-all duration-150 md:h-full md:w-auto md:max-h-full ${
+                className={`relative max-h-full max-w-full transition-all duration-150 ${
                   isPageTransitioning
                     ? transitionDirection === "left"
                       ? "opacity-0 -translate-x-4"
@@ -5576,6 +5636,8 @@ export default function BinderApp({
                 }`}
                 style={{
                   aspectRatio: String(displayedBinderAspectRatio),
+                  width: binderFitSize ? `${binderFitSize.width}px` : "100%",
+                  height: binderFitSize ? `${binderFitSize.height}px` : "auto",
                   overscrollBehaviorX: "contain",
                 }}
               >
