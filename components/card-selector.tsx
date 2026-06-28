@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { getCardSelectorQuickActions } from "@/lib/card-selector-actions"
+import { completeCardSelectorSelection } from "@/lib/card-selector-selection-flow"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
 import { aggregateCardScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
@@ -323,12 +324,18 @@ export default function CardSelector({
   const selectorQuickActions = useMemo(() => getCardSelectorQuickActions(selectionMode), [selectionMode])
 
   const selectCard = useCallback((card: TCGCard, selectedMode: CardSelectorMode = selectionMode) => {
-    onSelect({ ...card, language: selectedCardLanguage }, selectedMode, hasManuallySelectedFinish ? selectedFinish : inferCardFinish(card))
-  }, [hasManuallySelectedFinish, onSelect, selectedCardLanguage, selectedFinish, selectionMode])
+    completeCardSelectorSelection({
+      onClose,
+      onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectedMode, hasManuallySelectedFinish ? selectedFinish : inferCardFinish(card)),
+    })
+  }, [hasManuallySelectedFinish, onClose, onSelect, selectedCardLanguage, selectedFinish, selectionMode])
 
   const selectWithoutCard = useCallback(() => {
-    onSelect(null, selectionMode, selectedFinish)
-  }, [onSelect, selectedFinish, selectionMode])
+    completeCardSelectorSelection({
+      onClose,
+      onSelect: () => onSelect(null, selectionMode, selectedFinish),
+    })
+  }, [onClose, onSelect, selectedFinish, selectionMode])
 
   useEffect(() => {
     setSelectionMode(mode)
