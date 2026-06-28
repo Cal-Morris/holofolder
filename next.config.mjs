@@ -1,4 +1,8 @@
 import { withWorkflow } from "workflow/next"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -7,6 +11,9 @@ const nextConfig = {
     "10.4.1.154",
   ],
   cacheComponents: true,
+  turbopack: {
+    root: projectRoot,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

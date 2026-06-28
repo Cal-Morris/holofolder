@@ -3879,7 +3879,7 @@ export default function BinderApp({
     const quickPanel = (
       <div
         ref={quickPanelRef}
-        className="fixed z-30 max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(calc(100vw-1.5rem),28rem)] overflow-y-auto overscroll-contain transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
+        className="fixed z-40 max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(calc(100vw-1.5rem),28rem)] overflow-y-auto overscroll-contain transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
         style={quickPanelPosition
           ? {
               top: quickPanelPosition.top,
@@ -3893,7 +3893,7 @@ export default function BinderApp({
               }
             : {
                 left: "50%",
-                bottom: "calc(env(safe-area-inset-bottom) + 4.75rem)",
+                bottom: "calc(env(safe-area-inset-bottom) + 5.15rem)",
                 transform: "translateX(-50%)",
                 width: "min(calc(100vw - 1.5rem), 24rem)",
               }}
@@ -4210,6 +4210,110 @@ export default function BinderApp({
     )
 
     return createPortal(quickPanel, document.body)
+  }
+
+  const renderMobileSlotActionBar = () => {
+    if (readOnlyMode || !longPressedPokemon) {
+      return null
+    }
+
+    const pokemon = getPokemonSummary(longPressedPokemon.id)
+    if (!pokemon) {
+      return null
+    }
+
+    const item = getCollectionItem(pokemon.id)
+    const collected = isCollected(pokemon.id)
+    const quickActions = getBinderSlotQuickActions({
+      hasAssignedCard: Boolean(item?.card_id),
+      readOnly: readOnlyMode,
+    })
+
+    if (!quickActions.canShowActions) {
+      return null
+    }
+
+    const showFavoriteAction = collected && Boolean(item?.card_id)
+    const mobileActionBar = (
+      <div
+        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+4.9rem)] z-50 px-1 sm:hidden"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mx-auto max-w-md rounded-[1.15rem] border border-border/70 bg-card/97 p-2 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.48)] backdrop-blur-xl dark:border-border/50 dark:bg-background/97">
+          <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+            <p className="min-w-0 truncate text-xs font-semibold">
+              {formatPokemonDisplayName(pokemon.name)}
+            </p>
+            <button
+              type="button"
+              onClick={() => setLongPressedPokemon(null)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              aria-label="Close quick actions"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className={`grid gap-1.5 ${showFavoriteAction ? "grid-cols-4" : "grid-cols-3"}`}>
+            <button
+              type="button"
+              onClick={() => {
+                setLongPressedPokemon(null)
+                openCardSelectorForPokemon(pokemon, "collect")
+              }}
+              className="flex h-10 min-w-0 items-center justify-center gap-1 rounded-xl border border-emerald-400/35 bg-emerald-500/12 px-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-300"
+            >
+              <Check className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{quickActions.addLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLongPressedPokemon(null)
+                openCardSelectorForPokemon(pokemon, "wishlist")
+              }}
+              className="flex h-10 min-w-0 items-center justify-center gap-1 rounded-xl border border-amber-400/35 bg-amber-500/12 px-1.5 text-xs font-bold text-amber-600 dark:text-amber-300"
+            >
+              <Heart className="h-3.5 w-3.5 shrink-0 fill-current" />
+              <span className="truncate">{quickActions.wantLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLongPressedPokemon(null)
+                handleQuickCollect(pokemon)
+              }}
+              className={`flex h-10 min-w-0 items-center justify-center gap-1 rounded-xl border px-1.5 text-xs font-bold ${
+                collected
+                  ? "border-destructive/25 bg-destructive/10 text-destructive"
+                  : "border-emerald-400/35 bg-emerald-500/12 text-emerald-600 dark:text-emerald-300"
+              }`}
+            >
+              {collected ? <X className="h-3.5 w-3.5 shrink-0" /> : <Check className="h-3.5 w-3.5 shrink-0" />}
+              <span className="truncate">{collected ? "Remove" : "Got"}</span>
+            </button>
+            {showFavoriteAction ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setLongPressedPokemon(null)
+                  handleToggleFavorite(pokemon.id)
+                }}
+                className={`flex h-10 min-w-0 items-center justify-center gap-1 rounded-xl border px-1.5 text-xs font-bold ${
+                  item?.status === "finalized"
+                    ? "border-amber-400/35 bg-amber-500/12 text-amber-600 dark:text-amber-300"
+                    : "border-border/55 bg-muted/45 text-muted-foreground"
+                }`}
+              >
+                <Star className={`h-3.5 w-3.5 shrink-0 ${item?.status === "finalized" ? "fill-current" : ""}`} />
+                <span className="truncate">Fav</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    )
+
+    return createPortal(mobileActionBar, document.body)
   }
 
   useEffect(() => {
@@ -4622,36 +4726,36 @@ export default function BinderApp({
     return (
       <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-3">
         <div className="space-y-3">
-          <section className="rounded-[1.35rem] border border-border/65 bg-card/88 p-3 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.32)] dark:border-white/10 dark:bg-card/72 sm:p-4">
+          <section className="rounded-[1.35rem] border border-border/65 bg-card/88 p-2.5 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.32)] dark:border-white/10 dark:bg-card/72 sm:p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Wanted</p>
                 <h2 className="mt-0.5 text-lg font-semibold tracking-tight">Buying dashboard</h2>
-                <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">Prioritise what to buy, spot unpriced cards, and keep the want list tied back to binder slots.</p>
+                <p className="mt-1 hidden max-w-xl text-xs leading-relaxed text-muted-foreground sm:block">Prioritise what to buy, spot unpriced cards, and keep the want list tied back to binder slots.</p>
               </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-amber-500/18 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
+              <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-amber-500/18 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
                 <ShoppingBag className="h-4 w-4" />
                 <div className="text-right">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75">Market total</p>
-                  <p className="text-sm font-bold tabular-nums">{marketTotalLabel ?? (isLoadingPrices ? "Loading" : "No prices")}</p>
+                  <p className="truncate text-sm font-bold tabular-nums">{marketTotalLabel ?? (isLoadingPrices ? "Loading" : "No prices")}</p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 xl:grid-cols-4">
               <button
                 type="button"
                 onClick={() => {
                   clearWantedFilter()
                   setWantedSort("newest")
                 }}
-                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+                className="rounded-2xl border border-border/55 bg-background/56 p-2.5 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03] sm:p-3"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">To buy</p>
                   <ShoppingBag className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{totalWantedCount}</p>
+                <p className="mt-1.5 text-xl font-bold tabular-nums sm:mt-2 sm:text-2xl">{totalWantedCount}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">{wantedDashboard.unpricedCount} need pricing</p>
               </button>
               <button
@@ -4660,13 +4764,13 @@ export default function BinderApp({
                   clearWantedFilter()
                   setWantedSort("highest")
                 }}
-                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+                className="rounded-2xl border border-border/55 bg-background/56 p-2.5 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03] sm:p-3"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Priced</p>
                   <ListChecks className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{wantedDashboard.pricedCount}</p>
+                <p className="mt-1.5 text-xl font-bold tabular-nums sm:mt-2 sm:text-2xl">{wantedDashboard.pricedCount}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">{pricedPercent}% of wanted list</p>
               </button>
               <button
@@ -4675,13 +4779,13 @@ export default function BinderApp({
                   clearWantedFilter()
                   setWantedSort("lowest")
                 }}
-                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+                className="rounded-2xl border border-border/55 bg-background/56 p-2.5 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03] sm:p-3"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Average</p>
                   <Tag className="h-3.5 w-3.5 text-sky-600 dark:text-sky-300" />
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{averagePriceLabel ?? "No price"}</p>
+                <p className="mt-1.5 truncate text-xl font-bold tabular-nums sm:mt-2 sm:text-2xl">{averagePriceLabel ?? "No price"}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">priced cards only</p>
               </button>
               <button
@@ -4690,7 +4794,7 @@ export default function BinderApp({
                   clearWantedFilter()
                   setWantedSort("highest")
                 }}
-                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+                className="rounded-2xl border border-border/55 bg-background/56 p-2.5 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03] sm:p-3"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Highest</p>
@@ -4966,12 +5070,12 @@ export default function BinderApp({
                 return (
                   <article
                     key={wantedCard.key}
-                    className="grid gap-3 p-3 sm:grid-cols-[4.75rem_minmax(0,1fr)_9.5rem] sm:p-4"
+                    className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-3 p-3 sm:grid-cols-[4.75rem_minmax(0,1fr)_9.5rem] sm:p-4"
                   >
                     <button
                       type="button"
                       onClick={() => pokemon && handlePokemonSelect(pokemon)}
-                      className="relative h-24 w-[4.75rem] overflow-hidden rounded-2xl border border-border/60 bg-muted text-left dark:border-white/10 sm:h-28"
+                      className="relative h-24 w-full overflow-hidden rounded-2xl border border-border/60 bg-muted text-left dark:border-white/10 sm:h-28 sm:w-[4.75rem]"
                     >
                       {card.card_image ? (
                         <img src={card.card_image} alt={card.card_name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
@@ -5017,7 +5121,7 @@ export default function BinderApp({
                       <CardPriceEvidence price={price} showTrend={false} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:items-stretch sm:justify-center">
+                    <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-1 sm:flex sm:flex-col sm:items-stretch sm:justify-center">
                       <div className="rounded-2xl border border-border/55 bg-background/50 px-2.5 py-2 dark:border-white/10 dark:bg-white/[0.03] sm:text-right">
                         <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Market</p>
                         <p className="text-sm font-bold tabular-nums">{marketPriceLabel ?? (isLoadingPrices ? "Loading" : "No price")}</p>
@@ -5748,7 +5852,11 @@ export default function BinderApp({
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col space-y-2 animate-fade-in">
+        <div className={`flex min-h-0 flex-1 flex-col space-y-2 animate-fade-in ${
+          activeMainView === "binder"
+            ? "overflow-y-auto overflow-x-hidden md:overflow-visible"
+            : "overflow-hidden"
+        }`}>
           {activeMainView === "list" ? (
             <DexListView
               pokemonList={filteredPokemonSummaryList}
@@ -5866,28 +5974,28 @@ export default function BinderApp({
                 ) : (
                   <p>Scanning is disabled while a card-status filter is on, because those pages no longer match your binder layout.</p>
                 )}
-                <p className="mt-1 text-[11px] text-muted-foreground/80">
+                <p className="mt-1 hidden text-[11px] text-muted-foreground/80 sm:block">
                   The scanner checks slot occupancy and compares occupied pockets against the closest cards for each slot. Fill the frame with one page and keep the pockets sharp.
                 </p>
               </div>
             )}
 
             {collectionViewFilter === "wanted" && (
-              <div className="shrink-0 rounded-xl border border-amber-400/25 bg-amber-400/8 p-2">
-                <div className="mb-2 grid gap-2 sm:grid-cols-3">
-                  <div className="rounded-lg border border-amber-400/18 bg-card/78 px-3 py-2">
+              <div className="shrink-0 rounded-xl border border-amber-400/25 bg-amber-400/8 p-1.5 sm:p-2">
+                <div className="mb-1.5 grid grid-cols-2 gap-1.5 sm:mb-2 sm:grid-cols-3 sm:gap-2">
+                  <div className="hidden rounded-lg border border-amber-400/18 bg-card/78 px-3 py-2 sm:block">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">All tracked</p>
                     <p className="mt-0.5 text-sm font-semibold tabular-nums">{wantedModeCombinedTotalLabel || (isLoadingPrices ? "Loading prices" : "No prices yet")}</p>
                     <p className="mt-0.5 text-[10px] text-muted-foreground">{ownedTrackedCards.length + wantedCardEntries.length} cards, owned and wanted</p>
                   </div>
-                  <div className="rounded-lg border border-emerald-400/18 bg-card/78 px-3 py-2">
+                  <div className="min-w-0 rounded-lg border border-emerald-400/18 bg-card/78 px-2.5 py-2 sm:px-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Owned value</p>
-                    <p className="mt-0.5 text-sm font-semibold tabular-nums">{ownedTotalLabel || (isLoadingPrices ? "Loading prices" : "No prices yet")}</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{ownedTrackedCards.length} owned card{ownedTrackedCards.length === 1 ? "" : "s"}</p>
+                    <p className="mt-0.5 truncate text-[13px] font-semibold tabular-nums sm:text-sm">{ownedTotalLabel || (isLoadingPrices ? "Loading" : "No prices")}</p>
+                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{ownedTrackedCards.length} owned card{ownedTrackedCards.length === 1 ? "" : "s"}</p>
                   </div>
-                  <div className="rounded-lg border border-amber-400/22 bg-card/78 px-3 py-2">
+                  <div className="min-w-0 rounded-lg border border-amber-400/22 bg-card/78 px-2.5 py-2 sm:px-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">To buy</p>
-                    <p className="mt-0.5 text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-300">{wantedTotalLabel || (isLoadingPrices ? "Loading prices" : "No prices yet")}</p>
+                    <p className="mt-0.5 truncate text-[13px] font-semibold tabular-nums text-amber-600 dark:text-amber-300 sm:text-sm">{wantedTotalLabel || (isLoadingPrices ? "Loading" : "No prices")}</p>
                     <p className="mt-0.5 text-[10px] text-muted-foreground">
                       {wantedCardEntries.length} wanted card{wantedCardEntries.length === 1 ? "" : "s"}
                       {wantedModeCombinedPriceSummary.unpricedCount > 0 ? `, ${wantedModeCombinedPriceSummary.unpricedCount} unpriced` : ""}
@@ -5911,12 +6019,12 @@ export default function BinderApp({
                               handlePokemonSelect(pokemon)
                             }
                           }}
-                          className="flex w-56 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 bg-card/82 p-2 text-left"
+                          className="flex w-44 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 bg-card/82 p-1.5 text-left sm:w-56 sm:p-2"
                         >
                           {card.card_image ? (
-                            <img src={card.card_image} alt={card.card_name} className="h-14 w-10 rounded object-cover" loading="lazy" />
+                            <img src={card.card_image} alt={card.card_name} className="h-12 w-8 rounded object-cover sm:h-14 sm:w-10" loading="lazy" />
                           ) : (
-                            <div className="h-14 w-10 rounded bg-muted" />
+                            <div className="h-12 w-8 rounded bg-muted sm:h-14 sm:w-10" />
                           )}
                           <div className="min-w-0">
                             <p className="truncate text-xs font-semibold">{card.card_name}</p>
@@ -5932,7 +6040,7 @@ export default function BinderApp({
             )}
 
             {/* Binder Grid */}
-            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-start justify-center overflow-hidden md:items-center">
+            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-start justify-center overflow-hidden pb-1 md:items-center md:pb-0">
               <div
                 ref={binderRef}
                 className={`relative max-h-full max-w-full transition-all duration-150 ${
@@ -5995,6 +6103,7 @@ export default function BinderApp({
       </div>
 
       {renderSelectedPokemonQuickPanel()}
+      {renderMobileSlotActionBar()}
 
       {isSearchOpen && (
         <div className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={() => setIsSearchOpen(false)}>
@@ -6780,7 +6889,7 @@ function PokemonSlot({
       ) : null}
 
       {!readOnly && isLongPressed && (
-        <div className="absolute -top-10 left-1/2 z-30 -translate-x-1/2 animate-scale-in">
+        <div className="absolute -top-10 left-1/2 z-30 hidden -translate-x-1/2 animate-scale-in sm:block">
           <div className="flex max-w-[min(22rem,calc(100vw-1rem))] items-center gap-1 rounded-full border border-border/50 bg-card/95 p-1 shadow-xl backdrop-blur-lg">
             <button
               type="button"
