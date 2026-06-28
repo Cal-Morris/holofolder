@@ -78,6 +78,23 @@ interface CardPriceRow {
   fetched_at: string
 }
 
+interface CardExternalIdsRow {
+  id: string
+  external_ids_json: unknown
+}
+
+export interface TcgplayerProductDetails {
+  productId?: number | string
+  productName?: string
+  rarityName?: string
+  marketPrice?: number
+  lowestPriceWithShipping?: number
+  lowestPrice?: number
+  setCode?: string
+  setName?: string
+  customAttributes?: Record<string, unknown>
+}
+
 export interface CardPriceRefreshResult {
   prices: CardPriceSnapshot[]
   refreshed: number
@@ -197,6 +214,7 @@ export async function refreshCardPriceLookups(
 
   let refreshedSnapshots: CardPriceSnapshot[] = []
   if (missingLookups.length > 0) {
+    const externalIdsByCardId = await loadCardExternalIds(supabase, [...new Set(missingLookups.map((lookup) => lookup.cardId))])
     const fxRates = await fetchEcbFxRates().catch((error) => {
       console.error("[binderdex] Failed to load ECB FX rates for card prices:", error)
       return null
@@ -205,7 +223,12 @@ export async function refreshCardPriceLookups(
       ? await mapWithConcurrency(
           missingLookups,
           FETCH_CONCURRENCY,
-          (lookup) => fetchCardPriceSnapshot(lookup.cardId, lookup.language, fxRates),
+          (lookup) => fetchCardPriceSnapshot(
+            lookup.cardId,
+            lookup.language,
+            fxRates,
+            externalIdsByCardId.get(lookup.cardId),
+          ),
         )
       : missingLookups.map((lookup) => emptySnapshot(lookup.cardId, lookup.language))
 
@@ -233,6 +256,30 @@ export async function refreshCardPriceLookups(
     cached: freshByLookupKey.size,
     unpriced: prices.filter((snapshot) => snapshot.gbpAmount == null).length,
   }
+}
+
+async function loadCardExternalIds(
+  supabase: ReturnType<typeof createAdminClient>,
+  cardIds: string[],
+) {
+  const externalIdsByCardId = new Map<string, unknown>()
+  if (cardIds.length === 0) return externalIdsByCardId
+
+  const { data, error } = await supabase
+    .from("tcg_cards")
+    .select("id, external_ids_json")
+    .in("id", cardIds)
+
+  if (error) {
+    console.error("[binderdex] Failed to read card external ids for price fallback:", error)
+    return externalIdsByCardId
+  }
+
+  for (const row of (data ?? []) as CardExternalIdsRow[]) {
+    externalIdsByCardId.set(row.id, row.external_ids_json)
+  }
+
+  return externalIdsByCardId
 }
 
 function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
@@ -475,7 +522,12 @@ async function mapWithConcurrency<TInput, TOutput>(
   return results
 }
 
-async function fetchCardPriceSnapshot(cardId: string, language: CardLanguage, fxRates: FxRates): Promise<CardPriceSnapshot> {
+async function fetchCardPriceSnapshot(
+  cardId: string,
+  language: CardLanguage,
+  fxRates: FxRates,
+  externalIds?: unknown,
+): Promise<CardPriceSnapshot> {
   try {
     const response = await fetch(`https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(cardId)}`, {
       headers: {
@@ -489,11 +541,15 @@ async function fetchCardPriceSnapshot(cardId: string, language: CardLanguage, fx
     }
 
     const payload = await response.json()
-    return buildCardPriceSnapshotFromPricing(cardId, language, payload?.pricing, fxRates)
+    const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, payload?.pricing, fxRates)
+    if (snapshot.marketGbpAmount != null) {
+      return snapshot
+    }
   } catch (error) {
     console.error(`[binderdex] Failed to fetch price for ${cardId} (${language}):`, error)
-    return emptySnapshot(cardId, language)
   }
+
+  return await fetchTcgplayerProductPriceFallback(cardId, language, fxRates, externalIds)
 }
 
 export function buildCardPriceSnapshotFromPricing(
@@ -517,6 +573,148 @@ export function buildCardPriceSnapshotFromPricing(
     ...snapshot,
     buySignal: buildBuySignal(snapshot),
   }
+}
+
+async function fetchTcgplayerProductPriceFallback(
+  cardId: string,
+  language: CardLanguage,
+  fxRates: FxRates,
+  externalIds?: unknown,
+) {
+  const productIds = pickTcgplayerProductIdsFromExternalIds(externalIds)
+  if (productIds.length === 0) {
+    return emptySnapshot(cardId, language)
+  }
+
+  const productSnapshots = (
+    await mapWithConcurrency(productIds, Math.min(3, productIds.length), async (productId) => {
+      const details = await fetchTcgplayerProductDetails(productId).catch((error) => {
+        console.error(`[binderdex] Failed to fetch TCGplayer product ${productId} for ${cardId}:`, error)
+        return null
+      })
+      return details ? buildTcgplayerProductPriceSnapshot(cardId, language, details, fxRates) : null
+    })
+  ).filter((snapshot): snapshot is CardPriceSnapshot => Boolean(snapshot))
+
+  const preferred = productSnapshots.find((snapshot) => snapshot.marketGbpAmount != null)
+  if (!preferred) {
+    return emptySnapshot(cardId, language)
+  }
+
+  return {
+    ...combineSourceEvidence(preferred, productSnapshots),
+    buySignal: buildBuySignal(preferred),
+  }
+}
+
+async function fetchTcgplayerProductDetails(productId: string): Promise<TcgplayerProductDetails | null> {
+  const response = await fetch(
+    `https://mp-search-api.tcgplayer.com/v1/product/${encodeURIComponent(productId)}/details?mpfev=3445`,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "BinderDexPriceResearch/1.0 (+https://binder.cal.gg)",
+      },
+      next: { revalidate: 60 * 60 * 12 },
+    },
+  )
+
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = await response.json()
+  return payload && typeof payload === "object" ? payload as TcgplayerProductDetails : null
+}
+
+export function pickTcgplayerProductIdsFromExternalIds(value: unknown) {
+  const ids = new Set<string>()
+  const externalIds = readRecord(value)
+  const tcgdex = readRecord(externalIds?.tcgdex)
+  const directThirdParty = readRecord(tcgdex?.thirdParty)
+  const directId = normalizeProductId(directThirdParty?.tcgplayer)
+
+  if (directId) {
+    ids.add(directId)
+  }
+
+  if (Array.isArray(tcgdex?.variantThirdParty)) {
+    for (const candidate of tcgdex.variantThirdParty) {
+      const productId = normalizeProductId(readRecord(candidate)?.tcgplayer)
+      if (productId) {
+        ids.add(productId)
+      }
+    }
+  }
+
+  return [...ids]
+}
+
+export function buildTcgplayerProductPriceSnapshot(
+  cardId: string,
+  language: CardLanguage,
+  product: TcgplayerProductDetails,
+  fxRates: FxRates,
+): CardPriceSnapshot | null {
+  const marketAmount = readFiniteNumber(product.marketPrice)
+  const lowAmount = readFiniteNumber(product.lowestPriceWithShipping) ?? readFiniteNumber(product.lowestPrice)
+
+  if (marketAmount == null) {
+    return null
+  }
+
+  const productId = normalizeProductId(product.productId)
+  const lowOrMarketAmount = lowAmount ?? marketAmount
+  const marketGbpAmount = roundPrice(marketAmount * fxRates.usdToGbp)
+  const lowGbpAmount = roundPrice(lowOrMarketAmount * fxRates.usdToGbp)
+  const { rangeLow, rangeHigh } = buildPriceRange(marketAmount, lowOrMarketAmount, null)
+  const variantLabel = typeof product.rarityName === "string" && product.rarityName.length > 0
+    ? product.rarityName
+    : typeof product.productName === "string" && product.productName.length > 0
+      ? product.productName
+      : productId ? `Product ${productId}` : "Product"
+
+  return {
+    cardId,
+    language,
+    gbpAmount: marketGbpAmount,
+    marketGbpAmount,
+    goodGbpAmount: lowGbpAmount,
+    lowGbpAmount: roundPrice(rangeLow * fxRates.usdToGbp),
+    highGbpAmount: roundPrice(rangeHigh * fxRates.usdToGbp),
+    confidence: "medium",
+    sourcePrices: [{
+      source: "tcgplayer",
+      label: productId ? `TCGplayer #${productId}` : "TCGplayer",
+      variantLabel,
+      marketGbpAmount,
+      lowGbpAmount,
+      originalMarketAmount: marketAmount,
+      originalLowAmount: lowAmount,
+      originalCurrency: "USD",
+      updatedAt: null,
+    }],
+    trendPoints: [],
+    buySignal: null,
+    originalAmount: marketAmount,
+    originalCurrency: "USD",
+    source: "tcgplayer",
+    variantLabel,
+    updatedAt: null,
+    fxDate: fxRates.date,
+  }
+}
+
+function normalizeProductId(value: unknown) {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return String(value)
+  }
+
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return value.trim()
+  }
+
+  return null
 }
 
 function readRecord(value: unknown) {
