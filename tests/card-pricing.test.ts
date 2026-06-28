@@ -2,8 +2,10 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
   buildCardPriceSnapshotFromPricing,
+  buildPokePulseSearchPriceSnapshot,
   buildTcgplayerProductPriceSnapshot,
   pickPokePulseSearchItem,
+  pickPokePulseMarketDataRecord,
   pickTcgplayerSearchProduct,
   pickTcgplayerProductIdsFromExternalIds,
 } from "../lib/card-pricing"
@@ -247,4 +249,53 @@ test("pickPokePulseSearchItem prefers priced non-jumbo exact promo matches", () 
   ])
 
   assert.equal(item?.slug, "rowlet-sm01-holo")
+})
+
+test("pickPokePulseMarketDataRecord reads product-keyed internal market data", () => {
+  const record = pickPokePulseMarketDataRecord({
+    success: true,
+    data: {
+      "card:smp|SM01|Holo|null|null|null": {
+        market_price: { value: 4.95 },
+        last_sold_price: 4.5,
+      },
+    },
+  }, "card:smp|SM01|Holo|null|null|null")
+
+  assert.deepEqual(record, {
+    market_price: { value: 4.95 },
+    last_sold_price: 4.5,
+  })
+})
+
+test("buildPokePulseSearchPriceSnapshot uses internal market data for trends and confidence", () => {
+  const snapshot = buildPokePulseSearchPriceSnapshot("smp-SM01", "en", {
+    slug: "rowlet-sm01-holo",
+    productId: "card:smp|SM01|Holo|null|null|null",
+    name: "Rowlet",
+    setName: "Sun & Moon Promos",
+    number: "SM01",
+    material: "Holo",
+    currentPrice: 4.95,
+  }, {
+    marketAmount: 5,
+    lastSoldAmount: 4.6,
+    averageAmount: 4.8,
+    salesVolume: 12,
+    trendPoints: [
+      {
+        label: "2026-06-26",
+        source: "pokepulse",
+        gbpAmount: 4.7,
+        originalAmount: 4.7,
+        originalCurrency: "GBP",
+      },
+    ],
+  })
+
+  assert.equal(snapshot?.marketGbpAmount, 5)
+  assert.equal(snapshot?.goodGbpAmount, 4.25)
+  assert.equal(snapshot?.confidence, "medium")
+  assert.equal(snapshot?.sourcePrices[0].label, "PokePulse market data")
+  assert.deepEqual(snapshot?.trendPoints.map((point) => point.label), ["2026-06-26"])
 })

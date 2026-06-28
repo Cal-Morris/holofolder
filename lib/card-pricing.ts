@@ -116,6 +116,14 @@ interface PokePulseSearchItem {
   updated_at?: string | null
 }
 
+interface PokePulseMarketData {
+  marketAmount: number | null
+  lastSoldAmount: number | null
+  averageAmount: number | null
+  salesVolume: number | null
+  trendPoints: CardPriceTrendPoint[]
+}
+
 interface CardPriceMetadata {
   id: string
   localId: string | null
@@ -171,6 +179,16 @@ const CARDMARKET_GOOD_FIELD_PRIORITY = [
 
 const TCGPLAYER_SEARCH_ENDPOINT = "https://mp-search-api.tcgplayer.com/v1/search/request"
 const POKEPULSE_SEARCH_ENDPOINT = "https://pokepulse.io/api/v2/search/all"
+const POKEPULSE_MARKET_DATA_ENDPOINT = "https://pokepulse.io/api/internal/market-data"
+const BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
+const POKEPULSE_MARKET_DATA_METRICS = [
+  "market_price",
+  "last_sold_price",
+  "average_price",
+  "sales_volume",
+  "price_trends",
+  "cm_price",
+] as const
 
 export function normalizeCardLanguage(value: unknown): CardLanguage {
   if (typeof value !== "string") return "en"
@@ -703,10 +721,15 @@ async function fetchTcgplayerSearchPriceFallback(
 
   const snapshot = combineSourceEvidence(preferredSnapshot, snapshots)
 
-  return {
+  const lowConfidenceSnapshot: CardPriceSnapshot = {
     ...snapshot,
     confidence: "low" as const,
-    buySignal: buildBuySignal({ ...snapshot, confidence: "low" }),
+    buySignal: null,
+  }
+
+  return {
+    ...lowConfidenceSnapshot,
+    buySignal: buildBuySignal(lowConfidenceSnapshot),
   }
 }
 
@@ -811,7 +834,7 @@ async function fetchPokePulseSearchPriceFallback(
   const response = await fetch(`${POKEPULSE_SEARCH_ENDPOINT}?${searchParams}`, {
     headers: {
       Accept: "application/json",
-      "User-Agent": "BinderDexPriceResearch/1.0 (+https://binder.cal.gg)",
+      "User-Agent": BROWSER_USER_AGENT,
     },
     next: { revalidate: 60 * 60 * 12 },
   }).catch((error) => {
@@ -826,7 +849,16 @@ async function fetchPokePulseSearchPriceFallback(
   const payload = await response.json().catch(() => null)
   const items = Array.isArray(payload?.items) ? payload.items as PokePulseSearchItem[] : []
   const matchedItem = pickPokePulseSearchItem(card, items)
-  return matchedItem ? buildPokePulseSearchPriceSnapshot(cardId, language, matchedItem) : null
+  if (!matchedItem) {
+    return null
+  }
+
+  const marketData = await fetchPokePulseMarketData(matchedItem.productId).catch((error) => {
+    console.error(`[binderdex] Failed to load PokePulse market data for ${cardId}:`, error)
+    return null
+  })
+
+  return buildPokePulseSearchPriceSnapshot(cardId, language, matchedItem, marketData)
 }
 
 export function pickPokePulseSearchItem(
@@ -868,23 +900,80 @@ export function pickPokePulseSearchItem(
   return scoredItems[0]?.item ?? null
 }
 
-function buildPokePulseSearchPriceSnapshot(
+export function buildPokePulseSearchPriceSnapshot(
   cardId: string,
   language: CardLanguage,
   item: PokePulseSearchItem,
+  marketData: PokePulseMarketData | null = null,
 ): CardPriceSnapshot | null {
-  const marketAmount = readFiniteNumber(item.currentPrice)
+  const marketAmount = marketData?.marketAmount ?? readFiniteNumber(item.currentPrice)
   if (marketAmount == null) {
     return null
   }
 
   const marketGbpAmount = roundPrice(marketAmount)
   const goodGbpAmount = roundPrice(marketAmount * 0.85)
-  const { rangeLow, rangeHigh } = buildPriceRange(marketAmount, goodGbpAmount, null, 0.2)
+  const { rangeLow, rangeHigh } = buildPriceRange(
+    marketAmount,
+    Math.min(
+      goodGbpAmount,
+      marketData?.lastSoldAmount ?? goodGbpAmount,
+      marketData?.averageAmount ?? goodGbpAmount,
+    ),
+    Math.max(
+      marketAmount,
+      marketData?.lastSoldAmount ?? marketAmount,
+      marketData?.averageAmount ?? marketAmount,
+    ),
+    0.2,
+  )
   const variantLabel = item.material || item.rarity || "PokePulse"
   const previousPrice = typeof item.trend7d === "number" && Number.isFinite(item.trend7d)
     ? roundPrice(marketAmount - item.trend7d)
     : null
+  const trendPoints = marketData?.trendPoints.length
+    ? marketData.trendPoints
+    : [
+        ...(marketData?.averageAmount != null
+          ? [{
+              label: "Average",
+              source: "pokepulse" as const,
+              gbpAmount: roundPrice(marketData.averageAmount),
+              originalAmount: roundPrice(marketData.averageAmount),
+              originalCurrency: "GBP" as const,
+            }]
+          : []),
+        ...(marketData?.lastSoldAmount != null
+          ? [{
+              label: "Last sold",
+              source: "pokepulse" as const,
+              gbpAmount: roundPrice(marketData.lastSoldAmount),
+              originalAmount: roundPrice(marketData.lastSoldAmount),
+              originalCurrency: "GBP" as const,
+            }]
+          : []),
+        ...(previousPrice != null
+          ? [{
+              label: "7d",
+              source: "pokepulse" as const,
+              gbpAmount: previousPrice,
+              originalAmount: previousPrice,
+              originalCurrency: "GBP" as const,
+            }]
+          : []),
+        {
+          label: "Now",
+          source: "pokepulse" as const,
+          gbpAmount: marketGbpAmount,
+          originalAmount: marketAmount,
+          originalCurrency: "GBP" as const,
+        },
+      ]
+  const confidence: PriceConfidence = marketData
+    ? marketData.trendPoints.length > 0 || marketData.lastSoldAmount != null || (marketData.salesVolume ?? 0) > 0
+      ? "medium"
+      : "low"
+    : "low"
 
   return {
     cardId,
@@ -894,36 +983,19 @@ function buildPokePulseSearchPriceSnapshot(
     goodGbpAmount,
     lowGbpAmount: roundPrice(rangeLow),
     highGbpAmount: roundPrice(rangeHigh),
-    confidence: "low",
+    confidence,
     sourcePrices: [{
       source: "pokepulse",
-      label: "PokePulse search",
+      label: marketData ? "PokePulse market data" : "PokePulse search",
       variantLabel,
       marketGbpAmount,
       lowGbpAmount: goodGbpAmount,
       originalMarketAmount: marketAmount,
-      originalLowAmount: goodGbpAmount,
+      originalLowAmount: marketData?.lastSoldAmount ?? goodGbpAmount,
       originalCurrency: "GBP",
       updatedAt: item.updated_at ?? null,
     }],
-    trendPoints: previousPrice != null
-      ? [
-          {
-            label: "7d",
-            source: "pokepulse",
-            gbpAmount: previousPrice,
-            originalAmount: previousPrice,
-            originalCurrency: "GBP",
-          },
-          {
-            label: "Now",
-            source: "pokepulse",
-            gbpAmount: marketGbpAmount,
-            originalAmount: marketAmount,
-            originalCurrency: "GBP",
-          },
-        ]
-      : [],
+    trendPoints,
     buySignal: null,
     originalAmount: marketAmount,
     originalCurrency: null,
@@ -932,6 +1004,148 @@ function buildPokePulseSearchPriceSnapshot(
     updatedAt: item.updated_at ?? null,
     fxDate: null,
   }
+}
+
+async function fetchPokePulseMarketData(productId: string | null | undefined): Promise<PokePulseMarketData | null> {
+  const trimmedProductId = productId?.trim()
+  if (!trimmedProductId) {
+    return null
+  }
+
+  const cookie = process.env.POKEPULSE_COOKIE?.trim()
+  const csrfToken = process.env.POKEPULSE_CSRF_TOKEN?.trim()
+  if (!cookie || !csrfToken) {
+    return null
+  }
+
+  const response = await fetch(POKEPULSE_MARKET_DATA_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Content-Type": "application/json",
+      Cookie: cookie,
+      Origin: "https://pokepulse.io",
+      Referer: "https://pokepulse.io/",
+      "User-Agent": BROWSER_USER_AGENT,
+      "X-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify({
+      productIds: [trimmedProductId],
+      metrics: POKEPULSE_MARKET_DATA_METRICS,
+    }),
+    next: { revalidate: 60 * 60 * 2 },
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = await response.json().catch(() => null)
+  const record = pickPokePulseMarketDataRecord(payload, trimmedProductId)
+  return record ? normalizePokePulseMarketData(record) : null
+}
+
+export function pickPokePulseMarketDataRecord(payload: unknown, productId: string) {
+  const root = readRecord(payload)
+  const candidates = [
+    root,
+    readRecord(root?.data),
+    readRecord(root?.marketData),
+    readRecord(root?.products),
+    readRecord(root?.results),
+  ]
+
+  for (const candidate of candidates) {
+    const directRecord = readRecord(candidate?.[productId])
+    if (directRecord) return directRecord
+  }
+
+  for (const candidate of candidates) {
+    for (const value of Object.values(candidate ?? {})) {
+      const record = readRecord(value)
+      if (record && readString(record.productId) === productId) return record
+    }
+  }
+
+  const arrays = [
+    Array.isArray(root?.data) ? root?.data : null,
+    Array.isArray(root?.marketData) ? root?.marketData : null,
+    Array.isArray(root?.products) ? root?.products : null,
+    Array.isArray(root?.results) ? root?.results : null,
+  ]
+
+  for (const array of arrays) {
+    const record = array?.map((item) => readRecord(item)).find((item) => readString(item?.productId) === productId)
+    if (record) return record
+  }
+
+  return null
+}
+
+function normalizePokePulseMarketData(record: Record<string, unknown>): PokePulseMarketData {
+  return {
+    marketAmount: readMetricAmount(record, ["market_price", "marketPrice", "currentPrice", "cm_price", "cmPrice"]),
+    lastSoldAmount: readMetricAmount(record, ["last_sold_price", "lastSoldPrice", "lastSold", "last_sale_price"]),
+    averageAmount: readMetricAmount(record, ["average_price", "averagePrice", "avgPrice", "avg"]),
+    salesVolume: readMetricAmount(record, ["sales_volume", "salesVolume", "volume"]),
+    trendPoints: readPokePulseMarketTrendPoints(record).slice(-12),
+  }
+}
+
+function readMetricAmount(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key]
+    const directAmount = readFiniteNumber(value)
+    if (directAmount != null) return directAmount
+
+    const nested = readRecord(value)
+    if (nested) {
+      const nestedAmount = readFiniteNumber(nested.value)
+        ?? readFiniteNumber(nested.amount)
+        ?? readFiniteNumber(nested.price)
+        ?? readFiniteNumber(nested.current)
+      if (nestedAmount != null) return nestedAmount
+    }
+  }
+
+  return null
+}
+
+function readPokePulseMarketTrendPoints(record: Record<string, unknown>): CardPriceTrendPoint[] {
+  const value = record.price_trends ?? record.priceTrends ?? record.priceHistory ?? record.history
+  const nestedPoints = readRecord(value)?.points
+  const points: unknown[] = Array.isArray(value)
+    ? value
+    : Array.isArray(nestedPoints)
+      ? nestedPoints
+      : []
+
+  return points.flatMap((point) => {
+    const pointRecord = readRecord(point)
+    if (!pointRecord) return []
+
+    const amount = readFiniteNumber(pointRecord.price)
+      ?? readFiniteNumber(pointRecord.value)
+      ?? readFiniteNumber(pointRecord.amount)
+      ?? readFiniteNumber(pointRecord.market_price)
+      ?? readFiniteNumber(pointRecord.marketPrice)
+    if (amount == null) return []
+
+    const label = readString(pointRecord.date)
+      ?? readString(pointRecord.soldAt)
+      ?? readString(pointRecord.timestamp)
+      ?? readString(pointRecord.label)
+      ?? "History"
+
+    return [{
+      label,
+      source: "pokepulse" as const,
+      gbpAmount: roundPrice(amount),
+      originalAmount: roundPrice(amount),
+      originalCurrency: "GBP" as const,
+    }]
+  })
 }
 
 async function fetchTcgplayerProductDetails(productId: string): Promise<TcgplayerProductDetails | null> {
