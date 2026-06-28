@@ -39,6 +39,16 @@ const cards = [
     types: ["Colorless"],
     illustrator: "Kagemaru Himeno",
   },
+  {
+    id: "swshp-SWSH039",
+    name: "Pikachu",
+    localId: "SWSH039",
+    set: { id: "swshp", name: "SWSH Black Star Promos", officialCardCount: 307 },
+    rarity: "Promo",
+    types: ["Lightning"],
+    illustrator: "Hitoshi Ariga",
+    variants: { holo: true, jumbo: true },
+  },
 ]
 
 test("filterAndRankCards searches card metadata beyond name and set", () => {
@@ -46,6 +56,7 @@ test("filterAndRankCards searches card metadata beyond name and set", () => {
     "steam-10",
     "base-010",
     "steam-104",
+    "swshp-SWSH039",
   ])
   assert.deepEqual(filterAndRankCards(cards, { searchQuery: "sugimori" }).map((card) => card.id), ["base-010"])
   assert.deepEqual(filterAndRankCards(cards, { searchQuery: "ultra rare" }).map((card) => card.id), ["steam-104"])
@@ -70,4 +81,9 @@ test("filterAndRankCards treats full collector numbers as card number plus set t
     "base-010",
     "jungle-10",
   ])
+})
+
+test("filterAndRankCards can find jumbo starter partner variants", () => {
+  assert.deepEqual(filterAndRankCards(cards, { variant: "jumbo" }).map((card) => card.id), ["swshp-SWSH039"])
+  assert.deepEqual(filterAndRankCards(cards, { searchQuery: "starter partner" }).map((card) => card.id), ["swshp-SWSH039"])
 })

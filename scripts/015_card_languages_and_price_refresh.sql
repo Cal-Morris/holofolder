@@ -19,6 +19,12 @@ CREATE INDEX IF NOT EXISTS idx_pokemon_collection_card_language
 ALTER TABLE public.card_prices
 ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'en';
 
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS market_gbp_amount NUMERIC(10, 2);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS good_gbp_amount NUMERIC(10, 2);
+
 UPDATE public.card_prices
 SET language = 'en'
 WHERE language IS NULL OR language = '';

@@ -2,6 +2,8 @@
 CREATE TABLE IF NOT EXISTS public.card_prices (
   card_id TEXT PRIMARY KEY,
   gbp_amount NUMERIC(10, 2),
+  market_gbp_amount NUMERIC(10, 2),
+  good_gbp_amount NUMERIC(10, 2),
   original_amount NUMERIC(10, 2),
   original_currency TEXT,
   source TEXT,
@@ -13,6 +15,12 @@ CREATE TABLE IF NOT EXISTS public.card_prices (
 
 CREATE INDEX IF NOT EXISTS idx_card_prices_fetched_at
   ON public.card_prices (fetched_at);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS market_gbp_amount NUMERIC(10, 2);
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS good_gbp_amount NUMERIC(10, 2);
 
 ALTER TABLE public.card_prices ENABLE ROW LEVEL SECURITY;
 

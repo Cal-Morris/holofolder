@@ -26,6 +26,7 @@ export type CardFinish =
   | "ace_spec"
   | "amazing_rare"
   | "shiny_rare"
+  | "jumbo"
 
 export interface WantedCard {
   card_id: string
@@ -172,7 +173,8 @@ function normalizeCardFinish(value: unknown): CardFinish {
     value === "radiant_rare" ||
     value === "ace_spec" ||
     value === "amazing_rare" ||
-    value === "shiny_rare"
+    value === "shiny_rare" ||
+    value === "jumbo"
       ? value
       : "normal"
 }

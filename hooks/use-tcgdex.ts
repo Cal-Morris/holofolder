@@ -23,6 +23,8 @@ export interface TCGCard {
     reverse?: boolean
     holo?: boolean
     firstEdition?: boolean
+    wPromo?: boolean
+    jumbo?: boolean
   }
   hp?: number
   types?: string[]

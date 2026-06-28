@@ -22,6 +22,7 @@ export interface MirroredTCGCard {
     holo?: boolean
     firstEdition?: boolean
     wPromo?: boolean
+    jumbo?: boolean
   }
   hp?: number
   types?: string[]
@@ -45,6 +46,7 @@ type MirroredCardQueryResult = {
     holo?: boolean
     firstEdition?: boolean
     wPromo?: boolean
+    jumbo?: boolean
   }
   hp?: number
   types?: string[]
@@ -64,6 +66,7 @@ const MIRRORED_CARD_SELECT = `
     illustrator,
     types_json,
     image_languages_json,
+    external_ids_json,
     variants_json,
     tcg_sets!inner(
       id,
@@ -113,6 +116,74 @@ function buildCardImageUrl(language: string, seriesId: string, setId: string, lo
   return `https://assets.tcgdex.net/${assetLanguage}/${encodedSeriesId}/${encodedSetId}/${encodedLocalId}/high.webp`
 }
 
+export function pickExternalCardImageUrl(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined
+  }
+
+  const externalIds = value as Record<string, unknown>
+  const tcgdex = externalIds.tcgdex && typeof externalIds.tcgdex === "object" && !Array.isArray(externalIds.tcgdex)
+    ? externalIds.tcgdex as Record<string, unknown>
+    : null
+  const pokemonTcg = externalIds.pokemon_tcg && typeof externalIds.pokemon_tcg === "object" && !Array.isArray(externalIds.pokemon_tcg)
+    ? externalIds.pokemon_tcg as Record<string, unknown>
+    : null
+  const tcgplayerProductId = pickTcgplayerProductId(tcgdex)
+
+  return typeof tcgdex?.image === "string" && tcgdex.image.length > 0
+    ? tcgdex.image
+    : typeof pokemonTcg?.imageLarge === "string" && pokemonTcg.imageLarge.length > 0
+      ? pokemonTcg.imageLarge
+      : typeof pokemonTcg?.imageSmall === "string" && pokemonTcg.imageSmall.length > 0
+        ? pokemonTcg.imageSmall
+        : tcgplayerProductId
+          ? `https://product-images.tcgplayer.com/${encodeURIComponent(tcgplayerProductId)}.jpg`
+          : undefined
+}
+
+function pickTcgplayerProductId(tcgdex: Record<string, unknown> | null) {
+  if (!tcgdex) {
+    return null
+  }
+
+  const directThirdParty = tcgdex.thirdParty && typeof tcgdex.thirdParty === "object" && !Array.isArray(tcgdex.thirdParty)
+    ? tcgdex.thirdParty as Record<string, unknown>
+    : null
+  const directProductId = normalizeProductId(directThirdParty?.tcgplayer)
+  if (directProductId) {
+    return directProductId
+  }
+
+  if (!Array.isArray(tcgdex.variantThirdParty)) {
+    return null
+  }
+
+  for (const candidate of tcgdex.variantThirdParty) {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      continue
+    }
+
+    const productId = normalizeProductId((candidate as Record<string, unknown>).tcgplayer)
+    if (productId) {
+      return productId
+    }
+  }
+
+  return null
+}
+
+function normalizeProductId(value: unknown) {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return String(value)
+  }
+
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return value.trim()
+  }
+
+  return null
+}
+
 function inferCardFinish(rarity: unknown, variants: unknown): CardFinish {
   const rarityLabel = typeof rarity === "string" ? rarity.toLowerCase() : ""
   const variantMap = variants && typeof variants === "object"
@@ -129,6 +200,7 @@ function inferCardFinish(rarity: unknown, variants: unknown): CardFinish {
   if (rarityLabel.includes("shiny")) return "shiny_rare"
   if (rarityLabel.includes("ultra")) return "ultra_rare"
   if (rarityLabel.includes("double")) return "double_rare"
+  if (Boolean(variantMap.jumbo)) return "jumbo"
   if (Boolean(variantMap.holo)) return "holo"
 
   return "normal"
@@ -197,12 +269,15 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
       }
 
       const imageLanguage = pickImageLanguage(card.image_languages_json, language)
+      const image = imageLanguage
+        ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
+        : pickExternalCardImageUrl(card.external_ids_json)
 
       return {
         id: card.id,
         localId: card.local_id,
         name: pickLocalizedText(card.name_json, language) || `Pokemon #${pokemonId}`,
-        image: imageLanguage ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id) : undefined,
+        image,
         set: {
           id: set.id,
           name: pickLocalizedText(set.name_json, language) || set.id,
@@ -289,6 +364,7 @@ export async function getMirroredSetDexSlots(
       name_en,
       rarity,
       image_languages_json,
+      external_ids_json,
       variants_json,
       tcg_sets!inner(
         id,
@@ -333,6 +409,9 @@ export async function getMirroredSetDexSlots(
     }
 
     const imageLanguage = pickImageLanguage(card.image_languages_json, language)
+    const image = imageLanguage
+      ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
+      : pickExternalCardImageUrl(card.external_ids_json)
     const setSummary: TCGSetSummary = {
       id: card.tcg_sets.id,
       name: pickLocalizedText(card.tcg_sets.name_json, language) || card.tcg_sets.name_en || card.tcg_sets.id,
@@ -344,7 +423,7 @@ export async function getMirroredSetDexSlots(
       id: card.id,
       localId: card.local_id,
       name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
-      image: imageLanguage ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id) : undefined,
+      image,
       language,
       set: setSummary,
       rarity: typeof card.rarity === "string" ? card.rarity : undefined,

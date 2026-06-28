@@ -6,6 +6,8 @@ import type { CardFinish } from "@/hooks/use-collection"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { getCardSelectorQuickActions } from "@/lib/card-selector-actions"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
 import { aggregateCardScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
@@ -61,10 +63,24 @@ const CARD_FINISHES: Array<{ id: CardFinish; label: string }> = [
   { id: "ace_spec", label: "ACE" },
   { id: "amazing_rare", label: "Amazing" },
   { id: "shiny_rare", label: "Shiny" },
+  { id: "jumbo", label: "Jumbo" },
 ]
 
 function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function formatGbpAmount(amount: number | null | undefined) {
+  return typeof amount === "number" && Number.isFinite(amount)
+    ? new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 2 }).format(amount)
+    : null
+}
+
+function getCardSelectorPriceLabels(price: CardPriceSnapshot | undefined) {
+  return {
+    good: formatGbpAmount(price?.goodGbpAmount),
+    market: formatGbpAmount(price?.marketGbpAmount ?? price?.gbpAmount),
+  }
 }
 
 async function canvasToFile(canvas: HTMLCanvasElement, index: number) {
@@ -173,10 +189,47 @@ function inferCardFinish(card: TCGCard): CardFinish {
   if (rarity.includes("hyper")) return "hyper_rare"
   if (rarity.includes("ultra")) return "ultra_rare"
   if (rarity.includes("double")) return "double_rare"
+  if (card.variants?.jumbo) return "jumbo"
   if ((localNumber != null && officialCount != null && localNumber > officialCount) || rarity.includes("secret")) return "secret_rare"
   if (card.variants?.holo) return "holo"
   if (card.variants?.reverse) return "reverse_holo"
   return "normal"
+}
+
+function CardSelectorImage({
+  src,
+  alt,
+  className,
+  fallbackClassName = "flex h-full w-full items-center justify-center bg-muted",
+}: {
+  src?: string
+  alt: string
+  className: string
+  fallbackClassName?: string
+}) {
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
+
+  if (!src || failed) {
+    return (
+      <div className={fallbackClassName}>
+        <span className="text-xs text-muted-foreground">No Image</span>
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  )
 }
 
 export default function CardSelector({
@@ -218,6 +271,11 @@ export default function CardSelector({
     ? selectedWantedCardId ?? (mode === "wishlist" ? selectedCardId : undefined)
     : selectedCollectedCardId ?? (mode === "collect" ? selectedCardId : undefined)
   const selectedLanguageLabel = CARD_LANGUAGES.find((language) => language.id === selectedCardLanguage)?.label ?? "English"
+  const priceLookups = useMemo(
+    () => cards.map((card) => ({ cardId: card.id, language: selectedCardLanguage })),
+    [cards, selectedCardLanguage],
+  )
+  const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookups, cards.length > 0)
   const intentCopy = isWishlistMode
     ? {
         title: `Choose wanted card for ${pokemonName}`,
@@ -254,8 +312,10 @@ export default function CardSelector({
     : "hover:border-emerald-400/65 hover:ring-2 hover:ring-emerald-400/20"
   const activeFiltersCount = [filters.set, filters.rarity, filters.variant, filters.searchQuery].filter(Boolean).length
 
-  const selectCard = useCallback((card: TCGCard) => {
-    onSelect({ ...card, language: selectedCardLanguage }, selectionMode, hasManuallySelectedFinish ? selectedFinish : inferCardFinish(card))
+  const selectorQuickActions = useMemo(() => getCardSelectorQuickActions(selectionMode), [selectionMode])
+
+  const selectCard = useCallback((card: TCGCard, selectedMode: CardSelectorMode = selectionMode) => {
+    onSelect({ ...card, language: selectedCardLanguage }, selectedMode, hasManuallySelectedFinish ? selectedFinish : inferCardFinish(card))
   }, [hasManuallySelectedFinish, onSelect, selectedCardLanguage, selectedFinish, selectionMode])
 
   const selectWithoutCard = useCallback(() => {
@@ -269,7 +329,7 @@ export default function CardSelector({
   useEffect(() => {
     const load = async () => {
       const cardsData = await fetchCardsForPokemon(pokemonId, "en")
-      setCards(cardsData.filter((card) => Boolean(card.image)))
+      setCards(cardsData)
     }
     load()
   }, [pokemonId, fetchCardsForPokemon])
@@ -356,17 +416,20 @@ export default function CardSelector({
   }, [scanMatches])
   const displayedCards = useMemo(() => {
     if (scanRankById.size === 0) {
-      return filteredCards.filter((card) => Boolean(card.image))
+      return filteredCards
     }
 
     return [...filteredCards]
-      .filter((card) => Boolean(card.image))
       .sort((left, right) => {
         const leftRank = scanRankById.get(left.id) ?? Number.POSITIVE_INFINITY
         const rightRank = scanRankById.get(right.id) ?? Number.POSITIVE_INFINITY
 
         if (leftRank !== rightRank) {
           return leftRank - rightRank
+        }
+
+        if (Boolean(left.image) !== Boolean(right.image)) {
+          return left.image ? -1 : 1
         }
 
         return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: "base" })
@@ -938,6 +1001,7 @@ export default function CardSelector({
                       <SelectItem value="holo">Holo</SelectItem>
                       <SelectItem value="reverse">Reverse Holo</SelectItem>
                       <SelectItem value="firstEdition">1st Edition</SelectItem>
+                      <SelectItem value="jumbo">Jumbo</SelectItem>
                     </SelectContent>
                   </Select>
                   {hasActiveFilters && (
@@ -978,35 +1042,44 @@ export default function CardSelector({
                     {scanError && <div className="text-sm text-destructive">{scanError}</div>}
                     {scanMatches.length > 0 && (
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {scanMatches.map((match, index) => (
-                          <button
-                            key={match.card.id}
-                            onClick={() => selectCard(match.card)}
-                            className={`flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-all hover:bg-muted/60 ${intentHoverCardClass}`}
-                          >
-                            {match.card.image ? (
-                              <img
+                        {scanMatches.map((match, index) => {
+                          const price = pricesByCardId[getCardPriceKey(match.card.id, selectedCardLanguage)]
+                          const priceLabels = getCardSelectorPriceLabels(price)
+
+                          return (
+                            <button
+                              key={match.card.id}
+                              onClick={() => selectCard(match.card)}
+                              className={`flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-all hover:bg-muted/60 ${intentHoverCardClass}`}
+                            >
+                              <CardSelectorImage
                                 src={match.card.image}
                                 alt={match.card.name}
                                 className="h-20 w-14 shrink-0 rounded-md object-cover bg-muted"
-                                loading="lazy"
+                                fallbackClassName="flex h-20 w-14 shrink-0 items-center justify-center rounded-md bg-muted"
                               />
-                            ) : (
-                              <div className="h-20 w-14 shrink-0 rounded-md bg-muted" />
-                            )}
-                            <div className="min-w-0">
-                              <p className={`text-xs font-medium uppercase tracking-[0.2em] ${intentTextClass}`}>
-                                {index === 0 ? "Best Match" : `Match ${index + 1}`}
-                              </p>
-                              <p className="truncate text-sm font-medium">{match.card.set.name}</p>
-                              <p className="text-xs text-muted-foreground">#{match.card.localId}</p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Similarity {Math.round(match.similarity * 100)}%
-                              </p>
-                              <p className={`mt-1 text-xs font-medium ${intentTextClass}`}>{intentCopy.actionLabel}</p>
-                            </div>
-                          </button>
-                        ))}
+                              <div className="min-w-0">
+                                <p className={`text-xs font-medium uppercase tracking-[0.2em] ${intentTextClass}`}>
+                                  {index === 0 ? "Best Match" : `Match ${index + 1}`}
+                                </p>
+                                <p className="truncate text-sm font-medium">{match.card.set.name}</p>
+                                <p className="text-xs text-muted-foreground">#{match.card.localId}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Similarity {Math.round(match.similarity * 100)}%
+                                </p>
+                                <div className="mt-1 grid grid-cols-2 gap-1 text-[10px]">
+                                  <span className="rounded-lg bg-background/70 px-1.5 py-1 text-emerald-600 dark:text-emerald-300">
+                                    Good {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}
+                                  </span>
+                                  <span className="rounded-lg bg-background/70 px-1.5 py-1 text-foreground">
+                                    Market {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}
+                                  </span>
+                                </div>
+                                <p className={`mt-1 text-xs font-medium ${intentTextClass}`}>{intentCopy.actionLabel}</p>
+                              </div>
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -1028,59 +1101,92 @@ export default function CardSelector({
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
-                {displayedCards.map((card) => (
-                  <button
-                    key={card.id}
-                    onClick={() => selectCard(card)}
-                    className={`relative group overflow-hidden rounded-xl border-2 bg-card text-left transition-all sm:hover:scale-[1.03] ${
-                      activeSelectedCardId === card.id ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
-                    }`}
-                  >
-                    {scanRankById.has(card.id) && (
-                      <div className="absolute left-2 top-2 z-10 rounded-full bg-black/80 px-2 py-1 text-[10px] font-medium text-white">
-                        Match {scanRankById.get(card.id)}
-                      </div>
-                    )}
-                    <div className="bg-card p-0">
-                      <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-[10px] bg-muted sm:rounded-none">
-                        {card.image ? (
-                          <img
+                {displayedCards.map((card) => {
+                  const price = pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)]
+                  const priceLabels = getCardSelectorPriceLabels(price)
+
+                  return (
+                    <div
+                      key={card.id}
+                      className={`relative group/card overflow-hidden rounded-xl border-2 bg-card text-left transition-all sm:hover:scale-[1.03] ${
+                        activeSelectedCardId === card.id ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
+                      }`}
+                    >
+                      {scanRankById.has(card.id) && (
+                        <div className="absolute left-2 top-2 z-10 rounded-full bg-black/80 px-2 py-1 text-[10px] font-medium text-white">
+                          Match {scanRankById.get(card.id)}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => selectCard(card)}
+                        className="block w-full bg-card p-0 text-left"
+                      >
+                        <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-[10px] bg-muted sm:rounded-none">
+                          <CardSelectorImage
                             src={card.image}
                             alt={card.name}
                             className="absolute inset-0 h-full w-full object-cover bg-muted"
-                            loading="lazy"
                           />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-muted">
-                            <span className="text-xs text-muted-foreground">No Image</span>
-                          </div>
-                        )}
-                        {activeSelectedCardId === card.id && (
-                          <div className={`absolute right-2 top-2 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] backdrop-blur ${intentCopy.activeClass}`}>
-                            {intentCopy.currentLabel}
-                          </div>
-                        )}
-                        <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/85 to-transparent p-2 sm:block">
-                          <p className="truncate text-xs font-medium text-white">{card.set.name}</p>
-                          <div className="mt-1 flex items-center justify-between gap-2">
-                            <p className="text-[10px] text-white/70">#{card.localId}</p>
-                            <p className={`rounded-full bg-black/45 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${intentTextClass}`}>
-                              {intentCopy.shortLabel}
-                            </p>
+                          {activeSelectedCardId === card.id && (
+                            <div className={`absolute right-2 top-2 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] backdrop-blur ${intentCopy.activeClass}`}>
+                              {intentCopy.currentLabel}
+                            </div>
+                          )}
+                          <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/90 via-black/68 to-transparent p-2 sm:block">
+                            <p className="truncate text-xs font-medium text-white">{card.set.name}</p>
+                            <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums">
+                              <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-emerald-200">G {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
+                              <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-white">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-2">
+                              <p className="text-[10px] text-white/70">#{card.localId}</p>
+                              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/58">{intentCopy.shortLabel} mode</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="p-1.5 sm:hidden">
-                        <p className="truncate text-[10px] font-semibold text-foreground">{card.set.name}</p>
-                        <div className="mt-0.5 flex items-center justify-between gap-1">
-                          <p className="text-[9px] text-muted-foreground">#{card.localId}</p>
-                          <p className={`text-[9px] font-semibold uppercase ${intentTextClass}`}>{intentCopy.shortLabel}</p>
+                        <div className="p-1.5 sm:hidden">
+                          <p className="truncate text-[10px] font-semibold text-foreground">{card.set.name}</p>
+                          <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums">
+                            <span className="rounded-md bg-muted px-1 py-0.5 text-emerald-600 dark:text-emerald-300">G {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
+                            <span className="rounded-md bg-muted px-1 py-0.5 text-foreground">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
+                          </div>
+                          <div className="mt-0.5 flex items-center justify-between gap-1">
+                            <p className="text-[9px] text-muted-foreground">#{card.localId}</p>
+                            <p className={`text-[9px] font-semibold uppercase ${intentTextClass}`}>{intentCopy.shortLabel}</p>
+                          </div>
                         </div>
+                      </button>
+                      <div className="grid grid-cols-2 gap-1.5 p-1.5 pt-0 sm:pointer-events-none sm:absolute sm:inset-x-2 sm:bottom-2 sm:z-20 sm:translate-y-1 sm:p-0 sm:opacity-0 sm:transition-all sm:duration-150 sm:group-hover/card:pointer-events-auto sm:group-hover/card:translate-y-0 sm:group-hover/card:opacity-100 sm:group-focus-within/card:pointer-events-auto sm:group-focus-within/card:translate-y-0 sm:group-focus-within/card:opacity-100">
+                        {selectorQuickActions.map((action) => (
+                          <button
+                            key={action.mode}
+                            type="button"
+                            onClick={() => selectCard(card, action.mode)}
+                            aria-label={`${action.accessibleLabel} ${card.name} from ${card.set.name}`}
+                            className={`flex h-8 min-w-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-bold uppercase tracking-[0.08em] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:h-9 sm:rounded-xl sm:backdrop-blur ${
+                              action.mode === "collect"
+                                ? action.isPrimary
+                                  ? "border-emerald-300/55 bg-emerald-500 text-white hover:bg-emerald-400"
+                                  : "border-emerald-400/35 bg-emerald-500/12 text-emerald-700 hover:bg-emerald-500/18 dark:text-emerald-200 sm:bg-black/58 sm:text-emerald-200 sm:hover:bg-emerald-500/32"
+                                : action.isPrimary
+                                  ? "border-amber-300/55 bg-amber-500 text-white hover:bg-amber-400"
+                                  : "border-amber-400/35 bg-amber-500/12 text-amber-700 hover:bg-amber-500/18 dark:text-amber-200 sm:bg-black/58 sm:text-amber-200 sm:hover:bg-amber-500/32"
+                            }`}
+                          >
+                            {action.mode === "collect" ? (
+                              <Check className="h-3 w-3 shrink-0" />
+                            ) : (
+                              <Heart className="h-3 w-3 shrink-0 fill-current" />
+                            )}
+                            <span className="truncate">{action.label}</span>
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  </button>
-                ))}
+                  )
+                })}
               </div>
             )}
             </div>

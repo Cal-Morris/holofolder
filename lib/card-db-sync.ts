@@ -39,7 +39,7 @@ type MirrorCardRow = {
   illustrator: string | null
   types_json: string[]
   image_languages_json: string[]
-  variants_json: Partial<Record<"normal" | "reverse" | "holo" | "firstEdition" | "wPromo", boolean>>
+  variants_json: Partial<Record<"normal" | "reverse" | "holo" | "firstEdition" | "wPromo" | "jumbo", boolean>>
   external_ids_json: JsonObject
   raw_json: JsonObject
 }
@@ -63,13 +63,17 @@ type TCGSet = {
   serie: TCGSeries
   cardCount?: {
     official?: number
+    total?: number
   }
   releaseDate?: string | Record<string, string>
 }
 
 type TCGCard = {
+  id?: string
+  localId?: string
   set: TCGSet
   name?: Record<string, string> | string
+  image?: string
   category?: string
   rarity?: string
   hp?: number | string
@@ -79,6 +83,7 @@ type TCGCard = {
   variants?:
     | Array<{
         type?: string
+        size?: string
         stamp?: string[]
         thirdParty?: Record<string, unknown>
       }>
@@ -88,6 +93,7 @@ type TCGCard = {
         holo?: boolean
         firstEdition?: boolean
         wPromo?: boolean
+        jumbo?: boolean
       }
   dexId?: number[]
 }
@@ -124,6 +130,31 @@ type PokemonTcgCard = {
   }
 }
 
+type RestSetSummary = {
+  id?: string
+  name?: string
+  serie?: {
+    id?: string
+    name?: string
+  }
+  cardCount?: {
+    total?: number
+  }
+}
+
+type RestSetDetail = RestSetSummary & {
+  releaseDate?: string
+  cardCount?: {
+    official?: number
+    total?: number
+  }
+  cards?: Array<{
+    id?: string
+    localId?: string
+    name?: string
+  }>
+}
+
 interface AssetManifestNode {
   [key: string]: AssetManifestNode | string
 }
@@ -149,6 +180,7 @@ interface CardDbSyncOptions {
 
 const REPO_URL = "https://github.com/tcgdex/cards-database"
 const POKEMON_TCG_DATA_BASE_URL = "https://raw.githubusercontent.com/PokemonTCG/pokemon-tcg-data/master"
+const TCGDEX_REST_BASE_URL = "https://api.tcgdex.net/v2/en"
 const DEFAULT_BATCH_SIZE = 500
 const CARD_DB_SYNC_LOCK_KEY = 10250418
 const EXCLUDED_SERIES_IDS = new Set(["tcgp"])
@@ -385,6 +417,7 @@ function normalizeVariants(cardVariants: TCGCard["variants"]) {
       holo: cardVariants.some((variant) => variant?.type === "holo"),
       firstEdition: cardVariants.some((variant) => variant?.stamp?.includes("1st-edition")),
       wPromo: cardVariants.some((variant) => variant?.stamp?.includes("w-Promo")),
+      jumbo: cardVariants.some((variant) => variant?.size === "jumbo"),
     }
   }
 
@@ -394,6 +427,7 @@ function normalizeVariants(cardVariants: TCGCard["variants"]) {
     holo: Boolean(cardVariants.holo),
     firstEdition: Boolean(cardVariants.firstEdition),
     wPromo: Boolean(cardVariants.wPromo),
+    jumbo: Boolean(cardVariants.jumbo),
   }
 }
 
@@ -470,12 +504,28 @@ function normalizeCardNumber(value: string | null | undefined) {
   return trimmed.toLowerCase()
 }
 
+function normalizeTcgDexImageUrl(value: unknown) {
+  if (typeof value !== "string" || value.length === 0) {
+    return null
+  }
+
+  if (/\.(?:png|jpe?g|webp)$/i.test(value)) {
+    return value
+  }
+
+  return `${value.replace(/\/$/, "")}/high.webp`
+}
+
 function buildExternalIds(card: TCGCard, pokemonTcgCard?: PokemonTcgCard, pokemonTcgSetId?: string | null): JsonObject {
   const externalIds: JsonObject = {}
   const cardThirdParty = normalizeJsonObject(card.thirdParty)
+  const tcgdexImage = normalizeTcgDexImageUrl(card.image)
 
-  if (Object.keys(cardThirdParty).length > 0) {
-    externalIds.tcgdex = { thirdParty: cardThirdParty }
+  if (Object.keys(cardThirdParty).length > 0 || tcgdexImage) {
+    externalIds.tcgdex = {
+      ...(tcgdexImage ? { image: tcgdexImage } : {}),
+      ...(Object.keys(cardThirdParty).length > 0 ? { thirdParty: cardThirdParty } : {}),
+    }
   }
 
   if (Array.isArray(card.variants)) {
@@ -561,6 +611,46 @@ async function fetchPokemonTcgCardsBySet(setId: string, logger?: (message: strin
   }
 
   return cardsByNumber
+}
+
+async function fetchRestSetSummaries(logger?: (message: string) => void) {
+  const sets = await fetchJson<RestSetSummary[]>(`${TCGDEX_REST_BASE_URL}/sets`, logger)
+  return Array.isArray(sets) ? sets : []
+}
+
+async function fetchRestSetDetail(setId: string, logger?: (message: string) => void) {
+  return fetchJson<RestSetDetail>(`${TCGDEX_REST_BASE_URL}/sets/${encodeURIComponent(setId)}`, logger)
+}
+
+async function fetchRestCard(cardId: string, logger?: (message: string) => void) {
+  return fetchJson<TCGCard>(`${TCGDEX_REST_BASE_URL}/cards/${encodeURIComponent(cardId)}`, logger)
+}
+
+export function selectRestSetsForSupplement(restSets: RestSetSummary[], mirrorCardCountsBySetId: Map<string, number>) {
+  return restSets.filter((set) => {
+    if (!set.id) {
+      return false
+    }
+
+    if (set.serie?.id && EXCLUDED_SERIES_IDS.has(set.serie.id)) {
+      return false
+    }
+
+    const restTotal = typeof set.cardCount?.total === "number" ? set.cardCount.total : null
+    const mirrorTotal = mirrorCardCountsBySetId.get(set.id) ?? 0
+
+    return mirrorTotal === 0 || (restTotal != null && restTotal > mirrorTotal)
+  })
+}
+
+function countCardsBySetId(cardsById: Map<string, MirrorCardRow>) {
+  const counts = new Map<string, number>()
+
+  for (const card of cardsById.values()) {
+    counts.set(card.set_id, (counts.get(card.set_id) ?? 0) + 1)
+  }
+
+  return counts
 }
 
 async function fetchAssetManifest(logger?: (message: string) => void): Promise<AssetManifest> {
@@ -727,6 +817,180 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
     if ((index + 1) % 250 === 0 || index === cardFiles.length - 1) {
       logWith(logger, `Parsed ${index + 1}/${cardFiles.length} card files`)
     }
+  }
+
+  const restSetCandidates = selectRestSetsForSupplement(
+    await fetchRestSetSummaries(logger),
+    countCardsBySetId(cardsById),
+  )
+
+  if (restSetCandidates.length > 0) {
+    logWith(logger, `Supplementing ${restSetCandidates.length} sets from live TCGdex REST data: ${restSetCandidates.map((set) => set.id).filter(Boolean).join(", ")}`)
+  }
+
+  let restSupplementCardCount = 0
+  for (const setCandidate of restSetCandidates) {
+    if (!setCandidate.id) {
+      continue
+    }
+
+    const restSet = await fetchRestSetDetail(setCandidate.id, logger)
+    const seriesId = restSet?.serie?.id
+
+    if (!restSet?.id || !seriesId || EXCLUDED_SERIES_IDS.has(seriesId)) {
+      continue
+    }
+
+    let restSetCardCount = 0
+
+    const seriesName = restSet.serie?.name || seriesId
+    const setName = restSet.name || restSet.id
+    const series: TCGSeries = {
+      id: seriesId,
+      name: { en: seriesName },
+    }
+    const set: TCGSet = {
+      id: restSet.id,
+      name: { en: setName },
+      serie: series,
+      cardCount: {
+        official: typeof restSet.cardCount?.official === "number" ? restSet.cardCount.official : undefined,
+        total: typeof restSet.cardCount?.total === "number" ? restSet.cardCount.total : undefined,
+      },
+      releaseDate: restSet.releaseDate,
+    }
+    const releaseDate = normalizeReleaseDate(set.releaseDate)
+    const officialCardCount = typeof set.cardCount?.official === "number" ? set.cardCount.official : null
+    const pokemonTcgSetKey = buildSetMatchKey(setName, releaseDate, officialCardCount)
+    const pokemonTcgSet = pokemonTcgSetKey ? pokemonTcgSetIndex.get(pokemonTcgSetKey) : undefined
+
+    seriesById.set(series.id, {
+      id: series.id,
+      name_json: normalizeLocalizedMap(series.name),
+      name_en: pickLocalizedText(series.name, "en"),
+      raw_json: series as unknown as Record<string, unknown>,
+    })
+
+    setsById.set(set.id, {
+      id: set.id,
+      series_id: series.id,
+      name_json: normalizeLocalizedMap(set.name),
+      name_en: setName,
+      official_card_count: officialCardCount,
+      release_date: releaseDate,
+      raw_json: pokemonTcgSet
+        ? {
+            ...(restSet as unknown as JsonObject),
+            supplementalSources: {
+              tcgdex_rest: restSet,
+              pokemon_tcg: pokemonTcgSet,
+            },
+          }
+        : {
+            ...(restSet as unknown as JsonObject),
+            supplementalSources: {
+              tcgdex_rest: restSet,
+            },
+          },
+    })
+
+    let pokemonTcgCards: Map<string, PokemonTcgCard> | undefined
+    if (pokemonTcgSet?.id) {
+      matchedPokemonTcgSetIds.add(pokemonTcgSet.id)
+      pokemonTcgCards = pokemonTcgCardsBySetId.get(pokemonTcgSet.id)
+
+      if (!pokemonTcgCards) {
+        pokemonTcgCards = await fetchPokemonTcgCardsBySet(pokemonTcgSet.id, logger)
+        pokemonTcgCardsBySetId.set(pokemonTcgSet.id, pokemonTcgCards)
+      }
+    }
+
+    for (const briefCard of restSet.cards ?? []) {
+      const cardId = briefCard.id
+      if (!cardId || cardsById.has(cardId)) {
+        continue
+      }
+
+      const restCard = await fetchRestCard(cardId, logger)
+      const localId = restCard?.localId || briefCard.localId || cardId.slice(`${set.id}-`.length)
+      if (!restCard || !localId) {
+        continue
+      }
+
+      const pokemonTcgCard = pokemonTcgCards?.get(normalizeCardNumber(localId) ?? "")
+      if (pokemonTcgCard?.id && pokemonTcgSet?.id) {
+        matchedPokemonTcgCardIds.add(pokemonTcgCard.id)
+        externalSourcesByCardId.set(cardId, {
+          card_id: cardId,
+          source: "pokemon_tcg",
+          source_card_id: pokemonTcgCard.id,
+          source_set_id: pokemonTcgSet.id,
+          raw_json: pokemonTcgCard as unknown as JsonObject,
+        })
+      }
+
+      const restCardForRow: TCGCard = {
+        ...restCard,
+        id: cardId,
+        localId,
+        set,
+      }
+      const types = Array.isArray(restCard.types) ? restCard.types.filter((value): value is string => typeof value === "string") : []
+
+      cardsById.set(cardId, {
+        id: cardId,
+        series_id: series.id,
+        set_id: set.id,
+        local_id: localId,
+        local_id_sort: normalizeLocalIdSort(localId),
+        name_json: normalizeLocalizedMap(restCard.name ?? briefCard.name),
+        name_en: pickLocalizedText(restCard.name ?? briefCard.name, "en") || pokemonTcgCard?.name || null,
+        category: typeof restCard.category === "string" ? restCard.category : pokemonTcgCard?.supertype || null,
+        rarity: typeof restCard.rarity === "string" ? restCard.rarity : pokemonTcgCard?.rarity || null,
+        hp: normalizeInteger(restCard.hp) ?? normalizeInteger(pokemonTcgCard?.hp),
+        illustrator: typeof restCard.illustrator === "string" ? restCard.illustrator : pokemonTcgCard?.artist || null,
+        types_json: types.length > 0 ? types : normalizeStringArray(pokemonTcgCard?.types),
+        image_languages_json: getImageLanguages(assetManifest, series.id, set.id, localId),
+        variants_json: normalizeVariants(restCard.variants),
+        external_ids_json: buildExternalIds(restCardForRow, pokemonTcgCard, pokemonTcgSet?.id),
+        raw_json: pokemonTcgCard
+          ? {
+              ...(restCard as unknown as JsonObject),
+              supplementalSources: {
+                tcgdex_rest: restCard,
+                pokemon_tcg: pokemonTcgCard,
+              },
+            }
+          : {
+              ...(restCard as unknown as JsonObject),
+              supplementalSources: {
+                tcgdex_rest: restCard,
+              },
+            },
+      })
+
+      const linkedDexIds = new Set([
+        ...(Array.isArray(restCard.dexId) ? restCard.dexId : []),
+        ...(Array.isArray(pokemonTcgCard?.nationalPokedexNumbers) ? pokemonTcgCard.nationalPokedexNumbers : []),
+      ])
+
+      for (const dexId of linkedDexIds) {
+        if (Number.isInteger(dexId) && dexId > 0) {
+          dexLinks.add(`${cardId}:${dexId}`)
+        }
+      }
+
+      restSupplementCardCount += 1
+      restSetCardCount += 1
+    }
+
+    if (restSetCardCount > 0) {
+      logWith(logger, `Added ${restSetCardCount} cards from live TCGdex REST set ${restSet.id}`)
+    }
+  }
+
+  if (restSupplementCardCount > 0) {
+    logWith(logger, `Added ${restSupplementCardCount} cards from live TCGdex REST data`)
   }
 
   return {

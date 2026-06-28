@@ -15,6 +15,8 @@ export interface SearchableCard {
     reverse?: boolean
     holo?: boolean
     firstEdition?: boolean
+    wPromo?: boolean
+    jumbo?: boolean
   }
 }
 
@@ -146,6 +148,11 @@ function buildSearchDocument<TCard extends SearchableCard>(card: TCard): CardSea
   addExactTokens(card.rarity)
   addExactTokens(card.illustrator)
   card.types?.forEach(addExactTokens)
+  if (card.variants?.jumbo) {
+    for (const token of ["jumbo", "oversized", "starter", "partner", "first"]) {
+      exactTokens.add(token)
+    }
+  }
   if (collectorNumber.localNumber) exactTokens.add(collectorNumber.localNumber)
   if (setTotal) exactTokens.add(setTotal)
   if (fullCollectorNumber) exactTokens.add(fullCollectorNumber)
@@ -164,6 +171,7 @@ function buildSearchDocument<TCard extends SearchableCard>(card: TCard): CardSea
       { value: fullCollectorNumber || "", weight: 10 },
       { value: normalizeText(card.rarity || ""), weight: 5 },
       { value: normalizeText(card.illustrator || ""), weight: 4 },
+      { value: card.variants?.jumbo ? "jumbo oversized starter partner first partner" : "", weight: 3 },
       ...(card.types || []).map((type) => ({ value: normalizeText(type), weight: 5 })),
     ],
   }
@@ -178,6 +186,7 @@ function passesStructuredFilters(card: SearchableCard, filters: CardSearchFilter
     if (filters.variant === "reverse" && !card.variants?.reverse) return false
     if (filters.variant === "holo" && !card.variants?.holo) return false
     if (filters.variant === "firstEdition" && !card.variants?.firstEdition) return false
+    if (filters.variant === "jumbo" && !card.variants?.jumbo) return false
   }
 
   return true

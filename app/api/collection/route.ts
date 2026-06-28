@@ -18,6 +18,7 @@ const VALID_CARD_FINISHES = new Set([
   "ace_spec",
   "amazing_rare",
   "shiny_rare",
+  "jumbo",
 ])
 
 function normalizeCardLanguage(value: unknown) {

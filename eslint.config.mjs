@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     ".swc/**",
     ".vercel/**",
+    ".worktrees/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

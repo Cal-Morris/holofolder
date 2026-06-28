@@ -15,6 +15,8 @@ export interface CardPriceSnapshot {
   cardId: string
   language: CardLanguage
   gbpAmount: number | null
+  marketGbpAmount: number | null
+  goodGbpAmount: number | null
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
   source: PriceSource | null
@@ -24,7 +26,7 @@ export interface CardPriceSnapshot {
   fetchedAt: number
 }
 
-const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v3"
+const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v4"
 const CARD_PRICE_CACHE_TTL_MS = 12 * 60 * 60 * 1000
 const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
 
@@ -123,6 +125,12 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
             cardId: price.cardId,
             language: normalizeCardLanguage(price.language),
             gbpAmount: typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount) ? price.gbpAmount : null,
+            marketGbpAmount: typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount)
+              ? price.marketGbpAmount
+              : typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount)
+                ? price.gbpAmount
+                : null,
+            goodGbpAmount: typeof price.goodGbpAmount === "number" && Number.isFinite(price.goodGbpAmount) ? price.goodGbpAmount : null,
             originalAmount: typeof price.originalAmount === "number" && Number.isFinite(price.originalAmount) ? price.originalAmount : null,
             originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
             source: price.source === "tcgplayer" || price.source === "cardmarket" ? price.source : null,
@@ -169,7 +177,26 @@ function readPriceCache(): Record<string, CardPriceSnapshot> {
     if (!raw) return {}
 
     const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === "object" ? parsed : {}
+    if (!parsed || typeof parsed !== "object") return {}
+
+    const normalized: Record<string, CardPriceSnapshot> = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== "object" || typeof (value as { cardId?: unknown }).cardId !== "string") {
+        continue
+      }
+
+      const snapshot = value as CardPriceSnapshot
+      normalized[key] = {
+        ...snapshot,
+        marketGbpAmount: typeof snapshot.marketGbpAmount === "number" && Number.isFinite(snapshot.marketGbpAmount)
+          ? snapshot.marketGbpAmount
+          : snapshot.gbpAmount,
+        goodGbpAmount: typeof snapshot.goodGbpAmount === "number" && Number.isFinite(snapshot.goodGbpAmount)
+          ? snapshot.goodGbpAmount
+          : null,
+      }
+    }
+    return normalized
   } catch {
     return {}
   }

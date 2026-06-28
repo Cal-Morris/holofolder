@@ -3,8 +3,13 @@ import { IMMUTABLE_IMAGE_CACHE_HEADERS } from "@/lib/http-cache"
 
 export const instant = false
 
-function isAllowedImageHost(hostname: string) {
-  return hostname === "assets.tcgdex.net" || hostname.endsWith(".tcgdex.net")
+export function isAllowedImageHost(hostname: string) {
+  return (
+    hostname === "assets.tcgdex.net" ||
+    hostname.endsWith(".tcgdex.net") ||
+    hostname === "images.pokemontcg.io" ||
+    hostname === "product-images.tcgplayer.com"
+  )
 }
 
 export async function GET(request: NextRequest) {

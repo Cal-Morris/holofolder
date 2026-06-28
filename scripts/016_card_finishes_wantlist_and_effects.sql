@@ -13,7 +13,14 @@ CHECK (card_finish IN (
   'illustration_rare',
   'special_illustration_rare',
   'secret_rare',
-  'hyper_rare'
+  'hyper_rare',
+  'double_rare',
+  'ultra_rare',
+  'radiant_rare',
+  'ace_spec',
+  'amazing_rare',
+  'shiny_rare',
+  'jumbo'
 ));
 
 ALTER TABLE public.pokemon_collection

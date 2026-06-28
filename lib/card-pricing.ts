@@ -13,6 +13,8 @@ export interface CardPriceSnapshot {
   cardId: string
   language: CardLanguage
   gbpAmount: number | null
+  marketGbpAmount: number | null
+  goodGbpAmount: number | null
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
   source: PriceSource | null
@@ -31,6 +33,8 @@ interface CardPriceRow {
   card_id: string
   language?: string | null
   gbp_amount: number | string | null
+  market_gbp_amount?: number | string | null
+  good_gbp_amount?: number | string | null
   original_amount: number | string | null
   original_currency: string | null
   source: string | null
@@ -75,6 +79,11 @@ const CARDMARKET_FIELD_PRIORITY = [
   "avg7-holo",
   "avg1-holo",
   "avg-holo",
+  "low",
+  "low-holo",
+] as const
+
+const CARDMARKET_GOOD_FIELD_PRIORITY = [
   "low",
   "low-holo",
 ] as const
@@ -193,10 +202,13 @@ export async function refreshCardPriceLookups(
 }
 
 function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
+  const gbpAmount = toFiniteNumber(row.gbp_amount)
   return {
     cardId: row.card_id,
     language: normalizeCardLanguage(row.language),
-    gbpAmount: toFiniteNumber(row.gbp_amount),
+    gbpAmount,
+    marketGbpAmount: toFiniteNumber(row.market_gbp_amount) ?? gbpAmount,
+    goodGbpAmount: toFiniteNumber(row.good_gbp_amount),
     originalAmount: toFiniteNumber(row.original_amount),
     originalCurrency: row.original_currency === "USD" || row.original_currency === "EUR" ? row.original_currency : null,
     source: row.source === "tcgplayer" || row.source === "cardmarket" ? row.source : null,
@@ -211,6 +223,8 @@ function snapshotToRow(snapshot: CardPriceSnapshot) {
     card_id: snapshot.cardId,
     language: snapshot.language,
     gbp_amount: snapshot.gbpAmount,
+    market_gbp_amount: snapshot.marketGbpAmount,
+    good_gbp_amount: snapshot.goodGbpAmount,
     original_amount: snapshot.originalAmount,
     original_currency: snapshot.originalCurrency,
     source: snapshot.source,
@@ -261,16 +275,27 @@ async function fetchCardPriceSnapshot(cardId: string, language: CardLanguage, fx
     }
 
     const payload = await response.json()
-    const tcgplayerPrice = pickTcgplayerPrice(cardId, language, payload?.pricing?.tcgplayer, fxRates)
-    const cardmarketPrice = pickCardmarketPrice(cardId, language, payload?.pricing?.cardmarket, fxRates)
-
-    return CARDMARKET_FIRST_LANGUAGES.has(language)
-      ? cardmarketPrice || tcgplayerPrice || emptySnapshot(cardId, language)
-      : tcgplayerPrice || cardmarketPrice || emptySnapshot(cardId, language)
+    return buildCardPriceSnapshotFromPricing(cardId, language, payload?.pricing, fxRates)
   } catch (error) {
     console.error(`[binderdex] Failed to fetch price for ${cardId} (${language}):`, error)
     return emptySnapshot(cardId, language)
   }
+}
+
+export function buildCardPriceSnapshotFromPricing(
+  cardId: string,
+  language: CardLanguage,
+  pricing: unknown,
+  fxRates: FxRates,
+): CardPriceSnapshot {
+  const pricingMap = pricing && typeof pricing === "object" ? pricing as Record<string, unknown> : {}
+  const tcgplayerPrice = pickTcgplayerPrice(cardId, language, pricingMap.tcgplayer, fxRates)
+  const cardmarketPrice = pickCardmarketPrice(cardId, language, pricingMap.cardmarket, fxRates)
+  const preferredPrice = CARDMARKET_FIRST_LANGUAGES.has(language)
+    ? cardmarketPrice || tcgplayerPrice
+    : tcgplayerPrice || cardmarketPrice
+
+  return preferredPrice || emptySnapshot(cardId, language)
 }
 
 function pickTcgplayerPrice(
@@ -289,20 +314,25 @@ function pickTcgplayerPrice(
       continue
     }
 
-    const amount =
+    const marketAmount =
       readFiniteNumber((variant as Record<string, unknown>).marketPrice) ??
       readFiniteNumber((variant as Record<string, unknown>).midPrice) ??
       readFiniteNumber((variant as Record<string, unknown>).lowPrice)
 
-    if (amount == null) {
+    if (marketAmount == null) {
       continue
     }
+
+    const lowAmount = readFiniteNumber((variant as Record<string, unknown>).lowPrice)
+    const marketGbpAmount = roundPrice(marketAmount * fxRates.usdToGbp)
 
     return {
       cardId,
       language,
-      gbpAmount: roundPrice(amount * fxRates.usdToGbp),
-      originalAmount: amount,
+      gbpAmount: marketGbpAmount,
+      marketGbpAmount,
+      goodGbpAmount: roundPrice((lowAmount ?? marketAmount * 0.8) * fxRates.usdToGbp),
+      originalAmount: marketAmount,
       originalCurrency: "USD",
       source: "tcgplayer",
       variantLabel: humanizeVariantLabel(variantKey),
@@ -331,10 +361,15 @@ function pickCardmarketPrice(
       continue
     }
 
+    const goodAmount = pickCardmarketGoodAmount(cardmarket, fieldKey) ?? amount * 0.8
+    const marketGbpAmount = roundPrice(amount * fxRates.eurToGbp)
+
     return {
       cardId,
       language,
-      gbpAmount: roundPrice(amount * fxRates.eurToGbp),
+      gbpAmount: marketGbpAmount,
+      marketGbpAmount,
+      goodGbpAmount: roundPrice(goodAmount * fxRates.eurToGbp),
       originalAmount: amount,
       originalCurrency: "EUR",
       source: "cardmarket",
@@ -347,11 +382,28 @@ function pickCardmarketPrice(
   return null
 }
 
+function pickCardmarketGoodAmount(cardmarket: Record<string, unknown>, marketFieldKey: string) {
+  if (marketFieldKey.endsWith("-holo")) {
+    return readFiniteNumber(cardmarket["low-holo"]) ?? readFiniteNumber(cardmarket.low)
+  }
+
+  for (const fieldKey of CARDMARKET_GOOD_FIELD_PRIORITY) {
+    const amount = readFiniteNumber(cardmarket[fieldKey])
+    if (amount != null) {
+      return amount
+    }
+  }
+
+  return null
+}
+
 function emptySnapshot(cardId: string, language: CardLanguage): CardPriceSnapshot {
   return {
     cardId,
     language,
     gbpAmount: null,
+    marketGbpAmount: null,
+    goodGbpAmount: null,
     originalAmount: null,
     originalCurrency: null,
     source: null,

@@ -22,6 +22,7 @@ export interface TCGSetSlotCard {
     holo?: boolean
     firstEdition?: boolean
     wPromo?: boolean
+    jumbo?: boolean
   }
   inferredFinish: CardFinish
 }
