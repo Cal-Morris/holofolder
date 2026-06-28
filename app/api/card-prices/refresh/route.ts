@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -30,6 +30,49 @@ async function resolveCollectionOwnerUserId(userId: string) {
   return partnership?.owner_user_id || userId
 }
 
+async function startCardPriceRefresh(ownerUserId: string | null) {
+  preferManagedVercelWorkflowWorld()
+
+  const [{ start }, { refreshCardPricesWorkflow }] = await Promise.all([
+    import("workflow/api"),
+    import("@/workflows/card-price-refresh"),
+  ])
+  const run = await start(refreshCardPricesWorkflow, [ownerUserId])
+
+  return NextResponse.json({
+    refresh: {
+      status: "started",
+      runId: run.runId,
+      scope: ownerUserId ? "owner" : "all",
+    },
+  })
+}
+
+function isAuthorizedCronRequest(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return false
+  }
+
+  return request.headers.get("authorization") === `Bearer ${cronSecret}`
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    if (!isAuthorizedCronRequest(request)) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 401 })
+    }
+
+    return await startCardPriceRefresh(null)
+  } catch (error) {
+    console.error("[binderdex] Failed to start scheduled card price refresh workflow:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to start scheduled price refresh." },
+      { status: 500 },
+    )
+  }
+}
+
 export async function POST() {
   try {
     const supabase = await createClient()
@@ -40,20 +83,7 @@ export async function POST() {
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(user.id)
-    preferManagedVercelWorkflowWorld()
-
-    const [{ start }, { refreshCardPricesWorkflow }] = await Promise.all([
-      import("workflow/api"),
-      import("@/workflows/card-price-refresh"),
-    ])
-    const run = await start(refreshCardPricesWorkflow, [ownerUserId])
-
-    return NextResponse.json({
-      refresh: {
-        status: "started",
-        runId: run.runId,
-      },
-    })
+    return await startCardPriceRefresh(ownerUserId)
   } catch (error) {
     console.error("[binderdex] Failed to start card price refresh workflow:", error)
     return NextResponse.json(

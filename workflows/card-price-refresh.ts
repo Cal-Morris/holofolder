@@ -21,10 +21,10 @@ interface CardPriceWorkflowResult {
 
 const PRICE_REFRESH_BATCH_SIZE = 25
 
-export async function refreshCardPricesWorkflow(ownerUserId: string): Promise<CardPriceWorkflowResult> {
+export async function refreshCardPricesWorkflow(ownerUserId: string | null = null): Promise<CardPriceWorkflowResult> {
   "use workflow"
 
-  console.log(`[binderdex] Starting card price refresh for owner ${ownerUserId}`)
+  console.log(`[binderdex] Starting card price refresh${ownerUserId ? ` for owner ${ownerUserId}` : " for all tracked cards"}`)
   const lookups = await loadTrackedCardPriceLookups(ownerUserId)
   const batches = chunkCardPriceLookups(lookups, PRICE_REFRESH_BATCH_SIZE)
   console.log(`[binderdex] Refreshing ${lookups.length} card price lookups in ${batches.length} batches`)
@@ -51,15 +51,20 @@ export async function refreshCardPricesWorkflow(ownerUserId: string): Promise<Ca
   }
 }
 
-async function loadTrackedCardPriceLookups(ownerUserId: string): Promise<CardPriceLookup[]> {
+async function loadTrackedCardPriceLookups(ownerUserId: string | null): Promise<CardPriceLookup[]> {
   "use step"
 
-  console.log(`[binderdex] Loading tracked cards for owner ${ownerUserId}`)
+  console.log(`[binderdex] Loading tracked cards${ownerUserId ? ` for owner ${ownerUserId}` : ""}`)
   const admin = createAdminClient()
-  const { data, error } = await admin
+  let query = admin
     .from("pokemon_collection")
     .select("card_id, card_language, wanted_cards")
-    .eq("user_id", ownerUserId)
+
+  if (ownerUserId) {
+    query = query.eq("user_id", ownerUserId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     throw error
