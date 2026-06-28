@@ -1145,11 +1145,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   const signOut = useCallback(async () => {
     if (readOnly) return
-    await supabase.auth.signOut()
     setUser(null)
     setCollectionOwnerUserId(null)
     setCollection([])
-  }, [readOnly, supabase])
+  }, [readOnly])
 
   return {
     user,
