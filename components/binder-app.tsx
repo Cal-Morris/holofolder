@@ -5070,7 +5070,7 @@ export default function BinderApp({
   }
 
   return (
-    <main className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-background select-none">
+    <main className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none">
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-background md:hidden"
@@ -5522,7 +5522,7 @@ export default function BinderApp({
         </div>
       </nav>
 
-      <div className={`mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+5.4rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
+      <div className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+5.4rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
         <input
           ref={pagePhotoInputRef}
           type="file"
@@ -5932,7 +5932,7 @@ export default function BinderApp({
             )}
 
             {/* Binder Grid */}
-            <div ref={binderStageRef} className="shrink-0 overflow-hidden md:flex md:min-h-0 md:flex-1 md:items-center md:justify-center">
+            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-start justify-center overflow-hidden md:items-center">
               <div
                 ref={binderRef}
                 className={`relative max-h-full max-w-full transition-all duration-150 ${
@@ -5947,6 +5947,7 @@ export default function BinderApp({
                   width: binderFitSize ? `${binderFitSize.width}px` : "100%",
                   height: binderFitSize ? `${binderFitSize.height}px` : "auto",
                   overscrollBehaviorX: "contain",
+                  touchAction: "pan-y",
                 }}
               >
                 <div className={`grid h-full w-full ${isSpreadLayout ? "grid-cols-2 gap-3 xl:gap-4" : "grid-cols-1"}`}>
@@ -6237,8 +6238,8 @@ export default function BinderApp({
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-30 px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] md:hidden">
-        <div className="mx-auto grid max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 rounded-[1.35rem] border border-border/70 bg-card/96 p-1.5 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
+      <div className="fixed inset-x-0 bottom-0 z-30 max-w-[100vw] overflow-hidden px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] md:hidden">
+        <div className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 rounded-[1.35rem] border border-border/70 bg-card/96 p-1.5 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
           <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl border border-border/50 bg-muted/42 p-0.5 dark:border-border/40 dark:bg-muted/35">
             <button
               onClick={() => setIsSearchOpen(true)}

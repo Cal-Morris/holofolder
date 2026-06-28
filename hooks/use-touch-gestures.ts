@@ -15,6 +15,17 @@ interface TouchGestureOptions {
   trackpadSwipeCooldown?: number
 }
 
+export function getTouchGestureIntent(deltaX: number, deltaY: number) {
+  const absX = Math.abs(deltaX)
+  const absY = Math.abs(deltaY)
+  const dragThreshold = 10
+
+  return {
+    movedEnough: absX > dragThreshold || absY > dragThreshold,
+    horizontalIntent: absX > dragThreshold && absX > absY * 1.25,
+  }
+}
+
 export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOptions) {
   const {
     onSwipeLeft,
@@ -93,13 +104,13 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     if (!touchStartRef.current) return
 
     const touch = e.touches[0]
-    const deltaX = Math.abs(touch.clientX - touchStartRef.current.x)
-    const deltaY = Math.abs(touch.clientY - touchStartRef.current.y)
+    const deltaX = touch.clientX - touchStartRef.current.x
+    const deltaY = touch.clientY - touchStartRef.current.y
+    const intent = getTouchGestureIntent(deltaX, deltaY)
 
-    // If moved too much, cancel long press and mark as swiping
-    if (deltaX > 10 || deltaY > 10) {
+    if (intent.movedEnough) {
       clearLongPressTimer()
-      if (!didSwipeRef.current) {
+      if (intent.horizontalIntent && !didSwipeRef.current) {
         didSwipeRef.current = true
         setIsSwiping(true)
       }
@@ -133,7 +144,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
       scheduleDidSwipeReset()
     }
     // Check for vertical swipe
-    else if (absY > swipeThreshold && absY > absX) {
+    else if (absY > swipeThreshold && absY > absX && (onSwipeDown || onSwipeUp)) {
       didSwipeRef.current = true
       if (deltaY > 0) {
         onSwipeDown?.()
@@ -146,7 +157,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     touchStartRef.current = null
     // Reset swiping state after a short delay to allow click prevention
     setTimeout(() => setIsSwiping(false), 50)
-  }, [clearLongPressTimer, swipeThreshold, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown])
+  }, [clearLongPressTimer, swipeThreshold, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, scheduleDidSwipeReset])
 
   const handleTouchCancel = useCallback(() => {
     clearLongPressTimer()
