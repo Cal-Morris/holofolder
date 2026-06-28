@@ -80,7 +80,13 @@ interface CardPriceRow {
 
 interface CardExternalIdsRow {
   id: string
+  local_id?: string | null
+  name_en?: string | null
+  rarity?: string | null
   external_ids_json: unknown
+  tcg_sets?: {
+    name_en?: string | null
+  } | null
 }
 
 export interface TcgplayerProductDetails {
@@ -93,6 +99,30 @@ export interface TcgplayerProductDetails {
   setCode?: string
   setName?: string
   customAttributes?: Record<string, unknown>
+}
+
+interface PokePulseSearchItem {
+  id?: number
+  slug?: string
+  productId?: string
+  name?: string
+  setName?: string
+  number?: string
+  rarity?: string
+  material?: string
+  promoInfo?: string | null
+  currentPrice?: number | null
+  trend7d?: number | null
+  updated_at?: string | null
+}
+
+interface CardPriceMetadata {
+  id: string
+  localId: string | null
+  name: string | null
+  rarity: string | null
+  setName: string | null
+  externalIds: unknown
 }
 
 export interface CardPriceRefreshResult {
@@ -138,6 +168,9 @@ const CARDMARKET_GOOD_FIELD_PRIORITY = [
   "low",
   "low-holo",
 ] as const
+
+const TCGPLAYER_SEARCH_ENDPOINT = "https://mp-search-api.tcgplayer.com/v1/search/request"
+const POKEPULSE_SEARCH_ENDPOINT = "https://pokepulse.io/api/v2/search/all"
 
 export function normalizeCardLanguage(value: unknown): CardLanguage {
   if (typeof value !== "string") return "en"
@@ -214,7 +247,7 @@ export async function refreshCardPriceLookups(
 
   let refreshedSnapshots: CardPriceSnapshot[] = []
   if (missingLookups.length > 0) {
-    const externalIdsByCardId = await loadCardExternalIds(supabase, [...new Set(missingLookups.map((lookup) => lookup.cardId))])
+    const metadataByCardId = await loadCardPriceMetadata(supabase, [...new Set(missingLookups.map((lookup) => lookup.cardId))])
     const fxRates = await fetchEcbFxRates().catch((error) => {
       console.error("[binderdex] Failed to load ECB FX rates for card prices:", error)
       return null
@@ -227,7 +260,7 @@ export async function refreshCardPriceLookups(
             lookup.cardId,
             lookup.language,
             fxRates,
-            externalIdsByCardId.get(lookup.cardId),
+            metadataByCardId.get(lookup.cardId),
           ),
         )
       : missingLookups.map((lookup) => emptySnapshot(lookup.cardId, lookup.language))
@@ -258,28 +291,35 @@ export async function refreshCardPriceLookups(
   }
 }
 
-async function loadCardExternalIds(
+async function loadCardPriceMetadata(
   supabase: ReturnType<typeof createAdminClient>,
   cardIds: string[],
 ) {
-  const externalIdsByCardId = new Map<string, unknown>()
-  if (cardIds.length === 0) return externalIdsByCardId
+  const metadataByCardId = new Map<string, CardPriceMetadata>()
+  if (cardIds.length === 0) return metadataByCardId
 
   const { data, error } = await supabase
     .from("tcg_cards")
-    .select("id, external_ids_json")
+    .select("id, local_id, name_en, rarity, external_ids_json, tcg_sets(name_en)")
     .in("id", cardIds)
 
   if (error) {
-    console.error("[binderdex] Failed to read card external ids for price fallback:", error)
-    return externalIdsByCardId
+    console.error("[binderdex] Failed to read card metadata for price fallback:", error)
+    return metadataByCardId
   }
 
   for (const row of (data ?? []) as CardExternalIdsRow[]) {
-    externalIdsByCardId.set(row.id, row.external_ids_json)
+    metadataByCardId.set(row.id, {
+      id: row.id,
+      localId: row.local_id ?? null,
+      name: row.name_en ?? null,
+      rarity: row.rarity ?? null,
+      setName: row.tcg_sets?.name_en ?? null,
+      externalIds: row.external_ids_json,
+    })
   }
 
-  return externalIdsByCardId
+  return metadataByCardId
 }
 
 function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
@@ -425,6 +465,7 @@ function normalizePriceSource(value: unknown): PriceSource | null {
     || value === "ebay"
     || value === "pricecharting"
     || value === "pokescope"
+    || value === "pokepulse"
     || value === "eyevo"
     || value === "public-page"
     ? value
@@ -443,6 +484,8 @@ function getPriceSourceLabel(source: PriceSource) {
       return "PriceCharting"
     case "pokescope":
       return "PokeScope"
+    case "pokepulse":
+      return "PokePulse"
     case "eyevo":
       return "Eyevo"
     case "public-page":
@@ -526,8 +569,10 @@ async function fetchCardPriceSnapshot(
   cardId: string,
   language: CardLanguage,
   fxRates: FxRates,
-  externalIds?: unknown,
+  metadata?: CardPriceMetadata,
 ): Promise<CardPriceSnapshot> {
+  let tcgdexPayload: Record<string, unknown> | null = null
+
   try {
     const response = await fetch(`https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(cardId)}`, {
       headers: {
@@ -541,7 +586,8 @@ async function fetchCardPriceSnapshot(
     }
 
     const payload = await response.json()
-    const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, payload?.pricing, fxRates)
+    tcgdexPayload = readRecord(payload)
+    const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, tcgdexPayload?.pricing, fxRates)
     if (snapshot.marketGbpAmount != null) {
       return snapshot
     }
@@ -549,7 +595,18 @@ async function fetchCardPriceSnapshot(
     console.error(`[binderdex] Failed to fetch price for ${cardId} (${language}):`, error)
   }
 
-  return await fetchTcgplayerProductPriceFallback(cardId, language, fxRates, externalIds)
+  const exactProductSnapshot = await fetchTcgplayerProductPriceFallback(cardId, language, fxRates, metadata?.externalIds)
+  if (exactProductSnapshot.marketGbpAmount != null) {
+    return exactProductSnapshot
+  }
+
+  return await fetchTcgplayerSearchPriceFallback(cardId, language, fxRates, {
+    cardId,
+    name: readString(tcgdexPayload?.name) ?? metadata?.name ?? null,
+    localId: readString(tcgdexPayload?.localId) ?? metadata?.localId ?? null,
+    setName: readString(readRecord(tcgdexPayload?.set)?.name) ?? metadata?.setName ?? null,
+    rarity: readString(tcgdexPayload?.rarity) ?? metadata?.rarity ?? null,
+  })
 }
 
 export function buildCardPriceSnapshotFromPricing(
@@ -604,6 +661,276 @@ async function fetchTcgplayerProductPriceFallback(
   return {
     ...combineSourceEvidence(preferred, productSnapshots),
     buySignal: buildBuySignal(preferred),
+  }
+}
+
+async function fetchTcgplayerSearchPriceFallback(
+  cardId: string,
+  language: CardLanguage,
+  fxRates: FxRates,
+  card: {
+    cardId: string
+    name: string | null
+    localId: string | null
+    setName: string | null
+    rarity: string | null
+  },
+) {
+  if (language !== "en" || !card.name || !card.localId) {
+    return emptySnapshot(cardId, language)
+  }
+
+  const query = buildTcgplayerSearchQuery(card)
+  if (!query) {
+    return emptySnapshot(cardId, language)
+  }
+
+  const products = await fetchTcgplayerSearchProducts(query).catch((error) => {
+    console.error(`[binderdex] Failed to search TCGplayer for ${cardId}:`, error)
+    return []
+  })
+  const matchedProduct = pickTcgplayerSearchProduct(card, products)
+  const tcgplayerSnapshot = matchedProduct
+    ? buildTcgplayerProductPriceSnapshot(cardId, language, matchedProduct, fxRates)
+    : null
+  const pokepulseSnapshot = await fetchPokePulseSearchPriceFallback(cardId, language, card)
+  const preferredSnapshot = pokepulseSnapshot ?? tcgplayerSnapshot
+  const snapshots = [pokepulseSnapshot, tcgplayerSnapshot].filter((snapshot): snapshot is CardPriceSnapshot => Boolean(snapshot))
+
+  if (!preferredSnapshot) {
+    return emptySnapshot(cardId, language)
+  }
+
+  const snapshot = combineSourceEvidence(preferredSnapshot, snapshots)
+
+  return {
+    ...snapshot,
+    confidence: "low" as const,
+    buySignal: buildBuySignal({ ...snapshot, confidence: "low" }),
+  }
+}
+
+function buildTcgplayerSearchQuery(card: { name: string | null; localId: string | null; setName: string | null }) {
+  const parts = [
+    card.localId,
+    card.name,
+    card.setName,
+    "Pokemon",
+  ].flatMap((part) => {
+    const trimmed = part?.trim()
+    return trimmed ? [trimmed] : []
+  })
+
+  return parts.join(" ").trim()
+}
+
+async function fetchTcgplayerSearchProducts(query: string): Promise<TcgplayerProductDetails[]> {
+  const searchParams = new URLSearchParams({
+    q: query,
+    isList: "false",
+    mpfev: "3445",
+  })
+  const response = await fetch(`${TCGPLAYER_SEARCH_ENDPOINT}?${searchParams}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "BinderDexPriceResearch/1.0 (+https://binder.cal.gg)",
+    },
+    body: JSON.stringify({
+      filters: {
+        term: {
+          productLineName: ["pokemon"],
+        },
+      },
+      from: 0,
+      size: 12,
+    }),
+    next: { revalidate: 60 * 60 * 12 },
+  })
+
+  if (!response.ok) {
+    return []
+  }
+
+  const payload = await response.json().catch(() => null)
+  const firstResult = Array.isArray(payload?.results) ? payload.results[0] : null
+  return Array.isArray(firstResult?.results) ? firstResult.results : []
+}
+
+export function pickTcgplayerSearchProduct(
+  card: { name: string | null; localId: string | null; setName: string | null; rarity: string | null },
+  products: TcgplayerProductDetails[],
+) {
+  const expectedNumber = normalizePriceMatchText(card.localId)
+  const expectedName = normalizePriceMatchText(card.name)
+  const expectedSetName = normalizePriceMatchText(card.setName)
+
+  if (!expectedNumber || !expectedName) {
+    return null
+  }
+
+  const scoredProducts = products.flatMap((product) => {
+    const productNumber = normalizePriceMatchText(product.customAttributes?.number)
+    const productName = normalizePriceMatchText(product.productName)
+    const setName = normalizePriceMatchText(product.setName)
+    const hasMarket = readFiniteNumber(product.marketPrice) != null
+
+    if (!hasMarket || productNumber !== expectedNumber || !productName.includes(expectedName)) {
+      return []
+    }
+
+    if (setName.includes("jumbo")) {
+      return []
+    }
+
+    let score = 10
+    if (expectedSetName && setName === expectedSetName) score += 8
+    if (expectedSetName && productName.includes(expectedSetName)) score += 6
+    if (productName.includes("promo")) score += 4
+    if (setName.includes("miscellaneous")) score += 1
+
+    return [{ product, score }]
+  })
+
+  scoredProducts.sort((left, right) => right.score - left.score)
+  return scoredProducts[0]?.product ?? null
+}
+
+async function fetchPokePulseSearchPriceFallback(
+  cardId: string,
+  language: CardLanguage,
+  card: { name: string | null; localId: string | null; setName: string | null; rarity: string | null },
+) {
+  if (language !== "en" || !card.name || !card.localId) {
+    return null
+  }
+
+  const query = buildTcgplayerSearchQuery(card)
+  const searchParams = new URLSearchParams({ q: query })
+  const response = await fetch(`${POKEPULSE_SEARCH_ENDPOINT}?${searchParams}`, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "BinderDexPriceResearch/1.0 (+https://binder.cal.gg)",
+    },
+    next: { revalidate: 60 * 60 * 12 },
+  }).catch((error) => {
+    console.error(`[binderdex] Failed to search PokePulse for ${cardId}:`, error)
+    return null
+  })
+
+  if (!response?.ok) {
+    return null
+  }
+
+  const payload = await response.json().catch(() => null)
+  const items = Array.isArray(payload?.items) ? payload.items as PokePulseSearchItem[] : []
+  const matchedItem = pickPokePulseSearchItem(card, items)
+  return matchedItem ? buildPokePulseSearchPriceSnapshot(cardId, language, matchedItem) : null
+}
+
+export function pickPokePulseSearchItem(
+  card: { name: string | null; localId: string | null; setName: string | null; rarity: string | null },
+  items: PokePulseSearchItem[],
+) {
+  const expectedNumber = normalizePriceMatchText(card.localId)
+  const expectedName = normalizePriceMatchText(card.name)
+  const expectedSetName = normalizePriceMatchText(card.setName)
+
+  if (!expectedNumber || !expectedName) {
+    return null
+  }
+
+  const scoredItems = items.flatMap((item) => {
+    const itemNumber = normalizePriceMatchText(item.number)
+    const itemName = normalizePriceMatchText(item.name)
+    const itemSetName = normalizePriceMatchText(item.setName)
+    const itemMaterial = normalizePriceMatchText(item.material)
+    const price = readFiniteNumber(item.currentPrice)
+
+    if (price == null || itemNumber !== expectedNumber || itemName !== expectedName) {
+      return []
+    }
+
+    if (itemMaterial.includes("jumbo")) {
+      return []
+    }
+
+    let score = 10
+    if (expectedSetName && itemSetName === expectedSetName) score += 8
+    if (expectedSetName && itemSetName.includes("promo") && expectedSetName.includes("promo")) score += 4
+    if (itemMaterial.includes("holo")) score += 2
+
+    return [{ item, score }]
+  })
+
+  scoredItems.sort((left, right) => right.score - left.score)
+  return scoredItems[0]?.item ?? null
+}
+
+function buildPokePulseSearchPriceSnapshot(
+  cardId: string,
+  language: CardLanguage,
+  item: PokePulseSearchItem,
+): CardPriceSnapshot | null {
+  const marketAmount = readFiniteNumber(item.currentPrice)
+  if (marketAmount == null) {
+    return null
+  }
+
+  const marketGbpAmount = roundPrice(marketAmount)
+  const goodGbpAmount = roundPrice(marketAmount * 0.85)
+  const { rangeLow, rangeHigh } = buildPriceRange(marketAmount, goodGbpAmount, null, 0.2)
+  const variantLabel = item.material || item.rarity || "PokePulse"
+  const previousPrice = typeof item.trend7d === "number" && Number.isFinite(item.trend7d)
+    ? roundPrice(marketAmount - item.trend7d)
+    : null
+
+  return {
+    cardId,
+    language,
+    gbpAmount: marketGbpAmount,
+    marketGbpAmount,
+    goodGbpAmount,
+    lowGbpAmount: roundPrice(rangeLow),
+    highGbpAmount: roundPrice(rangeHigh),
+    confidence: "low",
+    sourcePrices: [{
+      source: "pokepulse",
+      label: "PokePulse search",
+      variantLabel,
+      marketGbpAmount,
+      lowGbpAmount: goodGbpAmount,
+      originalMarketAmount: marketAmount,
+      originalLowAmount: goodGbpAmount,
+      originalCurrency: "GBP",
+      updatedAt: item.updated_at ?? null,
+    }],
+    trendPoints: previousPrice != null
+      ? [
+          {
+            label: "7d",
+            source: "pokepulse",
+            gbpAmount: previousPrice,
+            originalAmount: previousPrice,
+            originalCurrency: "GBP",
+          },
+          {
+            label: "Now",
+            source: "pokepulse",
+            gbpAmount: marketGbpAmount,
+            originalAmount: marketAmount,
+            originalCurrency: "GBP",
+          },
+        ]
+      : [],
+    buySignal: null,
+    originalAmount: marketAmount,
+    originalCurrency: null,
+    source: "pokepulse",
+    variantLabel,
+    updatedAt: item.updated_at ?? null,
+    fxDate: null,
   }
 }
 
@@ -715,6 +1042,21 @@ function normalizeProductId(value: unknown) {
   }
 
   return null
+}
+
+function normalizePriceMatchText(value: unknown) {
+  return typeof value === "string"
+    ? value
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+    : ""
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null
 }
 
 function readRecord(value: unknown) {

@@ -34,6 +34,7 @@ import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
 import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
 import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
+import { normalizeSlotPreviewImage, pickRepresentativeSlotPreviewCard, type SlotPreviewCard } from "@/lib/slot-preview-card"
 import { OFFLINE_CACHE_WARMUP_MESSAGE_TYPE, buildOfflineCacheWarmupUrls } from "@/lib/offline-cache-warmup"
 import {
   buildWantedDashboardSummary,
@@ -406,7 +407,6 @@ const CARD_FINISH_OPTIONS: Array<{ id: CardFinish; label: string }> = [
   { id: "ace_spec", label: "ACE" },
   { id: "amazing_rare", label: "Amazing" },
   { id: "shiny_rare", label: "Shiny" },
-  { id: "jumbo", label: "Jumbo" },
 ]
 
 function formatCardLanguageLabel(language?: string | null) {
@@ -826,6 +826,8 @@ export default function BinderApp({
   const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
   const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
   const pageScanCardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map())
+  const slotPreviewCardRequestIdsRef = useRef(new Set<number>())
+  const slotPreviewCardMissIdsRef = useRef(new Set<number>())
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
   const isRequestingMotionPermissionRef = useRef(false)
@@ -857,6 +859,8 @@ export default function BinderApp({
     hasRemoteSettings: initialHasStoredSettings,
   })
   const { fetchCardsForPokemon } = useTCGdex()
+  const [slotPreviewCardsByPokemonId, setSlotPreviewCardsByPokemonId] = useState<Record<number, SlotPreviewCard>>({})
+  const slotPreviewCardsByPokemonIdRef = useRef<Record<number, SlotPreviewCard>>({})
 
   const canEditBinder = !readOnlyMode
   const canFilterCollection = readOnlyMode || Boolean(user)
@@ -870,6 +874,10 @@ export default function BinderApp({
     () => new Map(collection.map((item) => [item.pokemon_id, item] as const)),
     [collection],
   )
+
+  useEffect(() => {
+    slotPreviewCardsByPokemonIdRef.current = slotPreviewCardsByPokemonId
+  }, [slotPreviewCardsByPokemonId])
 
   const slotsPerPage = settings.binderRows * settings.binderCols
   const binderPageAspectRatio = (
@@ -1770,6 +1778,82 @@ export default function BinderApp({
 
     return ids
   }, [getPageSlots, visibleBinderPageNumbers])
+  useEffect(() => {
+    const pokemonIdsToRequest: number[] = []
+
+    visiblePagePokemonIds.forEach((pokemonId) => {
+      const item = collectionByPokemonId.get(pokemonId)
+      const wantedCardPreview = item?.wanted_cards?.[0] ?? null
+      const selectedCardImage = normalizeSlotPreviewImage(
+        item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
+          ? wantedCardPreview?.card_image
+          : item?.card_image,
+      )
+
+      if (
+        selectedCardImage ||
+        slotPreviewCardsByPokemonIdRef.current[pokemonId] ||
+        slotPreviewCardRequestIdsRef.current.has(pokemonId) ||
+        slotPreviewCardMissIdsRef.current.has(pokemonId)
+      ) {
+        return
+      }
+
+      slotPreviewCardRequestIdsRef.current.add(pokemonId)
+      pokemonIdsToRequest.push(pokemonId)
+    })
+
+    if (pokemonIdsToRequest.length === 0) {
+      return
+    }
+
+    let isCancelled = false
+
+    void Promise.all(
+      pokemonIdsToRequest.map(async (pokemonId) => {
+        const cards = await fetchCardsForPokemon(pokemonId, "en")
+        return {
+          pokemonId,
+          previewCard: pickRepresentativeSlotPreviewCard(cards),
+        }
+      }),
+    ).then((results) => {
+      results.forEach((result) => {
+        slotPreviewCardRequestIdsRef.current.delete(result.pokemonId)
+      })
+
+      if (isCancelled) {
+        return
+      }
+
+      const previewCardsByPokemonId = results.reduce<Record<number, SlotPreviewCard>>((acc, result) => {
+        if (result.previewCard) {
+          acc[result.pokemonId] = result.previewCard
+        } else {
+          slotPreviewCardMissIdsRef.current.add(result.pokemonId)
+        }
+
+        return acc
+      }, {})
+
+      if (Object.keys(previewCardsByPokemonId).length === 0) {
+        return
+      }
+
+      setSlotPreviewCardsByPokemonId((currentPreviewCardsByPokemonId) => ({
+        ...currentPreviewCardsByPokemonId,
+        ...previewCardsByPokemonId,
+      }))
+    }).catch(() => {
+      pokemonIdsToRequest.forEach((pokemonId) => {
+        slotPreviewCardRequestIdsRef.current.delete(pokemonId)
+      })
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [collectionByPokemonId, fetchCardsForPokemon, visiblePagePokemonIds])
   const offlineCacheWarmupUrls = useMemo(
     () => buildOfflineCacheWarmupUrls({
       collection,
@@ -4297,12 +4381,15 @@ export default function BinderApp({
             const item = getCollectionItem(pokemon.id)
             const isCurrentWishlisted = item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
             const wantedCardPreview = item?.wanted_cards?.[0] ?? null
-            const slotCardImage = isCurrentWishlisted && wantedCardPreview?.card_image
+            const representativeSlotPreview = slotPreviewCardsByPokemonId[pokemon.id] ?? null
+            const selectedSlotCardImage = isCurrentWishlisted && wantedCardPreview?.card_image
               ? wantedCardPreview.card_image
               : item?.card_image
-            const slotCardName = isCurrentWishlisted && wantedCardPreview?.card_name
+            const slotCardImage = selectedSlotCardImage || representativeSlotPreview?.image
+            const selectedSlotCardName = isCurrentWishlisted && wantedCardPreview?.card_name
               ? wantedCardPreview.card_name
               : item?.card_name
+            const slotCardName = selectedSlotCardName || representativeSlotPreview?.name
             const slotCardFinish = isCurrentWishlisted && wantedCardPreview?.card_finish
               ? wantedCardPreview.card_finish
               : item?.card_finish
@@ -6356,7 +6443,7 @@ function PokemonSlot({
 
         {hasCardPreview ? (
           <div
-            className="absolute inset-[4px] z-[1] overflow-hidden border border-black/6 shadow-[0_1px_0_rgba(255,255,255,0.12),0_6px_12px_rgba(15,23,42,0.12)] dark:border-white/6 dark:shadow-[0_8px_14px_rgba(0,0,0,0.18)]"
+            className="absolute inset-0 z-[1] overflow-hidden"
             style={{
               borderRadius: TRADING_CARD_CORNER_RADIUS,
             }}
@@ -6364,7 +6451,7 @@ function PokemonSlot({
             <img
               src={previewImageSrc}
               alt={cardName || pokemon.name}
-              className={`h-full w-full object-contain ${previewToneClass} ${didFallbackPreviewImage ? "p-3 opacity-85" : ""} transition-transform duration-150 group-hover:scale-[1.015]`}
+              className={`h-full w-full ${didFallbackPreviewImage ? "object-contain p-3 opacity-85" : "object-cover"} ${previewToneClass} transition-transform duration-150 group-hover:scale-[1.015]`}
               loading={priority ? "eager" : "lazy"}
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"

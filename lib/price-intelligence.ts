@@ -1,4 +1,4 @@
-export type PriceProvider = "tcgplayer" | "cardmarket" | "ebay" | "pricecharting" | "pokescope" | "eyevo" | "public-page"
+export type PriceProvider = "tcgplayer" | "cardmarket" | "ebay" | "pricecharting" | "pokescope" | "pokepulse" | "eyevo" | "public-page"
 export type PriceCurrency = "USD" | "EUR" | "GBP"
 export type PriceMatchRating = "exact" | "strong" | "weak" | "rejected"
 export type BuySignalStatus = "good" | "fair" | "hold" | "rising"

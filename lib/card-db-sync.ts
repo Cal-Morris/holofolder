@@ -52,10 +52,33 @@ type MirrorCardExternalSourceRow = {
   raw_json: JsonObject
 }
 
-type MirrorDexLinkRow = {
-  card_id: string
-  dex_id: number
-}
+const FIRST_PARTNER_PACK_SOURCE_CARD_IDS = [
+  "base1-44",
+  "base1-46",
+  "base1-63",
+  "base1-58",
+  "neo1-54",
+  "neo1-57",
+  "neo1-81",
+  "ex1-76",
+  "ex1-74",
+  "ex1-59",
+  "dp1-103",
+  "dp1-76",
+  "dp1-93",
+  "bwp-BW01",
+  "bwp-BW02",
+  "bwp-BW03",
+  "xyp-XY01",
+  "xyp-XY02",
+  "xyp-XY03",
+  "smp-SM01",
+  "smp-SM02",
+  "smp-SM03",
+  "swshp-SWSH001",
+  "swshp-SWSH002",
+  "swshp-SWSH003",
+] as const
 
 type TCGSeries = {
   id: string
@@ -456,6 +479,96 @@ function normalizeLocalIdSort(localId: string) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function withoutJumboVariant(
+  variants: MirrorCardRow["variants_json"],
+): MirrorCardRow["variants_json"] {
+  const remainingVariants = { ...variants }
+  delete remainingVariants.jumbo
+  return Object.values(remainingVariants).some(Boolean) ? remainingVariants : { normal: true }
+}
+
+export function buildFirstPartnerPackSupplementRows(cards: MirrorCardRow[], dexLinks: Array<{ card_id: string; dex_id: number }>) {
+  const cardsById = new Map(cards.map((card) => [card.id, card] as const))
+  const linksByCardId = new Map<string, number[]>()
+
+  for (const link of dexLinks) {
+    const links = linksByCardId.get(link.card_id) ?? []
+    links.push(link.dex_id)
+    linksByCardId.set(link.card_id, links)
+  }
+
+  const series: MirrorSeriesRow = {
+    id: "misc",
+    name_json: { en: "Miscellaneous" },
+    name_en: "Miscellaneous",
+    raw_json: { id: "misc", name: { en: "Miscellaneous" } },
+  }
+  const set: MirrorSetRow = {
+    id: "first-partner-packs",
+    series_id: "misc",
+    name_json: { en: "First Partner Packs" },
+    name_en: "First Partner Packs",
+    official_card_count: FIRST_PARTNER_PACK_SOURCE_CARD_IDS.length,
+    release_date: "2021-02-26",
+    raw_json: {
+      id: "first-partner-packs",
+      name: { en: "First Partner Packs" },
+      serie: { id: "misc", name: { en: "Miscellaneous" } },
+      cardCount: { official: FIRST_PARTNER_PACK_SOURCE_CARD_IDS.length },
+      releaseDate: "2021-02-26",
+      supplementalSources: {
+        curated_first_partner_packs: true,
+      },
+    },
+  }
+  const firstPartnerCards: MirrorCardRow[] = []
+  const firstPartnerDexLinks: Array<{ card_id: string; dex_id: number }> = []
+
+  FIRST_PARTNER_PACK_SOURCE_CARD_IDS.forEach((sourceCardId, index) => {
+    const sourceCard = cardsById.get(sourceCardId)
+    if (!sourceCard || sourceCard.set_id === set.id) {
+      return
+    }
+
+    const sourceDexLinks = linksByCardId.get(sourceCard.id) ?? []
+    if (sourceDexLinks.length === 0) {
+      return
+    }
+
+    const firstPartnerCardId = `first-partner-${sourceCard.id}`
+    firstPartnerCards.push({
+      ...sourceCard,
+      id: firstPartnerCardId,
+      series_id: set.series_id,
+      set_id: set.id,
+      local_id: String(index + 1).padStart(3, "0"),
+      local_id_sort: index + 1,
+      image_languages_json: [],
+      variants_json: withoutJumboVariant(sourceCard.variants_json),
+      raw_json: {
+        sourceCardId: sourceCard.id,
+        sourceSetId: sourceCard.set_id,
+        sourceLocalId: sourceCard.local_id,
+        sourceName: sourceCard.name_json,
+        supplementalSources: {
+          curated_first_partner_pack: true,
+        },
+      },
+    })
+
+    for (const dexId of sourceDexLinks) {
+      firstPartnerDexLinks.push({ card_id: firstPartnerCardId, dex_id: dexId })
+    }
+  })
+
+  return {
+    series,
+    set,
+    cards: firstPartnerCards,
+    dexLinks: firstPartnerDexLinks.sort((a, b) => (a.dex_id - b.dex_id) || a.card_id.localeCompare(b.card_id)),
+  }
+}
+
 function normalizeReleaseDate(value: string | Record<string, string> | undefined) {
   const resolved = pickLocalizedText(value, "en")
   if (!resolved) return null
@@ -656,108 +769,6 @@ function countCardsBySetId(cardsById: Map<string, MirrorCardRow>) {
   }
 
   return counts
-}
-
-function appendJumboName(value: Record<string, string>) {
-  const result: Record<string, string> = {}
-  for (const [language, name] of Object.entries(value)) {
-    result[language] = /\bjumbo\b/i.test(name) ? name : `${name} Jumbo`
-  }
-  return result
-}
-
-function getJumboVariantPayload(rawJson: JsonObject) {
-  const variants = Array.isArray(rawJson.variants) ? rawJson.variants : []
-  const jumboVariants = variants.filter((variant) => (
-    variant
-    && typeof variant === "object"
-    && !Array.isArray(variant)
-    && (variant as Record<string, unknown>).size === "jumbo"
-  ))
-
-  return jumboVariants.length > 0 ? jumboVariants : null
-}
-
-export function buildJumboVariantSupplementRows(cards: MirrorCardRow[], dexLinks: MirrorDexLinkRow[]) {
-  const linksByCardId = new Map<string, number[]>()
-  for (const link of dexLinks) {
-    const links = linksByCardId.get(link.card_id) ?? []
-    links.push(link.dex_id)
-    linksByCardId.set(link.card_id, links)
-  }
-
-  const series: MirrorSeriesRow = {
-    id: "misc",
-    name_json: { en: "Miscellaneous" },
-    name_en: "Miscellaneous",
-    raw_json: { id: "misc", name: { en: "Miscellaneous" } },
-  }
-  const set: MirrorSetRow = {
-    id: "jumbo",
-    series_id: "misc",
-    name_json: { en: "Jumbo cards", fr: "Cartes Jumbo" },
-    name_en: "Jumbo cards",
-    official_card_count: 160,
-    release_date: "2000-02-01",
-    raw_json: {
-      id: "jumbo",
-      name: { en: "Jumbo cards", fr: "Cartes Jumbo" },
-      serie: { id: "misc", name: { en: "Miscellaneous" } },
-      cardCount: { official: 160 },
-      releaseDate: "2000-02-01",
-      supplementalSources: {
-        tcgdex_jumbo_variants: true,
-      },
-    },
-  }
-  const jumboCards: MirrorCardRow[] = []
-  const jumboDexLinks: MirrorDexLinkRow[] = []
-
-  for (const card of cards) {
-    if (card.set_id === "jumbo" || !card.variants_json.jumbo) {
-      continue
-    }
-
-    const sourceDexLinks = linksByCardId.get(card.id) ?? []
-    if (sourceDexLinks.length === 0) {
-      continue
-    }
-
-    const syntheticCardId = `jumbo-${card.id}`
-    const jumboVariants = getJumboVariantPayload(card.raw_json)
-    jumboCards.push({
-      ...card,
-      id: syntheticCardId,
-      series_id: "misc",
-      set_id: "jumbo",
-      local_id: card.id,
-      local_id_sort: card.local_id_sort,
-      name_json: appendJumboName(card.name_json),
-      name_en: card.name_en ? (/\bjumbo\b/i.test(card.name_en) ? card.name_en : `${card.name_en} Jumbo`) : null,
-      variants_json: { jumbo: true },
-      raw_json: {
-        sourceCardId: card.id,
-        sourceSetId: card.set_id,
-        sourceLocalId: card.local_id,
-        sourceName: card.name_json,
-        ...(jumboVariants ? { variants: jumboVariants } : {}),
-        supplementalSources: {
-          tcgdex_jumbo_variant: true,
-        },
-      },
-    })
-
-    for (const dexId of sourceDexLinks) {
-      jumboDexLinks.push({ card_id: syntheticCardId, dex_id: dexId })
-    }
-  }
-
-  return {
-    series,
-    set,
-    cards: jumboCards.sort((a, b) => a.id.localeCompare(b.id)),
-    dexLinks: jumboDexLinks.sort((a, b) => (a.dex_id - b.dex_id) || a.card_id.localeCompare(b.card_id)),
-  }
 }
 
 async function fetchAssetManifest(logger?: (message: string) => void): Promise<AssetManifest> {
@@ -1109,23 +1120,21 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
       }
     })
     .sort((a, b) => (a.dex_id - b.dex_id) || a.card_id.localeCompare(b.card_id))
-  const jumboSupplement = buildJumboVariantSupplementRows([...cardsById.values()], dexLinkRows)
+  const firstPartnerSupplement = buildFirstPartnerPackSupplementRows([...cardsById.values()], dexLinkRows)
 
-  if (jumboSupplement.cards.length > 0) {
-    seriesById.set(jumboSupplement.series.id, jumboSupplement.series)
-    setsById.set(jumboSupplement.set.id, jumboSupplement.set)
+  if (firstPartnerSupplement.cards.length > 0) {
+    seriesById.set(firstPartnerSupplement.series.id, firstPartnerSupplement.series)
+    setsById.set(firstPartnerSupplement.set.id, firstPartnerSupplement.set)
 
-    for (const card of jumboSupplement.cards) {
-      if (!cardsById.has(card.id)) {
-        cardsById.set(card.id, card)
-      }
+    for (const card of firstPartnerSupplement.cards) {
+      cardsById.set(card.id, card)
     }
 
-    for (const link of jumboSupplement.dexLinks) {
+    for (const link of firstPartnerSupplement.dexLinks) {
       dexLinks.add(`${link.card_id}:${link.dex_id}`)
     }
 
-    logWith(logger, `Added ${jumboSupplement.cards.length} synthetic cards from TCGdex jumbo variants`)
+    logWith(logger, `Added ${firstPartnerSupplement.cards.length} curated First Partner Pack cards`)
   }
 
   return {

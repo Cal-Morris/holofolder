@@ -3,6 +3,8 @@ import assert from "node:assert/strict"
 import {
   buildCardPriceSnapshotFromPricing,
   buildTcgplayerProductPriceSnapshot,
+  pickPokePulseSearchItem,
+  pickTcgplayerSearchProduct,
   pickTcgplayerProductIdsFromExternalIds,
 } from "../lib/card-pricing"
 
@@ -168,4 +170,81 @@ test("buildTcgplayerProductPriceSnapshot builds a fallback from exact TCGplayer 
   assert.equal(snapshot?.variantLabel, "Illustration Rare")
   assert.equal(snapshot?.confidence, "medium")
   assert.equal(snapshot?.sourcePrices[0].originalMarketAmount, 56.59)
+})
+
+test("pickTcgplayerSearchProduct accepts exact black star promo number matches outside TCGdex pricing", () => {
+  const product = pickTcgplayerSearchProduct({
+    name: "Rowlet",
+    localId: "SM01",
+    setName: "SM Black Star Promos",
+    rarity: "Promo",
+  }, [
+    {
+      productId: 140167,
+      productName: "Rowlet - SM01 (General Mills Promo)",
+      setName: "Miscellaneous Cards & Products",
+      rarityName: "Promo",
+      marketPrice: 2.76,
+      lowestPrice: 0.2,
+      customAttributes: { number: "SM01" },
+    },
+  ])
+
+  assert.equal(product?.productId, 140167)
+})
+
+test("pickTcgplayerSearchProduct rejects jumbo and wrong collector number matches", () => {
+  const product = pickTcgplayerSearchProduct({
+    name: "Rowlet",
+    localId: "SM01",
+    setName: "SM Black Star Promos",
+    rarity: "Promo",
+  }, [
+    {
+      productId: 205166,
+      productName: "Charizard GX - SM211 (SM Black Star Promo)",
+      setName: "Jumbo Cards",
+      rarityName: "Promo",
+      marketPrice: 9.99,
+      customAttributes: { number: "SM211" },
+    },
+    {
+      productId: 123,
+      productName: "Rowlet - SM02 (SM Black Star Promo)",
+      setName: "SM Black Star Promos",
+      rarityName: "Promo",
+      marketPrice: 9.99,
+      customAttributes: { number: "SM02" },
+    },
+  ])
+
+  assert.equal(product, null)
+})
+
+test("pickPokePulseSearchItem prefers priced non-jumbo exact promo matches", () => {
+  const item = pickPokePulseSearchItem({
+    name: "Rowlet",
+    localId: "SM01",
+    setName: "Sun & Moon Promos",
+    rarity: "Promo",
+  }, [
+    {
+      slug: "rowlet-sm01-jumbo-size-25th-anniversary",
+      name: "Rowlet",
+      setName: "Sun & Moon Promos",
+      number: "SM01",
+      material: "Jumbo Size",
+      currentPrice: 4.38,
+    },
+    {
+      slug: "rowlet-sm01-holo",
+      name: "Rowlet",
+      setName: "Sun & Moon Promos",
+      number: "SM01",
+      material: "Holo",
+      currentPrice: 4.95,
+    },
+  ])
+
+  assert.equal(item?.slug, "rowlet-sm01-holo")
 })
