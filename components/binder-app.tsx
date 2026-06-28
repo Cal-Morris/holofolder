@@ -5522,7 +5522,7 @@ export default function BinderApp({
         </div>
       </nav>
 
-      <div className={`mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
+      <div className={`mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+5.4rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
         <input
           ref={pagePhotoInputRef}
           type="file"
@@ -5932,7 +5932,7 @@ export default function BinderApp({
             )}
 
             {/* Binder Grid */}
-            <div ref={binderStageRef} className="min-h-0 flex-1 overflow-hidden md:flex md:items-center md:justify-center">
+            <div ref={binderStageRef} className="shrink-0 overflow-hidden md:flex md:min-h-0 md:flex-1 md:items-center md:justify-center">
               <div
                 ref={binderRef}
                 className={`relative max-h-full max-w-full transition-all duration-150 ${
@@ -5966,7 +5966,7 @@ export default function BinderApp({
             </div>
 
             {/* Page Info Footer */}
-            <div className="flex shrink-0 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground/70 md:hidden">
+            <div className="hidden shrink-0 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground/70 md:hidden">
               {isPriceMode && hasTrackedCards && (
                 <p className="text-center text-[10px] font-medium text-primary/85">
                   {visiblePageLabel} {visiblePageTotalLabel || "No page prices"}
@@ -6237,108 +6237,116 @@ export default function BinderApp({
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] md:hidden">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 rounded-2xl border border-border/70 bg-card/96 p-2 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.28)] dark:border-border/50 dark:bg-background dark:shadow-black/10">
-          <div className="grid flex-1 grid-cols-5 items-center rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/40 dark:bg-muted/40">
+      <div className="fixed inset-x-0 bottom-0 z-30 px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] md:hidden">
+        <div className="mx-auto grid max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 rounded-[1.35rem] border border-border/70 bg-card/96 p-1.5 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
+          <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl border border-border/50 bg-muted/42 p-0.5 dark:border-border/40 dark:bg-muted/35">
             <button
               onClick={() => setIsSearchOpen(true)}
-              className={`flex min-w-0 items-center justify-center gap-1 rounded-[10px] px-2 py-2 text-[11px] font-medium transition-all ${
+              aria-label="Search"
+              title="Search"
+              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 isSearchOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
-              <SearchIcon className="h-3.5 w-3.5" />
-              <span className="hidden min-[380px]:inline">Search</span>
+              <SearchIcon className="h-4 w-4" />
             </button>
             <button
               onClick={() => {
                 setIsSearchOpen(false)
                 setActiveMainView("binder")
               }}
-              className={`flex min-w-0 items-center justify-center gap-1 rounded-[10px] px-2 py-2 text-[11px] font-medium transition-all ${
+              aria-label="Binder"
+              title="Binder"
+              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && activeMainView === "binder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
-              <Grid3X3 className="h-3.5 w-3.5" />
-              <span className="hidden min-[380px]:inline">Binder</span>
+              <Grid3X3 className="h-4 w-4" />
             </button>
             <button
               onClick={() => {
                 setIsSearchOpen(false)
                 setActiveMainView("list")
               }}
-              className={`flex min-w-0 items-center justify-center gap-1 rounded-[10px] px-2 py-2 text-[11px] font-medium transition-all ${
+              aria-label="List"
+              title="List"
+              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && activeMainView === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
-              <ListChecks className="h-3.5 w-3.5" />
-              <span className="hidden min-[380px]:inline">List</span>
+              <ListChecks className="h-4 w-4" />
             </button>
             <button
               onClick={() => {
                 setIsSearchOpen(false)
                 setActiveMainView("wanted")
               }}
-              className={`flex min-w-0 items-center justify-center gap-1 rounded-[10px] px-2 py-2 text-[11px] font-medium transition-all ${
+              aria-label="Wanted"
+              title="Wanted"
+              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && activeMainView === "wanted" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
-              <Heart className="h-3.5 w-3.5" />
-              <span className="hidden min-[380px]:inline">Want</span>
+              <Heart className="h-4 w-4" />
             </button>
             <button
               onClick={() => {
                 setIsSearchOpen(false)
                 setActiveMainView("sets")
               }}
-              className={`flex min-w-0 items-center justify-center gap-1 rounded-[10px] px-2 py-2 text-[11px] font-medium transition-all ${
+              aria-label="Sets"
+              title="Sets"
+              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && activeMainView === "sets" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
-              <Layers3 className="h-3.5 w-3.5" />
-              <span className="hidden min-[380px]:inline">Sets</span>
+              <Layers3 className="h-4 w-4" />
             </button>
           </div>
 
             {!isSearchOpen && activeMainView === "binder" && (
-              <>
+              <div className="flex shrink-0 items-center gap-1">
               {hasTrackedCards && (
                 <Button
                   variant={isPriceMode ? "default" : "outline"}
-                  size="sm"
-                  className="h-10 shrink-0 rounded-xl px-3 text-[11px]"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 rounded-2xl px-0"
                   onClick={() => setIsPriceMode((current) => !current)}
+                  aria-label={isPriceMode ? "Hide prices" : "Show prices"}
                 >
                   {isLoadingPrices && isPriceMode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-bold">$</span>}
                 </Button>
               )}
               <Button
-                variant="outline"
-                size="sm"
-                className="h-10 shrink-0 rounded-xl px-3"
+                variant="default"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-2xl px-0"
                 onClick={handleJumpToNextNeeded}
                 disabled={activeJumpPokemonList.length === 0}
+                aria-label={`Next ${activeJumpLabel.toLowerCase()}`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
               </Button>
                 <Button
                   variant={collectionViewFilter === "all" && !isMobileFilterSheetOpen ? "outline" : "default"}
-                  size="sm"
-                className="h-10 shrink-0 rounded-xl px-3 text-[11px]"
+                  size="icon"
+                className="h-10 w-10 shrink-0 rounded-2xl px-0"
                 onClick={() => setIsMobileFilterSheetOpen(true)}
                 disabled={!canFilterCollection}
+                aria-label={`Filter: ${activeCollectionFilterOption.mobileLabel}`}
               >
-                <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
-                {activeCollectionFilterOption.mobileLabel}
+                <SlidersHorizontal className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="outline"
-                size="sm"
-                className="h-10 shrink-0 rounded-xl px-3"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-2xl px-0"
                 onClick={() => setIsMobileNavExpanded((current) => !current)}
+                aria-label={isMobileNavExpanded ? "Close controls" : "Open controls"}
               >
                 {isMobileNavExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </Button>
-            </>
+            </div>
           )}
         </div>
       </div>
