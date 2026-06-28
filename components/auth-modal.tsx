@@ -1,19 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Loader2, Mail, Sparkles, Fingerprint, KeyRound } from "lucide-react"
+import { X, Loader2, Mail, Sparkles, KeyRound } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from "@/lib/auth-redirects"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser"
 
 interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
-type AuthMethod = "passkey" | "magic-link" | "password"
+type AuthMethod = "magic-link" | "password"
 type PasswordMode = "sign-in" | "sign-up"
 type SuccessState = "magic-link" | "password-signup" | "password-reset" | null
 
@@ -24,19 +23,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<SuccessState>(null)
-  const [supportsPasskey, setSupportsPasskey] = useState(false)
   const [authMethod, setAuthMethod] = useState<AuthMethod>("password")
   const [passwordMode, setPasswordMode] = useState<PasswordMode>("sign-in")
 
   const supabase = createClient()
-
-  useEffect(() => {
-    const supported = browserSupportsWebAuthn()
-    setSupportsPasskey(supported)
-    if (!supported) {
-      setAuthMethod("magic-link")
-    }
-  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -143,70 +133,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
   }
 
-  const handlePasskeyLogin = async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const optionsRes = await fetch("/api/auth/passkey/authenticate/options", {
-        method: "POST",
-      })
-
-      if (!optionsRes.ok) throw new Error("Failed to get authentication options")
-      const options = await optionsRes.json()
-
-      const { sessionId, ...optionsJSON } = options
-      const credential = await startAuthentication({ optionsJSON })
-
-      const verifyRes = await fetch("/api/auth/passkey/authenticate/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          credential: {
-            id: credential.id,
-            rawId: credential.rawId,
-            response: {
-              authenticatorData: credential.response.authenticatorData,
-              clientDataJSON: credential.response.clientDataJSON,
-              signature: credential.response.signature,
-            },
-            type: credential.type,
-          },
-          sessionId,
-        }),
-      })
-
-      if (!verifyRes.ok) {
-        const data = await verifyRes.json()
-        throw new Error(data.error || "Authentication failed")
-      }
-
-      const result = await verifyRes.json()
-
-      if (result.token && result.email) {
-        const { error } = await supabase.auth.verifyOtp({
-          email: result.email,
-          token: result.token,
-          type: "magiclink",
-        })
-        if (error) throw error
-      }
-
-      closeAndReload()
-    } catch (err: any) {
-      if (err.name === "NotAllowedError") {
-        setError("Authentication was cancelled")
-      } else if (err.message?.includes("not found") || err.message?.includes("No passkey")) {
-        setError("No passkey found. Use magic link or password first, then add a passkey in settings.")
-        setAuthMethod("password")
-      } else {
-        setError(err.message || "Passkey authentication failed")
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const resetAuthState = () => {
     setSuccess(null)
     setError(null)
@@ -296,24 +222,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </div>
               )}
 
-              <div className={`grid gap-2 rounded-2xl bg-muted/50 p-1 ${supportsPasskey ? "grid-cols-3" : "grid-cols-2"}`}>
-                {supportsPasskey && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetAuthState()
-                      setAuthMethod("passkey")
-                    }}
-                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      authMethod === "passkey"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Fingerprint className="w-4 h-4" />
-                    Passkey
-                  </button>
-                )}
+              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted/50 p-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -346,28 +255,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </button>
               </div>
 
-              {authMethod === "passkey" && supportsPasskey ? (
-                <div className="space-y-4">
-                  <Button
-                    type="button"
-                    onClick={handlePasskeyLogin}
-                    className="h-12 w-full rounded-2xl font-semibold text-base shadow-lg shadow-primary/20 transition-shadow hover:shadow-primary/30"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Fingerprint className="w-5 h-5 mr-2" />
-                        Sign in with Passkey
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-xs text-center text-muted-foreground">
-                    Use Face ID, Touch ID, or Windows Hello to sign in instantly.
-                  </p>
-                </div>
-              ) : authMethod === "magic-link" ? (
+              {authMethod === "magic-link" ? (
                 <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <div className="relative">

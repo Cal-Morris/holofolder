@@ -7,7 +7,6 @@ import { Switch } from "@/components/ui/switch"
 import type { BinderSettings } from "@/hooks/use-settings"
 import { BINDER_COLOR_PRESETS, type BinderColorId } from "@/lib/binder-colors"
 import { buildBinderShareUrl } from "@/lib/binder-share"
-import PasskeySettings from "./passkey-settings"
 import type { User } from "@supabase/supabase-js"
 
 const BINDER_SIZES = [
@@ -553,13 +552,6 @@ export default function SettingsModal({
                   Sign in first to manage your public share link.
                 </p>
               )}
-            </div>
-          )}
-
-          {/* Passkey Settings */}
-          {effectiveActiveTab === "account" && !isReadOnlyView && (
-            <div className="pt-4 border-t border-border">
-              <PasskeySettings user={user} />
             </div>
           )}
 
