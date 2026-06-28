@@ -31,6 +31,7 @@ import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/p
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
 import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
+import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
 import { OFFLINE_CACHE_WARMUP_MESSAGE_TYPE, buildOfflineCacheWarmupUrls } from "@/lib/offline-cache-warmup"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
@@ -2103,17 +2104,25 @@ export default function BinderApp({
   const handleCardSelected = async (card: any | null, selectedMode: CardSelectorMode = cardSelectorMode, finish: CardFinish = "normal") => {
     if (!selectedPokemon) return
     if (readOnlyMode) return
+    const pokemon = selectedPokemon
+    const existingCollectionItem = collectionItem
+
+    beginBinderCardSelection({
+      onCloseSelector: () => setIsCardSelectorOpen(false),
+      onCloseSelectedSlot: () => setSelectedPokemon(null),
+    })
+
     setCardSelectorMode(selectedMode)
     if (selectedMode === "wishlist") {
       if (!card) {
-        const firstWantedCardId = collectionItem?.wanted_cards?.[0]?.card_id
+        const firstWantedCardId = existingCollectionItem?.wanted_cards?.[0]?.card_id
         if (firstWantedCardId) {
-          await removeWantedCard(selectedPokemon.id, firstWantedCardId)
+          await removeWantedCard(pokemon.id, firstWantedCardId)
         }
       } else {
         await addWantedCard(
-          selectedPokemon.id,
-          selectedPokemon.name,
+          pokemon.id,
+          pokemon.name,
           {
             card_id: card.id,
             card_name: card.name,
@@ -2130,8 +2139,8 @@ export default function BinderApp({
       }
     } else {
       await addToCollection(
-        selectedPokemon.id,
-        selectedPokemon.name,
+        pokemon.id,
+        pokemon.name,
         card?.id,
         card?.name,
         card?.image,
@@ -2140,7 +2149,7 @@ export default function BinderApp({
         "collected",
         {
           cardFinish: finish,
-          wantedCards: collectionItem?.wanted_cards ?? [],
+          wantedCards: existingCollectionItem?.wanted_cards ?? [],
         },
       )
     }

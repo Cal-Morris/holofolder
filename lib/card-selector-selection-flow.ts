@@ -8,3 +8,14 @@ export function completeCardSelectorSelection({
   onClose()
   onSelect()
 }
+
+export function beginBinderCardSelection({
+  onCloseSelector,
+  onCloseSelectedSlot,
+}: {
+  onCloseSelector: () => void
+  onCloseSelectedSlot: () => void
+}) {
+  onCloseSelector()
+  onCloseSelectedSlot()
+}
