@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import { Search, ArrowRight, Star, MapPinned } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { usePokemonCache } from "@/hooks/use-pokemon-cache"
-import { getPokemonSummary } from "@/lib/pokemon-catalog"
+import { formatPokemonDisplayName, getPokemonSummary } from "@/lib/pokemon-catalog"
 import {
   getInitialPokemonSearchFilter,
   getPokemonSearchPageJump,
@@ -266,6 +266,7 @@ export default function PokemonSearch({
             {visibleResults.map((pokemon, index) => {
               const meta = getResultMeta?.(pokemon)
               const isActive = index === selectedIndex
+              const displayName = formatPokemonDisplayName(pokemon.name)
 
               return (
                 <div
@@ -286,7 +287,7 @@ export default function PokemonSearch({
                         {meta?.previewImage ? (
                           <img
                             src={meta.previewImage}
-                            alt={pokemon.name}
+                            alt={displayName}
                             className={`absolute inset-1 m-auto h-[calc(100%-0.5rem)] w-[calc(100%-0.5rem)] ${meta.previewFitClass || "object-contain"} ${meta.previewToneClass || ""}`}
                           />
                         ) : (
@@ -302,7 +303,7 @@ export default function PokemonSearch({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className={`truncate font-semibold capitalize ${isActive ? "text-primary" : ""}`}>{pokemon.name}</div>
+                            <div className={`truncate font-semibold ${isActive ? "text-primary" : ""}`}>{displayName}</div>
                             <div className="text-sm text-muted-foreground">#{pokemon.id}</div>
                           </div>
                           {meta?.stateLabel ? (
