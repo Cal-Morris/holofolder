@@ -25,7 +25,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<SuccessState>(null)
   const [supportsPasskey, setSupportsPasskey] = useState(false)
-  const [authMethod, setAuthMethod] = useState<AuthMethod>("passkey")
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("password")
   const [passwordMode, setPasswordMode] = useState<PasswordMode>("sign-in")
 
   const supabase = createClient()

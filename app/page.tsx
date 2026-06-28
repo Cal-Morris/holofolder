@@ -1,4 +1,5 @@
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import BinderApp from "@/components/binder-app"
 import type { BinderSettings } from "@/hooks/use-settings"
@@ -22,6 +23,10 @@ export default async function Page() {
   const cookieStore = await cookies()
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/home")
+  }
 
   const partnershipResult = user
     ? await supabase

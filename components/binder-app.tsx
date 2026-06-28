@@ -2238,6 +2238,14 @@ export default function BinderApp({
     }
   }, [pokemonList, slotsPerPage])
 
+  const handleSearchJumpToPage = useCallback((page: number) => {
+    if (page < 1 || page > totalBinderPages) return
+
+    setSelectedPokemon(null)
+    setIsSearchOpen(false)
+    navigateToPage(page, page > currentBinderPage ? "left" : "right")
+  }, [currentBinderPage, navigateToPage, totalBinderPages])
+
   const handleSelectSetSlot = useCallback((slot: TCGSetDexSlot) => {
     const pokemon = getPokemonSummary(slot.dexId)
     if (!pokemon) return
@@ -2291,6 +2299,7 @@ export default function BinderApp({
           : item.card_name
         : null,
       locationLabel: page && slotLabel ? `Page ${page} • ${slotLabel}` : null,
+      pageNumber: page,
       isFavorite: item?.status === "finalized",
       isSelected: selectedPokemon?.id === pokemon.id,
       slotState,
@@ -4756,6 +4765,66 @@ export default function BinderApp({
                   )}
                 </>
               )}
+
+              {activeMainView === "binder" && (
+                <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                  <div className="flex items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/40">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    {isSpreadLayout && (
+                      <span className="hidden px-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground xl:inline-flex">
+                        {visiblePageLabel}
+                      </span>
+                    )}
+                    <input
+                      type="number"
+                      min={1}
+                      max={totalBinderPages}
+                      value={pageInputValue}
+                      onChange={(e) => {
+                        setPageInputValue(e.target.value)
+                      }}
+                      onBlur={commitPageInput}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          commitPageInput()
+                          e.currentTarget.blur()
+                        } else if (e.key === "Escape") {
+                          setPageInputValue(String(currentBinderPage))
+                          e.currentTarget.blur()
+                        }
+                      }}
+                      className="h-6 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-[11px] font-semibold tabular-nums"
+                    />
+                    <span className="pr-1 text-[11px] text-muted-foreground">/ {totalBinderPages}</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 rounded-xl px-0"
+                    onClick={handleJumpToPreviousNeeded}
+                    disabled={activeJumpPokemonList.length === 0}
+                    aria-label={`Previous ${activeJumpLabel.toLowerCase()}`}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-7 gap-1.5 rounded-xl px-2.5 text-[11px]"
+                    onClick={handleJumpToNextNeeded}
+                    disabled={activeJumpPokemonList.length === 0}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Next {activeJumpLabel}</span>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           </div>
@@ -4988,7 +5057,7 @@ export default function BinderApp({
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col space-y-3 animate-fade-in">
+        <div className="flex min-h-0 flex-1 flex-col space-y-2 animate-fade-in">
           {activeMainView === "list" ? (
             <DexListView
               pokemonList={filteredPokemonSummaryList}
@@ -5021,7 +5090,7 @@ export default function BinderApp({
           ) : (
             <>
             {/* Page Navigation - Compact */}
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 md:hidden">
               <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/35">
                 <Button variant="ghost" size="icon" className="h-8 w-8 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
                   <ChevronLeft className="w-4 h-4" />
@@ -5203,39 +5272,8 @@ export default function BinderApp({
               </div>
             </div>
 
-            <div className="shrink-0 px-0.5">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-[1.35rem] border border-border/60 bg-card/88 p-1.5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/72">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-14 w-full min-w-0 rounded-[1rem] text-muted-foreground disabled:pointer-events-none disabled:opacity-35 enabled:hover:bg-muted/70 enabled:hover:text-foreground sm:h-16"
-                  onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage}
-                  disabled={!canGoToPreviousVisiblePage}
-                  aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}
-                >
-                  <ChevronLeft className="h-8 w-8 shrink-0" />
-                </Button>
-
-                <div className="flex min-w-[4.5rem] flex-col items-center justify-center px-1 text-center">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Page</span>
-                  <span className="text-sm font-bold tabular-nums text-foreground">{currentBinderPage}/{totalBinderPages}</span>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-14 w-full min-w-0 rounded-[1rem] text-muted-foreground disabled:pointer-events-none disabled:opacity-35 enabled:hover:bg-muted/70 enabled:hover:text-foreground sm:h-16"
-                  onClick={isSpreadLayout ? goToNextSpread : goToNextPage}
-                  disabled={!canGoToNextVisiblePage}
-                  aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}
-                >
-                  <ChevronRight className="h-8 w-8 shrink-0" />
-                </Button>
-              </div>
-            </div>
-
             {/* Page Info Footer */}
-            <div className="flex shrink-0 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground/70">
+            <div className="flex shrink-0 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground/70 md:hidden">
               {isPriceMode && hasTrackedCards && (
                 <p className="text-center text-[10px] font-medium text-primary/85">
                   {visiblePageLabel} {visiblePageTotalLabel || "No page prices"}
@@ -5243,13 +5281,6 @@ export default function BinderApp({
                   {visiblePagePriceSummary.unpricedCount > 0 ? ` · ${visiblePagePriceSummary.unpricedCount} unpriced in view` : ""}
                 </p>
               )}
-              <p className="hidden text-center sm:block">
-                {readOnlyMode
-                  ? "Tap a Pokemon to open its details. This shared binder is read-only, but filters and prices still work."
-                  : isSpreadLayout
-                  ? "Tap a Pokemon to open its details. Wide layouts show facing pages; the highlighted page is the active one for scanning and page jumps."
-                  : "Tap a Pokemon to open its details. Collect, wishlist, edit, and remove cards from the action panel."}
-              </p>
               <div className="flex items-center justify-center gap-3">
               <span className="tabular-nums">{settings.binderRows}x{settings.binderCols} Binder</span>
               <span className="w-px h-3 bg-border/50" />
@@ -5293,6 +5324,8 @@ export default function BinderApp({
                   pokemonList={filteredPokemonList}
                   currentPagePokemonList={currentPagePokemon}
                   getResultMeta={getSearchResultMeta}
+                  totalPages={totalBinderPages}
+                  onJumpToPage={handleSearchJumpToPage}
                 />
                 {selectedPokemon && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
