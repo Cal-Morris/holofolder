@@ -344,13 +344,17 @@ export function buildCardPriceSnapshotFromPricing(
   fxRates: FxRates,
 ): CardPriceSnapshot {
   const pricingMap = pricing && typeof pricing === "object" ? pricing as Record<string, unknown> : {}
-  const tcgplayerPrice = pickTcgplayerPrice(cardId, language, pricingMap.tcgplayer, fxRates)
-  const cardmarketPrice = pickCardmarketPrice(cardId, language, pricingMap.cardmarket, fxRates)
+  const tcgplayerPrice = pickTcgplayerPrice(cardId, language, readRecord(pricingMap.tcgplayer), fxRates)
+  const cardmarketPrice = pickCardmarketPrice(cardId, language, readRecord(pricingMap.cardmarket), fxRates)
   const preferredPrice = CARDMARKET_FIRST_LANGUAGES.has(language)
     ? cardmarketPrice || tcgplayerPrice
     : tcgplayerPrice || cardmarketPrice
 
   return preferredPrice || emptySnapshot(cardId, language)
+}
+
+function readRecord(value: unknown) {
+  return value && typeof value === "object" ? value as Record<string, unknown> : null
 }
 
 function pickTcgplayerPrice(
