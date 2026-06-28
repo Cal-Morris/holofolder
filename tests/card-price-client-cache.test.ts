@@ -21,6 +21,7 @@ function priceSnapshot(cardId: string, fetchedAt: number): CardPriceSnapshot {
     confidence: "high",
     sourcePrices: [],
     trendPoints: [],
+    buySignal: null,
     originalAmount: 16,
     originalCurrency: "USD",
     source: "tcgplayer",

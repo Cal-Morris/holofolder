@@ -40,8 +40,9 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
   const gradientId = useId().replaceAll(":", "")
   const sourcePrices = price?.sourcePrices ?? []
   const trendPoints = price?.trendPoints ?? []
+  const buySignal = price?.buySignal ?? null
 
-  if (sourcePrices.length === 0 && (!showTrend || trendPoints.length < 2)) {
+  if (!buySignal && sourcePrices.length === 0 && (!showTrend || trendPoints.length < 2)) {
     return null
   }
 
@@ -53,6 +54,15 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
 
   return (
     <div className="mt-2 space-y-2">
+      {buySignal ? (
+        <div className={getBuySignalClassName(buySignal.status)}>
+          <div className="min-w-0">
+            <p className="truncate font-semibold">{buySignal.label}</p>
+            <p className="truncate text-muted-foreground">{buySignal.reason}</p>
+          </div>
+        </div>
+      ) : null}
+
       {sourcePrices.length > 0 ? (
         <div className="grid gap-1.5">
           {sourcePrices.map((source) => {
@@ -130,4 +140,19 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
       ) : null}
     </div>
   )
+}
+
+function getBuySignalClassName(status: NonNullable<CardPriceSnapshot["buySignal"]>["status"]) {
+  const base = "rounded-xl border px-2.5 py-1.5 text-[10px]"
+
+  switch (status) {
+    case "good":
+      return `${base} border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200`
+    case "fair":
+      return `${base} border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200`
+    case "rising":
+      return `${base} border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-200`
+    case "hold":
+      return `${base} border-border/45 bg-background/35 text-foreground dark:border-white/10 dark:bg-white/[0.03]`
+  }
 }

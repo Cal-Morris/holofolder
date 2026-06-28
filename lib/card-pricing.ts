@@ -1,7 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { buildBuySignal, type CardBuySignal, type PriceProvider } from "@/lib/price-intelligence"
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP"
-export type PriceSource = "tcgplayer" | "cardmarket"
+export type PriceSource = PriceProvider
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 export type PriceConfidence = "high" | "medium" | "low" | "unknown"
 
@@ -13,7 +14,7 @@ export interface CardPriceSourceSummary {
   lowGbpAmount: number | null
   originalMarketAmount: number | null
   originalLowAmount: number | null
-  originalCurrency: Exclude<SupportedCurrency, "GBP">
+  originalCurrency: SupportedCurrency
   updatedAt: string | null
 }
 
@@ -22,7 +23,7 @@ export interface CardPriceTrendPoint {
   source: PriceSource
   gbpAmount: number
   originalAmount: number
-  originalCurrency: Exclude<SupportedCurrency, "GBP">
+  originalCurrency: SupportedCurrency
 }
 
 export interface CardPriceLookup {
@@ -41,6 +42,7 @@ export interface CardPriceSnapshot {
   confidence: PriceConfidence
   sourcePrices: CardPriceSourceSummary[]
   trendPoints: CardPriceTrendPoint[]
+  buySignal: CardBuySignal | null
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
   source: PriceSource | null
@@ -66,6 +68,7 @@ interface CardPriceRow {
   confidence?: string | null
   source_prices?: unknown
   trend_points?: unknown
+  buy_signal?: unknown
   original_amount: number | string | null
   original_currency: string | null
   source: string | null
@@ -256,9 +259,10 @@ function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
     confidence: normalizePriceConfidence(row.confidence),
     sourcePrices: normalizeSourcePrices(row.source_prices),
     trendPoints: normalizeTrendPoints(row.trend_points),
+    buySignal: normalizeBuySignal(row.buy_signal),
     originalAmount: toFiniteNumber(row.original_amount),
     originalCurrency: row.original_currency === "USD" || row.original_currency === "EUR" ? row.original_currency : null,
-    source: row.source === "tcgplayer" || row.source === "cardmarket" ? row.source : null,
+    source: normalizePriceSource(row.source),
     variantLabel: row.variant_label,
     updatedAt: row.source_updated_at,
     fxDate: row.fx_date,
@@ -277,6 +281,7 @@ function snapshotToRow(snapshot: CardPriceSnapshot) {
     confidence: snapshot.confidence,
     source_prices: snapshot.sourcePrices,
     trend_points: snapshot.trendPoints,
+    buy_signal: snapshot.buySignal,
     original_amount: snapshot.originalAmount,
     original_currency: snapshot.originalCurrency,
     source: snapshot.source,
@@ -304,8 +309,8 @@ function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
     if (!item || typeof item !== "object") return []
 
     const record = item as Record<string, unknown>
-    const source = record.source === "tcgplayer" || record.source === "cardmarket" ? record.source : null
-    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR"
+    const source = normalizePriceSource(record.source)
+    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR" || record.originalCurrency === "GBP"
       ? record.originalCurrency
       : null
 
@@ -313,7 +318,7 @@ function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
 
     return [{
       source,
-      label: typeof record.label === "string" ? record.label : source === "tcgplayer" ? "TCGplayer" : "Cardmarket",
+      label: typeof record.label === "string" ? record.label : getPriceSourceLabel(source),
       variantLabel: typeof record.variantLabel === "string" ? record.variantLabel : null,
       marketGbpAmount: toFiniteNumber(record.marketGbpAmount as number | string | null | undefined),
       lowGbpAmount: toFiniteNumber(record.lowGbpAmount as number | string | null | undefined),
@@ -332,8 +337,8 @@ function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
     if (!item || typeof item !== "object") return []
 
     const record = item as Record<string, unknown>
-    const source = record.source === "tcgplayer" || record.source === "cardmarket" ? record.source : null
-    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR"
+    const source = normalizePriceSource(record.source)
+    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR" || record.originalCurrency === "GBP"
       ? record.originalCurrency
       : null
     const gbpAmount = toFiniteNumber(record.gbpAmount as number | string | null | undefined)
@@ -349,6 +354,66 @@ function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
       originalCurrency,
     }]
   })
+}
+
+function normalizeBuySignal(value: unknown): CardBuySignal | null {
+  if (!value || typeof value !== "object") return null
+
+  const record = value as Record<string, unknown>
+  const status = record.status
+  if (status !== "good" && status !== "fair" && status !== "hold" && status !== "rising") {
+    return null
+  }
+
+  return {
+    status,
+    label: typeof record.label === "string" ? record.label : getBuySignalStatusLabel(status),
+    reason: typeof record.reason === "string" ? record.reason : "",
+  }
+}
+
+function normalizePriceSource(value: unknown): PriceSource | null {
+  return value === "tcgplayer"
+    || value === "cardmarket"
+    || value === "ebay"
+    || value === "pricecharting"
+    || value === "pokescope"
+    || value === "eyevo"
+    || value === "public-page"
+    ? value
+    : null
+}
+
+function getPriceSourceLabel(source: PriceSource) {
+  switch (source) {
+    case "tcgplayer":
+      return "TCGplayer"
+    case "cardmarket":
+      return "Cardmarket"
+    case "ebay":
+      return "eBay"
+    case "pricecharting":
+      return "PriceCharting"
+    case "pokescope":
+      return "PokeScope"
+    case "eyevo":
+      return "Eyevo"
+    case "public-page":
+      return "Public page"
+  }
+}
+
+function getBuySignalStatusLabel(status: CardBuySignal["status"]) {
+  switch (status) {
+    case "good":
+      return "Good time"
+    case "fair":
+      return "Fair"
+    case "rising":
+      return "Rising"
+    case "hold":
+      return "Hold"
+  }
 }
 
 function parseJsonArray(value: unknown) {
@@ -444,9 +509,14 @@ export function buildCardPriceSnapshotFromPricing(
     ? cardmarketPrice || tcgplayerPrice
     : tcgplayerPrice || cardmarketPrice
 
-  return preferredPrice
+  const snapshot = preferredPrice
     ? combineSourceEvidence(preferredPrice, [tcgplayerPrice, cardmarketPrice])
     : emptySnapshot(cardId, language)
+
+  return {
+    ...snapshot,
+    buySignal: buildBuySignal(snapshot),
+  }
 }
 
 function readRecord(value: unknown) {
@@ -511,6 +581,7 @@ function pickTcgplayerPrice(
         updatedAt,
       }],
       trendPoints: [],
+      buySignal: null,
       originalAmount: marketAmount,
       originalCurrency: "USD",
       source: "tcgplayer",
@@ -574,6 +645,7 @@ function pickCardmarketPrice(
         updatedAt,
       }],
       trendPoints: buildCardmarketTrendPoints(cardmarket, fieldKey, fxRates),
+      buySignal: null,
       originalAmount: amount,
       originalCurrency: "EUR",
       source: "cardmarket",
@@ -625,6 +697,7 @@ function combineSourceEvidence(
     confidence: reconcileSourceConfidence(preferredPrice.confidence, sourceMarkets),
     sourcePrices,
     trendPoints,
+    buySignal: null,
   }
 }
 
@@ -668,6 +741,7 @@ function emptySnapshot(cardId: string, language: CardLanguage): CardPriceSnapsho
     confidence: "unknown",
     sourcePrices: [],
     trendPoints: [],
+    buySignal: null,
     originalAmount: null,
     originalCurrency: null,
     source: null,
