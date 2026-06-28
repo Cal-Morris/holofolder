@@ -1,4 +1,5 @@
 const PASSWORD_RECOVERY_PATH = "/auth/login?mode=recovery"
+const PRODUCTION_SITE_URL = "https://binder.cal.gg"
 
 function normalizeBaseUrl(value?: string | null) {
   if (!value) return null
@@ -13,6 +14,8 @@ function normalizeBaseUrl(value?: string | null) {
 function getConfiguredBaseUrl() {
   const envUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
     process.env.NEXT_PUBLIC_VERCEL_URL ||
     process.env.VERCEL_URL
 
@@ -29,11 +32,13 @@ function getBaseUrl() {
     return configuredBaseUrl
   }
 
+  if (process.env.NODE_ENV === "production") {
+    return PRODUCTION_SITE_URL
+  }
+
   if (process.env.NODE_ENV !== "production") {
     return "http://localhost:3000"
   }
-
-  throw new Error("Auth redirects require NEXT_PUBLIC_SITE_URL or a Vercel deployment URL in production.")
 }
 
 export function getMagicLinkRedirectUrl() {
