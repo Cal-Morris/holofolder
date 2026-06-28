@@ -83,3 +83,25 @@ test("buildCardPriceFetchPlan does not fetch while offline", () => {
   assert.equal(plan.cachedPrices[cacheKey]?.gbpAmount, 12)
   assert.deepEqual(plan.fetchBatches, [])
 })
+
+test("buildCardPriceFetchPlan chunks stale refreshes under the configured batch size", () => {
+  const cache = Object.fromEntries(
+    ["sv1-001", "sv1-002", "sv1-003"].map((cardId) => [
+      getCardPriceKey(cardId, "en"),
+      priceSnapshot(cardId, now - CARD_PRICE_CACHE_STALE_MS - 1),
+    ]),
+  )
+  const plan = buildCardPriceFetchPlan(
+    ["sv1-001", "sv1-002", "sv1-003"],
+    cache,
+    { batchSize: 2, now },
+  )
+
+  assert.deepEqual(plan.fetchBatches.map((batch) => ({
+    force: batch.force,
+    cards: batch.lookups.map((lookup) => lookup.cardId),
+  })), [
+    { force: true, cards: ["sv1-001", "sv1-002"] },
+    { force: true, cards: ["sv1-003"] },
+  ])
+})

@@ -30,7 +30,7 @@ test("buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
   assert.equal(snapshot.marketGbpAmount, 7.5)
   assert.equal(snapshot.goodGbpAmount, 6)
   assert.equal(snapshot.lowGbpAmount, 6)
-  assert.equal(snapshot.highGbpAmount, 10.5)
+  assert.equal(snapshot.highGbpAmount, 8.63)
   assert.equal(snapshot.confidence, "high")
   assert.equal(snapshot.source, "tcgplayer")
   assert.equal(snapshot.variantLabel, "Normal")

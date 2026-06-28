@@ -59,7 +59,7 @@ export interface CardPriceRefreshResult {
 }
 
 const FETCH_CONCURRENCY = 8
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000
+export const CARD_PRICE_CACHE_TTL_MS = 2 * 60 * 60 * 1000
 const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
 const CARDMARKET_FIRST_LANGUAGES = new Set<CardLanguage>(["fr", "de", "es", "it", "pt-br"])
 const TCGPLAYER_VARIANT_PRIORITY = [
@@ -157,7 +157,7 @@ export async function refreshCardPriceLookups(
     const now = Date.now()
     for (const row of (cachedRows ?? []) as CardPriceRow[]) {
       const fetchedAtMs = Date.parse(row.fetched_at)
-      if (Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CACHE_TTL_MS) {
+      if (Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CARD_PRICE_CACHE_TTL_MS) {
         const snapshot = rowToSnapshot(row)
         freshByLookupKey.set(getCardPriceKey(snapshot.cardId, snapshot.language), snapshot)
       }
@@ -373,7 +373,6 @@ function pickTcgplayerPrice(
     const providerMarketAmount = readFiniteNumber(variantRecord.marketPrice)
     const midAmount = readFiniteNumber(variantRecord.midPrice)
     const lowAmount = readFiniteNumber(variantRecord.lowPrice)
-    const highAmount = readFiniteNumber(variantRecord.highPrice)
     const marketAmount = providerMarketAmount ?? midAmount ?? lowAmount
 
     if (marketAmount == null) {
@@ -381,7 +380,7 @@ function pickTcgplayerPrice(
     }
 
     const marketGbpAmount = roundPrice(marketAmount * fxRates.usdToGbp)
-    const { rangeLow, rangeHigh } = buildPriceRange(marketAmount, lowAmount, highAmount)
+    const { rangeLow, rangeHigh } = buildPriceRange(marketAmount, lowAmount, null)
 
     return {
       cardId,
@@ -394,7 +393,7 @@ function pickTcgplayerPrice(
       confidence: priceConfidence({
         hasMarket: providerMarketAmount != null || midAmount != null,
         hasLow: lowAmount != null,
-        hasHigh: highAmount != null,
+        hasHigh: false,
         usedFallbackMarket: providerMarketAmount == null && midAmount == null,
       }),
       originalAmount: marketAmount,

@@ -1,8 +1,10 @@
-const CACHE_VERSION = "binderdex-v2"
+const CACHE_VERSION = "binderdex-v3"
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`
 const NAVIGATION_CACHE = `${CACHE_VERSION}-navigation`
 const DATA_CACHE = `${CACHE_VERSION}-data`
 const IMAGE_CACHE = `${CACHE_VERSION}-images`
+const WARM_CACHE_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
+const MAX_WARM_CACHE_URLS = 500
 
 const APP_SHELL_ASSETS = [
   "/",
@@ -18,6 +20,33 @@ const APP_SHELL_ASSETS = [
 
 function isCacheableResponse(response) {
   return Boolean(response) && (response.ok || response.type === "opaque")
+}
+
+function isImagePath(pathname) {
+  return /\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(pathname)
+}
+
+function getCacheNameForUrl(url) {
+  if (
+    url.pathname.startsWith("/api/card-image-proxy") ||
+    isImagePath(url.pathname)
+  ) {
+    return IMAGE_CACHE
+  }
+
+  if (
+    url.pathname.startsWith("/api/tcgdex-cache") ||
+    url.pathname.startsWith("/api/tcg-set-slots") ||
+    url.pathname.startsWith("/api/card-prices")
+  ) {
+    return DATA_CACHE
+  }
+
+  if (url.pathname === "/") {
+    return NAVIGATION_CACHE
+  }
+
+  return APP_SHELL_CACHE
 }
 
 async function cacheFirst(request, cacheName) {
@@ -85,6 +114,41 @@ async function networkFirst(request, cacheName, fallback) {
   }
 }
 
+async function warmCacheUrl(rawUrl) {
+  const url = new URL(rawUrl, self.location.origin)
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return
+  }
+
+  const request = new Request(url.toString(), {
+    credentials: url.origin === self.location.origin ? "same-origin" : "omit",
+  })
+  const cacheName = getCacheNameForUrl(url)
+  const cache = await caches.open(cacheName)
+
+  if (cacheName === IMAGE_CACHE && await cache.match(request)) {
+    return
+  }
+
+  const response = await fetch(request)
+  if (isCacheableResponse(response)) {
+    await cache.put(request, response.clone())
+  }
+}
+
+async function warmCacheUrls(rawUrls) {
+  if (!Array.isArray(rawUrls)) {
+    return
+  }
+
+  const urls = [...new Set(rawUrls.filter((url) => typeof url === "string" && url.length > 0))]
+    .slice(0, MAX_WARM_CACHE_URLS)
+
+  for (const url of urls) {
+    await warmCacheUrl(url).catch(() => undefined)
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -117,6 +181,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting()
+  }
+
+  if (event.data?.type === WARM_CACHE_MESSAGE_TYPE) {
+    event.waitUntil(warmCacheUrls(event.data.urls))
   }
 })
 
@@ -162,6 +230,7 @@ self.addEventListener("fetch", (event) => {
     url.origin === self.location.origin &&
     (
       url.pathname.startsWith("/api/tcgdex-cache") ||
+      url.pathname.startsWith("/api/tcg-set-slots") ||
       url.pathname.startsWith("/api/card-prices")
     )
   ) {

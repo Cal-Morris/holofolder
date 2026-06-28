@@ -1,3 +1,7 @@
+export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
+
+type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+
 interface OfflineCacheWarmupWantedCard {
   card_image?: unknown
 }
@@ -13,14 +17,19 @@ interface OfflineCacheWarmupInput {
   selectedPokemonId?: unknown
   collection?: unknown
   language?: unknown
+  maxUrls?: number
 }
 
+const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
+
 export function toCacheableCardImageUrl(value: unknown) {
-  if (typeof value !== "string" || value.length === 0) return null
-  if (value.startsWith("/")) return value
+  if (typeof value !== "string" || value.trim().length === 0) return null
+
+  const trimmed = value.trim()
+  if (trimmed.startsWith("/")) return trimmed
 
   try {
-    const url = new URL(value)
+    const url = new URL(trimmed)
     if (url.protocol !== "http:" && url.protocol !== "https:") return null
     return `/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`
   } catch {
@@ -29,7 +38,10 @@ export function toCacheableCardImageUrl(value: unknown) {
 }
 
 export function buildOfflineCacheWarmupUrls(input: OfflineCacheWarmupInput) {
-  const language = typeof input.language === "string" && input.language.length > 0 ? input.language : "en"
+  const language = normalizeCardLanguage(input.language)
+  const maxUrls = typeof input.maxUrls === "number" && Number.isInteger(input.maxUrls) && input.maxUrls > 0
+    ? input.maxUrls
+    : 500
   const urls = new Set<string>(["/"])
 
   addPokemonCacheUrls(urls, input.visiblePokemonIds, language)
@@ -48,7 +60,7 @@ export function buildOfflineCacheWarmupUrls(input: OfflineCacheWarmupInput) {
     }
   }
 
-  return [...urls]
+  return [...urls].slice(0, maxUrls)
 }
 
 function addPokemonCacheUrls(urls: Set<string>, values: unknown, language: string) {
@@ -65,4 +77,10 @@ function addCardImageUrl(urls: Set<string>, value: unknown) {
   if (imageUrl) {
     urls.add(imageUrl)
   }
+}
+
+function normalizeCardLanguage(value: unknown): CardLanguage {
+  if (typeof value !== "string") return "en"
+  const normalized = value.trim().toLowerCase()
+  return SUPPORTED_CARD_LANGUAGES.includes(normalized as CardLanguage) ? normalized as CardLanguage : "en"
 }

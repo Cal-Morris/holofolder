@@ -31,6 +31,7 @@ import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/p
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
 import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
+import { OFFLINE_CACHE_WARMUP_MESSAGE_TYPE, buildOfflineCacheWarmupUrls } from "@/lib/offline-cache-warmup"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
 
@@ -1485,6 +1486,14 @@ export default function BinderApp({
     () => {
       const byKey = new Map<string, CardPriceLookup>()
 
+      for (const lookup of ownedPriceLookups) {
+        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+      }
+
+      for (const lookup of wantedPriceLookups) {
+        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+      }
+
       if (shouldLoadCollectionPriceLookups && collectionViewFilter === "wanted") {
         for (const lookup of ownedPriceLookups) {
           byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
@@ -1493,10 +1502,6 @@ export default function BinderApp({
 
       if (shouldLoadCollectionPriceLookups) {
         for (const lookup of trackedPriceLookups) {
-          byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
-        }
-
-        for (const lookup of wantedPriceLookups) {
           byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
         }
       }
@@ -1514,7 +1519,7 @@ export default function BinderApp({
     [collectionViewFilter, ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
-  const shouldLoadCardPrices = shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
+  const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
   const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
   const filteredPriceSummary = useMemo(
     () => sumPriceSnapshots(filteredTrackedCards.map((item) => {
@@ -1659,6 +1664,14 @@ export default function BinderApp({
 
     return ids
   }, [getPageSlots, visibleBinderPageNumbers])
+  const offlineCacheWarmupUrls = useMemo(
+    () => buildOfflineCacheWarmupUrls({
+      collection,
+      selectedPokemonId: selectedPokemon?.id ?? null,
+      visiblePokemonIds: [...visiblePagePokemonIds],
+    }),
+    [collection, selectedPokemon, visiblePagePokemonIds],
+  )
   const visiblePageTrackedCards = useMemo(
     () =>
       collection.filter(
@@ -3150,6 +3163,38 @@ export default function BinderApp({
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in window.navigator)) {
+      return
+    }
+
+    if (window.navigator.onLine === false || offlineCacheWarmupUrls.length === 0) {
+      return
+    }
+
+    let cancelled = false
+    const timeoutId = window.setTimeout(() => {
+      void window.navigator.serviceWorker.ready
+        .then((registration) => {
+          if (cancelled) return
+
+          const targetWorker = registration.active ?? window.navigator.serviceWorker.controller
+          targetWorker?.postMessage({
+            type: OFFLINE_CACHE_WARMUP_MESSAGE_TYPE,
+            urls: offlineCacheWarmupUrls,
+          })
+        })
+        .catch((error) => {
+          console.error("[binderdex] Failed to warm offline cache:", error)
+        })
+    }, 1200)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+    }
+  }, [offlineCacheWarmupUrls])
 
   const handleInstallApp = useCallback(async () => {
     if (!installPromptEvent) {
