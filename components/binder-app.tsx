@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
-import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages } from "lucide-react"
+import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2 } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import SettingsModal from "@/components/settings-modal"
 import AuthModal from "@/components/auth-modal"
@@ -24,13 +24,14 @@ import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
-import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
+import { getBinderGridAspectRatio, scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
 import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } from "@/lib/binder-page-scan-aggregate"
 import { aggregateBinderSlotSweep, getNextSweepSlotIndex, type BinderSlotSweepFrame } from "@/lib/binder-slot-sweep"
 import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
 import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib/card-scan-evidence"
-import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
+import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
+import { buildBinderShareUrl } from "@/lib/binder-share"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
 import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
 import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
@@ -64,8 +65,7 @@ const GENERATIONS = [
 const TRADING_CARD_ASPECT_RATIO = 2.5 / 3.5
 const TRADING_CARD_CORNER_RADIUS = "5%"
 const TRADING_CARD_INNER_CORNER_RADIUS = "4.25%"
-const BINDER_GRID_GAP_CARD_UNITS = 0.05
-const BINDER_PAGE_PADDING_CARD_UNITS = 0.1
+const BINDER_SPREAD_GAP_ASPECT_RATIO = 0.025
 const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
 const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.45
@@ -92,6 +92,12 @@ type SlotGlareState = {
 
 type MotionGlintStatus = "disabled" | "needs-permission" | "requesting" | "active" | "fallback" | "denied" | "unsupported"
 type PageScannerMode = "slot-sweep" | "page-sweep"
+type WantedExplorerFilter =
+  | { kind: "all"; label: string }
+  | { kind: "band"; label: string; value: WantedDashboardPriceBandId }
+  | { kind: "set"; label: string; value: string }
+  | { kind: "language"; label: string; value: string }
+  | { kind: "finish"; label: string; value: string }
 
 const DEFAULT_SLOT_GLARE_STATE = {
   offsetX: -24,
@@ -772,6 +778,7 @@ export default function BinderApp({
   const [pageInputValue, setPageInputValue] = useState("1")
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>("all")
   const [wantedSort, setWantedSort] = useState<WantedDashboardSort>("highest")
+  const [wantedExplorerFilter, setWantedExplorerFilter] = useState<WantedExplorerFilter>({ kind: "all", label: "All wanted" })
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false)
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
@@ -801,6 +808,7 @@ export default function BinderApp({
   const [isShareEnabled, setIsShareEnabled] = useState(Boolean(shareViewToken))
   const [isShareLoading, setIsShareLoading] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [shareCopyMessage, setShareCopyMessage] = useState<string | null>(null)
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false)
   const [priceRefreshMessage, setPriceRefreshMessage] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(true)
@@ -830,6 +838,7 @@ export default function BinderApp({
   const pageScanCardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map())
   const slotPreviewCardRequestIdsRef = useRef(new Set<number>())
   const slotPreviewCardMissIdsRef = useRef(new Set<number>())
+  const shellNavRef = useRef<HTMLElement | null>(null)
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
   const isRequestingMotionPermissionRef = useRef(false)
@@ -868,6 +877,12 @@ export default function BinderApp({
   const canFilterCollection = readOnlyMode || Boolean(user)
   const canInstallApp = Boolean(installPromptEvent)
   const motionGlintEffectsEnabled = settings.binderSlotGlareEnabled || settings.cardFinishEffectsEnabled
+  const fullShareUrl = useMemo(() => {
+    if (!sharePath) return null
+    if (typeof window === "undefined") return sharePath
+
+    return buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/share\//, ""))
+  }, [sharePath])
   const handleSignOut = useCallback(async () => {
     await signOut()
     router.push("/auth/logout")
@@ -882,15 +897,7 @@ export default function BinderApp({
   }, [slotPreviewCardsByPokemonId])
 
   const slotsPerPage = settings.binderRows * settings.binderCols
-  const binderPageAspectRatio = (
-    settings.binderCols * TRADING_CARD_ASPECT_RATIO
-    + Math.max(0, settings.binderCols - 1) * BINDER_GRID_GAP_CARD_UNITS
-    + BINDER_PAGE_PADDING_CARD_UNITS * 2
-  ) / (
-    settings.binderRows
-    + Math.max(0, settings.binderRows - 1) * BINDER_GRID_GAP_CARD_UNITS
-    + BINDER_PAGE_PADDING_CARD_UNITS * 2
-  )
+  const binderPageAspectRatio = getBinderGridAspectRatio(settings.binderRows, settings.binderCols)
   const currentPageBinderColorId = settings.binderPageColors[String(currentBinderPage)] ?? settings.binderColorId
   const currentPageBinderColor = getBinderColorPreset(currentPageBinderColorId)
   const currentPageBinderTheme = isDarkMode ? currentPageBinderColor.dark : currentPageBinderColor.light
@@ -1675,9 +1682,34 @@ export default function BinderApp({
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),
     [pricesByCardId, wantedCardEntries],
   )
+  const filteredWantedDashboardCards = useMemo(() => {
+    if (wantedExplorerFilter.kind === "all") {
+      return wantedDashboard.cards
+    }
+
+    return wantedDashboard.cards.filter((wantedCard) => {
+      if (wantedExplorerFilter.kind === "band") {
+        return wantedCard.priceBandId === wantedExplorerFilter.value
+      }
+
+      if (wantedExplorerFilter.kind === "set") {
+        return (wantedCard.card.card_set || "Unknown set") === wantedExplorerFilter.value
+      }
+
+      if (wantedExplorerFilter.kind === "language") {
+        return (wantedCard.card.card_language ?? "en") === wantedExplorerFilter.value
+      }
+
+      if (wantedExplorerFilter.kind === "finish") {
+        return (wantedCard.card.card_finish ?? "normal") === wantedExplorerFilter.value
+      }
+
+      return true
+    })
+  }, [wantedDashboard.cards, wantedExplorerFilter])
   const sortedWantedDashboardCards = useMemo(
-    () => sortWantedDashboardEntries(wantedDashboard.cards, wantedSort),
-    [wantedDashboard.cards, wantedSort],
+    () => sortWantedDashboardEntries(filteredWantedDashboardCards, wantedSort),
+    [filteredWantedDashboardCards, wantedSort],
   )
 
   useEffect(() => {
@@ -1917,7 +1949,7 @@ export default function BinderApp({
     return "Binder Spread"
   }, [displayedSpreadPages])
   const displayedBinderAspectRatio = isSpreadLayout
-    ? binderPageAspectRatio * 2 + 0.12
+    ? binderPageAspectRatio * 2 + BINDER_SPREAD_GAP_ASPECT_RATIO
     : binderPageAspectRatio
   const binderFitSize = useMemo(() => {
     if (
@@ -2454,6 +2486,8 @@ export default function BinderApp({
 
   const handlePokemonSelect = useCallback((pokemon: PokemonSummary) => {
     setSelectedPokemon(pokemon)
+    setActiveMainView("binder")
+    setIsSearchOpen(false)
     const idx = pokemonList.findIndex(p => p.id === pokemon.id)
     if (idx !== -1) {
       const targetPage = Math.ceil((idx + 1) / slotsPerPage)
@@ -3513,8 +3547,11 @@ export default function BinderApp({
   }, [readOnlyMode, user])
 
   const handleEnableReadOnlyShare = useCallback(async () => {
+    if (readOnlyMode || !user) return
+
     setIsShareLoading(true)
     setShareMessage(null)
+    setShareCopyMessage(null)
 
     try {
       const response = await fetch("/api/binder-share", {
@@ -3534,11 +3571,29 @@ export default function BinderApp({
     } finally {
       setIsShareLoading(false)
     }
-  }, [])
+  }, [readOnlyMode, user])
+
+  const handleCopyReadOnlyShareLink = useCallback(async () => {
+    if (!fullShareUrl) {
+      setShareCopyMessage("Generate a share link first.")
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(fullShareUrl)
+      setShareCopyMessage("Share link copied.")
+      setShareMessage(null)
+    } catch {
+      setShareCopyMessage("Could not copy the share link.")
+    }
+  }, [fullShareUrl])
 
   const handleDisableReadOnlyShare = useCallback(async () => {
+    if (readOnlyMode || !user) return
+
     setIsShareLoading(true)
     setShareMessage(null)
+    setShareCopyMessage(null)
 
     try {
       const response = await fetch("/api/binder-share", {
@@ -3558,7 +3613,7 @@ export default function BinderApp({
     } finally {
       setIsShareLoading(false)
     }
-  }, [sharePath])
+  }, [readOnlyMode, sharePath, user])
 
   const handleRefreshPrices = useCallback(async () => {
     if (readOnlyMode) return
@@ -3593,6 +3648,7 @@ export default function BinderApp({
   const collectionItem = selectedPokemon ? getCollectionItem(selectedPokemon.id) : null
   const selectedPokemonHasAssignedCard = Boolean(collectionItem?.card_id)
   const selectedPokemonIsFavorite = collectionItem?.status === "finalized"
+  const selectedPokemonDisplayName = selectedPokemon ? formatPokemonDisplayName(selectedPokemon.name) : ""
   const selectedPokemonDisplayImage = selectedPokemon ? getDisplayArtwork(selectedPokemon, collectionItem?.card_image) : null
   const selectedPokemonDisplayFit = getDisplayArtworkFit(collectionItem?.card_image)
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
@@ -3671,7 +3727,8 @@ export default function BinderApp({
     const panelRect = quickPanelNode.getBoundingClientRect()
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
-    const edgePadding = 16
+    const navBottom = shellNavRef.current?.getBoundingClientRect().bottom ?? 0
+    const edgePadding = Math.max(16, navBottom + 10)
     const bottomClearance = 16
     const verticalGap = 14
     const spaceAbove = slotRect.top - edgePadding - verticalGap
@@ -3765,7 +3822,7 @@ export default function BinderApp({
               ? "No card assigned yet"
               : "Choose how you want to track this slot."
     const selectedPreviewImage = selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getPokemonArtwork(selectedPokemon)
-    const selectedPreviewAlt = selectedPrimaryCardPreview?.cardName ?? selectedPokemon.name
+    const selectedPreviewAlt = selectedPrimaryCardPreview?.cardName ?? selectedPokemonDisplayName
     const selectedPreviewIsCard = Boolean(selectedPrimaryCardPreview?.cardImage)
     const selectedPreviewTone = selectedPreviewIsCard ? "" : selectedPokemonDisplayTone
     const selectedPreviewFit = selectedPreviewIsCard ? "object-cover" : selectedPokemonDisplayFit
@@ -3835,7 +3892,7 @@ export default function BinderApp({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">#{String(selectedPokemon.id).padStart(4, "0")}</p>
-                    <h3 className="truncate text-[1.05rem] font-bold capitalize leading-tight tracking-tight">{selectedPokemon.name}</h3>
+                    <h3 className="truncate text-[1.05rem] font-bold leading-tight tracking-tight">{selectedPokemonDisplayName}</h3>
                   </div>
                   <Button
                     variant="ghost"
@@ -4500,6 +4557,28 @@ export default function BinderApp({
     const maxSetCount = Math.max(...visibleSetBreakdown.map((group) => group.count), 1)
     const maxFinishCount = Math.max(...visibleFinishBreakdown.map((group) => group.count), 1)
     const priorityCards = wantedDashboard.highestCards.slice(0, 4)
+    const isExplorerFiltered = wantedExplorerFilter.kind !== "all"
+    const setWantedFilter = (filter: WantedExplorerFilter, sort: WantedDashboardSort = wantedSort) => {
+      setWantedExplorerFilter(filter)
+      setWantedSort(sort)
+    }
+    const clearWantedFilter = () => setWantedExplorerFilter({ kind: "all", label: "All wanted" })
+    const isWantedFilterActive = (kind: WantedExplorerFilter["kind"], value?: string) => {
+      if (wantedExplorerFilter.kind !== kind) return false
+      if (wantedExplorerFilter.kind === "all") return true
+
+      return wantedExplorerFilter.value === value
+    }
+    const jumpToWantedPokemonPage = (pokemon: PokemonSummary | null) => {
+      if (!pokemon) return
+      const pokemonIndex = pokemonList.findIndex((entry) => entry.id === pokemon.id)
+      if (pokemonIndex < 0) return
+
+      const page = Math.ceil((pokemonIndex + 1) / slotsPerPage)
+      setActiveMainView("binder")
+      handlePokemonSelect(pokemon)
+      navigateToPage(page, page > currentBinderPage ? "left" : "right")
+    }
 
     if (totalWantedCount === 0) {
       return (
@@ -4535,38 +4614,66 @@ export default function BinderApp({
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-border/55 bg-background/56 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+              <button
+                type="button"
+                onClick={() => {
+                  clearWantedFilter()
+                  setWantedSort("newest")
+                }}
+                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">To buy</p>
                   <ShoppingBag className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums">{totalWantedCount}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">{wantedDashboard.unpricedCount} need pricing</p>
-              </div>
-              <div className="rounded-2xl border border-border/55 bg-background/56 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearWantedFilter()
+                  setWantedSort("highest")
+                }}
+                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Priced</p>
                   <ListChecks className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums">{wantedDashboard.pricedCount}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">{pricedPercent}% of wanted list</p>
-              </div>
-              <div className="rounded-2xl border border-border/55 bg-background/56 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearWantedFilter()
+                  setWantedSort("lowest")
+                }}
+                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Average</p>
                   <Tag className="h-3.5 w-3.5 text-sky-600 dark:text-sky-300" />
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums">{averagePriceLabel ?? "No price"}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">priced cards only</p>
-              </div>
-              <div className="rounded-2xl border border-border/55 bg-background/56 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearWantedFilter()
+                  setWantedSort("highest")
+                }}
+                className="rounded-2xl border border-border/55 bg-background/56 p-3 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Highest</p>
                   <Layers3 className="h-3.5 w-3.5 text-rose-600 dark:text-rose-300" />
                 </div>
                 <p className="mt-2 truncate text-base font-bold">{highestCard?.card.card_name ?? "No priced cards"}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">{highestPriceLabel ?? "No price"}</p>
-              </div>
+              </button>
             </div>
           </section>
 
@@ -4603,7 +4710,16 @@ export default function BinderApp({
                   const bandPercent = Math.round((band.count / bandDenominator) * 100)
 
                   return (
-                    <div key={band.id} className="rounded-2xl border border-border/50 bg-background/50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                    <button
+                      key={band.id}
+                      type="button"
+                      onClick={() => setWantedFilter({ kind: "band", value: band.id, label: band.label }, band.id === "unpriced" ? "unpriced" : "highest")}
+                      className={`rounded-2xl border p-3 text-left transition dark:border-white/10 ${
+                        isWantedFilterActive("band", band.id)
+                          ? "border-primary/45 bg-primary/8"
+                          : "border-border/50 bg-background/50 hover:border-primary/35 hover:bg-primary/5 dark:bg-white/[0.03]"
+                      }`}
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${bandStyle.dot}`} />
@@ -4615,7 +4731,7 @@ export default function BinderApp({
                         <div className={`h-full ${bandStyle.bar}`} style={{ width: `${bandPercent}%` }} />
                       </div>
                       <p className="mt-1 text-[11px] text-muted-foreground">{bandTotalLabel ?? "No priced total"}</p>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -4632,7 +4748,16 @@ export default function BinderApp({
 
               <div className="mt-4 space-y-2">
                 {visibleSetBreakdown.map((group) => (
-                  <div key={group.label}>
+                  <button
+                    key={group.label}
+                    type="button"
+                    onClick={() => setWantedFilter({ kind: "set", value: group.label, label: group.label }, "set")}
+                    className={`block w-full rounded-xl p-2 text-left transition ${
+                      isWantedFilterActive("set", group.label)
+                        ? "bg-primary/8"
+                        : "hover:bg-primary/5"
+                    }`}
+                  >
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <span className="truncate font-semibold">{group.label}</span>
                       <span className="shrink-0 text-muted-foreground tabular-nums">{group.count} cards</span>
@@ -4643,7 +4768,7 @@ export default function BinderApp({
                         style={{ width: `${Math.max(6, (group.count / maxSetCount) * 100)}%` }}
                       />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -4651,9 +4776,18 @@ export default function BinderApp({
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Languages</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {visibleLanguageBreakdown.map((group) => (
-                    <span key={group.label} className="rounded-full border border-border/55 bg-background/55 px-2.5 py-1 text-[11px] font-semibold dark:border-white/10 dark:bg-white/[0.04]">
+                    <button
+                      key={group.label}
+                      type="button"
+                      onClick={() => setWantedFilter({ kind: "language", value: group.label, label: formatCardLanguageLabel(group.label) }, "newest")}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition dark:border-white/10 ${
+                        isWantedFilterActive("language", group.label)
+                          ? "border-primary/45 bg-primary/10 text-primary"
+                          : "border-border/55 bg-background/55 hover:border-primary/35 hover:text-foreground dark:bg-white/[0.04]"
+                      }`}
+                    >
                       {formatCardLanguageLabel(group.label)} <span className="text-muted-foreground tabular-nums">{group.count}</span>
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -4662,7 +4796,16 @@ export default function BinderApp({
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Finishes</p>
                 <div className="mt-2 space-y-1.5">
                   {visibleFinishBreakdown.map((group) => (
-                    <div key={group.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                    <button
+                      key={group.label}
+                      type="button"
+                      onClick={() => setWantedFilter({ kind: "finish", value: group.label, label: formatCardFinishLabel(group.label) }, "newest")}
+                      className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl p-1.5 text-left transition ${
+                        isWantedFilterActive("finish", group.label)
+                          ? "bg-primary/8"
+                          : "hover:bg-primary/5"
+                      }`}
+                    >
                       <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2 text-[11px]">
                           <span className="truncate font-medium">{formatCardFinishLabel(group.label)}</span>
@@ -4675,7 +4818,7 @@ export default function BinderApp({
                           />
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -4713,7 +4856,7 @@ export default function BinderApp({
                     <button
                       key={`priority-${wantedCard.key}`}
                       type="button"
-                      onClick={() => pokemon && handlePokemonSelect(pokemon)}
+                      onClick={() => jumpToWantedPokemonPage(pokemon)}
                       className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2 rounded-2xl border border-border/55 bg-background/52 p-2 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
                     >
                       <span className="relative h-16 overflow-hidden rounded-xl border border-border/55 bg-muted dark:border-white/10">
@@ -4739,7 +4882,20 @@ export default function BinderApp({
             <div className="flex flex-col gap-3 border-b border-border/50 p-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between sm:p-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Wanted cards</p>
-                <h3 className="text-sm font-semibold">{sortedWantedDashboardCards.length} cards, sorted for buying</h3>
+                <h3 className="text-sm font-semibold">
+                  {sortedWantedDashboardCards.length}
+                  {isExplorerFiltered ? ` of ${totalWantedCount}` : ""} cards, sorted for buying
+                </h3>
+                {isExplorerFiltered ? (
+                  <button
+                    type="button"
+                    onClick={clearWantedFilter}
+                    className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/8 px-2.5 py-1 text-[11px] font-semibold text-primary"
+                  >
+                    {wantedExplorerFilter.label}
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null}
               </div>
               <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                 <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -4862,11 +5018,7 @@ export default function BinderApp({
                           size="sm"
                           className="h-9 rounded-xl text-xs"
                           disabled={!pokemon}
-                          onClick={() => {
-                            if (!pokemon) return
-                            handlePokemonSelect(pokemon)
-                            setActiveMainView("binder")
-                          }}
+                          onClick={() => jumpToWantedPokemonPage(pokemon)}
                         >
                           Page
                         </Button>
@@ -4914,8 +5066,8 @@ export default function BinderApp({
       )}
 
       {/* Glass Navigation */}
-      <nav className="sticky top-0 z-40 mb-1 shrink-0 px-2.5 pt-[max(env(safe-area-inset-top),0.35rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+0.45rem)]">
-        <div className="mx-auto max-w-7xl">
+      <nav ref={shellNavRef} className="sticky top-0 z-40 mb-1 shrink-0 px-2.5 pt-[max(env(safe-area-inset-top),0.35rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+0.45rem)]">
+        <div className={`mx-auto w-full ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
           <div className="rounded-2xl border border-border/70 bg-card/96 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.24)] md:bg-card/86 md:backdrop-blur-xl dark:border-border/50 dark:bg-background dark:shadow-black/5 dark:md:bg-background/88">
           <div className="flex items-center justify-between gap-2 px-3 py-2 md:px-2.5 md:py-1.5">
             <div className="flex min-w-0 items-center gap-2">
@@ -4979,7 +5131,7 @@ export default function BinderApp({
                 </Button>
 
                 {isDesktopActionsOpen && (
-                  <div className="absolute right-0 top-[calc(100%+0.45rem)] z-50 w-48 overflow-hidden rounded-xl border border-border/60 bg-card/96 p-1.5 text-sm shadow-[0_18px_44px_-24px_rgba(15,23,42,0.34)] backdrop-blur-xl dark:border-border/45 dark:bg-background/96">
+                  <div className="absolute right-0 top-[calc(100%+0.45rem)] z-50 w-56 overflow-hidden rounded-xl border border-border/60 bg-card/96 p-1.5 text-sm shadow-[0_18px_44px_-24px_rgba(15,23,42,0.34)] backdrop-blur-xl dark:border-border/45 dark:bg-background/96">
                     {installPromptEvent && !isInstalledApp ? (
                       <button
                         onClick={() => {
@@ -5006,6 +5158,24 @@ export default function BinderApp({
                       </button>
                     ) : null}
 
+                    {!readOnlyMode && user ? (
+                      <button
+                        onClick={() => {
+                          if (isShareEnabled && fullShareUrl) {
+                            void handleCopyReadOnlyShareLink()
+                            return
+                          }
+
+                          void handleEnableReadOnlyShare()
+                        }}
+                        disabled={isShareLoading}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-foreground hover:bg-muted/70 disabled:cursor-not-allowed disabled:opacity-55"
+                      >
+                        {isShareLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isShareEnabled ? <Copy className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+                        {isShareEnabled ? "Copy share link" : "Create share link"}
+                      </button>
+                    ) : null}
+
                     <button
                       onClick={() => {
                         setIsDesktopActionsOpen(false)
@@ -5026,6 +5196,12 @@ export default function BinderApp({
                       {isDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
                       {isDarkMode ? "Light mode" : "Dark mode"}
                     </button>
+
+                    {(shareCopyMessage || shareMessage) && !readOnlyMode && user ? (
+                      <p className="px-2.5 py-1 text-[10px] leading-snug text-primary">
+                        {shareCopyMessage || shareMessage}
+                      </p>
+                    ) : null}
 
                     {!readOnlyMode && user ? (
                       <>
@@ -5321,7 +5497,7 @@ export default function BinderApp({
         </div>
       </nav>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] sm:px-4 md:pb-4">
+      <div className={`mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
         <input
           ref={pagePhotoInputRef}
           type="file"
@@ -5825,7 +6001,7 @@ export default function BinderApp({
                       <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-muted to-muted/30">
                         <img
                           src={selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getPokemonArtwork(selectedPokemon)}
-                          alt={selectedPrimaryCardPreview?.cardName ?? selectedPokemon.name}
+                          alt={selectedPrimaryCardPreview?.cardName ?? selectedPokemonDisplayName}
                           className={selectedPrimaryCardPreview?.cardImage
                             ? "absolute inset-0 h-full w-full rounded-xl object-cover"
                             : `absolute inset-2 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] m-auto ${selectedPokemonDisplayFit} ${selectedPokemonDisplayTone}`}
@@ -5833,7 +6009,7 @@ export default function BinderApp({
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-muted-foreground">#{String(selectedPokemon.id).padStart(4, "0")}</p>
-                        <h2 className="truncate text-lg font-bold capitalize">{selectedPokemon.name}</h2>
+                        <h2 className="truncate text-lg font-bold">{selectedPokemonDisplayName}</h2>
                         {selectedHasWantedCard && selectedPrimaryCardPreview?.cardName ? (
                           <p className="truncate text-xs text-amber-500">Wanted: {selectedPrimaryCardPreview.cardName}</p>
                         ) : collectionItem?.card_name ? (

@@ -19,6 +19,15 @@ const BINDER_SIZES = [
   { rows: 4, cols: 4, label: "4x4" },
 ]
 
+type SettingsTabId = "binder" | "display" | "share" | "account"
+
+const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
+  { id: "binder", label: "Binder" },
+  { id: "display", label: "Display" },
+  { id: "share", label: "Share" },
+  { id: "account", label: "Account" },
+]
+
 interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
@@ -107,6 +116,12 @@ export default function SettingsModal({
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage))
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("binder")
+  const visibleSettingsTabs = isReadOnlyView
+    ? SETTINGS_TABS.filter((tab) => tab.id === "binder" || tab.id === "display")
+    : SETTINGS_TABS
+  const effectiveActiveTab: SettingsTabId =
+    isReadOnlyView && (activeTab === "share" || activeTab === "account") ? "binder" : activeTab
 
   useEffect(() => {
     if (isOpen) {
@@ -175,6 +190,25 @@ export default function SettingsModal({
           </button>
         </div>
 
+        <div className="shrink-0 border-b border-border/45 px-3 py-2">
+          <div className={`grid gap-1 rounded-2xl border border-border/45 bg-muted/35 p-1 ${visibleSettingsTabs.length === 2 ? "grid-cols-2" : "grid-cols-4"}`}>
+            {visibleSettingsTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`h-9 rounded-xl text-xs font-semibold transition ${
+                  effectiveActiveTab === tab.id
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-background/55 hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div
           className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6 space-y-6"
           style={{
@@ -183,6 +217,7 @@ export default function SettingsModal({
           }}
         >
           {/* Binder Size */}
+          {effectiveActiveTab === "binder" && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Grid3X3 className="w-4 h-4 text-primary" />
@@ -217,7 +252,9 @@ export default function SettingsModal({
               </p>
             )}
           </div>
+          )}
 
+          {effectiveActiveTab === "display" && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
@@ -388,7 +425,9 @@ export default function SettingsModal({
               </div>
             </div>
           </div>
+          )}
 
+          {effectiveActiveTab === "display" && (
           <div className="pt-4 border-t border-border space-y-4">
             <div className="flex items-center gap-2">
               <Download className="w-4 h-4 text-primary" />
@@ -436,8 +475,9 @@ export default function SettingsModal({
               <p className="text-xs text-primary">{pwaStatusMessage}</p>
             )}
           </div>
+          )}
 
-          {!isReadOnlyView && (
+          {effectiveActiveTab === "share" && !isReadOnlyView && (
             <div className="pt-4 border-t border-border space-y-4">
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-primary" />
@@ -475,7 +515,7 @@ export default function SettingsModal({
             </div>
           )}
 
-          {!isReadOnlyView && (
+          {effectiveActiveTab === "share" && !isReadOnlyView && (
             <div className="pt-4 border-t border-border space-y-4">
               <div className="flex items-center gap-2">
                 <Link2 className="w-4 h-4 text-primary" />
@@ -517,13 +557,13 @@ export default function SettingsModal({
           )}
 
           {/* Passkey Settings */}
-          {!isReadOnlyView && (
+          {effectiveActiveTab === "account" && !isReadOnlyView && (
             <div className="pt-4 border-t border-border">
               <PasskeySettings user={user} />
             </div>
           )}
 
-          {!isReadOnlyView && (
+          {effectiveActiveTab === "account" && !isReadOnlyView && (
           <div className="pt-4 border-t border-border space-y-4">
             <div className="flex items-center gap-2">
               <CloudUpload className="w-4 h-4 text-primary" />
@@ -586,11 +626,13 @@ export default function SettingsModal({
           )}
 
           {/* About */}
+          {effectiveActiveTab === "account" && (
           <div className="pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground text-center">
               BinderDex helps you organize your Pokemon card collection by National Dex number.
             </p>
           </div>
+          )}
         </div>
       </div>
     </div>
