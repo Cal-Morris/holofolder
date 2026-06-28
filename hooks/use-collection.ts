@@ -114,6 +114,25 @@ type PendingCollectionOperationInput =
 
 const LOCAL_COLLECTION_SNAPSHOT_KEY = "pokemon_collection_snapshot_v1"
 const LOCAL_COLLECTION_PENDING_OPS_KEY = "pokemon_collection_pending_ops_v1"
+const COLLECTION_AUTO_REFRESH_INTERVAL_MS = 5000
+
+interface ShouldAutoRefreshCollectionInput {
+  readOnly: boolean
+  hasUser: boolean
+  isOnline: boolean
+  pendingOperationCount: number
+  isFlushingPendingOperations: boolean
+  isWritingRemoteCollection: boolean
+}
+
+export function shouldAutoRefreshCollection(input: ShouldAutoRefreshCollectionInput) {
+  return !input.readOnly &&
+    input.hasUser &&
+    input.isOnline &&
+    input.pendingOperationCount === 0 &&
+    !input.isFlushingPendingOperations &&
+    !input.isWritingRemoteCollection
+}
 
 function isSlotStatus(value: unknown): value is SlotStatus {
   return value === "collected" || value === "finalized" || value === "considering" || value === "wishlisted"
@@ -466,8 +485,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
   const [localPendingSyncCount, setLocalPendingSyncCount] = useState(0)
   const supabase = createClient()
-  const didMount = useRef(false)
   const isFlushingPendingOperationsRef = useRef(false)
+  const activeRemoteCollectionWriteCountRef = useRef(0)
 
   const getSanitizedLocalCollectedIds = useCallback(() => {
     const rawIds = readLocalCollectedIds()
@@ -581,40 +600,40 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
   }, [collectionOwnerUserId, readOnly])
 
-  useEffect(() => {
+  const reloadRemoteCollection = useCallback(async () => {
     if (readOnly) return
 
-    // Skip the initial load — server already provided initial data.
-    if (!didMount.current) {
-      didMount.current = true
-      return
-    }
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      setUser(currentUser)
 
-    const reloadCollection = async () => {
-      try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
-        setUser(currentUser)
+      if (currentUser) {
+        const ownerUserId = await resolveCollectionOwnerUserId(currentUser)
+        const { data, error } = await supabase
+          .from("pokemon_collection")
+          .select("*")
+          .eq("user_id", ownerUserId)
+          .order("pokemon_id", { ascending: true })
 
-        if (currentUser) {
-          const ownerUserId = await resolveCollectionOwnerUserId(currentUser)
-          const { data, error } = await supabase
-            .from("pokemon_collection")
-            .select("*")
-            .eq("user_id", ownerUserId)
-            .order("pokemon_id", { ascending: true })
-
-          if (error) throw error
-          setCollection(normalizeCollectionItems(data))
-        } else {
-          setCollection([])
-        }
-      } catch (error) {
-        console.error("[binderdex] Error loading collection:", error)
+        if (error) throw error
+        setCollection(normalizeCollectionItems(data))
+      } else {
+        setCollection([])
       }
+    } catch (error) {
+      console.error("[binderdex] Error loading collection:", error)
     }
-
-    reloadCollection()
   }, [readOnly, resolveCollectionOwnerUserId, supabase])
+
+  const writeRemoteCollection = useCallback(async <T,>(operation: () => Promise<T>) => {
+    activeRemoteCollectionWriteCountRef.current += 1
+
+    try {
+      return await operation()
+    } finally {
+      activeRemoteCollectionWriteCountRef.current = Math.max(0, activeRemoteCollectionWriteCountRef.current - 1)
+    }
+  }, [])
 
   useEffect(() => {
     if (readOnly) return
@@ -707,6 +726,35 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [flushPendingCollectionOperations, localPendingSyncCount])
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+    if (readOnly || !user) return
+
+    const refreshIfSafe = () => {
+      const pendingOperationCount = readPendingCollectionOperations().length
+
+      if (pendingOperationCount !== localPendingSyncCount) {
+        setLocalPendingSyncCount(pendingOperationCount)
+      }
+
+      if (!shouldAutoRefreshCollection({
+        readOnly,
+        hasUser: Boolean(user),
+        isOnline: !isOffline(),
+        pendingOperationCount,
+        isFlushingPendingOperations: isFlushingPendingOperationsRef.current,
+        isWritingRemoteCollection: activeRemoteCollectionWriteCountRef.current > 0,
+      })) {
+        return
+      }
+
+      void reloadRemoteCollection()
+    }
+
+    const intervalId = window.setInterval(refreshIfSafe, COLLECTION_AUTO_REFRESH_INTERVAL_MS)
+    return () => window.clearInterval(intervalId)
+  }, [localPendingSyncCount, readOnly, reloadRemoteCollection, user])
+
+  useEffect(() => {
     if (readOnly || typeof window === "undefined") return
 
     window.addEventListener("online", flushPendingCollectionOperations)
@@ -751,7 +799,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     try {
-      const savedItem = await saveRemoteCollectionItem(nextItem)
+      const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem))
       const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
 
       applyLocalCollection(syncedCollection)
@@ -767,7 +815,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       })
       return { data: nextItem, queued: true, error: extractErrorMessage(error) }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
 
   const removeFromCollection = useCallback(async (pokemonId: number) => {
     if (readOnly) return { error: "Read-only binder" }
@@ -781,7 +829,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     try {
-      await deleteRemoteCollectionItem(pokemonId)
+      await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId))
 
       return { success: true }
     } catch (error) {
@@ -789,7 +837,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error removing from collection:", error)
       return { success: true, queued: true, error }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
 
   const addWantedCard = useCallback(async (
     pokemonId: number,
@@ -872,11 +920,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     try {
       if (replaceRemote && idsToRemove.length > 0) {
-        const { error } = await supabase
+        const { error } = await writeRemoteCollection(() => supabase
           .from("pokemon_collection")
           .delete()
           .eq("user_id", collectionOwnerUserId)
-          .in("pokemon_id", idsToRemove)
+          .in("pokemon_id", idsToRemove))
 
         if (error) throw error
       }
@@ -898,12 +946,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
           status: "collected" as SlotStatus,
         }))
 
-        const { data, error } = await supabase
+        const { data, error } = await writeRemoteCollection(() => supabase
           .from("pokemon_collection")
           .upsert(rowsToReplace, {
             onConflict: "user_id,pokemon_id",
           })
-          .select()
+          .select())
 
         if (error) throw error
         syncedRows = normalizeCollectionItems(data)
@@ -918,12 +966,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
           status: "collected" as SlotStatus,
         }))
 
-        const { data, error } = await supabase
+        const { data, error } = await writeRemoteCollection(() => supabase
           .from("pokemon_collection")
           .upsert(rowsToInsert, {
             onConflict: "user_id,pokemon_id",
           })
-          .select()
+          .select())
 
         if (error) throw error
         syncedRows = normalizeCollectionItems(data)
@@ -950,7 +998,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error syncing local collection:", error)
       return { error }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, supabase, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, supabase, user, writeRemoteCollection])
 
   const updateStatus = useCallback(async (pokemonId: number, status: SlotStatus) => {
     if (readOnly) return { error: "Read-only binder" }
@@ -967,7 +1015,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     try {
-      const savedItem = await saveRemoteCollectionItem(nextItem)
+      const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem))
       const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
 
       applyLocalCollection(syncedCollection)
@@ -977,7 +1025,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error updating status:", error)
       return { data: nextItem, queued: true, error }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user])
+  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
 
   const cycleStatus = useCallback(async (pokemonId: number) => {
     const item = collection.find(p => p.pokemon_id === pokemonId)
