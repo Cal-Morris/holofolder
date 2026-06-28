@@ -1,3 +1,4 @@
+import { sleep } from "workflow"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   normalizeCardLanguage,
@@ -17,13 +18,69 @@ interface CardPriceWorkflowResult {
   refreshed: number
   cached: number
   unpriced: number
+  passes: number
+}
+
+interface CardPriceWorkflowInput {
+  ownerUserId?: string | null
+  repeatCount?: number | null
+  interval?: string | null
 }
 
 const PRICE_REFRESH_BATCH_SIZE = 25
+const MAX_REFRESH_PASSES = 12
 
-export async function refreshCardPricesWorkflow(ownerUserId: string | null = null): Promise<CardPriceWorkflowResult> {
+export async function refreshCardPricesWorkflow(input: string | null | CardPriceWorkflowInput = null): Promise<CardPriceWorkflowResult> {
   "use workflow"
 
+  const options = normalizeCardPriceWorkflowInput(input)
+  let totalCards = 0
+  let refreshed = 0
+  let cached = 0
+  let unpriced = 0
+
+  for (let pass = 0; pass < options.repeatCount; pass += 1) {
+    const result = await refreshTrackedCardPrices(options.ownerUserId)
+    totalCards = result.totalCards
+    refreshed += result.refreshed
+    cached += result.cached
+    unpriced = result.unpriced
+
+    if (pass < options.repeatCount - 1) {
+      await sleep(options.interval)
+    }
+  }
+
+  return {
+    totalCards,
+    refreshed,
+    cached,
+    unpriced,
+    passes: options.repeatCount,
+  }
+}
+
+function normalizeCardPriceWorkflowInput(input: string | null | CardPriceWorkflowInput) {
+  if (typeof input === "string") {
+    return {
+      ownerUserId: input,
+      repeatCount: 1,
+      interval: "3h",
+    }
+  }
+
+  const repeatCount = input?.repeatCount && Number.isFinite(input.repeatCount)
+    ? Math.min(Math.max(Math.floor(input.repeatCount), 1), MAX_REFRESH_PASSES)
+    : 1
+
+  return {
+    ownerUserId: input?.ownerUserId ?? null,
+    repeatCount,
+    interval: input?.interval || "3h",
+  }
+}
+
+async function refreshTrackedCardPrices(ownerUserId: string | null): Promise<CardPriceWorkflowResult> {
   console.log(`[binderdex] Starting card price refresh${ownerUserId ? ` for owner ${ownerUserId}` : " for all tracked cards"}`)
   const lookups = await loadTrackedCardPriceLookups(ownerUserId)
   const batches = chunkCardPriceLookups(lookups, PRICE_REFRESH_BATCH_SIZE)
@@ -48,6 +105,7 @@ export async function refreshCardPricesWorkflow(ownerUserId: string | null = nul
     refreshed,
     cached,
     unpriced,
+    passes: 1,
   }
 }
 

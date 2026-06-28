@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 const VERCEL_WORKFLOW_WORLDS = new Set(["vercel", "@workflow/world-vercel"])
+const SCHEDULED_REFRESH_PASSES = 8
+const SCHEDULED_REFRESH_INTERVAL = "3h"
 
 function preferManagedVercelWorkflowWorld() {
   if (process.env.VERCEL !== "1") return
@@ -30,20 +32,26 @@ async function resolveCollectionOwnerUserId(userId: string) {
   return partnership?.owner_user_id || userId
 }
 
-async function startCardPriceRefresh(ownerUserId: string | null) {
+async function startCardPriceRefresh(input: {
+  ownerUserId: string | null
+  repeatCount?: number
+  interval?: string
+}) {
   preferManagedVercelWorkflowWorld()
 
   const [{ start }, { refreshCardPricesWorkflow }] = await Promise.all([
     import("workflow/api"),
     import("@/workflows/card-price-refresh"),
   ])
-  const run = await start(refreshCardPricesWorkflow, [ownerUserId])
+  const run = await start(refreshCardPricesWorkflow, [input])
 
   return NextResponse.json({
     refresh: {
       status: "started",
       runId: run.runId,
-      scope: ownerUserId ? "owner" : "all",
+      scope: input.ownerUserId ? "owner" : "all",
+      repeatCount: input.repeatCount ?? 1,
+      interval: input.interval ?? null,
     },
   })
 }
@@ -63,7 +71,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Not authorized" }, { status: 401 })
     }
 
-    return await startCardPriceRefresh(null)
+    return await startCardPriceRefresh({
+      ownerUserId: null,
+      repeatCount: SCHEDULED_REFRESH_PASSES,
+      interval: SCHEDULED_REFRESH_INTERVAL,
+    })
   } catch (error) {
     console.error("[binderdex] Failed to start scheduled card price refresh workflow:", error)
     return NextResponse.json(
@@ -83,7 +95,7 @@ export async function POST() {
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(user.id)
-    return await startCardPriceRefresh(ownerUserId)
+    return await startCardPriceRefresh({ ownerUserId })
   } catch (error) {
     console.error("[binderdex] Failed to start card price refresh workflow:", error)
     return NextResponse.json(
