@@ -3,6 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { readLocalCollectedIds, writeLocalCollectedIds } from "@/lib/local-collection"
+import {
+  COLLECTION_CHANGED_EVENT,
+  createCollectionChangedPayload,
+  getCollectionRealtimeTopic,
+} from "@/lib/collection-realtime"
 import type { User } from "@supabase/supabase-js"
 
 export type SlotStatus = 'collected' | 'finalized' | 'considering' | 'wishlisted'
@@ -487,6 +492,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const supabase = createClient()
   const isFlushingPendingOperationsRef = useRef(false)
   const activeRemoteCollectionWriteCountRef = useRef(0)
+  const collectionRealtimeChannelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
 
   const getSanitizedLocalCollectedIds = useCallback(() => {
     const rawIds = readLocalCollectedIds()
@@ -635,6 +641,27 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
   }, [])
 
+  const broadcastCollectionChanged = useCallback(async () => {
+    if (readOnly || !collectionOwnerUserId || isOffline()) return
+
+    const existingChannel = collectionRealtimeChannelRef.current
+    const channel = existingChannel ?? supabase.channel(getCollectionRealtimeTopic(collectionOwnerUserId))
+
+    try {
+      await channel.send({
+        type: "broadcast",
+        event: COLLECTION_CHANGED_EVENT,
+        payload: createCollectionChangedPayload(),
+      })
+    } catch (error) {
+      console.error("[binderdex] Error broadcasting collection refresh:", error)
+    } finally {
+      if (!existingChannel) {
+        void supabase.removeChannel(channel)
+      }
+    }
+  }, [collectionOwnerUserId, readOnly, supabase])
+
   useEffect(() => {
     if (readOnly) return
 
@@ -660,6 +687,54 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [readOnly, resolveCollectionOwnerUserId, supabase])
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+    if (readOnly || !user || !collectionOwnerUserId) return
+
+    const channel = supabase.channel(getCollectionRealtimeTopic(collectionOwnerUserId), {
+      config: {
+        broadcast: { self: false },
+      },
+    })
+
+    collectionRealtimeChannelRef.current = channel
+
+    channel
+      .on("broadcast", { event: COLLECTION_CHANGED_EVENT }, () => {
+        const pendingOperationCount = readPendingCollectionOperations().length
+
+        if (pendingOperationCount !== localPendingSyncCount) {
+          setLocalPendingSyncCount(pendingOperationCount)
+        }
+
+        if (!shouldAutoRefreshCollection({
+          readOnly,
+          hasUser: Boolean(user),
+          isOnline: !isOffline(),
+          pendingOperationCount,
+          isFlushingPendingOperations: isFlushingPendingOperationsRef.current,
+          isWritingRemoteCollection: activeRemoteCollectionWriteCountRef.current > 0,
+        })) {
+          return
+        }
+
+        void reloadRemoteCollection()
+      })
+      .subscribe((status, error) => {
+        if (error) {
+          console.error("[binderdex] Collection realtime subscription failed:", { status, error })
+        }
+      })
+
+    return () => {
+      if (collectionRealtimeChannelRef.current === channel) {
+        collectionRealtimeChannelRef.current = null
+      }
+
+      void supabase.removeChannel(channel)
+    }
+  }, [collectionOwnerUserId, localPendingSyncCount, readOnly, reloadRemoteCollection, supabase, user])
+
+  useEffect(() => {
     if (readOnly) return
     if (!collectionOwnerUserId && collection.length === 0) return
 
@@ -682,6 +757,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     try {
       let nextCollection = collection
+      let didWriteRemoteCollection = false
 
       for (const operation of operations) {
         try {
@@ -693,6 +769,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
             nextCollection = removeCollectionItem(nextCollection, operation.pokemonId)
           }
 
+          didWriteRemoteCollection = true
           removePendingCollectionOperation(operation.id)
           refreshLocalPendingSyncCount()
         } catch (error) {
@@ -708,11 +785,16 @@ export function useCollection(options: UseCollectionOptions = {}) {
       if (nextCollection !== collection) {
         applyLocalCollection(nextCollection)
       }
+
+      if (didWriteRemoteCollection) {
+        void broadcastCollectionChanged()
+      }
     } finally {
       isFlushingPendingOperationsRef.current = false
     }
   }, [
     applyLocalCollection,
+    broadcastCollectionChanged,
     collection,
     collectionOwnerUserId,
     localPendingSyncCount,
@@ -803,6 +885,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
 
       applyLocalCollection(syncedCollection)
+      void broadcastCollectionChanged()
 
       return { data: savedItem }
     } catch (error) {
@@ -815,7 +898,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       })
       return { data: nextItem, queued: true, error: extractErrorMessage(error) }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
+  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
 
   const removeFromCollection = useCallback(async (pokemonId: number) => {
     if (readOnly) return { error: "Read-only binder" }
@@ -830,6 +913,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     try {
       await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId))
+      void broadcastCollectionChanged()
 
       return { success: true }
     } catch (error) {
@@ -837,7 +921,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error removing from collection:", error)
       return { success: true, queued: true, error }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
+  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
 
   const addWantedCard = useCallback(async (
     pokemonId: number,
@@ -983,6 +1067,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       const nextCollection = [...keptRows, ...syncedRows].sort((a, b) => a.pokemon_id - b.pokemon_id)
 
       applyLocalCollection(nextCollection)
+      void broadcastCollectionChanged()
 
       return {
         data: {
@@ -998,7 +1083,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[binderdex] Error syncing local collection:", error)
       return { error }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, supabase, user, writeRemoteCollection])
+  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, supabase, user, writeRemoteCollection])
 
   const updateStatus = useCallback(async (pokemonId: number, status: SlotStatus) => {
     if (readOnly) return { error: "Read-only binder" }
@@ -1019,13 +1104,14 @@ export function useCollection(options: UseCollectionOptions = {}) {
       const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
 
       applyLocalCollection(syncedCollection)
+      void broadcastCollectionChanged()
       return { data: savedItem }
     } catch (error) {
       queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
       console.error("[binderdex] Error updating status:", error)
       return { data: nextItem, queued: true, error }
     }
-  }, [applyLocalCollection, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
+  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
 
   const cycleStatus = useCallback(async (pokemonId: number) => {
     const item = collection.find(p => p.pokemon_id === pokemonId)

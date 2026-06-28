@@ -29,6 +29,7 @@ import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
 import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib/card-scan-evidence"
 import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
+import { getWantedDisplayCard } from "@/lib/collection-display"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
 
@@ -3192,7 +3193,7 @@ export default function BinderApp({
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
   const selectedCardPriceLabel = selectedCardPriceKey ? formatPriceLabel(pricesByCardId[selectedCardPriceKey]) : null
   const selectedWantedCards = collectionItem?.wanted_cards ?? []
-  const selectedWantedCardPreview = selectedWantedCards[0] ?? null
+  const selectedWantedDisplayCard = selectedPokemon ? getWantedDisplayCard(collectionItem, selectedPokemon.name) : null
   const selectedWantedPriceLabel = (() => {
     if (selectedWantedCards.length === 0) {
       return null
@@ -3328,10 +3329,10 @@ export default function BinderApp({
             : { label: "Open Slot", className: "border-border/60 bg-background/35 text-muted-foreground" }
 
     const selectedCardSummaryLabel =
-      wishlisted && selectedWantedCardPreview?.card_name
-        ? `Wanted card: ${selectedWantedCardPreview.card_name}`
-        : wishlisted && collectionItem?.card_name
-          ? `Wanted card: ${collectionItem.card_name}`
+      wishlisted && selectedWantedDisplayCard?.isSpecificCard
+        ? `Wanted card: ${selectedWantedDisplayCard.name}`
+        : wishlisted
+          ? `Wanted card: ${selectedWantedDisplayCard?.name ?? selectedPokemon.name}`
           : collectionItem?.card_name
             ? collectionItem.card_name.toLowerCase() === selectedPokemon.name.toLowerCase()
               ? selectedPokemonHasAssignedCard
@@ -3341,13 +3342,13 @@ export default function BinderApp({
             : collected
               ? "No card assigned yet"
               : "Choose how you want to track this slot."
-    const selectedPreviewImage = wishlisted && selectedWantedCardPreview?.card_image
-      ? selectedWantedCardPreview.card_image
+    const selectedPreviewImage = wishlisted && selectedWantedDisplayCard?.image
+      ? selectedWantedDisplayCard.image
       : selectedPokemonDisplayImage || getPokemonArtwork(selectedPokemon)
-    const selectedPreviewAlt = wishlisted && selectedWantedCardPreview?.card_name
-      ? selectedWantedCardPreview.card_name
+    const selectedPreviewAlt = wishlisted && selectedWantedDisplayCard?.name
+      ? selectedWantedDisplayCard.name
       : selectedPokemon.name
-    const selectedPreviewIsCard = Boolean(wishlisted && selectedWantedCardPreview?.card_image)
+    const selectedPreviewIsCard = Boolean(wishlisted && selectedWantedDisplayCard?.image)
     const selectedPreviewTone = selectedPreviewIsCard ? "" : selectedPokemonDisplayTone
     const selectedPreviewFit = selectedPreviewIsCard ? "object-cover" : selectedPokemonDisplayFit
     const selectedPreviewFrameClass = selectedPreviewIsCard
@@ -3357,19 +3358,25 @@ export default function BinderApp({
       ? "absolute inset-0 h-full w-full"
       : "absolute inset-1 max-w-[calc(100%-0.5rem)] max-h-[calc(100%-0.5rem)] m-auto"
     const selectedPreviewBadgeClass = selectedPreviewIsCard ? "-top-1.5 -right-1.5" : "-top-1 -right-1"
-    const selectedWantedSetLabel = selectedPokemonHasAssignedCard
+    const selectedWantedSetLabel = wishlisted
+      ? selectedWantedDisplayCard?.set
+      : selectedPokemonHasAssignedCard
       ? collectionItem?.card_set
-      : selectedWantedCardPreview?.card_set
-    const selectedWantedLanguageLabel = selectedPokemonHasAssignedCard
+      : selectedWantedDisplayCard?.set
+    const selectedWantedLanguageLabel = wishlisted
+      ? selectedWantedDisplayCard?.language
+      : selectedPokemonHasAssignedCard
       ? collectionItem?.card_language
-      : selectedWantedCardPreview?.card_language
-    const selectedWantedFinishLabel = selectedPokemonHasAssignedCard
+      : selectedWantedDisplayCard?.language
+    const selectedWantedFinishLabel = wishlisted
+      ? selectedWantedDisplayCard?.finish
+      : selectedPokemonHasAssignedCard
       ? collectionItem?.card_finish
-      : selectedWantedCardPreview?.card_finish
+      : selectedWantedDisplayCard?.finish
     const selectedDetailChips = [
       selectedWantedSetLabel ? { key: "set", label: selectedWantedSetLabel } : null,
-      selectedPokemonHasAssignedCard || selectedWantedCardPreview?.card_language ? { key: "language", label: formatCardLanguageLabel(selectedWantedLanguageLabel) } : null,
-      selectedPokemonHasAssignedCard || selectedWantedCardPreview?.card_finish ? { key: "finish", label: formatCardFinishLabel(selectedWantedFinishLabel) } : null,
+      selectedWantedLanguageLabel ? { key: "language", label: formatCardLanguageLabel(selectedWantedLanguageLabel) } : null,
+      selectedWantedFinishLabel ? { key: "finish", label: formatCardFinishLabel(selectedWantedFinishLabel) } : null,
       collectionItem?.wanted_cards?.length ? { key: "wanted", label: `${collectionItem.wanted_cards.length} wanted` } : null,
       selectedDetailPriceLabel ? { key: "price", label: selectedDetailPriceLabel } : null,
       selectedCollectedDateLabel ? { key: "collected", label: `Collected ${selectedCollectedDateLabel}` } : null,
@@ -4752,16 +4759,20 @@ export default function BinderApp({
                     <div className="flex items-center gap-3">
                       <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-muted to-muted/30">
                         <img
-                          src={selectedPokemonDisplayImage || getPokemonArtwork(selectedPokemon)}
-                          alt={selectedPokemon.name}
-                          className={`absolute inset-2 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] m-auto ${selectedPokemonDisplayFit} ${selectedPokemonDisplayTone}`}
+                          src={wishlisted && selectedWantedDisplayCard?.image
+                            ? selectedWantedDisplayCard.image
+                            : selectedPokemonDisplayImage || getPokemonArtwork(selectedPokemon)}
+                          alt={wishlisted && selectedWantedDisplayCard?.name ? selectedWantedDisplayCard.name : selectedPokemon.name}
+                          className={wishlisted && selectedWantedDisplayCard?.image
+                            ? "absolute inset-1 h-[calc(100%-0.5rem)] w-[calc(100%-0.5rem)] rounded-lg object-cover"
+                            : `absolute inset-2 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] m-auto ${selectedPokemonDisplayFit} ${selectedPokemonDisplayTone}`}
                         />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-muted-foreground">#{String(selectedPokemon.id).padStart(4, "0")}</p>
                         <h2 className="truncate text-lg font-bold capitalize">{selectedPokemon.name}</h2>
-                        {wishlisted && collectionItem?.card_name ? (
-                          <p className="truncate text-xs text-amber-500">Wishlisted: {collectionItem.card_name}</p>
+                        {wishlisted && selectedWantedDisplayCard?.isSpecificCard ? (
+                          <p className="truncate text-xs text-amber-500">Wishlisted: {selectedWantedDisplayCard.name}</p>
                         ) : collectionItem?.card_name ? (
                           <p className="truncate text-xs text-primary">{collectionItem.card_name}</p>
                         ) : collected ? (
