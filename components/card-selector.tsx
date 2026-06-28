@@ -64,7 +64,6 @@ const CARD_FINISHES: Array<{ id: CardFinish; label: string }> = [
   { id: "ace_spec", label: "ACE" },
   { id: "amazing_rare", label: "Amazing" },
   { id: "shiny_rare", label: "Shiny" },
-  { id: "jumbo", label: "Jumbo" },
 ]
 
 function delay(ms: number) {
@@ -1016,7 +1015,6 @@ export default function CardSelector({
                       <SelectItem value="holo">Holo</SelectItem>
                       <SelectItem value="reverse">Reverse Holo</SelectItem>
                       <SelectItem value="firstEdition">1st Edition</SelectItem>
-                      <SelectItem value="jumbo">Jumbo</SelectItem>
                     </SelectContent>
                   </Select>
                   {hasActiveFilters && (

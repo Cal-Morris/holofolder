@@ -78,6 +78,8 @@ const MIRRORED_CARD_SELECT = `
 
 const IMAGE_LANGUAGE_FALLBACKS = ["en", "ja", "fr", "de", "es", "it", "pt-br", "ko"] as const
 const MIRROR_CACHE_LIFE = "days"
+const HIDDEN_SET_IDS = new Set(["jumbo"])
+const MIRROR_CACHE_VERSION = "v2-first-partner-no-jumbo"
 
 function cacheSafeTag(prefix: string, value: string | number) {
   return `${prefix}:${String(value).replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 180)}`
@@ -247,7 +249,7 @@ function compareLocalIds(a: MirroredTCGCard, b: MirroredTCGCard) {
 export async function getMirroredCardsForPokemon(pokemonId: number, language: MirrorLanguage = "en") {
   "use cache: remote"
   cacheLife(MIRROR_CACHE_LIFE)
-  cacheTag("tcg-mirror", cacheSafeTag("pokemon", pokemonId), cacheSafeTag("language", language))
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, cacheSafeTag("pokemon", pokemonId), cacheSafeTag("language", language))
 
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -265,6 +267,9 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
       const set = card?.tcg_sets
 
       if (!card?.id || !card?.local_id || !card?.set_id || !card?.series_id || !set?.id) {
+        return null
+      }
+      if (HIDDEN_SET_IDS.has(card.set_id)) {
         return null
       }
 
@@ -304,7 +309,7 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
 
   const admin = createAdminClient()
   const trimmedQuery = query.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim()
-  cacheTag("tcg-mirror", "tcg-sets", cacheSafeTag("set-query", trimmedQuery), cacheSafeTag("limit", limit))
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-sets", cacheSafeTag("set-query", trimmedQuery), cacheSafeTag("limit", limit))
 
   if (trimmedQuery.length < 2) {
     return []
@@ -332,13 +337,15 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
     throw error
   }
 
-  return ((data || []) as any[]).map((set) => ({
-    id: set.id,
-    name: pickLocalizedText(set.name_json, "en") || set.name_en || set.id,
-    seriesName: pickLocalizedText(set.tcg_series?.name_json, "en") || set.tcg_series?.name_en || undefined,
-    officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
-    releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
-  }))
+  return ((data || []) as any[])
+    .filter((set) => !HIDDEN_SET_IDS.has(set.id))
+    .map((set) => ({
+      id: set.id,
+      name: pickLocalizedText(set.name_json, "en") || set.name_en || set.id,
+      seriesName: pickLocalizedText(set.tcg_series?.name_json, "en") || set.tcg_series?.name_en || undefined,
+      officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
+      releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
+    }))
 }
 
 export async function getMirroredSetDexSlots(
@@ -348,7 +355,11 @@ export async function getMirroredSetDexSlots(
 ): Promise<{ selectedSet: TCGSetSummary | null; slots: TCGSetDexSlot[] }> {
   "use cache: remote"
   cacheLife(MIRROR_CACHE_LIFE)
-  cacheTag("tcg-mirror", cacheSafeTag("set", setId), cacheSafeTag("language", language))
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, cacheSafeTag("set", setId), cacheSafeTag("language", language))
+
+  if (HIDDEN_SET_IDS.has(setId)) {
+    return { selectedSet: null, slots: [] }
+  }
 
   const admin = createAdminClient()
 
