@@ -1,6 +1,10 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { buildCardPriceSnapshotFromPricing } from "../lib/card-pricing"
+import {
+  buildCardPriceSnapshotFromPricing,
+  buildTcgplayerProductPriceSnapshot,
+  pickTcgplayerProductIdsFromExternalIds,
+} from "../lib/card-pricing"
 
 const fxRates = {
   date: "2026-06-28",
@@ -125,4 +129,43 @@ test("buildCardPriceSnapshotFromPricing lowers confidence and widens range when 
   assert.equal(snapshot.highGbpAmount, 19.55)
   assert.equal(snapshot.confidence, "low")
   assert.equal(snapshot.sourcePrices.length, 2)
+})
+
+test("pickTcgplayerProductIdsFromExternalIds reads direct and variant product ids", () => {
+  const ids = pickTcgplayerProductIdsFromExternalIds({
+    tcgdex: {
+      thirdParty: { tcgplayer: 123 },
+      variantThirdParty: [
+        { tcgplayer: 456 },
+        { tcgplayer: "456" },
+        { tcgplayer: "bad" },
+      ],
+    },
+  })
+
+  assert.deepEqual(ids, ["123", "456"])
+})
+
+test("buildTcgplayerProductPriceSnapshot builds a fallback from exact TCGplayer product details", () => {
+  const snapshot = buildTcgplayerProductPriceSnapshot("mep-027", "en", {
+    productId: 659232,
+    productName: "Haunter - 027",
+    rarityName: "Illustration Rare",
+    marketPrice: 56.59,
+    lowestPriceWithShipping: 50,
+    setCode: "MEP",
+    setName: "ME: Mega Evolution Promo",
+    customAttributes: {
+      number: "027",
+    },
+  }, fxRates)
+
+  assert.equal(snapshot?.marketGbpAmount, 42.44)
+  assert.equal(snapshot?.goodGbpAmount, 37.5)
+  assert.equal(snapshot?.lowGbpAmount, 37.5)
+  assert.equal(snapshot?.highGbpAmount, 48.81)
+  assert.equal(snapshot?.source, "tcgplayer")
+  assert.equal(snapshot?.variantLabel, "Illustration Rare")
+  assert.equal(snapshot?.confidence, "medium")
+  assert.equal(snapshot?.sourcePrices[0].originalMarketAmount, 56.59)
 })
