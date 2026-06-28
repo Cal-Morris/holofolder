@@ -9,6 +9,7 @@ import AuthModal from "@/components/auth-modal"
 import PartnerModal from "@/components/partner-modal"
 import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
+import { CardPriceEvidence } from "@/components/card-price-evidence"
 import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
 import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
@@ -3703,7 +3704,7 @@ export default function BinderApp({
               <div className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-xl border border-border/50 bg-background/45 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Good</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Low</p>
                     <p className="mt-0.5 text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-300">
                       {selectedGoodPriceLabel ?? (isLoadingPrices ? "Loading" : "No price")}
                     </p>
@@ -3732,6 +3733,7 @@ export default function BinderApp({
                 {selectedPriceSourceLabel ? (
                   <p className="mt-2 truncate px-1 text-[10px] text-muted-foreground">{selectedPriceSourceLabel}</p>
                 ) : null}
+                <CardPriceEvidence price={selectedDetailPriceSnapshot} />
               </div>
             ) : null}
             <div className="flex flex-col gap-2.5">
@@ -4312,7 +4314,7 @@ export default function BinderApp({
                       <p className="mt-1 truncate text-[11px] text-muted-foreground">{cardMeta}</p>
                       <div className="mt-2 grid max-w-sm grid-cols-2 gap-2">
                         <div className="rounded-xl border border-emerald-500/18 bg-emerald-500/8 px-2.5 py-1.5">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Good</p>
+                          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Low</p>
                           <p className="text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-300">{goodPriceLabel ?? (isLoadingPrices ? "Loading" : "No price")}</p>
                         </div>
                         <div className="rounded-xl border border-border/55 bg-background/50 px-2.5 py-1.5 dark:border-white/10 dark:bg-white/[0.03]">
@@ -4337,6 +4339,7 @@ export default function BinderApp({
                       {sourceLabel ? (
                         <p className="mt-1 truncate text-[10px] text-muted-foreground">{sourceLabel}</p>
                       ) : null}
+                      <CardPriceEvidence price={price} showTrend={false} />
                     </button>
 
                     <div className="col-span-2 flex items-center gap-2 md:col-span-1 md:flex-col md:items-end md:justify-center">

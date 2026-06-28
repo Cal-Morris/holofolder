@@ -19,6 +19,8 @@ function priceSnapshot(cardId: string, fetchedAt: number): CardPriceSnapshot {
     lowGbpAmount: 8,
     highGbpAmount: 14,
     confidence: "high",
+    sourcePrices: [],
+    trendPoints: [],
     originalAmount: 16,
     originalCurrency: "USD",
     source: "tcgplayer",

@@ -7,6 +7,12 @@ ADD COLUMN IF NOT EXISTS high_gbp_amount NUMERIC(10, 2);
 ALTER TABLE public.card_prices
 ADD COLUMN IF NOT EXISTS confidence TEXT NOT NULL DEFAULT 'unknown';
 
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS source_prices JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+ALTER TABLE public.card_prices
+ADD COLUMN IF NOT EXISTS trend_points JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 UPDATE public.card_prices
 SET low_gbp_amount = LEAST(COALESCE(good_gbp_amount, market_gbp_amount, gbp_amount), COALESCE(market_gbp_amount, gbp_amount)),
     high_gbp_amount = GREATEST(COALESCE(good_gbp_amount, market_gbp_amount, gbp_amount), COALESCE(market_gbp_amount, gbp_amount)),

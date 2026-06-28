@@ -1084,7 +1084,7 @@ export default function CardSelector({
                                 </p>
                                 <div className="mt-1 grid grid-cols-2 gap-1 text-[10px]">
                                   <span className="rounded-lg bg-background/70 px-1.5 py-1 text-emerald-600 dark:text-emerald-300">
-                                    Good {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}
+                                    Low {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}
                                   </span>
                                   <span className="rounded-lg bg-background/70 px-1.5 py-1 text-foreground">
                                     Market {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}
@@ -1159,7 +1159,7 @@ export default function CardSelector({
                           <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/90 via-black/68 to-transparent p-2 sm:block">
                             <p className="truncate text-xs font-medium text-white">{card.set.name}</p>
                             <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums">
-                              <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-emerald-200">G {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
+                              <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-emerald-200">L {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
                               <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-white">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
                             </div>
                             {(priceLabels.range || priceLabels.confidence) ? (
@@ -1180,7 +1180,7 @@ export default function CardSelector({
                         <div className="p-1.5 sm:hidden">
                           <p className="truncate text-[10px] font-semibold text-foreground">{card.set.name}</p>
                           <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums">
-                            <span className="rounded-md bg-muted px-1 py-0.5 text-emerald-600 dark:text-emerald-300">G {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
+                            <span className="rounded-md bg-muted px-1 py-0.5 text-emerald-600 dark:text-emerald-300">L {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
                             <span className="rounded-md bg-muted px-1 py-0.5 text-foreground">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
                           </div>
                           {(priceLabels.range || priceLabels.confidence) ? (

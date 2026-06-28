@@ -7,6 +7,26 @@ export type PriceSource = "tcgplayer" | "cardmarket"
 export type PriceConfidence = "high" | "medium" | "low" | "unknown"
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
+export interface CardPriceSourceSummary {
+  source: PriceSource
+  label: string
+  variantLabel: string | null
+  marketGbpAmount: number | null
+  lowGbpAmount: number | null
+  originalMarketAmount: number | null
+  originalLowAmount: number | null
+  originalCurrency: Exclude<SupportedCurrency, "GBP">
+  updatedAt: string | null
+}
+
+export interface CardPriceTrendPoint {
+  label: string
+  source: PriceSource
+  gbpAmount: number
+  originalAmount: number
+  originalCurrency: Exclude<SupportedCurrency, "GBP">
+}
+
 export interface CardPriceLookup {
   cardId: string
   language?: CardLanguage | string | null
@@ -21,6 +41,8 @@ export interface CardPriceSnapshot {
   lowGbpAmount: number | null
   highGbpAmount: number | null
   confidence: PriceConfidence
+  sourcePrices: CardPriceSourceSummary[]
+  trendPoints: CardPriceTrendPoint[]
   originalAmount: number | null
   originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
   source: PriceSource | null
@@ -30,7 +52,7 @@ export interface CardPriceSnapshot {
   fetchedAt: number
 }
 
-const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v5"
+const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v6"
 export const CARD_PRICE_CACHE_STALE_MS = 2 * 60 * 60 * 1000
 const CARD_PRICE_REQUEST_BATCH_SIZE = 200
 const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
@@ -183,6 +205,8 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
               lowGbpAmount: typeof price.lowGbpAmount === "number" && Number.isFinite(price.lowGbpAmount) ? price.lowGbpAmount : null,
               highGbpAmount: typeof price.highGbpAmount === "number" && Number.isFinite(price.highGbpAmount) ? price.highGbpAmount : null,
               confidence: normalizePriceConfidence(price.confidence),
+              sourcePrices: normalizeSourcePrices(price.sourcePrices),
+              trendPoints: normalizeTrendPoints(price.trendPoints),
               originalAmount: typeof price.originalAmount === "number" && Number.isFinite(price.originalAmount) ? price.originalAmount : null,
               originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
               source: price.source === "tcgplayer" || price.source === "cardmarket" ? price.source : null,
@@ -254,6 +278,8 @@ function readPriceCache(): Record<string, CardPriceSnapshot> {
           ? snapshot.highGbpAmount
           : null,
         confidence: normalizePriceConfidence(snapshot.confidence),
+        sourcePrices: normalizeSourcePrices(snapshot.sourcePrices),
+        trendPoints: normalizeTrendPoints(snapshot.trendPoints),
       }
     }
     return normalized
@@ -264,6 +290,64 @@ function readPriceCache(): Record<string, CardPriceSnapshot> {
 
 function normalizePriceConfidence(value: unknown): PriceConfidence {
   return value === "high" || value === "medium" || value === "low" ? value : "unknown"
+}
+
+function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+
+    const record = item as Record<string, unknown>
+    const source = record.source === "tcgplayer" || record.source === "cardmarket" ? record.source : null
+    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR"
+      ? record.originalCurrency
+      : null
+
+    if (!source || !originalCurrency) return []
+
+    return [{
+      source,
+      label: typeof record.label === "string" ? record.label : source === "tcgplayer" ? "TCGplayer" : "Cardmarket",
+      variantLabel: typeof record.variantLabel === "string" ? record.variantLabel : null,
+      marketGbpAmount: readFiniteNumber(record.marketGbpAmount),
+      lowGbpAmount: readFiniteNumber(record.lowGbpAmount),
+      originalMarketAmount: readFiniteNumber(record.originalMarketAmount),
+      originalLowAmount: readFiniteNumber(record.originalLowAmount),
+      originalCurrency,
+      updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : null,
+    }]
+  })
+}
+
+function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+
+    const record = item as Record<string, unknown>
+    const source = record.source === "tcgplayer" || record.source === "cardmarket" ? record.source : null
+    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR"
+      ? record.originalCurrency
+      : null
+    const gbpAmount = readFiniteNumber(record.gbpAmount)
+    const originalAmount = readFiniteNumber(record.originalAmount)
+
+    if (!source || !originalCurrency || gbpAmount == null || originalAmount == null) return []
+
+    return [{
+      label: typeof record.label === "string" ? record.label : "",
+      source,
+      gbpAmount,
+      originalAmount,
+      originalCurrency,
+    }]
+  })
+}
+
+function readFiniteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 function chunkCardPriceLookups(lookups: CardPriceLookup[], batchSize: number) {
