@@ -2,13 +2,14 @@
 
 import type React from "react"
 
-import { useState, useCallback, useEffect, useMemo } from "react"
+import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import { Search, ArrowRight, Star, MapPinned } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { usePokemonCache } from "@/hooks/use-pokemon-cache"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
+import { getInitialPokemonSearchFilter, type PokemonSearchStateFilter } from "@/lib/pokemon-search-state"
 
-type SearchStateFilter = "all" | "current" | "needed" | "upgrade" | "wanted" | "perfect"
+type SearchStateFilter = PokemonSearchStateFilter
 
 export interface PokemonSearchResultMeta {
   previewImage?: string | null
@@ -84,8 +85,9 @@ export default function PokemonSearch({
   currentPagePokemonList = [],
 }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
-  const [activeFilter, setActiveFilter] = useState<SearchStateFilter>("current")
+  const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter)
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { pokemonList: cachedList } = usePokemonCache()
   
   const pokemonList = propPokemonList || cachedList
@@ -99,6 +101,14 @@ export default function PokemonSearch({
       setActiveFilter("all")
     }
   }, [activeFilter, currentPagePokemonList.length])
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus({ preventScroll: true })
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [])
 
   const matchesFilter = useCallback((filter: SearchStateFilter, pokemon: { id: number; name: string }) => {
     const meta = getResultMeta?.(pokemon)
@@ -197,6 +207,7 @@ export default function PokemonSearch({
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <Input
+          ref={searchInputRef}
           type="text"
           placeholder="Search or browse Pokémon..."
           value={query}
