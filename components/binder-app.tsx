@@ -4088,11 +4088,17 @@ export default function BinderApp({
                 }}
                 onAddCard={() => {
                   setLongPressedPokemon(null)
-                  openCardSelectorForPokemon(pokemon, "collect")
+                  const pokemonSummary = getPokemonSummary(pokemon.id)
+                  if (pokemonSummary) {
+                    openCardSelectorForPokemon(pokemonSummary, "collect")
+                  }
                 }}
                 onAddWanted={() => {
                   setLongPressedPokemon(null)
-                  openCardSelectorForPokemon(pokemon, "wishlist")
+                  const pokemonSummary = getPokemonSummary(pokemon.id)
+                  if (pokemonSummary) {
+                    openCardSelectorForPokemon(pokemonSummary, "wishlist")
+                  }
                 }}
                 onQuickCollect={() => handleQuickCollect(pokemon)}
                 onToggleFavorite={() => handleToggleFavorite(pokemon.id)}
