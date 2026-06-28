@@ -32,10 +32,12 @@ import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib
 import { POKEMON_CATALOG, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
+import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
 import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
 import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
 import { normalizeSlotPreviewImage, pickRepresentativeSlotPreviewCard, type SlotPreviewCard } from "@/lib/slot-preview-card"
 import { OFFLINE_CACHE_WARMUP_MESSAGE_TYPE, buildOfflineCacheWarmupUrls } from "@/lib/offline-cache-warmup"
+import { buildPokemonSearchPreview } from "@/lib/pokemon-search-preview"
 import {
   buildWantedDashboardSummary,
   sortWantedDashboardEntries,
@@ -1488,6 +1490,7 @@ export default function BinderApp({
     () => currentPageSlots.filter((pokemon): pokemon is PokemonSummary => Boolean(pokemon)),
     [currentPageSlots],
   )
+
   const firstSweepSlotIndex = useMemo(() => {
     const index = currentPageSlots.findIndex(Boolean)
     return index >= 0 ? index : 0
@@ -1778,6 +1781,19 @@ export default function BinderApp({
 
     return ids
   }, [getPageSlots, visibleBinderPageNumbers])
+
+  useEffect(() => {
+    if (!shouldClearSelectedPokemonForPage(selectedPokemon?.id, visiblePagePokemonIds)) {
+      return
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setSelectedPokemon(null)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [selectedPokemon?.id, visiblePagePokemonIds])
+
   useEffect(() => {
     const pokemonIdsToRequest: number[] = []
 
@@ -2462,9 +2478,11 @@ export default function BinderApp({
   const getSearchResultMeta = useCallback((pokemon: { id: number; name: string }): PokemonSearchResultMeta => {
     const summary = getPokemonSummary(pokemon.id)
     const item = getCollectionItem(pokemon.id)
-    const image = summary ? getDisplayArtwork(summary, item?.card_image) : item?.card_image || null
-    const fitClass = item?.card_image ? getDisplayArtworkFit(item.card_image) : "object-contain"
-    const toneClass = item?.status ? getDisplayArtworkTone(item.status) : ""
+    const preview = buildPokemonSearchPreview({
+      pokemonArtwork: summary ? getPokemonArtwork(summary) : getPokemonOfficialArtworkUrl(pokemon.id),
+      cardImage: item?.card_image,
+      status: item?.status,
+    })
     const slotIndex = pokemonList.findIndex((entry) => entry.id === pokemon.id)
     const page = slotIndex >= 0 ? Math.ceil((slotIndex + 1) / slotsPerPage) : null
     const slotPosition = slotIndex >= 0 ? slotIndex % slotsPerPage : -1
@@ -2495,9 +2513,11 @@ export default function BinderApp({
     }
 
     return {
-      previewImage: image,
-      previewFitClass: fitClass,
-      previewToneClass: toneClass,
+      previewImage: preview.previewImage,
+      previewFitClass: preview.previewFitClass,
+      previewToneClass: preview.previewToneClass,
+      cardPreviewImage: preview.cardPreviewImage,
+      cardPreviewToneClass: preview.cardPreviewToneClass,
       stateLabel,
       stateToneClass,
       cardLabel: item?.card_name

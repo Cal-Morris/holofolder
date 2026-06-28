@@ -22,6 +22,8 @@ export interface PokemonSearchResultMeta {
   previewImage?: string | null
   previewFitClass?: string
   previewToneClass?: string
+  cardPreviewImage?: string | null
+  cardPreviewToneClass?: string
   stateLabel?: string | null
   stateToneClass?: string
   cardLabel?: string | null
@@ -269,16 +271,27 @@ export default function PokemonSearch({
                     className="min-w-0 flex-1 px-4 py-3 text-left"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-muted to-muted/30">
-                        {meta?.previewImage ? (
-                          <img
-                            src={meta.previewImage}
-                            alt={displayName}
-                            className={`absolute inset-1 m-auto h-[calc(100%-0.5rem)] w-[calc(100%-0.5rem)] ${meta.previewFitClass || "object-contain"} ${meta.previewToneClass || ""}`}
-                          />
-                        ) : (
-                          <div className="text-[10px] text-muted-foreground">No preview</div>
-                        )}
+                      <div className="relative h-14 w-14 shrink-0">
+                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-muted to-muted/30">
+                          {meta?.previewImage ? (
+                            <img
+                              src={meta.previewImage}
+                              alt={displayName}
+                              className={`h-full w-full p-1.5 ${meta.previewFitClass || "object-contain"} ${meta.previewToneClass || ""}`}
+                            />
+                          ) : (
+                            <div className="text-[10px] text-muted-foreground">No preview</div>
+                          )}
+                        </div>
+                        {meta?.cardPreviewImage ? (
+                          <div className="absolute -bottom-1 -right-1 h-9 w-7 overflow-hidden rounded-[0.22rem] border-2 border-card bg-background shadow-md">
+                            <img
+                              src={meta.cardPreviewImage}
+                              alt={`${displayName} card preview`}
+                              className={`h-full w-full object-cover ${meta.cardPreviewToneClass || ""}`}
+                            />
+                          </div>
+                        ) : null}
                         {meta?.isFavorite ? (
                           <div className="absolute -right-1 -top-1 rounded-full bg-amber-500 p-1 text-white shadow">
                             <Star className="h-2.5 w-2.5 fill-current" />
