@@ -4204,6 +4204,16 @@ export default function BinderApp({
                   }
                   handleSlotClick(pokemon)
                 }}
+                onDoubleClick={() => {
+                  if (pageNumber !== currentBinderPage) {
+                    setCurrentBinderPage(pageNumber)
+                  }
+                  setLongPressedPokemon(null)
+                  const pokemonSummary = getPokemonSummary(pokemon.id)
+                  if (pokemonSummary) {
+                    openCardSelectorForPokemon(pokemonSummary, "collect")
+                  }
+                }}
                 onLongPress={() => {
                   if (pageNumber !== currentBinderPage) {
                     setCurrentBinderPage(pageNumber)
@@ -5703,6 +5713,7 @@ function PokemonSlot({
   cardFinishEffectStyle,
   cardFinishGlint,
   onClick,
+  onDoubleClick,
   onLongPress,
   onAddCard,
   onAddWanted,
@@ -5735,6 +5746,7 @@ function PokemonSlot({
     angle: number
   }
   onClick: () => void
+  onDoubleClick: () => void
   onLongPress: () => void
   onAddCard: () => void
   onAddWanted: () => void
@@ -5861,6 +5873,7 @@ function PokemonSlot({
       <button
         ref={buttonRef}
         onClick={onClick}
+        onDoubleClick={onDoubleClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
