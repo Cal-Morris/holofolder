@@ -2,114 +2,88 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowRight, BookOpen, Camera, Check, DollarSign, Heart, Layers3, Palette, Search, Share2, Sparkles, Star, Users, Wifi } from "lucide-react"
+import { ArrowRight, BookOpen, Camera, Check, DollarSign, Heart, Layers3, Search, Share2, Sparkles, Star, Users, Wifi } from "lucide-react"
 import AuthModal from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
 
 const PREVIEW_SLOTS = [
-  { id: 1, name: "Bulbasaur", status: "owned" },
-  { id: 2, name: "Ivysaur", status: "owned" },
-  { id: 3, name: "Venusaur", status: "wanted" },
-  { id: 4, name: "Charmander", status: "empty" },
-  { id: 5, name: "Charmeleon", status: "empty" },
-  { id: 6, name: "Charizard", status: "wanted" },
-  { id: 7, name: "Squirtle", status: "owned" },
-  { id: 8, name: "Wartortle", status: "empty" },
+  { id: 145, name: "Zapdos", status: "owned" },
+  { id: 147, name: "Dratini", status: "wanted" },
+  { id: 148, name: "Dragonair", status: "owned" },
+  { id: 150, name: "Mewtwo", status: "owned" },
+  { id: 151, name: "Mew", status: "perfect" },
+  { id: 152, name: "Chikorita", status: "empty" },
+  { id: 155, name: "Cyndaquil", status: "empty" },
+  { id: 158, name: "Totodile", status: "owned" },
 ]
 
-const FEATURES = [
-  {
-    icon: Check,
-    title: "Track the binder",
-    text: "Mark each National Dex slot as owned, wanted, upgraded, or perfect.",
-  },
-  {
-    icon: Search,
-    title: "Pick exact cards",
-    text: "Attach the real TCG print you own, then keep variants and wanted cards tidy.",
-  },
-  {
-    icon: Layers3,
-    title: "Share with a partner",
-    text: "Sync the collection across devices so two people can update it together.",
-  },
+const HERO_STATS = [
+  { value: "1025", label: "National Dex slots" },
+  { value: "Live", label: "partner sync" },
+  { value: "Read-only", label: "share previews" },
+  { value: "Exact", label: "TCG print tracking" },
 ]
 
-const CAPABILITIES = [
+const PRIMARY_FEATURES = [
   {
     icon: BookOpen,
-    title: "Binder pages",
-    text: "Navigate single pages or facing spreads with page numbers that match a physical binder.",
-  },
-  {
-    icon: Check,
-    title: "Owned cards",
-    text: "Mark slots as owned, attach exact printings, and keep card language and finish with the slot.",
-  },
-  {
-    icon: Heart,
-    title: "Wanted cards",
-    text: "Track cards you still want without losing the original National Dex slot position.",
-  },
-  {
-    icon: Star,
-    title: "Upgrade and perfect",
-    text: "Separate basic ownership from upgrade targets and final perfect binder slots.",
+    title: "A binder that matches the real one",
+    text: "Navigate by page, spread, generation, or slot. The app stays grounded in the physical binder layout instead of becoming a generic checklist.",
   },
   {
     icon: Search,
-    title: "Fast search",
-    text: "Jump to Pokemon, filter by generation, or move through the next needed cards.",
+    title: "Fast ways to find the next card",
+    text: "Search Pokemon, jump to page numbers, filter by status, and move straight to the next needed or wanted slot.",
   },
   {
-    icon: Layers3,
-    title: "Set population",
-    text: "Inspect TCG sets and add or want cards from set-focused views.",
-  },
-  {
-    icon: DollarSign,
-    title: "Prices",
-    text: "Show estimated values for owned and wanted cards, including filtered totals.",
-  },
-  {
-    icon: Camera,
-    title: "Scanning",
-    text: "Use page and slot scanning to speed up adding cards from a real binder.",
-  },
-  {
-    icon: Users,
-    title: "Partner sync",
-    text: "Let two people update the same collection and see changes refresh across screens.",
-  },
-  {
-    icon: Share2,
-    title: "Read-only sharing",
-    text: "Share a real-time binder preview with anyone, without exposing editing controls.",
-  },
-  {
-    icon: Wifi,
-    title: "Offline-friendly",
-    text: "Keep local collection changes queued when the network is unavailable.",
-  },
-  {
-    icon: Palette,
-    title: "Binder feel",
-    text: "Tune dark mode, binder colors, glare, and card finish effects.",
+    icon: Check,
+    title: "Exact card ownership",
+    text: "Attach the real TCG printing, language, finish, and set to each Dex slot, then update it when you upgrade.",
   },
 ]
 
-const WORKFLOW_STEPS = [
-  "Pick the binder page or jump to the next needed slot.",
-  "Open a slot, choose Add or Want, then select the exact TCG printing.",
-  "Use filters, prices, and wanted lists to decide what to buy or upgrade next.",
-  "Share or partner-sync the binder so updates stay aligned across devices.",
+const FEATURE_GROUPS = [
+  {
+    eyebrow: "Collection state",
+    title: "Know what you own and what still needs work.",
+    items: [
+      { icon: Check, label: "Owned", text: "Mark collected slots with or without an exact card." },
+      { icon: Heart, label: "Wanted", text: "Track cards you want to find without hiding the base slot." },
+      { icon: Star, label: "Upgrade / Perfect", text: "Separate placeholders from cards that are good enough to keep." },
+    ],
+  },
+  {
+    eyebrow: "Card details",
+    title: "Track real TCG cards, not just Pokemon names.",
+    items: [
+      { icon: Layers3, label: "Set views", text: "Browse set populations and add or want cards from there." },
+      { icon: DollarSign, label: "Prices", text: "See owned, wanted, filtered, and page-level value totals." },
+      { icon: Camera, label: "Scanning", text: "Use slot or page scanning to speed up binder entry." },
+    ],
+  },
+  {
+    eyebrow: "Sharing",
+    title: "Built for more than one person looking at the binder.",
+    items: [
+      { icon: Users, label: "Partner mode", text: "Two people can update the same collection and stay in sync." },
+      { icon: Share2, label: "Read-only links", text: "Share a real-time binder preview with anyone, without edit access." },
+      { icon: Wifi, label: "Offline queue", text: "Local changes can wait and sync when the connection comes back." },
+    ],
+  },
+]
+
+const WORKFLOW = [
+  "Open the binder page or jump straight to a Pokemon.",
+  "Choose Add, Want, Upgrade, or Perfect from the slot actions.",
+  "Pick the exact TCG card, finish, language, and set.",
+  "Use prices, wanted cards, and share links to decide what happens next.",
 ]
 
 const VIEW_MODES = [
-  { label: "Binder", text: "The physical-page view for daily tracking." },
-  { label: "List", text: "A dense checklist for fast review." },
-  { label: "Wanted", text: "A buying-focused view of cards still needed." },
-  { label: "Sets", text: "Set-by-set card population and add/want flows." },
+  { label: "Binder", text: "Visual page and spread tracking for the physical collection." },
+  { label: "List", text: "Dense checklist review when you just need to move quickly." },
+  { label: "Wanted", text: "Buying-focused view for cards still missing or planned." },
+  { label: "Sets", text: "Set-by-set population for matching real TCG releases." },
 ]
 
 function getPokemonArtworkUrl(id: number) {
@@ -139,72 +113,98 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
 
   return (
     <main className="min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <header className="flex shrink-0 items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 px-3 py-3 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:px-4">
-          <div className="flex min-w-0 items-center gap-3">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/88 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <a href="#top" className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary shadow-lg shadow-primary/20">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-lg font-bold tracking-tight">BinderDex</p>
-              <p className="truncate text-xs text-muted-foreground">National Dex binder tracking</p>
+              <p className="truncate text-base font-bold tracking-tight">BinderDex</p>
+              <p className="hidden truncate text-xs text-muted-foreground sm:block">National Dex binder tracking</p>
             </div>
-          </div>
+          </a>
+
+          <nav className="hidden items-center gap-5 text-sm font-medium text-muted-foreground md:flex">
+            <a href="#features" className="hover:text-foreground">Features</a>
+            <a href="#sharing" className="hover:text-foreground">Sharing</a>
+            <a href="#workflow" className="hover:text-foreground">Workflow</a>
+            <a href="#views" className="hover:text-foreground">Views</a>
+          </nav>
+
           <Button onClick={openAuthOrApp} className="h-10 shrink-0 rounded-xl px-4">
             {isSignedIn ? "Open app" : "Sign in"}
           </Button>
-        </header>
+        </div>
+      </header>
 
-        <section className="grid min-h-[calc(100dvh-6rem)] items-center gap-8 py-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:py-10">
-          <div className="max-w-xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              <Heart className="h-3.5 w-3.5 fill-current" />
-              Built for shared collecting
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Know exactly what is in the binder.
-            </h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-muted-foreground sm:text-lg">
-              BinderDex gives your Pokemon card binder a clean National Dex map, wanted list, card matching, prices, and shared sync for whoever is updating it.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button onClick={openAuthOrApp} size="lg" className="h-12 rounded-2xl px-5 text-base">
-                {isSignedIn ? "Open app" : "Open your binder"}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <a
-                href="#preview"
-                className="inline-flex h-12 items-center justify-center rounded-2xl border border-border/70 bg-card/70 px-5 text-base font-semibold text-foreground transition-colors hover:bg-muted/70"
-              >
-                Preview the layout
-              </a>
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {FEATURES.map((feature) => {
-                const Icon = feature.icon
-
-                return (
-                  <div key={feature.title} className="rounded-2xl border border-border/60 bg-card/70 p-3">
-                    <Icon className="mb-3 h-4 w-4 text-primary" />
-                    <p className="text-sm font-semibold">{feature.title}</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{feature.text}</p>
-                  </div>
-                )
-              })}
-            </div>
+      <div id="top" className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section className="py-14 text-center sm:py-18 lg:py-20">
+          <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Heart className="h-3.5 w-3.5 fill-current" />
+            Built for shared collecting
+          </div>
+          <h1 className="mx-auto max-w-5xl text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+            A proper operating system for your Pokemon binder.
+          </h1>
+          <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-muted-foreground sm:text-lg">
+            BinderDex turns a physical National Dex card binder into a live, searchable, shareable collection. Track exact cards, wanted upgrades, prices, scans, and partner updates without losing the page layout you actually use.
+          </p>
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Button onClick={openAuthOrApp} size="lg" className="h-12 rounded-2xl px-5 text-base">
+              {isSignedIn ? "Open app" : "Open your binder"}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <a
+              href="#preview"
+              className="inline-flex h-12 items-center justify-center rounded-2xl border border-border/70 bg-card/70 px-5 text-base font-semibold text-foreground transition-colors hover:bg-muted/70"
+            >
+              See the preview
+            </a>
           </div>
 
-          <div id="preview" className="relative mx-auto w-full max-w-xl scroll-mt-6 lg:max-w-none">
+          <div className="mx-auto mt-10 grid max-w-5xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {HERO_STATS.map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-border/60 bg-card/70 p-4 text-left">
+                <p className="text-2xl font-bold tracking-tight text-foreground">{stat.value}</p>
+                <p className="mt-1 text-xs font-medium text-muted-foreground">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="preview" className="scroll-mt-24 border-y border-border/50 py-10">
+          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Live binder preview</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">The page view stays close to the real thing.</h2>
+              <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
+                The core screen is a binder page, not a spreadsheet. Slots keep their page, row, and column labels so you can move between the app and the physical binder without translating anything.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {PRIMARY_FEATURES.map((feature) => {
+                  const Icon = feature.icon
+
+                  return (
+                    <div key={feature.title} className="rounded-2xl border border-border/60 bg-card/70 p-4">
+                      <Icon className="mb-3 h-4 w-4 text-primary" />
+                      <p className="text-sm font-semibold">{feature.title}</p>
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{feature.text}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="rounded-[2rem] border border-emerald-500/30 bg-emerald-950/25 p-3 shadow-[0_30px_90px_-48px_rgba(16,185,129,0.75)] dark:bg-emerald-950/35">
               <div className="rounded-[1.45rem] border border-white/10 bg-background/80 p-3 shadow-inner backdrop-blur">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pages 16-17</p>
-                    <p className="text-sm font-bold">Starter binder preview</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pages 10-11</p>
+                    <p className="text-sm font-bold">National Dex binder</p>
                   </div>
                   <div className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
-                    349 / 1025
+                    423 / 1025
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
@@ -212,7 +212,7 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
                     <div
                       key={slot.id}
                       className={`relative aspect-[2.5/3.5] overflow-hidden rounded-xl border bg-gradient-to-br from-muted to-background ${
-                        slot.status === "owned"
+                        slot.status === "owned" || slot.status === "perfect"
                           ? "border-emerald-400/45"
                           : slot.status === "wanted"
                             ? "border-amber-400/50"
@@ -239,6 +239,11 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
                           Want
                         </div>
                       ) : null}
+                      {slot.status === "perfect" ? (
+                        <div className="absolute right-1 top-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                          Perfect
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -247,71 +252,117 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
           </div>
         </section>
 
-        <section className="border-t border-border/50 py-10 sm:py-12">
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">What it supports</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Everything around the binder, not just a checklist.</h2>
-            </div>
-            <p className="max-w-md text-sm leading-6 text-muted-foreground">
-              The app is built around the way a real collection gets handled: page positions, exact cards, buying targets, prices, and two people editing at once.
+        <section id="features" className="scroll-mt-24 py-14 sm:py-16">
+          <div className="mb-8 max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Features</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Everything around the binder, not just a checklist.</h2>
+            <p className="mt-4 text-sm leading-7 text-muted-foreground">
+              BinderDex handles the messy parts around a real card binder: placeholders, wanted upgrades, exact printings, prices, scans, sharing, and two people editing together.
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {CAPABILITIES.map((capability) => {
-              const Icon = capability.icon
+          <div className="grid gap-4 lg:grid-cols-3">
+            {FEATURE_GROUPS.map((group) => (
+              <div key={group.title} className="rounded-[1.5rem] border border-border/60 bg-card/70 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{group.eyebrow}</p>
+                <h3 className="mt-3 text-xl font-bold tracking-tight">{group.title}</h3>
+                <div className="mt-5 space-y-4">
+                  {group.items.map((item) => {
+                    const Icon = item.icon
 
-              return (
-                <div key={capability.title} className="rounded-2xl border border-border/60 bg-card/70 p-4">
-                  <Icon className="mb-4 h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-semibold">{capability.title}</h3>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{capability.text}</p>
+                    return (
+                      <div key={item.label} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3">
+                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{item.label}</p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.text}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="grid gap-4 border-t border-border/50 py-10 sm:py-12 lg:grid-cols-[0.9fr_1.1fr]">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Daily flow</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Designed for repeated updates.</h2>
-            <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-              Most sessions are quick: find the slot, mark the card, move on. The deeper tools are there when you need prices, scans, or cleanup.
-            </p>
-          </div>
-
-          <div className="grid gap-3">
-            {WORKFLOW_STEPS.map((step, index) => (
-              <div key={step} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-2xl border border-border/60 bg-card/70 p-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">
-                  {index + 1}
-                </div>
-                <p className="self-center text-sm font-medium leading-6">{step}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="grid gap-4 border-t border-border/50 py-10 sm:py-12 lg:grid-cols-4">
-          {VIEW_MODES.map((view) => (
-            <div key={view.label} className="rounded-2xl border border-border/60 bg-card/70 p-4">
-              <div className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                {view.label}
-              </div>
-              <p className="text-sm leading-6 text-muted-foreground">{view.text}</p>
+        <section id="sharing" className="scroll-mt-24 border-t border-border/50 py-14 sm:py-16">
+          <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Sharing</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">A live binder preview you can safely send to anyone.</h2>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                Read-only sharing gives friends, buyers, family, or another collector a real-time view of the binder without giving them edit controls. Partner mode is for trusted collaborators; share links are for everyone else.
+              </p>
             </div>
-          ))}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
+                <Share2 className="mb-4 h-5 w-5 text-primary" />
+                <p className="text-sm font-semibold">Read-only links</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">Browseable previews with no edit access.</p>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
+                <Users className="mb-4 h-5 w-5 text-primary" />
+                <p className="text-sm font-semibold">Partner updates</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">Two editors can keep one collection current.</p>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
+                <Wifi className="mb-4 h-5 w-5 text-primary" />
+                <p className="text-sm font-semibold">Realtime refresh</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">Screens stay aligned as changes land.</p>
+              </div>
+            </div>
+          </div>
         </section>
 
-        <section className="border-t border-border/50 py-10 sm:py-12">
-          <div className="rounded-[2rem] border border-primary/20 bg-primary/10 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+        <section id="workflow" className="scroll-mt-24 border-t border-border/50 py-14 sm:py-16">
+          <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Sync and share</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight">Keep the collection current from anywhere.</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Workflow</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Fast for daily updates, detailed when it matters.</h2>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                The app keeps the common actions close, then opens deeper tools only when you need exact card matching, pricing, or cleanup.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {WORKFLOW.map((step, index) => (
+                <div key={step} className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 rounded-2xl border border-border/60 bg-card/70 p-4">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+                  <p className="self-center text-sm font-medium leading-6">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="views" className="scroll-mt-24 border-t border-border/50 py-14 sm:py-16">
+          <div className="mb-8 max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Views</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Different ways to inspect the same collection.</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {VIEW_MODES.map((view) => (
+              <div key={view.label} className="rounded-2xl border border-border/60 bg-card/70 p-5">
+                <div className="mb-5 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                  {view.label}
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">{view.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-t border-border/50 py-14 sm:py-16">
+          <div className="rounded-[2rem] border border-primary/20 bg-primary/10 p-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Ready</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Start with the binder page you already have.</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Realtime refresh keeps partner sessions aligned, local changes can queue offline, and read-only share links give anyone a live binder preview without letting them change anything.
+                Add the cards you own, mark the ones you want, then share the live read-only preview when someone asks what is still missing.
               </p>
             </div>
             <Button onClick={openAuthOrApp} size="lg" className="mt-5 h-12 rounded-2xl px-5 text-base sm:mt-0">
@@ -321,6 +372,13 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
           </div>
         </section>
       </div>
+
+      <footer className="border-t border-border/50 py-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <p className="font-semibold text-foreground">BinderDex</p>
+          <p>National Dex binder tracking with realtime sharing.</p>
+        </div>
+      </footer>
 
       {!isSignedIn ? <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} /> : null}
     </main>
