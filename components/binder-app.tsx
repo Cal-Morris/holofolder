@@ -6501,7 +6501,8 @@ function PokemonSlot({
   const subtitleLabel = isWishlisted && cardName
     ? `Wanted for #${String(pokemon.id).padStart(4, "0")}`
     : `#${String(pokemon.id).padStart(4, "0")}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
-  const hasCardPreview = Boolean(cardImageSource)
+  const hasCardPreviewSource = Boolean(cardImageSource)
+  const hasCardPreview = hasCardPreviewSource && !didFallbackPreviewImage
   const statusChip = isWishlisted
     ? {
         label: isCollected ? "Want" : "Wanted",
