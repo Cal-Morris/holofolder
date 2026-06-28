@@ -155,7 +155,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const nextUser = session?.user ?? null
-      setUser(nextUser ? { id: nextUser.id } : null)
+      setUser((currentUser) => currentUser?.id === nextUser?.id ? currentUser : nextUser ? { id: nextUser.id } : null)
     })
 
     return () => subscription.unsubscribe()

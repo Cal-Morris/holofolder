@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Fingerprint, Plus, Trash2, Loader2, CheckCircle } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser"
 import type { User } from "@supabase/supabase-js"
+
+const PASSKEY_REQUEST_TIMEOUT_MS = 10000
 
 interface Passkey {
   id: string
@@ -24,15 +25,37 @@ export default function PasskeySettings({ user }: PasskeySettingsProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [supportsPasskey, setSupportsPasskey] = useState(false)
-
-  const supabase = createClient()
+  const userId = user?.id ?? null
 
   useEffect(() => {
     setSupportsPasskey(browserSupportsWebAuthn())
   }, [])
 
-  const loadPasskeys = useCallback(async (currentUser: User | null) => {
-    if (!currentUser) {
+  const fetchPasskeyJson = useCallback(async (url: string, init: RequestInit = {}) => {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), PASSKEY_REQUEST_TIMEOUT_MS)
+
+    try {
+      const response = await fetch(url, {
+        ...init,
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: controller.signal,
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : `Request failed (${response.status})`)
+      }
+
+      return payload
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+  }, [])
+
+  const loadPasskeys = useCallback(async (currentUserId: string | null) => {
+    if (!currentUserId) {
       setPasskeys([])
       setError(null)
       setIsLoading(false)
@@ -42,25 +65,19 @@ export default function PasskeySettings({ user }: PasskeySettingsProps) {
     setIsLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
-        .from("passkey_credentials")
-        .select("id, device_type, created_at")
-        .eq("user_id", currentUser.id)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      setPasskeys(data || [])
+      const payload = await fetchPasskeyJson("/api/auth/passkey/credentials")
+      setPasskeys(Array.isArray(payload?.passkeys) ? payload.passkeys : [])
     } catch (err) {
-      console.error("[v0] Error loading passkeys:", err)
+      console.error("[binderdex] Error loading passkeys:", err)
       setError("Could not load your passkeys.")
     } finally {
       setIsLoading(false)
     }
-  }, [supabase])
+  }, [fetchPasskeyJson])
 
   useEffect(() => {
-    void loadPasskeys(user)
-  }, [loadPasskeys, user])
+    void loadPasskeys(userId)
+  }, [loadPasskeys, userId])
 
   const handleRegisterPasskey = async () => {
     setIsRegistering(true)
@@ -69,18 +86,15 @@ export default function PasskeySettings({ user }: PasskeySettingsProps) {
 
     try {
       // Get registration options from server
-      const optionsRes = await fetch("/api/auth/passkey/register/options", {
+      const optionsRes = await fetchPasskeyJson("/api/auth/passkey/register/options", {
         method: "POST",
       })
-      
-      if (!optionsRes.ok) throw new Error("Failed to get registration options")
-      const options = await optionsRes.json()
 
       // Start WebAuthn registration
-      const credential = await startRegistration({ optionsJSON: options })
+      const credential = await startRegistration({ optionsJSON: optionsRes })
 
       // Verify with server
-      const verifyRes = await fetch("/api/auth/passkey/register/verify", {
+      await fetchPasskeyJson("/api/auth/passkey/register/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -99,21 +113,16 @@ export default function PasskeySettings({ user }: PasskeySettingsProps) {
         }),
       })
 
-      if (!verifyRes.ok) {
-        const data = await verifyRes.json()
-        throw new Error(data.error || "Registration failed")
-      }
-
       setSuccess(true)
-      await loadPasskeys(user)
+      await loadPasskeys(userId)
       setTimeout(() => setSuccess(false), 3000)
-    } catch (err: any) {
-      if (err.name === "NotAllowedError") {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "NotAllowedError") {
         setError("Registration was cancelled")
-      } else if (err.name === "InvalidStateError") {
+      } else if (err instanceof Error && err.name === "InvalidStateError") {
         setError("This passkey is already registered")
       } else {
-        setError(err.message || "Failed to register passkey")
+        setError(err instanceof Error ? err.message : "Failed to register passkey")
       }
     } finally {
       setIsRegistering(false)
@@ -122,15 +131,13 @@ export default function PasskeySettings({ user }: PasskeySettingsProps) {
 
   const handleDeletePasskey = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("passkey_credentials")
-        .delete()
-        .eq("id", id)
-
-      if (error) throw error
+      await fetchPasskeyJson(`/api/auth/passkey/credentials?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      })
       setPasskeys(prev => prev.filter(p => p.id !== id))
     } catch (err) {
-      console.error("[v0] Error deleting passkey:", err)
+      console.error("[binderdex] Error deleting passkey:", err)
+      setError("Could not delete that passkey.")
     }
   }
 

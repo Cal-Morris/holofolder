@@ -126,7 +126,7 @@ async function warmCacheUrl(rawUrl) {
   const cacheName = getCacheNameForUrl(url)
   const cache = await caches.open(cacheName)
 
-  if (cacheName === IMAGE_CACHE && await cache.match(request)) {
+  if (await cache.match(request)) {
     return
   }
 

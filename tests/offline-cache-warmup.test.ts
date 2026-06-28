@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
   buildOfflineCacheWarmupUrls,
+  shouldPostOfflineCacheWarmup,
   toCacheableCardImageUrl,
 } from "../lib/offline-cache-warmup"
 
@@ -47,4 +48,12 @@ test("buildOfflineCacheWarmupUrls warms shell, current card lists, collection ca
     urls.filter((url) => url === "/api/tcgdex-cache?pokemonId=25&language=en").length,
     1,
   )
+})
+
+test("shouldPostOfflineCacheWarmup only posts when the warmup URL set changes", () => {
+  const urls = ["/", "/api/tcgdex-cache?pokemonId=25&language=en"]
+
+  assert.equal(shouldPostOfflineCacheWarmup(null, urls), true)
+  assert.equal(shouldPostOfflineCacheWarmup(urls.join("\n"), [...urls]), false)
+  assert.equal(shouldPostOfflineCacheWarmup(urls.join("\n"), [...urls, "/api/tcgdex-cache?pokemonId=26&language=en"]), true)
 })

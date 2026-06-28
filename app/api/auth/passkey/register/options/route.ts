@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { generateChallenge, storeChallenge } from "@/lib/webauthn"
 import { getPasskeyRpId } from "@/lib/passkey-rp"
 
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
     const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host")
 
     // Get existing credentials to exclude
-    const { data: existingCreds } = await supabase
+    const admin = createAdminClient()
+    const { data: existingCreds } = await admin
       .from("passkey_credentials")
       .select("credential_id")
       .eq("user_id", user.id)

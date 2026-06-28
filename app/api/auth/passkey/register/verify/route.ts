@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getChallenge } from "@/lib/webauthn"
 
 export async function POST(request: NextRequest) {
@@ -24,7 +25,8 @@ export async function POST(request: NextRequest) {
     const { id, response: credResponse, authenticatorAttachment } = credential
     
     // Store the credential
-    const { error } = await supabase
+    const admin = createAdminClient()
+    const { error } = await admin
       .from("passkey_credentials")
       .insert({
         user_id: user.id,

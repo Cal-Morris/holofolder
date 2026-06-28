@@ -131,6 +131,23 @@ interface ShouldAutoRefreshCollectionInput {
   isWritingRemoteCollection: boolean
 }
 
+export function keepStableUserById<TUser extends { id: string }>(currentUser: TUser | null, nextUser: TUser | null) {
+  return currentUser?.id === nextUser?.id ? currentUser : nextUser
+}
+
+export function getRemoteCollectionRefreshPlan<TUser extends { id: string }>(
+  currentUser: TUser | null,
+  knownOwnerUserId: string | null,
+) {
+  if (!currentUser) return null
+
+  return {
+    user: currentUser,
+    knownOwnerUserId,
+    shouldResolveOwner: !knownOwnerUserId,
+  }
+}
+
 export function shouldAutoRefreshCollection(input: ShouldAutoRefreshCollectionInput) {
   return !input.readOnly &&
     input.hasUser &&
@@ -612,11 +629,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (readOnly) return
 
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      setUser(currentUser)
+      const refreshPlan = getRemoteCollectionRefreshPlan(user, collectionOwnerUserId)
 
-      if (currentUser) {
-        const ownerUserId = await resolveCollectionOwnerUserId(currentUser)
+      if (refreshPlan) {
+        const ownerUserId = refreshPlan.knownOwnerUserId ?? await resolveCollectionOwnerUserId(refreshPlan.user)
         const { data, error } = await supabase
           .from("pokemon_collection")
           .select("*")
@@ -631,7 +647,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     } catch (error) {
       console.error("[binderdex] Error loading collection:", error)
     }
-  }, [readOnly, resolveCollectionOwnerUserId, supabase])
+  }, [collectionOwnerUserId, readOnly, resolveCollectionOwnerUserId, supabase, user])
 
   const writeRemoteCollection = useCallback(async <T,>(operation: () => Promise<T>) => {
     activeRemoteCollectionWriteCountRef.current += 1
@@ -668,7 +684,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (readOnly) return
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null)
+      setUser((existingUser) => keepStableUserById(existingUser, session?.user ?? null))
 
       if (session?.user) {
         const ownerUserId = await resolveCollectionOwnerUserId(session.user)

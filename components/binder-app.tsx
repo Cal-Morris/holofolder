@@ -37,7 +37,12 @@ import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
 import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
 import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
 import { normalizeSlotPreviewImage, pickRepresentativeSlotPreviewCard, type SlotPreviewCard } from "@/lib/slot-preview-card"
-import { OFFLINE_CACHE_WARMUP_MESSAGE_TYPE, buildOfflineCacheWarmupUrls } from "@/lib/offline-cache-warmup"
+import {
+  OFFLINE_CACHE_WARMUP_MESSAGE_TYPE,
+  buildOfflineCacheWarmupUrls,
+  getOfflineCacheWarmupSignature,
+  shouldPostOfflineCacheWarmup,
+} from "@/lib/offline-cache-warmup"
 import { buildPokemonSearchPreview } from "@/lib/pokemon-search-preview"
 import {
   buildWantedDashboardSummary,
@@ -842,6 +847,7 @@ export default function BinderApp({
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
   const isRequestingMotionPermissionRef = useRef(false)
+  const lastOfflineCacheWarmupSignatureRef = useRef<string | null>(null)
 
   const pokemonList = POKEMON_CATALOG
   const {
@@ -1909,6 +1915,10 @@ export default function BinderApp({
       visiblePokemonIds: [...visiblePagePokemonIds],
     }),
     [collection, selectedPokemon, visiblePagePokemonIds],
+  )
+  const offlineCacheWarmupSignature = useMemo(
+    () => getOfflineCacheWarmupSignature(offlineCacheWarmupUrls),
+    [offlineCacheWarmupUrls],
   )
   const visiblePageTrackedCards = useMemo(
     () =>
@@ -3453,17 +3463,25 @@ export default function BinderApp({
       return
     }
 
+    if (!shouldPostOfflineCacheWarmup(lastOfflineCacheWarmupSignatureRef.current, offlineCacheWarmupUrls)) {
+      return
+    }
+
     let cancelled = false
+    const warmupSignature = offlineCacheWarmupSignature
     const timeoutId = window.setTimeout(() => {
       void window.navigator.serviceWorker.ready
         .then((registration) => {
           if (cancelled) return
 
           const targetWorker = registration.active ?? window.navigator.serviceWorker.controller
-          targetWorker?.postMessage({
+          if (!targetWorker) return
+
+          targetWorker.postMessage({
             type: OFFLINE_CACHE_WARMUP_MESSAGE_TYPE,
             urls: offlineCacheWarmupUrls,
           })
+          lastOfflineCacheWarmupSignatureRef.current = warmupSignature
         })
         .catch((error) => {
           console.error("[binderdex] Failed to warm offline cache:", error)
@@ -3474,7 +3492,7 @@ export default function BinderApp({
       cancelled = true
       window.clearTimeout(timeoutId)
     }
-  }, [offlineCacheWarmupUrls])
+  }, [offlineCacheWarmupSignature, offlineCacheWarmupUrls])
 
   const handleInstallApp = useCallback(async () => {
     if (!installPromptEvent) {
@@ -6362,7 +6380,9 @@ export default function BinderApp({
         onRequestMotionGlint={handleRequestMotionGlint}
       />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
-      <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
+      {isPartnerOpen ? (
+        <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
+      ) : null}
 
       {isCardSelectorOpen && selectedPokemon && (
         <CardSelector

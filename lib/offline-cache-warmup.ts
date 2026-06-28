@@ -63,6 +63,15 @@ export function buildOfflineCacheWarmupUrls(input: OfflineCacheWarmupInput) {
   return [...urls].slice(0, maxUrls)
 }
 
+export function getOfflineCacheWarmupSignature(urls: string[]) {
+  return urls.join("\n")
+}
+
+export function shouldPostOfflineCacheWarmup(previousSignature: string | null, urls: string[]) {
+  if (urls.length === 0) return false
+  return previousSignature !== getOfflineCacheWarmupSignature(urls)
+}
+
 function addPokemonCacheUrls(urls: Set<string>, values: unknown, language: string) {
   if (!Array.isArray(values)) return
 
