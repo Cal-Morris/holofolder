@@ -22,13 +22,13 @@ interface SharePageProps {
   }>
 }
 
-export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   robots: {
     index: false,
     follow: false,
   },
 }
+export const instant = false
 
 export default async function SharedBinderPage({ params }: SharePageProps) {
   const { token } = await params

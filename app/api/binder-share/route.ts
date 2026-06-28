@@ -3,8 +3,6 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { buildBinderSharePath } from "@/lib/binder-share"
 
-export const runtime = "nodejs"
-
 async function requireUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

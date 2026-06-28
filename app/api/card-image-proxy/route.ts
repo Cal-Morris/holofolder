@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { IMMUTABLE_IMAGE_CACHE_HEADERS } from "@/lib/http-cache"
 
-export const runtime = "nodejs"
+export const instant = false
 
 function isAllowedImageHost(hostname: string) {
   return hostname === "assets.tcgdex.net" || hostname.endsWith(".tcgdex.net")
@@ -42,7 +43,8 @@ export async function GET(request: NextRequest) {
   return new NextResponse(buffer, {
     headers: {
       "content-type": contentType,
-      "cache-control": "public, max-age=86400, s-maxage=86400",
+      "x-content-type-options": "nosniff",
+      ...IMMUTABLE_IMAGE_CACHE_HEADERS,
     },
   })
 }

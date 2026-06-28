@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { CardFinish } from "@/hooks/use-collection"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSummary } from "@/lib/tcg-set-slots"
+import { cacheLife, cacheTag } from "next/cache"
 
 export type MirrorLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
@@ -73,6 +74,11 @@ const MIRRORED_CARD_SELECT = `
 `
 
 const IMAGE_LANGUAGE_FALLBACKS = ["en", "ja", "fr", "de", "es", "it", "pt-br", "ko"] as const
+const MIRROR_CACHE_LIFE = "days"
+
+function cacheSafeTag(prefix: string, value: string | number) {
+  return `${prefix}:${String(value).replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 180)}`
+}
 
 function pickLocalizedText(value: unknown, language: MirrorLanguage) {
   if (!value) return null
@@ -167,6 +173,10 @@ function compareLocalIds(a: MirroredTCGCard, b: MirroredTCGCard) {
 }
 
 export async function getMirroredCardsForPokemon(pokemonId: number, language: MirrorLanguage = "en") {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+  cacheTag("tcg-mirror", cacheSafeTag("pokemon", pokemonId), cacheSafeTag("language", language))
+
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("tcg_card_dex_ids")
@@ -214,8 +224,12 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
 }
 
 export async function searchMirroredSets(query: string, limit = 8): Promise<TCGSetSummary[]> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+
   const admin = createAdminClient()
   const trimmedQuery = query.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim()
+  cacheTag("tcg-mirror", "tcg-sets", cacheSafeTag("set-query", trimmedQuery), cacheSafeTag("limit", limit))
 
   if (trimmedQuery.length < 2) {
     return []
@@ -257,6 +271,10 @@ export async function getMirroredSetDexSlots(
   language: MirrorLanguage = "en",
   pokemonNames = new Map<number, string>(),
 ): Promise<{ selectedSet: TCGSetSummary | null; slots: TCGSetDexSlot[] }> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+  cacheTag("tcg-mirror", cacheSafeTag("set", setId), cacheSafeTag("language", language))
+
   const admin = createAdminClient()
 
   const { data, error } = await admin

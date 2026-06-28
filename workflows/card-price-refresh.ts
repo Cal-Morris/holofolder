@@ -24,8 +24,10 @@ const PRICE_REFRESH_BATCH_SIZE = 25
 export async function refreshCardPricesWorkflow(ownerUserId: string): Promise<CardPriceWorkflowResult> {
   "use workflow"
 
+  console.log(`[binderdex] Starting card price refresh for owner ${ownerUserId}`)
   const lookups = await loadTrackedCardPriceLookups(ownerUserId)
   const batches = chunkCardPriceLookups(lookups, PRICE_REFRESH_BATCH_SIZE)
+  console.log(`[binderdex] Refreshing ${lookups.length} card price lookups in ${batches.length} batches`)
   let refreshed = 0
   let cached = 0
   let unpriced = 0
@@ -36,6 +38,10 @@ export async function refreshCardPricesWorkflow(ownerUserId: string): Promise<Ca
     cached += result.cached
     unpriced += result.unpriced
   }
+
+  console.log(
+    `[binderdex] Finished card price refresh: ${refreshed} refreshed, ${cached} cached, ${unpriced} unpriced`,
+  )
 
   return {
     totalCards: lookups.length,
@@ -48,6 +54,7 @@ export async function refreshCardPricesWorkflow(ownerUserId: string): Promise<Ca
 async function loadTrackedCardPriceLookups(ownerUserId: string): Promise<CardPriceLookup[]> {
   "use step"
 
+  console.log(`[binderdex] Loading tracked cards for owner ${ownerUserId}`)
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("pokemon_collection")
@@ -88,7 +95,12 @@ async function loadTrackedCardPriceLookups(ownerUserId: string): Promise<CardPri
 async function refreshCardPriceBatch(lookups: CardPriceLookup[]): Promise<CardPriceRefreshResult> {
   "use step"
 
-  return refreshCardPriceLookups(lookups, { force: true })
+  console.log(`[binderdex] Refreshing card price batch with ${lookups.length} lookups`)
+  const result = await refreshCardPriceLookups(lookups, { force: true })
+  console.log(
+    `[binderdex] Finished card price batch: ${result.refreshed} refreshed, ${result.cached} cached, ${result.unpriced} unpriced`,
+  )
+  return result
 }
 
 function chunkCardPriceLookups(lookups: CardPriceLookup[], batchSize: number) {

@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { DEFAULT_BINDER_COLOR_ID, type BinderColorId } from "@/lib/binder-colors"
 
-export const runtime = "nodejs"
-
 type UserSettingsRow = {
   binder_rows?: number | null
   binder_cols?: number | null

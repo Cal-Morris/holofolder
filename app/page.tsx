@@ -15,7 +15,7 @@ const DEFAULT_BINDER_SETTINGS: BinderSettings = {
 }
 const THEME_COOKIE = "binderdex_theme"
 
-export const dynamic = "force-dynamic"
+export const instant = false
 
 export default async function Page() {
   const supabase = await createClient()

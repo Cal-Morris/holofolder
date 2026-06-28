@@ -2,11 +2,26 @@ import { withWorkflow } from "workflow/next"
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: [
+    "localhost",
+    "10.4.1.154",
+  ],
+  cacheComponents: true,
   typescript: {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "assets.tcgdex.net",
+      },
+      {
+        protocol: "https",
+        hostname: "**.tcgdex.net",
+      },
+    ],
   },
   outputFileTracingIncludes: {
     "/*": [

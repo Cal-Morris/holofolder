@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { normalizeCardPriceLookups, refreshCardPriceLookups } from "@/lib/card-pricing"
 
-export const runtime = "nodejs"
-
 const MAX_CARD_IDS = 200
 
 export async function POST(request: NextRequest) {

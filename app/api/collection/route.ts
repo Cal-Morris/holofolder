@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
-export const runtime = "nodejs"
-
 const VALID_STATUSES = new Set(["collected", "finalized", "considering", "wishlisted"])
 const VALID_CARD_LANGUAGES = new Set(["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"])
 const VALID_CARD_FINISHES = new Set([

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { searchMirroredSets, getMirroredSetDexSlots, type MirrorLanguage } from "@/lib/tcg-mirror"
 import { POKEMON_CATALOG } from "@/lib/pokemon-catalog"
+import { PUBLIC_JSON_CACHE_HEADERS } from "@/lib/http-cache"
 
-export const runtime = "nodejs"
+export const instant = false
 
 const SUPPORTED_LANGUAGES = new Set<MirrorLanguage>(["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"])
 
@@ -14,8 +15,9 @@ function normalizeLanguage(value: string | null): MirrorLanguage {
 }
 
 export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+
   try {
-    const searchParams = request.nextUrl.searchParams
     const query = searchParams.get("query")?.trim() ?? ""
     const requestedSetId = searchParams.get("setId")?.trim() ?? ""
     const language = normalizeLanguage(searchParams.get("language"))
@@ -26,11 +28,14 @@ export async function GET(request: NextRequest) {
     const selectedSetId = requestedSetId || null
 
     if (!selectedSetId) {
-      return NextResponse.json({
-        sets,
-        selectedSet: null,
-        slots: [],
-      })
+      return NextResponse.json(
+        {
+          sets,
+          selectedSet: null,
+          slots: [],
+        },
+        { headers: PUBLIC_JSON_CACHE_HEADERS },
+      )
     }
 
     const { selectedSet, slots } = await getMirroredSetDexSlots(selectedSetId, language, pokemonNames)
@@ -38,11 +43,14 @@ export async function GET(request: NextRequest) {
       ? sets
       : [selectedSet, ...sets]
 
-    return NextResponse.json({
-      sets: allSets,
-      selectedSet,
-      slots,
-    })
+    return NextResponse.json(
+      {
+        sets: allSets,
+        selectedSet,
+        slots,
+      },
+      { headers: PUBLIC_JSON_CACHE_HEADERS },
+    )
   } catch (error) {
     console.error("[binderdex] Failed to load TCG set slot coverage:", error)
     return NextResponse.json(
