@@ -10,8 +10,10 @@ import { formatPokemonDisplayName, getPokemonSummary } from "@/lib/pokemon-catal
 import {
   getInitialPokemonSearchFilter,
   getPokemonSearchPageJump,
+  matchesPokemonSearchStateFilter,
   searchPokemonItems,
   type PokemonSearchStateFilter,
+  type PokemonSearchSlotState,
 } from "@/lib/pokemon-search-state"
 
 type SearchStateFilter = PokemonSearchStateFilter
@@ -27,7 +29,7 @@ export interface PokemonSearchResultMeta {
   pageNumber?: number | null
   isFavorite?: boolean
   isSelected?: boolean
-  slotState?: "open" | "owned" | "wanted" | "perfect" | "upgrade"
+  slotState?: PokemonSearchSlotState
 }
 
 interface PokemonSearchProps {
@@ -46,6 +48,7 @@ const SEARCH_FILTERS: Array<{
   { id: "all", label: "All" },
   { id: "current", label: "This Page" },
   { id: "needed", label: "Needed" },
+  { id: "missing", label: "Missing" },
   { id: "upgrade", label: "Upgrades" },
   { id: "wanted", label: "Wanted" },
   { id: "perfect", label: "Perfect" },
@@ -88,27 +91,10 @@ export default function PokemonSearch({
   const matchesFilter = useCallback((filter: SearchStateFilter, pokemon: { id: number; name: string }) => {
     const meta = getResultMeta?.(pokemon)
 
-    if (filter === "current") {
-      return currentPagePokemonIds.has(pokemon.id)
-    }
-
-    if (filter === "needed") {
-      return meta?.slotState === "open" || meta?.slotState === "wanted"
-    }
-
-    if (filter === "upgrade") {
-      return meta?.slotState === "owned" || meta?.slotState === "upgrade"
-    }
-
-    if (filter === "wanted") {
-      return meta?.slotState === "wanted"
-    }
-
-    if (filter === "perfect") {
-      return meta?.slotState === "perfect"
-    }
-
-    return true
+    return matchesPokemonSearchStateFilter(filter, {
+      slotState: meta?.slotState,
+      isCurrentPage: currentPagePokemonIds.has(pokemon.id),
+    })
   }, [currentPagePokemonIds, getResultMeta])
 
   const visibleResults = useMemo(() => {

@@ -1,4 +1,10 @@
-export type PokemonSearchStateFilter = "all" | "current" | "needed" | "upgrade" | "wanted" | "perfect"
+export type PokemonSearchStateFilter = "all" | "current" | "needed" | "missing" | "upgrade" | "wanted" | "perfect"
+export type PokemonSearchSlotState = "open" | "owned" | "wanted" | "perfect" | "upgrade"
+
+export interface PokemonSearchFilterState {
+  slotState?: PokemonSearchSlotState | null
+  isCurrentPage?: boolean
+}
 
 export interface PokemonSearchPageJump {
   page: number
@@ -17,6 +23,37 @@ export interface PokemonSearchScoredItem<T extends PokemonSearchItem> extends Po
 
 export function getInitialPokemonSearchFilter(): PokemonSearchStateFilter {
   return "all"
+}
+
+export function matchesPokemonSearchStateFilter(
+  filter: PokemonSearchStateFilter,
+  state: PokemonSearchFilterState,
+) {
+  if (filter === "current") {
+    return Boolean(state.isCurrentPage)
+  }
+
+  if (filter === "needed") {
+    return state.slotState === "open" || state.slotState === "wanted"
+  }
+
+  if (filter === "missing") {
+    return state.slotState === "open"
+  }
+
+  if (filter === "upgrade") {
+    return state.slotState === "owned" || state.slotState === "upgrade"
+  }
+
+  if (filter === "wanted") {
+    return state.slotState === "wanted"
+  }
+
+  if (filter === "perfect") {
+    return state.slotState === "perfect"
+  }
+
+  return true
 }
 
 export function normalizePokemonSearchText(value: string) {

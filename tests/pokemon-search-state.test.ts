@@ -4,12 +4,24 @@ import {
   getInitialPokemonSearchFilter,
   getPokemonSearchPageJump,
   getPokemonSearchTerms,
+  matchesPokemonSearchStateFilter,
   normalizePokemonSearchText,
   searchPokemonItems,
 } from "../lib/pokemon-search-state"
 
 test("getInitialPokemonSearchFilter defaults search to all Pokemon", () => {
   assert.equal(getInitialPokemonSearchFilter(), "all")
+})
+
+test("matchesPokemonSearchStateFilter separates missing slots from broader needed slots", () => {
+  assert.equal(matchesPokemonSearchStateFilter("missing", { slotState: "open" }), true)
+  assert.equal(matchesPokemonSearchStateFilter("missing", { slotState: "wanted" }), false)
+  assert.equal(matchesPokemonSearchStateFilter("missing", { slotState: "owned" }), false)
+  assert.equal(matchesPokemonSearchStateFilter("missing", { slotState: "perfect" }), false)
+  assert.equal(matchesPokemonSearchStateFilter("missing", { slotState: "upgrade" }), false)
+
+  assert.equal(matchesPokemonSearchStateFilter("needed", { slotState: "open" }), true)
+  assert.equal(matchesPokemonSearchStateFilter("needed", { slotState: "wanted" }), true)
 })
 
 test("getPokemonSearchPageJump detects numeric page queries", () => {
