@@ -8,6 +8,7 @@ import { useOverlay } from "@/hooks/use-overlay"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { getCardSelectorQuickActions } from "@/lib/card-selector-actions"
 import { completeCardSelectorSelection } from "@/lib/card-selector-selection-flow"
 import { buildCardImageDescriptor, compareCardImageDescriptors, type CardImageDescriptor } from "@/lib/card-image-match"
@@ -1164,10 +1165,12 @@ export default function CardSelector({
                             alt={card.name}
                             className="absolute inset-0 h-full w-full object-cover bg-muted"
                           />
-                          {activeSelectedCardId === card.id && (
+                          {activeSelectedCardId === card.id ? (
                             <div className={`absolute right-2 top-2 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] backdrop-blur ${intentCopy.activeClass}`}>
                               {intentCopy.currentLabel}
                             </div>
+                          ) : (
+                            <PriceRisingBadge price={price} className="absolute right-1.5 top-1.5" />
                           )}
                           <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/90 via-black/68 to-transparent p-2 sm:block">
                             <p className="truncate text-xs font-medium text-white">{card.set.name}</p>

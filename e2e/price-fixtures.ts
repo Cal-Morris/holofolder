@@ -1,0 +1,52 @@
+import type { Page } from "@playwright/test"
+
+/**
+ * TEST FIXTURES ONLY: synthetic price snapshots served from a mocked /api/card-prices.
+ * None of these amounts are real market data.
+ */
+export interface FixturePrice {
+  confidence: "high" | "medium" | "low" | "unknown"
+  market: number
+  /** Cardmarket-style trend points (label -> GBP), e.g. { "30d": 10, "7d": 11, Trend: 12 }. */
+  trend?: Record<string, number>
+}
+
+export async function mockCardPrices(page: Page, byCardId: Record<string, FixturePrice>) {
+  await page.route("**/api/card-prices**", async (route) => {
+    const body = route.request().postDataJSON?.() ?? {}
+    const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : []
+    const updatedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    await route.fulfill({
+      json: {
+        prices: lookups.map((lookup) => {
+          const fixture = byCardId[lookup.cardId]
+          return {
+            cardId: lookup.cardId,
+            language: lookup.language ?? "en",
+            gbpAmount: fixture?.market ?? null,
+            marketGbpAmount: fixture?.market ?? null,
+            goodGbpAmount: null,
+            lowGbpAmount: null,
+            highGbpAmount: null,
+            confidence: fixture?.confidence ?? "unknown",
+            sourcePrices: [],
+            trendPoints: Object.entries(fixture?.trend ?? {}).map(([label, gbpAmount]) => ({
+              label,
+              source: "cardmarket",
+              gbpAmount,
+              originalAmount: gbpAmount,
+              originalCurrency: "GBP",
+            })),
+            buySignal: null,
+            originalAmount: null,
+            originalCurrency: null,
+            source: fixture ? "cardmarket" : null,
+            variantLabel: null,
+            updatedAt: fixture ? updatedAt : null,
+            fxDate: null,
+          }
+        }),
+      },
+    })
+  })
+}

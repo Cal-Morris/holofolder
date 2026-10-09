@@ -7,6 +7,7 @@ import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { formatPokemonDisplayName, getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
+import { PriceRisingBadge } from "@/components/price-rising-badge"
 import {
   buildBrowseEntries,
   type BrowseCardFilter,
@@ -218,7 +219,8 @@ export default function PokemonCardsBrowser({
             <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`${displayName} printings`}>
               {visibleEntries.map((entry) => {
                 const { card } = entry
-                const price = formatPrice(pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")])
+                const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]
+                const price = formatPrice(priceSnapshot)
                 const image = thumbnailUrl(card.image)
                 const isHighlighted = card.id === highlightCardId
                 const isPending = pendingCardId === card.id
@@ -256,6 +258,7 @@ export default function PokemonCardsBrowser({
                           </span>
                         ) : null}
                       </div>
+                      <PriceRisingBadge price={priceSnapshot} className="absolute right-1.5 top-1.5" />
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-1 p-2">
                       <p className="truncate text-xs font-semibold" title={card.set.name}>{card.set.name}</p>
