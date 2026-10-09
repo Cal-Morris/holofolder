@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { searchMirroredSets, getMirroredSetDexSlots, type MirrorLanguage } from "@/lib/tcg-mirror"
+import { searchMirroredSets, getMirroredSetDexSlots, getRecentMirroredSets, type MirrorLanguage } from "@/lib/tcg-mirror"
 import { POKEMON_CATALOG } from "@/lib/pokemon-catalog"
 import { PUBLIC_JSON_CACHE_HEADERS } from "@/lib/http-cache"
 
@@ -18,6 +18,20 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
 
   try {
+    if (searchParams.get("recent") === "1") {
+      const asOfDate = new Date().toISOString().slice(0, 10)
+      const recentSets = await getRecentMirroredSets(asOfDate, 6)
+
+      return NextResponse.json(
+        {
+          sets: recentSets,
+          selectedSet: null,
+          slots: [],
+        },
+        { headers: PUBLIC_JSON_CACHE_HEADERS },
+      )
+    }
+
     const query = searchParams.get("query")?.trim() ?? ""
     const requestedSetId = searchParams.get("setId")?.trim() ?? ""
     const language = normalizeLanguage(searchParams.get("language"))

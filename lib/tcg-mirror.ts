@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { CardFinish } from "@/hooks/use-collection"
-import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSummary } from "@/lib/tcg-set-slots"
+import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type TCGSetSummary } from "@/lib/tcg-set-slots"
 import { cacheLife, cacheTag } from "next/cache"
 
 export type MirrorLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
@@ -346,6 +346,48 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
       officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
       releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
     }))
+}
+
+export async function getRecentMirroredSets(asOfDate: string, limit = 6): Promise<TCGSetSummary[]> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-sets", "recent-sets", cacheSafeTag("as-of", asOfDate), cacheSafeTag("limit", limit))
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from("tcg_sets")
+    .select(`
+      id,
+      name_json,
+      name_en,
+      official_card_count,
+      release_date,
+      tcg_series!inner(
+        id,
+        name_json,
+        name_en
+      )
+    `)
+    .not("release_date", "is", null)
+    .lte("release_date", asOfDate)
+    .order("release_date", { ascending: false, nullsFirst: false })
+    .limit(Math.max(limit * 4, 24))
+
+  if (error) {
+    throw error
+  }
+
+  const sets = ((data || []) as any[])
+    .filter((set) => !HIDDEN_SET_IDS.has(set.id))
+    .map((set) => ({
+      id: set.id,
+      name: pickLocalizedText(set.name_json, "en") || set.name_en || set.id,
+      seriesName: pickLocalizedText(set.tcg_series?.name_json, "en") || set.tcg_series?.name_en || undefined,
+      officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
+      releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
+    }))
+
+  return selectRecentSetSummaries(sets, { asOfDate, limit })
 }
 
 export async function getMirroredSetDexSlots(
