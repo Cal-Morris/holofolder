@@ -2,19 +2,9 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import Script from "next/script"
 import BinderApp from "@/components/binder-app"
-import type { BinderSettings } from "@/hooks/use-settings"
+import { settingsFromRow, type BinderSettings } from "@/lib/settings"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
 
-const DEFAULT_BINDER_SETTINGS: BinderSettings = {
-  binderRows: 4,
-  binderCols: 4,
-  binderColorId: DEFAULT_BINDER_COLOR_ID,
-  binderPageColors: {},
-  binderSlotGlareEnabled: true,
-  cardFinishEffectsEnabled: true,
-  darkMode: true,
-}
 
 interface SharePageProps {
   params: Promise<{
@@ -69,17 +59,7 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
   }
 
   const settingsRow = settingsResult.data
-  const initialSettings: BinderSettings = settingsRow
-    ? {
-        binderRows: settingsRow.binder_rows ?? DEFAULT_BINDER_SETTINGS.binderRows,
-        binderCols: settingsRow.binder_cols ?? DEFAULT_BINDER_SETTINGS.binderCols,
-        binderColorId: settingsRow.binder_color_id ?? DEFAULT_BINDER_SETTINGS.binderColorId,
-        binderPageColors: settingsRow.binder_page_colors ?? DEFAULT_BINDER_SETTINGS.binderPageColors,
-        binderSlotGlareEnabled: settingsRow.binder_slot_glare_enabled ?? DEFAULT_BINDER_SETTINGS.binderSlotGlareEnabled,
-        cardFinishEffectsEnabled: settingsRow.card_finish_effects_enabled ?? DEFAULT_BINDER_SETTINGS.cardFinishEffectsEnabled,
-        darkMode: settingsRow.dark_mode ?? DEFAULT_BINDER_SETTINGS.darkMode,
-      }
-    : DEFAULT_BINDER_SETTINGS
+  const initialSettings: BinderSettings = settingsFromRow(settingsRow)
 
   return (
     <>
