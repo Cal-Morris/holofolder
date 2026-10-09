@@ -22,7 +22,7 @@ import type { CardImageDescriptor } from "@/lib/card-image-match"
 import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
-import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
+import { getCardPriceKey, getPriceSourceLabel, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
@@ -375,7 +375,7 @@ function formatPriceSourceLabel(price: CardPriceSnapshot | undefined) {
     return null
   }
 
-  const source = price.source === "tcgplayer" ? "TCGplayer" : "Cardmarket"
+  const source = getPriceSourceLabel(price.source)
   return price.variantLabel ? `${source}, ${price.variantLabel}` : source
 }
 

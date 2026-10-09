@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP"
-export type PriceSource = "tcgplayer" | "cardmarket" | "ebay" | "pricecharting" | "pokescope" | "eyevo" | "public-page"
+export type PriceSource = "tcgplayer" | "cardmarket" | "ebay" | "pricecharting" | "pokescope" | "pokepulse" | "eyevo" | "public-page"
 export type PriceConfidence = "high" | "medium" | "low" | "unknown"
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 export type BuySignalStatus = "good" | "fair" | "hold" | "rising"
@@ -372,19 +372,20 @@ function normalizeBuySignal(value: unknown): CardBuySignal | null {
   }
 }
 
-function normalizePriceSource(value: unknown): PriceSource | null {
+export function normalizePriceSource(value: unknown): PriceSource | null {
   return value === "tcgplayer"
     || value === "cardmarket"
     || value === "ebay"
     || value === "pricecharting"
     || value === "pokescope"
+    || value === "pokepulse"
     || value === "eyevo"
     || value === "public-page"
     ? value
     : null
 }
 
-function getPriceSourceLabel(source: PriceSource) {
+export function getPriceSourceLabel(source: PriceSource) {
   switch (source) {
     case "tcgplayer":
       return "TCGplayer"
@@ -396,6 +397,8 @@ function getPriceSourceLabel(source: PriceSource) {
       return "PriceCharting"
     case "pokescope":
       return "PokeScope"
+    case "pokepulse":
+      return "PokePulse"
     case "eyevo":
       return "Eyevo"
     case "public-page":
