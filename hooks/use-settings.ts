@@ -2,34 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { DEFAULT_BINDER_COLOR_ID, type BinderColorId } from "@/lib/binder-colors"
+import {
+  getDefaultBinderSettings,
+  normalizeBinderSettings as normaliseSettings,
+  type BinderSettings,
+  type StoredBinderSettings,
+} from "@/lib/settings"
 
-export interface BinderSettings {
-  binderRows: number
-  binderCols: number
-  binderColorId: BinderColorId
-  binderPageColors: Record<string, BinderColorId>
-  binderSlotGlareEnabled: boolean
-  cardFinishEffectsEnabled: boolean
-  darkMode: boolean
-}
+export type { BinderSettings } from "@/lib/settings"
 
 const LEGACY_LOCAL_SETTINGS_KEY = "pokemon_binder_settings"
 const ANON_LOCAL_SETTINGS_KEY = "pokemon_binder_settings:anon"
-const DEFAULT_SETTINGS: BinderSettings = {
-  binderRows: 4,
-  binderCols: 4,
-  binderColorId: DEFAULT_BINDER_COLOR_ID,
-  binderPageColors: {},
-  binderSlotGlareEnabled: true,
-  cardFinishEffectsEnabled: true,
-  darkMode: true,
-}
-
-type StoredBinderSettings = Partial<BinderSettings> & {
-  rows?: number
-  cols?: number
-}
+const DEFAULT_SETTINGS: BinderSettings = getDefaultBinderSettings()
 
 interface UseSettingsOptions {
   initialSettings?: BinderSettings
@@ -41,22 +25,6 @@ interface UseSettingsOptions {
 
 function getLocalSettingsKey(userId?: string | null) {
   return userId ? `pokemon_binder_settings:${userId}` : ANON_LOCAL_SETTINGS_KEY
-}
-
-function normaliseSettings(source: StoredBinderSettings | null | undefined, fallback: BinderSettings) {
-  if (!source) {
-    return fallback
-  }
-
-  return {
-    binderRows: source.binderRows || source.rows || fallback.binderRows,
-    binderCols: source.binderCols || source.cols || fallback.binderCols,
-    binderColorId: source.binderColorId || fallback.binderColorId,
-    binderPageColors: source.binderPageColors || fallback.binderPageColors,
-    binderSlotGlareEnabled: source.binderSlotGlareEnabled ?? fallback.binderSlotGlareEnabled,
-    cardFinishEffectsEnabled: source.cardFinishEffectsEnabled ?? fallback.cardFinishEffectsEnabled,
-    darkMode: source.darkMode ?? fallback.darkMode,
-  }
 }
 
 function readStoredSettings(userId?: string | null) {
