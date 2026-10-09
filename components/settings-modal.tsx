@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useOverlay } from "@/hooks/use-overlay"
 import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -112,6 +113,7 @@ export default function SettingsModal({
   motionGlintMessage,
   onRequestMotionGlint,
 }: SettingsModalProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null)
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage))
@@ -129,6 +131,8 @@ export default function SettingsModal({
       setCopyMessage(null)
     }
   }, [currentBinderPage, currentPageBinderColorId, isOpen])
+
+  useOverlay(isOpen, onClose, { containerRef: dialogRef })
 
   if (!isOpen) return null
 
@@ -177,14 +181,18 @@ export default function SettingsModal({
     && motionGlintStatus !== "unsupported"
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm" onClick={onClose}>
+    <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm" onClick={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
         className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0">
           <h2 className="text-lg font-bold">Settings</h2>
-          <button onClick={onClose} className="mr-0.5 rounded-full p-2 hover:bg-muted/70 transition-colors">
+          <button onClick={onClose} aria-label="Close settings" className="mr-0.5 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/70 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>

@@ -10,6 +10,7 @@ import AuthModal from "@/components/auth-modal"
 import PartnerModal from "@/components/partner-modal"
 import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
+import { closeAllOverlays, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
@@ -3820,6 +3821,69 @@ export default function BinderApp({
     wishlisted,
   ])
 
+  const searchDialogRef = useRef<HTMLDivElement | null>(null)
+  const controlsSheetRef = useRef<HTMLDivElement | null>(null)
+  const filterSheetRef = useRef<HTMLDivElement | null>(null)
+  const burstScannerRef = useRef<HTMLDivElement | null>(null)
+  const closeSelectedPokemon = useCallback(() => setSelectedPokemon(null), [])
+  const closeSearch = useCallback(() => setIsSearchOpen(false), [])
+  const closeControlsSheet = useCallback(() => setIsMobileNavExpanded(false), [])
+  const closeFilterSheet = useCallback(() => setIsMobileFilterSheetOpen(false), [])
+  const closeBurstScannerSafely = useCallback(() => {
+    if (isCapturingBurst || isApplyingScanResults) return
+    closeBurstScanner()
+  }, [closeBurstScanner, isApplyingScanResults, isCapturingBurst])
+  const isQuickPanelOpen = Boolean(selectedPokemon) && !isSearchOpen
+  const isMobileQuickPanel = isQuickPanelOpen && !isDesktopViewport
+
+  // Card detail: a popover next to the slot on desktop, a modal bottom sheet on mobile.
+  useOverlay(isQuickPanelOpen, closeSelectedPokemon, {
+    containerRef: quickPanelRef,
+    lockScroll: !isDesktopViewport,
+    trapFocus: !isDesktopViewport && !isCardSelectorOpen,
+    autoFocus: !isDesktopViewport,
+  })
+  useOverlay(isSearchOpen, closeSearch, { containerRef: searchDialogRef, autoFocus: false })
+  useOverlay(isMobileNavExpanded && !isSearchOpen, closeControlsSheet, { containerRef: controlsSheetRef })
+  useOverlay(isMobileFilterSheetOpen && !isSearchOpen, closeFilterSheet, { containerRef: filterSheetRef })
+  useOverlay(isBurstScannerOpen, closeBurstScannerSafely, { containerRef: burstScannerRef })
+  const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel)
+  const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet)
+  const filterSheetSwipe = useSwipeToDismiss(filterSheetRef, closeFilterSheet)
+
+  /** Close every open overlay first so sheets/modals never stack on top of each other. */
+  const openExclusively = useCallback((open: () => void) => {
+    closeAllOverlays()
+    setLongPressedPokemon(null)
+    open()
+  }, [])
+
+  /** Switch main view (dock tab / desktop tab), closing any open overlay and card detail. */
+  const switchMainView = useCallback((view: ActiveMainView) => {
+    closeAllOverlays()
+    setSelectedPokemon(null)
+    setLongPressedPokemon(null)
+    setIsSearchOpen(false)
+    setIsMobileNavExpanded(false)
+    setIsMobileFilterSheetOpen(false)
+    setActiveMainView(view)
+  }, [])
+
+  const openSearch = useCallback(() => {
+    openExclusively(() => {
+      setSelectedPokemon(null)
+      setIsSearchOpen(true)
+    })
+  }, [openExclusively])
+
+  // Full-screen dialogs replace the card detail instead of stacking on top of it.
+  useEffect(() => {
+    if (isSettingsOpen || isAuthOpen || isPartnerOpen || isMobileNavExpanded || isMobileFilterSheetOpen) {
+      setSelectedPokemon(null)
+      setLongPressedPokemon(null)
+    }
+  }, [isAuthOpen, isMobileFilterSheetOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen])
+
   const renderSelectedPokemonQuickPanel = () => {
     if (!selectedPokemon || isSearchOpen || typeof document === "undefined") {
       return null
@@ -3877,9 +3941,22 @@ export default function BinderApp({
         : "Add card picks a specific printing, Mark owned leaves it cardless, and Wanted card tracks a target without counting it owned."
 
     const quickPanel = (
+      <>
+      {!isDesktopViewport && !isCardSelectorOpen ? (
+        <div
+          aria-hidden="true"
+          data-overlay-backdrop
+          className="fixed inset-0 z-[35] bg-black/45 backdrop-blur-[2px]"
+          onClick={closeSelectedPokemon}
+        />
+      ) : null}
       <div
         ref={quickPanelRef}
-        className="fixed z-40 max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(calc(100vw-1.5rem),28rem)] overflow-y-auto overscroll-contain transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]"
+        role="dialog"
+        aria-modal={!isDesktopViewport}
+        aria-label={`${selectedPokemonDisplayName} details`}
+        // Stay mounted (but hidden) under the card selector so focus can return to "Edit card".
+        className={`fixed z-40 ${isCardSelectorOpen ? "hidden" : "flex"} max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(calc(100vw-1.5rem),28rem)] flex-col overflow-hidden outline-none transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]`}
         style={quickPanelPosition
           ? {
               top: quickPanelPosition.top,
@@ -3896,10 +3973,14 @@ export default function BinderApp({
                 bottom: "calc(env(safe-area-inset-bottom) + 5.15rem)",
                 transform: "translateX(-50%)",
                 width: "min(calc(100vw - 1.5rem), 24rem)",
+                // Never taller than the space between the status bar and the bottom dock.
+                maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 5.15rem - 0.75rem)",
               }}
       >
-        <div className="rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
-          <div className="flex flex-col gap-3">
+        <div className="flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
+          <div className="flex min-h-0 flex-col gap-3">
+            <div className="shrink-0" data-sheet-grabber={isMobileQuickPanel ? "" : undefined} {...(isMobileQuickPanel ? quickPanelSwipe : {})}>
+            {isMobileQuickPanel ? <div aria-hidden="true" className="mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30" /> : null}
             <div className="flex items-start gap-3">
               <div className={`relative mt-0.5 flex shrink-0 items-center justify-center overflow-hidden border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${selectedPreviewFrameClass}`}>
                 <img
@@ -3922,8 +4003,9 @@ export default function BinderApp({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 shrink-0 rounded-xl text-muted-foreground hover:bg-background/60 hover:text-foreground dark:hover:bg-white/[0.04]"
-                    onClick={() => setSelectedPokemon(null)}
+                    className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:bg-background/60 hover:text-foreground dark:hover:bg-white/[0.04]"
+                    onClick={closeSelectedPokemon}
+                    aria-label="Close card details"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -3961,6 +4043,8 @@ export default function BinderApp({
                 ) : null}
               </div>
             </div>
+            </div>
+            <div className="-mx-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3" style={{ WebkitOverflowScrolling: "touch" }}>
             {selectedCurrentCardPreview ? (
               <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted dark:border-white/10">
@@ -4204,9 +4288,11 @@ export default function BinderApp({
                 {panelHelperText}
               </p>
             </div>
+            </div>
           </div>
         </div>
       </div>
+      </>
     )
 
     return createPortal(quickPanel, document.body)
@@ -4247,7 +4333,7 @@ export default function BinderApp({
             <button
               type="button"
               onClick={() => setLongPressedPokemon(null)}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70 hover:text-foreground"
               aria-label="Close quick actions"
             >
               <X className="h-3.5 w-3.5" />
@@ -5228,7 +5314,7 @@ export default function BinderApp({
                   Shared View
                 </div>
               ) : !user ? (
-                <Button size="sm" onClick={() => setIsAuthOpen(true)} className="h-9 gap-1 rounded-full px-3 md:h-7 md:px-2.5" aria-label="Sign in">
+                <Button size="sm" onClick={() => openExclusively(() => setIsAuthOpen(true))} className="h-9 gap-1 rounded-full px-3 md:h-7 md:px-2.5" aria-label="Sign in">
                   <LogIn className="h-3.5 w-3.5" />
                   <span className="hidden md:inline text-[11px]">Sign In</span>
                 </Button>
@@ -5238,7 +5324,16 @@ export default function BinderApp({
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 rounded-full md:hidden"
-                onClick={() => setIsMobileNavExpanded((current) => !current)}
+                onClick={() => {
+                  if (isMobileNavExpanded) {
+                    closeControlsSheet()
+                    return
+                  }
+                  openExclusively(() => {
+                    setSelectedPokemon(null)
+                    setIsMobileNavExpanded(true)
+                  })
+                }}
                 aria-label={isMobileNavExpanded ? "Collapse controls" : "Expand controls"}
               >
                 {isMobileNavExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -5351,7 +5446,7 @@ export default function BinderApp({
                 )}
               </div>
 
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full md:hidden" onClick={() => setIsSettingsOpen(true)} aria-label="Open settings">
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full md:hidden" onClick={() => openExclusively(() => setIsSettingsOpen(true))} aria-label="Open settings">
                 <Settings className="h-4 w-4" />
               </Button>
               <Button
@@ -5370,7 +5465,7 @@ export default function BinderApp({
               <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap">
                 <div className="flex shrink-0 rounded-xl border border-border/50 bg-card/70 p-0.5 dark:border-border/30 dark:bg-muted/40">
                 <button
-                  onClick={() => setIsSearchOpen(true)}
+                  onClick={openSearch}
                   className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
                     isSearchOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -5380,8 +5475,7 @@ export default function BinderApp({
                 </button>
                 <button
                   onClick={() => {
-                    setIsSearchOpen(false)
-                    setActiveMainView("binder")
+                    switchMainView("binder")
                   }}
                   className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
                     !isSearchOpen && activeMainView === "binder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -5392,8 +5486,7 @@ export default function BinderApp({
                   </button>
                 <button
                   onClick={() => {
-                    setIsSearchOpen(false)
-                    setActiveMainView("list")
+                    switchMainView("list")
                   }}
                   className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
                     !isSearchOpen && activeMainView === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -5404,8 +5497,7 @@ export default function BinderApp({
                 </button>
                 <button
                   onClick={() => {
-                    setIsSearchOpen(false)
-                    setActiveMainView("wanted")
+                    switchMainView("wanted")
                   }}
                   className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
                     !isSearchOpen && activeMainView === "wanted" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -5416,8 +5508,7 @@ export default function BinderApp({
                 </button>
                 <button
                   onClick={() => {
-                    setIsSearchOpen(false)
-                    setActiveMainView("sets")
+                    switchMainView("sets")
                   }}
                   className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
                     !isSearchOpen && activeMainView === "sets" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -5645,7 +5736,7 @@ export default function BinderApp({
         <canvas ref={burstCanvasRef} className="hidden" />
 
         {isBurstScannerOpen && (
-          <div className="fixed inset-0 z-50 bg-black">
+          <div ref={burstScannerRef} role="dialog" aria-modal="true" aria-label="Page scanner" className="fixed inset-0 z-50 bg-black outline-none">
             <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
               <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
                 <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
@@ -5657,7 +5748,7 @@ export default function BinderApp({
                         : "Move slowly over the full page. Stable slots stay locked."}
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={closeBurstScanner} disabled={isCapturingBurst || isApplyingScanResults}>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={closeBurstScanner} disabled={isCapturingBurst || isApplyingScanResults} aria-label="Close page scanner">
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -6115,15 +6206,21 @@ export default function BinderApp({
       {renderMobileSlotActionBar()}
 
       {isSearchOpen && (
-        <div className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={() => setIsSearchOpen(false)}>
-          <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-4" onClick={(event) => event.stopPropagation()}>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.75rem] border border-border/65 bg-card/96 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl">
+        <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
+          <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+            <div
+              ref={searchDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Search Pokemon"
+              onClick={(event) => event.stopPropagation()}
+              className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.75rem] border border-border/65 bg-card/96 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl">
               <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
                 <div>
                   <p className="text-sm font-semibold">Search Pokemon</p>
                   <p className="text-xs text-muted-foreground">Find a mon and jump straight to its binder slot.</p>
                 </div>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => setIsSearchOpen(false)}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={closeSearch} aria-label="Close search">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -6176,9 +6273,13 @@ export default function BinderApp({
       )}
 
       {isMobileNavExpanded && !isSearchOpen && (
-        <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm md:hidden" onClick={() => setIsMobileNavExpanded(false)}>
+        <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm md:hidden" onClick={closeControlsSheet}>
           <div
-            className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            ref={controlsSheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Controls"
+            className="absolute inset-x-0 bottom-0 overflow-y-auto outline-none overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             style={{
               maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
@@ -6186,6 +6287,7 @@ export default function BinderApp({
               touchAction: "pan-y",
             }}
           >
+            <div data-sheet-grabber className="-mx-4 -mt-3 px-4 pt-3" {...controlsSheetSwipe}>
             <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60" />
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -6196,10 +6298,12 @@ export default function BinderApp({
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-full"
-                onClick={() => setIsMobileNavExpanded(false)}
+                onClick={closeControlsSheet}
+                aria-label="Close controls"
               >
                 <X className="h-4 w-4" />
               </Button>
+            </div>
             </div>
 
             <div className="space-y-3">
@@ -6293,9 +6397,13 @@ export default function BinderApp({
       )}
 
       {isMobileFilterSheetOpen && !isSearchOpen && (
-        <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm md:hidden" onClick={() => setIsMobileFilterSheetOpen(false)}>
+        <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm md:hidden" onClick={closeFilterSheet}>
           <div
-            className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            ref={filterSheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Binder View"
+            className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-4 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             style={{
               maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
@@ -6303,6 +6411,7 @@ export default function BinderApp({
               touchAction: "pan-y",
             }}
           >
+            <div data-sheet-grabber className="-mx-4 -mt-4 px-4 pt-4" {...filterSheetSwipe}>
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border/60" />
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -6313,10 +6422,12 @@ export default function BinderApp({
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-full"
-                onClick={() => setIsMobileFilterSheetOpen(false)}
+                onClick={closeFilterSheet}
+                aria-label="Close binder view"
               >
                 <X className="h-4 w-4" />
               </Button>
+            </div>
             </div>
 
             <div className="space-y-2">
@@ -6356,11 +6467,11 @@ export default function BinderApp({
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-30 max-w-[100vw] overflow-hidden px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] md:hidden">
+      <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] md:hidden">
         <div className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 rounded-[1.35rem] border border-border/70 bg-card/96 p-1.5 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
           <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl border border-border/50 bg-muted/42 p-0.5 dark:border-border/40 dark:bg-muted/35">
             <button
-              onClick={() => setIsSearchOpen(true)}
+              onClick={openSearch}
               aria-label="Search"
               title="Search"
               className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
@@ -6371,8 +6482,7 @@ export default function BinderApp({
             </button>
             <button
               onClick={() => {
-                setIsSearchOpen(false)
-                setActiveMainView("binder")
+                switchMainView("binder")
               }}
               aria-label="Binder"
               title="Binder"
@@ -6384,8 +6494,7 @@ export default function BinderApp({
             </button>
             <button
               onClick={() => {
-                setIsSearchOpen(false)
-                setActiveMainView("list")
+                switchMainView("list")
               }}
               aria-label="List"
               title="List"
@@ -6397,8 +6506,7 @@ export default function BinderApp({
             </button>
             <button
               onClick={() => {
-                setIsSearchOpen(false)
-                setActiveMainView("wanted")
+                switchMainView("wanted")
               }}
               aria-label="Wanted"
               title="Wanted"
@@ -6410,8 +6518,7 @@ export default function BinderApp({
             </button>
             <button
               onClick={() => {
-                setIsSearchOpen(false)
-                setActiveMainView("sets")
+                switchMainView("sets")
               }}
               aria-label="Sets"
               title="Sets"
@@ -6450,7 +6557,7 @@ export default function BinderApp({
                   variant={collectionViewFilter === "all" && !isMobileFilterSheetOpen ? "outline" : "default"}
                   size="icon"
                 className="h-10 w-10 shrink-0 rounded-2xl px-0"
-                onClick={() => setIsMobileFilterSheetOpen(true)}
+                onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileFilterSheetOpen(true) })}
                 disabled={!canFilterCollection}
                 aria-label={`Filter: ${activeCollectionFilterOption.mobileLabel}`}
               >
@@ -6460,7 +6567,16 @@ export default function BinderApp({
                 variant="outline"
                 size="icon"
                 className="h-10 w-10 shrink-0 rounded-2xl px-0"
-                onClick={() => setIsMobileNavExpanded((current) => !current)}
+                onClick={() => {
+                  if (isMobileNavExpanded) {
+                    closeControlsSheet()
+                    return
+                  }
+                  openExclusively(() => {
+                    setSelectedPokemon(null)
+                    setIsMobileNavExpanded(true)
+                  })
+                }}
                 aria-label={isMobileNavExpanded ? "Close controls" : "Open controls"}
               >
                 {isMobileNavExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -6468,7 +6584,7 @@ export default function BinderApp({
             </div>
           )}
         </div>
-      </div>
+      </nav>
 
       {/* Modals */}
       <SettingsModal

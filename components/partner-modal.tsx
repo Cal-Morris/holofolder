@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { useOverlay } from "@/hooks/use-overlay"
 import { X, UserPlus, Users, Check, XIcon, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +15,7 @@ interface PartnerModalProps {
 }
 
 export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null)
   const [email, setEmail] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -60,18 +62,20 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
     if (result.error) setActionError(result.error)
   }
 
+  useOverlay(isOpen, onClose, { containerRef: dialogRef })
+
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
-      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div data-overlay-backdrop className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Partner Mode" className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">Partner Mode</h2>
           </div>
-          <button onClick={onClose} className="mr-0.5 p-2 hover:bg-muted/70 rounded-full transition-colors">
+          <button onClick={onClose} aria-label="Close partner mode" className="mr-0.5 flex h-10 w-10 items-center justify-center hover:bg-muted/70 rounded-full transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>

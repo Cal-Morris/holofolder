@@ -16,3 +16,8 @@ tsconfig.tsbuildinfo
 .env*.local
 .DS_Store
 .vercel
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

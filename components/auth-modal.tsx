@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useOverlay } from "@/hooks/use-overlay"
 import { X, Loader2, Mail, Sparkles, KeyRound } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from "@/lib/auth-redirects"
@@ -17,6 +18,7 @@ type PasswordMode = "sign-in" | "sign-up"
 type SuccessState = "magic-link" | "password-signup" | "password-reset" | null
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -140,6 +142,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setConfirmPassword("")
   }
 
+  useOverlay(isOpen, onClose, { containerRef: dialogRef, autoFocus: false })
+
   if (!isOpen) return null
 
   const successTitle =
@@ -158,15 +162,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <div
+      data-overlay-backdrop
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-sm flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85vh,44rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={success ? successTitle : "Welcome, sign in"} className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-sm flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85vh,44rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div className="relative shrink-0 px-6 pt-6 pb-4 sm:px-6 sm:pt-6 sm:pb-4">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-full hover:bg-muted/60 transition-colors"
+            aria-label="Close sign in"
+            className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/60 transition-colors"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>

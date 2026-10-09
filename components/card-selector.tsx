@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/hooks/use-tcgdex"
 import type { CardFinish } from "@/hooks/use-collection"
 import { Button } from "@/components/ui/button"
+import { useOverlay } from "@/hooks/use-overlay"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -572,6 +573,15 @@ export default function CardSelector({
     setLastFramePreviewUrl(null)
   }, [])
 
+  const selectorDialogRef = useRef<HTMLDivElement | null>(null)
+  const cardScannerRef = useRef<HTMLDivElement | null>(null)
+  const closeCardScannerSafely = useCallback(() => {
+    if (isCapturingCardScan || isApplyingCardResults) return
+    closeCardScanner()
+  }, [closeCardScanner, isApplyingCardResults, isCapturingCardScan])
+  useOverlay(true, onClose, { containerRef: selectorDialogRef, autoFocus: false })
+  useOverlay(isCardScannerOpen, closeCardScannerSafely, { containerRef: cardScannerRef })
+
   const openCardScanner = useCallback(() => {
     if (cards.length === 0 || isLoading) {
       return
@@ -702,7 +712,7 @@ export default function CardSelector({
   return (
     <>
       {isCardScannerOpen && (
-        <div className="fixed inset-0 z-[60] bg-black">
+        <div ref={cardScannerRef} role="dialog" aria-modal="true" aria-label="Single card scanner" className="fixed inset-0 z-[60] bg-black outline-none">
           <canvas ref={cardCanvasRef} className="hidden" />
           <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
@@ -714,7 +724,8 @@ export default function CardSelector({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full"
+                  className="h-9 w-9 rounded-full"
+                  aria-label="Close card scanner"
                   onClick={closeCardScanner}
                   disabled={isCapturingCardScan || isApplyingCardResults}
                 >
@@ -816,9 +827,13 @@ export default function CardSelector({
         </div>
       )}
 
-      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-3 sm:rounded-[2.25rem] lg:inset-x-8 xl:left-1/2 xl:right-auto xl:w-[min(calc(100vw-4rem),92rem)] xl:-translate-x-1/2"
+        ref={selectorDialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Card selector"
+        className="fixed inset-x-0 z-50 flex flex-col outline-none overflow-hidden rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-3 sm:rounded-[2.25rem] lg:inset-x-8 xl:left-1/2 xl:right-auto xl:w-[min(calc(100vw-4rem),92rem)] xl:-translate-x-1/2"
         onClick={(e) => e.stopPropagation()}
         style={{
           top: "calc(env(safe-area-inset-top) + 1rem)",
@@ -847,7 +862,7 @@ export default function CardSelector({
                   {intentCopy.helper}
                 </p>
               </div>
-              <Button variant="ghost" size="icon" className="mr-0.5 h-8 w-8 shrink-0 rounded-full sm:h-9 sm:w-9" onClick={onClose}>
+              <Button variant="ghost" size="icon" className="mr-0.5 h-9 w-9 shrink-0 rounded-full" onClick={onClose} aria-label="Close card selector">
                 <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
