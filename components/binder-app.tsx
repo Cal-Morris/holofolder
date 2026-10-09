@@ -4590,7 +4590,7 @@ export default function BinderApp({
           </div>
         )}
         <div
-          className="absolute inset-0 p-3 sm:p-4"
+          className="absolute inset-0 p-2 sm:p-4"
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
@@ -4725,7 +4725,7 @@ export default function BinderApp({
           </div>
         )}
         <div
-          className="absolute inset-0 p-3 sm:p-4"
+          className="absolute inset-0 p-2 sm:p-4"
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
@@ -5862,7 +5862,7 @@ export default function BinderApp({
         </div>
       </nav>
 
-      <div className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-3 pb-[calc(env(safe-area-inset-bottom)+5.4rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
+      <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
         <input
           ref={pagePhotoInputRef}
           type="file"
@@ -6215,7 +6215,7 @@ export default function BinderApp({
             )}
 
             {/* Binder Grid */}
-            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-start justify-center overflow-hidden pb-1 md:items-center md:pb-0">
+            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden pb-1 md:pb-0">
               <div
                 ref={binderRef}
                 className={`relative max-h-full max-w-full transition-all duration-150 ${
