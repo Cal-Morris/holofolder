@@ -22,6 +22,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.1",
     "@workflow/world-postgres": "4.2.0",
+    "aws4fetch": "^1.0.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
