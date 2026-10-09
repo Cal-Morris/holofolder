@@ -145,3 +145,12 @@ export function selectIncrementalSyncTargets(
     })
     .map((set) => set.id)
 }
+
+/**
+ * TCGdex's `cardCount.total` can exceed the cards it actually lists for a set (e.g. mfb lists 34 of 48,
+ * rc/sp list none). In `missing` mode a set is therefore treated as up to date once the mirror holds the
+ * set row and at least as many cards as the set detail lists, so repeated calls converge to `done`.
+ */
+export function isSetUpToDateWithListedCards(listedCardCount: number, mirrorCardCount: number, setExistsInMirror: boolean) {
+  return setExistsInMirror && listedCardCount <= mirrorCardCount
+}
