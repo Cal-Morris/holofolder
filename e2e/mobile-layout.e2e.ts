@@ -44,3 +44,34 @@ for (const signedIn of [false, true]) {
     })
   })
 }
+
+test.describe("vertical space by the dock", () => {
+  test.use({ signedIn: true })
+
+  test("main content ends just above the dock in every view, never under it", async ({ harness }) => {
+    const dockBar = harness.dock().locator(":scope > div").first()
+    for (const tab of ["Binder", "List", "Wanted", "Sets"] as const) {
+      await harness.dock().getByRole("button", { name: tab, exact: true }).click()
+      await expect(harness.page.getByTestId("main-content")).toBeVisible()
+      const dockTop = (await dockBar.boundingBox())!.y
+      const content = await harness.page.getByTestId("main-content").evaluate((element) => {
+        const style = getComputedStyle(element)
+        const rect = element.getBoundingClientRect()
+        return rect.bottom - parseFloat(style.paddingBottom)
+      })
+      const gap = dockTop - content
+      expect(gap, `${tab}: content must not run under the dock`).toBeGreaterThanOrEqual(0)
+      expect(gap, `${tab}: no wasted band above the dock`).toBeLessThanOrEqual(14)
+    }
+  })
+
+  test("the whole binder page is visible between the header and the dock", async ({ harness }) => {
+    const dockTop = (await harness.dock().locator(":scope > div").first().boundingBox())!.y
+    const slots = harness.page.locator("button[data-dex-id]:visible")
+    await expect(slots.first()).toBeVisible()
+    const last = (await slots.last().boundingBox())!
+    expect(last.y + last.height).toBeLessThanOrEqual(dockTop)
+    const first = (await slots.first().boundingBox())!
+    expect(first.y).toBeGreaterThanOrEqual(harness.insets.top)
+  })
+})
