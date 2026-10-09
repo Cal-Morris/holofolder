@@ -1,4 +1,5 @@
-import { loadProjectEnvFiles, runCardDbSync } from "../lib/card-db-sync"
+import { runCardDbSync } from "../lib/card-db-sync"
+import { loadProjectEnvFiles } from "../lib/load-project-env"
 
 async function main() {
   await loadProjectEnvFiles()

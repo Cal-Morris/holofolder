@@ -1,3 +1,4 @@
+import { buildTcgdexAssetImageUrl, TCGDEX_ASSET_HOST } from "./tcgdex-shared"
 import { BlobNotFoundError, head as blobHead, list as blobList, put as blobPut } from "@vercel/blob"
 
 /**
@@ -8,7 +9,7 @@ import { BlobNotFoundError, head as blobHead, list as blobList, put as blobPut }
  * Without BLOB_READ_WRITE_TOKEN (or with CARD_IMAGE_BLOB=0) everything falls back to live TCGdex.
  */
 
-export const TCGDEX_ASSET_HOST = "assets.tcgdex.net"
+export { TCGDEX_ASSET_HOST }
 export const CARD_IMAGE_BLOB_PREFIX = "cards"
 export const CARD_IMAGE_QUALITIES = ["high", "low"] as const
 export const CARD_IMAGE_EXTENSIONS = ["webp", "png", "jpg"] as const
@@ -75,7 +76,7 @@ export function parseTcgdexCardImageUrl(value: string | URL): TcgdexCardImageRef
 }
 
 export function buildTcgdexCardImageUrl(ref: TcgdexCardImageRef) {
-  return `https://${TCGDEX_ASSET_HOST}/${[ref.language, ref.seriesId, ref.setId, ref.localId].map(encodeURIComponent).join("/")}/${ref.quality}.${ref.extension}`
+  return buildTcgdexAssetImageUrl(ref.language, ref.seriesId, ref.setId, ref.localId, ref.quality, ref.extension)
 }
 
 /** Deterministic Blob pathname: `cards/<lang>/<setId>/<localId>/<quality>.<ext>`. */

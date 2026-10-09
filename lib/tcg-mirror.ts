@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type TCGSetSummary } from "@/lib/tcg-set-slots"
 import { cacheLife, cacheTag } from "next/cache"
+import { buildTcgdexAssetImageUrl, pickLocalizedText, pickTcgdexImageFromExternalIds, TCGDEX_LANGUAGE_FALLBACKS } from "@/lib/tcgdex-shared"
 import {
   inferCardFinish,
   normalizeLocalId,
@@ -84,7 +85,7 @@ const MIRRORED_CARD_SELECT = `
   )
 `
 
-const IMAGE_LANGUAGE_FALLBACKS = ["en", "ja", "fr", "de", "es", "it", "pt-br", "ko"] as const
+const IMAGE_LANGUAGE_FALLBACKS = TCGDEX_LANGUAGE_FALLBACKS
 const MIRROR_CACHE_LIFE = "days"
 const HIDDEN_SET_IDS = new Set(["jumbo"])
 const MIRROR_CACHE_VERSION = "v3-release-dates"
@@ -93,37 +94,8 @@ function cacheSafeTag(prefix: string, value: string | number) {
   return `${prefix}:${String(value).replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 180)}`
 }
 
-function pickLocalizedText(value: unknown, language: MirrorLanguage) {
-  if (!value) return null
-  if (typeof value === "string") return value
-  if (typeof value !== "object") return null
-
-  const candidateMap = value as Record<string, unknown>
-  const directMatch = candidateMap[language]
-  if (typeof directMatch === "string" && directMatch.length > 0) {
-    return directMatch
-  }
-
-  const fallback = candidateMap.en
-  if (typeof fallback === "string" && fallback.length > 0) {
-    return fallback
-  }
-
-  for (const candidate of Object.values(candidateMap)) {
-    if (typeof candidate === "string" && candidate.length > 0) {
-      return candidate
-    }
-  }
-
-  return null
-}
-
 function buildCardImageUrl(language: string, seriesId: string, setId: string, localId: string) {
-  const assetLanguage = encodeURIComponent(language)
-  const encodedSeriesId = encodeURIComponent(seriesId)
-  const encodedSetId = encodeURIComponent(setId)
-  const encodedLocalId = encodeURIComponent(localId)
-  return `https://assets.tcgdex.net/${assetLanguage}/${encodedSeriesId}/${encodedSetId}/${encodedLocalId}/high.webp`
+  return buildTcgdexAssetImageUrl(language, seriesId, setId, localId)
 }
 
 export function pickExternalCardImageUrl(value: unknown) {
@@ -140,8 +112,10 @@ export function pickExternalCardImageUrl(value: unknown) {
     : null
   const tcgplayerProductId = pickTcgplayerProductId(tcgdex)
 
-  return typeof tcgdex?.image === "string" && tcgdex.image.length > 0
-    ? tcgdex.image
+  const tcgdexImage = pickTcgdexImageFromExternalIds(externalIds)
+
+  return tcgdexImage
+    ? tcgdexImage
     : typeof pokemonTcg?.imageLarge === "string" && pokemonTcg.imageLarge.length > 0
       ? pokemonTcg.imageLarge
       : typeof pokemonTcg?.imageSmall === "string" && pokemonTcg.imageSmall.length > 0
