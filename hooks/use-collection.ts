@@ -87,7 +87,10 @@ type PendingCollectionOperationInput =
 
 const LOCAL_COLLECTION_SNAPSHOT_KEY = "pokemon_collection_snapshot_v1"
 const LOCAL_COLLECTION_PENDING_OPS_KEY = "pokemon_collection_pending_ops_v1"
-const COLLECTION_AUTO_REFRESH_INTERVAL_MS = 5000
+/** Poll cadence while realtime is unavailable (the original behaviour). */
+export const COLLECTION_AUTO_REFRESH_INTERVAL_MS = 5000
+/** Safety-net poll while the realtime channel is subscribed and delivers changes itself. */
+export const COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS = 60_000
 
 interface ShouldAutoRefreshCollectionInput {
   readOnly: boolean
@@ -96,6 +99,8 @@ interface ShouldAutoRefreshCollectionInput {
   pendingOperationCount: number
   isFlushingPendingOperations: boolean
   isWritingRemoteCollection: boolean
+  /** Defaults to true. Hidden tabs never poll; they refresh when they become visible again. */
+  isVisible?: boolean
 }
 
 export function keepStableUserById<TUser extends { id: string }>(currentUser: TUser | null, nextUser: TUser | null) {
@@ -116,12 +121,29 @@ export function getRemoteCollectionRefreshPlan<TUser extends { id: string }>(
 }
 
 export function shouldAutoRefreshCollection(input: ShouldAutoRefreshCollectionInput) {
-  return !input.readOnly &&
+  return input.isVisible !== false &&
+    !input.readOnly &&
     input.hasUser &&
     input.isOnline &&
     input.pendingOperationCount === 0 &&
     !input.isFlushingPendingOperations &&
     !input.isWritingRemoteCollection
+}
+
+export function getCollectionAutoRefreshIntervalMs(isRealtimeConnected: boolean) {
+  return isRealtimeConnected ? COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS : COLLECTION_AUTO_REFRESH_INTERVAL_MS
+}
+
+export function isCollectionAutoRefreshDue(input: {
+  now: number
+  lastRefreshAt: number
+  isRealtimeConnected: boolean
+}) {
+  return input.now - input.lastRefreshAt >= getCollectionAutoRefreshIntervalMs(input.isRealtimeConnected)
+}
+
+function isDocumentVisible() {
+  return typeof document === "undefined" || document.visibilityState !== "hidden"
 }
 
 function normalizeWantedCard(value: unknown): WantedCard | null {
@@ -440,6 +462,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const isFlushingPendingOperationsRef = useRef(false)
   const activeRemoteCollectionWriteCountRef = useRef(0)
   const collectionRealtimeChannelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null)
+  const isCollectionRealtimeConnectedRef = useRef(false)
+  const lastCollectionAutoRefreshAtRef = useRef(0)
 
   const getSanitizedLocalCollectedIds = useCallback(() => {
     const rawIds = readLocalCollectedIds()
@@ -666,6 +690,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
         void reloadRemoteCollection()
       })
       .subscribe((status, error) => {
+        isCollectionRealtimeConnectedRef.current = status === "SUBSCRIBED"
+
         if (error) {
           console.error("[binderdex] Collection realtime subscription failed:", { status, error })
         }
@@ -674,6 +700,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return () => {
       if (collectionRealtimeChannelRef.current === channel) {
         collectionRealtimeChannelRef.current = null
+        isCollectionRealtimeConnectedRef.current = false
       }
 
       void supabase.removeChannel(channel)
@@ -757,7 +784,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (typeof window === "undefined") return
     if (readOnly || !user) return
 
-    const refreshIfSafe = () => {
+    const refreshIfSafe = (force: boolean) => {
       const pendingOperationCount = readPendingCollectionOperations().length
 
       if (pendingOperationCount !== localPendingSyncCount) {
@@ -768,6 +795,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         readOnly,
         hasUser: Boolean(user),
         isOnline: !isOffline(),
+        isVisible: isDocumentVisible(),
         pendingOperationCount,
         isFlushingPendingOperations: isFlushingPendingOperationsRef.current,
         isWritingRemoteCollection: activeRemoteCollectionWriteCountRef.current > 0,
@@ -775,11 +803,37 @@ export function useCollection(options: UseCollectionOptions = {}) {
         return
       }
 
+      const now = Date.now()
+      if (!force && !isCollectionAutoRefreshDue({
+        now,
+        lastRefreshAt: lastCollectionAutoRefreshAtRef.current,
+        isRealtimeConnected: isCollectionRealtimeConnectedRef.current,
+      })) {
+        return
+      }
+
+      lastCollectionAutoRefreshAtRef.current = now
       void reloadRemoteCollection()
     }
 
-    const intervalId = window.setInterval(refreshIfSafe, COLLECTION_AUTO_REFRESH_INTERVAL_MS)
-    return () => window.clearInterval(intervalId)
+    // Tick at the fast cadence; each tick decides whether a refresh is due (5 s without
+    // realtime, 60 s safety net while the realtime channel is subscribed, never while hidden).
+    const intervalId = window.setInterval(() => refreshIfSafe(false), COLLECTION_AUTO_REFRESH_INTERVAL_MS)
+    const handleVisibilityChange = () => {
+      if (isDocumentVisible()) refreshIfSafe(true)
+    }
+    const handleOnline = () => {
+      // Let the pending-operation flush go first; the next tick then refreshes.
+      lastCollectionAutoRefreshAtRef.current = 0
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("online", handleOnline)
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("online", handleOnline)
+    }
   }, [localPendingSyncCount, readOnly, reloadRemoteCollection, user])
 
   useEffect(() => {
