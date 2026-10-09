@@ -108,8 +108,10 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch }
   })
 
   async function signedFetch(url: string, init: RequestInit = {}) {
-    const request = await client.sign(url, init)
-    return fetchImpl(request)
+    const signed = await client.sign(url, init)
+    // Pass url + init (not the signed Request): Next's patched fetch re-streams Request bodies without a
+    // Content-Length, which R2 rejects with 411 MissingContentLength. The original ArrayBuffer body keeps it.
+    return fetchImpl(signed.url, { method: signed.method, headers: signed.headers, body: init.body })
   }
 
   return {
