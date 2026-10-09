@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache"
 import { NextRequest, NextResponse } from "next/server"
 import { runIncrementalCardDbSync } from "@/lib/card-db-sync"
-import { getDefaultCardImageMirror } from "@/lib/card-image-blob"
+import { getDefaultCardImageMirror } from "@/lib/card-image-store"
 import {
   getSyncSecret,
   InvalidSyncRequestError,
@@ -25,7 +25,7 @@ const TIME_BUDGET_MS = (maxDuration - 60) * 1000
  *   ?maxSets=4              sets per call (max 12); leftovers are returned in remainingSetIds
  *   ?dryRun=1               fetch and parse only, no writes
  *   ?images=0               skip copying the synced sets' card images into Vercel Blob
- *                           (on by default when BLOB_READ_WRITE_TOKEN is configured)
+ *                           (on by default when a card image store is configured, see lib/card-image-store.ts)
  */
 export async function POST(request: NextRequest) {
   if (!getSyncSecret(process.env)) {

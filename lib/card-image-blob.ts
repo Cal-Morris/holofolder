@@ -152,6 +152,8 @@ export interface CardImageBlobDeps {
   logger?: (message: string) => void
   /** Clock for the blocked-store cooldown (tests). */
   now?: () => number
+  /** Public base URL objects are readable at (`<baseUrl><pathname>`), when known up front (R2). */
+  baseUrl?: string
 }
 
 export interface LoadedCardImage {
@@ -240,7 +242,7 @@ async function readImageResponse(response: Response) {
 export function createCardImageMirror(deps: CardImageBlobDeps) {
   const knownUrls = new Map<string, string>()
   const inflight = new Map<string, Promise<string>>()
-  let blobBaseUrl: string | null = null
+  let blobBaseUrl: string | null = deps.baseUrl ?? null
   let blockedUntil = 0
   const now = deps.now ?? Date.now
 
@@ -400,14 +402,3 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
 }
 
 export type CardImageMirror = ReturnType<typeof createCardImageMirror>
-
-let defaultMirror: CardImageMirror | null = null
-
-export function getDefaultCardImageMirror() {
-  if (!isCardImageBlobEnabled()) return null
-  defaultMirror ??= createCardImageMirror({
-    ...createVercelBlobDeps(),
-    logger: (message) => console.warn(`[card-image-blob] ${message}`),
-  })
-  return defaultMirror
-}

@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server"
-import { getDefaultCardImageMirror, parseTcgdexCardImageUrl } from "@/lib/card-image-blob"
+import { parseTcgdexCardImageUrl } from "@/lib/card-image-blob"
+import { getCardImageStoreKind, getDefaultCardImageMirror } from "@/lib/card-image-store"
 import { IMMUTABLE_IMAGE_CACHE_HEADERS } from "@/lib/http-cache"
 
 export const instant = false
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Image host is not allowed" }, { status: 400 })
   }
 
-  // TCGdex card images are served from the Vercel Blob mirror; TCGdex is only hit when the copy is missing.
+  // TCGdex card images are served from the mirror store (R2 or Vercel Blob); TCGdex is only hit when the copy is missing.
   const tcgdexImage = parseTcgdexCardImageUrl(url)
   const mirror = tcgdexImage ? getDefaultCardImageMirror() : null
   if (tcgdexImage && mirror) {
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "content-type": image.contentType,
           "x-content-type-options": "nosniff",
-          "x-card-image-source": image.source,
+          "x-card-image-source": image.source === "blob" ? getCardImageStoreKind() : image.source,
           ...IMMUTABLE_IMAGE_CACHE_HEADERS,
         },
       })
