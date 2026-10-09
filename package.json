@@ -9,6 +9,7 @@
     "sync-card-db": "bun scripts/sync-card-db.ts",
     "start": "next start",
     "test": "bun test tests/",
+    "test:coverage": "bun test tests/ --coverage",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "typecheck": "tsc --noEmit"
