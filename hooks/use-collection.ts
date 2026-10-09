@@ -11,9 +11,6 @@ import {
 import type { User } from "@supabase/supabase-js"
 
 import {
-  isSlotStatus,
-  normalizeCardFinish,
-  normalizeCardLanguage,
   type CardFinish,
   type CardLanguage,
   type CollectedPokemon,
@@ -22,6 +19,46 @@ import {
 } from "@/lib/domain/cards"
 
 export type { CardFinish, CardLanguage, CollectedPokemon, SlotStatus, WantedCard } from "@/lib/domain/cards"
+export {
+  COLLECTION_AUTO_REFRESH_INTERVAL_MS,
+  COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS,
+  getCollectionAutoRefreshIntervalMs,
+  getRemoteCollectionRefreshPlan,
+  isCollectionAutoRefreshDue,
+  keepStableUserById,
+  shouldAutoRefreshCollection,
+} from "@/lib/collection/refresh-policy"
+
+import {
+  normalizeCollectionItem,
+  normalizeCollectionItems,
+  upsertCollectionItem,
+  removeCollectionItem,
+  numberArraysEqual,
+} from "@/lib/collection/normalize"
+import {
+  LOCAL_COLLECTION_PENDING_OPS_KEY,
+  readLocalCollectionSnapshot,
+  readPendingCollectionOperations,
+  queuePendingCollectionOperation,
+  removePendingCollectionOperation,
+  persistLocalCollectionState,
+  isOffline,
+} from "@/lib/collection/offline-queue"
+import type { PendingCollectionOperationInput } from "@/lib/collection/offline-queue"
+import {
+  COLLECTION_AUTO_REFRESH_INTERVAL_MS,
+  keepStableUserById,
+  getRemoteCollectionRefreshPlan,
+  shouldAutoRefreshCollection,
+  isCollectionAutoRefreshDue,
+  isDocumentVisible,
+} from "@/lib/collection/refresh-policy"
+import {
+  extractErrorMessage,
+  saveRemoteCollectionItem,
+  deleteRemoteCollectionItem,
+} from "@/lib/collection/remote"
 
 interface PokemonCatalogEntry {
   id: number
@@ -51,404 +88,6 @@ interface UseCollectionOptions {
 interface SaveCollectionOptions {
   cardFinish?: CardFinish
   wantedCards?: WantedCard[]
-}
-
-interface LocalCollectionSnapshot {
-  ownerUserId: string | null
-  savedAt: string
-  collection: CollectedPokemon[]
-}
-
-type PendingCollectionOperation =
-  | {
-      id: string
-      type: "upsert"
-      pokemonId: number
-      item: CollectedPokemon
-      queuedAt: string
-    }
-  | {
-      id: string
-      type: "delete"
-      pokemonId: number
-      queuedAt: string
-    }
-
-type PendingCollectionOperationInput =
-  | {
-      type: "upsert"
-      pokemonId: number
-      item: CollectedPokemon
-    }
-  | {
-      type: "delete"
-      pokemonId: number
-    }
-
-const LOCAL_COLLECTION_SNAPSHOT_KEY = "pokemon_collection_snapshot_v1"
-const LOCAL_COLLECTION_PENDING_OPS_KEY = "pokemon_collection_pending_ops_v1"
-/** Poll cadence while realtime is unavailable (the original behaviour). */
-export const COLLECTION_AUTO_REFRESH_INTERVAL_MS = 5000
-/** Safety-net poll while the realtime channel is subscribed and delivers changes itself. */
-export const COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS = 60_000
-
-interface ShouldAutoRefreshCollectionInput {
-  readOnly: boolean
-  hasUser: boolean
-  isOnline: boolean
-  pendingOperationCount: number
-  isFlushingPendingOperations: boolean
-  isWritingRemoteCollection: boolean
-  /** Defaults to true. Hidden tabs never poll; they refresh when they become visible again. */
-  isVisible?: boolean
-}
-
-export function keepStableUserById<TUser extends { id: string }>(currentUser: TUser | null, nextUser: TUser | null) {
-  return currentUser?.id === nextUser?.id ? currentUser : nextUser
-}
-
-export function getRemoteCollectionRefreshPlan<TUser extends { id: string }>(
-  currentUser: TUser | null,
-  knownOwnerUserId: string | null,
-) {
-  if (!currentUser) return null
-
-  return {
-    user: currentUser,
-    knownOwnerUserId,
-    shouldResolveOwner: !knownOwnerUserId,
-  }
-}
-
-export function shouldAutoRefreshCollection(input: ShouldAutoRefreshCollectionInput) {
-  return input.isVisible !== false &&
-    !input.readOnly &&
-    input.hasUser &&
-    input.isOnline &&
-    input.pendingOperationCount === 0 &&
-    !input.isFlushingPendingOperations &&
-    !input.isWritingRemoteCollection
-}
-
-export function getCollectionAutoRefreshIntervalMs(isRealtimeConnected: boolean) {
-  return isRealtimeConnected ? COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS : COLLECTION_AUTO_REFRESH_INTERVAL_MS
-}
-
-export function isCollectionAutoRefreshDue(input: {
-  now: number
-  lastRefreshAt: number
-  isRealtimeConnected: boolean
-}) {
-  return input.now - input.lastRefreshAt >= getCollectionAutoRefreshIntervalMs(input.isRealtimeConnected)
-}
-
-function isDocumentVisible() {
-  return typeof document === "undefined" || document.visibilityState !== "hidden"
-}
-
-function normalizeWantedCard(value: unknown): WantedCard | null {
-  if (!value || typeof value !== "object") return null
-  const item = value as Partial<WantedCard>
-  if (typeof item.card_id !== "string" || typeof item.card_name !== "string") return null
-
-  return {
-    card_id: item.card_id,
-    card_name: item.card_name,
-    card_image: typeof item.card_image === "string" ? item.card_image : undefined,
-    card_set: typeof item.card_set === "string" ? item.card_set : undefined,
-    card_language: normalizeCardLanguage(item.card_language),
-    card_finish: normalizeCardFinish(item.card_finish),
-    rarity: typeof item.rarity === "string" ? item.rarity : undefined,
-    local_id: typeof item.local_id === "string" ? item.local_id : undefined,
-    set_total: typeof item.set_total === "number" && Number.isFinite(item.set_total) ? item.set_total : undefined,
-    added_at: typeof item.added_at === "string" ? item.added_at : new Date().toISOString(),
-  }
-}
-
-function normalizeWantedCards(value: unknown) {
-  if (!Array.isArray(value)) return []
-  const seen = new Set<string>()
-  const cards: WantedCard[] = []
-
-  for (const rawCard of value) {
-    const card = normalizeWantedCard(rawCard)
-    if (!card) continue
-    const key = `${card.card_id}:${card.card_language ?? "en"}:${card.card_finish ?? "normal"}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    cards.push(card)
-  }
-
-  return cards
-}
-
-function normalizeCollectionItem(item: Partial<CollectedPokemon>): CollectedPokemon {
-  const wantedCards = normalizeWantedCards(item.wanted_cards)
-  const cardLanguage = normalizeCardLanguage(item.card_language)
-  const cardFinish = normalizeCardFinish(item.card_finish)
-  const status = isSlotStatus(item.status) ? item.status : "collected"
-  const legacyWantedCards = status === "wishlisted" && typeof item.card_id === "string" && typeof item.card_name === "string" && wantedCards.length === 0
-    ? [{
-        card_id: item.card_id,
-        card_name: item.card_name,
-        card_image: typeof item.card_image === "string" ? item.card_image : undefined,
-        card_set: typeof item.card_set === "string" ? item.card_set : undefined,
-        card_language: cardLanguage,
-        card_finish: cardFinish,
-        added_at: typeof item.collected_at === "string" ? item.collected_at : new Date().toISOString(),
-      }]
-    : wantedCards
-
-  return {
-    id: typeof item.id === "string" ? item.id : crypto.randomUUID(),
-    pokemon_id: typeof item.pokemon_id === "number" ? item.pokemon_id : 0,
-    pokemon_name: typeof item.pokemon_name === "string" ? item.pokemon_name : "Unknown Pokemon",
-    card_id: status === "wishlisted" ? undefined : typeof item.card_id === "string" ? item.card_id : undefined,
-    card_name: status === "wishlisted" ? undefined : typeof item.card_name === "string" ? item.card_name : undefined,
-    card_image: status === "wishlisted" ? undefined : typeof item.card_image === "string" ? item.card_image : undefined,
-    card_set: status === "wishlisted" ? undefined : typeof item.card_set === "string" ? item.card_set : undefined,
-    card_language: cardLanguage,
-    card_finish: cardFinish,
-    wanted_cards: legacyWantedCards,
-    status,
-    collected_at: typeof item.collected_at === "string" ? item.collected_at : new Date().toISOString(),
-  }
-}
-
-function normalizeCollectionItems(items: Partial<CollectedPokemon>[] | null | undefined) {
-  return Array.isArray(items) ? items.map((item) => normalizeCollectionItem(item)) : []
-}
-
-function upsertCollectionItem(items: CollectedPokemon[], item: CollectedPokemon) {
-  const existing = items.findIndex((currentItem) => currentItem.pokemon_id === item.pokemon_id)
-  if (existing >= 0) {
-    const updated = [...items]
-    updated[existing] = item
-    return updated.sort((a, b) => a.pokemon_id - b.pokemon_id)
-  }
-
-  return [...items, item].sort((a, b) => a.pokemon_id - b.pokemon_id)
-}
-
-function removeCollectionItem(items: CollectedPokemon[], pokemonId: number) {
-  return items.filter((item) => item.pokemon_id !== pokemonId)
-}
-
-function numberArraysEqual(a: number[], b: number[]) {
-  if (a.length !== b.length) return false
-
-  for (let index = 0; index < a.length; index += 1) {
-    if (a[index] !== b[index]) {
-      return false
-    }
-  }
-
-  return true
-}
-
-function extractErrorMessage(error: unknown) {
-  if (!error) return "Unknown error"
-  if (error instanceof Error) return error.message
-  if (typeof error === "object") {
-    const candidate = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
-    const parts = [candidate.message, candidate.details, candidate.hint, candidate.code].filter(
-      (value): value is string => typeof value === "string" && value.length > 0,
-    )
-    if (parts.length > 0) {
-      return parts.join(" | ")
-    }
-  }
-  return String(error)
-}
-
-function isMissingStatusColumnError(error: unknown) {
-  const message = extractErrorMessage(error).toLowerCase()
-  return message.includes("status") && (
-    message.includes("column") ||
-    message.includes("schema cache") ||
-    message.includes("does not exist")
-  )
-}
-
-async function readJsonResponse(response: Response) {
-  return response.json().catch(() => null)
-}
-
-function readLocalCollectionSnapshot() {
-  if (typeof window === "undefined") return null
-
-  try {
-    const stored = window.localStorage.getItem(LOCAL_COLLECTION_SNAPSHOT_KEY)
-    if (!stored) return null
-
-    const parsed = JSON.parse(stored) as Partial<LocalCollectionSnapshot> | null
-    if (!parsed || !Array.isArray(parsed.collection)) {
-      return null
-    }
-
-    return {
-      ownerUserId: typeof parsed.ownerUserId === "string" ? parsed.ownerUserId : null,
-      savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : new Date(0).toISOString(),
-      collection: normalizeCollectionItems(parsed.collection),
-    }
-  } catch {
-    return null
-  }
-}
-
-function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot) {
-  if (typeof window === "undefined") return
-
-  try {
-    window.localStorage.setItem(LOCAL_COLLECTION_SNAPSHOT_KEY, JSON.stringify(snapshot))
-  } catch {
-    // ignore quota failures
-  }
-}
-
-function readPendingCollectionOperations(): PendingCollectionOperation[] {
-  if (typeof window === "undefined") return []
-
-  try {
-    const stored = window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
-    if (!stored) return []
-
-    const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed)) return []
-
-    return parsed.flatMap((operation): PendingCollectionOperation[] => {
-      if (!operation || typeof operation !== "object") return []
-      const item = operation as Partial<PendingCollectionOperation>
-      if (typeof item.id !== "string" || typeof item.type !== "string") return []
-      if (typeof item.pokemonId !== "number" || !Number.isInteger(item.pokemonId) || item.pokemonId <= 0) return []
-
-      if (item.type === "delete") {
-        return [{
-          id: item.id,
-          type: "delete",
-          pokemonId: item.pokemonId,
-          queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
-        }]
-      }
-
-      if (item.type === "upsert" && "item" in item && item.item) {
-        return [{
-          id: item.id,
-          type: "upsert",
-          pokemonId: item.pokemonId,
-          item: normalizeCollectionItem(item.item),
-          queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
-        }]
-      }
-
-      return []
-    })
-  } catch {
-    return []
-  }
-}
-
-function writePendingCollectionOperations(operations: PendingCollectionOperation[]) {
-  if (typeof window === "undefined") return
-
-  try {
-    window.localStorage.setItem(LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(operations))
-  } catch {
-    // ignore quota failures
-  }
-}
-
-function createPendingOperationId() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID()
-  }
-
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
-
-function queuePendingCollectionOperation(operation: PendingCollectionOperationInput) {
-  const nextOperation = {
-    ...operation,
-    id: createPendingOperationId(),
-    queuedAt: new Date().toISOString(),
-  } as PendingCollectionOperation
-  const operations = readPendingCollectionOperations()
-    .filter((queuedOperation) => queuedOperation.pokemonId !== operation.pokemonId)
-
-  writePendingCollectionOperations([...operations, nextOperation])
-}
-
-function removePendingCollectionOperation(operationId: string) {
-  writePendingCollectionOperations(
-    readPendingCollectionOperations().filter((operation) => operation.id !== operationId),
-  )
-}
-
-function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null) {
-  writeLocalCollectionSnapshot({
-    ownerUserId,
-    savedAt: new Date().toISOString(),
-    collection,
-  })
-  writeLocalCollectedIds(
-    collection
-      .filter((item) => item.status !== "wishlisted")
-      .map((item) => item.pokemon_id),
-  )
-}
-
-function isOffline() {
-  return typeof navigator !== "undefined" && navigator.onLine === false
-}
-
-function getCollectionRequestBody(item: CollectedPokemon) {
-  return {
-    pokemonId: item.pokemon_id,
-    pokemonName: item.pokemon_name,
-    cardId: item.card_id,
-    cardName: item.card_name,
-    cardImage: item.card_image,
-    cardSet: item.card_set,
-    cardLanguage: item.card_language ?? "en",
-    cardFinish: item.card_finish ?? "normal",
-    wantedCards: item.wanted_cards ?? [],
-    status: item.status,
-  }
-}
-
-async function saveRemoteCollectionItem(item: CollectedPokemon) {
-  const response = await fetch("/api/collection", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(getCollectionRequestBody(item)),
-  })
-
-  if (!response.ok) {
-    const payload = await readJsonResponse(response)
-    const message = payload?.error || `Failed to save collection item (${response.status})`
-    if (isMissingStatusColumnError(message)) {
-      throw new Error(
-        "The database is missing pokemon_collection.status. Run scripts/008_add_collection_status.sql against Supabase, then retry.",
-      )
-    }
-    throw new Error(message)
-  }
-
-  const payload = await readJsonResponse(response)
-  return normalizeCollectionItem(payload?.item ?? item)
-}
-
-async function deleteRemoteCollectionItem(pokemonId: number) {
-  const response = await fetch(`/api/collection?pokemonId=${pokemonId}`, {
-    method: "DELETE",
-  })
-
-  if (!response.ok) {
-    const payload = await readJsonResponse(response)
-    throw new Error(payload?.error || `Failed to delete collection item (${response.status})`)
-  }
 }
 
 export function useCollection(options: UseCollectionOptions = {}) {
