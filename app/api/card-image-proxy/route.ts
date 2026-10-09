@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "content-type": contentType,
       "x-content-type-options": "nosniff",
+      "x-card-image-source": tcgdexImage ? "tcgdex" : "upstream",
       ...IMMUTABLE_IMAGE_CACHE_HEADERS,
     },
   })

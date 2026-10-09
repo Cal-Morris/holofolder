@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { runCardImageBackfill } from "@/lib/card-db-sync"
 import { getSyncSecret, isAuthorizedSyncRequest } from "@/lib/card-db-sync-targets"
-import { getDefaultCardImageMirror } from "@/lib/card-image-blob"
+import { BlobStoreUnavailableError, getDefaultCardImageMirror } from "@/lib/card-image-blob"
 import { InvalidBackfillRequestError, parseCardImageBackfillRequest } from "@/lib/card-image-backfill"
 
 export const maxDuration = 300
@@ -56,6 +56,12 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json({ backfill: result, nextCursor: result.nextCursor, done: result.done })
   } catch (error) {
+    if (error instanceof BlobStoreUnavailableError) {
+      return NextResponse.json(
+        { error: `Blob store unavailable (${error.message}); retry after the cooldown`, retryAfterSeconds: Math.ceil(error.cooldownMs / 1000) },
+        { status: 503 },
+      )
+    }
     console.error("[binderdex] Card image backfill failed:", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 })
   }
