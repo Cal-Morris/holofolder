@@ -3,33 +3,9 @@
 import { useState, useCallback } from "react"
 import { filterAndRankCards } from "@/lib/card-search"
 
-export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+import type { CardLanguage, TCGCard } from "@/lib/domain/cards"
 
-export interface TCGCard {
-  id: string
-  localId: string
-  name: string
-  image?: string
-  language?: CardLanguage
-  set: {
-    id: string
-    name: string
-    logo?: string
-    officialCardCount?: number
-  }
-  rarity?: string
-  variants?: {
-    normal?: boolean
-    reverse?: boolean
-    holo?: boolean
-    firstEdition?: boolean
-    wPromo?: boolean
-    jumbo?: boolean
-  }
-  hp?: number
-  types?: string[]
-  illustrator?: string
-}
+export type { CardLanguage, TCGCard } from "@/lib/domain/cards"
 
 export interface CardFilters {
   set?: string

@@ -10,51 +10,18 @@ import {
 } from "@/lib/collection-realtime"
 import type { User } from "@supabase/supabase-js"
 
-export type SlotStatus = 'collected' | 'finalized' | 'considering' | 'wishlisted'
-export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
-export type CardFinish =
-  | "normal"
-  | "holo"
-  | "reverse_holo"
-  | "double_rare"
-  | "ultra_rare"
-  | "illustration_rare"
-  | "special_illustration_rare"
-  | "secret_rare"
-  | "hyper_rare"
-  | "radiant_rare"
-  | "ace_spec"
-  | "amazing_rare"
-  | "shiny_rare"
-  | "jumbo"
+import {
+  isSlotStatus,
+  normalizeCardFinish,
+  normalizeCardLanguage,
+  type CardFinish,
+  type CardLanguage,
+  type CollectedPokemon,
+  type SlotStatus,
+  type WantedCard,
+} from "@/lib/domain/cards"
 
-export interface WantedCard {
-  card_id: string
-  card_name: string
-  card_image?: string
-  card_set?: string
-  card_language?: CardLanguage
-  card_finish?: CardFinish
-  rarity?: string
-  local_id?: string
-  set_total?: number
-  added_at: string
-}
-
-export interface CollectedPokemon {
-  id: string
-  pokemon_id: number
-  pokemon_name: string
-  card_id?: string
-  card_name?: string
-  card_image?: string
-  card_set?: string
-  card_language?: CardLanguage
-  card_finish?: CardFinish
-  wanted_cards: WantedCard[]
-  status: SlotStatus
-  collected_at: string
-}
+export type { CardFinish, CardLanguage, CollectedPokemon, SlotStatus, WantedCard } from "@/lib/domain/cards"
 
 interface PokemonCatalogEntry {
   id: number
@@ -155,45 +122,6 @@ export function shouldAutoRefreshCollection(input: ShouldAutoRefreshCollectionIn
     input.pendingOperationCount === 0 &&
     !input.isFlushingPendingOperations &&
     !input.isWritingRemoteCollection
-}
-
-function isSlotStatus(value: unknown): value is SlotStatus {
-  return value === "collected" || value === "finalized" || value === "considering" || value === "wishlisted"
-}
-
-function normalizeCardLanguage(value: unknown): CardLanguage {
-  if (typeof value !== "string") return "en"
-  const normalized = value.trim().toLowerCase()
-  return normalized === "en" ||
-    normalized === "fr" ||
-    normalized === "de" ||
-    normalized === "es" ||
-    normalized === "it" ||
-    normalized === "pt-br" ||
-    normalized === "ja" ||
-    normalized === "ko"
-      ? normalized
-      : "en"
-}
-
-function normalizeCardFinish(value: unknown): CardFinish {
-  if (typeof value !== "string") return "normal"
-  return value === "normal" ||
-    value === "holo" ||
-    value === "reverse_holo" ||
-    value === "double_rare" ||
-    value === "ultra_rare" ||
-    value === "illustration_rare" ||
-    value === "special_illustration_rare" ||
-    value === "secret_rare" ||
-    value === "hyper_rare" ||
-    value === "radiant_rare" ||
-    value === "ace_spec" ||
-    value === "amazing_rare" ||
-    value === "shiny_rare" ||
-    value === "jumbo"
-      ? value
-      : "normal"
 }
 
 function normalizeWantedCard(value: unknown): WantedCard | null {

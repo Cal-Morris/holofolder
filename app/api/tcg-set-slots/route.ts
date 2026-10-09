@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { searchMirroredSets, getMirroredSetDexSlots, getRecentMirroredSets, type MirrorLanguage } from "@/lib/tcg-mirror"
+import { searchMirroredSets, getMirroredSetDexSlots, getRecentMirroredSets } from "@/lib/tcg-mirror"
+import { normalizeCardLanguage } from "@/lib/domain/cards"
 import { POKEMON_CATALOG } from "@/lib/pokemon-catalog"
 import { PUBLIC_JSON_CACHE_HEADERS } from "@/lib/http-cache"
 
 export const instant = false
-
-const SUPPORTED_LANGUAGES = new Set<MirrorLanguage>(["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"])
-
-function normalizeLanguage(value: string | null): MirrorLanguage {
-  const normalized = value?.trim().toLowerCase()
-  return normalized && SUPPORTED_LANGUAGES.has(normalized as MirrorLanguage)
-    ? normalized as MirrorLanguage
-    : "en"
-}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -34,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const query = searchParams.get("query")?.trim() ?? ""
     const requestedSetId = searchParams.get("setId")?.trim() ?? ""
-    const language = normalizeLanguage(searchParams.get("language"))
+    const language = normalizeCardLanguage(searchParams.get("language"))
     const pokemonNames = new Map(POKEMON_CATALOG.map((pokemon) => [pokemon.id, pokemon.name] as const))
     const sets = query.length >= 2 || requestedSetId
       ? await searchMirroredSets(requestedSetId || query, requestedSetId ? 12 : 8)

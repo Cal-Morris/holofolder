@@ -1,4 +1,4 @@
-import type { CardFinish, CardLanguage } from "@/hooks/use-collection"
+import type { CardFinish, CardLanguage } from "@/lib/domain/cards"
 
 export interface TCGSetSummary {
   id: string

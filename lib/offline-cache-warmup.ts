@@ -1,6 +1,6 @@
 export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
 
-type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
+import { normalizeCardLanguage, type CardLanguage } from "@/lib/domain/cards"
 
 interface OfflineCacheWarmupWantedCard {
   card_image?: unknown
@@ -20,7 +20,6 @@ interface OfflineCacheWarmupInput {
   maxUrls?: number
 }
 
-const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
 
 export function toCacheableCardImageUrl(value: unknown) {
   if (typeof value !== "string" || value.trim().length === 0) return null
@@ -86,10 +85,4 @@ function addCardImageUrl(urls: Set<string>, value: unknown) {
   if (imageUrl) {
     urls.add(imageUrl)
   }
-}
-
-function normalizeCardLanguage(value: unknown): CardLanguage {
-  if (typeof value !== "string") return "en"
-  const normalized = value.trim().toLowerCase()
-  return SUPPORTED_CARD_LANGUAGES.includes(normalized as CardLanguage) ? normalized as CardLanguage : "en"
 }
