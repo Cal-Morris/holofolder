@@ -5,6 +5,15 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { Client } from "pg"
 import { inferDexIdsFromCardName } from "./card-dex-inference"
+import { mapWithConcurrency } from "./card-db-sync-concurrency"
+import type { CardImageMirror } from "./card-image-blob"
+import {
+  mirrorSetImages,
+  parseImageLanguages,
+  type CardImageBackfillRequest,
+  type MirrorableCard,
+  type MirrorSetImagesResult,
+} from "./card-image-backfill"
 import { selectIncrementalSyncTargets, type IncrementalSyncRequest } from "./card-db-sync-targets"
 
 type SupportedLanguage = "en" | "ja"
@@ -842,18 +851,6 @@ type RestSetSink = {
   concurrency?: number
 }
 
-export async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  let next = 0
-  const runners = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, async () => {
-    while (next < items.length) {
-      const index = next++
-      results[index] = await worker(items[index])
-    }
-  })
-  await Promise.all(runners)
-  return results
-}
 
 /** Add one live TCGdex REST set (series, set, cards, dex links, PokemonTCG matches) to the sink. Returns the number of cards added. */
 async function appendRestSetRows(restSet: RestSetDetail & { id: string }, seriesId: string, sink: RestSetSink) {
@@ -1506,13 +1503,22 @@ export interface IncrementalCardDbSyncOptions {
   /** Stop starting new sets once this many ms have elapsed (keeps the call inside Vercel's maxDuration). */
   timeBudgetMs?: number
   concurrency?: number
+  /** When set, each synced set's English high/low images are copied into Vercel Blob after its rows are written. */
+  imageMirror?: CardImageMirror | null
 }
 
 export interface IncrementalCardDbSyncResult {
   mode: IncrementalSyncRequest["mode"]
   dryRun: boolean
   targetSetIds: string[]
-  syncedSets: Array<{ id: string; name: string | null; cardCount: number; dexLinkCount: number; externalSourceCount: number }>
+  syncedSets: Array<{
+    id: string
+    name: string | null
+    cardCount: number
+    dexLinkCount: number
+    externalSourceCount: number
+    images?: MirrorSetImagesResult
+  }>
   skippedSetIds: string[]
   remainingSetIds: string[]
   durationMs: number
@@ -1782,12 +1788,34 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
         await upsertRestSetPayload(client, payload, logger)
       }
 
+      let images: MirrorSetImagesResult | undefined
+      if (options.imageMirror && !request.dryRun) {
+        try {
+          images = await mirrorSetImages(
+            options.imageMirror,
+            restSet.id,
+            payload.cards.map((card) => ({
+              seriesId: card.series_id,
+              setId: card.set_id,
+              localId: card.local_id,
+              imageLanguages: parseImageLanguages(card.image_languages_json),
+              tcgdexImageUrl: pickTcgdexImageFromExternalIds(card.external_ids_json),
+            })),
+            { languages: ["en"], qualities: ["high", "low"], deadline: startedAt + timeBudgetMs },
+          )
+          logWith(logger, `Images ${restSet.id}: ${images.uploaded} uploaded, ${images.alreadyMirrored} already in Blob, ${images.failed} failed`)
+        } catch (error) {
+          logWith(logger, `Image mirroring failed for ${restSet.id}: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+
       syncedSets.push({
         id: restSet.id,
         name: restSet.name ?? null,
         cardCount,
         dexLinkCount: dexLinks.length,
         externalSourceCount: payload.externalSources.length,
+        ...(images ? { images } : {}),
       })
       logWith(logger, `${request.dryRun ? "Parsed" : "Upserted"} ${cardCount} cards for ${restSet.id}`)
     }
@@ -1812,5 +1840,96 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
       }
       await client.end()
     }
+  }
+}
+
+export { mapWithConcurrency }
+
+function pickTcgdexImageFromExternalIds(externalIds: JsonObject) {
+  const tcgdex = externalIds.tcgdex
+  if (!tcgdex || typeof tcgdex !== "object" || Array.isArray(tcgdex)) return null
+  const image = (tcgdex as Record<string, unknown>).image
+  return typeof image === "string" ? image : null
+}
+
+export interface CardImageBackfillResult {
+  sets: MirrorSetImagesResult[]
+  /** Pass as `?cursor=` to continue; null when every selected set is complete. */
+  nextCursor: string | null
+  done: boolean
+  durationMs: number
+}
+
+/**
+ * Copies TCGdex card images for mirrored sets into Vercel Blob, set by set (ordered by set id), resumable via cursor.
+ * Re-running is cheap: existing blobs are skipped with one `list` call per set and language.
+ */
+export async function runCardImageBackfill(options: {
+  request: CardImageBackfillRequest
+  mirror: CardImageMirror
+  timeBudgetMs?: number
+  logger?: (message: string) => void
+}): Promise<CardImageBackfillResult> {
+  const startedAt = Date.now()
+  const deadline = startedAt + (options.timeBudgetMs ?? Number.POSITIVE_INFINITY)
+  const { request, mirror, logger } = options
+  const client = new Client({ connectionString: getMirrorDatabaseUrl() })
+  await client.connect()
+
+  try {
+    const setResult = request.setIds.length > 0
+      ? await client.query<{ id: string }>("select id from public.tcg_sets where id = any($1::text[]) order by id", [request.setIds])
+      : await client.query<{ id: string }>(
+          "select id from public.tcg_sets where ($1::text is null or id >= $1) order by id",
+          [request.cursor],
+        )
+    const setIds = setResult.rows.map((row) => row.id)
+    const sets: MirrorSetImagesResult[] = []
+    let uploads = 0
+    let nextCursor: string | null = null
+
+    for (const setId of setIds) {
+      if (sets.length >= request.maxSets || Date.now() > deadline || uploads >= request.maxUploads) {
+        nextCursor = setId
+        break
+      }
+
+      const cardResult = await client.query<{
+        series_id: string
+        set_id: string
+        local_id: string
+        image_languages_json: unknown
+        tcgdex_image: string | null
+      }>(
+        "select series_id, set_id, local_id, image_languages_json, external_ids_json->'tcgdex'->>'image' as tcgdex_image from public.tcg_cards where set_id = $1",
+        [setId],
+      )
+      const cards: MirrorableCard[] = cardResult.rows.map((row) => ({
+        seriesId: row.series_id,
+        setId: row.set_id,
+        localId: row.local_id,
+        imageLanguages: parseImageLanguages(row.image_languages_json),
+        tcgdexImageUrl: row.tcgdex_image,
+      }))
+      const result = await mirrorSetImages(mirror, setId, cards, {
+        languages: request.languages,
+        qualities: request.qualities,
+        deadline,
+        maxUploads: request.maxUploads - uploads,
+      })
+      uploads += result.uploaded + result.failed
+      sets.push(result)
+      logWith(logger, `Images ${setId}: ${result.uploaded} uploaded, ${result.alreadyMirrored} already in Blob, ${result.failed} failed`)
+
+      if (!result.complete) {
+        // Resume this set next time (already-copied images are skipped).
+        nextCursor = setId
+        break
+      }
+    }
+
+    return { sets, nextCursor, done: nextCursor === null, durationMs: Date.now() - startedAt }
+  } finally {
+    await client.end()
   }
 }
