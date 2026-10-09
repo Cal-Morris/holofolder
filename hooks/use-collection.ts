@@ -649,7 +649,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
   }, [collectionOwnerUserId, readOnly, resolveCollectionOwnerUserId, supabase, user])
 
-  const writeRemoteCollection = useCallback(async <T,>(operation: () => Promise<T>) => {
+  const writeRemoteCollection = useCallback(async <T,>(operation: () => PromiseLike<T>) => {
     activeRemoteCollectionWriteCountRef.current += 1
 
     try {
