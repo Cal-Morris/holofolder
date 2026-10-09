@@ -33,6 +33,8 @@ const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
 // Fallback shortcuts used until the live "latest sets" list loads (or if it fails).
 // Newest English main-line releases per TCGdex (api.tcgdex.net/v2/en/sets), checked Oct 2026.
 const SET_SHORTCUTS = [
+  { label: "30th Celebration", query: "30th Celebration" },
+  { label: "30th Classic Collection", query: "30th Classic Collection" },
   { label: "Pitch Black", query: "Pitch Black" },
   { label: "Chaos Rising", query: "Chaos Rising" },
   { label: "Perfect Order", query: "Perfect Order" },
