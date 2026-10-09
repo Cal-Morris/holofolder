@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { CollectedPokemon } from "@/hooks/use-collection"
 import type { PokemonSummary } from "@/lib/pokemon-catalog"
+import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
 
 interface DexListViewProps {
   pokemonList: PokemonSummary[]
@@ -94,6 +95,7 @@ export default function DexListView({
 }: DexListViewProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState<DexListFilter>("all")
+  const heading = useCollapseOnScroll()
   const filterCounts = useMemo(() => {
     const counts: Record<DexListFilter, number> = {
       all: pokemonList.length,
@@ -151,7 +153,7 @@ export default function DexListView({
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.6rem] border border-border/60 bg-card/88 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/70">
       <div className="shrink-0 border-b border-border/45 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+        <div data-testid="view-heading" data-collapsed={heading.collapsed ? "" : undefined} className={`flex items-center justify-between gap-3 ${heading.collapsed ? "max-sm:hidden" : ""}`}>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">List View</p>
             <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Manage the dex quickly</h2>
@@ -161,7 +163,7 @@ export default function DexListView({
             <span>{filteredPokemonList.length}/{pokemonList.length} slots</span>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border/55 bg-background/58 px-3 py-2 dark:border-white/10 dark:bg-background/35">
+        <div className={`flex items-center gap-2 rounded-2xl border border-border/55 bg-background/58 px-3 py-2 dark:border-white/10 dark:bg-background/35 ${heading.collapsed ? "max-sm:mt-0 mt-3" : "mt-3"}`}>
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             value={searchQuery}
@@ -203,7 +205,7 @@ export default function DexListView({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div data-testid="view-scroller" onScroll={heading.onScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="space-y-1.5">
           {filteredPokemonList.length === 0 ? (
             <div className="rounded-2xl border border-border/45 bg-background/45 p-4 text-sm text-muted-foreground">

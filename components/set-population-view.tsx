@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { CollectedPokemon } from "@/hooks/use-collection"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
+import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
 
 interface SetPopulationViewProps {
   collectionByPokemonId: Map<number, CollectedPokemon>
@@ -70,6 +71,7 @@ export default function SetPopulationView({
   readOnly,
 }: SetPopulationViewProps) {
   const [query, setQuery] = useState("")
+  const heading = useCollapseOnScroll()
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
   const [sets, setSets] = useState<TCGSetSummary[]>([])
   const [selectedSet, setSelectedSet] = useState<TCGSetSummary | null>(null)
@@ -280,7 +282,7 @@ export default function SetPopulationView({
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.6rem] border border-border/60 bg-card/88 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/70">
       <div className="shrink-0 border-b border-border/45 p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div data-testid="view-heading" data-collapsed={heading.collapsed ? "" : undefined} className={`flex items-start justify-between gap-3 ${heading.collapsed ? "max-sm:hidden" : ""}`}>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Set Mode</p>
             <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Which dex slots can this set fill?</h2>
@@ -290,7 +292,7 @@ export default function SetPopulationView({
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-border/55 bg-background/58 px-3 py-2 dark:border-white/10 dark:bg-background/35">
+        <div className={`flex items-center gap-2 rounded-2xl border border-border/55 bg-background/58 px-3 py-2 dark:border-white/10 dark:bg-background/35 ${heading.collapsed ? "max-sm:mt-0 mt-4" : "mt-4"}`}>
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             value={query}
@@ -457,7 +459,7 @@ export default function SetPopulationView({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div data-testid="view-scroller" onScroll={heading.onScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
         {error ? (
           <div className="rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive">{error}</div>
         ) : !selectedSet && query.trim().length < 2 ? (
