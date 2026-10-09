@@ -151,7 +151,7 @@ export default function DexListView({
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">List View</p>
-            <h2 className="truncate text-lg font-semibold tracking-tight">Manage the dex quickly</h2>
+            <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Manage the dex quickly</h2>
           </div>
           <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-background/55 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:flex">
             <Search className="h-3.5 w-3.5" />
@@ -163,14 +163,14 @@ export default function DexListView({
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search Pokemon, card, set, or dex number..."
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
+            placeholder="Search name, card, set, or dex #"
+            className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground/70"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="-my-1 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Clear list search"
             >
               <X className="h-3.5 w-3.5" />
@@ -187,7 +187,7 @@ export default function DexListView({
                 key={filter.id}
                 type="button"
                 onClick={() => setActiveFilter(filter.id)}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                className={`min-h-8 shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
                   isActive
                     ? "border-primary/45 bg-primary text-primary-foreground"
                     : "border-border/55 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10"
@@ -272,7 +272,7 @@ export default function DexListView({
                           type="button"
                           variant={item?.status !== "wishlisted" && item ? "default" : "outline"}
                           size="sm"
-                          className="h-7 rounded-full px-2.5 text-[11px]"
+                          className="h-8 rounded-full px-3 text-[11px]"
                           onClick={(event) => {
                             event.stopPropagation()
                             onToggleOwned(pokemon)
