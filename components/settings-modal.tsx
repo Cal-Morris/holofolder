@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useOverlay } from "@/hooks/use-overlay"
 import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -633,6 +634,8 @@ export default function SettingsModal({
             </p>
           </div>
           )}
+
+          <CardDataAttribution className="border-t border-border/60 pt-3 text-center text-[11px] leading-snug text-muted-foreground/80" />
         </div>
       </div>
     </div>

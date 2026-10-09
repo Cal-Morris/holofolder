@@ -1,6 +1,7 @@
 import { revalidateTag } from "next/cache"
 import { NextRequest, NextResponse } from "next/server"
 import { runIncrementalCardDbSync } from "@/lib/card-db-sync"
+import { getDefaultCardImageMirror } from "@/lib/card-image-blob"
 import {
   getSyncSecret,
   InvalidSyncRequestError,
@@ -15,7 +16,7 @@ const TIME_BUDGET_MS = (maxDuration - 60) * 1000
 
 /**
  * POST /api/admin/sync-card-db
- *   Authorization: Bearer <SYNC_SECRET or CRON_SECRET>
+ *   Authorization: Bearer <CARD_DB_SYNC_SECRET, SYNC_SECRET or CRON_SECRET>
  *
  * Query:
  *   ?set=me05,30th,30th-c   sync specific TCGdex set ids
@@ -23,16 +24,18 @@ const TIME_BUDGET_MS = (maxDuration - 60) * 1000
  *   (default) / ?missing=1  sync sets missing from the mirror or with fewer cards than TCGdex
  *   ?maxSets=4              sets per call (max 12); leftovers are returned in remainingSetIds
  *   ?dryRun=1               fetch and parse only, no writes
+ *   ?images=0               skip copying the synced sets' card images into Vercel Blob
+ *                           (on by default when BLOB_READ_WRITE_TOKEN is configured)
  */
 export async function POST(request: NextRequest) {
   if (!getSyncSecret(process.env)) {
     return NextResponse.json(
-      { error: "Card DB sync is not configured. Set SYNC_SECRET (or CRON_SECRET) in the environment." },
+      { error: "Card DB sync is not configured. Set CARD_DB_SYNC_SECRET (or SYNC_SECRET / CRON_SECRET) in the environment." },
       { status: 503 },
     )
   }
 
-  if (!isAuthorizedSyncRequest(request.headers.get("authorization"), process.env)) {
+  if (!isAuthorizedSyncRequest(request.headers.get("authorization"), process.env, request.headers.get("x-card-db-sync-secret"))) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 })
   }
 
@@ -51,6 +54,7 @@ export async function POST(request: NextRequest) {
     const result = await runIncrementalCardDbSync({
       request: syncRequest,
       timeBudgetMs: TIME_BUDGET_MS,
+      imageMirror: request.nextUrl.searchParams.get("images") === "0" ? null : getDefaultCardImageMirror(),
       logger: (message) => {
         log.push(message)
         console.log(`[card-db-sync] ${message}`)

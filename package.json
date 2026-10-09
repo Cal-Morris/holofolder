@@ -46,6 +46,7 @@
     "@tcgdex/sdk": "2.9.0",
     "@upstash/redis": "^1.38.0",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/blob": "^2.8.1",
     "@workflow/world-postgres": "4.2.0",
     "autoprefixer": "^10.5.0",
     "class-variance-authority": "^0.7.1",

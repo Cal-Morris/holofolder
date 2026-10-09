@@ -59,6 +59,16 @@ describe("parseIncrementalSyncRequest", () => {
 })
 
 describe("sync auth", () => {
+  test("accepts CARD_DB_SYNC_SECRET (preferred), SYNC_SECRET or CRON_SECRET, via bearer or legacy header", () => {
+    const env = { CARD_DB_SYNC_SECRET: "card", CRON_SECRET: "cron" }
+    assert.equal(getSyncSecret(env), "card")
+    assert.equal(isAuthorizedSyncRequest("Bearer card", env), true)
+    assert.equal(isAuthorizedSyncRequest("Bearer cron", env), true)
+    assert.equal(isAuthorizedSyncRequest(null, env, "card"), true)
+    assert.equal(isAuthorizedSyncRequest(null, env, "nope"), false)
+    assert.equal(isAuthorizedSyncRequest("Bearer nope", env, null), false)
+  })
+
   test("prefers SYNC_SECRET and falls back to CRON_SECRET", () => {
     assert.equal(getSyncSecret({ SYNC_SECRET: "a", CRON_SECRET: "b" }), "a")
     assert.equal(getSyncSecret({ CRON_SECRET: "b" }), "b")

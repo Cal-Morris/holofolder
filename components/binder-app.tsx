@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent } from "react"
+import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2 } from "lucide-react"
@@ -6768,6 +6769,7 @@ export default function BinderApp({
           Cal
         </a>{" "}
         for his wife, Laura
+        <CardDataAttribution className="mx-auto mt-0.5 max-w-3xl px-4 text-[9px] leading-snug" />
       </footer>
     </main>
   )
