@@ -15,8 +15,8 @@ import {
   type MirrorSetImagesResult,
 } from "./card-image-backfill"
 import { isSetUpToDateWithListedCards, selectIncrementalSyncTargets, type IncrementalSyncRequest } from "./card-db-sync-targets"
+import { pickLocalizedText, pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
 
-type SupportedLanguage = "en" | "ja"
 type JsonObject = Record<string, unknown>
 
 type MirrorSeriesRow = {
@@ -254,34 +254,6 @@ function logWith(logger: ((message: string) => void) | undefined, message: strin
   console.log(`[sync-card-db] ${message}`)
 }
 
-export async function loadProjectEnvFiles(projectRoot?: string) {
-  const root = getProjectRoot(projectRoot)
-  const envFiles = [path.join(root, ".env"), path.join(root, ".env.local")]
-
-  for (const filePath of envFiles) {
-    try {
-      const contents = await readFile(filePath, "utf8")
-      for (const line of contents.split(/\r?\n/)) {
-        const trimmed = line.trim()
-        if (!trimmed || trimmed.startsWith("#")) continue
-
-        const separatorIndex = trimmed.indexOf("=")
-        if (separatorIndex === -1) continue
-
-        const key = trimmed.slice(0, separatorIndex).trim()
-        const rawValue = trimmed.slice(separatorIndex + 1).trim()
-        const unquotedValue = rawValue.replace(/^['"]|['"]$/g, "")
-
-        if (!process.env[key]) {
-          process.env[key] = unquotedValue
-        }
-      }
-    } catch {
-      continue
-    }
-  }
-}
-
 function ensureEnv(name: string) {
   const value = process.env[name]
   if (!value) {
@@ -337,7 +309,7 @@ async function ensureCardsDatabaseRepo(projectRoot: string, logger?: (message: s
   const repoDir = getRepoDir(projectRoot)
   await mkdir(path.dirname(repoDir), { recursive: true })
 
-  const hasGitDir = await pathExists(path.join(repoDir, ".git"))
+  const hasGitDir = await pathExists(path.join(/*turbopackIgnore: true*/ repoDir, ".git"))
   if (!hasGitDir) {
     logWith(logger, `Cloning ${REPO_URL} into ${repoDir}`)
     await runCommand("git", ["clone", "--depth=1", REPO_URL, repoDir], undefined, logger)
@@ -404,36 +376,6 @@ async function findCardFiles(rootDir: string): Promise<string[]> {
   await walk(rootDir)
   files.sort((a, b) => a.localeCompare(b))
   return files
-}
-
-function pickLocalizedText(
-  value: string | Record<string, string> | undefined,
-  language: SupportedLanguage = "en",
-) {
-  if (!value) return null
-  if (typeof value === "string") return value
-  if (typeof value !== "object") return null
-
-  const directMatch = value[language]
-  if (typeof directMatch === "string" && directMatch.length > 0) {
-    return directMatch
-  }
-
-  const preferredFallbacks = ["en", "ja", "fr", "de", "es", "it", "pt-br", "ko"]
-  for (const fallback of preferredFallbacks) {
-    const candidate = value[fallback]
-    if (typeof candidate === "string" && candidate.length > 0) {
-      return candidate
-    }
-  }
-
-  for (const candidate of Object.values(value)) {
-    if (typeof candidate === "string" && candidate.length > 0) {
-      return candidate
-    }
-  }
-
-  return null
 }
 
 function normalizeLocalizedMap(value: string | Record<string, string> | undefined) {
@@ -1042,7 +984,7 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
   logWith(logger, `Found ${cardFiles.length} card files`)
 
   for (const [index, filePath] of cardFiles.entries()) {
-    const imported = (await import(pathToFileURL(filePath).href)) as { default: TCGCard }
+    const imported = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ pathToFileURL(filePath).href)) as { default: TCGCard }
     const card = imported.default
     const localId = path.basename(filePath, ".ts")
     const set = card.set
@@ -1862,12 +1804,6 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
 
 export { mapWithConcurrency }
 
-function pickTcgdexImageFromExternalIds(externalIds: JsonObject) {
-  const tcgdex = externalIds.tcgdex
-  if (!tcgdex || typeof tcgdex !== "object" || Array.isArray(tcgdex)) return null
-  const image = (tcgdex as Record<string, unknown>).image
-  return typeof image === "string" ? image : null
-}
 
 export interface CardImageBackfillResult {
   sets: MirrorSetImagesResult[]
