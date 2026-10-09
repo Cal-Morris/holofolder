@@ -3,9 +3,13 @@ export function shouldClearSelectedPokemonForPage(
   visiblePokemonIds: ReadonlySet<number> | readonly number[],
 ) {
   if (!selectedPokemonId) return false
-  if (Array.isArray(visiblePokemonIds)) {
+  if (isReadonlyNumberArray(visiblePokemonIds)) {
     return !visiblePokemonIds.includes(selectedPokemonId)
   }
 
   return !visiblePokemonIds.has(selectedPokemonId)
+}
+
+function isReadonlyNumberArray(value: ReadonlySet<number> | readonly number[]): value is readonly number[] {
+  return Array.isArray(value)
 }
