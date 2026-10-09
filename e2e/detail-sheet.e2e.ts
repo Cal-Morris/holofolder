@@ -30,3 +30,24 @@ test.describe("card detail sheet on phones", () => {
     expect(dockTop - (box.y + box.height)).toBeLessThanOrEqual(10)
   })
 })
+
+test.describe("card detail actions on phones", () => {
+  test.use({ signedIn: true })
+
+  for (const dexId of [1, 2]) {
+    test(`primary actions are visible without scrolling (dex #${dexId})`, async ({ harness }) => {
+      await harness.page.locator(`button[data-dex-id="${dexId}"]`).first().click()
+      const dialog = harness.page.getByRole("dialog", { name: /details$/i })
+      await expect(dialog).toBeVisible()
+      const sheet = (await dialog.boundingBox())!
+      for (const name of [/^(edit|add) card$/i, /^(want card|track wanted|add wanted)$/i, /^next$/i]) {
+        const button = dialog.getByRole("button", { name }).first()
+        await expect(button).toBeVisible()
+        const box = (await button.boundingBox())!
+        expect(box.y, `${name} below the sheet header`).toBeGreaterThanOrEqual(sheet.y)
+        expect(box.y + box.height, `${name} visible without scrolling`).toBeLessThanOrEqual(sheet.y + sheet.height + 0.5)
+        await harness.expectHittable(button)
+      }
+    })
+  }
+})

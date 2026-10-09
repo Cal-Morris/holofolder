@@ -4232,7 +4232,8 @@ export default function BinderApp({
                 <CardPriceEvidence price={selectedDetailPriceSnapshot} />
               </div>
             ) : null}
-            <div className="flex flex-col gap-2.5">
+            {/* On phones the actions come first so they are reachable without scrolling past prices. */}
+            <div data-testid="detail-actions" className="flex flex-col gap-2.5 max-sm:order-first">
               <div className="grid grid-cols-[1fr_auto] items-center gap-2">
                 <div className="flex items-center rounded-2xl border border-border/60 bg-background/35 p-1 dark:border-white/10 dark:bg-white/[0.04]">
                   <Button
