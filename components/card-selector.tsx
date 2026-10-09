@@ -199,7 +199,7 @@ function inferCardFinish(card: TCGCard): CardFinish {
   if (rarity.includes("ultra")) return "ultra_rare"
   if (rarity.includes("double")) return "double_rare"
   if (card.variants?.jumbo) return "jumbo"
-  if ((localNumber != null && officialCount != null && localNumber > officialCount) || rarity.includes("secret")) return "secret_rare"
+  if ((localNumber != null && officialCount && localNumber > officialCount) || rarity.includes("secret")) return "secret_rare"
   if (card.variants?.holo) return "holo"
   if (card.variants?.reverse) return "reverse_holo"
   return "normal"

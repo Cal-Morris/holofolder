@@ -4,6 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { Client } from "pg"
+import { inferDexIdsFromCardName } from "./card-dex-inference"
 import { selectIncrementalSyncTargets, type IncrementalSyncRequest } from "./card-db-sync-targets"
 
 type SupportedLanguage = "en" | "ja"
@@ -693,6 +694,17 @@ async function fetchJson<T>(url: string, logger?: (message: string) => void): Pr
   }
 }
 
+/** Fallback dex links for Pokémon cards that ship without `dexId` (e.g. 30th Classic Collection reprints). */
+function inferPokemonCardDexIds(category: unknown, name: unknown) {
+  if (category !== "Pokemon") return []
+  const englishName = typeof name === "string"
+    ? name
+    : name && typeof name === "object"
+      ? (name as Record<string, unknown>).en
+      : null
+  return typeof englishName === "string" ? inferDexIdsFromCardName(englishName) : []
+}
+
 async function fetchPokemonTcgSets(logger?: (message: string) => void) {
   const sets = await fetchJson<PokemonTcgSet[]>(`${POKEMON_TCG_DATA_BASE_URL}/sets/en.json`, logger)
   return Array.isArray(sets) ? sets : []
@@ -774,13 +786,21 @@ function countCardsBySetId(cardsById: Map<string, MirrorCardRow>) {
 
 async function fetchAssetManifest(logger?: (message: string) => void): Promise<AssetManifest> {
   logWith(logger, "Fetching TCGdex asset manifest")
-  const response = await fetch("https://assets.tcgdex.net/datas.json")
+  const attempts = 3
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetch("https://assets.tcgdex.net/datas.json")
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch TCGdex asset manifest: ${response.status}`)
+    if (response.ok) {
+      return (await response.json()) as AssetManifest
+    }
+
+    if (attempt >= attempts || response.status < 500) {
+      throw new Error(`Failed to fetch TCGdex asset manifest: ${response.status}`)
+    }
+
+    logWith(logger, `TCGdex asset manifest returned ${response.status}; retrying (${attempt}/${attempts - 1})`)
+    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
   }
-
-  return (await response.json()) as AssetManifest
 }
 
 function getImageLanguages(
@@ -988,6 +1008,9 @@ async function appendRestSetRows(restSet: RestSetDetail & { id: string }, series
       ...(Array.isArray(restCard.dexId) ? restCard.dexId : []),
       ...(Array.isArray(pokemonTcgCard?.nationalPokedexNumbers) ? pokemonTcgCard.nationalPokedexNumbers : []),
     ])
+    if (linkedDexIds.size === 0) {
+      for (const dexId of inferPokemonCardDexIds(restCard.category, restCard.name)) linkedDexIds.add(dexId)
+    }
 
     for (const dexId of linkedDexIds) {
       if (Number.isInteger(dexId) && dexId > 0) {
@@ -1125,6 +1148,9 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
       ...(Array.isArray(card.dexId) ? card.dexId : []),
       ...(Array.isArray(pokemonTcgCard?.nationalPokedexNumbers) ? pokemonTcgCard.nationalPokedexNumbers : []),
     ])
+    if (linkedDexIds.size === 0) {
+      for (const dexId of inferPokemonCardDexIds(card.category, card.name)) linkedDexIds.add(dexId)
+    }
 
     for (const dexId of linkedDexIds) {
       if (Number.isInteger(dexId) && dexId > 0) {

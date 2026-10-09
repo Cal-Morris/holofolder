@@ -570,7 +570,7 @@ export default function SetPopulationView({
                         </p>
                         {primaryCard ? (
                           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            {primaryCard.localId}/{primaryCard.set.officialCardCount ?? "?"} · {primaryCard.rarity ?? "Unknown rarity"}
+                            {primaryCard.set.officialCardCount ? `${primaryCard.localId}/${primaryCard.set.officialCardCount}` : `#${primaryCard.localId}`} · {primaryCard.rarity ?? "Unknown rarity"}
                           </p>
                         ) : null}
                       </div>
@@ -616,7 +616,7 @@ export default function SetPopulationView({
                                 }`}
                               >
                                 <p className="truncate text-[10px] font-semibold">
-                                  {card.localId}/{card.set.officialCardCount ?? "?"}
+                                  {card.set.officialCardCount ? `${card.localId}/${card.set.officialCardCount}` : `#${card.localId}`}
                                 </p>
                                 <p className="truncate text-[10px]">
                                   {card.rarity ?? "Unknown"}
