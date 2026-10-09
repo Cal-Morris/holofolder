@@ -85,7 +85,7 @@ export async function mirrorSetImages(
   const maxUploads = options.maxUploads ?? Number.POSITIVE_INFINITY
 
   await mapWithConcurrency(missing, options.concurrency ?? 8, async (ref) => {
-    if ((options.deadline && Date.now() > options.deadline) || uploaded + failed >= maxUploads) {
+    if ((options.deadline && Date.now() > options.deadline) || uploaded + failed >= maxUploads || mirror.isBlobBlocked()) {
       skipped += 1
       return
     }
