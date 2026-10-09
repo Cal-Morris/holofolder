@@ -1,11 +1,17 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+// Type-only at module level: this file is also the single source of pricing types and
+// normalizers for the client (hooks/use-card-prices.ts), so it must not pull the service-role
+// Supabase client into the browser bundle. The admin client is loaded lazily on the server.
+import type { createAdminClient } from "@/lib/supabase/admin"
 import { buildBuySignal, type CardBuySignal, type PriceProvider } from "@/lib/price-intelligence"
+
+export type { CardBuySignal }
 import { applyPriceStaleness, carryForwardMissingPrice } from "@/lib/price-freshness"
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP"
 export type PriceSource = PriceProvider
 export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 export type PriceConfidence = "high" | "medium" | "low" | "unknown"
+export type BuySignalStatus = CardBuySignal["status"]
 
 export interface CardPriceSourceSummary {
   source: PriceSource
@@ -143,7 +149,7 @@ export interface CardPriceRefreshResult {
 
 const FETCH_CONCURRENCY = 8
 export const CARD_PRICE_CACHE_TTL_MS = 2 * 60 * 60 * 1000
-const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
+export const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
 const CARDMARKET_FIRST_LANGUAGES = new Set<CardLanguage>(["fr", "de", "es", "it", "pt-br"])
 const TCGPLAYER_VARIANT_PRIORITY = [
   "normal",
@@ -236,6 +242,7 @@ export async function refreshCardPriceLookups(
 
   const cardIds = [...new Set(uniqueLookups.map((lookup) => lookup.cardId))]
   const languages = [...new Set(uniqueLookups.map((lookup) => lookup.language))]
+  const { createAdminClient } = await import("@/lib/supabase/admin")
   const supabase = createAdminClient()
   const freshByLookupKey = new Map<string, CardPriceSnapshot>()
   const previousByLookupKey = new Map<string, { snapshot: CardPriceSnapshot; fetchedAt: string | null }>()
@@ -417,11 +424,11 @@ function toFiniteNumber(value: number | string | null | undefined) {
   return Number.isFinite(num) ? num : null
 }
 
-function normalizePriceConfidence(value: unknown): PriceConfidence {
+export function normalizePriceConfidence(value: unknown): PriceConfidence {
   return value === "high" || value === "medium" || value === "low" ? value : "unknown"
 }
 
-function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
+export function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
   const values = parseJsonArray(value)
 
   return values.flatMap((item) => {
@@ -449,7 +456,7 @@ function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
   })
 }
 
-function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
+export function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
   const values = parseJsonArray(value)
 
   return values.flatMap((item) => {
@@ -475,7 +482,7 @@ function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
   })
 }
 
-function normalizeBuySignal(value: unknown): CardBuySignal | null {
+export function normalizeBuySignal(value: unknown): CardBuySignal | null {
   if (!value || typeof value !== "object") return null
 
   const record = value as Record<string, unknown>
@@ -491,7 +498,7 @@ function normalizeBuySignal(value: unknown): CardBuySignal | null {
   }
 }
 
-function normalizePriceSource(value: unknown): PriceSource | null {
+export function normalizePriceSource(value: unknown): PriceSource | null {
   return value === "tcgplayer"
     || value === "cardmarket"
     || value === "ebay"
@@ -504,7 +511,7 @@ function normalizePriceSource(value: unknown): PriceSource | null {
     : null
 }
 
-function getPriceSourceLabel(source: PriceSource) {
+export function getPriceSourceLabel(source: PriceSource) {
   switch (source) {
     case "tcgplayer":
       return "TCGplayer"
@@ -525,7 +532,7 @@ function getPriceSourceLabel(source: PriceSource) {
   }
 }
 
-function getBuySignalStatusLabel(status: CardBuySignal["status"]) {
+export function getBuySignalStatusLabel(status: BuySignalStatus) {
   switch (status) {
     case "good":
       return "Good time"

@@ -2,68 +2,55 @@
 
 import { useEffect, useMemo, useState } from "react"
 
-export type SupportedCurrency = "USD" | "EUR" | "GBP"
-export type PriceSource = "tcgplayer" | "cardmarket" | "ebay" | "pricecharting" | "pokescope" | "pokepulse" | "eyevo" | "public-page"
-export type PriceConfidence = "high" | "medium" | "low" | "unknown"
-export type CardLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
-export type BuySignalStatus = "good" | "fair" | "hold" | "rising"
+import {
+  getCardPriceKey,
+  normalizeBuySignal,
+  normalizeCardLanguage,
+  normalizePriceConfidence,
+  normalizePriceSource,
+  normalizeSourcePrices,
+  normalizeTrendPoints,
+  type CardLanguage,
+  type CardPriceSnapshot as ServerCardPriceSnapshot,
+} from "@/lib/card-pricing"
 
-export interface CardPriceSourceSummary {
-  source: PriceSource
-  label: string
-  variantLabel: string | null
-  marketGbpAmount: number | null
-  lowGbpAmount: number | null
-  originalMarketAmount: number | null
-  originalLowAmount: number | null
-  originalCurrency: SupportedCurrency
-  updatedAt: string | null
-}
-
-export interface CardPriceTrendPoint {
-  label: string
-  source: PriceSource
-  gbpAmount: number
-  originalAmount: number
-  originalCurrency: SupportedCurrency
-}
-
-export interface CardBuySignal {
-  status: BuySignalStatus
-  label: string
-  reason: string
-}
+// lib/card-pricing.ts is the single source of pricing types and normalizers; re-exported here
+// so existing client imports keep working.
+export type {
+  BuySignalStatus,
+  CardBuySignal,
+  CardLanguage,
+  CardPriceSourceSummary,
+  CardPriceTrendPoint,
+  PriceConfidence,
+  PriceSource,
+  SupportedCurrency,
+} from "@/lib/card-pricing"
+export {
+  getBuySignalStatusLabel,
+  getCardPriceKey,
+  getPriceSourceLabel,
+  normalizeBuySignal,
+  normalizeCardLanguage,
+  normalizePriceConfidence,
+  normalizePriceSource,
+  normalizeSourcePrices,
+  normalizeTrendPoints,
+} from "@/lib/card-pricing"
 
 export interface CardPriceLookup {
   cardId: string
   language?: CardLanguage | string | null
 }
 
-export interface CardPriceSnapshot {
-  cardId: string
-  language: CardLanguage
-  gbpAmount: number | null
-  marketGbpAmount: number | null
-  goodGbpAmount: number | null
-  lowGbpAmount: number | null
-  highGbpAmount: number | null
-  confidence: PriceConfidence
-  sourcePrices: CardPriceSourceSummary[]
-  trendPoints: CardPriceTrendPoint[]
-  buySignal: CardBuySignal | null
-  originalAmount: number | null
-  originalCurrency: Exclude<SupportedCurrency, "GBP"> | null
-  source: PriceSource | null
-  variantLabel: string | null
-  updatedAt: string | null
-  fxDate: string | null
+/** Client copy of a server snapshot, stamped with when this browser fetched it. */
+export interface CardPriceSnapshot extends ServerCardPriceSnapshot {
   fetchedAt: number
 }
 
 const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v7"
 export const CARD_PRICE_CACHE_STALE_MS = 2 * 60 * 60 * 1000
 const CARD_PRICE_REQUEST_BATCH_SIZE = 200
-const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
 
 export interface CardPriceFetchBatch {
   force: boolean
@@ -112,16 +99,6 @@ export function buildCardPriceFetchPlan(
   }
 
   return { cachedPrices, fetchBatches }
-}
-
-export function normalizeCardLanguage(value: unknown): CardLanguage {
-  if (typeof value !== "string") return "en"
-  const normalized = value.trim().toLowerCase()
-  return SUPPORTED_CARD_LANGUAGES.includes(normalized as CardLanguage) ? normalized as CardLanguage : "en"
-}
-
-export function getCardPriceKey(cardId: string, language: unknown = "en") {
-  return `${cardId}::${normalizeCardLanguage(language)}`
 }
 
 export function normalizeCardPriceLookups(cardLookups: Array<string | CardPriceLookup>) {
@@ -296,131 +273,6 @@ function readPriceCache(): Record<string, CardPriceSnapshot> {
   } catch {
     return {}
   }
-}
-
-function normalizePriceConfidence(value: unknown): PriceConfidence {
-  return value === "high" || value === "medium" || value === "low" ? value : "unknown"
-}
-
-function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] {
-  if (!Array.isArray(value)) return []
-
-  return value.flatMap((item) => {
-    if (!item || typeof item !== "object") return []
-
-    const record = item as Record<string, unknown>
-    const source = normalizePriceSource(record.source)
-    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR" || record.originalCurrency === "GBP"
-      ? record.originalCurrency
-      : null
-
-    if (!source || !originalCurrency) return []
-
-    return [{
-      source,
-      label: typeof record.label === "string" ? record.label : getPriceSourceLabel(source),
-      variantLabel: typeof record.variantLabel === "string" ? record.variantLabel : null,
-      marketGbpAmount: readFiniteNumber(record.marketGbpAmount),
-      lowGbpAmount: readFiniteNumber(record.lowGbpAmount),
-      originalMarketAmount: readFiniteNumber(record.originalMarketAmount),
-      originalLowAmount: readFiniteNumber(record.originalLowAmount),
-      originalCurrency,
-      updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : null,
-    }]
-  })
-}
-
-function normalizeTrendPoints(value: unknown): CardPriceTrendPoint[] {
-  if (!Array.isArray(value)) return []
-
-  return value.flatMap((item) => {
-    if (!item || typeof item !== "object") return []
-
-    const record = item as Record<string, unknown>
-    const source = normalizePriceSource(record.source)
-    const originalCurrency = record.originalCurrency === "USD" || record.originalCurrency === "EUR" || record.originalCurrency === "GBP"
-      ? record.originalCurrency
-      : null
-    const gbpAmount = readFiniteNumber(record.gbpAmount)
-    const originalAmount = readFiniteNumber(record.originalAmount)
-
-    if (!source || !originalCurrency || gbpAmount == null || originalAmount == null) return []
-
-    return [{
-      label: typeof record.label === "string" ? record.label : "",
-      source,
-      gbpAmount,
-      originalAmount,
-      originalCurrency,
-    }]
-  })
-}
-
-function normalizeBuySignal(value: unknown): CardBuySignal | null {
-  if (!value || typeof value !== "object") return null
-
-  const record = value as Record<string, unknown>
-  const status = record.status
-  if (status !== "good" && status !== "fair" && status !== "hold" && status !== "rising") {
-    return null
-  }
-
-  return {
-    status,
-    label: typeof record.label === "string" ? record.label : getBuySignalStatusLabel(status),
-    reason: typeof record.reason === "string" ? record.reason : "",
-  }
-}
-
-export function normalizePriceSource(value: unknown): PriceSource | null {
-  return value === "tcgplayer"
-    || value === "cardmarket"
-    || value === "ebay"
-    || value === "pricecharting"
-    || value === "pokescope"
-    || value === "pokepulse"
-    || value === "eyevo"
-    || value === "public-page"
-    ? value
-    : null
-}
-
-export function getPriceSourceLabel(source: PriceSource) {
-  switch (source) {
-    case "tcgplayer":
-      return "TCGplayer"
-    case "cardmarket":
-      return "Cardmarket"
-    case "ebay":
-      return "eBay"
-    case "pricecharting":
-      return "PriceCharting"
-    case "pokescope":
-      return "PokeScope"
-    case "pokepulse":
-      return "PokePulse"
-    case "eyevo":
-      return "Eyevo"
-    case "public-page":
-      return "Public page"
-  }
-}
-
-function getBuySignalStatusLabel(status: BuySignalStatus) {
-  switch (status) {
-    case "good":
-      return "Good time"
-    case "fair":
-      return "Fair"
-    case "rising":
-      return "Rising"
-    case "hold":
-      return "Hold"
-  }
-}
-
-function readFiniteNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 function chunkCardPriceLookups(lookups: CardPriceLookup[], batchSize: number) {
