@@ -14,6 +14,8 @@ import { closeAllOverlays, useOverlay, useSwipeToDismiss } from "@/hooks/use-ove
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import DexListView from "@/components/dex-list-view"
 import SetPopulationView from "@/components/set-population-view"
+import PokemonCardsBrowser from "@/components/pokemon-cards-browser"
+import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
 import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
@@ -791,6 +793,8 @@ export default function BinderApp({
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
   const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
+  // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
+  const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; nested: boolean } | null>(null)
   const [isPageTransitioning, setIsPageTransitioning] = useState(false)
   const [transitionDirection, setTransitionDirection] = useState<"left" | "right" | null>(null)
   const [isScanningPage, setIsScanningPage] = useState(false)
@@ -2300,6 +2304,55 @@ export default function BinderApp({
       },
     )
   }, [addWantedCard, readOnlyMode, user])
+
+  const handleBrowseWantCard = useCallback(async (pokemon: { id: number; name: string }, card: TCGCard, isWanted: boolean) => {
+    if (readOnlyMode) return
+    if (!user) {
+      setCardBrowser(null)
+      setIsAuthOpen(true)
+      return
+    }
+    if (isWanted) {
+      await removeWantedCard(pokemon.id, card.id)
+      return
+    }
+    await addWantedCard(pokemon.id, pokemon.name, {
+      card_id: card.id,
+      card_name: card.name,
+      card_image: card.image,
+      card_set: card.set.name,
+      card_language: card.language ?? "en",
+      card_finish: inferCardFinish(card.rarity, card.variants),
+      rarity: card.rarity,
+      local_id: card.localId,
+      set_total: card.set.officialCardCount,
+      added_at: new Date().toISOString(),
+    })
+  }, [addWantedCard, readOnlyMode, removeWantedCard, user])
+
+  const handleBrowseAddCard = useCallback(async (pokemon: { id: number; name: string }, card: TCGCard) => {
+    if (readOnlyMode) return
+    if (!user) {
+      setCardBrowser(null)
+      setIsAuthOpen(true)
+      return
+    }
+    const existingItem = getCollectionItem(pokemon.id)
+    await addToCollection(
+      pokemon.id,
+      pokemon.name,
+      card.id,
+      card.name,
+      card.image,
+      card.set.name,
+      card.language ?? "en",
+      "collected",
+      {
+        cardFinish: inferCardFinish(card.rarity, card.variants),
+        wantedCards: existingItem?.wanted_cards ?? [],
+      },
+    )
+  }, [addToCollection, getCollectionItem, readOnlyMode, user])
 
   const handleGotWantedCard = useCallback(async (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => {
     if (readOnlyMode) return
@@ -3835,12 +3888,14 @@ export default function BinderApp({
   }, [closeBurstScanner, isApplyingScanResults, isCapturingBurst])
   const isQuickPanelOpen = Boolean(selectedPokemon) && !isSearchOpen
   const isMobileQuickPanel = isQuickPanelOpen && !isDesktopViewport
+  // The card selector and the all-cards view open on top of the card detail, which stays mounted but hidden.
+  const isQuickPanelCovered = isCardSelectorOpen || Boolean(cardBrowser?.nested)
 
   // Card detail: a popover next to the slot on desktop, a modal bottom sheet on mobile.
   useOverlay(isQuickPanelOpen, closeSelectedPokemon, {
     containerRef: quickPanelRef,
     lockScroll: !isDesktopViewport,
-    trapFocus: !isDesktopViewport && !isCardSelectorOpen,
+    trapFocus: !isDesktopViewport && !isQuickPanelCovered,
     autoFocus: !isDesktopViewport,
   })
   useOverlay(isSearchOpen, closeSearch, { containerRef: searchDialogRef, autoFocus: false })
@@ -3848,6 +3903,7 @@ export default function BinderApp({
   useOverlay(isMobileFilterSheetOpen && !isSearchOpen, closeFilterSheet, { containerRef: filterSheetRef })
   useOverlay(isBurstScannerOpen, closeBurstScannerSafely, { containerRef: burstScannerRef })
   const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel)
+  const closeCardBrowser = useCallback(() => setCardBrowser(null), [])
   const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet)
   const filterSheetSwipe = useSwipeToDismiss(filterSheetRef, closeFilterSheet)
 
@@ -3861,6 +3917,7 @@ export default function BinderApp({
   /** Switch main view (dock tab / desktop tab), closing any open overlay and card detail. */
   const switchMainView = useCallback((view: ActiveMainView) => {
     closeAllOverlays()
+    setCardBrowser(null)
     setSelectedPokemon(null)
     setLongPressedPokemon(null)
     setIsSearchOpen(false)
@@ -3868,6 +3925,21 @@ export default function BinderApp({
     setIsMobileFilterSheetOpen(false)
     setActiveMainView(view)
   }, [])
+
+  /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
+  const openCardBrowser = useCallback((
+    pokemon: { id: number; name: string },
+    options: { highlightCardId?: string | null; fromDetail?: boolean } = {},
+  ) => {
+    if (options.fromDetail) {
+      setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, nested: true })
+      return
+    }
+    openExclusively(() => {
+      setSelectedPokemon(null)
+      setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, nested: false })
+    })
+  }, [openExclusively])
 
   const openSearch = useCallback(() => {
     openExclusively(() => {
@@ -3942,7 +4014,7 @@ export default function BinderApp({
 
     const quickPanel = (
       <>
-      {!isDesktopViewport && !isCardSelectorOpen ? (
+      {!isDesktopViewport && !isQuickPanelCovered ? (
         <div
           aria-hidden="true"
           data-overlay-backdrop
@@ -3955,8 +4027,8 @@ export default function BinderApp({
         role="dialog"
         aria-modal={!isDesktopViewport}
         aria-label={`${selectedPokemonDisplayName} details`}
-        // Stay mounted (but hidden) under the card selector so focus can return to "Edit card".
-        className={`fixed z-40 ${isCardSelectorOpen ? "hidden" : "flex"} max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(calc(100vw-1.5rem),28rem)] flex-col overflow-hidden outline-none transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]`}
+        // Stay mounted (but hidden) under the card selector / all-cards view so focus can return here.
+        className={`fixed z-40 ${isQuickPanelCovered ? "hidden" : "flex"} max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-[min(calc(100vw-1.5rem),28rem)] flex-col overflow-hidden outline-none transition-[top,left,transform] duration-200 ease-out sm:w-[min(calc(100vw-2rem),24rem)]`}
         style={quickPanelPosition
           ? {
               top: quickPanelPosition.top,
@@ -4000,15 +4072,27 @@ export default function BinderApp({
                     <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">#{String(selectedPokemon.id).padStart(4, "0")}</p>
                     <h3 className="truncate text-[1.05rem] font-bold leading-tight tracking-tight">{selectedPokemonDisplayName}</h3>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:bg-background/60 hover:text-foreground dark:hover:bg-white/[0.04]"
-                    onClick={closeSelectedPokemon}
-                    aria-label="Close card details"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 shrink-0 gap-1 rounded-xl px-2 text-xs font-semibold text-muted-foreground hover:bg-background/60 hover:text-foreground dark:hover:bg-white/[0.04]"
+                      onClick={() => openCardBrowser({ id: selectedPokemon.id, name: selectedPokemon.name }, { fromDetail: true })}
+                      aria-label={`All ${selectedPokemonDisplayName} cards`}
+                    >
+                      <Layers3 className="h-4 w-4" />
+                      <span className="hidden min-[360px]:inline">All cards</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:bg-background/60 hover:text-foreground dark:hover:bg-white/[0.04]"
+                      onClick={closeSelectedPokemon}
+                      aria-label="Close card details"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${selectedStatusPill.className}`}>
@@ -4330,6 +4414,15 @@ export default function BinderApp({
             <p className="min-w-0 truncate text-xs font-semibold">
               {formatPokemonDisplayName(pokemon.name)}
             </p>
+            <button
+              type="button"
+              onClick={() => openCardBrowser({ id: pokemon.id, name: pokemon.name })}
+              className="-my-1 ml-auto flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              aria-label={`All ${formatPokemonDisplayName(pokemon.name)} cards`}
+            >
+              <Layers3 className="h-3.5 w-3.5" />
+              All cards
+            </button>
             <button
               type="button"
               onClick={() => setLongPressedPokemon(null)}
@@ -5967,6 +6060,7 @@ export default function BinderApp({
               onAddCard={(pokemon) => openCardSelectorForPokemon(pokemon, "collect")}
               onAddWanted={(pokemon) => openCardSelectorForPokemon(pokemon, "wishlist")}
               onTogglePerfect={handleToggleFavorite}
+              onBrowseCards={(pokemon) => openCardBrowser({ id: pokemon.id, name: pokemon.name })}
               readOnly={readOnlyMode}
             />
           ) : activeMainView === "wanted" ? (
@@ -6235,6 +6329,7 @@ export default function BinderApp({
                   getResultMeta={getSearchResultMeta}
                   totalPages={totalBinderPages}
                   onJumpToPage={handleSearchJumpToPage}
+                  onBrowseCards={(pokemon, highlightCardId) => openCardBrowser(pokemon, { highlightCardId })}
                 />
                 {selectedPokemon && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
@@ -6634,6 +6729,21 @@ export default function BinderApp({
         <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
       ) : null}
 
+      {cardBrowser ? (
+        <PokemonCardsBrowser
+          key={`${cardBrowser.pokemon.id}:${cardBrowser.highlightCardId ?? ""}`}
+          pokemon={cardBrowser.pokemon}
+          highlightCardId={cardBrowser.highlightCardId}
+          collectionItem={getCollectionItem(cardBrowser.pokemon.id) ?? null}
+          isDesktop={isDesktopViewport}
+          readOnly={readOnlyMode}
+          onClose={closeCardBrowser}
+          onWantCard={readOnlyMode ? undefined : (card, isWanted) => handleBrowseWantCard(cardBrowser.pokemon, card, isWanted)}
+          onAddCard={readOnlyMode ? undefined : (card) => handleBrowseAddCard(cardBrowser.pokemon, card)}
+          formatPrice={formatPriceLabel}
+        />
+      ) : null}
+
       {isCardSelectorOpen && selectedPokemon && (
         <CardSelector
           pokemonId={selectedPokemon.id}
@@ -6844,6 +6954,8 @@ function PokemonSlot({
     <div className="relative group/slot">
       <button
         ref={buttonRef}
+        data-dex-id={pokemon.id}
+        aria-label={`${slotLabel} ${formatPokemonDisplayName(pokemon.name)} #${String(pokemon.id).padStart(4, "0")}`}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         onTouchStart={handleTouchStart}

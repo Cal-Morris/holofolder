@@ -96,11 +96,60 @@ export function getPokemonSearchTerms(name: string) {
   return Array.from(terms).filter(Boolean)
 }
 
+/** Optimal string alignment distance (Levenshtein + adjacent transpositions), capped for speed. */
+export function getEditDistance(a: string, b: string, max = 3) {
+  if (Math.abs(a.length - b.length) > max) return max + 1
+  const rows = a.length + 1
+  const cols = b.length + 1
+  const dist: number[][] = Array.from({ length: rows }, (_, i) => {
+    const row = new Array<number>(cols).fill(0)
+    row[0] = i
+    return row
+  })
+  for (let j = 0; j < cols; j++) dist[0][j] = j
+  for (let i = 1; i < rows; i++) {
+    let rowMin = Number.POSITIVE_INFINITY
+    for (let j = 1; j < cols; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      let value = Math.min(dist[i - 1][j] + 1, dist[i][j - 1] + 1, dist[i - 1][j - 1] + cost)
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        value = Math.min(value, dist[i - 2][j - 2] + 1)
+      }
+      dist[i][j] = value
+      rowMin = Math.min(rowMin, value)
+    }
+    if (rowMin > max) return max + 1
+  }
+  return dist[a.length][b.length]
+}
+
+/** Typos allowed for a query of this length (none for very short queries). */
+function allowedTypos(length: number) {
+  if (length >= 8) return 2
+  if (length >= 4) return 1
+  return 0
+}
+
+/** "25", "#25", "#025", "no 25" → 25 */
+export function parseDexNumberQuery(query: string) {
+  const match = /^(?:#|no\.?\s*|dex\s*)?0*(\d{1,4})$/i.exec(query.trim())
+  if (!match) return null
+  const value = Number.parseInt(match[1], 10)
+  return value > 0 ? value : null
+}
+
 export function scorePokemonSearchItem(query: string, item: PokemonSearchItem) {
   const normalizedQuery = normalizePokemonSearchText(query)
   const compactQuery = compactSearchText(query)
 
   if (!normalizedQuery) return 0
+
+  const dexNumber = parseDexNumberQuery(query)
+  if (dexNumber !== null) {
+    if (item.id === dexNumber) return 1100
+    // "#2" also suggests #20-#29 and #200-#299, ranked after the exact number.
+    return String(item.id).startsWith(String(dexNumber)) ? 300 - String(item.id).length : 0
+  }
 
   const terms = getPokemonSearchTerms(item.name)
   let bestScore = 0
@@ -125,10 +174,19 @@ export function scorePokemonSearchItem(query: string, item: PokemonSearchItem) {
         }
       }
 
-      if (queryIndex !== comparableQuery.length) {
-        score = 0
-      } else {
+      if (queryIndex === comparableQuery.length) {
         score = 100 + queryIndex * 20
+      } else {
+        // Typo tolerance: compare against the start of the name so "pikachuu" or "charzard" still match.
+        const typos = allowedTypos(comparableQuery.length)
+        if (typos > 0) {
+          const prefix = term.slice(0, comparableQuery.length)
+          const distance = Math.min(
+            getEditDistance(comparableQuery, term, typos),
+            getEditDistance(comparableQuery, prefix, typos),
+          )
+          score = distance <= typos ? 400 - distance * 100 : 0
+        }
       }
     }
 

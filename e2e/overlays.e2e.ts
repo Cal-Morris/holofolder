@@ -21,7 +21,7 @@ const overlays: OverlaySpec[] = [
   {
     name: "card detail",
     open: async (harness) => {
-      const opener = harness.page.locator("button", { hasText: "#0001" }).first()
+      const opener = harness.page.locator("button[data-dex-id=\"1\"]").first()
       await opener.click()
       return { dialog: harness.page.getByRole("dialog", { name: /bulbasaur/i }), opener }
     },
@@ -77,6 +77,18 @@ const overlays: OverlaySpec[] = [
       return { dialog: harness.page.getByRole("dialog", { name: /welcome|sign in/i }), opener }
     },
     bottomSheet: false,
+    backdrop: true,
+  },
+  {
+    name: "all cards view",
+    open: async (harness) => {
+      const detail = await harness.openCardDetail()
+      const opener = detail.getByRole("button", { name: /all bulbasaur cards/i })
+      await opener.click()
+      return { dialog: harness.page.getByRole("dialog", { name: /all bulbasaur cards/i }), opener }
+    },
+    returnsTo: /bulbasaur details/i,
+    bottomSheet: true,
     backdrop: true,
   },
   {
@@ -172,7 +184,7 @@ for (const overlay of overlays) {
 }
 
 const dockTabs = ["Binder", "List", "Wanted", "Sets", "Search"] as const
-const binderOverlays = overlays.filter((overlay) => ["card detail", "controls sheet", "filter sheet", "search"].includes(overlay.name))
+const binderOverlays = overlays.filter((overlay) => ["card detail", "controls sheet", "filter sheet", "search", "all cards view"].includes(overlay.name))
 
 test.describe("bottom navigation", () => {
   // Signed in so every dock control (including the collection filter) is enabled.

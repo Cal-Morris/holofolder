@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"
-import { Search, ArrowRight, Star, MapPinned } from "lucide-react"
+import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { usePokemonCache } from "@/hooks/use-pokemon-cache"
 import { formatPokemonDisplayName, getPokemonSummary } from "@/lib/pokemon-catalog"
@@ -15,6 +15,13 @@ import {
   type PokemonSearchStateFilter,
   type PokemonSearchSlotState,
 } from "@/lib/pokemon-search-state"
+import {
+  formatCardNumber,
+  groupCardResultsByPokemon,
+  parseCardSearchQuery,
+  type CardSearchGroup,
+  type SearchCardResult,
+} from "@/lib/pokemon-card-browse"
 
 type SearchStateFilter = PokemonSearchStateFilter
 
@@ -41,6 +48,48 @@ interface PokemonSearchProps {
   currentPagePokemonList?: { id: number; name: string }[]
   totalPages?: number
   onJumpToPage?: (page: number) => void
+  /** Open the read-only "all cards" view for a Pokémon, optionally highlighting one printing. */
+  onBrowseCards?: (pokemon: { id: number; name: string }, highlightCardId?: string) => void
+}
+
+const CARD_SEARCH_DEBOUNCE_MS = 250
+
+function cardThumbnail(image?: string) {
+  if (!image) return null
+  return image.endsWith("/high.webp") ? image.replace(/\/high\.webp$/, "/low.webp") : image
+}
+
+/** Debounced card search against the TCG mirror, grouped by Pokémon. */
+function useCardSearch(query: string, enabled: boolean) {
+  const [state, setState] = useState<{ key: string; groups: CardSearchGroup[]; loading: boolean }>({ key: "", groups: [], loading: false })
+  const parsed = parseCardSearchQuery(query)
+  const key = enabled && (parsed.text.length >= 2 || parsed.cardId) ? query.trim().toLowerCase() : ""
+
+  useEffect(() => {
+    if (!key) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setState((current) => ({ ...current, key, loading: true }))
+      fetch(`/api/tcg-card-search?q=${encodeURIComponent(key)}`, { signal: controller.signal })
+        .then((response) => (response.ok ? response.json() : { cards: [] }))
+        .then((payload: { cards?: SearchCardResult[] }) => {
+          const cards = Array.isArray(payload?.cards) ? payload.cards : []
+          const groups = groupCardResultsByPokemon(cards, (dexId) => getPokemonSummary(dexId)?.name ?? null, { maxGroups: 10, maxCardsPerGroup: 6 })
+          setState({ key, groups, loading: false })
+        })
+        .catch((error: unknown) => {
+          if ((error as { name?: string })?.name === "AbortError") return
+          setState({ key, groups: [], loading: false })
+        })
+    }, CARD_SEARCH_DEBOUNCE_MS)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [key])
+
+  if (!key) return { groups: [] as CardSearchGroup[], loading: false }
+  return state.key === key ? { groups: state.groups, loading: state.loading } : { groups: [] as CardSearchGroup[], loading: true }
 }
 
 const SEARCH_FILTERS: Array<{
@@ -63,6 +112,7 @@ export default function PokemonSearch({
   currentPagePokemonList = [],
   totalPages = 0,
   onJumpToPage,
+  onBrowseCards,
 }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter)
@@ -108,6 +158,8 @@ export default function PokemonSearch({
 
     return searchPokemonItems(query, byFilter, 40)
   }, [activeFilter, matchesFilter, pokemonList, query])
+
+  const cardSearch = useCardSearch(query, Boolean(onBrowseCards))
 
   const pageJump = useMemo(() => {
     if (!onJumpToPage || totalPages < 1) return null
@@ -189,7 +241,7 @@ export default function PokemonSearch({
         <Input
           ref={searchInputRef}
           type="text"
-          placeholder="Search or browse Pokémon..."
+          placeholder={onBrowseCards ? "Search Pokémon, cards, sets or #dex…" : "Search or browse Pokémon..."}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -250,8 +302,11 @@ export default function PokemonSearch({
       ) : null}
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/70">
-        {visibleResults.length > 0 ? (
+        {visibleResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
           <div className="h-full overflow-y-auto">
+            {visibleResults.length > 0 && (cardSearch.groups.length > 0 || cardSearch.loading) ? (
+              <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pokémon</p>
+            ) : null}
             {visibleResults.map((pokemon, index) => {
               const meta = getResultMeta?.(pokemon)
               const isActive = index === selectedIndex
@@ -301,16 +356,16 @@ export default function PokemonSearch({
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className={`truncate font-semibold ${isActive ? "text-primary" : ""}`}>{displayName}</div>
-                            <div className="text-sm text-muted-foreground">#{pokemon.id}</div>
+                        <div className="min-w-0">
+                          <div className={`truncate font-semibold ${isActive ? "text-primary" : ""}`}>{displayName}</div>
+                          <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                            <span>#{pokemon.id}</span>
+                            {meta?.stateLabel ? (
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${meta.stateToneClass || "bg-muted text-muted-foreground"}`}>
+                                {meta.stateLabel}
+                              </span>
+                            ) : null}
                           </div>
-                          {meta?.stateLabel ? (
-                            <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${meta.stateToneClass || "bg-muted text-muted-foreground"}`}>
-                              {meta.stateLabel}
-                            </span>
-                          ) : null}
                         </div>
 
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -327,6 +382,20 @@ export default function PokemonSearch({
                       {isActive || meta?.isSelected ? <ArrowRight className="h-4 w-4 shrink-0 text-primary" /> : null}
                     </div>
                   </button>
+
+                  {onBrowseCards ? (
+                    <div className="flex shrink-0 items-center pr-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onBrowseCards(pokemon)}
+                        aria-label={`All ${displayName} cards`}
+                        title="All cards"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/75 text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Layers3 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : null}
 
                   {meta?.pageNumber && onJumpToPage ? (
                     <div className="flex shrink-0 items-center pr-3">
@@ -345,6 +414,57 @@ export default function PokemonSearch({
                 </div>
               )
             })}
+            {cardSearch.groups.length > 0 || cardSearch.loading ? (
+              <section aria-label="Card results" className="border-t border-border/50 pb-2">
+                <p className="flex items-center gap-2 px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Cards
+                  {cardSearch.loading ? <Loader2 className="h-3 w-3 animate-spin" aria-label="Searching cards" /> : null}
+                </p>
+                {cardSearch.groups.map((group) => {
+                  const groupName = formatPokemonDisplayName(group.name)
+                  return (
+                    <div key={group.dexId} className="px-3 py-2" data-card-group={group.dexId}>
+                      <button
+                        type="button"
+                        onClick={() => onBrowseCards?.({ id: group.dexId, name: group.name })}
+                        className="flex w-full items-center justify-between gap-2 rounded-xl px-1 py-1 text-left hover:bg-primary/10"
+                        aria-label={`${groupName}: ${group.cards.length} matching card${group.cards.length === 1 ? "" : "s"}, show all cards`}
+                      >
+                        <span className="min-w-0 truncate text-sm font-semibold">
+                          {groupName} <span className="font-normal text-muted-foreground">#{group.dexId}</span>
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-primary">
+                          All cards <ArrowRight className="h-3 w-3" />
+                        </span>
+                      </button>
+                      <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
+                        {group.cards.map((card) => {
+                          const thumb = cardThumbnail(card.image)
+                          return (
+                            <button
+                              key={card.id}
+                              type="button"
+                              onClick={() => onBrowseCards?.({ id: group.dexId, name: group.name }, card.id)}
+                              aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}`}
+                              className="w-[4.6rem] shrink-0 text-left"
+                            >
+                              <div className="aspect-[63/88] w-full overflow-hidden rounded-lg border border-border/50 bg-muted/40">
+                                {thumb ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                ) : null}
+                              </div>
+                              <p className="mt-1 truncate text-[10px] font-semibold">{card.set.name}</p>
+                              <p className="truncate text-[10px] text-muted-foreground tabular-nums">{formatCardNumber(card)}</p>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </section>
+            ) : null}
           </div>
         ) : (
           <div className="flex h-full min-h-[12rem] items-center justify-center px-6 text-center text-sm text-muted-foreground">

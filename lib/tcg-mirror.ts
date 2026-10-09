@@ -1,7 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import type { CardFinish } from "@/hooks/use-collection"
 import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type TCGSetSummary } from "@/lib/tcg-set-slots"
 import { cacheLife, cacheTag } from "next/cache"
+import {
+  inferCardFinish,
+  normalizeLocalId,
+  parseCardSearchQuery,
+  type SearchCardResult,
+} from "@/lib/pokemon-card-browse"
 
 export type MirrorLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
@@ -14,6 +19,7 @@ export interface MirroredTCGCard {
     id: string
     name: string
     officialCardCount?: number
+    releaseDate?: string
   }
   rarity?: string
   variants?: {
@@ -38,6 +44,7 @@ type MirroredCardQueryResult = {
     id: string
     name: string
     officialCardCount?: number
+    releaseDate?: string
   }
   rarity?: string
   variants?: {
@@ -71,7 +78,8 @@ const MIRRORED_CARD_SELECT = `
     tcg_sets!inner(
       id,
       name_json,
-      official_card_count
+      official_card_count,
+      release_date
     )
   )
 `
@@ -79,7 +87,7 @@ const MIRRORED_CARD_SELECT = `
 const IMAGE_LANGUAGE_FALLBACKS = ["en", "ja", "fr", "de", "es", "it", "pt-br", "ko"] as const
 const MIRROR_CACHE_LIFE = "days"
 const HIDDEN_SET_IDS = new Set(["jumbo"])
-const MIRROR_CACHE_VERSION = "v2-first-partner-no-jumbo"
+const MIRROR_CACHE_VERSION = "v3-release-dates"
 
 function cacheSafeTag(prefix: string, value: string | number) {
   return `${prefix}:${String(value).replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 180)}`
@@ -186,27 +194,6 @@ function normalizeProductId(value: unknown) {
   return null
 }
 
-function inferCardFinish(rarity: unknown, variants: unknown): CardFinish {
-  const rarityLabel = typeof rarity === "string" ? rarity.toLowerCase() : ""
-  const variantMap = variants && typeof variants === "object"
-    ? variants as Record<string, unknown>
-    : {}
-
-  if (rarityLabel.includes("special illustration")) return "special_illustration_rare"
-  if (rarityLabel.includes("illustration")) return "illustration_rare"
-  if (rarityLabel.includes("hyper")) return "hyper_rare"
-  if (rarityLabel.includes("secret")) return "secret_rare"
-  if (rarityLabel.includes("radiant")) return "radiant_rare"
-  if (rarityLabel.includes("ace")) return "ace_spec"
-  if (rarityLabel.includes("amazing")) return "amazing_rare"
-  if (rarityLabel.includes("shiny")) return "shiny_rare"
-  if (rarityLabel.includes("ultra")) return "ultra_rare"
-  if (rarityLabel.includes("double")) return "double_rare"
-  if (Boolean(variantMap.jumbo)) return "jumbo"
-  if (Boolean(variantMap.holo)) return "holo"
-
-  return "normal"
-}
 
 function pickImageLanguage(value: unknown, requestedLanguage: MirrorLanguage) {
   if (!Array.isArray(value)) {
@@ -287,6 +274,7 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
           id: set.id,
           name: pickLocalizedText(set.name_json, language) || set.id,
           officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
+          releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
         },
         rarity: typeof card.rarity === "string" ? card.rarity : undefined,
         variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json : undefined,
@@ -504,4 +492,123 @@ export async function getMirroredSetDexSlots(
     selectedSet,
     slots: [...slotMap.values()].sort((left, right) => left.dexId - right.dexId),
   }
+}
+
+const CARD_SEARCH_SELECT = `
+  id,
+  series_id,
+  set_id,
+  local_id,
+  name_json,
+  name_en,
+  rarity,
+  image_languages_json,
+  external_ids_json,
+  variants_json,
+  tcg_sets!inner(
+    id,
+    name_json,
+    name_en,
+    official_card_count,
+    release_date
+  ),
+  tcg_card_dex_ids!inner(
+    dex_id
+  )
+`
+
+function toSearchCardResult(card: any, language: MirrorLanguage): SearchCardResult | null {
+  const set = card?.tcg_sets
+  if (!card?.id || !card?.local_id || !card?.set_id || !card?.series_id || !set?.id || HIDDEN_SET_IDS.has(card.set_id)) {
+    return null
+  }
+  const dexIds = (Array.isArray(card.tcg_card_dex_ids) ? card.tcg_card_dex_ids : [])
+    .map((link: any) => (typeof link?.dex_id === "number" ? link.dex_id : null))
+    .filter((dexId: number | null): dexId is number => Boolean(dexId))
+  if (dexIds.length === 0) return null
+
+  const imageLanguage = pickImageLanguage(card.image_languages_json, language)
+  return {
+    id: card.id,
+    localId: card.local_id,
+    name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
+    image: imageLanguage
+      ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
+      : pickExternalCardImageUrl(card.external_ids_json),
+    language,
+    set: {
+      id: set.id,
+      name: pickLocalizedText(set.name_json, language) || set.name_en || set.id,
+      officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
+      releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
+    },
+    rarity: typeof card.rarity === "string" ? card.rarity : undefined,
+    variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json : undefined,
+    dexIds,
+  }
+}
+
+function localIdCandidates(number: string) {
+  const normalized = normalizeLocalId(number)
+  const digits = /^(\d+)([a-z]?)$/.exec(normalized)
+  if (!digits) return [number]
+  const [, value, suffix] = digits
+  // Sets store local ids with varying zero padding ("4", "04", "004").
+  return Array.from(new Set([value, value.padStart(2, "0"), value.padStart(3, "0")].map((candidate) => `${candidate}${suffix}`)))
+}
+
+/**
+ * Card search across the mirror: card name, card number ("bulbasaur 44/102"), set name/id
+ * ("pitch black", "me05 12") or a TCGdex card id ("base1-44"). Only cards that feature a Pokémon.
+ */
+export async function searchMirroredCards(query: string, language: MirrorLanguage = "en", limit = 60): Promise<SearchCardResult[]> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+
+  const parsed = parseCardSearchQuery(query)
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-card-search", cacheSafeTag("card-query", `${parsed.text}|${parsed.number ?? ""}|${parsed.cardId ?? ""}`), cacheSafeTag("language", language))
+
+  if (parsed.text.length < 2 && !parsed.cardId) {
+    return []
+  }
+
+  const admin = createAdminClient()
+  const numberCandidates = parsed.number ? localIdCandidates(parsed.number) : null
+  const requests: Array<PromiseLike<{ data: any[] | null; error: unknown }>> = []
+
+  if (parsed.cardId) {
+    requests.push(admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("id", parsed.cardId).limit(5))
+  }
+
+  if (parsed.text.length >= 2) {
+    let byName = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("name_en", `%${parsed.text}%`)
+    if (numberCandidates) byName = byName.in("local_id", numberCandidates)
+    requests.push(byName.limit(limit))
+
+    const setMatches = await admin
+      .from("tcg_sets")
+      .select("id")
+      .or(`id.ilike.${parsed.text},name_en.ilike.%${parsed.text}%`)
+      .order("release_date", { ascending: false, nullsFirst: false })
+      .limit(4)
+    if (setMatches.error) throw setMatches.error
+    const setIds = ((setMatches.data || []) as Array<{ id: string }>).map((set) => set.id).filter((id) => !HIDDEN_SET_IDS.has(id))
+    if (setIds.length > 0) {
+      let bySet = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).in("set_id", setIds)
+      if (numberCandidates) bySet = bySet.in("local_id", numberCandidates)
+      requests.push(bySet.order("local_id_sort", { ascending: true, nullsFirst: false }).limit(limit))
+    }
+  }
+
+  const responses = await Promise.all(requests)
+  const results = new Map<string, SearchCardResult>()
+  for (const response of responses) {
+    if (response.error) throw response.error
+    for (const row of response.data || []) {
+      const card = toSearchCardResult(row, language)
+      if (card && !results.has(card.id)) results.set(card.id, card)
+    }
+  }
+
+  return Array.from(results.values()).slice(0, limit * 2)
 }
