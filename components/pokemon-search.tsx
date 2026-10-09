@@ -193,6 +193,7 @@ export default function PokemonSearch({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
+            data-overlay-escape="clear"
           className="h-12 rounded-2xl border-2 border-primary/20 bg-card pl-12 text-lg focus:border-primary"
           autoComplete="off"
         />

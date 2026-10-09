@@ -7,7 +7,10 @@
     "dev": "next dev",
     "lint": "eslint .",
     "sync-card-db": "bun scripts/sync-card-db.ts",
-    "start": "next start"
+    "start": "next start",
+    "test": "bun test tests/",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -70,6 +73,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^25.9.1",
     "@types/pg": "^8.20.0",
