@@ -2,7 +2,8 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import BinderApp from "@/components/binder-app"
-import { settingsFromRow, type BinderSettings } from "@/lib/settings"
+import { loadBinderBootstrap } from "@/lib/server/binder-bootstrap"
+import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 
 const THEME_COOKIE = "binderdex_theme"
 
@@ -18,37 +19,13 @@ export default async function Page() {
     redirect("/home")
   }
 
-  const partnershipResult = user
-    ? await supabase
-        .from("partnerships")
-        .select("owner_user_id")
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-        .limit(1)
-        .maybeSingle()
-    : { data: null as any }
-
-  const collectionOwnerUserId = user
-    ? partnershipResult.data?.owner_user_id ?? user.id
-    : null
-
-  const [collectionResult, settingsResult] = user
-    ? await Promise.all([
-        supabase
-          .from("pokemon_collection")
-          .select("*")
-          .eq("user_id", collectionOwnerUserId)
-          .order("pokemon_id", { ascending: true }),
-        supabase
-          .from("user_settings")
-          .select("*")
-          .eq("user_id", collectionOwnerUserId)
-          .maybeSingle(),
-      ])
-    : [{ data: [] as any[] }, { data: null as any }]
-
-  const initialCollection = collectionResult.data ?? []
-  const settingsRow = settingsResult?.data
-  const initialSettings: BinderSettings = settingsFromRow(settingsRow)
+  const collectionOwnerUserId = await resolveCollectionOwnerUserId(supabase, user.id, { fallbackOnError: true })
+  const {
+    collection: initialCollection,
+    settingsRow,
+    settings: initialSettings,
+    hasStoredSettings,
+  } = await loadBinderBootstrap(supabase, collectionOwnerUserId)
 
   const themeCookie = cookieStore.get(THEME_COOKIE)?.value
   const initialDarkMode = settingsRow?.dark_mode ?? (themeCookie ? themeCookie !== "light" : true)
@@ -59,7 +36,7 @@ export default async function Page() {
       initialCollection={initialCollection}
       initialCollectionOwnerUserId={collectionOwnerUserId}
       initialSettings={initialSettings}
-      initialHasStoredSettings={Boolean(settingsRow)}
+      initialHasStoredSettings={hasStoredSettings}
       initialDarkMode={initialDarkMode}
     />
   )

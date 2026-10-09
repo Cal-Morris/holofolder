@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { buildBinderSharePath } from "@/lib/binder-share"
+import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 
 async function requireUser() {
   const supabase = await createClient()
@@ -11,21 +12,6 @@ async function requireUser() {
 
 function generateShareToken() {
   return randomBytes(24).toString("base64url")
-}
-
-async function resolveCollectionOwnerUserId(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const { data: partnership, error } = await supabase
-    .from("partnerships")
-    .select("owner_user_id")
-    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  return partnership?.owner_user_id || userId
 }
 
 export async function GET() {
