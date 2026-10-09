@@ -51,7 +51,7 @@ export interface CardPriceSnapshot {
   fxDate: string | null
 }
 
-interface FxRates {
+export interface FxRates {
   date: string
   eurToGbp: number
   usdToGbp: number
@@ -797,7 +797,7 @@ export function pickTcgplayerSearchProduct(
     const productNumber = normalizePriceMatchText(product.customAttributes?.number)
     const productName = normalizePriceMatchText(product.productName)
     const setName = normalizePriceMatchText(product.setName)
-    const hasMarket = readFiniteNumber(product.marketPrice) != null
+    const hasMarket = readPriceAmount(product.marketPrice) != null
 
     if (!hasMarket || productNumber !== expectedNumber || !productName.includes(expectedName)) {
       return []
@@ -878,7 +878,7 @@ export function pickPokePulseSearchItem(
     const itemName = normalizePriceMatchText(item.name)
     const itemSetName = normalizePriceMatchText(item.setName)
     const itemMaterial = normalizePriceMatchText(item.material)
-    const price = readFiniteNumber(item.currentPrice)
+    const price = readPriceAmount(item.currentPrice)
 
     if (price == null || itemNumber !== expectedNumber || itemName !== expectedName) {
       return []
@@ -906,7 +906,7 @@ export function buildPokePulseSearchPriceSnapshot(
   item: PokePulseSearchItem,
   marketData: PokePulseMarketData | null = null,
 ): CardPriceSnapshot | null {
-  const marketAmount = marketData?.marketAmount ?? readFiniteNumber(item.currentPrice)
+  const marketAmount = marketData?.marketAmount ?? readPriceAmount(item.currentPrice)
   if (marketAmount == null) {
     return null
   }
@@ -1083,12 +1083,13 @@ export function pickPokePulseMarketDataRecord(payload: unknown, productId: strin
   return null
 }
 
-function normalizePokePulseMarketData(record: Record<string, unknown>): PokePulseMarketData {
+export function normalizePokePulseMarketData(record: Record<string, unknown>): PokePulseMarketData {
+  const salesVolume = readMetricAmount(record, ["sales_volume", "salesVolume", "volume"])
   return {
-    marketAmount: readMetricAmount(record, ["market_price", "marketPrice", "currentPrice", "cm_price", "cmPrice"]),
-    lastSoldAmount: readMetricAmount(record, ["last_sold_price", "lastSoldPrice", "lastSold", "last_sale_price"]),
-    averageAmount: readMetricAmount(record, ["average_price", "averagePrice", "avgPrice", "avg"]),
-    salesVolume: readMetricAmount(record, ["sales_volume", "salesVolume", "volume"]),
+    marketAmount: readPriceAmount(readMetricAmount(record, ["market_price", "marketPrice", "currentPrice", "cm_price", "cmPrice"])),
+    lastSoldAmount: readPriceAmount(readMetricAmount(record, ["last_sold_price", "lastSoldPrice", "lastSold", "last_sale_price"])),
+    averageAmount: readPriceAmount(readMetricAmount(record, ["average_price", "averagePrice", "avgPrice", "avg"])),
+    salesVolume: salesVolume != null && salesVolume >= 0 ? salesVolume : null,
     trendPoints: readPokePulseMarketTrendPoints(record).slice(-12),
   }
 }
@@ -1125,11 +1126,11 @@ function readPokePulseMarketTrendPoints(record: Record<string, unknown>): CardPr
     const pointRecord = readRecord(point)
     if (!pointRecord) return []
 
-    const amount = readFiniteNumber(pointRecord.price)
-      ?? readFiniteNumber(pointRecord.value)
-      ?? readFiniteNumber(pointRecord.amount)
-      ?? readFiniteNumber(pointRecord.market_price)
-      ?? readFiniteNumber(pointRecord.marketPrice)
+    const amount = readPriceAmount(pointRecord.price)
+      ?? readPriceAmount(pointRecord.value)
+      ?? readPriceAmount(pointRecord.amount)
+      ?? readPriceAmount(pointRecord.market_price)
+      ?? readPriceAmount(pointRecord.marketPrice)
     if (amount == null) return []
 
     const label = readString(pointRecord.date)
@@ -1197,8 +1198,8 @@ export function buildTcgplayerProductPriceSnapshot(
   product: TcgplayerProductDetails,
   fxRates: FxRates,
 ): CardPriceSnapshot | null {
-  const marketAmount = readFiniteNumber(product.marketPrice)
-  const lowAmount = readFiniteNumber(product.lowestPriceWithShipping) ?? readFiniteNumber(product.lowestPrice)
+  const marketAmount = readPriceAmount(product.marketPrice)
+  const lowAmount = readPriceAmount(product.lowestPriceWithShipping) ?? readPriceAmount(product.lowestPrice)
 
   if (marketAmount == null) {
     return null
@@ -1294,9 +1295,9 @@ function pickTcgplayerPrice(
     }
 
     const variantRecord = variant as Record<string, unknown>
-    const providerMarketAmount = readFiniteNumber(variantRecord.marketPrice)
-    const midAmount = readFiniteNumber(variantRecord.midPrice)
-    const lowAmount = readFiniteNumber(variantRecord.lowPrice)
+    const providerMarketAmount = readPriceAmount(variantRecord.marketPrice)
+    const midAmount = readPriceAmount(variantRecord.midPrice)
+    const lowAmount = readPriceAmount(variantRecord.lowPrice)
     const marketAmount = providerMarketAmount ?? midAmount ?? lowAmount
 
     if (marketAmount == null) {
@@ -1359,7 +1360,7 @@ function pickCardmarketPrice(
   }
 
   for (const fieldKey of CARDMARKET_FIELD_PRIORITY) {
-    const amount = readFiniteNumber(cardmarket[fieldKey])
+    const amount = readPriceAmount(cardmarket[fieldKey])
 
     if (amount == null) {
       continue
@@ -1421,7 +1422,7 @@ function buildCardmarketTrendPoints(cardmarket: Record<string, unknown>, fieldKe
     ["1d", `avg1${suffix}`],
     ["Trend", fieldKey],
   ].flatMap(([label, key]) => {
-    const originalAmount = readFiniteNumber(cardmarket[key])
+    const originalAmount = readPriceAmount(cardmarket[key])
     if (originalAmount == null) return []
 
     return [{
@@ -1470,11 +1471,11 @@ function reconcileSourceConfidence(current: PriceConfidence, sourceMarkets: numb
 
 function pickCardmarketGoodAmount(cardmarket: Record<string, unknown>, marketFieldKey: string) {
   if (marketFieldKey.endsWith("-holo")) {
-    return readFiniteNumber(cardmarket["low-holo"]) ?? readFiniteNumber(cardmarket.low)
+    return readPriceAmount(cardmarket["low-holo"]) ?? readPriceAmount(cardmarket.low)
   }
 
   for (const fieldKey of CARDMARKET_GOOD_FIELD_PRIORITY) {
-    const amount = readFiniteNumber(cardmarket[fieldKey])
+    const amount = readPriceAmount(cardmarket[fieldKey])
     if (amount != null) {
       return amount
     }
@@ -1509,6 +1510,50 @@ function readFiniteNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
+/**
+ * Provider price fields: a usable price is a finite number strictly above zero.
+ * Providers use 0 / negative / NaN for "no listings"; treating those as real prices
+ * produced £0.00 markets and dragged ranges and good-buy targets to zero.
+ */
+export function readPriceAmount(value: unknown) {
+  const amount = readFiniteNumber(value)
+  return amount != null && amount > 0 ? amount : null
+}
+
+/** Plausible bounds for ECB reference rates; anything outside is treated as a broken feed. */
+const FX_SANITY_BOUNDS = {
+  eurToGbp: { min: 0.5, max: 1.5 },
+  eurToUsd: { min: 0.6, max: 2 },
+} as const
+
+/** Parses the ECB daily reference-rate XML into EUR->GBP and USD->GBP rates, rejecting implausible feeds. */
+export function parseEcbFxRates(xml: string): FxRates {
+  const dateMatch = xml.match(/time=['"](\d{4}-\d{2}-\d{2})['"]/)
+  const usdMatch = xml.match(/currency=['"]USD['"]\s+rate=['"]([0-9.]+)['"]/)
+  const gbpMatch = xml.match(/currency=['"]GBP['"]\s+rate=['"]([0-9.]+)['"]/)
+
+  const date = dateMatch?.[1]
+  const eurToUsd = usdMatch?.[1] ? Number.parseFloat(usdMatch[1]) : NaN
+  const eurToGbp = gbpMatch?.[1] ? Number.parseFloat(gbpMatch[1]) : NaN
+
+  if (!date || !Number.isFinite(eurToUsd) || !Number.isFinite(eurToGbp) || eurToUsd <= 0 || eurToGbp <= 0) {
+    throw new Error("ECB FX feed did not include usable USD/GBP rates")
+  }
+
+  if (
+    eurToGbp < FX_SANITY_BOUNDS.eurToGbp.min || eurToGbp > FX_SANITY_BOUNDS.eurToGbp.max
+    || eurToUsd < FX_SANITY_BOUNDS.eurToUsd.min || eurToUsd > FX_SANITY_BOUNDS.eurToUsd.max
+  ) {
+    throw new Error(`ECB FX feed rates out of bounds (EUR/GBP ${eurToGbp}, EUR/USD ${eurToUsd})`)
+  }
+
+  return {
+    date,
+    eurToGbp,
+    usdToGbp: eurToGbp / eurToUsd,
+  }
+}
+
 function readTimestamp(value: unknown) {
   if (typeof value === "string" && value.length > 0) {
     return value
@@ -1540,24 +1585,7 @@ async function fetchEcbFxRates(): Promise<FxRates> {
     throw new Error(`ECB FX feed returned ${response.status}`)
   }
 
-  const xml = await response.text()
-  const dateMatch = xml.match(/time=['"](\d{4}-\d{2}-\d{2})['"]/)
-  const usdMatch = xml.match(/currency=['"]USD['"]\s+rate=['"]([0-9.]+)['"]/)
-  const gbpMatch = xml.match(/currency=['"]GBP['"]\s+rate=['"]([0-9.]+)['"]/)
-
-  const date = dateMatch?.[1]
-  const eurToUsd = usdMatch?.[1] ? Number.parseFloat(usdMatch[1]) : NaN
-  const eurToGbp = gbpMatch?.[1] ? Number.parseFloat(gbpMatch[1]) : NaN
-
-  if (!date || !Number.isFinite(eurToUsd) || !Number.isFinite(eurToGbp) || eurToUsd <= 0 || eurToGbp <= 0) {
-    throw new Error("ECB FX feed did not include usable USD/GBP rates")
-  }
-
-  return {
-    date,
-    eurToGbp,
-    usdToGbp: eurToGbp / eurToUsd,
-  }
+  return parseEcbFxRates(await response.text())
 }
 
 function roundPrice(amount: number) {
