@@ -37,6 +37,7 @@ function getCacheNameForUrl(url) {
   if (
     url.pathname.startsWith("/api/tcgdex-cache") ||
     url.pathname.startsWith("/api/tcg-set-slots") ||
+    url.pathname.startsWith("/api/tcg-card-search") ||
     url.pathname.startsWith("/api/card-prices")
   ) {
     return DATA_CACHE
@@ -231,6 +232,7 @@ self.addEventListener("fetch", (event) => {
     (
       url.pathname.startsWith("/api/tcgdex-cache") ||
       url.pathname.startsWith("/api/tcg-set-slots") ||
+      url.pathname.startsWith("/api/tcg-card-search") ||
       url.pathname.startsWith("/api/card-prices")
     )
   ) {

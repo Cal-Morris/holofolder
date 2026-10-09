@@ -36,6 +36,53 @@ function fakeSessionCookieValue() {
   return `base64-${base64Url(JSON.stringify(session))}`
 }
 
+type MockCard = {
+  id: string
+  localId: string
+  name: string
+  image: string
+  set: { id: string; name: string; officialCardCount: number; releaseDate: string }
+  rarity: string
+  variants: Record<string, boolean>
+  dexIds: number[]
+}
+
+function mockCard(dexId: number, name: string, setId: string, setName: string, localId: string, total: number, releaseDate: string, rarity: string, variants: Record<string, boolean>): MockCard {
+  return {
+    id: `${setId}-${localId}`,
+    localId,
+    name,
+    image: `https://assets.tcgdex.net/en/mock/${setId}/${localId}/high.webp`,
+    set: { id: setId, name: setName, officialCardCount: total, releaseDate },
+    rarity,
+    variants,
+    dexIds: [dexId],
+  }
+}
+
+/** Printings served by the mocked TCG mirror (/api/tcgdex-cache and /api/tcg-card-search). */
+export const MOCK_CARDS: MockCard[] = [
+  mockCard(1, "Bulbasaur", "base1", "Base Set", "44", 102, "1999-01-09", "Common", { normal: true, firstEdition: true }),
+  mockCard(1, "Bulbasaur", "sv03.5", "151", "001", 165, "2023-09-22", "Common", { normal: true, reverse: true }),
+  mockCard(1, "Bulbasaur", "sv03.5", "151", "166", 165, "2023-09-22", "Illustration Rare", { holo: true }),
+  mockCard(1, "Bulbasaur", "me02", "Phantasmal Flames", "001", 94, "2025-11-14", "Common", { normal: true, reverse: true }),
+  mockCard(1, "Bulbasaur", "swsh12pt5", "Crown Zenith", "001", 159, "2023-01-20", "Common", { normal: true, reverse: true }),
+  mockCard(1, "Bulbasaur", "me05", "Pitch Black", "001", 84, "2026-07-17", "Common", { normal: true, reverse: true }),
+  mockCard(4, "Charmander", "base1", "Base Set", "46", 102, "1999-01-09", "Common", { normal: true, firstEdition: true }),
+  mockCard(4, "Charmander", "sv03.5", "151", "004", 165, "2023-09-22", "Common", { normal: true, reverse: true }),
+  mockCard(4, "Charmander", "sv03.5", "151", "168", 165, "2023-09-22", "Illustration Rare", { holo: true }),
+  mockCard(5, "Charmeleon", "sv03.5", "151", "005", 165, "2023-09-22", "Uncommon", { normal: true, reverse: true }),
+  mockCard(6, "Charizard ex", "sv03.5", "151", "006", 165, "2023-09-22", "Double Rare", { holo: true }),
+]
+
+const CARD_PALETTE = ["#2563eb", "#16a34a", "#dc2626", "#9333ea", "#ea580c", "#0891b2"]
+
+function placeholderSvg(label: string, seed: number) {
+  const color = CARD_PALETTE[seed % CARD_PALETTE.length]
+  const safe = label.replace(/[^a-zA-Z0-9 #./-]/g, "").slice(0, 24)
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="245" height="342" viewBox="0 0 245 342"><rect width="245" height="342" rx="14" fill="${color}"/><rect x="12" y="12" width="221" height="318" rx="10" fill="#f8fafc" opacity="0.9"/><rect x="24" y="48" width="197" height="140" rx="6" fill="${color}" opacity="0.35"/><text x="122" y="230" font-family="sans-serif" font-size="20" font-weight="700" text-anchor="middle" fill="#0f172a">${safe}</text></svg>`
+}
+
 type Fixtures = {
   signedIn: boolean
   standalone: boolean
@@ -66,11 +113,11 @@ export class Harness {
   async open() {
     await this.page.goto(this.path)
     await expect(this.dock()).toBeVisible({ timeout: 30_000 })
-    await expect(this.page.locator("button", { hasText: "#0001" }).first()).toBeVisible()
+    await expect(this.page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
   }
 
   async openCardDetail() {
-    await this.page.locator("button", { hasText: "#0001" }).first().click()
+    await this.page.locator("button[data-dex-id=\"1\"]").first().click()
     const dialog = this.page.getByRole("dialog", { name: /bulbasaur/i })
     await expect(dialog).toBeVisible()
     return dialog
@@ -224,7 +271,28 @@ export const test = base.extend<Fixtures>({
         },
       })
     })
-    await page.route("**/api/tcgdex-cache**", (route) => route.fulfill({ json: { cards: [] } }))
+    await page.route("**/api/tcgdex-cache**", (route) => {
+      const pokemonId = Number(new URL(route.request().url()).searchParams.get("pokemonId"))
+      const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map(({ dexIds: _dexIds, ...card }) => card)
+      return route.fulfill({ json: { cards, source: "mirror" } })
+    })
+    await page.route("**/api/tcg-card-search**", (route) => {
+      const query = (new URL(route.request().url()).searchParams.get("q") ?? "").toLowerCase().trim()
+      const [first, second] = query.split(/\s+/)
+      const cards = MOCK_CARDS.filter((card) => {
+        const haystack = `${card.name} ${card.set.name} ${card.set.id} ${card.id}`.toLowerCase()
+        if (!haystack.includes(first)) return false
+        return !second || card.localId.replace(/^0+/, "") === second.replace(/^#/, "").split("/")[0].replace(/^0+/, "")
+      })
+      return route.fulfill({ json: { cards } })
+    })
+    // Placeholder art for card images and Pokémon artwork (external hosts are otherwise blocked).
+    await page.route(/^https:\/\/(assets\.tcgdex\.net|raw\.githubusercontent\.com)\//, (route) => {
+      const url = route.request().url()
+      const card = MOCK_CARDS.find((candidate) => url.includes(`/${candidate.set.id}/${candidate.localId}/`))
+      const label = card ? `${card.name} ${card.localId}` : (url.match(/(\d+)\.png$/)?.[1] ? `#${url.match(/(\d+)\.png$/)![1]}` : "card")
+      return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, card ? MOCK_CARDS.indexOf(card) : label.length) })
+    })
     await page.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: { sets: [], selectedSet: null, slots: [] } }))
 
     if (signedIn) {

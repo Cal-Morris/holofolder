@@ -16,6 +16,6 @@ export const config = {
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|\\.well-known/workflow|api/(?:card-image-proxy|card-prices|tcgdex-cache|tcg-set-slots)(?:/)?$|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|\\.well-known/workflow|api/(?:card-image-proxy|card-prices|tcgdex-cache|tcg-set-slots|tcg-card-search)(?:/)?$|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

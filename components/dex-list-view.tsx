@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, Heart, Star, X, Search, Plus, BadgeCheck } from "lucide-react"
+import { Check, Heart, Star, X, Search, Plus, BadgeCheck, Layers3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { CollectedPokemon } from "@/hooks/use-collection"
@@ -18,6 +18,8 @@ interface DexListViewProps {
   onAddCard: (pokemon: PokemonSummary) => void
   onAddWanted: (pokemon: PokemonSummary) => void
   onTogglePerfect: (pokemonId: number) => void
+  /** Open the read-only list of every printing of this Pokémon. */
+  onBrowseCards?: (pokemon: PokemonSummary) => void
   readOnly: boolean
 }
 
@@ -87,6 +89,7 @@ export default function DexListView({
   onAddCard,
   onAddWanted,
   onTogglePerfect,
+  onBrowseCards,
   readOnly,
 }: DexListViewProps) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -256,6 +259,21 @@ export default function DexListView({
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {onBrowseCards ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onBrowseCards(pokemon)
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        aria-label={`All ${pokemon.name} cards`}
+                        className="inline-flex h-8 items-center gap-1 rounded-full border border-border/55 bg-background/60 px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                      >
+                        <Layers3 className="h-3.5 w-3.5" />
+                        Cards
+                      </button>
+                    ) : null}
                     {priceLabel ? (
                       <span className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
                         {priceLabel}
