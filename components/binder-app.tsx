@@ -5378,16 +5378,60 @@ export default function BinderApp({
       <nav ref={shellNavRef} className="sticky top-0 z-40 mb-1 shrink-0 px-2.5 pt-[max(env(safe-area-inset-top),0.35rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+0.45rem)]">
         <div className={`mx-auto w-full ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
           <div className="rounded-2xl border border-border/70 bg-card/96 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.24)] md:bg-card/86 md:backdrop-blur-xl dark:border-border/50 dark:bg-background dark:shadow-black/5 dark:md:bg-background/88">
-          <div className="flex items-center justify-between gap-2 px-3 py-2 md:px-2.5 md:py-1.5">
+          <div className="flex items-center justify-between gap-2 px-2.5 py-1 md:px-2.5 md:py-1.5">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary shadow-lg shadow-primary/20 md:h-6 md:w-6">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary shadow-lg shadow-primary/20 md:h-6 md:w-6">
                 <Sparkles className="h-3.5 w-3.5 text-primary-foreground md:h-3 md:w-3" />
               </div>
-              <div className="min-w-0">
+              <div className={`min-w-0 ${activeMainView === "binder" ? "max-md:hidden" : ""}`}>
                 <p className="truncate text-sm font-bold tracking-tight md:text-[13px]">BinderDex</p>
                 <p className="hidden text-[10px] text-muted-foreground sm:block md:hidden lg:block">National Dex binder tracking</p>
               </div>
             </div>
+
+            {activeMainView === "binder" && (
+              <div data-testid="mobile-header-pager" className="flex min-w-0 items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 md:hidden dark:border-border/30 dark:bg-muted/35">
+                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalBinderPages}
+                  value={pageInputValue}
+                  onChange={(e) => {
+                    setPageInputValue(e.target.value)
+                  }}
+                  onBlur={commitPageInput}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      commitPageInput()
+                      e.currentTarget.blur()
+                    } else if (e.key === "Escape") {
+                      setPageInputValue(String(currentBinderPage))
+                      e.currentTarget.blur()
+                    }
+                  }}
+                  inputMode="numeric"
+                  aria-label="Binder page number"
+                  className="h-8 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-sm font-semibold tabular-nums"
+                />
+                <span className="hidden whitespace-nowrap pr-0.5 text-xs text-muted-foreground tabular-nums min-[360px]:inline">/ {totalBinderPages}</span>
+                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden h-9 w-9 border-l border-border/40 disabled:pointer-events-none disabled:opacity-35 min-[420px]:inline-flex dark:border-white/10"
+                  onClick={handleJumpToPreviousNeeded}
+                  disabled={activeJumpPokemonList.length === 0}
+                  aria-label={`Previous ${activeJumpLabel.toLowerCase()}`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 -scale-x-100 text-primary" />
+                </Button>
+              </div>
+            )}
 
             <div className="flex items-center gap-1">
               {canFilterCollection && (
@@ -6081,70 +6125,6 @@ export default function BinderApp({
             />
           ) : (
             <>
-            {/* Page Navigation - Compact */}
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 md:hidden">
-              <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/35">
-                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                {isSpreadLayout && (
-                  <span className="hidden px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground lg:inline-flex">
-                    {visiblePageLabel}
-                  </span>
-                )}
-                <input
-                  type="number"
-                  min={1}
-                  max={totalBinderPages}
-                  value={pageInputValue}
-                  onChange={(e) => {
-                    setPageInputValue(e.target.value)
-                  }}
-                  onBlur={commitPageInput}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      commitPageInput()
-                      e.currentTarget.blur()
-                    } else if (e.key === "Escape") {
-                      setPageInputValue(String(currentBinderPage))
-                      e.currentTarget.blur()
-                    }
-                  }}
-                  inputMode="numeric"
-                  aria-label="Binder page number"
-                  className="h-9 w-12 rounded-lg border border-border/30 bg-background/70 text-center text-sm font-semibold tabular-nums"
-                />
-                <span className="pr-1.5 text-xs text-muted-foreground">/ {totalBinderPages}</span>
-                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-9 px-0"
-                  onClick={handleJumpToPreviousNeeded}
-                  disabled={activeJumpPokemonList.length === 0}
-                  aria-label={`Previous ${activeJumpLabel.toLowerCase()}`}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="h-9 gap-1.5 px-3"
-                  onClick={handleJumpToNextNeeded}
-                  disabled={activeJumpPokemonList.length === 0}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Next {activeJumpLabel}</span>
-                  <span className="sm:hidden">Next</span>
-                </Button>
-              </div>
-            </div>
-
             {(pageScanSummary || pageScanError || isFilteredBinderLayout) && (
               <div className="rounded-xl border border-border/60 bg-card/82 px-3 py-2 text-xs text-muted-foreground dark:border-border/50 dark:bg-card/70">
                 {pageScanError ? (
