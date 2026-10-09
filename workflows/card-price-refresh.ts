@@ -6,6 +6,7 @@ import {
   type CardPriceLookup,
   type CardPriceRefreshResult,
 } from "@/lib/card-pricing"
+import { DEFAULT_REFRESH_INTERVAL, normalizeRefreshInterval, type RefreshInterval } from "@/lib/price-refresh-interval"
 
 interface CollectionPriceRow {
   card_id: string | null
@@ -60,12 +61,16 @@ export async function refreshCardPricesWorkflow(input: string | null | CardPrice
   }
 }
 
-function normalizeCardPriceWorkflowInput(input: string | null | CardPriceWorkflowInput) {
+function normalizeCardPriceWorkflowInput(input: string | null | CardPriceWorkflowInput): {
+  ownerUserId: string | null
+  repeatCount: number
+  interval: RefreshInterval
+} {
   if (typeof input === "string") {
     return {
       ownerUserId: input,
       repeatCount: 1,
-      interval: "3h",
+      interval: DEFAULT_REFRESH_INTERVAL,
     }
   }
 
@@ -76,7 +81,7 @@ function normalizeCardPriceWorkflowInput(input: string | null | CardPriceWorkflo
   return {
     ownerUserId: input?.ownerUserId ?? null,
     repeatCount,
-    interval: input?.interval || "3h",
+    interval: normalizeRefreshInterval(input?.interval),
   }
 }
 
