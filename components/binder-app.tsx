@@ -3989,8 +3989,8 @@ export default function BinderApp({
     const selectedPreviewTone = selectedPreviewIsCard ? "" : selectedPokemonDisplayTone
     const selectedPreviewFit = selectedPreviewIsCard ? "object-cover" : selectedPokemonDisplayFit
     const selectedPreviewFrameClass = selectedPreviewIsCard
-      ? "h-[4.6rem] w-[3.35rem] rounded-lg"
-      : "h-14 w-14 rounded-2xl"
+      ? "h-[6.4rem] w-[4.6rem] rounded-lg sm:h-[4.6rem] sm:w-[3.35rem]"
+      : "h-20 w-20 rounded-2xl sm:h-14 sm:w-14"
     const selectedPreviewImageClass = selectedPreviewIsCard
       ? "absolute inset-0 h-full w-full"
       : "absolute inset-1 max-w-[calc(100%-0.5rem)] max-h-[calc(100%-0.5rem)] m-auto"
@@ -4043,11 +4043,11 @@ export default function BinderApp({
               }
             : {
                 left: "50%",
-                bottom: "calc(env(safe-area-inset-bottom) + 5.15rem)",
+                bottom: "calc(env(safe-area-inset-bottom) + 4.6rem)",
                 transform: "translateX(-50%)",
-                width: "min(calc(100vw - 1.5rem), 24rem)",
+                width: "min(calc(100vw - 1rem), 28rem)",
                 // Never taller than the space between the status bar and the bottom dock.
-                maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 5.15rem - 0.75rem)",
+                maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 4.6rem - 0.5rem)",
               }}
       >
         <div className="flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
