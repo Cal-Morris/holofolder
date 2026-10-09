@@ -30,11 +30,13 @@ const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
   { id: "multiple", label: "Variants" },
 ]
 
+// Fallback shortcuts used until the live "latest sets" list loads (or if it fails).
+// Newest English main-line releases per TCGdex (api.tcgdex.net/v2/en/sets), checked Oct 2026.
 const SET_SHORTCUTS = [
-  { label: "151", query: "151" },
-  { label: "Prismatic", query: "Prismatic" },
-  { label: "Surging", query: "Surging Sparks" },
-  { label: "Evolving", query: "Evolving Skies" },
+  { label: "Pitch Black", query: "Pitch Black" },
+  { label: "Chaos Rising", query: "Chaos Rising" },
+  { label: "Perfect Order", query: "Perfect Order" },
+  { label: "Ascended Heroes", query: "Ascended Heroes" },
 ]
 
 function formatDexNumber(id: number) {
@@ -76,6 +78,27 @@ export default function SetPopulationView({
   const [slotFilter, setSlotFilter] = useState<SetSlotFilter>("all")
   const [selectedCardIdsByDexId, setSelectedCardIdsByDexId] = useState<Record<number, string>>({})
   const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
+  const [recentSets, setRecentSets] = useState<TCGSetSummary[]>([])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    void fetch("/api/tcg-set-slots?recent=1", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return null
+        return (await response.json().catch(() => null)) as TCGSetSlotsResponse | null
+      })
+      .then((payload) => {
+        if (payload && Array.isArray(payload.sets)) {
+          setRecentSets(payload.sets)
+        }
+      })
+      .catch(() => {
+        // Fall back to the static shortcuts below.
+      })
+
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const trimmedQuery = query.trim()
@@ -258,9 +281,9 @@ export default function SetPopulationView({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Set Mode</p>
-            <h2 className="truncate text-lg font-semibold tracking-tight">Which dex slots can this set fill?</h2>
+            <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Which dex slots can this set fill?</h2>
           </div>
-          <div className="rounded-full border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-semibold text-primary">
+          <div className="shrink-0 whitespace-nowrap rounded-full border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-semibold tabular-nums text-primary">
             {summary.total} slots
           </div>
         </div>
@@ -273,8 +296,10 @@ export default function SetPopulationView({
               setQuery(event.target.value)
               setSelectedSetId(null)
             }}
-            placeholder="Search set name or code, e.g. 151, surging, sv3..."
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
+            placeholder="Search sets, e.g. Pitch Black or me05"
+            aria-label="Search sets by name or code"
+            enterKeyHint="search"
+            className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground/70"
           />
           {query ? (
             <button
@@ -283,7 +308,7 @@ export default function SetPopulationView({
                 setQuery("")
                 setSelectedSetId(null)
               }}
-              className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="-my-1 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Clear set search"
             >
               <X className="h-3.5 w-3.5" />
@@ -305,7 +330,7 @@ export default function SetPopulationView({
                     setSelectedSetId(set.id)
                     setQuery(set.name)
                   }}
-                  className={`w-56 shrink-0 rounded-2xl border px-3 py-2 text-left transition-all ${
+                  className={`w-[min(14rem,72vw)] shrink-0 rounded-2xl border px-3 py-2 text-left transition-all ${
                     isActive
                       ? "border-primary/35 bg-primary/12 text-foreground"
                       : "border-border/55 bg-background/45 text-muted-foreground hover:text-foreground dark:border-white/10"
@@ -327,9 +352,9 @@ export default function SetPopulationView({
               ["Missing", summary.missing],
               ["Wanted", summary.wanted],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-border/45 bg-background/45 px-3 py-2 text-center dark:border-white/10">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
-                <p className="mt-1 text-lg font-bold tabular-nums">{value}</p>
+              <div key={label} className="min-w-0 rounded-2xl border border-border/45 bg-background/45 px-1.5 py-1.5 text-center sm:py-2 dark:border-white/10 sm:px-3">
+                <p className="truncate text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:tracking-[0.16em]">{label}</p>
+                <p className="mt-0.5 text-base font-bold tabular-nums sm:mt-1 sm:text-lg">{value}</p>
               </div>
             ))}
           </div>
@@ -343,13 +368,13 @@ export default function SetPopulationView({
                 value={slotSearch}
                 onChange={(event) => setSlotSearch(event.target.value)}
                 placeholder="Filter slots, names, numbers, rarities..."
-                className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/70"
+                className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-xs outline-none placeholder:text-muted-foreground/70"
               />
               {slotSearch ? (
                 <button
                   type="button"
                   onClick={() => setSlotSearch("")}
-                  className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="-my-1 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                   aria-label="Clear slot filter"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -366,7 +391,7 @@ export default function SetPopulationView({
                     key={filter.id}
                     type="button"
                     onClick={() => setSlotFilter(filter.id)}
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                    className={`min-h-8 shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
                       isActive
                         ? "border-primary/45 bg-primary text-primary-foreground"
                         : "border-border/55 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10"
@@ -441,17 +466,33 @@ export default function SetPopulationView({
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 Search a set, pick the right release, then mark the dex slots that set can populate.
               </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {SET_SHORTCUTS.map((shortcut) => (
-                  <button
-                    key={shortcut.label}
-                    type="button"
-                    onClick={() => setShortcutQuery(shortcut.query)}
-                    className="rounded-full border border-border/55 bg-background/55 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
-                  >
-                    {shortcut.label}
-                  </button>
-                ))}
+              <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Latest sets</p>
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                {recentSets.length > 0
+                  ? recentSets.map((set) => (
+                      <button
+                        key={set.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSetId(set.id)
+                          setQuery(set.name)
+                        }}
+                        title={formatSetMeta(set) || set.id}
+                        className="min-h-9 rounded-full border border-border/55 bg-background/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
+                      >
+                        {set.name}
+                      </button>
+                    ))
+                  : SET_SHORTCUTS.map((shortcut) => (
+                      <button
+                        key={shortcut.label}
+                        type="button"
+                        onClick={() => setShortcutQuery(shortcut.query)}
+                        className="min-h-9 rounded-full border border-border/55 bg-background/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
+                      >
+                        {shortcut.label}
+                      </button>
+                    ))}
               </div>
             </div>
           </div>
@@ -575,7 +616,7 @@ export default function SetPopulationView({
                                 <p className="truncate text-[10px] font-semibold">
                                   {card.localId}/{card.set.officialCardCount ?? "?"}
                                 </p>
-                                <p className="truncate text-[9px]">
+                                <p className="truncate text-[10px]">
                                   {card.rarity ?? "Unknown"}
                                 </p>
                               </button>
@@ -588,7 +629,7 @@ export default function SetPopulationView({
                           <Button
                             type="button"
                             size="sm"
-                            className="h-7 rounded-full px-2.5 text-[11px]"
+                            className="h-8 rounded-full px-3 text-[11px]"
                             onClick={(event) => {
                               event.stopPropagation()
                               onCollectCard(slot, primaryCard)
@@ -600,7 +641,7 @@ export default function SetPopulationView({
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 rounded-full px-2.5 text-[11px]"
+                            className="h-8 rounded-full px-3 text-[11px]"
                             onClick={(event) => {
                               event.stopPropagation()
                               onWantCard(slot, primaryCard)

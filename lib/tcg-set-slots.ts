@@ -38,3 +38,32 @@ export interface TCGSetSlotsResponse {
   selectedSet: TCGSetSummary | null
   slots: TCGSetDexSlot[]
 }
+
+export const RECENT_SET_MIN_OFFICIAL_CARDS = 20
+
+/**
+ * Picks the newest released main-line sets for the Sets view "Latest sets" shortcuts.
+ * Skips unreleased sets (release date after `asOfDate`), sets without a release date,
+ * and tiny products such as promo lists or energy sets that have few official cards.
+ */
+export function selectRecentSetSummaries(
+  sets: TCGSetSummary[],
+  {
+    asOfDate,
+    limit = 6,
+    minOfficialCardCount = RECENT_SET_MIN_OFFICIAL_CARDS,
+  }: { asOfDate: string; limit?: number; minOfficialCardCount?: number },
+): TCGSetSummary[] {
+  const seen = new Set<string>()
+
+  return sets
+    .filter((set) => {
+      if (!set.id || seen.has(set.id)) return false
+      if (!set.releaseDate || set.releaseDate > asOfDate) return false
+      if ((set.officialCardCount ?? 0) < minOfficialCardCount) return false
+      seen.add(set.id)
+      return true
+    })
+    .sort((left, right) => (right.releaseDate ?? "").localeCompare(left.releaseDate ?? ""))
+    .slice(0, Math.max(0, limit))
+}

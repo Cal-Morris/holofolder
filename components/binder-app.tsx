@@ -5228,7 +5228,7 @@ export default function BinderApp({
                   Shared View
                 </div>
               ) : !user ? (
-                <Button size="sm" onClick={() => setIsAuthOpen(true)} className="h-7 gap-1 rounded-full px-2.5">
+                <Button size="sm" onClick={() => setIsAuthOpen(true)} className="h-9 gap-1 rounded-full px-3 md:h-7 md:px-2.5" aria-label="Sign in">
                   <LogIn className="h-3.5 w-3.5" />
                   <span className="hidden md:inline text-[11px]">Sign In</span>
                 </Button>
@@ -5237,11 +5237,11 @@ export default function BinderApp({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-full md:hidden"
+                className="h-9 w-9 rounded-full md:hidden"
                 onClick={() => setIsMobileNavExpanded((current) => !current)}
                 aria-label={isMobileNavExpanded ? "Collapse controls" : "Expand controls"}
               >
-                {isMobileNavExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {isMobileNavExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </Button>
 
               <div className="relative hidden md:block" onClick={(event) => event.stopPropagation()}>
@@ -5351,11 +5351,17 @@ export default function BinderApp({
                 )}
               </div>
 
-              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full md:hidden" onClick={() => setIsSettingsOpen(true)}>
-                <Settings className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full md:hidden" onClick={() => setIsSettingsOpen(true)} aria-label="Open settings">
+                <Settings className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full md:hidden" onClick={toggleDarkMode}>
-                {isDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full md:hidden"
+                onClick={toggleDarkMode}
+                aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
             </div>
           </div>
@@ -5590,6 +5596,7 @@ export default function BinderApp({
                           e.currentTarget.blur()
                         }
                       }}
+                      aria-label="Binder page number"
                       className="h-6 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-[11px] font-semibold tabular-nums"
                     />
                     <span className="pr-1 text-[11px] text-muted-foreground">/ {totalBinderPages}</span>
@@ -5891,7 +5898,7 @@ export default function BinderApp({
             {/* Page Navigation - Compact */}
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 md:hidden">
               <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/35">
-                <Button variant="ghost" size="icon" className="h-8 w-8 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
                 {isSpreadLayout && (
@@ -5917,10 +5924,12 @@ export default function BinderApp({
                       e.currentTarget.blur()
                     }
                   }}
-                  className="h-7 w-12 rounded-lg border border-border/30 bg-background/70 text-center text-xs font-semibold tabular-nums"
+                  inputMode="numeric"
+                  aria-label="Binder page number"
+                  className="h-9 w-12 rounded-lg border border-border/30 bg-background/70 text-center text-sm font-semibold tabular-nums"
                 />
                 <span className="pr-1.5 text-xs text-muted-foreground">/ {totalBinderPages}</span>
-                <Button variant="ghost" size="icon" className="h-8 w-8 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
@@ -5929,7 +5938,7 @@ export default function BinderApp({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 w-8 px-0"
+                  className="h-9 w-9 px-0"
                   onClick={handleJumpToPreviousNeeded}
                   disabled={activeJumpPokemonList.length === 0}
                   aria-label={`Previous ${activeJumpLabel.toLowerCase()}`}
@@ -5939,7 +5948,7 @@ export default function BinderApp({
                 <Button
                   variant="default"
                   size="sm"
-                  className="h-8 gap-1.5 px-3"
+                  className="h-9 gap-1.5 px-3"
                   onClick={handleJumpToNextNeeded}
                   disabled={activeJumpPokemonList.length === 0}
                 >
