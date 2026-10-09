@@ -70,18 +70,47 @@ export function parseIncrementalSyncRequest(searchParams: URLSearchParams): Incr
   return { mode: "missing", setIds: [], recent: 0, maxSets, dryRun }
 }
 
-/** Bearer auth against SYNC_SECRET (preferred) or CRON_SECRET. Returns false when neither is configured. */
-export function getSyncSecret(env: Record<string, string | undefined>) {
-  return env.SYNC_SECRET?.trim() || env.CRON_SECRET?.trim() || null
+const SYNC_SECRET_ENV_NAMES = ["CARD_DB_SYNC_SECRET", "SYNC_SECRET", "CRON_SECRET"] as const
+
+/** Configured secrets that may trigger the admin card DB routes (CARD_DB_SYNC_SECRET, SYNC_SECRET, CRON_SECRET). */
+export function getSyncSecrets(env: Record<string, string | undefined>) {
+  return SYNC_SECRET_ENV_NAMES.map((name) => env[name]?.trim()).filter((value): value is string => Boolean(value))
 }
 
-export function isAuthorizedSyncRequest(authorizationHeader: string | null, env: Record<string, string | undefined>) {
-  const secret = getSyncSecret(env)
-  if (!secret || !authorizationHeader) return false
+/** First configured secret, or null when none is set. */
+export function getSyncSecret(env: Record<string, string | undefined>) {
+  return getSyncSecrets(env)[0] ?? null
+}
 
-  const expected = Buffer.from(`Bearer ${secret}`)
-  const actual = Buffer.from(authorizationHeader.trim())
-  return expected.length === actual.length && timingSafeEqual(expected, actual)
+function safeEqual(expected: string, actual: string) {
+  const a = Buffer.from(expected)
+  const b = Buffer.from(actual)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+/**
+ * Accepts `Authorization: Bearer <secret>` or the legacy `x-card-db-sync-secret: <secret>` header,
+ * where <secret> is any of CARD_DB_SYNC_SECRET / SYNC_SECRET / CRON_SECRET. False when none is configured.
+ */
+export function isAuthorizedSyncRequest(
+  authorizationHeader: string | null,
+  env: Record<string, string | undefined>,
+  legacySecretHeader: string | null = null,
+) {
+  const secrets = getSyncSecrets(env)
+  if (secrets.length === 0) return false
+
+  const authorization = authorizationHeader?.trim() ?? ""
+  const bearer = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length) : null
+  const candidates = [bearer, legacySecretHeader?.trim() || null].filter((value): value is string => Boolean(value))
+
+  let authorized = false
+  for (const secret of secrets) {
+    for (const candidate of candidates) {
+      if (safeEqual(secret, candidate)) authorized = true
+    }
+  }
+  return authorized
 }
 
 /**

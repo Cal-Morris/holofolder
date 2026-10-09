@@ -8,7 +8,7 @@ export const maxDuration = 300
 const TIME_BUDGET_MS = (maxDuration - 60) * 1000
 
 /**
- * POST /api/admin/mirror-card-images  (Authorization: Bearer <SYNC_SECRET or CRON_SECRET>)
+ * POST /api/admin/mirror-card-images  (Authorization: Bearer <CARD_DB_SYNC_SECRET, SYNC_SECRET or CRON_SECRET>)
  *
  * Copies TCGdex card images for every mirrored set into Vercel Blob, set by set (ordered by set id).
  * Resumable: repeat with `?cursor=<nextCursor>` until `"done": true`. Already-copied images are skipped.
@@ -20,12 +20,12 @@ const TIME_BUDGET_MS = (maxDuration - 60) * 1000
 export async function POST(request: NextRequest) {
   if (!getSyncSecret(process.env)) {
     return NextResponse.json(
-      { error: "Not configured. Set SYNC_SECRET (or CRON_SECRET) in the environment." },
+      { error: "Not configured. Set CARD_DB_SYNC_SECRET (or SYNC_SECRET / CRON_SECRET) in the environment." },
       { status: 503 },
     )
   }
 
-  if (!isAuthorizedSyncRequest(request.headers.get("authorization"), process.env)) {
+  if (!isAuthorizedSyncRequest(request.headers.get("authorization"), process.env, request.headers.get("x-card-db-sync-secret"))) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 })
   }
 
