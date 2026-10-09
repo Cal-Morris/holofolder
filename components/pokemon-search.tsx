@@ -5,8 +5,7 @@ import type React from "react"
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { usePokemonCache } from "@/hooks/use-pokemon-cache"
-import { formatPokemonDisplayName, getPokemonSummary } from "@/lib/pokemon-catalog"
+import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary } from "@/lib/pokemon-catalog"
 import {
   getInitialPokemonSearchFilter,
   getPokemonSearchPageJump,
@@ -118,9 +117,7 @@ export default function PokemonSearch({
   const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const { pokemonList: cachedList } = usePokemonCache()
-  
-  const pokemonList = propPokemonList || cachedList
+  const pokemonList = propPokemonList || POKEMON_CATALOG
   const currentPagePokemonIds = useMemo(
     () => new Set(currentPagePokemonList.map((pokemon) => pokemon.id)),
     [currentPagePokemonList],
