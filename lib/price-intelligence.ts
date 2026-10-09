@@ -3,6 +3,8 @@ export type PriceCurrency = "USD" | "EUR" | "GBP"
 export type PriceMatchRating = "exact" | "strong" | "weak" | "rejected"
 export type BuySignalStatus = "good" | "fair" | "hold" | "rising"
 
+export type PriceSubjectVariant = "normal" | "holo" | "reverse" | "1st-edition"
+
 export interface PriceSubject {
   cardId: string
   name: string
@@ -10,6 +12,8 @@ export interface PriceSubject {
   setName: string | null
   localId: string | null
   language: string
+  /** Printing being priced. When set, listings for a different printing are rejected. */
+  variant?: PriceSubjectVariant | null
 }
 
 export interface PriceObservation {
@@ -66,6 +70,22 @@ const BAD_PATTERNS = [
   /\bdigital\b/i,
 ]
 
+const OVERSIZED_PATTERNS = [
+  /\bjumbo\b/i,
+  /\boversized?\b/i,
+]
+
+const REVERSE_HOLO_PATTERNS = [
+  /\breverse[\s-]*holo(?:foil)?\b/i,
+  /\brev[\s-]*holo\b/i,
+  /\br\/h\b/i,
+]
+
+const FIRST_EDITION_PATTERNS = [
+  /\b1st[\s-]*ed(?:ition|\.)?(?=\W|$)/i,
+  /\bfirst[\s-]*edition\b/i,
+]
+
 export function buildPriceResearchHeaders(contactUrl = "https://binder.cal.gg") {
   return {
     "User-Agent": `BinderDexPriceResearch/1.0 (+${contactUrl})`,
@@ -79,6 +99,11 @@ export function scorePriceObservationMatch(subject: PriceSubject, observation: P
 
   if (rejectReasons.length > 0) {
     return rejectedMatch(rejectReasons)
+  }
+
+  const variantMismatch = findVariantMismatch(subject.variant ?? null, title)
+  if (variantMismatch) {
+    return rejectedMatch([variantMismatch])
   }
 
   const normalizedTitle = normalizeComparableText(title)
@@ -211,7 +236,19 @@ function hardRejectReasons(title: string) {
   if (LOT_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("lot or bundle listing")
   if (GRADED_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("graded slab listing")
   if (BAD_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("proxy or custom listing")
+  if (OVERSIZED_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("jumbo or oversized card listing")
   return reasons
+}
+
+function findVariantMismatch(variant: PriceSubjectVariant | null, title: string) {
+  if (!variant) return null
+
+  const titleIsReverse = REVERSE_HOLO_PATTERNS.some((pattern) => pattern.test(title))
+  const titleIsFirstEdition = FIRST_EDITION_PATTERNS.some((pattern) => pattern.test(title))
+
+  if (variant === "reverse" ? !titleIsReverse : titleIsReverse) return "variant mismatch: reverse holo"
+  if (variant === "1st-edition" ? !titleIsFirstEdition : titleIsFirstEdition) return "variant mismatch: 1st edition"
+  return null
 }
 
 function rejectedMatch(rejectReasons: string[]): PriceObservationMatch {
@@ -293,4 +330,163 @@ function formatPercent(value: number) {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+export interface ObservationFxRates {
+  eurToGbp: number
+  usdToGbp: number
+}
+
+export interface PriceObservationSummary {
+  marketGbpAmount: number | null
+  goodGbpAmount: number | null
+  lowGbpAmount: number | null
+  highGbpAmount: number | null
+  confidence: "high" | "medium" | "low" | "unknown"
+  usedCount: number
+  soldCount: number
+  excluded: {
+    rejected: number
+    weakMatch: number
+    invalidAmount: number
+    currency: number
+    stale: number
+    outlier: number
+  }
+}
+
+/** Observations older than this (by soldAt, else observedAt) are ignored. */
+export const OBSERVATION_MAX_AGE_DAYS = 90
+/** Below this many usable comps the summary is "low" confidence (low-volume noise). */
+export const OBSERVATION_MIN_MEDIUM_COUNT = 3
+/** At least this many comps, mostly sold, with a tight spread, are needed for "high". */
+export const OBSERVATION_MIN_HIGH_COUNT = 8
+export const OBSERVATION_HIGH_MAX_SPREAD = 0.35
+/** Robust outlier cut-off in MAD-scaled standard deviations. */
+export const OBSERVATION_OUTLIER_MADS = 3
+/** Fallback outlier band (x median) when MAD is degenerate or the sample is tiny. */
+export const OBSERVATION_OUTLIER_RATIO = 2
+
+/**
+ * Turns raw provider observations into a GBP market/good/range estimate.
+ *
+ * Pipeline: match scoring (rejected and weak matches dropped, which also drops variant
+ * mismatches, lots, slabs and jumbos) -> positive finite amounts only -> currency conversion
+ * (unknown/unusable rate dropped) -> recency window -> robust outlier removal (median/MAD,
+ * ratio band fallback) -> percentiles: market = median, good = p25, range = p10..p90.
+ * Confidence: 0 comps unknown, <3 low, <8 or wide spread or mostly listings medium, else high.
+ */
+export function summarizePriceObservations(
+  subject: PriceSubject,
+  observations: PriceObservation[],
+  options: { fxRates: ObservationFxRates; now: number },
+): PriceObservationSummary {
+  const excluded = { rejected: 0, weakMatch: 0, invalidAmount: 0, currency: 0, stale: 0, outlier: 0 }
+  const candidates: Array<{ gbp: number; sold: boolean }> = []
+  const maxAgeMs = OBSERVATION_MAX_AGE_DAYS * 24 * 60 * 60 * 1000
+  const futureToleranceMs = 24 * 60 * 60 * 1000
+
+  for (const observation of observations) {
+    const match = scorePriceObservationMatch(subject, observation)
+    if (match.rejected) {
+      excluded.rejected += 1
+      continue
+    }
+    if (match.rating === "weak") {
+      excluded.weakMatch += 1
+      continue
+    }
+
+    if (typeof observation.amount !== "number" || !Number.isFinite(observation.amount) || observation.amount <= 0) {
+      excluded.invalidAmount += 1
+      continue
+    }
+
+    const rate = observation.currency === "GBP"
+      ? 1
+      : observation.currency === "EUR"
+        ? options.fxRates.eurToGbp
+        : observation.currency === "USD"
+          ? options.fxRates.usdToGbp
+          : NaN
+    if (!Number.isFinite(rate) || rate <= 0) {
+      excluded.currency += 1
+      continue
+    }
+
+    const seenAt = Date.parse(observation.soldAt ?? observation.observedAt)
+    if (!Number.isFinite(seenAt) || options.now - seenAt > maxAgeMs || seenAt - options.now > futureToleranceMs) {
+      excluded.stale += 1
+      continue
+    }
+
+    candidates.push({ gbp: observation.amount * rate, sold: Boolean(observation.soldAt) })
+  }
+
+  const inliers = removeOutliers(candidates)
+  excluded.outlier = candidates.length - inliers.length
+
+  if (inliers.length === 0) {
+    return {
+      marketGbpAmount: null,
+      goodGbpAmount: null,
+      lowGbpAmount: null,
+      highGbpAmount: null,
+      confidence: "unknown",
+      usedCount: 0,
+      soldCount: 0,
+      excluded,
+    }
+  }
+
+  const amounts = inliers.map((item) => item.gbp).sort((left, right) => left - right)
+  const market = percentile(amounts, 0.5)
+  const soldCount = inliers.filter((item) => item.sold).length
+  const spread = market > 0 ? (percentile(amounts, 0.75) - percentile(amounts, 0.25)) / market : Infinity
+
+  const confidence: PriceObservationSummary["confidence"] = amounts.length < OBSERVATION_MIN_MEDIUM_COUNT
+    ? "low"
+    : amounts.length >= OBSERVATION_MIN_HIGH_COUNT && spread <= OBSERVATION_HIGH_MAX_SPREAD && soldCount * 2 >= amounts.length
+      ? "high"
+      : "medium"
+
+  return {
+    marketGbpAmount: roundAmount(market),
+    goodGbpAmount: roundAmount(percentile(amounts, 0.25)),
+    lowGbpAmount: roundAmount(percentile(amounts, 0.1)),
+    highGbpAmount: roundAmount(percentile(amounts, 0.9)),
+    confidence,
+    usedCount: amounts.length,
+    soldCount,
+    excluded,
+  }
+}
+
+function removeOutliers<T extends { gbp: number }>(items: T[]): T[] {
+  if (items.length < 3) return items
+
+  const sorted = items.map((item) => item.gbp).sort((left, right) => left - right)
+  const median = percentile(sorted, 0.5)
+  const mad = percentile(sorted.map((value) => Math.abs(value - median)).sort((left, right) => left - right), 0.5)
+  const ratioLow = median / OBSERVATION_OUTLIER_RATIO
+  const ratioHigh = median * OBSERVATION_OUTLIER_RATIO
+
+  if (items.length < 4 || mad === 0) {
+    return items.filter((item) => item.gbp >= ratioLow && item.gbp <= ratioHigh)
+  }
+
+  const limit = OBSERVATION_OUTLIER_MADS * 1.4826 * mad
+  return items.filter((item) => Math.abs(item.gbp - median) <= limit && item.gbp >= ratioLow && item.gbp <= ratioHigh)
+}
+
+function percentile(sortedValues: number[], fraction: number) {
+  if (sortedValues.length === 1) return sortedValues[0]
+  const position = (sortedValues.length - 1) * fraction
+  const lower = Math.floor(position)
+  const upper = Math.ceil(position)
+  return sortedValues[lower] + (sortedValues[upper] - sortedValues[lower]) * (position - lower)
+}
+
+function roundAmount(amount: number) {
+  return Math.round(amount * 100) / 100
 }
