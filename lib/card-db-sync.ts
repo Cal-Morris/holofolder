@@ -14,7 +14,7 @@ import {
   type MirrorableCard,
   type MirrorSetImagesResult,
 } from "./card-image-backfill"
-import { selectIncrementalSyncTargets, type IncrementalSyncRequest } from "./card-db-sync-targets"
+import { isSetUpToDateWithListedCards, selectIncrementalSyncTargets, type IncrementalSyncRequest } from "./card-db-sync-targets"
 
 type SupportedLanguage = "en" | "ja"
 type JsonObject = Record<string, unknown>
@@ -1520,6 +1520,8 @@ export interface IncrementalCardDbSyncResult {
     images?: MirrorSetImagesResult
   }>
   skippedSetIds: string[]
+  /** `missing` mode only: candidates whose listed cards are already all mirrored (TCGdex total overstates them). */
+  upToDateSetIds: string[]
   remainingSetIds: string[]
   durationMs: number
 }
@@ -1723,11 +1725,16 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
     }
 
     let mirrorCounts = new Map<string, number>()
+    let mirrorSetIds = new Set<string>()
     if (request.mode === "missing" && client) {
-      const countResult = await client.query<{ set_id: string; card_count: string }>(
-        "select set_id, count(*)::text as card_count from public.tcg_cards group by set_id",
-      )
+      const [countResult, setResult] = await Promise.all([
+        client.query<{ set_id: string; card_count: string }>(
+          "select set_id, count(*)::text as card_count from public.tcg_cards group by set_id",
+        ),
+        client.query<{ id: string }>("select id from public.tcg_sets"),
+      ])
       mirrorCounts = new Map(countResult.rows.map((row) => [row.set_id, Number(row.card_count)]))
+      mirrorSetIds = new Set(setResult.rows.map((row) => row.id))
     }
 
     const restSets = request.mode === "sets" ? [] : await fetchRestSetSummariesNewestFirst(logger)
@@ -1741,6 +1748,7 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
 
     const syncedSets: IncrementalCardDbSyncResult["syncedSets"] = []
     const skippedSetIds: string[] = []
+    const upToDateSetIds: string[] = []
     const remainingSetIds: string[] = []
 
     for (const setId of targetSetIds) {
@@ -1754,6 +1762,14 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
       if (!restSet?.id || !seriesId || EXCLUDED_SERIES_IDS.has(seriesId)) {
         logWith(logger, `Skipping ${setId}: not found or excluded series`)
         skippedSetIds.push(setId)
+        continue
+      }
+
+      if (
+        request.mode === "missing" &&
+        isSetUpToDateWithListedCards(restSet.cards?.length ?? 0, mirrorCounts.get(setId) ?? 0, mirrorSetIds.has(setId))
+      ) {
+        upToDateSetIds.push(setId)
         continue
       }
 
@@ -1826,6 +1842,7 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
       targetSetIds,
       syncedSets,
       skippedSetIds,
+      upToDateSetIds,
       remainingSetIds,
       durationMs: Date.now() - startedAt,
     }

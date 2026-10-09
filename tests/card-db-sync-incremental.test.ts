@@ -6,6 +6,7 @@ import {
   getSyncSecret,
   InvalidSyncRequestError,
   isAuthorizedSyncRequest,
+  isSetUpToDateWithListedCards,
   MAX_SETS_PER_CALL,
   parseIncrementalSyncRequest,
   selectIncrementalSyncTargets,
@@ -221,5 +222,19 @@ describe("runIncrementalCardDbSync (dry run, mocked TCGdex)", () => {
     })
     assert.deepEqual(result.syncedSets, [])
     assert.deepEqual(result.skippedSetIds, ["A9"])
+  })
+})
+
+describe("isSetUpToDateWithListedCards", () => {
+  test("treats a set as current once every listed card is mirrored, even if TCGdex's total is higher", () => {
+    // mfb: total 48 but only 34 listed
+    assert.equal(isSetUpToDateWithListedCards(34, 34, true), true)
+    // rc/sp: no cards listed, set row already mirrored
+    assert.equal(isSetUpToDateWithListedCards(0, 0, true), true)
+  })
+
+  test("still syncs sets that are absent or missing listed cards", () => {
+    assert.equal(isSetUpToDateWithListedCards(0, 0, false), false)
+    assert.equal(isSetUpToDateWithListedCards(35, 34, true), false)
   })
 })
