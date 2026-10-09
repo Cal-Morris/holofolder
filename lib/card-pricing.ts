@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { buildBuySignal, type CardBuySignal, type PriceProvider } from "@/lib/price-intelligence"
+import { applyPriceStaleness, carryForwardMissingPrice } from "@/lib/price-freshness"
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP"
 export type PriceSource = PriceProvider
@@ -237,25 +238,29 @@ export async function refreshCardPriceLookups(
   const languages = [...new Set(uniqueLookups.map((lookup) => lookup.language))]
   const supabase = createAdminClient()
   const freshByLookupKey = new Map<string, CardPriceSnapshot>()
+  const previousByLookupKey = new Map<string, { snapshot: CardPriceSnapshot; fetchedAt: string | null }>()
 
-  if (!options.force) {
-    const { data: cachedRows, error: cacheError } = await supabase
-      .from("card_prices")
-      .select("*")
-      .in("card_id", cardIds)
-      .in("language", languages)
+  // Always read existing rows: they serve the cache when not forced, and are the
+  // last-known-good fallback when a (forced) refresh comes back empty.
+  const { data: cachedRows, error: cacheError } = await supabase
+    .from("card_prices")
+    .select("*")
+    .in("card_id", cardIds)
+    .in("language", languages)
 
-    if (cacheError) {
-      console.error("[binderdex] Failed to read card_prices cache:", cacheError)
-    }
+  if (cacheError) {
+    console.error("[binderdex] Failed to read card_prices cache:", cacheError)
+  }
 
-    const now = Date.now()
-    for (const row of (cachedRows ?? []) as CardPriceRow[]) {
-      const fetchedAtMs = Date.parse(row.fetched_at)
-      if (Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CARD_PRICE_CACHE_TTL_MS) {
-        const snapshot = rowToSnapshot(row)
-        freshByLookupKey.set(getCardPriceKey(snapshot.cardId, snapshot.language), snapshot)
-      }
+  const now = Date.now()
+  for (const row of (cachedRows ?? []) as CardPriceRow[]) {
+    const snapshot = rowToSnapshot(row)
+    const lookupKey = getCardPriceKey(snapshot.cardId, snapshot.language)
+    previousByLookupKey.set(lookupKey, { snapshot, fetchedAt: row.fetched_at ?? null })
+
+    const fetchedAtMs = Date.parse(row.fetched_at)
+    if (!options.force && Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CARD_PRICE_CACHE_TTL_MS) {
+      freshByLookupKey.set(lookupKey, snapshot)
     }
   }
 
@@ -270,7 +275,7 @@ export async function refreshCardPriceLookups(
       console.error("[binderdex] Failed to load ECB FX rates for card prices:", error)
       return null
     })
-    refreshedSnapshots = fxRates
+    const fetchedSnapshots = fxRates
       ? await mapWithConcurrency(
           missingLookups,
           FETCH_CONCURRENCY,
@@ -282,6 +287,15 @@ export async function refreshCardPriceLookups(
           ),
         )
       : missingLookups.map((lookup) => emptySnapshot(lookup.cardId, lookup.language))
+
+    refreshedSnapshots = fetchedSnapshots.map((snapshot) => applyPriceStaleness(
+      carryForwardMissingPrice(
+        snapshot,
+        previousByLookupKey.get(getCardPriceKey(snapshot.cardId, snapshot.language)),
+        now,
+      ),
+      now,
+    ))
 
     const rowsToUpsert = refreshedSnapshots.map((snapshot) => snapshotToRow(snapshot))
     const { error: upsertError } = await supabase
