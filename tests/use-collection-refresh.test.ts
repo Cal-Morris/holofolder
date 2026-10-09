@@ -1,7 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import {
+  COLLECTION_AUTO_REFRESH_INTERVAL_MS,
+  COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS,
+  getCollectionAutoRefreshIntervalMs,
   getRemoteCollectionRefreshPlan,
+  isCollectionAutoRefreshDue,
   keepStableUserById,
   shouldAutoRefreshCollection,
 } from "../hooks/use-collection"
@@ -98,4 +102,31 @@ test("getRemoteCollectionRefreshPlan reuses known auth and owner state for polli
     knownOwnerUserId: null,
     shouldResolveOwner: true,
   })
+})
+
+test("shouldAutoRefreshCollection never polls hidden tabs", () => {
+  const base = {
+    readOnly: false,
+    hasUser: true,
+    isOnline: true,
+    pendingOperationCount: 0,
+    isFlushingPendingOperations: false,
+    isWritingRemoteCollection: false,
+  }
+
+  assert.equal(shouldAutoRefreshCollection({ ...base, isVisible: false }), false)
+  assert.equal(shouldAutoRefreshCollection({ ...base, isVisible: true }), true)
+  assert.equal(shouldAutoRefreshCollection(base), true)
+})
+
+test("collection polling backs off to a safety net while realtime is connected", () => {
+  assert.equal(getCollectionAutoRefreshIntervalMs(false), COLLECTION_AUTO_REFRESH_INTERVAL_MS)
+  assert.equal(getCollectionAutoRefreshIntervalMs(true), COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS)
+  assert.equal(COLLECTION_AUTO_REFRESH_INTERVAL_MS, 5000)
+  assert.equal(COLLECTION_REALTIME_SAFETY_REFRESH_INTERVAL_MS, 60_000)
+
+  assert.equal(isCollectionAutoRefreshDue({ now: 5_000, lastRefreshAt: 0, isRealtimeConnected: false }), true)
+  assert.equal(isCollectionAutoRefreshDue({ now: 4_999, lastRefreshAt: 0, isRealtimeConnected: false }), false)
+  assert.equal(isCollectionAutoRefreshDue({ now: 30_000, lastRefreshAt: 0, isRealtimeConnected: true }), false)
+  assert.equal(isCollectionAutoRefreshDue({ now: 60_000, lastRefreshAt: 0, isRealtimeConnected: true }), true)
 })
