@@ -19,7 +19,7 @@ const R2_ENV = {
 const ref = parseTcgdexCardImageUrl("https://assets.tcgdex.net/en/me/me05/001/high.webp")!
 
 /** In-memory fake of R2's S3 API + public bucket domain + TCGdex. Records every request. */
-function fakeR2(options: { refuse?: number; publicStatus?: number } = {}) {
+function fakeR2(options: { refuse?: number; publicStatus?: number; putStatus?: number } = {}) {
   const objects = new Map<string, { body: ArrayBuffer; headers: Headers }>()
   const requests: Array<{ method: string; url: string; headers: Headers }> = []
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -55,6 +55,7 @@ function fakeR2(options: { refuse?: number; publicStatus?: number } = {}) {
     }
     if (request.method === "HEAD") return new Response(null, { status: objects.has(key) ? 200 : 404 })
     if (request.method === "PUT") {
+      if (options.putStatus) return new Response(`<Error><Code>InternalError</Code></Error>`, { status: options.putStatus })
       if (request.headers.get("if-none-match") === "*" && objects.has(key)) return new Response("", { status: 412 })
       objects.set(key, { body: await request.arrayBuffer(), headers: request.headers })
       return new Response("", { status: 200 })
@@ -184,5 +185,14 @@ describe("R2 backend", () => {
     )
     assert.deepEqual(page, { keys: ["cards/en/a&b/1/high.webp"], nextContinuationToken: "t+1" })
     assert.deepEqual(parseListObjectsV2("<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>"), { keys: [], nextContinuationToken: null })
+  })
+
+  test("backfill results carry a sample of failure messages including R2's error code", async () => {
+    const r2 = fakeR2({ putStatus: 500 })
+    const mirror = createCardImageMirror(createR2Deps(config(), { fetch: r2.fetchImpl }))
+    const cards = ["001", "002"].map((localId) => ({ seriesId: "me", setId: "me05", localId, imageLanguages: ["en"] }))
+    const result = await mirrorSetImages(mirror, "me05", cards, { languages: ["en"], qualities: ["high"] })
+    assert.equal(result.failed, 2)
+    assert.deepEqual(result.errors, ["R2 PUT failed with 500 InternalError"])
   })
 })

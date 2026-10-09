@@ -35,9 +35,13 @@ export interface MirrorSetImagesResult {
   alreadyMirrored: number
   uploaded: number
   failed: number
-  /** True when every planned image for this set is now in Blob. */
+  /** True when every planned image for this set is now in the store. */
   complete: boolean
+  /** Up to three distinct failure messages, so a failing backfill is diagnosable from its response. */
+  errors?: string[]
 }
+
+const MAX_REPORTED_ERRORS = 3
 
 /** Every TCGdex image ref we want in Blob for these cards (only languages TCGdex actually has). */
 export function planCardImageRefs(cards: MirrorableCard[], options: Pick<MirrorSetImagesOptions, "languages" | "qualities" | "extension">) {
@@ -82,6 +86,7 @@ export async function mirrorSetImages(
   let uploaded = 0
   let failed = 0
   let skipped = 0
+  const errors = new Set<string>()
   const maxUploads = options.maxUploads ?? Number.POSITIVE_INFINITY
 
   await mapWithConcurrency(missing, options.concurrency ?? 8, async (ref) => {
@@ -92,8 +97,9 @@ export async function mirrorSetImages(
     try {
       await mirror.ensureMirrored(ref, { assumeMissing: true })
       uploaded += 1
-    } catch {
+    } catch (error) {
       failed += 1
+      if (errors.size < MAX_REPORTED_ERRORS) errors.add(error instanceof Error ? error.message : String(error))
     }
   })
 
@@ -104,6 +110,7 @@ export async function mirrorSetImages(
     uploaded,
     failed,
     complete: skipped === 0 && failed === 0,
+    ...(errors.size > 0 ? { errors: [...errors] } : {}),
   }
 }
 

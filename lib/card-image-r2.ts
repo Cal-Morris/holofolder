@@ -56,14 +56,26 @@ function keyToPathname(key: string) {
 }
 
 /** Errors that mean the bucket/credentials are unusable for now trip the mirror's cooldown. */
-function r2Error(operation: string, status: number) {
+function r2Error(operation: string, status: number, code: string | null = null) {
+  const detail = code ? `${status} ${code}` : String(status)
   if (status === 401 || status === 403) {
-    return new BlobStoreUnavailableError(`R2 ${operation} was refused (${status})`)
+    return new BlobStoreUnavailableError(`R2 ${operation} was refused (${detail})`)
   }
   if (status === 429 || status === 503) {
-    return new BlobStoreUnavailableError(`R2 ${operation} was throttled (${status})`, BLOB_RATE_LIMIT_COOLDOWN_MS)
+    return new BlobStoreUnavailableError(`R2 ${operation} was throttled (${detail})`, BLOB_RATE_LIMIT_COOLDOWN_MS)
   }
-  return Object.assign(new Error(`R2 ${operation} failed with ${status}`), { status })
+  return Object.assign(new Error(`R2 ${operation} failed with ${detail}`), { status })
+}
+
+/** Builds the error for a failed S3 response, including R2's `<Code>` (never echoes request data). */
+async function r2ResponseError(operation: string, response: Response) {
+  let code: string | null = null
+  try {
+    code = /<Code>([A-Za-z0-9.]{1,64})<\/Code>/.exec(await response.text())?.[1] ?? null
+  } catch {
+    code = null
+  }
+  return r2Error(operation, response.status, code)
 }
 
 function decodeXml(value: string) {
@@ -105,7 +117,7 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch }
     async head(pathname) {
       const response = await signedFetch(`${endpoint}${pathname}`, { method: "HEAD" })
       if (response.status === 404) return null
-      if (!response.ok) throw r2Error("HEAD", response.status)
+      if (!response.ok) throw await r2ResponseError("HEAD", response)
       return { url: `${baseUrl}${pathname}` }
     },
     async put(pathname, body, contentType) {
@@ -119,7 +131,7 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch }
           "if-none-match": "*",
         },
       })
-      if (!response.ok) throw r2Error("PUT", response.status)
+      if (!response.ok) throw await r2ResponseError("PUT", response)
       return { url: `${baseUrl}${pathname}` }
     },
     async list(prefix) {
@@ -129,7 +141,7 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch }
         const query = new URLSearchParams({ "list-type": "2", prefix, "max-keys": "1000" })
         if (token) query.set("continuation-token", token)
         const response = await signedFetch(`${endpoint}?${query}`)
-        if (!response.ok) throw r2Error("LIST", response.status)
+        if (!response.ok) throw await r2ResponseError("LIST", response)
         const page = parseListObjectsV2(await response.text())
         keys.push(...page.keys.map(keyToPathname))
         token = page.nextContinuationToken
