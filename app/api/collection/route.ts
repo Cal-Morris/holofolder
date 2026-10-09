@@ -1,35 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-
-const VALID_STATUSES = new Set(["collected", "finalized", "considering", "wishlisted"])
-const VALID_CARD_LANGUAGES = new Set(["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"])
-const VALID_CARD_FINISHES = new Set([
-  "normal",
-  "holo",
-  "reverse_holo",
-  "double_rare",
-  "ultra_rare",
-  "illustration_rare",
-  "special_illustration_rare",
-  "secret_rare",
-  "hyper_rare",
-  "radiant_rare",
-  "ace_spec",
-  "amazing_rare",
-  "shiny_rare",
-  "jumbo",
-])
-
-function normalizeCardLanguage(value: unknown) {
-  if (typeof value !== "string") return "en"
-  const normalized = value.trim().toLowerCase()
-  return VALID_CARD_LANGUAGES.has(normalized) ? normalized : "en"
-}
-
-function normalizeCardFinish(value: unknown) {
-  return typeof value === "string" && VALID_CARD_FINISHES.has(value) ? value : "normal"
-}
+import { isSlotStatus, normalizeCardFinish, normalizeCardLanguage } from "@/lib/domain/cards"
 
 function normalizeWantedCards(value: unknown) {
   if (!Array.isArray(value)) return []
@@ -97,7 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "pokemonId and pokemonName are required" }, { status: 400 })
     }
 
-    if (!VALID_STATUSES.has(status)) {
+    if (!isSlotStatus(status)) {
       return NextResponse.json({ error: "Invalid collection status" }, { status: 400 })
     }
 
@@ -154,7 +126,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "pokemonId is required" }, { status: 400 })
     }
 
-    if (!VALID_STATUSES.has(status)) {
+    if (!isSlotStatus(status)) {
       return NextResponse.json({ error: "Invalid collection status" }, { status: 400 })
     }
 

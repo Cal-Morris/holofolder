@@ -1,4 +1,4 @@
-import type { CardFinish, CardLanguage, WantedCard } from "@/hooks/use-collection"
+import type { CardFinish, CardLanguage, WantedCard } from "@/lib/domain/cards"
 
 type SelectedSlotDisplayItem = {
   card_id?: string | null

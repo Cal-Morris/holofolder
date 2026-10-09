@@ -2,7 +2,7 @@
  * Pure helpers for the read-only "all cards for this Pokémon" view and the global card search.
  * Shared by the client UI, the search API and unit tests.
  */
-import type { CardFinish } from "@/hooks/use-collection"
+import type { CardFinish } from "@/lib/domain/cards"
 
 export interface BrowseCardVariants {
   normal?: boolean
