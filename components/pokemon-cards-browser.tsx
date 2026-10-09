@@ -134,8 +134,8 @@ export default function PokemonCardsBrowser({
               left: "0.5rem",
               right: "0.5rem",
               // Sits above the bottom dock (which stays usable) and never under the status bar.
-              bottom: "calc(env(safe-area-inset-bottom) + 4.6rem)",
-              height: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 4.6rem - 0.5rem)",
+              bottom: "calc(var(--dock-clearance) + 0.375rem)",
+              height: "calc(100dvh - env(safe-area-inset-top) - var(--dock-clearance) - 0.375rem - 0.5rem)",
             }}
       >
         <div
