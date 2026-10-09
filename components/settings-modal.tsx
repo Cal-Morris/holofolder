@@ -75,7 +75,6 @@ interface SettingsModalProps {
 export default function SettingsModal({
   isOpen,
   onClose,
-  user,
   settings,
   onUpdateSettings,
   currentBinderPage,

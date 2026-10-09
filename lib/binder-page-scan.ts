@@ -232,8 +232,6 @@ function scanNormalizedBinderPage(image: CanvasImage, rows: number, cols: number
     return null
   }
 
-  const rectifiedData = rectifiedContext.getImageData(0, 0, image.width, image.height)
-  const slotFeatureMaps = buildSlotFeatureMaps(rectifiedData, image.width, image.height)
   const gridImage = scaleCanvasImage(image.canvas, MAX_GRID_DIMENSION)
   const gridContext = gridImage.canvas.getContext("2d", { willReadFrequently: true })
 

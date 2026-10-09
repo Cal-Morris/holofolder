@@ -377,6 +377,7 @@ export default function CardSelector({
     }
 
     let cancelled = false
+    const videoElement = cardVideoRef.current
 
     const startCamera = async () => {
       setCameraError(null)
@@ -414,8 +415,8 @@ export default function CardSelector({
       cancelled = true
       cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
       cameraStreamRef.current = null
-      if (cardVideoRef.current) {
-        cardVideoRef.current.srcObject = null
+      if (videoElement) {
+        videoElement.srcObject = null
       }
     }
   }, [isCardScannerOpen])
