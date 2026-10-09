@@ -14,9 +14,6 @@ const nextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
