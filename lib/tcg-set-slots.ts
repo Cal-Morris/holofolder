@@ -42,6 +42,13 @@ export interface TCGSetSlotsResponse {
 export const RECENT_SET_MIN_OFFICIAL_CARDS = 20
 
 /**
+ * TCGdex ids for the Pokémon TCG 30th anniversary sets ("30th Celebration" and "30th Classic Collection").
+ * 30th Classic Collection reports 0 official cards (all reprints), so it bypasses the size filter.
+ */
+export const ANNIVERSARY_SET_IDS: readonly string[] = ["30th", "30th-c"]
+const ALWAYS_LISTED_RECENT_SET_IDS = new Set(ANNIVERSARY_SET_IDS)
+
+/**
  * Picks the newest released main-line sets for the Sets view "Latest sets" shortcuts.
  * Skips unreleased sets (release date after `asOfDate`), sets without a release date,
  * and tiny products such as promo lists or energy sets that have few official cards.
@@ -60,7 +67,7 @@ export function selectRecentSetSummaries(
     .filter((set) => {
       if (!set.id || seen.has(set.id)) return false
       if (!set.releaseDate || set.releaseDate > asOfDate) return false
-      if ((set.officialCardCount ?? 0) < minOfficialCardCount) return false
+      if ((set.officialCardCount ?? 0) < minOfficialCardCount && !ALWAYS_LISTED_RECENT_SET_IDS.has(set.id)) return false
       seen.add(set.id)
       return true
     })

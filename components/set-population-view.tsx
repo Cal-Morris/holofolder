@@ -33,6 +33,8 @@ const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
 // Fallback shortcuts used until the live "latest sets" list loads (or if it fails).
 // Newest English main-line releases per TCGdex (api.tcgdex.net/v2/en/sets), checked Oct 2026.
 const SET_SHORTCUTS = [
+  { label: "30th Celebration", query: "30th Celebration" },
+  { label: "30th Classic Collection", query: "30th Classic Collection" },
   { label: "Pitch Black", query: "Pitch Black" },
   { label: "Chaos Rising", query: "Chaos Rising" },
   { label: "Perfect Order", query: "Perfect Order" },
@@ -568,7 +570,7 @@ export default function SetPopulationView({
                         </p>
                         {primaryCard ? (
                           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            {primaryCard.localId}/{primaryCard.set.officialCardCount ?? "?"} · {primaryCard.rarity ?? "Unknown rarity"}
+                            {primaryCard.set.officialCardCount ? `${primaryCard.localId}/${primaryCard.set.officialCardCount}` : `#${primaryCard.localId}`} · {primaryCard.rarity ?? "Unknown rarity"}
                           </p>
                         ) : null}
                       </div>
@@ -614,7 +616,7 @@ export default function SetPopulationView({
                                 }`}
                               >
                                 <p className="truncate text-[10px] font-semibold">
-                                  {card.localId}/{card.set.officialCardCount ?? "?"}
+                                  {card.set.officialCardCount ? `${card.localId}/${card.set.officialCardCount}` : `#${card.localId}`}
                                 </p>
                                 <p className="truncate text-[10px]">
                                   {card.rarity ?? "Unknown"}
