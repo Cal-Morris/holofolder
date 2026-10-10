@@ -11,6 +11,7 @@ import { MarketingBinderPreview } from "@/components/marketing-binder-preview"
 import { MarketingNavigation } from "@/components/marketing-navigation"
 import { FEATURED_CARDS, getFeaturedCardImageUrl } from "@/lib/featured-cards"
 import styles from "@/components/home-page.module.css"
+import { useServiceWorkerRegistration } from "@/hooks/use-service-worker-registration"
 
 const features = [
   { id: "collection-tracking", icon: BookOpen, title: "Collection tracking.", text: "Match each Pokémon to the card you own. Keep its set, language and finish with it, and mark the cards you want to upgrade." },
@@ -22,6 +23,7 @@ const features = [
 ]
 
 export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean }) {
+  useServiceWorkerRegistration()
   const router = useRouter()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const openAuthOrApp = () => {

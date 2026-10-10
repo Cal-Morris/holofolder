@@ -77,7 +77,7 @@ export const MOCK_CARDS: MockCard[] = [
 
 const CARD_PALETTE = ["#2563eb", "#16a34a", "#dc2626", "#9333ea", "#ea580c", "#0891b2"]
 
-function placeholderSvg(label: string, seed: number) {
+export function placeholderSvg(label: string, seed: number) {
   const color = CARD_PALETTE[seed % CARD_PALETTE.length]
   const safe = label.replace(/[^a-zA-Z0-9 #./-]/g, "").slice(0, 24)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="245" height="342" viewBox="0 0 245 342"><rect width="245" height="342" rx="14" fill="${color}"/><rect x="12" y="12" width="221" height="318" rx="10" fill="#f8fafc" opacity="0.9"/><rect x="24" y="48" width="197" height="140" rx="6" fill="${color}" opacity="0.35"/><text x="122" y="230" font-family="sans-serif" font-size="20" font-weight="700" text-anchor="middle" fill="#0f172a">${safe}</text></svg>`

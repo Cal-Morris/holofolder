@@ -21,6 +21,8 @@ import {
   type CardSearchGroup,
   type SearchCardResult,
 } from "@/lib/pokemon-card-browse"
+import { searchOfflineCards } from "@/lib/offline-card-index"
+import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 
 type SearchStateFilter = PokemonSearchStateFilter
 
@@ -49,6 +51,8 @@ interface PokemonSearchProps {
   onJumpToPage?: (page: number) => void
   /** Open the read-only "all cards" view for a Pokémon, optionally highlighting one printing. */
   onBrowseCards?: (pokemon: { id: number; name: string }, highlightCardId?: string) => void
+  /** Cards available on this device (own cards + cached card data), searched when the card search API can't be reached. */
+  getOfflineCards?: () => Promise<SearchCardResult[]>
 }
 
 const CARD_SEARCH_DEBOUNCE_MS = 250
@@ -58,27 +62,60 @@ function cardThumbnail(image?: string) {
   return image.endsWith("/high.webp") ? image.replace(/\/high\.webp$/, "/low.webp") : image
 }
 
-/** Debounced card search against the TCG mirror, grouped by Pokémon. */
-function useCardSearch(query: string, enabled: boolean) {
-  const [state, setState] = useState<{ key: string; groups: CardSearchGroup[]; loading: boolean }>({ key: "", groups: [], loading: false })
+type CardSearchState = { key: string; groups: CardSearchGroup[]; loading: boolean; offline: boolean }
+
+const groupCards = (cards: SearchCardResult[]) =>
+  groupCardResultsByPokemon(cards, (dexId) => getPokemonSummary(dexId)?.name ?? null, { maxGroups: 10, maxCardsPerGroup: 6 })
+
+/**
+ * Debounced card search against the TCG mirror, grouped by Pokémon. Offline (or when the API can't be
+ * reached) it searches the cards on this device instead and says so.
+ */
+function useCardSearch(query: string, enabled: boolean, getOfflineCards?: () => Promise<SearchCardResult[]>) {
+  const [state, setState] = useState<CardSearchState>({ key: "", groups: [], loading: false, offline: false })
   const parsed = parseCardSearchQuery(query)
   const key = enabled && (parsed.text.length >= 2 || parsed.cardId) ? query.trim().toLowerCase() : ""
+  const offlineCardsRef = useRef<Promise<SearchCardResult[]> | null>(null)
+  const getOfflineCardsRef = useRef(getOfflineCards)
+  useEffect(() => {
+    getOfflineCardsRef.current = getOfflineCards
+    offlineCardsRef.current = null
+  }, [getOfflineCards])
 
   useEffect(() => {
     if (!key) return
     const controller = new AbortController()
+    const searchOnDevice = async () => {
+      const loader = getOfflineCardsRef.current
+      if (!loader) return null
+      offlineCardsRef.current ??= loader().catch(() => [])
+      const cards = await offlineCardsRef.current
+      return groupCards(searchOfflineCards(cards, key))
+    }
+    const showOffline = async () => {
+      const groups = await searchOnDevice()
+      if (controller.signal.aborted) return
+      setState({ key, groups: groups ?? [], loading: false, offline: groups !== null })
+    }
+
     const timer = window.setTimeout(() => {
       setState((current) => ({ ...current, key, loading: true }))
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        void showOffline()
+        return
+      }
       fetch(`/api/tcg-card-search?q=${encodeURIComponent(key)}`, { signal: controller.signal })
-        .then((response) => (response.ok ? response.json() : { cards: [] }))
+        .then((response) => {
+          if (!response.ok) throw new Error(`Card search failed (${response.status})`)
+          return response.json()
+        })
         .then((payload: { cards?: SearchCardResult[] }) => {
           const cards = Array.isArray(payload?.cards) ? payload.cards : []
-          const groups = groupCardResultsByPokemon(cards, (dexId) => getPokemonSummary(dexId)?.name ?? null, { maxGroups: 10, maxCardsPerGroup: 6 })
-          setState({ key, groups, loading: false })
+          setState({ key, groups: groupCards(cards), loading: false, offline: false })
         })
         .catch((error: unknown) => {
-          if ((error as { name?: string })?.name === "AbortError") return
-          setState({ key, groups: [], loading: false })
+          if ((error as { name?: string })?.name === "AbortError" || controller.signal.aborted) return
+          void showOffline()
         })
     }, CARD_SEARCH_DEBOUNCE_MS)
     return () => {
@@ -87,8 +124,21 @@ function useCardSearch(query: string, enabled: boolean) {
     }
   }, [key])
 
-  if (!key) return { groups: [] as CardSearchGroup[], loading: false }
-  return state.key === key ? { groups: state.groups, loading: state.loading } : { groups: [] as CardSearchGroup[], loading: true }
+  if (!key) return { groups: [] as CardSearchGroup[], loading: false, offline: false }
+  return state.key === key
+    ? { groups: state.groups, loading: state.loading, offline: state.offline }
+    : { groups: [] as CardSearchGroup[], loading: true, offline: false }
+}
+
+/** Offline, a thumbnail that was never loaded falls back to its saved copy (via the image proxy). */
+function savedThumbnailOnError(image: string | undefined) {
+  return (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const element = event.currentTarget
+    const fallback = getProxiedThumbnailUrl(image)
+    if (!fallback || element.dataset.savedThumbnail === "1") return
+    element.dataset.savedThumbnail = "1"
+    element.src = fallback
+  }
 }
 
 const SEARCH_FILTERS: Array<{
@@ -112,6 +162,7 @@ export default function PokemonSearch({
   totalPages = 0,
   onJumpToPage,
   onBrowseCards,
+  getOfflineCards,
 }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter)
@@ -156,7 +207,7 @@ export default function PokemonSearch({
     return searchPokemonItems(query, byFilter, 40)
   }, [activeFilter, matchesFilter, pokemonList, query])
 
-  const cardSearch = useCardSearch(query, Boolean(onBrowseCards))
+  const cardSearch = useCardSearch(query, Boolean(onBrowseCards), getOfflineCards)
 
   const pageJump = useMemo(() => {
     if (!onJumpToPage || totalPages < 1) return null
@@ -416,6 +467,7 @@ export default function PokemonSearch({
                 <p className="flex items-center gap-2 px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Cards
                   {cardSearch.loading ? <Loader2 className="h-3 w-3 animate-spin" aria-label="Searching cards" /> : null}
+                  {cardSearch.offline ? <span className="normal-case tracking-normal font-normal">· offline: your cards and saved sets</span> : null}
                 </p>
                 {cardSearch.groups.map((group) => {
                   const groupName = formatPokemonDisplayName(group.name)
@@ -448,7 +500,7 @@ export default function PokemonSearch({
                               <div className="trading-card w-full border border-border/50 bg-muted/40">
                                 {thumb ? (
                                   // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" onError={savedThumbnailOnError(card.image)} />
                                 ) : null}
                               </div>
                               <p className="mt-1 truncate text-[10px] font-semibold">{card.set.name}</p>

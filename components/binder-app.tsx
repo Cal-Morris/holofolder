@@ -56,6 +56,7 @@ import {
 } from "@/lib/wanted-dashboard"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
+import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_EASING, getAdjacentPageNumbers, getPageTurnTiming } from "@/lib/binder-page-turn"
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
@@ -3623,11 +3624,7 @@ export default function BinderApp({
       standaloneMatch.addEventListener("change", updateStandaloneMode)
     }
 
-    if ("serviceWorker" in window.navigator) {
-      window.navigator.serviceWorker.register("/sw.js").catch((error) => {
-        console.error("[binderdex] Failed to register service worker:", error)
-      })
-    }
+    registerServiceWorker()
 
     return () => {
       window.removeEventListener("online", handleOnline)
@@ -4053,6 +4050,12 @@ export default function BinderApp({
   }, [])
 
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
+  // Offline card search: own cards plus card data the service worker has cached (read lazily, per search session).
+  const getOfflineSearchCards = useCallback(
+    () => import("@/lib/offline-card-index").then(({ buildOfflineCardIndex }) => buildOfflineCardIndex(collection)),
+    [collection],
+  )
+
   const openCardBrowser = useCallback((
     pokemon: { id: number; name: string },
     options: { highlightCardId?: string | null; fromDetail?: boolean } = {},
@@ -6488,6 +6491,7 @@ export default function BinderApp({
                   totalPages={totalBinderPages}
                   onJumpToPage={handleSearchJumpToPage}
                   onBrowseCards={(pokemon, highlightCardId) => openCardBrowser(pokemon, { highlightCardId })}
+                  getOfflineCards={getOfflineSearchCards}
                 />
                 {selectedPokemon && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
