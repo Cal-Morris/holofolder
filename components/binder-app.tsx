@@ -3,19 +3,14 @@
 import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { createPortal } from "react-dom"
 import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2 } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
-import SettingsModal from "@/components/settings-modal"
-import AuthModal from "@/components/auth-modal"
-import PartnerModal from "@/components/partner-modal"
-import CardSelector, { type CardSelectorMode } from "@/components/card-selector"
+import type { CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
 import { closeAllOverlays, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
-import DexListView from "@/components/dex-list-view"
-import SetPopulationView from "@/components/set-population-view"
-import PokemonCardsBrowser from "@/components/pokemon-cards-browser"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
@@ -58,6 +53,18 @@ import {
 } from "@/lib/wanted-dashboard"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
+
+// Modals and secondary views are only shown on demand or in non-default tabs, so they
+// load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
+// import: it renders inside the card detail sheet, and loading it late shifts the sheet's
+// actions on phones.
+const SettingsModal = dynamic(() => import("@/components/settings-modal"), { ssr: false })
+const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr: false })
+const PartnerModal = dynamic(() => import("@/components/partner-modal"), { ssr: false })
+const CardSelector = dynamic(() => import("@/components/card-selector"), { ssr: false })
+const PokemonCardsBrowser = dynamic(() => import("@/components/pokemon-cards-browser"), { ssr: false })
+const DexListView = dynamic(() => import("@/components/dex-list-view"))
+const SetPopulationView = dynamic(() => import("@/components/set-population-view"))
 
 const GENERATIONS = [
   { id: 0, name: "All Generations", start: 1, end: 1025, region: "" },
