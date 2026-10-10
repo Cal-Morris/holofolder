@@ -88,7 +88,7 @@ const MIRRORED_CARD_SELECT = `
 const IMAGE_LANGUAGE_FALLBACKS = TCGDEX_LANGUAGE_FALLBACKS
 const MIRROR_CACHE_LIFE = "days"
 const HIDDEN_SET_IDS = new Set(["jumbo"])
-const MIRROR_CACHE_VERSION = "v3-release-dates"
+const MIRROR_CACHE_VERSION = "v4-set-cards"
 
 function cacheSafeTag(prefix: string, value: string | number) {
   return `${prefix}:${String(value).replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 180)}`
@@ -356,13 +356,13 @@ export async function getMirroredSetDexSlots(
   setId: string,
   language: MirrorLanguage = "en",
   pokemonNames = new Map<number, string>(),
-): Promise<{ selectedSet: TCGSetSummary | null; slots: TCGSetDexSlot[] }> {
+): Promise<{ selectedSet: TCGSetSummary | null; slots: TCGSetDexSlot[]; cards: TCGSetSlotCard[] }> {
   "use cache: remote"
   cacheLife(MIRROR_CACHE_LIFE)
   cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, cacheSafeTag("set", setId), cacheSafeTag("language", language))
 
   if (HIDDEN_SET_IDS.has(setId)) {
-    return { selectedSet: null, slots: [] }
+    return { selectedSet: null, slots: [], cards: [] }
   }
 
   const admin = createAdminClient()
@@ -416,10 +416,11 @@ export async function getMirroredSetDexSlots(
       }
     : null
   const slotMap = new Map<number, TCGSetDexSlot>()
+  const cards: TCGSetSlotCard[] = []
 
   for (const card of rows) {
     const dexLinks = Array.isArray(card.tcg_card_dex_ids) ? card.tcg_card_dex_ids : []
-    if (dexLinks.length === 0 || !card?.id || !card?.local_id || !card?.series_id || !card?.set_id || !card?.tcg_sets?.id) {
+    if (!card?.id || !card?.local_id || !card?.series_id || !card?.set_id || !card?.tcg_sets?.id) {
       continue
     }
 
@@ -446,6 +447,8 @@ export async function getMirroredSetDexSlots(
       inferredFinish: inferCardFinish(card.rarity, card.variants_json),
     }
 
+    cards.push(slotCard)
+
     for (const link of dexLinks) {
       const dexId = typeof link?.dex_id === "number" ? link.dex_id : null
       if (!dexId) {
@@ -464,6 +467,7 @@ export async function getMirroredSetDexSlots(
 
   return {
     selectedSet,
+    cards,
     slots: [...slotMap.values()].sort((left, right) => left.dexId - right.dexId),
   }
 }

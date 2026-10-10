@@ -71,3 +71,8 @@ test("duplicate card ids are counted once", () => {
   ], { now })
   assert.equal(ranked.length, 1)
 })
+
+test("default ranking shows ten qualifying breakouts instead of three", () => {
+  const ranked = rankBreakoutCards(Array.from({ length: 12 }, (_, index) => fixture(`card-${index}`, { "7d": 10, Trend: 12 })), { now })
+  assert.equal(ranked.length, 10)
+})

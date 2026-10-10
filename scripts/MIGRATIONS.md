@@ -30,6 +30,7 @@ When you add a migration, use the next free number (`026_…`), keep it idempote
 | `023_price_provider_pokepulse.sql` | Allow the `pokepulse` provider in the 022 constraints |
 | `024_binder_appearances.sql` | Owner/partner binder appearance JSON with revision conflicts; private 5 MB artwork bucket. Apply before enabling appearance sync; existing collection/settings work without it. |
 | `025_restore_legacy_not_null_contracts.sql` | Restore 008's `status NOT NULL` and the documented, reconstructed settings nullability contracts. Fill only NULL status/grid values with existing app defaults; preserve known timestamps, using migration time only when both were missing. Does not rerun historical card/price backfills. |
+| `026_card_price_finishes.sql` | Exact printing and finish price evidence (`finish_prices`); existing cache writes work before application |
 
 ## `user_settings` (from the missing 002/003)
 

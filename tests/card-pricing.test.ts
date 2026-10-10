@@ -299,3 +299,32 @@ test("buildPokePulseSearchPriceSnapshot uses internal market data for trends and
   assert.equal(snapshot?.sourcePrices[0].label, "PokePulse market data")
   assert.deepEqual(snapshot?.trendPoints.map((point) => point.label), ["2026-06-26"])
 })
+
+// Synthetic finish prices: normal, holo and reverse must remain separate.
+test("pricing retains each exact finish and does not attach normal trends to holo", () => {
+  const snapshot = buildCardPriceSnapshotFromPricing("synthetic-1", "en", {
+    tcgplayer: { updated: "2026-10-10T10:00:00Z", normal: { marketPrice: 10, lowPrice: 9 }, holofoil: { marketPrice: 30, lowPrice: 28 }, reverseHolofoil: { marketPrice: 20, lowPrice: 18 } },
+    cardmarket: { updated: "2026-10-10T10:00:00Z", trend: 9, avg7: 7, low: 8, "trend-holo": 90, "avg7-holo": 10 },
+  }, fxRates, { normal: true, holo: false, reverse: true })
+  assert.deepEqual(snapshot.finishPrices?.map((price) => [price.finish, price.marketGbpAmount]), [["normal", 7.5], ["holo", 22.5], ["reverse_holo", 15]])
+  assert.ok(snapshot.finishPrices?.find((price) => price.finish === "normal")?.trendPoints.length)
+  assert.deepEqual(snapshot.finishPrices?.find((price) => price.finish === "holo")?.trendPoints, [])
+  assert.deepEqual(snapshot.finishPrices?.find((price) => price.finish === "reverse_holo")?.trendPoints, [])
+})
+
+test("ambiguous base and foil prices cannot become an exact finish", () => {
+  const snapshot = buildCardPriceSnapshotFromPricing("synthetic-2", "en", {
+    cardmarket: { trend: 9, low: 8, "trend-holo": 10 },
+  }, fxRates, { normal: true, holo: true, reverse: true })
+  assert.deepEqual(snapshot.finishPrices, [])
+})
+
+test("finish prices never borrow another provider's timestamp for an undated quote", () => {
+  // Synthetic TCGplayer quote has no source date; Cardmarket does.
+  const snapshot = buildCardPriceSnapshotFromPricing("synthetic-undated", "en", {
+    tcgplayer: { normal: { marketPrice: 10, lowPrice: 9 } },
+    cardmarket: { updated: "2026-10-10T10:00:00Z", trend: 9, avg7: 7, low: 8 },
+  }, fxRates, { normal: true, holo: false })
+  assert.equal(snapshot.finishPrices?.[0].source, "tcgplayer")
+  assert.equal(snapshot.finishPrices?.[0].updatedAt, null)
+})

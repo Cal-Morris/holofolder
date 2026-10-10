@@ -1,6 +1,7 @@
 // Type-only at module level: this file is also the single source of pricing types and
 // normalizers for the client (hooks/use-card-prices.ts), so it must not pull the service-role
 // Supabase client into the browser bundle. The admin client is loaded lazily on the server.
+import type { CardFinish } from "@/lib/domain/cards"
 import type { createAdminClient } from "@/lib/supabase/admin"
 import { buildBuySignal, type CardBuySignal, type PriceProvider } from "@/lib/price-intelligence"
 
@@ -38,7 +39,15 @@ export interface CardPriceLookup {
   language: CardLanguage
 }
 
+export type PricedCardFinish = Extract<CardFinish, "normal" | "holo" | "reverse_holo">
+
+export interface CardFinishPrice extends Omit<CardPriceSnapshot, "finishPrices"> {
+  finish: PricedCardFinish
+  variantKey: string
+}
+
 export interface CardPriceSnapshot {
+  finishPrices?: CardFinishPrice[]
   cardId: string
   language: CardLanguage
   gbpAmount: number | null
@@ -83,6 +92,7 @@ interface CardPriceRow {
   source_updated_at: string | null
   fx_date: string | null
   fetched_at: string
+  finish_prices?: unknown
 }
 
 interface CardExternalIdsRow {
@@ -266,7 +276,7 @@ export async function refreshCardPriceLookups(
     previousByLookupKey.set(lookupKey, { snapshot, fetchedAt: row.fetched_at ?? null })
 
     const fetchedAtMs = Date.parse(row.fetched_at)
-    if (!options.force && Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CARD_PRICE_CACHE_TTL_MS) {
+    if (!options.force && Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CARD_PRICE_CACHE_TTL_MS && Array.isArray(row.finish_prices)) {
       freshByLookupKey.set(lookupKey, snapshot)
     }
   }
@@ -305,10 +315,16 @@ export async function refreshCardPriceLookups(
     ))
 
     const rowsToUpsert = refreshedSnapshots.map((snapshot) => snapshotToRow(snapshot))
-    const { error: upsertError } = await supabase
+    let { error: upsertError } = await supabase
       .from("card_prices")
       .upsert(rowsToUpsert, { onConflict: "card_id,language" })
 
+    // Keep the existing price cache writable before migration 026 is applied.
+    if (upsertError?.code === "PGRST204" && upsertError.message.includes("finish_prices")) {
+      const legacyRows = rowsToUpsert.map(({ finish_prices: _finishPrices, ...row }) => row)
+      const result = await supabase.from("card_prices").upsert(legacyRows, { onConflict: "card_id,language" })
+      upsertError = result.error
+    }
     if (upsertError) {
       console.error("[binderdex] Failed to upsert card_prices rows:", upsertError)
     }
@@ -375,6 +391,7 @@ function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
     : marketGbpAmount ?? goodGbpAmount
 
   return {
+    finishPrices: normalizeFinishPrices(row.finish_prices),
     cardId: row.card_id,
     language: normalizeCardLanguage(row.language),
     gbpAmount,
@@ -397,6 +414,7 @@ function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
 
 function snapshotToRow(snapshot: CardPriceSnapshot) {
   return {
+    finish_prices: snapshot.finishPrices ?? [],
     card_id: snapshot.cardId,
     language: snapshot.language,
     gbp_amount: snapshot.gbpAmount,
@@ -626,7 +644,7 @@ async function fetchCardPriceSnapshot(
 
     const payload = await response.json()
     tcgdexPayload = readRecord(payload)
-    const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, tcgdexPayload?.pricing, fxRates)
+    const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, tcgdexPayload?.pricing, fxRates, readRecord(tcgdexPayload?.variants))
     if (snapshot.marketGbpAmount != null) {
       return snapshot
     }
@@ -653,6 +671,7 @@ export function buildCardPriceSnapshotFromPricing(
   language: CardLanguage,
   pricing: unknown,
   fxRates: FxRates,
+  variants?: Record<string, unknown> | null,
 ): CardPriceSnapshot {
   const pricingMap = pricing && typeof pricing === "object" ? pricing as Record<string, unknown> : {}
   const tcgplayerPrice = pickTcgplayerPrice(cardId, language, readRecord(pricingMap.tcgplayer), fxRates)
@@ -667,6 +686,7 @@ export function buildCardPriceSnapshotFromPricing(
 
   return {
     ...snapshot,
+    finishPrices: buildFinishPrices(cardId, language, pricingMap, fxRates, variants),
     buySignal: buildBuySignal(snapshot),
   }
 }
@@ -1304,12 +1324,13 @@ function pickTcgplayerPrice(
   language: CardLanguage,
   tcgplayer: Record<string, unknown> | null | undefined,
   fxRates: FxRates,
+  variantKeys: readonly string[] = TCGPLAYER_VARIANT_PRIORITY,
 ): CardPriceSnapshot | null {
   if (!tcgplayer || typeof tcgplayer !== "object") {
     return null
   }
 
-  for (const variantKey of TCGPLAYER_VARIANT_PRIORITY) {
+  for (const variantKey of variantKeys) {
     const variant = tcgplayer[variantKey]
     if (!variant || typeof variant !== "object") {
       continue
@@ -1375,12 +1396,13 @@ function pickCardmarketPrice(
   language: CardLanguage,
   cardmarket: Record<string, unknown> | null | undefined,
   fxRates: FxRates,
+  fieldKeys: readonly string[] = CARDMARKET_FIELD_PRIORITY,
 ): CardPriceSnapshot | null {
   if (!cardmarket || typeof cardmarket !== "object") {
     return null
   }
 
-  for (const fieldKey of CARDMARKET_FIELD_PRIORITY) {
+  for (const fieldKey of fieldKeys) {
     const amount = readPriceAmount(cardmarket[fieldKey])
 
     if (amount == null) {
@@ -1611,4 +1633,69 @@ async function fetchEcbFxRates(): Promise<FxRates> {
 
 function roundPrice(amount: number) {
   return Math.round(amount * 100) / 100
+}
+
+export function normalizeFinishPrices(value: unknown): CardFinishPrice[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((raw) => {
+    const price = readRecord(raw)
+    if (!price || typeof price.cardId !== "string" || typeof price.variantKey !== "string"
+      || !["normal", "holo", "reverse_holo"].includes(String(price.finish))) return []
+    const snapshot = emptySnapshot(price.cardId, normalizeCardLanguage(price.language))
+    return [{
+      ...snapshot,
+      finish: price.finish as PricedCardFinish,
+      variantKey: price.variantKey,
+      gbpAmount: readPriceAmount(price.gbpAmount),
+      marketGbpAmount: readPriceAmount(price.marketGbpAmount),
+      goodGbpAmount: readPriceAmount(price.goodGbpAmount),
+      lowGbpAmount: readPriceAmount(price.lowGbpAmount),
+      highGbpAmount: readPriceAmount(price.highGbpAmount),
+      confidence: normalizePriceConfidence(price.confidence),
+      sourcePrices: normalizeSourcePrices(price.sourcePrices),
+      trendPoints: normalizeTrendPoints(price.trendPoints),
+      source: normalizePriceSource(price.source),
+      variantLabel: readString(price.variantLabel),
+      updatedAt: readString(price.updatedAt),
+      fxDate: readString(price.fxDate),
+      originalAmount: readPriceAmount(price.originalAmount),
+      originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
+    }]
+  })
+}
+
+function buildFinishPrices(
+  cardId: string,
+  language: CardLanguage,
+  pricing: Record<string, unknown>,
+  fxRates: FxRates,
+  variants?: Record<string, unknown> | null,
+): CardFinishPrice[] {
+  // Cardmarket's base row can be assigned only when metadata identifies one base finish.
+  // shortcut: ambiguous foil rows are excluded, include them when the provider identifies exact finishes.
+  const baseFinish = variants?.normal === true && variants?.holo === false ? "normal"
+    : variants?.holo === true && variants?.normal === false ? "holo" : null
+  const cardmarket = baseFinish ? pickCardmarketPrice(cardId, language, Object.fromEntries(Object.entries(readRecord(pricing.cardmarket) ?? {}).filter(([key]) => !key.includes("holo"))), fxRates,
+    ["trend", "avg30", "avg7", "avg1", "avg", "low"]) : null
+  const prices: CardFinishPrice[] = []
+  for (const variantKey of TCGPLAYER_VARIANT_PRIORITY) {
+    const tcgplayer = pickTcgplayerPrice(cardId, language, readRecord(pricing.tcgplayer), fxRates, [variantKey])
+    if (!tcgplayer) continue
+    const finish: PricedCardFinish = variantKey.toLowerCase().includes("reverse") ? "reverse_holo"
+      : variantKey.includes("holo") ? "holo" : "normal"
+    const isStandard = ["normal", "unlimited", "holo", "holofoil", "unlimited-holofoil"].includes(variantKey)
+    const sameFinishMarket = isStandard && finish === baseFinish ? cardmarket : null
+    const preferred = CARDMARKET_FIRST_LANGUAGES.has(language) ? sameFinishMarket ?? tcgplayer : tcgplayer
+    const combined = combineSourceEvidence(preferred, [tcgplayer, sameFinishMarket])
+    const timestamps = [tcgplayer.updatedAt, sameFinishMarket?.updatedAt].filter((date): date is string => typeof date === "string" && Number.isFinite(Date.parse(date)))
+    prices.push({ ...combined, finish, variantKey,
+      updatedAt: Number.isFinite(Date.parse(preferred.updatedAt ?? ""))
+        ? timestamps.sort((left, right) => Date.parse(left) - Date.parse(right))[0] ?? null : null,
+      trendPoints: sameFinishMarket?.updatedAt ? combined.trendPoints : [],
+    })
+  }
+  if (cardmarket && baseFinish && !prices.some((price) => price.finish === baseFinish && ["normal", "unlimited", "holo", "holofoil", "unlimited-holofoil"].includes(price.variantKey))) {
+    prices.push({ ...cardmarket, finish: baseFinish, variantKey: baseFinish, variantLabel: baseFinish === "normal" ? "Non-holo" : "Holo" })
+  }
+  return prices
 }

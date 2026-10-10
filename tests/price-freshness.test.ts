@@ -130,3 +130,11 @@ test("nothing to carry when there is no previous price", () => {
   assert.equal(carryForwardMissingPrice(empty, null, now), empty)
   assert.equal(carryForwardMissingPrice(empty, { snapshot: emptyFixture(), fetchedAt: daysAgo(1) }, now), empty)
 })
+
+test("finish evidence is capped independently and carried prices cannot retain high-confidence finishes", () => {
+  const oldFinish = { ...fixtureSnapshot({ updatedAt: daysAgo(31) }), finish: "holo" as const, variantKey: "holofoil" }
+  const snapshot = fixtureSnapshot({ finishPrices: [oldFinish] })
+  assert.equal(applyPriceStaleness(snapshot, now).finishPrices?.[0].confidence, "low")
+  const carried = carryForwardMissingPrice(emptyFixture(), { snapshot: fixtureSnapshot({ finishPrices: [{ ...oldFinish, updatedAt: daysAgo(1) }] }), fetchedAt: daysAgo(1) }, now)
+  assert.equal(carried.finishPrices?.[0].confidence, "low")
+})
