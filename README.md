@@ -1,35 +1,48 @@
 # binderdex
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Mobile-first Pokémon binder tracker: National Dex binder pages, collection and wanted lists, card matching and scanning, partner (shared) collections, read-only share links and card price tracking. Built with Next.js (App Router), Supabase and Bun, and deployed on Vercel from `main`.
 
-## Built with v0
+## Getting started
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
-
-[Continue working on v0 →](https://v0.app/chat/projects/prj_BADNpgrJyQNvqExva3iloIJGSWpy)
-
-## Getting Started
-
-First, run the development server:
+Requirements: [Bun](https://bun.sh) and a Supabase project.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+bun install
+cp .env.example .env.local   # fill in the Supabase URL, anon key and service role key
+bun run dev                   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The database schema lives in `scripts/NNN_*.sql`. Apply the files to your Supabase project in numeric order (gaps in the numbering are expected).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-## Learn More
+| Command | What it does |
+|---|---|
+| `bun run dev` | Next.js dev server |
+| `bun run build` / `bun run start` | Production build / serve |
+| `bun run lint` | ESLint |
+| `bun run typecheck` | `tsc --noEmit` |
+| `bun run test` | Unit tests (`tests/*.test.ts`, `node:test` style, run by Bun) |
+| `bun run test:e2e` | Playwright end-to-end suite (`e2e/*.e2e.ts`) at three phone sizes, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `BINDERDEX_E2E=1` and a mocked Supabase |
+| `bun run test:e2e:install` | Installs Playwright's Chromium (or set `CHROME_PATH` to a local Chrome) |
+| `bun run sync-card-db` | Syncs the TCGdex card database into Postgres (needs `POSTGRES_URL_NON_POOLING`; `--dry-run` supported) |
 
-To learn more, take a look at the following resources:
+E2E tips: set `E2E_PORT` to use another port, or `E2E_BASE_URL` to test an already running server.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+## Card data sync on Vercel
 
-<a href="https://v0.app/chat/api/kiro/clone/Cal-Morris/binderdex" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+`POST /api/admin/sync-card-db` runs the card sync on Vercel (Bearer `CARD_DB_SYNC_SECRET`, `SYNC_SECRET` or `CRON_SECRET`). Pass `?set=<id>,<id>` to sync specific sets, and repeat the call until the response has `"done": true`.
+
+## Environment variables
+
+See [`.env.example`](.env.example) for every variable and what it's for. Only the three Supabase values are needed for local development.
+
+## Project layout
+
+- `app/`: routes, pages and API route handlers
+- `components/`: React components (`binder-app.tsx` is the main client app; `components/ui/` holds the shadcn primitives in use)
+- `hooks/`: client hooks (collection, settings, prices, overlays)
+- `lib/`: shared logic (`lib/domain/` for card types, pricing, sync, scanning)
+- `workflows/`: Vercel Workflow definitions (price refresh)
+- `scripts/`: SQL migrations and CLI scripts
+- `tests/`, `e2e/`: unit and Playwright tests

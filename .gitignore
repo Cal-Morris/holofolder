@@ -22,3 +22,4 @@ tsconfig.tsbuildinfo
 /playwright-report/
 /blob-report/
 .env*
+!.env.example
