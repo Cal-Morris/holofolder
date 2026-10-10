@@ -1,12 +1,18 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState, type UIEvent } from "react"
 import { Check, Heart, Star, X, Search, Plus, BadgeCheck, Layers3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { CollectedPokemon } from "@/hooks/use-collection"
 import type { PokemonSummary } from "@/lib/pokemon-catalog"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
+import { useVirtualRows } from "@/hooks/use-virtual-rows"
+
+// Rows are windowed (only those near the viewport render). These match the markup below: `space-y-1.5`
+// between rows, and a typical row height to estimate rows that haven't rendered yet.
+const ROW_GAP_PX = 6
+const ESTIMATED_ROW_HEIGHT_PX = 96
 
 interface DexListViewProps {
   pokemonList: PokemonSummary[]
@@ -149,6 +155,18 @@ export default function DexListView({
       return haystack.includes(normalizedSearch)
     })
   }, [activeFilter, collectionByPokemonId, pokemonList, searchQuery])
+  const rowKeys = useMemo(() => filteredPokemonList.map((pokemon) => pokemon.id), [filteredPokemonList])
+  const { onScroll: onHeadingScroll } = heading
+  const { range, attachScroller, onScroll: onVirtualScroll, measureRow } = useVirtualRows({
+    keys: rowKeys,
+    gap: ROW_GAP_PX,
+    estimatedRowHeight: ESTIMATED_ROW_HEIGHT_PX,
+  })
+  const handleScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
+    onHeadingScroll(event)
+    onVirtualScroll(event)
+  }, [onHeadingScroll, onVirtualScroll])
+  const { start, end, offsetTop, totalHeight } = range
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.6rem] border border-border/60 bg-card/88 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-card/70">
@@ -205,149 +223,153 @@ export default function DexListView({
         </div>
       </div>
 
-      <div data-testid="view-scroller" onScroll={heading.onScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="space-y-1.5">
-          {filteredPokemonList.length === 0 ? (
-            <div className="rounded-2xl border border-border/45 bg-background/45 p-4 text-sm text-muted-foreground">
-              No dex slots match the current filters.
-            </div>
-          ) : null}
-          {filteredPokemonList.map((pokemon) => {
-            const item = collectionByPokemonId.get(pokemon.id)
-            const state = getSlotState(item)
-            const StateIcon = state.icon
-            const priceKey = getPriceKey(item)
-            const priceLabel = priceKey ? formatPrice(pricesByKey[priceKey]) : null
-            const wantedCount = item?.wanted_cards?.length ?? 0
+      <div ref={attachScroller} data-testid="view-scroller" onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
+        {filteredPokemonList.length === 0 ? (
+          <div className="rounded-2xl border border-border/45 bg-background/45 p-4 text-sm text-muted-foreground">
+            No dex slots match the current filters.
+          </div>
+        ) : null}
+        <div style={{ position: "relative", height: totalHeight }}>
+          <div className="space-y-1.5" style={{ position: "absolute", top: offsetTop, left: 0, right: 0 }}>
+            {filteredPokemonList.slice(start, end).map((pokemon) => {
+              const item = collectionByPokemonId.get(pokemon.id)
+              const state = getSlotState(item)
+              const StateIcon = state.icon
+              const priceKey = getPriceKey(item)
+              const priceLabel = priceKey ? formatPrice(pricesByKey[priceKey]) : null
+              const wantedCount = item?.wanted_cards?.length ?? 0
 
-            return (
-              <div
-                key={pokemon.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onSelectPokemon(pokemon)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault()
-                    onSelectPokemon(pokemon)
-                  }
-                }}
-                className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-transparent bg-background/35 p-2.5 text-left transition-all hover:border-border/60 hover:bg-background/70 dark:bg-background/22 dark:hover:border-white/10"
-              >
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/45 bg-muted/45">
-                  <img
-                    src={item?.card_image || pokemon.sprites.other["official-artwork"].front_default}
-                    alt={item?.card_name || pokemon.name}
-                    className="h-full w-full object-contain p-1"
-                    loading="lazy"
-                  />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold capitalize">
-                        {pokemon.name}
-                      </p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {formatDexNumber(pokemon.id)}
-                        {item?.card_name ? ` · ${item.card_name}` : " · No card selected"}
-                      </p>
-                    </div>
-                    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold ${state.className}`}>
-                      <StateIcon className="h-3 w-3" />
-                      {state.label}
-                    </span>
+              return (
+                <div
+                  key={pokemon.id}
+                  ref={measureRow}
+                  data-virtual-key={pokemon.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectPokemon(pokemon)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      onSelectPokemon(pokemon)
+                    }
+                  }}
+                  className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-transparent bg-background/35 p-2.5 text-left transition-all hover:border-border/60 hover:bg-background/70 dark:bg-background/22 dark:hover:border-white/10"
+                >
+                  <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/45 bg-muted/45">
+                    <img
+                      src={item?.card_image || pokemon.sprites.other["official-artwork"].front_default}
+                      alt={item?.card_name || pokemon.name}
+                      className="h-full w-full object-contain p-1"
+                      loading="lazy"
+                    />
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {onBrowseCards ? (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onBrowseCards(pokemon)
-                        }}
-                        onKeyDown={(event) => event.stopPropagation()}
-                        aria-label={`All ${pokemon.name} cards`}
-                        className="inline-flex h-8 items-center gap-1 rounded-full border border-border/55 bg-background/60 px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
-                      >
-                        <Layers3 className="h-3.5 w-3.5" />
-                        Cards
-                      </button>
-                    ) : null}
-                    {priceLabel ? (
-                      <span className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                        {priceLabel}
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold capitalize">
+                          {pokemon.name}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {formatDexNumber(pokemon.id)}
+                          {item?.card_name ? ` · ${item.card_name}` : " · No card selected"}
+                        </p>
+                      </div>
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold ${state.className}`}>
+                        <StateIcon className="h-3 w-3" />
+                        {state.label}
                       </span>
-                    ) : null}
-                    {wantedCount > 0 ? (
-                      <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
-                        {wantedCount} want
-                      </span>
-                    ) : null}
-                    {!readOnly ? (
-                      <span className="ml-auto flex items-center gap-1">
-                        <Button
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {onBrowseCards ? (
+                        <button
                           type="button"
-                          variant={item?.status !== "wishlisted" && item ? "default" : "outline"}
-                          size="sm"
-                          className="h-8 rounded-full px-3 text-[11px]"
                           onClick={(event) => {
                             event.stopPropagation()
-                            onToggleOwned(pokemon)
+                            onBrowseCards(pokemon)
                           }}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          aria-label={`All ${pokemon.name} cards`}
+                          className="inline-flex h-8 items-center gap-1 rounded-full border border-border/55 bg-background/60 px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
                         >
-                          {item?.status !== "wishlisted" && item ? "Owned" : "Own"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          className="rounded-full"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onAddCard(pokemon)
-                          }}
-                          aria-label={`Add card for ${pokemon.name}`}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          className="rounded-full"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onAddWanted(pokemon)
-                          }}
-                          aria-label={`Wantlist card for ${pokemon.name}`}
-                        >
-                          <Heart className="h-3.5 w-3.5" />
-                        </Button>
-                        {item?.status !== "wishlisted" && item ? (
+                          <Layers3 className="h-3.5 w-3.5" />
+                          Cards
+                        </button>
+                      ) : null}
+                      {priceLabel ? (
+                        <span className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          {priceLabel}
+                        </span>
+                      ) : null}
+                      {wantedCount > 0 ? (
+                        <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+                          {wantedCount} want
+                        </span>
+                      ) : null}
+                      {!readOnly ? (
+                        <span className="ml-auto flex items-center gap-1">
                           <Button
                             type="button"
-                            variant={item.status === "finalized" ? "default" : "outline"}
+                            variant={item?.status !== "wishlisted" && item ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 rounded-full px-3 text-[11px]"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onToggleOwned(pokemon)
+                            }}
+                          >
+                            {item?.status !== "wishlisted" && item ? "Owned" : "Own"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
                             size="icon-sm"
                             className="rounded-full"
                             onClick={(event) => {
                               event.stopPropagation()
-                              onTogglePerfect(pokemon.id)
+                              onAddCard(pokemon)
                             }}
-                            aria-label={`Toggle perfect slot for ${pokemon.name}`}
+                            aria-label={`Add card for ${pokemon.name}`}
                           >
-                            <Star className={`h-3.5 w-3.5 ${item.status === "finalized" ? "fill-current" : ""}`} />
+                            <Plus className="h-3.5 w-3.5" />
                           </Button>
-                        ) : null}
-                      </span>
-                    ) : null}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            className="rounded-full"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onAddWanted(pokemon)
+                            }}
+                            aria-label={`Wantlist card for ${pokemon.name}`}
+                          >
+                            <Heart className="h-3.5 w-3.5" />
+                          </Button>
+                          {item?.status !== "wishlisted" && item ? (
+                            <Button
+                              type="button"
+                              variant={item.status === "finalized" ? "default" : "outline"}
+                              size="icon-sm"
+                              className="rounded-full"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                onTogglePerfect(pokemon.id)
+                              }}
+                              aria-label={`Toggle perfect slot for ${pokemon.name}`}
+                            >
+                              <Star className={`h-3.5 w-3.5 ${item.status === "finalized" ? "fill-current" : ""}`} />
+                            </Button>
+                          ) : null}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
     </section>
