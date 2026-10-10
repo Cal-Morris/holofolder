@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isSlotStatus, normalizeCardFinish, normalizeCardLanguage } from "@/lib/domain/cards"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
+import { normalizeCollectionItem } from "@/lib/collection/normalize"
+import { collectionFingerprint } from "@/lib/collection/sync"
 
 function normalizeWantedCards(value: unknown) {
   if (!Array.isArray(value)) return []
@@ -29,6 +31,32 @@ function normalizeWantedCards(value: unknown) {
 
 async function resolveOwnerUserId(userId: string) {
   return resolveCollectionOwnerUserId(createAdminClient(), userId)
+}
+
+/**
+ * Compare-and-set for offline edits: when the client says which row its edit was based on, refuse the write
+ * (409 + current row) if the row has changed since. Without a base fingerprint, writes behave as before.
+ */
+async function checkBaseFingerprint(
+  admin: ReturnType<typeof createAdminClient>,
+  ownerUserId: string,
+  pokemonId: number,
+  baseFingerprint: unknown,
+) {
+  if (typeof baseFingerprint !== "string" || baseFingerprint.length === 0) return null
+
+  const { data, error } = await admin
+    .from("pokemon_collection")
+    .select("*")
+    .eq("user_id", ownerUserId)
+    .eq("pokemon_id", pokemonId)
+    .maybeSingle()
+
+  if (error) throw error
+  const current = data ? normalizeCollectionItem(data) : null
+  if (collectionFingerprint(current) === baseFingerprint) return null
+
+  return NextResponse.json({ error: "Collection item changed on the server", item: data ?? null }, { status: 409 })
 }
 
 async function requireUser() {
@@ -64,6 +92,9 @@ export async function POST(request: NextRequest) {
 
     const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, pokemonId, body?.baseFingerprint)
+    if (conflict) return conflict
+
     const { data, error } = await admin
       .from("pokemon_collection")
       .upsert(
@@ -158,6 +189,9 @@ export async function DELETE(request: NextRequest) {
 
     const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"))
+    if (conflict) return conflict
+
     const { error } = await admin
       .from("pokemon_collection")
       .delete()

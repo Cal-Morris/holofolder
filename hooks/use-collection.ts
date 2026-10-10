@@ -40,15 +40,25 @@ import {
 } from "@/lib/collection/normalize"
 import {
   LOCAL_COLLECTION_PENDING_OPS_KEY,
+  hasPendingCollectionOperation,
   readLocalCollectionSnapshot,
   restorePendingCollectionOperations,
   readPendingCollectionOperations,
   queuePendingCollectionOperation,
+  rebasePendingCollectionOperation,
   removePendingCollectionOperation,
+  replacePendingCollectionOperation,
   persistLocalCollectionState,
   isOffline,
 } from "@/lib/collection/offline-queue"
-import type { PendingCollectionOperationInput } from "@/lib/collection/offline-queue"
+import type { PendingCollectionOperation, PendingCollectionOperationInput } from "@/lib/collection/offline-queue"
+import {
+  applyPendingEdits,
+  classifyWriteFailure,
+  collectionFingerprint,
+  nextSyncRetryDelay,
+  resolveConflict,
+} from "@/lib/collection/sync"
 import {
   COLLECTION_AUTO_REFRESH_INTERVAL_MS,
   keepStableUserById,
@@ -58,10 +68,19 @@ import {
   isDocumentVisible,
 } from "@/lib/collection/refresh-policy"
 import {
+  CollectionWriteError,
   extractErrorMessage,
   saveRemoteCollectionItem,
   deleteRemoteCollectionItem,
 } from "@/lib/collection/remote"
+
+/** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
+export type CollectionSyncStatus = "idle" | "syncing" | "waiting"
+
+function describeEdit(operation: Pick<PendingCollectionOperation, "pokemonId"> & { item?: CollectedPokemon; base?: CollectedPokemon | null }) {
+  const name = operation.item?.pokemon_name ?? operation.base?.pokemon_name ?? `#${operation.pokemonId}`
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
 
 interface PokemonCatalogEntry {
   id: number
@@ -100,6 +119,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
   const [localPendingSyncCount, setLocalPendingSyncCount] = useState(0)
+  const [syncStatus, setSyncStatus] = useState<CollectionSyncStatus>("idle")
+  const [syncNotice, setSyncNotice] = useState<string | null>(null)
+  const syncRetryAttemptRef = useRef(0)
+  const syncRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flushPendingCollectionOperationsRef = useRef<() => Promise<void>>(async () => undefined)
   const supabase = createClient()
   const isFlushingPendingOperationsRef = useRef(false)
   const activeRemoteCollectionWriteCountRef = useRef(0)
@@ -157,10 +181,38 @@ export function useCollection(options: UseCollectionOptions = {}) {
     refreshLocalCollectedCount()
   }, [collectionOwnerUserId, refreshLocalCollectedCount])
 
-  const queueLocalCollectionOperation = useCallback((operation: PendingCollectionOperationInput) => {
+  const cancelSyncRetry = useCallback(() => {
+    if (syncRetryTimerRef.current) {
+      clearTimeout(syncRetryTimerRef.current)
+      syncRetryTimerRef.current = null
+    }
+    syncRetryAttemptRef.current = 0
+  }, [])
+
+  /** Try the queue again after the next backoff delay. */
+  const scheduleSyncRetry = useCallback(() => {
+    if (syncRetryTimerRef.current) clearTimeout(syncRetryTimerRef.current)
+    const delay = nextSyncRetryDelay(syncRetryAttemptRef.current)
+    syncRetryAttemptRef.current += 1
+    setSyncStatus("waiting")
+    syncRetryTimerRef.current = setTimeout(() => {
+      syncRetryTimerRef.current = null
+      void flushPendingCollectionOperationsRef.current()
+    }, delay)
+  }, [])
+
+  const queueLocalCollectionOperation = useCallback((operation: PendingCollectionOperationInput, options: { afterFailure?: boolean } = {}) => {
     queuePendingCollectionOperation(operation)
+    if (options.afterFailure) {
+      // The server or network just failed this edit: back off before trying again.
+      scheduleSyncRetry()
+    } else {
+      // A new edit is a good moment to try again straight away.
+      cancelSyncRetry()
+      void Promise.resolve().then(() => flushPendingCollectionOperationsRef.current())
+    }
     refreshLocalPendingSyncCount()
-  }, [refreshLocalPendingSyncCount])
+  }, [cancelSyncRetry, refreshLocalPendingSyncCount, scheduleSyncRetry])
 
   useEffect(() => {
     refreshLocalCollectedCount()
@@ -258,7 +310,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
           .order("pokemon_id", { ascending: true })
 
         if (error) throw error
-        setCollection(normalizeCollectionItems(data))
+        // Queued edits stay visible until they are synced.
+        setCollection(applyPendingEdits(normalizeCollectionItems(data), readPendingCollectionOperations()))
       } else {
         setCollection([])
       }
@@ -312,7 +365,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           .eq("user_id", ownerUserId)
           .order("pokemon_id", { ascending: true })
 
-        setCollection(normalizeCollectionItems(data))
+        setCollection(applyPendingEdits(normalizeCollectionItems(data), readPendingCollectionOperations()))
       } else {
         setCollectionOwnerUserId(null)
         setCollection([])
@@ -380,49 +433,112 @@ export function useCollection(options: UseCollectionOptions = {}) {
     persistLocalCollectionState(collection, collectionOwnerUserId)
   }, [collection, collectionOwnerUserId, readOnly])
 
+  /** Show the outcome of a write unless a newer local edit of the same Pokémon is still queued. */
+  const settleLocalItem = useCallback((pokemonId: number, item: CollectedPokemon | null) => {
+    if (hasPendingCollectionOperation(pokemonId)) {
+      // The newer edit is now based on what the server has.
+      rebasePendingCollectionOperation(pokemonId, item)
+      return
+    }
+    setCollection((current) => (item ? upsertCollectionItem(current, item) : removeCollectionItem(current, pokemonId)))
+  }, [])
+
+  /** Undo an edit the server will never accept, and say so. */
+  const rollBackEdit = useCallback((operation: { pokemonId: number; item?: CollectedPokemon; base?: CollectedPokemon | null }, error: unknown) => {
+    console.error("[binderdex] Collection change rejected, rolled back:", {
+      pokemonId: operation.pokemonId,
+      message: extractErrorMessage(error),
+    })
+    if ("base" in operation && operation.base !== undefined) {
+      settleLocalItem(operation.pokemonId, operation.base)
+    } else {
+      // Legacy edit without a known base: the next refresh brings back the server row.
+      lastCollectionAutoRefreshAtRef.current = 0
+    }
+    setSyncNotice(`Couldn't save your change to ${describeEdit(operation)}. It was undone.`)
+  }, [settleLocalItem])
+
   const flushPendingCollectionOperations = useCallback(async () => {
     if (readOnly || !user || !collectionOwnerUserId || isOffline()) return
     if (isFlushingPendingOperationsRef.current) return
+    // Backing off after a failure: only the retry timer, reconnecting, the app becoming visible or a new
+    // edit start the next attempt (they clear the timer first).
+    if (syncRetryTimerRef.current) return
 
     const operations = readPendingCollectionOperations()
     if (operations.length === 0) {
       if (localPendingSyncCount !== 0) {
         setLocalPendingSyncCount(0)
       }
+      setSyncStatus("idle")
       return
     }
 
     isFlushingPendingOperationsRef.current = true
+    setSyncStatus("syncing")
+    let didWriteRemoteCollection = false
+    let shouldRetry = false
 
     try {
-      let nextCollection = collection
-      let didWriteRemoteCollection = false
+      for (const queuedOperation of operations) {
+        let operation = queuedOperation
+        let conflictRounds = 0
 
-      for (const operation of operations) {
-        try {
-          if (operation.type === "upsert") {
-            const savedItem = await saveRemoteCollectionItem(operation.item)
-            nextCollection = upsertCollectionItem(nextCollection, savedItem)
-          } else {
-            await deleteRemoteCollectionItem(operation.pokemonId)
-            nextCollection = removeCollectionItem(nextCollection, operation.pokemonId)
+        // Each edit: write it; on 409 merge with the server row and try again (bounded); on a hard
+        // failure roll it back; on a network/server failure stop and retry the whole queue later.
+        while (true) {
+          const edit = operation
+          const baseFingerprint = "base" in edit ? collectionFingerprint(edit.base) : undefined
+          try {
+            if (edit.type === "upsert") {
+              const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { baseFingerprint }))
+              removePendingCollectionOperation(edit.id)
+              settleLocalItem(edit.pokemonId, savedItem)
+            } else {
+              await writeRemoteCollection(() => deleteRemoteCollectionItem(edit.pokemonId, { baseFingerprint }))
+              removePendingCollectionOperation(edit.id)
+              settleLocalItem(edit.pokemonId, null)
+            }
+            didWriteRemoteCollection = true
+            break
+          } catch (error) {
+            const kind = classifyWriteFailure(error)
+
+            if (kind === "conflict" && conflictRounds < 2) {
+              conflictRounds += 1
+              const serverItem = error instanceof CollectionWriteError ? error.serverItem : null
+              const resolution = resolveConflict(operation, serverItem)
+              if (resolution.action === "drop") {
+                removePendingCollectionOperation(operation.id)
+                settleLocalItem(operation.pokemonId, resolution.serverItem)
+                break
+              }
+              const merged: PendingCollectionOperation = resolution.action === "write"
+                ? { id: operation.id, type: "upsert", pokemonId: operation.pokemonId, item: resolution.item, base: resolution.base, queuedAt: operation.queuedAt }
+                : { id: operation.id, type: "delete", pokemonId: operation.pokemonId, base: resolution.base, queuedAt: operation.queuedAt }
+              replacePendingCollectionOperation(operation.id, merged)
+              operation = merged
+              continue
+            }
+
+            if (kind === "hard" || kind === "conflict") {
+              removePendingCollectionOperation(operation.id)
+              rollBackEdit(operation, error)
+              break
+            }
+
+            console.error("[binderdex] Pending collection sync paused:", {
+              message: extractErrorMessage(error),
+              pokemonId: operation.pokemonId,
+              operation: operation.type,
+            })
+            shouldRetry = true
+            break
           }
-
-          didWriteRemoteCollection = true
-          removePendingCollectionOperation(operation.id)
-          refreshLocalPendingSyncCount()
-        } catch (error) {
-          console.error("[binderdex] Pending collection sync paused:", {
-            message: extractErrorMessage(error),
-            pokemonId: operation.pokemonId,
-            operation: operation.type,
-          })
-          break
         }
-      }
 
-      if (nextCollection !== collection) {
-        applyLocalCollection(nextCollection)
+        refreshLocalPendingSyncCount()
+        if (shouldRetry) break
       }
 
       if (didWriteRemoteCollection) {
@@ -430,21 +546,78 @@ export function useCollection(options: UseCollectionOptions = {}) {
       }
     } finally {
       isFlushingPendingOperationsRef.current = false
+      refreshLocalPendingSyncCount()
+    }
+
+    if (shouldRetry) {
+      scheduleSyncRetry()
+      return
+    }
+
+    syncRetryAttemptRef.current = 0
+    if (readPendingCollectionOperations().length > 0) {
+      // Edits made while we were sending: go again.
+      void Promise.resolve().then(() => flushPendingCollectionOperationsRef.current())
+    } else {
+      setSyncStatus("idle")
     }
   }, [
-    applyLocalCollection,
     broadcastCollectionChanged,
-    collection,
     collectionOwnerUserId,
     localPendingSyncCount,
     readOnly,
     refreshLocalPendingSyncCount,
+    rollBackEdit,
+    scheduleSyncRetry,
+    settleLocalItem,
     user,
+    writeRemoteCollection,
   ])
+
+  useEffect(() => {
+    flushPendingCollectionOperationsRef.current = flushPendingCollectionOperations
+  }, [flushPendingCollectionOperations])
+
+  useEffect(() => {
+    if (!syncNotice) return
+    const timer = setTimeout(() => setSyncNotice(null), 10_000)
+    return () => clearTimeout(timer)
+  }, [syncNotice])
 
   useEffect(() => {
     flushPendingCollectionOperations()
   }, [flushPendingCollectionOperations, localPendingSyncCount])
+
+  // Queued edits made before a reload stay visible on top of whatever collection the page started with.
+  useEffect(() => {
+    if (readOnly) return
+    const operations = readPendingCollectionOperations()
+    if (operations.length > 0) {
+      setCollection((current) => applyPendingEdits(current, operations))
+    }
+  }, [readOnly])
+
+  // Sync triggers besides new edits: coming back online and the app becoming visible again. Both reset the
+  // backoff so a reconnect syncs straight away.
+  useEffect(() => {
+    if (readOnly || typeof window === "undefined") return
+
+    const syncNow = () => {
+      cancelSyncRetry()
+      void flushPendingCollectionOperationsRef.current()
+    }
+    const handleVisibility = () => {
+      if (isDocumentVisible()) syncNow()
+    }
+
+    window.addEventListener("online", syncNow)
+    document.addEventListener("visibilitychange", handleVisibility)
+    return () => {
+      window.removeEventListener("online", syncNow)
+      document.removeEventListener("visibilitychange", handleVisibility)
+      cancelSyncRetry()
+    }
+  }, [cancelSyncRetry, readOnly])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -502,12 +675,45 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
   }, [localPendingSyncCount, readOnly, reloadRemoteCollection, user])
 
-  useEffect(() => {
-    if (readOnly || typeof window === "undefined") return
+  /**
+   * Optimistic write shared by every edit: update the UI now, then send it. Offline, signed out, or with an
+   * older edit of the same Pokémon still queued, the edit is queued instead (and keeps per-Pokémon order).
+   * A hard server rejection rolls the edit back; network/server failures and conflicts go to the queue.
+   */
+  const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null) => {
+    const existingItem = collection.find((item) => item.pokemon_id === pokemonId) ?? null
+    applyLocalCollection(nextItem ? upsertCollectionItem(collection, nextItem) : removeCollectionItem(collection, pokemonId))
 
-    window.addEventListener("online", flushPendingCollectionOperations)
-    return () => window.removeEventListener("online", flushPendingCollectionOperations)
-  }, [flushPendingCollectionOperations, readOnly])
+    const edit: PendingCollectionOperationInput = nextItem
+      ? { type: "upsert", pokemonId, item: nextItem, base: existingItem }
+      : { type: "delete", pokemonId, base: existingItem }
+
+    if (!user || !collectionOwnerUserId || isOffline() || hasPendingCollectionOperation(pokemonId)) {
+      queueLocalCollectionOperation(edit)
+      return { item: nextItem, queued: true as const }
+    }
+
+    const baseFingerprint = collectionFingerprint(existingItem)
+    try {
+      if (nextItem) {
+        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint }))
+        settleLocalItem(pokemonId, savedItem)
+        void broadcastCollectionChanged()
+        return { item: savedItem, queued: false as const }
+      }
+      await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId, { baseFingerprint }))
+      void broadcastCollectionChanged()
+      return { item: null, queued: false as const }
+    } catch (error) {
+      if (classifyWriteFailure(error) === "hard") {
+        rollBackEdit({ pokemonId, item: nextItem ?? undefined, base: existingItem }, error)
+        return { item: existingItem, queued: false as const, error, rolledBack: true as const }
+      }
+      // Conflicts are resolved by the queue right away; network/server failures wait for the backoff.
+      queueLocalCollectionOperation(edit, { afterFailure: classifyWriteFailure(error) === "retry" })
+      return { item: nextItem, queued: true as const, error }
+    }
+  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, rollBackEdit, settleLocalItem, user, writeRemoteCollection])
 
   const addToCollection = useCallback(async (
     pokemonId: number,
@@ -519,7 +725,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     cardLanguage: CardLanguage = "en",
     status: SlotStatus = 'collected',
     options: SaveCollectionOptions = {},
-  ) => {
+  ): Promise<{ data?: CollectedPokemon; queued?: boolean; error?: string }> => {
     if (readOnly) return { error: "Read-only binder" }
 
     const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
@@ -537,57 +743,27 @@ export function useCollection(options: UseCollectionOptions = {}) {
       status,
       collected_at: existingItem?.collected_at ?? new Date().toISOString(),
     })
-    const nextCollection = upsertCollectionItem(collection, nextItem)
-
-    applyLocalCollection(nextCollection)
-
-    if (!user || !collectionOwnerUserId || isOffline()) {
-      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
-      return { data: nextItem, queued: true }
+    const result = await commitItemChange(pokemonId, nextItem)
+    if ("rolledBack" in result) {
+      console.error("[binderdex] Error adding to collection:", { message: extractErrorMessage(result.error), pokemonId, status })
+      return { error: extractErrorMessage(result.error) }
     }
-
-    try {
-      const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem))
-      const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
-
-      applyLocalCollection(syncedCollection)
-      void broadcastCollectionChanged()
-
-      return { data: savedItem }
-    } catch (error) {
-      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
-      console.error("[binderdex] Error adding to collection:", {
-        message: extractErrorMessage(error),
-        raw: error,
-        pokemonId,
-        status,
-      })
-      return { data: nextItem, queued: true, error: extractErrorMessage(error) }
+    if (result.queued) {
+      return { data: nextItem, queued: true, ...("error" in result ? { error: extractErrorMessage(result.error) } : {}) }
     }
-  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
+    return { data: result.item ?? nextItem }
+  }, [commitItemChange, collection, readOnly])
 
   const removeFromCollection = useCallback(async (pokemonId: number) => {
     if (readOnly) return { error: "Read-only binder" }
-    const nextCollection = removeCollectionItem(collection, pokemonId)
 
-    applyLocalCollection(nextCollection)
-
-    if (!user || !collectionOwnerUserId || isOffline()) {
-      queueLocalCollectionOperation({ type: "delete", pokemonId })
-      return { success: true, queued: true }
+    const result = await commitItemChange(pokemonId, null)
+    if ("rolledBack" in result) {
+      console.error("[binderdex] Error removing from collection:", result.error)
+      return { error: result.error }
     }
-
-    try {
-      await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId))
-      void broadcastCollectionChanged()
-
-      return { success: true }
-    } catch (error) {
-      queueLocalCollectionOperation({ type: "delete", pokemonId })
-      console.error("[binderdex] Error removing from collection:", error)
-      return { success: true, queued: true, error }
-    }
-  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
+    return result.queued ? { success: true, queued: true, ...("error" in result ? { error: result.error } : {}) } : { success: true }
+  }, [commitItemChange, readOnly])
 
   const addWantedCard = useCallback(async (
     pokemonId: number,
@@ -756,28 +932,17 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
     if (!existingItem) return { error: "Not in collection" }
     const nextItem = normalizeCollectionItem({ ...existingItem, status })
-    const nextCollection = upsertCollectionItem(collection, nextItem)
 
-    applyLocalCollection(nextCollection)
-
-    if (!user || !collectionOwnerUserId || isOffline()) {
-      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
-      return { data: nextItem, queued: true }
+    const result = await commitItemChange(pokemonId, nextItem)
+    if ("rolledBack" in result) {
+      console.error("[binderdex] Error updating status:", result.error)
+      return { error: result.error }
     }
-
-    try {
-      const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem))
-      const syncedCollection = upsertCollectionItem(nextCollection, savedItem)
-
-      applyLocalCollection(syncedCollection)
-      void broadcastCollectionChanged()
-      return { data: savedItem }
-    } catch (error) {
-      queueLocalCollectionOperation({ type: "upsert", pokemonId, item: nextItem })
-      console.error("[binderdex] Error updating status:", error)
-      return { data: nextItem, queued: true, error }
+    if (result.queued) {
+      return { data: nextItem, queued: true, ...("error" in result ? { error: result.error } : {}) }
     }
-  }, [applyLocalCollection, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, readOnly, user, writeRemoteCollection])
+    return { data: result.item ?? nextItem }
+  }, [collection, commitItemChange, readOnly])
 
   const cycleStatus = useCallback(async (pokemonId: number) => {
     const item = collection.find(p => p.pokemon_id === pokemonId)
@@ -832,6 +997,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
     syncLocalCollectionToDatabase,
     localCollectedCount,
     localPendingSyncCount,
+    syncStatus,
+    syncNotice,
+    dismissSyncNotice: () => setSyncNotice(null),
     collectionCount: collection.filter((item) => item.status !== "wishlisted").length,
     collectionOwnerUserId,
   }

@@ -883,6 +883,9 @@ export default function BinderApp({
     syncLocalCollectionToDatabase,
     localCollectedCount,
     localPendingSyncCount,
+    syncStatus,
+    syncNotice,
+    dismissSyncNotice,
   } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId, readOnly: readOnlyMode })
   useOfflineStoreSync(!readOnlyMode)
   const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
@@ -5380,7 +5383,37 @@ export default function BinderApp({
           <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300">
             <WifiOff className="h-3.5 w-3.5" />
             <span>Offline mode</span>
-            <span className="text-[11px] text-amber-500/80 dark:text-amber-200/75">Using cached data where available</span>
+            <span className="text-[11px] text-amber-500/80 dark:text-amber-200/75">
+              {user && localPendingSyncCount > 0
+                ? `${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} will sync when you're back online`
+                : "Using cached data where available"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Pending-sync indicator and rollback notice (minimal markup; reuses the offline pill's look). */}
+      {isOnline && user && !readOnlyMode && (localPendingSyncCount > 0 || syncNotice) && (
+        <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.45rem)] z-50 flex justify-center px-3">
+          <div
+            role="status"
+            data-sync-status={syncNotice ? "rolled-back" : syncStatus}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300"
+          >
+            {syncNotice ? (
+              <>
+                <span>{syncNotice}</span>
+                <button type="button" onClick={dismissSyncNotice} className="underline underline-offset-2">
+                  Dismiss
+                </button>
+              </>
+            ) : (
+              <span>
+                {syncStatus === "waiting"
+                  ? `${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} waiting to sync, retrying…`
+                  : `Syncing ${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"}…`}
+              </span>
+            )}
           </div>
         </div>
       )}

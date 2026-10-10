@@ -11,6 +11,8 @@ export interface LocalCollectionSnapshot {
   collection: CollectedPokemon[]
 }
 
+// `base` is the server row the edit was made against (null: no row). It is what conflict detection compares
+// with (see lib/collection/sync.ts). Edits queued before this field existed have no `base` and are written as-is.
 export type PendingCollectionOperation =
   | {
       id: string
@@ -18,12 +20,14 @@ export type PendingCollectionOperation =
       pokemonId: number
       item: CollectedPokemon
       queuedAt: string
+      base?: CollectedPokemon | null
     }
   | {
       id: string
       type: "delete"
       pokemonId: number
       queuedAt: string
+      base?: CollectedPokemon | null
     }
 
 export type PendingCollectionOperationInput =
@@ -31,11 +35,21 @@ export type PendingCollectionOperationInput =
       type: "upsert"
       pokemonId: number
       item: CollectedPokemon
+      base?: CollectedPokemon | null
     }
   | {
       type: "delete"
       pokemonId: number
+      base?: CollectedPokemon | null
     }
+
+function parseBase(operation: object): { base?: CollectedPokemon | null } {
+  if (!("base" in operation)) return {}
+  const base = (operation as { base?: unknown }).base
+  if (base === null) return { base: null }
+  if (base && typeof base === "object") return { base: normalizeCollectionItem(base as Partial<CollectedPokemon>) }
+  return {}
+}
 
 export const LOCAL_COLLECTION_SNAPSHOT_KEY = "pokemon_collection_snapshot_v1"
 export const LOCAL_COLLECTION_PENDING_OPS_KEY = "pokemon_collection_pending_ops_v1"
@@ -96,6 +110,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           type: "delete",
           pokemonId: item.pokemonId,
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
+          ...parseBase(item),
         }]
       }
 
@@ -106,6 +121,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           pokemonId: item.pokemonId,
           item: normalizeCollectionItem(item.item),
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
+          ...parseBase(item),
         }]
       }
 
@@ -137,15 +153,42 @@ export function createPendingOperationId() {
 }
 
 export function queuePendingCollectionOperation(operation: PendingCollectionOperationInput) {
+  const existing = readPendingCollectionOperations()
+  const replaced = existing.find((queuedOperation) => queuedOperation.pokemonId === operation.pokemonId)
+  // One edit per Pokémon: the newest wins, but it keeps the base of the first unsynced edit, because that
+  // is the server state all of them were made against.
+  const base = replaced ? replaced.base : operation.base
   const nextOperation = {
     ...operation,
+    base,
     id: createPendingOperationId(),
     queuedAt: new Date().toISOString(),
   } as PendingCollectionOperation
-  const operations = readPendingCollectionOperations()
-    .filter((queuedOperation) => queuedOperation.pokemonId !== operation.pokemonId)
+  if (base === undefined) delete nextOperation.base
+  const operations = existing.filter((queuedOperation) => queuedOperation.pokemonId !== operation.pokemonId)
 
   writePendingCollectionOperations([...operations, nextOperation])
+  return nextOperation
+}
+
+export function hasPendingCollectionOperation(pokemonId: number) {
+  return readPendingCollectionOperations().some((operation) => operation.pokemonId === pokemonId)
+}
+
+/** Replace a queued edit in place (after a conflict merge), keeping its position. */
+export function replacePendingCollectionOperation(operationId: string, next: PendingCollectionOperation) {
+  writePendingCollectionOperations(
+    readPendingCollectionOperations().map((operation) => (operation.id === operationId ? next : operation)),
+  )
+}
+
+/** A newer edit for the same Pokémon is now based on what the server just stored. */
+export function rebasePendingCollectionOperation(pokemonId: number, base: CollectedPokemon | null) {
+  const operations = readPendingCollectionOperations()
+  if (!operations.some((operation) => operation.pokemonId === pokemonId)) return
+  writePendingCollectionOperations(
+    operations.map((operation) => (operation.pokemonId === pokemonId ? { ...operation, base } : operation)),
+  )
 }
 
 export function removePendingCollectionOperation(operationId: string) {
