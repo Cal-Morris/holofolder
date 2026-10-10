@@ -3,7 +3,8 @@ import { expect, MOCK_CARDS, placeholderSvg, test } from "./fixtures"
 
 const BASE_SET = { id: "base1", name: "Base Set", seriesName: "Base", officialCardCount: 102, releaseDate: "1999-01-09" }
 const SV151 = { id: "sv03.5", name: "151", seriesName: "Scarlet & Violet", officialCardCount: 165, releaseDate: "2023-09-22" }
-// A set whose Pokémon are not on the first binder page, so nothing of it is cached before the prep.
+// Synthetic test set (not a real TCG set) whose Pokémon are not on the first binder page, so nothing of it is
+// cached before the prep.
 const SHOW_SET = { id: "show1", name: "Legends Showcase", seriesName: "Test", officialCardCount: 3, releaseDate: "2026-09-01" }
 const SHOW_CARDS = [
   { dexId: 150, name: "Mewtwo", localId: "001" },
