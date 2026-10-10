@@ -4050,11 +4050,11 @@ export default function BinderApp({
               }
             : {
                 left: "50%",
-                bottom: "calc(env(safe-area-inset-bottom) + 4.6rem)",
+                bottom: "calc(var(--dock-clearance) + 0.375rem)",
                 transform: "translateX(-50%)",
                 width: "min(calc(100vw - 1rem), 28rem)",
                 // Never taller than the space between the status bar and the bottom dock.
-                maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 4.6rem - 0.5rem)",
+                maxHeight: "calc(100dvh - env(safe-area-inset-top) - var(--dock-clearance) - 0.375rem - 0.5rem)",
               }}
       >
         <div className="flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
@@ -4415,7 +4415,7 @@ export default function BinderApp({
     const showFavoriteAction = collected && Boolean(item?.card_id)
     const mobileActionBar = (
       <div
-        className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+4.9rem)] z-50 px-1 sm:hidden"
+        className="fixed inset-x-2 bottom-[calc(var(--dock-clearance)+0.5rem)] z-50 px-1 sm:hidden"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mx-auto max-w-md rounded-[1.15rem] border border-border/70 bg-card/97 p-2 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.48)] backdrop-blur-xl dark:border-border/50 dark:bg-background/97">
@@ -4912,7 +4912,7 @@ export default function BinderApp({
     }
 
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-3">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(var(--dock-clearance)+1rem)] md:pb-3">
         <div className="space-y-3">
           <section className="rounded-[1.35rem] border border-border/65 bg-card/88 p-2.5 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.32)] dark:border-white/10 dark:bg-card/72 sm:p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -5870,7 +5870,7 @@ export default function BinderApp({
         </div>
       </nav>
 
-      <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
+      <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
         <input
           ref={pagePhotoInputRef}
           type="file"
@@ -6290,7 +6290,7 @@ export default function BinderApp({
 
       {isSearchOpen && (
         <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
-          <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pb-[calc(var(--dock-clearance)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
             <div
               ref={searchDialogRef}
               role="dialog"
@@ -6363,7 +6363,7 @@ export default function BinderApp({
             role="dialog"
             aria-modal="true"
             aria-label="Controls"
-            className="absolute inset-x-0 bottom-0 overflow-y-auto outline-none overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            className="absolute inset-x-0 bottom-0 overflow-y-auto outline-none overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             style={{
               maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
@@ -6487,7 +6487,7 @@ export default function BinderApp({
             role="dialog"
             aria-modal="true"
             aria-label="Binder View"
-            className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-4 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-4 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             style={{
               maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
@@ -6551,9 +6551,9 @@ export default function BinderApp({
         </div>
       )}
 
-      <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] md:hidden">
-        <div className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 rounded-[1.35rem] border border-border/70 bg-card/96 p-1.5 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
-          <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl border border-border/50 bg-muted/42 p-0.5 dark:border-border/40 dark:bg-muted/35">
+      <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden px-2 pb-[var(--dock-inset)] md:hidden">
+        <div className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-[1.25rem] border border-border/70 bg-card/96 p-1 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
+          <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl bg-muted/42 dark:bg-muted/35">
             <button
               onClick={openSearch}
               aria-label="Search"
@@ -6620,7 +6620,7 @@ export default function BinderApp({
                 <Button
                   variant={isPriceMode ? "default" : "outline"}
                   size="icon"
-                  className="h-10 w-10 shrink-0 rounded-2xl px-0"
+                  className="h-10 w-9 shrink-0 rounded-2xl px-0"
                   onClick={() => setIsPriceMode((current) => !current)}
                   aria-label={isPriceMode ? "Hide prices" : "Show prices"}
                 >
@@ -6630,7 +6630,7 @@ export default function BinderApp({
               <Button
                 variant="default"
                 size="icon"
-                className="h-10 w-10 shrink-0 rounded-2xl px-0"
+                className="h-10 w-9 shrink-0 rounded-2xl px-0"
                 onClick={handleJumpToNextNeeded}
                 disabled={activeJumpPokemonList.length === 0}
                 aria-label={`Next ${activeJumpLabel.toLowerCase()}`}
@@ -6640,7 +6640,7 @@ export default function BinderApp({
                 <Button
                   variant={collectionViewFilter === "all" && !isMobileFilterSheetOpen ? "outline" : "default"}
                   size="icon"
-                className="h-10 w-10 shrink-0 rounded-2xl px-0"
+                className="h-10 w-9 shrink-0 rounded-2xl px-0"
                 onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileFilterSheetOpen(true) })}
                 disabled={!canFilterCollection}
                 aria-label={`Filter: ${activeCollectionFilterOption.mobileLabel}`}
@@ -6650,7 +6650,7 @@ export default function BinderApp({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-10 w-10 shrink-0 rounded-2xl px-0"
+                className="h-10 w-9 shrink-0 rounded-2xl px-0"
                 onClick={() => {
                   if (isMobileNavExpanded) {
                     closeControlsSheet()

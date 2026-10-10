@@ -4,6 +4,12 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Mobile bottom dock: the safe-area inset is applied once (min 0.5rem in a browser tab),
+     the bar is 50px (40px tap targets + 4px padding + border). Anything that must clear the
+     dock positions itself from --dock-clearance. */
+  --dock-inset: max(env(safe-area-inset-bottom), 0.5rem);
+  --dock-bar: 3.125rem;
+  --dock-clearance: calc(var(--dock-inset) + var(--dock-bar));
   /* Light theme - crisp paper surfaces with soft contrast */
   --background: oklch(0.958 0.006 250);
   --foreground: oklch(0.23 0.016 255);
