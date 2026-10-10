@@ -1,21 +1,24 @@
 import * as THREE from "three"
-import { createBinderTapTracker } from "@/lib/binder-pointer"
+import { createBinderTapTracker, createBinderSwipeTracker } from "@/lib/binder-pointer"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js"
-import { artworkRectangle, binderDimensions, binderSpread, pageTurnPoint, binderPocket, BINDER_PAGE, BINDER_LAYERS, type BinderDesign, type BinderPart, type BinderStats, type BinderView, type DesignSurface, type StudioCard } from "@/lib/binder-design"
+import { artworkRectangle, binderDimensions, binderSpread, binderTurnPage, pageTurnPoint, binderPocket, BINDER_PAGE, BINDER_LAYERS, type BinderDesign, type BinderPart, type BinderStats, type BinderView, type DesignSurface, type StudioCard } from "@/lib/binder-design"
 
 interface RenderInput { design: BinderDesign; cards: readonly StudioCard[]; stats: BinderStats; page: number; artwork: Record<string, string> }
 const VIEWS: BinderView[] = ["front", "back", "spine", "inside", "detail"]
-export function createBinderRenderer(stage: HTMLDivElement, select: (part: BinderPart) => void, thumbnails: (images: string[]) => void, fail: (message: string) => void, captureThumbnails = true, onPageTurn?: (direction: -1 | 1) => void) {
+export function createBinderRenderer(stage: HTMLDivElement, select: (part: BinderPart) => void, thumbnails: (images: string[]) => void, fail: (message: string) => void, captureThumbnails = true, onPageTurn?: (direction: -1 | 1) => void, onSlotSelect?: (slot: number) => void) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.enabled = true; renderer.toneMappingExposure=.85
-  renderer.domElement.setAttribute("aria-label", "3D binder, drag to orbit, scroll to zoom and click a surface")
+  renderer.domElement.setAttribute("aria-label", "3D binder, swipe to turn pages, pinch to zoom, drag when zoomed to pan, two fingers to orbit, tap a Pokémon for details")
   renderer.domElement.setAttribute("role", "img")
   stage.append(renderer.domElement)
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(34, 1, .1, 100)
   const controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = false; controls.enablePan = false; controls.minDistance = 5; controls.maxDistance = 40
+  controls.enableDamping = false; controls.enablePan = true; controls.minDistance = 2; controls.maxDistance = 40
+  controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE
+  let fittedDistance = 10
+  const zoomed = () => controls.getDistance() < fittedDistance * .8
   const pmrem = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment(), environment = pmrem.fromScene(room, .04)
   scene.environment = environment.texture; room.dispose(); pmrem.dispose()
   scene.environmentIntensity=.3
@@ -27,7 +30,10 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   let openingFrame = 0
   let capturing = false, frameRequest = 0, displayedPage = 0, latestInput: RenderInput | null = null
   let closedPages = new THREE.Group(), openPages = new THREE.Group()
-  const pageTextures = new Set<THREE.Texture>(), motion = matchMedia("(prefers-reduced-motion: reduce)")
+  let modelRevision = 0
+  const spreads = new Map<number, Promise<Spread>>()
+  interface Spread { group: THREE.Group; left: THREE.Group; right: THREE.Group; leftZ: number; rightZ: number }
+  const pageTextures = new Map<string, THREE.Texture>(), motion = matchMedia("(prefers-reduced-motion: reduce)")
   let turn: { group: THREE.Group; deform: Deformable[]; start: number; forward: boolean; rightZ: number; leftZ: number; landing: THREE.Group; previous: THREE.Group; token: number } | null = null
   interface Deformable { object: THREE.Mesh | THREE.LineSegments; positions: Float32Array }
 
@@ -37,6 +43,9 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   function disposeModel() {
     cancelAnimationFrame(openingFrame);openingFrame=0
     stopTurn()
+    modelRevision++
+    for(const cached of spreads.values())void cached.then(spread=>{if(spread.group.parent!==root)disposeGroup(spread.group)}).catch(()=>{})
+    spreads.clear()
     disposeGroup(root)
     textures.forEach(t => t.dispose());textures=[];pageTextures.forEach(t=>t.dispose());pageTextures.clear();root.clear();targets=[];displayedPage=0
 
@@ -132,11 +141,12 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     const distance=Math.max(stage.clientWidth<450?10:8,radius*3+6)
     controls.target.set(next==="inside"?-1.12:0,0,0)
     camera.position.set(...(next==="back"?[1,1,-distance]:next==="spine"?[-distance,1,1]:next==="detail"?[5,1,5]:next==="inside"?[-1.12,2.5,distance+1]:[-3.3,1.6,distance]) as [number,number,number])
+    fittedDistance=camera.position.distanceTo(controls.target)
     controls.update();if(render)draw()
   }
   async function previews(token: number) {
     if(!captureThumbnails)return
-    const position=camera.position.clone(),target=controls.target.clone(),aspect=camera.aspect,oldView=view,oldOpening=opening,oldClosedVisible=closedPages.visible,oldOpenVisible=openPages.visible,oldRenderTarget=renderer.getRenderTarget()
+    const position=camera.position.clone(),target=controls.target.clone(),aspect=camera.aspect,oldView=view,oldOpening=opening,oldClosedVisible=closedPages.visible,oldOpenVisible=openPages.visible,oldRenderTarget=renderer.getRenderTarget(),oldFittedDistance=fittedDistance
     const captures=VIEWS.map(v=>({view:v,target:new THREE.WebGLRenderTarget(360,280),buffer:new Uint8Array(360*280*4)}))
     try {
       let reads: Promise<unknown>[] = []
@@ -148,7 +158,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
         }
         reads=captures.map(c=>renderer.readRenderTargetPixelsAsync(c.target,0,0,360,280,c.buffer))
       } finally {
-        renderer.setRenderTarget(oldRenderTarget);setView(oldView,false);opening=oldOpening;hinge.rotation.y=oldOpening;updateBinding(oldOpening);closedPages.visible=oldClosedVisible;openPages.visible=oldOpenVisible;camera.position.copy(position);controls.target.copy(target);camera.aspect=aspect;camera.updateProjectionMatrix();controls.update();capturing=false;draw()
+        renderer.setRenderTarget(oldRenderTarget);setView(oldView,false);opening=oldOpening;hinge.rotation.y=oldOpening;updateBinding(oldOpening);closedPages.visible=oldClosedVisible;openPages.visible=oldOpenVisible;camera.position.copy(position);controls.target.copy(target);camera.aspect=aspect;fittedDistance=oldFittedDistance;camera.updateProjectionMatrix();controls.update();capturing=false;draw()
       }
       const completed=await Promise.allSettled(reads)
       if(disposed||token!==generation)return
@@ -188,7 +198,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     const d=input.design,count=d.rows*d.cols,start=(face-1)*count
     const cards=input.cards.map((card,i)=>({card,slot:card.slot??i})).filter(c=>c.slot>=start&&c.slot<start+count)
     const loaded=await Promise.all(cards.map(async c=>({...c,image:await image(c.card.image)})))
-    if(disposed||token!==generation)return
+    if(disposed||token!==modelRevision)return
     parent.userData.cardCount=cards.length;parent.userData.loadedCardCount=loaded.filter(card=>card.image).length
     const attach=(geometry:THREE.BufferGeometry,material:THREE.Material)=>{
       (geometry.attributes.position as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage)
@@ -202,10 +212,13 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
       const {x,y,w,h}=binderPocket(d.rows,d.cols,i,side)
       const card=loaded.find(c=>c.slot-start===i),im=card?.image
       if(im){
-        const canvas=document.createElement("canvas"),scale=Math.min(1,2048/Math.max(im.naturalWidth,im.naturalHeight))
-        canvas.width=Math.max(1,Math.round(im.naturalWidth*scale));canvas.height=Math.max(1,Math.round(im.naturalHeight*scale))
-        const ctx=canvas.getContext("2d")!;ctx.beginPath();ctx.roundRect(0,0,canvas.width,canvas.height,canvas.width*.0476);ctx.clip();ctx.drawImage(im,0,0,canvas.width,canvas.height)
-        const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());pageTextures.add(tex)
+        let tex=pageTextures.get(card.card.image)
+        if(!tex){
+          const canvas=document.createElement("canvas"),scale=Math.min(1,2048/Math.max(im.naturalWidth,im.naturalHeight))
+          canvas.width=Math.max(1,Math.round(im.naturalWidth*scale));canvas.height=Math.max(1,Math.round(im.naturalHeight*scale))
+          const ctx=canvas.getContext("2d")!;ctx.beginPath();ctx.roundRect(0,0,canvas.width,canvas.height,canvas.width*.0476);ctx.clip();ctx.drawImage(im,0,0,canvas.width,canvas.height)
+          tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());pageTextures.set(card.card.image,tex);renderer.initTexture(tex)
+        }
         const cardW=Math.min(w*.88,h*.88*63/88),g=new THREE.PlaneGeometry(cardW,cardW*88/63,8,4)
         g.translate(x,y,side*(BINDER_LAYERS.backing/2+BINDER_LAYERS.card))
         if(side===-1){const uv=g.attributes.uv;for(let n=0;n<uv.count;n++)uv.setX(n,1-uv.getX(n))}
@@ -213,7 +226,8 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
       }
       const filmZ=side*(BINDER_LAYERS.backing/2+BINDER_LAYERS.card+BINDER_LAYERS.film)
       const film=new THREE.PlaneGeometry(w*.94,h*.94,8,4);film.translate(x,y,filmZ)
-      attach(film,new THREE.MeshPhysicalMaterial({color:"#ffffff",transparent:true,opacity:.045,roughness:.23,clearcoat:.6,clearcoatRoughness:.12,depthWrite:false,side:sided}))
+      const pocket=attach(film,new THREE.MeshPhysicalMaterial({color:"#ffffff",transparent:true,opacity:.045,roughness:.23,clearcoat:.6,clearcoatRoughness:.12,depthWrite:false,side:sided}))
+      pocket.userData.slot=start+i
       const points=[x-w*.47,y-h*.47,filmZ,x+w*.47,y-h*.47,filmZ,x+w*.47,y-h*.47,filmZ,x+w*.47,y+h*.47,filmZ,x+w*.47,y+h*.47,filmZ,x-w*.47,y+h*.47,filmZ,x-w*.47,y+h*.47,filmZ,x-w*.47,y-h*.47,filmZ]
       const edge=new THREE.BufferGeometry();edge.setAttribute("position",new THREE.Float32BufferAttribute(points,3));(edge.attributes.position as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage)
       const line=new THREE.LineSegments(edge,new THREE.LineBasicMaterial({color:"#bfc0c3",transparent:true,opacity:.2}));parent.add(line);objects.push({object:line,positions:new Float32Array(edge.attributes.position.array)})
@@ -224,30 +238,53 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     await makeFace(input,face,left?-1:1,group,objects,token)
     deform(objects,left?1:0);return group
   }
+  function cachedSpread(input:RenderInput,page:number) {
+    const existing=spreads.get(page);if(existing)return existing
+    const token=modelRevision,d=input.design,{stack,leaves}=binderDimensions(d.pageCount),next=binderSpread(page,d.pageCount)
+    const group=new THREE.Group()
+    const promise=(async()=>{
+      // shortcut: extreme 1x1 layouts use representative thin layers across the full loaded-leaf depth.
+      const layers=Math.min(leaves,120)
+      for(let n=0;n<layers;n++){
+        const leaf=Math.floor(n*leaves/layers),left=leaf<next.turnedLeaves,z=left?-stack/2+leaf*BINDER_LAYERS.leafPitch:stack/2-leaf*BINDER_LAYERS.leafPitch
+        const o=mesh(group,thinPageGeometry(2.25,3.13,BINDER_LAYERS.backing),new THREE.MeshStandardMaterial({color:d.pageColors[String(leaf*2+1)]??d.pageColor,roughness:.9}),left?BINDER_PAGE.hingeX-BINDER_PAGE.inset-BINDER_PAGE.width/2:BINDER_PAGE.hingeX+BINDER_PAGE.inset+BINDER_PAGE.width/2,0,z,"pages")
+        if(left)o.rotation.y=Math.PI
+      }
+      const leftZ=-stack/2+next.turnedLeaves*BINDER_LAYERS.leafPitch,rightZ=stack/2-next.turnedLeaves*BINDER_LAYERS.leafPitch
+      const [left,right]=await Promise.all([pagePanel(input,next.left,true,leftZ,group,token),pagePanel(input,next.right,false,rightZ,group,token)])
+      if(disposed||token!==modelRevision){disposeGroup(group);return {group,left,right,leftZ,rightZ}}
+      return {group,left,right,leftZ,rightZ}
+    })().catch(error=>{disposeGroup(group);throw error})
+    spreads.set(page,promise)
+    return promise
+  }
+  function preloadSpreads(input:RenderInput) {
+    const pages=new Set([input.page,binderTurnPage(input.page,input.design.pageCount,-1),binderTurnPage(input.page,input.design.pageCount,1)])
+    for(const [page,cached] of spreads)if(!pages.has(page)){spreads.delete(page);void cached.then(spread=>disposeGroup(spread.group)).catch(()=>{})}
+    const count=input.design.rows*input.design.cols,faces=new Set<number>()
+    for(const page of pages){const spread=binderSpread(page,input.design.pageCount);faces.add(spread.left);faces.add(spread.right);void cachedSpread(input,page).catch(()=>{spreads.delete(page);if(!disposed)fail("An adjacent page could not preload. Try turning the page again.")})}
+    const images=new Set(input.cards.filter((c,i)=>faces.has(Math.floor((c.slot??i)/count)+1)).map(c=>c.image))
+    for(const [src,texture] of pageTextures)if(!images.has(src)){texture.dispose();pageTextures.delete(src);imageCache.delete(src)}
+    stage.dataset.preloadedSpreads=[...pages].join(",")
+  }
   async function updatePages(input:RenderInput,token:number) {
-    const d=input.design,{stack,leaves}=binderDimensions(d.pageCount),next=binderSpread(input.page,d.pageCount),previous=binderSpread(displayedPage||input.page,d.pageCount)
+    const d=input.design,{stack}=binderDimensions(d.pageCount),next=binderSpread(input.page,d.pageCount),previous=binderSpread(displayedPage||input.page,d.pageCount)
     const changing=displayedPage!==0&&Math.abs(next.turnedLeaves-previous.turnedLeaves)===1&&view==="inside"&&!openingFrame&&!motion.matches
-    stopTurn();disposeGroup(openPages);pageTextures.forEach(t=>t.dispose());pageTextures.clear();openPages=new THREE.Group();root.add(openPages);openPages.visible=view==="inside"
-    const pageRoot=openPages
-    // shortcut: extreme 1x1 layouts use representative thin layers across the full loaded-leaf depth.
-    const layers=Math.min(leaves,120)
-    for(let n=0;n<layers;n++){
-      const leaf=Math.floor(n*leaves/layers),left=leaf<next.turnedLeaves,z=left?-stack/2+leaf*BINDER_LAYERS.leafPitch:stack/2-leaf*BINDER_LAYERS.leafPitch
-      const o=mesh(pageRoot,thinPageGeometry(2.25,3.13,BINDER_LAYERS.backing),new THREE.MeshStandardMaterial({color:d.pageColors[String(leaf*2+1)]??d.pageColor,roughness:.9}),left?BINDER_PAGE.hingeX-BINDER_PAGE.inset-BINDER_PAGE.width/2:BINDER_PAGE.hingeX+BINDER_PAGE.inset+BINDER_PAGE.width/2,0,z,"pages")
-      if(left)o.rotation.y=Math.PI
-    }
-    const leftZ=-stack/2+next.turnedLeaves*BINDER_LAYERS.leafPitch,rightZ=stack/2-next.turnedLeaves*BINDER_LAYERS.leafPitch
-    const [left,right]=await Promise.all([pagePanel(input,next.left,true,leftZ,pageRoot,token),pagePanel(input,next.right,false,rightZ,pageRoot,token)])
+    stopTurn()
+    const outgoing=openPages
+    stage.setAttribute("aria-busy","true")
+    const {group:pageRoot,left,right,leftZ,rightZ}=await cachedSpread(input,input.page)
     if(disposed||token!==generation)return
-    displayedPage=input.page;latestInput=input
-    const settled=()=>{stage.dataset.leftCards=String(left.userData.loadedCardCount??0);stage.dataset.rightCards=String(right.userData.loadedCardCount??0);stage.dataset.currentSpread=`${next.left}-${next.right}`;stage.dataset.currentPage=String(input.page);stage.setAttribute("aria-busy","false")}
-    if(!changing){settled();draw();void previews(token);return}
+    const settled=()=>{displayedPage=input.page;latestInput=input;stage.dataset.leftCards=String(left.userData.loadedCardCount??0);stage.dataset.rightCards=String(right.userData.loadedCardCount??0);stage.dataset.currentSpread=`${next.left}-${next.right}`;stage.dataset.currentPage=String(input.page);stage.setAttribute("aria-busy","false")}
+    if(!changing){outgoing.removeFromParent();openPages=pageRoot;root.add(pageRoot);pageRoot.visible=view==="inside";settled();preloadSpreads(input);draw();void previews(token);return}
     const forward=next.turnedLeaves>previous.turnedLeaves,front=forward?previous.right:next.right,back=front+1
     const moving=new THREE.Group(),objects:Deformable[]=[];moving.position.set(BINDER_PAGE.hingeX,0,0);pageRoot.add(moving)
-    await Promise.all([makeFace(input,front,1,moving,objects,token),makeFace(input,back,-1,moving,objects,token)])
+    await Promise.all([makeFace(input,front,1,moving,objects,modelRevision),makeFace(input,back,-1,moving,objects,modelRevision)])
     const priorZ=forward?-stack/2+previous.turnedLeaves*BINDER_LAYERS.leafPitch:stack/2-previous.turnedLeaves*BINDER_LAYERS.leafPitch
-    const prior=await pagePanel(input,forward?previous.left:previous.right,forward,priorZ,pageRoot,token)
-    if(disposed||token!==generation)return
+    const prior=await pagePanel(input,forward?previous.left:previous.right,forward,priorZ,pageRoot,modelRevision)
+    if(disposed||token!==generation){disposeGroup(prior);disposeGroup(moving);return}
+    outgoing.removeFromParent();openPages=pageRoot;root.add(pageRoot);pageRoot.visible=view==="inside"
+    displayedPage=input.page;latestInput=input
     const landing=forward?left:right;landing.visible=false
     turn={group:moving,deform:objects,start:performance.now(),forward,rightZ:forward?stack/2-previous.turnedLeaves*BINDER_LAYERS.leafPitch:rightZ,leftZ:forward?leftZ:-stack/2+previous.turnedLeaves*BINDER_LAYERS.leafPitch,landing,previous:prior,token}
     stage.setAttribute("aria-busy","true")
@@ -257,7 +294,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
       const t=Math.min(1,(time-active.start)/680),eased=t*t*(3-2*t),progress=active.forward?eased:1-eased
       active.group.position.z=active.rightZ+(active.leftZ-active.rightZ)*progress;deform(active.deform,progress);draw()
       if(t<1&&!document.hidden){frameRequest=requestAnimationFrame(tick);return}
-      active.landing.visible=true;disposeGroup(active.previous);disposeGroup(active.group);turn=null;frameRequest=0;settled();draw();void previews(token)
+      active.landing.visible=true;disposeGroup(active.previous);disposeGroup(active.group);turn=null;frameRequest=0;settled();preloadSpreads(input);draw();void previews(token)
     }
     frameRequest=requestAnimationFrame(tick)
   }
@@ -326,25 +363,40 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   const intersection=new IntersectionObserver(e=>{visible=e[0].isIntersecting;draw()});intersection.observe(stage)
   const onVisible=()=>draw();document.addEventListener("visibilitychange",onVisible)
   controls.addEventListener("change",draw)
-  const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),tap=createBinderTapTracker()
-  const pointerDown=(e:PointerEvent)=>{if(e.button===0)tap.down(e)}
+  const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),tap=createBinderTapTracker(),swipe=createBinderSwipeTracker()
+  let tapped=false
+  const pointerDown=(e:PointerEvent)=>{
+    if(e.button!==0)return
+    const paging=e.pointerType==="touch"&&view==="inside"&&Boolean(onPageTurn)&&!zoomed()
+    controls.touches.ONE=paging?null:zoomed()?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE
+    controls.mouseButtons.LEFT=paging?null:zoomed()?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE
+    tapped=false;tap.down(e);swipe.down(e,paging)
+    renderer.domElement.setPointerCapture(e.pointerId)
+  }
   const pointerMove=(e:PointerEvent)=>tap.move(e)
-  const pointerCancel=(e:PointerEvent)=>tap.cancel(e)
+  const pointerCancel=(e:PointerEvent)=>{tapped=false;tap.cancel(e);swipe.cancel(e)}
   const pointerUp=(e:PointerEvent)=>{
-    if(!tap.up(e))return
+    const direction=swipe.up(e);tapped=tap.up(e)
+    if(direction){tapped=false;if(!openingFrame)onPageTurn?.(direction)}
+  }
+  const click=(e:MouseEvent)=>{
+    if(!tapped)return
+    tapped=false;e.preventDefault();e.stopPropagation()
+    if(turn||openingFrame||stage.getAttribute("aria-busy")==="true")return
     scene.updateMatrixWorld(true);camera.updateMatrixWorld();
     const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera)
-    const hittable=targets.filter(object=>{for(let node:THREE.Object3D|null=object;node;node=node.parent)if(!node.visible)return false;return true})
+    const hittable=targets.filter(object=>{for(let node:THREE.Object3D|null=object;node;node=node.parent){if(!node.visible)return false;if(node===root)return true}return false})
     const hit=raycaster.intersectObjects(hittable,false)[0];if(hit){
+      if(typeof hit.object.userData.slot==="number"&&onSlotSelect){onSlotSelect(hit.object.userData.slot);return}
       if(hit.object.userData.part==="pages"&&view==="inside"&&onPageTurn){if(!turn&&!openingFrame)onPageTurn(hit.point.x>BINDER_PAGE.hingeX?1:-1)}
       else select(hit.object.userData.part as BinderPart)
     }
   }
   const lost=(e:Event)=>{e.preventDefault();fail("3D is unavailable. Your draft can still be edited and saved. Reload to restore the preview.")}
-  renderer.domElement.addEventListener("pointerdown",pointerDown);renderer.domElement.addEventListener("pointermove",pointerMove);renderer.domElement.addEventListener("pointerup",pointerUp);renderer.domElement.addEventListener("pointercancel",pointerCancel);renderer.domElement.addEventListener("webglcontextlost",lost)
+  renderer.domElement.addEventListener("pointerdown",pointerDown,true);renderer.domElement.addEventListener("pointermove",pointerMove);renderer.domElement.addEventListener("pointerup",pointerUp);renderer.domElement.addEventListener("click",click);renderer.domElement.addEventListener("pointercancel",pointerCancel);renderer.domElement.addEventListener("webglcontextlost",lost)
   resize();setView("front")
   return {
-    update(input: RenderInput){clearTimeout(pending);generation++;pending=setTimeout(()=>{build(input).catch(()=>{if(!disposed)fail("The 3D preview could not update. Your draft is still here.")})},100)},
+    update(input: RenderInput){clearTimeout(pending);stopTurn();generation++;pending=setTimeout(()=>{build(input).catch(()=>{stage.setAttribute("aria-busy","false");if(!disposed)fail("The 3D preview could not update. Your draft is still here.")})},100)},
     setView, reset(){setView(view)},
     dispose(){disposed=true;generation++;cancelAnimationFrame(openingFrame);cancelAnimationFrame(frameRequest);clearTimeout(pending);observer.disconnect();intersection.disconnect();document.removeEventListener("visibilitychange",onVisible);controls.dispose();disposeModel();grain.dispose();environment.dispose();renderer.dispose();renderer.domElement.remove();imageCache.clear()},
   }

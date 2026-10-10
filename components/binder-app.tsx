@@ -6295,6 +6295,7 @@ export default function BinderApp({
             />
           ) : binderDimension === "3d" ? (
             <DashboardBinderPreview
+              onSelectPokemon={handlePokemonSelect}
               appearance={binderAppearance.design}
               artwork={binderAppearance.artwork}
               loading={binderAppearance.loading}
