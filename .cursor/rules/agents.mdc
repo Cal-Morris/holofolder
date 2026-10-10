@@ -1,0 +1,6 @@
+---
+description: Project instructions for binderdex (canonical copy in AGENTS.md)
+alwaysApply: true
+---
+
+Follow [AGENTS.md](../../AGENTS.md) at the repo root. It is the canonical guide: architecture, commands, principles and the definition of done. Task playbooks are in `.agents/skills/<name>/SKILL.md`; read the relevant one before starting a task it covers.
