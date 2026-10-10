@@ -54,6 +54,7 @@ import {
 } from "@/lib/wanted-dashboard"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
+import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_EASING, getAdjacentPageNumbers, getPageTurnTiming } from "@/lib/binder-page-turn"
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
@@ -282,6 +283,11 @@ function getUsableImageSource(value?: string | null) {
   const trimmed = value.trim()
   if (!trimmed || trimmed === "null" || trimmed === "undefined") return null
   return trimmed
+}
+
+/** The image URL a binder slot renders: its card image, else the Pokémon artwork at grid size. */
+function resolveSlotImageUrl(pokemonId: number, cardImage?: string | null) {
+  return getUsableImageSource(cardImage) || getPokemonOfficialArtworkUrl(pokemonId)
 }
 
 function getDisplayArtworkFit(cardImage?: string | null) {
@@ -809,6 +815,16 @@ export default function BinderApp({
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; nested: boolean } | null>(null)
   const [isPageTransitioning, setIsPageTransitioning] = useState(false)
   const [transitionDirection, setTransitionDirection] = useState<"left" | "right" | null>(null)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const pageTurnTiming = getPageTurnTiming(prefersReducedMotion)
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const update = () => setPrefersReducedMotion(query.matches)
+    update()
+    query.addEventListener?.("change", update)
+    return () => query.removeEventListener?.("change", update)
+  }, [])
   const [isScanningPage, setIsScanningPage] = useState(false)
   const [pageScanSummary, setPageScanSummary] = useState<PageScanSummary | null>(null)
   const [pageScanError, setPageScanError] = useState<string | null>(null)
@@ -1847,6 +1863,26 @@ export default function BinderApp({
 
     return ids
   }, [getPageSlots, visibleBinderPageNumbers])
+  // Once a page has settled, prefetch the neighbouring pages so a swipe renders immediately.
+  const [prefetchPagePokemonIds, setPrefetchPagePokemonIds] = useState<number[]>([])
+  useEffect(() => {
+    if (isPageTransitioning) return
+    const timer = window.setTimeout(() => {
+      const ids: number[] = []
+      getAdjacentPageNumbers(visibleBinderPageNumbers, totalBinderPages, isSpreadLayout ? 2 : 1).forEach((pageNumber) => {
+        getPageSlots(pageNumber).forEach((pokemon) => {
+          if (pokemon) ids.push(pokemon.id)
+        })
+      })
+      setPrefetchPagePokemonIds(ids)
+    }, ADJACENT_PREFETCH_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [getPageSlots, isPageTransitioning, isSpreadLayout, totalBinderPages, visibleBinderPageNumbers])
+  // Visible slots first, then the prefetched neighbours.
+  const slotPreviewTargetIds = useMemo(
+    () => new Set<number>([...visiblePagePokemonIds, ...prefetchPagePokemonIds]),
+    [prefetchPagePokemonIds, visiblePagePokemonIds],
+  )
 
   useEffect(() => {
     if (!shouldClearSelectedPokemonForPage(selectedPokemon?.id, visiblePagePokemonIds)) {
@@ -1863,7 +1899,7 @@ export default function BinderApp({
   useEffect(() => {
     const pokemonIdsToRequest: number[] = []
 
-    visiblePagePokemonIds.forEach((pokemonId) => {
+    slotPreviewTargetIds.forEach((pokemonId) => {
       const item = collectionByPokemonId.get(pokemonId)
       const wantedCardPreview = item?.wanted_cards?.[0] ?? null
       const selectedCardImage = normalizeSlotPreviewImage(
@@ -1889,8 +1925,8 @@ export default function BinderApp({
       return
     }
 
-    let isCancelled = false
-
+    // Results are cached per Pokémon, so they are applied even if the page changed meanwhile
+    // (dropping them would leave in-flight slots without a preview until the next visit).
     void Promise.all(
       pokemonIdsToRequest.map(async (pokemonId) => {
         const cards = await fetchCardsForPokemon(pokemonId, "en")
@@ -1903,10 +1939,6 @@ export default function BinderApp({
       results.forEach((result) => {
         slotPreviewCardRequestIdsRef.current.delete(result.pokemonId)
       })
-
-      if (isCancelled) {
-        return
-      }
 
       const previewCardsByPokemonId = results.reduce<Record<number, SlotPreviewCard>>((acc, result) => {
         if (result.previewCard) {
@@ -1931,11 +1963,38 @@ export default function BinderApp({
         slotPreviewCardRequestIdsRef.current.delete(pokemonId)
       })
     })
+  }, [collectionByPokemonId, fetchCardsForPokemon, slotPreviewTargetIds])
 
-    return () => {
-      isCancelled = true
+  // The card image a slot shows (wanted card, owned card, or a representative printing).
+  const getSlotCardImage = useCallback((pokemonId: number) => {
+    const item = collectionByPokemonId.get(pokemonId)
+    const isWishlisted = item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
+    const wantedCardPreview = item?.wanted_cards?.[0] ?? null
+    const selectedCardImage = isWishlisted && wantedCardPreview?.card_image
+      ? wantedCardPreview.card_image
+      : item?.card_image
+    return selectedCardImage || slotPreviewCardsByPokemonId[pokemonId]?.image
+  }, [collectionByPokemonId, slotPreviewCardsByPokemonId])
+
+  // Decode the neighbouring pages' slot images at grid size, using exactly the URLs the grid
+  // renders so the browser / service-worker cache serves them when the page turns.
+  const decodedSlotImageUrlsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (prefetchPagePokemonIds.length === 0 || typeof Image === "undefined") return
+    const decoded = decodedSlotImageUrlsRef.current
+    for (const pokemonId of prefetchPagePokemonIds) {
+      const url = resolveSlotImageUrl(pokemonId, getSlotCardImage(pokemonId))
+      if (decoded.has(url)) continue
+      decoded.add(url)
+      const image = new Image()
+      image.decoding = "async"
+      image.src = url
+      image.decode?.().catch(() => decoded.delete(url))
     }
-  }, [collectionByPokemonId, fetchCardsForPokemon, visiblePagePokemonIds])
+    if (decoded.size > 400) {
+      decodedSlotImageUrlsRef.current = new Set([...decoded].slice(-200))
+    }
+  }, [getSlotCardImage, prefetchPagePokemonIds])
   const offlineCacheWarmupUrls = useMemo(
     () => buildOfflineCacheWarmupUrls({
       collection,
@@ -2012,6 +2071,12 @@ export default function BinderApp({
   const navigateToPage = useCallback((page: number, direction: "left" | "right") => {
     if (page < 1 || page > totalBinderPages || page === currentBinderPage) return
 
+    if (pageTurnTiming.outMs === 0) {
+      // Reduced motion: swap immediately, no fade/slide.
+      setCurrentBinderPage(page)
+      return
+    }
+
     setTransitionDirection(direction)
     setIsPageTransitioning(true)
 
@@ -2020,9 +2085,9 @@ export default function BinderApp({
       setTimeout(() => {
         setIsPageTransitioning(false)
         setTransitionDirection(null)
-      }, 50)
-    }, 150)
-  }, [currentBinderPage, totalBinderPages])
+      }, pageTurnTiming.settleMs)
+    }, pageTurnTiming.outMs)
+  }, [currentBinderPage, pageTurnTiming.outMs, pageTurnTiming.settleMs, totalBinderPages])
 
   const goToNextPage = useCallback(() => {
     if (currentBinderPage < totalBinderPages) {
@@ -4784,10 +4849,8 @@ export default function BinderApp({
             const isCurrentWishlisted = item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
             const wantedCardPreview = item?.wanted_cards?.[0] ?? null
             const representativeSlotPreview = slotPreviewCardsByPokemonId[pokemon.id] ?? null
-            const selectedSlotCardImage = isCurrentWishlisted && wantedCardPreview?.card_image
-              ? wantedCardPreview.card_image
-              : item?.card_image
-            const slotCardImage = selectedSlotCardImage || representativeSlotPreview?.image
+            // Same resolution the adjacent-page prefetch decodes.
+            const slotCardImage = getSlotCardImage(pokemon.id)
             const selectedSlotCardName = isCurrentWishlisted && wantedCardPreview?.card_name
               ? wantedCardPreview.card_name
               : item?.card_name
@@ -6264,7 +6327,8 @@ export default function BinderApp({
             <div ref={binderStageRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden pb-1 md:pb-0">
               <div
                 ref={binderRef}
-                className={`relative max-h-full max-w-full transition-all duration-150 ${
+                data-page-turn-ms={pageTurnTiming.durationMs}
+                className={`relative max-h-full max-w-full transition-[opacity,transform] ${
                   isPageTransitioning
                     ? transitionDirection === "left"
                       ? "opacity-0 -translate-x-4"
@@ -6277,6 +6341,8 @@ export default function BinderApp({
                   height: binderFitSize ? `${binderFitSize.height}px` : "auto",
                   overscrollBehaviorX: "contain",
                   touchAction: "pan-y",
+                  transitionDuration: `${pageTurnTiming.durationMs}ms`,
+                  transitionTimingFunction: PAGE_TURN_EASING,
                 }}
               >
                 <div className={`grid h-full w-full ${isSpreadLayout ? "grid-cols-2 gap-3 xl:gap-4" : "grid-cols-1"}`}>
@@ -6894,7 +6960,7 @@ function PokemonSlot({
 
   const cardImageSource = getUsableImageSource(cardImage)
   const fallbackPreviewImage = getPokemonOfficialArtworkUrl(pokemon.id)
-  const previewImage = cardImageSource || fallbackPreviewImage
+  const previewImage = resolveSlotImageUrl(pokemon.id, cardImage)
   const [previewImageSrc, setPreviewImageSrc] = useState(previewImage)
   const [didFallbackPreviewImage, setDidFallbackPreviewImage] = useState(false)
   const [isPreviewImageLoaded, setIsPreviewImageLoaded] = useState(false)
