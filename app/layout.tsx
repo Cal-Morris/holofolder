@@ -4,6 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
+// next/font must be assigned at module scope. The classNames are not applied: the
+// generated @font-face rules ("Geist", "Geist Mono") are used via --font-sans/--font-mono in globals.css.
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 const THEME_COLOR_LIGHT = "#fafafd"
