@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/rules-of-hooks -- Playwright fixtures call `use`, not a React hook. */
-import { test as base, expect, type Page, type Locator } from "@playwright/test"
+import { test as base, expect, type BrowserContext, type Page, type Locator } from "@playwright/test"
 
 export const SAFE_AREA = { top: 59, bottom: 34, left: 0, right: 0 }
 
@@ -81,6 +81,115 @@ function placeholderSvg(label: string, seed: number) {
   const color = CARD_PALETTE[seed % CARD_PALETTE.length]
   const safe = label.replace(/[^a-zA-Z0-9 #./-]/g, "").slice(0, 24)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="245" height="342" viewBox="0 0 245 342"><rect width="245" height="342" rx="14" fill="${color}"/><rect x="12" y="12" width="221" height="318" rx="10" fill="#f8fafc" opacity="0.9"/><rect x="24" y="48" width="197" height="140" rx="6" fill="${color}" opacity="0.35"/><text x="122" y="230" font-family="sans-serif" font-size="20" font-weight="700" text-anchor="middle" fill="#0f172a">${safe}</text></svg>`
+}
+
+/** Make the page look like an installed PWA (display-mode: standalone, navigator.standalone, safe areas). */
+export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
+  await page.addInitScript(() => {
+    const originalMatchMedia = window.matchMedia.bind(window)
+    window.matchMedia = (query: string) => {
+      if (query.includes("display-mode: standalone")) {
+        return { ...originalMatchMedia("(min-width: 0px)"), media: query, matches: true } as MediaQueryList
+      }
+      return originalMatchMedia(query)
+    }
+    Object.defineProperty(window.navigator, "standalone", { value: true, configurable: true })
+  })
+  const session = await page.context().newCDPSession(page)
+  await session.send("Emulation.setSafeAreaInsetsOverride" as never, { insets } as never).catch(() => undefined)
+  await session.send("Emulation.setEmulatedMedia", { features: [{ name: "display-mode", value: "standalone" }] }).catch(() => undefined)
+}
+
+/**
+ * Mock every backend the binder talks to. `target` is the page, or the browser context when a service
+ * worker is active (only context routes see the worker's own requests).
+ */
+export async function mockBackends(target: Page | BrowserContext, context: BrowserContext, { signedIn, baseURL }: { signedIn: boolean; baseURL?: string }) {
+  await target.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort())
+  await target.route("**/api/card-prices**", async (route) => {
+    const body = route.request().postDataJSON?.() ?? {}
+    const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : []
+    const now = Date.now()
+    await route.fulfill({
+      json: {
+        prices: lookups.map((lookup) => ({
+          cardId: lookup.cardId,
+          language: lookup.language ?? "en",
+          gbpAmount: 0.2,
+          marketGbpAmount: 0.2,
+          goodGbpAmount: 0.02,
+          lowGbpAmount: 0.02,
+          highGbpAmount: 0.23,
+          confidence: "low",
+          sourcePrices: [
+            { source: "tcgplayer", label: "TCGplayer", variantLabel: "Normal", marketGbpAmount: 0.2, lowGbpAmount: 0.02, originalMarketAmount: 0.26, originalLowAmount: 0.03, originalCurrency: "USD", updatedAt: new Date(now - 86_400_000).toISOString() },
+            { source: "cardmarket", label: "Cardmarket", variantLabel: "Trend", marketGbpAmount: 0.05, lowGbpAmount: 0.02, originalMarketAmount: 0.06, originalLowAmount: 0.02, originalCurrency: "EUR", updatedAt: new Date(now - 86_400_000).toISOString() },
+          ],
+          trendPoints: [
+            { label: "30d", source: "cardmarket", gbpAmount: 0.3, originalAmount: 0.35, originalCurrency: "EUR" },
+            { label: "7d", source: "cardmarket", gbpAmount: 0.12, originalAmount: 0.14, originalCurrency: "EUR" },
+            { label: "1d", source: "cardmarket", gbpAmount: 0.06, originalAmount: 0.07, originalCurrency: "EUR" },
+            { label: "Trend", source: "cardmarket", gbpAmount: 0.05, originalAmount: 0.06, originalCurrency: "EUR" },
+          ],
+          buySignal: { status: "good", label: "Good time", reason: "Current trend is 82% below 30d average." },
+          originalAmount: 0.26,
+          originalCurrency: "USD",
+          source: "tcgplayer",
+          variantLabel: "Normal",
+          updatedAt: new Date(now - 86_400_000).toISOString(),
+          fxDate: null,
+          fetchedAt: now,
+        })),
+      },
+    })
+  })
+  await target.route("**/api/tcgdex-cache**", (route) => {
+    const pokemonId = Number(new URL(route.request().url()).searchParams.get("pokemonId"))
+    const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map(({ dexIds: _dexIds, ...card }) => card)
+    return route.fulfill({ json: { cards, source: "mirror" } })
+  })
+  await target.route("**/api/tcg-card-search**", (route) => {
+    const query = (new URL(route.request().url()).searchParams.get("q") ?? "").toLowerCase().trim()
+    const [first, second] = query.split(/\s+/)
+    const cards = MOCK_CARDS.filter((card) => {
+      const haystack = `${card.name} ${card.set.name} ${card.set.id} ${card.id}`.toLowerCase()
+      if (!haystack.includes(first)) return false
+      return !second || card.localId.replace(/^0+/, "") === second.replace(/^#/, "").split("/")[0].replace(/^0+/, "")
+    })
+    return route.fulfill({ json: { cards } })
+  })
+  // Placeholder art for card images and Pokémon artwork (external hosts are otherwise blocked).
+  await target.route(/^https:\/\/(assets\.tcgdex\.net|raw\.githubusercontent\.com)\//, (route) => {
+    const url = route.request().url()
+    const card = MOCK_CARDS.find((candidate) => url.includes(`/${candidate.set.id}/${candidate.localId}/`))
+    const label = card ? `${card.name} ${card.localId}` : (url.match(/(\d+)\.png$/)?.[1] ? `#${url.match(/(\d+)\.png$/)![1]}` : "card")
+    return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, card ? MOCK_CARDS.indexOf(card) : label.length) })
+  })
+  await target.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: { sets: [], selectedSet: null, slots: [] } }))
+
+  if (signedIn) {
+    const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`
+    await context.addCookies([{ name: storageKey, value: fakeSessionCookieValue(), url: baseURL ?? "http://localhost:3210" }])
+  }
+  // Mock the Supabase API: auth returns the e2e user, the collection returns the seeded rows,
+  // every other table read is empty and writes succeed.
+  await target.route(`${SUPABASE_URL}/**`, async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    if (url.pathname.startsWith("/auth/v1/user")) {
+      return signedIn ? route.fulfill({ json: E2E_USER }) : route.fulfill({ status: 401, json: { message: "no session" } })
+    }
+    if (url.pathname.startsWith("/auth/v1/")) {
+      return route.fulfill({ json: {} })
+    }
+    if (url.pathname === "/rest/v1/pokemon_collection" && request.method() === "GET") {
+      return route.fulfill({ json: SEEDED_COLLECTION })
+    }
+    if (request.method() === "GET" || request.method() === "HEAD") {
+      return route.fulfill({ json: [] })
+    }
+    return route.fulfill({ json: [] })
+  })
 }
 
 type Fixtures = {
@@ -218,106 +327,10 @@ export const test = base.extend<Fixtures>({
   },
   harness: async ({ page, standalone, insets, signedIn, baseURL }, use) => {
     if (standalone) {
-      await page.addInitScript(() => {
-        const originalMatchMedia = window.matchMedia.bind(window)
-        window.matchMedia = (query: string) => {
-          if (query.includes("display-mode: standalone")) {
-            return { ...originalMatchMedia("(min-width: 0px)"), media: query, matches: true } as MediaQueryList
-          }
-          return originalMatchMedia(query)
-        }
-        Object.defineProperty(window.navigator, "standalone", { value: true, configurable: true })
-      })
-      const session = await page.context().newCDPSession(page)
-      await session.send("Emulation.setSafeAreaInsetsOverride" as never, { insets } as never).catch(() => undefined)
-      await session.send("Emulation.setEmulatedMedia", { features: [{ name: "display-mode", value: "standalone" }] }).catch(() => undefined)
+      await emulateStandalone(page, insets)
     }
 
-    await page.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort())
-    await page.route("**/api/card-prices**", async (route) => {
-      const body = route.request().postDataJSON?.() ?? {}
-      const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : []
-      const now = Date.now()
-      await route.fulfill({
-        json: {
-          prices: lookups.map((lookup) => ({
-            cardId: lookup.cardId,
-            language: lookup.language ?? "en",
-            gbpAmount: 0.2,
-            marketGbpAmount: 0.2,
-            goodGbpAmount: 0.02,
-            lowGbpAmount: 0.02,
-            highGbpAmount: 0.23,
-            confidence: "low",
-            sourcePrices: [
-              { source: "tcgplayer", label: "TCGplayer", variantLabel: "Normal", marketGbpAmount: 0.2, lowGbpAmount: 0.02, originalMarketAmount: 0.26, originalLowAmount: 0.03, originalCurrency: "USD", updatedAt: new Date(now - 86_400_000).toISOString() },
-              { source: "cardmarket", label: "Cardmarket", variantLabel: "Trend", marketGbpAmount: 0.05, lowGbpAmount: 0.02, originalMarketAmount: 0.06, originalLowAmount: 0.02, originalCurrency: "EUR", updatedAt: new Date(now - 86_400_000).toISOString() },
-            ],
-            trendPoints: [
-              { label: "30d", source: "cardmarket", gbpAmount: 0.3, originalAmount: 0.35, originalCurrency: "EUR" },
-              { label: "7d", source: "cardmarket", gbpAmount: 0.12, originalAmount: 0.14, originalCurrency: "EUR" },
-              { label: "1d", source: "cardmarket", gbpAmount: 0.06, originalAmount: 0.07, originalCurrency: "EUR" },
-              { label: "Trend", source: "cardmarket", gbpAmount: 0.05, originalAmount: 0.06, originalCurrency: "EUR" },
-            ],
-            buySignal: { status: "good", label: "Good time", reason: "Current trend is 82% below 30d average." },
-            originalAmount: 0.26,
-            originalCurrency: "USD",
-            source: "tcgplayer",
-            variantLabel: "Normal",
-            updatedAt: new Date(now - 86_400_000).toISOString(),
-            fxDate: null,
-            fetchedAt: now,
-          })),
-        },
-      })
-    })
-    await page.route("**/api/tcgdex-cache**", (route) => {
-      const pokemonId = Number(new URL(route.request().url()).searchParams.get("pokemonId"))
-      const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map(({ dexIds: _dexIds, ...card }) => card)
-      return route.fulfill({ json: { cards, source: "mirror" } })
-    })
-    await page.route("**/api/tcg-card-search**", (route) => {
-      const query = (new URL(route.request().url()).searchParams.get("q") ?? "").toLowerCase().trim()
-      const [first, second] = query.split(/\s+/)
-      const cards = MOCK_CARDS.filter((card) => {
-        const haystack = `${card.name} ${card.set.name} ${card.set.id} ${card.id}`.toLowerCase()
-        if (!haystack.includes(first)) return false
-        return !second || card.localId.replace(/^0+/, "") === second.replace(/^#/, "").split("/")[0].replace(/^0+/, "")
-      })
-      return route.fulfill({ json: { cards } })
-    })
-    // Placeholder art for card images and Pokémon artwork (external hosts are otherwise blocked).
-    await page.route(/^https:\/\/(assets\.tcgdex\.net|raw\.githubusercontent\.com)\//, (route) => {
-      const url = route.request().url()
-      const card = MOCK_CARDS.find((candidate) => url.includes(`/${candidate.set.id}/${candidate.localId}/`))
-      const label = card ? `${card.name} ${card.localId}` : (url.match(/(\d+)\.png$/)?.[1] ? `#${url.match(/(\d+)\.png$/)![1]}` : "card")
-      return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, card ? MOCK_CARDS.indexOf(card) : label.length) })
-    })
-    await page.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: { sets: [], selectedSet: null, slots: [] } }))
-
-    if (signedIn) {
-      const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`
-      await page.context().addCookies([{ name: storageKey, value: fakeSessionCookieValue(), url: baseURL ?? "http://localhost:3210" }])
-    }
-    // Mock the Supabase API: auth returns the e2e user, the collection returns the seeded rows,
-    // every other table read is empty and writes succeed.
-    await page.route(`${SUPABASE_URL}/**`, async (route) => {
-      const request = route.request()
-      const url = new URL(request.url())
-      if (url.pathname.startsWith("/auth/v1/user")) {
-        return signedIn ? route.fulfill({ json: E2E_USER }) : route.fulfill({ status: 401, json: { message: "no session" } })
-      }
-      if (url.pathname.startsWith("/auth/v1/")) {
-        return route.fulfill({ json: {} })
-      }
-      if (url.pathname === "/rest/v1/pokemon_collection" && request.method() === "GET") {
-        return route.fulfill({ json: SEEDED_COLLECTION })
-      }
-      if (request.method() === "GET" || request.method() === "HEAD") {
-        return route.fulfill({ json: [] })
-      }
-      return route.fulfill({ json: [] })
-    })
+    await mockBackends(page, page.context(), { signedIn, baseURL })
 
     const harness = new Harness(page, insets, signedIn)
     await harness.open()
