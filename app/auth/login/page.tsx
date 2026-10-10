@@ -8,12 +8,14 @@ import { useEffect, useState } from 'react'
 import { Mail, Sparkles, Loader2, ArrowLeft, KeyRound } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useServiceWorkerRegistration } from '@/hooks/use-service-worker-registration'
 
 type AuthMethod = 'magic-link' | 'password'
 type PasswordMode = 'sign-in' | 'sign-up'
 type SuccessState = 'magic-link' | 'password-signup' | 'password-reset' | null
 
 export default function Page() {
+  useServiceWorkerRegistration()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')

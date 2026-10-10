@@ -114,3 +114,27 @@ test.describe("offline", () => {
     await expectBinderFromLocalData(harness)
   })
 })
+
+test.describe("offline, signed out", () => {
+  const signedOutTest = base.extend<{ visitor: Page }>({
+    serviceWorkers: "allow",
+    visitor: async ({ page, baseURL }, use, testInfo) => {
+      if (testInfo.project.metadata?.standalone) await emulateStandalone(page, SAFE_AREA)
+      await mockBackends(page.context(), page.context(), { signedIn: false, baseURL })
+      await use(page)
+    },
+  })
+
+  signedOutTest("a first visit to /home installs the worker, so /home reloads offline into the shell", async ({ visitor: page }) => {
+    await page.goto("/home")
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+    // Registered after load and idle; the shell is stored once its assets and lazy chunks are cached.
+    await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app-shell"))), { timeout: 30_000 }).toBe(true)
+
+    await goOffline(page)
+    await page.reload()
+    await expect(page.getByText("Offline mode").first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
+    await expect(page.getByRole("heading", { name: /this page couldn.t load/i })).toHaveCount(0)
+  })
+})
