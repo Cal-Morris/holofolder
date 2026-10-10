@@ -4,6 +4,7 @@ import { Area, AreaChart, Tooltip, XAxis, YAxis } from "recharts"
 import { useId } from "react"
 import { ChartContainer } from "@/components/ui/chart"
 import type { CardPriceSnapshot, SupportedCurrency } from "@/hooks/use-card-prices"
+import { isMomentumEligibleConfidence } from "@/lib/price-momentum"
 
 interface CardPriceEvidenceProps {
   price: CardPriceSnapshot | undefined
@@ -40,7 +41,11 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
   const gradientId = useId().replaceAll(":", "")
   const sourcePrices = price?.sourcePrices ?? []
   const trendPoints = price?.trendPoints ?? []
-  const buySignal = price?.buySignal ?? null
+  // Older cached snapshots may carry a "rising" call made on low-confidence data; never show it.
+  const rawBuySignal = price?.buySignal ?? null
+  const buySignal = rawBuySignal?.status === "rising" && !isMomentumEligibleConfidence(price?.confidence)
+    ? null
+    : rawBuySignal
 
   if (!buySignal && sourcePrices.length === 0 && (!showTrend || trendPoints.length < 2)) {
     return null
