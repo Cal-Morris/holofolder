@@ -57,7 +57,9 @@ async function mockNetwork(context: BrowserContext, page: Page) {
     return route.fulfill({ json: { sets: ALL_SETS.filter((set) => set.name.toLowerCase().includes(query)), selectedSet: null, slots: [] } })
   }))
   await context.route("**/api/card-image-proxy**", guard((route) => {
-    network.proxyImages.push(new URL(route.request().url()).searchParams.get("url") ?? "")
+    const source = new URL(route.request().url()).searchParams.get("url") ?? ""
+    // Since #48 the binder's Pokémon artwork goes through the proxy too; only card thumbnails count here.
+    if (!source.includes("raw.githubusercontent.com")) network.proxyImages.push(source)
     return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg("saved", network.proxyImages.length) })
   }))
   const rawImage = guard((route) => route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg("card", 1) }))
@@ -131,6 +133,9 @@ test.describe("offline search and card show prep", () => {
   test("offline search finds the user's own cards without any saved sets", async ({ harness, context }) => {
     const { page } = harness
     const network = await mockNetwork(context, page)
+    // The search sheet is a lazy chunk (PERF-1): wait until the worker controls the page and has the offline
+    // shell, which it only stores after the lazy chunks are cached.
+    await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app-shell"))), { timeout: 30_000 }).toBe(true)
     await goOffline(page, network)
     await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: /search pokemon/i })
