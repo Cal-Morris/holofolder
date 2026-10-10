@@ -7,7 +7,7 @@ import {
   restorePendingCollectionOperations,
 } from "../lib/collection/offline-queue"
 import type { CollectedPokemon } from "../lib/domain/cards"
-import { flushCollectionMirror, mirrorCollectionSnapshot, mirrorPendingOperations } from "../lib/offline-store/collection-mirror"
+import { flushCollectionMirror, holdCollectionMirrorUntil, mirrorCollectionSnapshot, mirrorPendingOperations } from "../lib/offline-store/collection-mirror"
 import { createMemoryStore } from "../lib/offline-store/kv"
 import {
   COLLECTION_RECORD_KEY,
@@ -176,4 +176,35 @@ test("set lookups are saved per query, readable later, and trimmed to the most r
   }
   assert.equal(await loadSetQuery(store, "setId=base1"), null, "oldest lookup evicted")
   assert.equal((await store.keys("sets:query:")).length, MAX_STORED_SET_QUERIES)
+})
+
+test("mirror writes wait for the migration, so it sees the store as it was before this page load", async () => {
+  const store = createMemoryStore()
+  const storage = storageWith({
+    [keys.snapshot]: JSON.stringify({ ownerUserId: "user-1", savedAt: "2026-10-04T00:00:00.000Z", collection: [pikachu, mew] }),
+  })
+  let startMigration: () => void = () => undefined
+  const migration = new Promise<void>((resolve) => { startMigration = resolve })
+    .then(() => migrateLocalStorageToOfflineStore(storage, store, keys))
+  holdCollectionMirrorUntil(migration)
+
+  // The app mirrors its collection before the migration has run.
+  mirrorCollectionSnapshot([pikachu], "user-1", "2026-10-06T00:00:00.000Z", store)
+  const flushed = flushCollectionMirror(store)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.equal(await loadCollectionRecord(store), null)
+
+  startMigration()
+  assert.equal(await migration, "migrated")
+  await flushed
+  const record = await loadCollectionRecord(store)
+  assert.deepEqual(record?.collection.map((item) => item.pokemon_id), [25])
+})
+
+test("a stalled migration doesn't block mirror writes forever", async () => {
+  const store = createMemoryStore()
+  holdCollectionMirrorUntil(new Promise(() => undefined), 20)
+  mirrorCollectionSnapshot([pikachu], "user-1", "2026-10-06T00:00:00.000Z", store)
+  await flushCollectionMirror(store)
+  assert.deepEqual((await loadCollectionRecord(store))?.collection.map((item) => item.pokemon_id), [25])
 })
