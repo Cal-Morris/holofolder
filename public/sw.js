@@ -183,14 +183,15 @@ function getStylesheetFontUrls(css, cssUrl) {
 }
 
 // The binder lazy-loads its card detail, card lists, List/Sets views and settings (next/dynamic). Those
-// chunks aren't in the shell HTML, only named inside the shell's own scripts ("static/chunks/x.js"), so
+// chunks aren't in the shell HTML, only named inside the shell's own scripts ("static/chunks/x.js", or
+// "static/immutable/chunks/x.js" on Vercel), so
 // without this they'd be missing offline and opening a card would fail. Follow those references a few
 // levels deep and cache what they name. Best effort: a chunk that fails to download doesn't block the shell.
 const MAX_LAZY_CHUNKS = 150
 
 function getReferencedChunkPaths(script, search) {
   const paths = new Set()
-  for (const [, chunkPath] of script.matchAll(/["'](?:\/_next\/)?(static\/chunks\/[\w.-]+\.(?:js|css))["']/g)) {
+  for (const [, chunkPath] of script.matchAll(/["'](?:\/_next\/)?(static\/(?:immutable\/)?chunks\/[\w.-]+\.(?:js|css))["']/g)) {
     paths.add(`/_next/${chunkPath}${search}`)
   }
   return [...paths]
