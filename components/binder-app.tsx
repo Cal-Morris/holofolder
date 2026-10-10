@@ -64,8 +64,10 @@ const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr: false 
 const PartnerModal = dynamic(() => import("@/components/partner-modal"), { ssr: false })
 const CardSelector = dynamic(() => import("@/components/card-selector"), { ssr: false })
 const PokemonCardsBrowser = dynamic(() => import("@/components/pokemon-cards-browser"), { ssr: false })
-const DexListView = dynamic(() => import("@/components/dex-list-view"))
-const SetPopulationView = dynamic(() => import("@/components/set-population-view"))
+// `loading` gives these their own Suspense boundary. Without it, next/dynamic (with SSR) has
+// none, so the first switch to List or Sets suspended the whole shell and hid the dock.
+const DexListView = dynamic(() => import("@/components/dex-list-view"), { loading: () => null })
+const SetPopulationView = dynamic(() => import("@/components/set-population-view"), { loading: () => null })
 
 const GENERATIONS = [
   { id: 0, name: "All Generations", start: 1, end: 1025, region: "" },
