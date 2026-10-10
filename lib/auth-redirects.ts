@@ -46,3 +46,13 @@ export function getMagicLinkRedirectUrl() {
 export function getPasswordRecoveryRedirectUrl() {
   return `${getBaseUrl()}/auth/callback?next=${encodeURIComponent(PASSWORD_RECOVERY_PATH)}`
 }
+
+/**
+ * Where a request should go before any page renders: signed-out visitors to the binder (`/`) go to the
+ * landing page. The proxy answers with this redirect up front, so they never download the binder's HTML
+ * and JS (`app/page.tsx` keeps the same redirect as a fallback). Returns null when no redirect applies.
+ */
+export function getSignedOutRedirectPath(pathname: string, isSignedIn: boolean) {
+  if (isSignedIn) return null
+  return pathname === "/" ? "/home" : null
+}
