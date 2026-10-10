@@ -54,6 +54,7 @@ import {
 } from "@/lib/wanted-dashboard"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
+import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_EASING, getAdjacentPageNumbers, getPageTurnTiming } from "@/lib/binder-page-turn"
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
@@ -3578,11 +3579,7 @@ export default function BinderApp({
       standaloneMatch.addEventListener("change", updateStandaloneMode)
     }
 
-    if ("serviceWorker" in window.navigator) {
-      window.navigator.serviceWorker.register("/sw.js").catch((error) => {
-        console.error("[binderdex] Failed to register service worker:", error)
-      })
-    }
+    registerServiceWorker()
 
     return () => {
       window.removeEventListener("online", handleOnline)

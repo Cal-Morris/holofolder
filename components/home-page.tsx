@@ -6,6 +6,7 @@ import { ArrowRight, BookOpen, Camera, Check, DollarSign, Heart, Layers3, Search
 import AuthModal from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
 import { getOfficialArtworkUrl } from "@/lib/pokemon-artwork"
+import { useServiceWorkerRegistration } from "@/hooks/use-service-worker-registration"
 
 const PREVIEW_SLOTS = [
   { id: 145, name: "Zapdos", status: "owned" },
@@ -92,6 +93,7 @@ function getPokemonArtworkUrl(id: number) {
 }
 
 export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean }) {
+  useServiceWorkerRegistration()
   const router = useRouter()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const openAuthOrApp = () => {
