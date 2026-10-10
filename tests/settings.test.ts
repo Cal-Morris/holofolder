@@ -73,3 +73,12 @@ test("normalizeBinderSettings supports legacy rows/cols and falls back on invali
   assert.equal(normalizeBinderSettings({ darkMode: true }, custom).darkMode, true)
   assert.equal(normalizeBinderSettings(null, custom), custom)
 })
+
+
+test("neutral defaults preserve saved and individual page colours", () => {
+  assert.equal(settingsFromRow(null).binderColorId, "black")
+  const stored = settingsFromRow({ binder_color_id: "emerald", binder_page_colors: { "1": "ruby", "2": "emerald" } })
+  assert.equal(stored.binderColorId, "emerald")
+  assert.deepEqual(stored.binderPageColors, { "1": "ruby", "2": "emerald" })
+  assert.deepEqual(settingsFromRow(settingsToRow(stored)), stored)
+})

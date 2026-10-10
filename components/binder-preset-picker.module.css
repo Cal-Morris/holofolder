@@ -1,0 +1,8 @@
+.picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.picker .preset { display: flex; flex-direction: column; align-items: stretch; padding: 0; border: 1px solid #555861; border-radius: 7px; overflow: hidden; background: #25272d; color: #f4f3ee; cursor: pointer; min-width: 0; }
+.preset img { width: 100%; aspect-ratio: 9/7; object-fit: contain; background: #282a30; }
+.preset span { padding: 7px 4px; font-size: 11px; line-height: 1.3; text-align: center; }
+.picker .preset[aria-pressed=true] { border-color: #b9b5a9; box-shadow: 0 0 0 1px #b9b5a9; }
+.preset:focus-visible { outline: 2px solid #a7a29a; outline-offset: 3px; }
+.preset:active { transform: scale(.98); }
+.preset:disabled { opacity: .5; cursor: default; }

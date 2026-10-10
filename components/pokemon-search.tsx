@@ -337,7 +337,7 @@ export default function PokemonSearch({
                           )}
                         </div>
                         {meta?.cardPreviewImage ? (
-                          <div className="absolute -bottom-1 -right-1 h-9 w-7 overflow-hidden rounded-[0.22rem] border-2 border-card bg-background shadow-md">
+                          <div className="trading-card absolute -bottom-1 -right-1 w-7 border-2 border-card bg-background shadow-md">
                             <img
                               src={meta.cardPreviewImage}
                               alt={`${displayName} card preview`}
@@ -445,7 +445,7 @@ export default function PokemonSearch({
                               aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}`}
                               className="w-[4.6rem] shrink-0 text-left"
                             >
-                              <div className="aspect-[63/88] w-full overflow-hidden rounded-lg border border-border/50 bg-muted/40">
+                              <div className="trading-card w-full border border-border/50 bg-muted/40">
                                 {thumb ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />

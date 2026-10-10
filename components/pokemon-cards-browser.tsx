@@ -170,7 +170,7 @@ export default function PokemonCardsBrowser({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{formatDexNumber(pokemon.id)}</p>
               <h2 className="truncate text-lg font-bold leading-tight">{displayName} cards</h2>
               <p className="text-xs text-muted-foreground">
-                {cards === null ? "Loading printings…" : `${counts.all} printing${counts.all === 1 ? "" : "s"} · ${counts.owned} owned · ${counts.wanted} wanted`}
+                {cards === null ? "Loading cards…" : `${counts.all} card${counts.all === 1 ? "" : "s"} · ${counts.owned} owned · ${counts.wanted} wanted`}
               </p>
             </div>
             <button
@@ -183,7 +183,7 @@ export default function PokemonCardsBrowser({
             </button>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2" data-no-swipe>
-            <div className="flex shrink-0 gap-1.5" role="group" aria-label="Filter printings">
+            <div className="flex shrink-0 gap-1.5" role="group" aria-label="Filter cards">
               {FILTERS.map((option) => (
                 <button
                   key={option.id}
@@ -219,17 +219,17 @@ export default function PokemonCardsBrowser({
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-3">
           {cards === null ? (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading every printing…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading every card…
             </div>
           ) : visibleEntries.length === 0 ? (
             <div className="flex h-40 items-center justify-center px-6 text-center text-sm text-muted-foreground">
               {loadError
-                ? "No printings found for this Pokémon yet."
+                ? "No cards found for this Pokémon yet."
                 : filter === "owned"
-                  ? "You don't own any of these printings yet."
+                  ? "You don't own any of these cards yet."
                   : filter === "wanted"
-                    ? "No wanted printings yet."
-                    : "No printings match that filter."}
+                    ? "No wanted cards yet."
+                    : "No cards match that filter."}
             </div>
           ) : (
             <>
@@ -252,7 +252,7 @@ export default function PokemonCardsBrowser({
                           aria-label={`Breakout ${index + 1}: ${entry.card.name} ${entry.numberLabel} ${entry.card.set.name}, ${change} over ${momentum.timeframe}`}
                           className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-border/50 bg-background/70 p-1.5 text-left transition-colors hover:border-amber-400/60"
                         >
-                          <div className="h-12 w-[2.15rem] shrink-0 overflow-hidden rounded-md bg-muted/50">
+                          <div className="trading-card w-[2.15rem] shrink-0 bg-muted/50">
                             {image ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={image} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -273,7 +273,7 @@ export default function PokemonCardsBrowser({
                 </ol>
               </section>
             ) : null}
-            <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`${displayName} printings`}>
+            <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`${displayName} cards`}>
               {visibleEntries.map((entry) => {
                 const { card } = entry
                 const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]
@@ -296,7 +296,7 @@ export default function PokemonCardsBrowser({
                             : "border-border/50"
                     }`}
                   >
-                    <div className="relative aspect-[63/88] w-full bg-muted/40">
+                    <div className="trading-card relative w-full bg-muted/40">
                       {image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={image} alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`} loading="lazy" className="h-full w-full object-cover" />

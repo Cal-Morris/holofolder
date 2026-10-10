@@ -8,14 +8,14 @@ import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
 // Only served when the server runs with BINDERDEX_E2E=1; 404 everywhere else.
 const E2E_USER_ID = "00000000-0000-4000-8000-0000000000e2"
 
-export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string }> }) {
+export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string; cardArtwork?: string }> }) {
   await connection()
 
   if (process.env.BINDERDEX_E2E !== "1") {
     notFound()
   }
 
-  const { signedIn } = await searchParams
+  const { signedIn, cardArtwork } = await searchParams
   const isSignedIn = signedIn === "1"
   const collectedAt = "2026-01-01T00:00:00.000Z"
   // The e2e suite also plants a matching Supabase session cookie and mocks the Supabase API.
@@ -40,6 +40,7 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
           pokemon_id: 1,
           pokemon_name: "bulbasaur",
           card_id: "base1-44",
+          card_image: cardArtwork === "1" ? "https://assets.tcgdex.net/en/base/base1/44/high.webp" : undefined,
           card_name: "Bulbasaur",
           card_set: "Base Set",
           card_language: "en",
@@ -53,6 +54,7 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
           pokemon_id: 4,
           pokemon_name: "charmander",
           card_id: "base1-46",
+          card_image: cardArtwork === "1" ? "https://assets.tcgdex.net/en/base/base1/46/high.webp" : undefined,
           card_name: "Charmander",
           card_set: "Base Set",
           card_language: "en",

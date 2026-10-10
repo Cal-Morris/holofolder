@@ -1,7 +1,7 @@
 import { test, expect, type Harness } from "./fixtures"
 
 const browserDialog = (harness: Harness, name: RegExp) => harness.page.getByRole("dialog", { name })
-const printings = (harness: Harness) => harness.page.getByRole("list", { name: /printings/i }).getByRole("listitem")
+const printings = (harness: Harness) => harness.page.getByRole("list", { name: /cards/i }).getByRole("listitem")
 
 async function expectUsableBrowser(harness: Harness, name: RegExp) {
   const dialog = browserDialog(harness, name)
@@ -28,7 +28,7 @@ test.describe("all cards for a Pokémon", () => {
     await expect(printings(harness)).toHaveCount(6)
     await expect(printings(harness).first()).toHaveAccessibleName(/pitch black/i)
     await expect(dialog.getByRole("listitem", { name: /44\/102 base set, owned/i })).toBeVisible()
-    await expect(dialog.getByText(/6 printings · 1 owned · 0 wanted/i)).toBeVisible()
+    await expect(dialog.getByText(/6 cards · 1 owned · 0 wanted/i)).toBeVisible()
     // Read-only: browsing never opens the card selector / edit flow.
     await expect(harness.page.getByRole("dialog", { name: /card selector/i })).toHaveCount(0)
 

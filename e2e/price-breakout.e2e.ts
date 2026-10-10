@@ -36,7 +36,7 @@ test.describe("breakout cards in the all-cards view", () => {
     const detail = await harness.openCardDetail()
     await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
     const dialog = harness.page.getByRole("dialog", { name: /all bulbasaur cards/i })
-    await expect(dialog.getByRole("list", { name: /printings/i }).getByRole("listitem")).toHaveCount(6)
+    await expect(dialog.getByRole("list", { name: /cards/i }).getByRole("listitem")).toHaveCount(6)
     await expect(dialog.getByRole("region", { name: /breakout/i })).toHaveCount(0)
   })
 })

@@ -576,7 +576,7 @@ export default function SetPopulationView({
                       {isSelected ? <Check className="h-4 w-4" /> : null}
                     </button>
                   ) : null}
-                  <div className="relative flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/45 bg-muted/45">
+                  <div className="trading-card relative flex w-12 shrink-0 items-center justify-center border border-border/45 bg-muted/45">
                     {primaryCard?.image ? (
                       <img src={primaryCard.image} alt={primaryCard.name} className="h-full w-full object-contain" loading="lazy" />
                     ) : (

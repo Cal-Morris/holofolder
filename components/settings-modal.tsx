@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useOverlay } from "@/hooks/use-overlay"
@@ -30,6 +31,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 interface SettingsModalProps {
+  appearance?: { pageColor: string; pageColors: Record<string, string> }
   isOpen: boolean
   onClose: () => void
   user: User | null
@@ -73,6 +75,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({
+  appearance,
   isOpen,
   onClose,
   settings,
@@ -140,7 +143,8 @@ export default function SettingsModal({
     onUpdateSettings({ binderRows: rows, binderCols: cols })
   }
 
-  const hasPageColorOverride = Boolean(settings.binderPageColors[String(currentBinderPage)])
+  const hasPageColorOverride = appearance ? Boolean(appearance.pageColors[String(currentBinderPage)]) : Boolean(settings.binderPageColors[String(currentBinderPage)])
+  const appearanceColorName = (color: string) => BINDER_COLOR_PRESETS.find(preset => preset.swatch[0].toLowerCase() === color.toLowerCase())?.label ?? "a custom colour"
   const fullShareUrl = sharePath && typeof window !== "undefined"
     ? buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/share\//, ""))
     : sharePath
@@ -187,7 +191,7 @@ export default function SettingsModal({
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
+        className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0">
@@ -226,6 +230,12 @@ export default function SettingsModal({
           {/* Binder Size */}
           {effectiveActiveTab === "binder" && (
           <div className="space-y-4">
+            {!isReadOnlyView && (
+              <Link href="/studio" className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted">
+                <span>Customise binder</span>
+                <span className="text-xs font-normal text-muted-foreground">3D studio ↗</span>
+              </Link>
+            )}
             <div className="flex items-center gap-2">
               <Grid3X3 className="w-4 h-4 text-primary" />
               <h3 className="font-semibold">Binder Layout</h3>
@@ -418,10 +428,10 @@ export default function SettingsModal({
               </div>
               <div className="mt-3 rounded-2xl border border-border/40 bg-background/45 px-3 py-2.5">
                 <p className="text-xs font-medium">
-                  Default: {BINDER_COLOR_PRESETS.find((preset) => preset.id === settings.binderColorId)?.label ?? "Binder"}
+                  Default: {appearance ? appearanceColorName(appearance.pageColor) : BINDER_COLOR_PRESETS.find((preset) => preset.id === settings.binderColorId)?.label ?? "Binder"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Page {currentBinderPage} is currently using {BINDER_COLOR_PRESETS.find((preset) => preset.id === currentPageBinderColorId)?.label ?? "the default color"}
+                  Page {currentBinderPage} is currently using {appearance ? appearanceColorName(appearance.pageColors[String(currentBinderPage)] ?? appearance.pageColor) : BINDER_COLOR_PRESETS.find((preset) => preset.id === currentPageBinderColorId)?.label ?? "the default color"}
                   {hasPageColorOverride ? " via a page override." : " from the global default."}
                 </p>
                 {hasPageColorOverride && (
