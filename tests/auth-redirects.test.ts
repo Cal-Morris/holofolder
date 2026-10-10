@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from "../lib/auth-redirects"
+import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl, getSignedOutRedirectPath } from "../lib/auth-redirects"
 
 const ENV_KEYS = [
   "NEXT_PUBLIC_SITE_URL",
@@ -68,4 +68,15 @@ test("password recovery redirect encodes the recovery path", () => {
       "http://localhost:3000/auth/callback?next=%2Fauth%2Flogin%3Fmode%3Drecovery",
     )
   })
+})
+
+test("signed-out visitors to the binder are sent to the landing page", () => {
+  assert.equal(getSignedOutRedirectPath("/", false), "/home")
+})
+
+test("signed-in visitors and other paths are not redirected", () => {
+  assert.equal(getSignedOutRedirectPath("/", true), null)
+  for (const pathname of ["/home", "/auth/login", "/app-shell", "/share/abc", "/e2e-harness", "/api/card-prices"]) {
+    assert.equal(getSignedOutRedirectPath(pathname, false), null, pathname)
+  }
 })

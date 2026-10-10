@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSignedOutRedirectPath } from '@/lib/auth-redirects'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -50,6 +51,18 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     return NextResponse.redirect(url)
+  }
+
+  // Signed-out visitors to the binder go straight to the landing page with a 307, before the page
+  // streams its loading screen and binder JS (which would then redirect on the client).
+  const signedOutRedirect = getSignedOutRedirectPath(request.nextUrl.pathname, Boolean(user))
+  if (signedOutRedirect) {
+    const url = request.nextUrl.clone()
+    url.pathname = signedOutRedirect
+    url.search = ''
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+    return redirectResponse
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
