@@ -1,6 +1,7 @@
 export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
 
 import { normalizeCardLanguage, type CardLanguage } from "@/lib/domain/cards"
+import { getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
 
 interface OfflineCacheWarmupWantedCard {
   card_image?: unknown
@@ -42,12 +43,16 @@ export function buildOfflineCacheWarmupUrls(input: OfflineCacheWarmupInput) {
     ? input.maxUrls
     : 500
   const urls = new Set<string>(["/"])
+  const collection = Array.isArray(input.collection) ? input.collection as OfflineCacheWarmupCollectionItem[] : []
 
+  // What is on screen comes first so it survives the maxUrls cut on large collections:
+  // card lists, the owned card image or (for empty slots) the Pokémon artwork the binder renders.
   addPokemonCacheUrls(urls, input.visiblePokemonIds, language)
   addPokemonCacheUrls(urls, [input.selectedPokemonId], language)
+  addVisibleSlotImageUrls(urls, [...toPokemonIds(input.visiblePokemonIds), ...toPokemonIds([input.selectedPokemonId])], collection)
 
-  if (Array.isArray(input.collection)) {
-    for (const item of input.collection as OfflineCacheWarmupCollectionItem[]) {
+  if (collection.length > 0) {
+    for (const item of collection) {
       addPokemonCacheUrls(urls, [item?.pokemon_id], language)
       addCardImageUrl(urls, item?.card_image)
 
@@ -84,5 +89,27 @@ function addCardImageUrl(urls: Set<string>, value: unknown) {
   const imageUrl = toCacheableCardImageUrl(value)
   if (imageUrl) {
     urls.add(imageUrl)
+  }
+}
+
+function toPokemonIds(values: unknown): number[] {
+  if (!Array.isArray(values)) return []
+  return values.filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value > 0)
+}
+
+function addVisibleSlotImageUrls(urls: Set<string>, pokemonIds: number[], collection: OfflineCacheWarmupCollectionItem[]) {
+  if (pokemonIds.length === 0) return
+
+  const cardImageByPokemonId = new Map<number, unknown>()
+  for (const item of collection) {
+    if (typeof item?.pokemon_id === "number" && item.card_image) {
+      cardImageByPokemonId.set(item.pokemon_id, item.card_image)
+    }
+  }
+
+  for (const pokemonId of pokemonIds) {
+    const cardImageUrl = toCacheableCardImageUrl(cardImageByPokemonId.get(pokemonId))
+    // Owned slots show the card image; empty slots show the Pokémon artwork.
+    urls.add(cardImageUrl ?? getOfficialArtworkUrl(pokemonId))
   }
 }
