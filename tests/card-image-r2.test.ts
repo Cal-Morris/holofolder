@@ -195,4 +195,21 @@ describe("R2 backend", () => {
     assert.equal(result.failed, 2)
     assert.deepEqual(result.errors, ["R2 PUT failed with 500 InternalError"])
   })
+
+  test("signed PUTs are sent as url + init with the original ArrayBuffer body (keeps Content-Length under Next's fetch)", async () => {
+    const seen: Array<{ input: unknown; body: unknown; auth: string | null }> = []
+    const deps = createR2Deps(config(), {
+      fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        seen.push({ input, body: init?.body, auth: new Headers(init?.headers).get("authorization") })
+        return new Response("", { status: 200 })
+      }) as typeof fetch,
+    })
+    const body = new Uint8Array([1, 2, 3]).buffer
+    await deps.put("cards/en/me05/001/high.webp", body, "image/webp")
+    assert.equal(typeof seen[0].input, "string")
+    assert.equal(seen[0].input, `${ENDPOINT}cards/en/me05/001/high.webp`)
+    assert.equal(seen[0].body, body)
+    assert.match(seen[0].auth ?? "", /^AWS4-HMAC-SHA256 /)
+  })
 })
+
