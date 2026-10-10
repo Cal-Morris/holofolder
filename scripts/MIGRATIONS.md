@@ -2,7 +2,7 @@
 
 The Supabase schema is defined by the numbered SQL files in this folder. There is no migration runner: apply them by hand (Supabase SQL editor or `psql`) in numeric order. Every file uses `IF NOT EXISTS` / `DROP … IF EXISTS` guards, so re-running one that is already applied is meant to be harmless, but keep a note of what production has had applied.
 
-When you add a migration, use the next free number (`026_…`), keep it idempotent, and add a row below.
+When you add a migration, use the next free number (`029_…`), keep it idempotent, and add a row below.
 
 | File | What it does |
 |---|---|
@@ -33,6 +33,7 @@ When you add a migration, use the next free number (`026_…`), keep it idempote
 | `026_card_price_finishes.sql` | Exact printing and finish price evidence (`finish_prices`); existing cache writes work before application |
 
 | `027_collection_analytics.sql` | Private committed collection activity and compact tracked daily price observations with 90-day retention. Apply before enabling history; the view tolerates missing tables. |
+| `028_user_pricing_preferences.sql` | `user_settings.pricing_region`, `preferred_currency`, `preferred_card_language` (NULL = automatic from the browser locale). `/api/settings` falls back to the older columns until this is applied |
 
 ## `user_settings` (from the missing 002/003)
 

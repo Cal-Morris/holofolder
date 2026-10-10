@@ -23,6 +23,7 @@ import { getCardPriceKey, getPriceSourceLabel, useCardPrices, type CardPriceLook
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useBinderAppearance } from "@/hooks/use-binder-appearance"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
+import { getBrowserLocales, resolvePricingPreferences } from "@/lib/pricing-region"
 import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
 import { getTouchGestureIntent, useTouchGestures } from "@/hooks/use-touch-gestures"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
@@ -6930,6 +6931,7 @@ export default function BinderApp({
           selectedCollectedCardId={collectionItem?.card_id}
           selectedWantedCardId={collectionItem?.wanted_cards?.[0]?.card_id}
           mode={cardSelectorMode}
+          defaultCardLanguage={resolvePricingPreferences(settings, getBrowserLocales()).cardLanguage}
         />
       )}
 

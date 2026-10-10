@@ -29,6 +29,8 @@ interface CardSelectorProps {
   selectedCollectedCardId?: string
   selectedWantedCardId?: string
   mode?: CardSelectorMode
+  /** Initial card language (the user's preferred card language setting). */
+  defaultCardLanguage?: CardLanguage
 }
 
 type CardScanMatch = CardScanFrameMatch<TCGCard>
@@ -251,11 +253,12 @@ export default function CardSelector({
   selectedCollectedCardId,
   selectedWantedCardId,
   mode = "collect",
+  defaultCardLanguage,
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
   const [cards, setCards] = useState<TCGCard[]>([])
   const [filters, setFilters] = useState<CardFilters>({})
-  const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>("en")
+  const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>(defaultCardLanguage ?? "en")
   const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode)
   const [selectedFinish, setSelectedFinish] = useState<CardFinish>("normal")
   const [hasManuallySelectedFinish, setHasManuallySelectedFinish] = useState(false)

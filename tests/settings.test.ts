@@ -17,6 +17,9 @@ const custom: BinderSettings = {
   binderSlotGlareEnabled: false,
   cardFinishEffectsEnabled: false,
   darkMode: false,
+  pricingRegion: "EU",
+  preferredCurrency: "USD",
+  preferredCardLanguage: "fr",
 }
 
 test("settingsFromRow returns the defaults for a missing row", () => {
@@ -55,6 +58,9 @@ test("settingsToRow and settingsFromRow round-trip", () => {
     binder_slot_glare_enabled: false,
     card_finish_effects_enabled: false,
     dark_mode: false,
+    pricing_region: "EU",
+    preferred_currency: "USD",
+    preferred_card_language: "fr",
   })
 })
 

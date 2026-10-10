@@ -3,7 +3,15 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
-import { USER_SETTINGS_COLUMNS, settingsFromRow, settingsToRow } from "@/lib/settings"
+import {
+  LEGACY_USER_SETTINGS_COLUMNS,
+  USER_SETTINGS_COLUMNS,
+  isMissingColumnError,
+  settingsFromRow,
+  settingsToRow,
+  withoutPricingPreferenceColumns,
+  type UserSettingsRow,
+} from "@/lib/settings"
 
 async function requireUser() {
   const supabase = await createClient()
@@ -24,11 +32,20 @@ export async function GET() {
 
     const admin = createAdminClient()
     const settingsOwnerUserId = await resolveSettingsOwnerUserId(user.id)
-    const { data, error } = await admin
+    let { data, error } = await admin
       .from("user_settings")
       .select(USER_SETTINGS_COLUMNS)
       .eq("user_id", settingsOwnerUserId)
       .maybeSingle()
+
+    if (error && isMissingColumnError(error)) {
+      // Migration 024 (pricing preferences) not applied yet: serve the legacy columns.
+      ;({ data, error } = await admin
+        .from("user_settings")
+        .select(LEGACY_USER_SETTINGS_COLUMNS)
+        .eq("user_id", settingsOwnerUserId)
+        .maybeSingle())
+    }
 
     if (error) {
       console.error("[binderdex] API settings fetch failed:", error)
@@ -36,7 +53,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      settings: settingsFromRow(data),
+      settings: settingsFromRow(data as UserSettingsRow | null),
       hasStoredSettings: Boolean(data),
     })
   } catch (error) {
@@ -70,6 +87,9 @@ export async function PUT(request: NextRequest) {
       binder_slot_glare_enabled: Boolean(body.binderSlotGlareEnabled),
       card_finish_effects_enabled: body.cardFinishEffectsEnabled !== false,
       dark_mode: Boolean(body.darkMode),
+      pricing_region: typeof body.pricingRegion === "string" ? body.pricingRegion : null,
+      preferred_currency: typeof body.preferredCurrency === "string" ? body.preferredCurrency : null,
+      preferred_card_language: typeof body.preferredCardLanguage === "string" ? body.preferredCardLanguage : null,
     })
 
     const existingResult = await admin
@@ -86,19 +106,24 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const mutation = existingResult.data
+    const writeSettings = (row: Record<string, unknown>) => existingResult.data
       ? admin
           .from("user_settings")
-          .update(settingsToRow(nextSettings))
+          .update(row)
           .eq("user_id", settingsOwnerUserId)
       : admin
           .from("user_settings")
           .insert({
             user_id: settingsOwnerUserId,
-            ...settingsToRow(nextSettings),
+            ...row,
           })
 
-    const { error } = await mutation
+    const fullRow = settingsToRow(nextSettings)
+    let { error } = await writeSettings(fullRow)
+    if (error && isMissingColumnError(error)) {
+      // Migration 024 not applied yet: save everything else; pricing preferences stay device-local.
+      ;({ error } = await writeSettings(withoutPricingPreferenceColumns(fullRow)))
+    }
 
     if (error) {
       console.error("[binderdex] API settings save failed:", error)
