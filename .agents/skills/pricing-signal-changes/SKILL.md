@@ -37,7 +37,7 @@ description: Change binderdex price providers, normalisation, confidence rules, 
   - Uses the Rising gates.
   - Score = change × timeframe weight (7d = 1, 30d = 0.5).
   - Ties go to higher confidence, then higher price, then card id.
-  - At most 3 cards. The section is hidden when nothing qualifies, and only shown on the unfiltered All view.
+  - At most 10 printing/finish entries. Exact-finish rankings use finish-specific evidence, and ambiguous foil quotes are excluded. The section is hidden when nothing qualifies, and only shown on the unfiltered All view.
 - **Provider list parity.** The server `PriceProvider`, the client sources and the SQL CHECK constraints must match. `tests/price-provider-sources.test.ts` enforces this, so add a migration when adding a provider.
 - **Bundle safety.** `lib/card-pricing.ts` must import the admin Supabase client type-only and load it with `await import()`.
 - **Region and currency.**

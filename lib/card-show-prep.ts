@@ -29,14 +29,13 @@ export function getProxiedThumbnailUrl(image: string | undefined | null) {
   }
 }
 
-/** Every distinct card thumbnail a set's coverage view can show. */
-export function getSetThumbnailUrls(payload: Pick<TCGSetSlotsResponse, "slots"> | null | undefined) {
+/** Every distinct card thumbnail in the set, including value-ranking printings. */
+export function getSetThumbnailUrls(payload: Pick<TCGSetSlotsResponse, "slots" | "cards"> | null | undefined) {
   const urls = new Set<string>()
-  for (const slot of payload?.slots ?? []) {
-    for (const card of slot.cards ?? []) {
-      const url = getProxiedThumbnailUrl(card.image)
-      if (url) urls.add(url)
-    }
+  const cards = payload?.cards ?? payload?.slots.flatMap((slot) => slot.cards ?? []) ?? []
+  for (const card of cards) {
+    const url = getProxiedThumbnailUrl(card.image)
+    if (url) urls.add(url)
   }
   return [...urls]
 }

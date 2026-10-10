@@ -11,6 +11,7 @@ const now = new Date("2026-06-28T18:00:00.000Z").getTime()
 
 function priceSnapshot(cardId: string, fetchedAt: number): CardPriceSnapshot {
   return {
+    finishPrices: [],
     cardId,
     language: "en",
     gbpAmount: 12,
@@ -107,4 +108,14 @@ test("buildCardPriceFetchPlan chunks stale refreshes under the configured batch 
     { force: true, cards: ["sv1-001", "sv1-002"] },
     { force: true, cards: ["sv1-003"] },
   ])
+})
+
+test("legacy cache is retained while finish evidence refreshes, and remains usable offline", () => {
+  const key = getCardPriceKey("sv1-001", "en")
+  const legacy = priceSnapshot("sv1-001", now)
+  delete legacy.finishPrices
+  const plan = buildCardPriceFetchPlan(["sv1-001"], { [key]: legacy }, { now })
+  assert.equal(plan.cachedPrices[key].marketGbpAmount, 12)
+  assert.equal(plan.fetchBatches[0].force, true)
+  assert.deepEqual(buildCardPriceFetchPlan(["sv1-001"], { [key]: legacy }, { now, isOnline: false }).fetchBatches, [])
 })

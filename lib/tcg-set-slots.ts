@@ -37,6 +37,7 @@ export interface TCGSetSlotsResponse {
   sets: TCGSetSummary[]
   selectedSet: TCGSetSummary | null
   slots: TCGSetDexSlot[]
+  cards?: TCGSetSlotCard[]
 }
 
 export const RECENT_SET_MIN_OFFICIAL_CARDS = 20

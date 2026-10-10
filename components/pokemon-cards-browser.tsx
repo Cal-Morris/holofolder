@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Check, Flame, Heart, Loader2, Plus, Search as SearchIcon, X } from "lucide-react"
+import { Check, Heart, Loader2, Plus, Search as SearchIcon, X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { formatPokemonDisplayName, getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
-import { rankBreakoutCards } from "@/lib/breakout-cards"
-import { formatMomentumChange } from "@/lib/price-momentum"
+import { CardHighlights } from "@/components/card-highlights"
 import {
   buildBrowseEntries,
   type BrowseCardFilter,
@@ -101,15 +100,11 @@ export default function PokemonCardsBrowser({
     [allEntries],
   )
   const { pricesByCardId } = useCardPrices(priceLookups, priceLookups.length > 0)
-  const breakoutEntries = useMemo(
-    () => rankBreakoutCards(allEntries.map((entry) => ({
-      card: entry,
-      cardId: entry.card.id,
-      price: pricesByCardId[getCardPriceKey(entry.card.id, entry.card.language ?? "en")],
-    }))),
-    [allEntries, pricesByCardId],
-  )
-  const showBreakout = breakoutEntries.length > 0 && filter === "all" && !textFilter.trim()
+  const highlightCards = useMemo(() => allEntries.map((entry) => ({
+    id: entry.card.id, language: entry.card.language, name: entry.card.name,
+    numberLabel: entry.numberLabel, setName: entry.card.set.name, image: entry.card.image, rarity: entry.card.rarity,
+  })), [allEntries])
+  const showBreakout = filter === "all" && !textFilter.trim()
 
   const scrollToCard = useCallback((cardId: string) => {
     const target = bodyRef.current?.querySelector<HTMLElement>(`li[data-card-id="${CSS.escape(cardId)}"]`)
@@ -233,46 +228,7 @@ export default function PokemonCardsBrowser({
             </div>
           ) : (
             <>
-            {showBreakout ? (
-              <section aria-label={`${displayName} breakout cards`} className="mb-3 rounded-2xl border border-amber-400/35 bg-amber-500/[0.06] p-2.5">
-                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
-                  <Flame className="h-3.5 w-3.5" aria-hidden="true" />
-                  Breakout
-                  <span className="font-normal normal-case tracking-normal text-muted-foreground">strongest recent price momentum</span>
-                </div>
-                <ol className="grid gap-1.5 sm:grid-cols-3">
-                  {breakoutEntries.map(({ card: entry, cardId, momentum }, index) => {
-                    const change = formatMomentumChange(momentum.change)
-                    const image = thumbnailUrl(entry.card.image)
-                    return (
-                      <li key={cardId} data-breakout-card-id={cardId}>
-                        <button
-                          type="button"
-                          onClick={() => scrollToCard(cardId)}
-                          aria-label={`Breakout ${index + 1}: ${entry.card.name} ${entry.numberLabel} ${entry.card.set.name}, ${change} over ${momentum.timeframe}`}
-                          className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-border/50 bg-background/70 p-1.5 text-left transition-colors hover:border-amber-400/60"
-                        >
-                          <div className="trading-card w-[2.15rem] shrink-0 bg-muted/50">
-                            {image ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={image} alt="" loading="lazy" className="h-full w-full object-cover" />
-                            ) : null}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-semibold">{entry.card.set.name}</p>
-                            <p className="truncate text-[11px] tabular-nums text-muted-foreground">{entry.numberLabel}</p>
-                          </div>
-                          <div className="shrink-0 text-right tabular-nums">
-                            <p className="text-sm font-bold text-amber-600 dark:text-amber-300">{change}</p>
-                            <p className="text-[10px] text-muted-foreground">vs {momentum.timeframe} avg</p>
-                          </div>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ol>
-              </section>
-            ) : null}
+            {showBreakout ? <CardHighlights name={displayName} cards={highlightCards} prices={pricesByCardId} formatPrice={formatPrice} onSelectCard={scrollToCard} /> : null}
             <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`${displayName} cards`}>
               {visibleEntries.map((entry) => {
                 const { card } = entry

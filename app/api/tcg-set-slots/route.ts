@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { selectedSet, slots } = await getMirroredSetDexSlots(selectedSetId, language, pokemonNames)
+    const { selectedSet, slots, cards } = await getMirroredSetDexSlots(selectedSetId, language, pokemonNames)
     const allSets = sets.some((set) => set.id === selectedSetId) || !selectedSet
       ? sets
       : [selectedSet, ...sets]
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         sets: allSets,
         selectedSet,
         slots,
+        cards,
       },
       { headers: PUBLIC_JSON_CACHE_HEADERS },
     )
