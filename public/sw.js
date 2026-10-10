@@ -182,6 +182,45 @@ function getStylesheetFontUrls(css, cssUrl) {
   return [...urls]
 }
 
+// The binder lazy-loads its card detail, card lists, List/Sets views and settings (next/dynamic). Those
+// chunks aren't in the shell HTML, only named inside the shell's own scripts ("static/chunks/x.js"), so
+// without this they'd be missing offline and opening a card would fail. Follow those references a few
+// levels deep and cache what they name. Best effort: a chunk that fails to download doesn't block the shell.
+const MAX_LAZY_CHUNKS = 150
+
+function getReferencedChunkPaths(script, search) {
+  const paths = new Set()
+  for (const [, chunkPath] of script.matchAll(/["'](?:\/_next\/)?(static\/chunks\/[\w.-]+\.(?:js|css))["']/g)) {
+    paths.add(`/_next/${chunkPath}${search}`)
+  }
+  return [...paths]
+}
+
+async function precacheLazyChunks(cache, scriptUrls) {
+  // Vercel skew protection adds ?dpl=… to every asset URL; lazy chunks are requested with the same query.
+  const search = scriptUrls.map((url) => new URL(url, self.location.origin).search).find(Boolean) ?? ""
+  const seen = new Set(scriptUrls)
+  let level = scriptUrls
+  for (let depth = 0; depth < 4 && level.length > 0 && seen.size < MAX_LAZY_CHUNKS + scriptUrls.length; depth += 1) {
+    const next = []
+    for (const scriptUrl of level) {
+      const cached = await cache.match(scriptUrl)
+      if (!cached) continue
+      for (const chunkUrl of getReferencedChunkPaths(await cached.text(), search)) {
+        if (seen.has(chunkUrl) || seen.size >= MAX_LAZY_CHUNKS + scriptUrls.length) continue
+        seen.add(chunkUrl)
+        next.push(chunkUrl)
+      }
+    }
+    await runWithConcurrency(next, 4, async (chunkUrl) => {
+      if (await cache.match(chunkUrl)) return
+      const response = await fetch(chunkUrl, { credentials: "same-origin" })
+      if (isCacheableResponse(response)) await cache.put(chunkUrl, response)
+    })
+    level = next.filter((chunkUrl) => /\.js(?:\?|$)/.test(chunkUrl))
+  }
+}
+
 // Fetch the shell page plus the JS/CSS/fonts it references; only swap it in once every asset is cached,
 // so the cached shell never points at chunks we don't have.
 async function precacheAppShell() {
@@ -207,6 +246,7 @@ async function precacheAppShell() {
     }
   }
   await cache.addAll([...new Set(fontUrls)])
+  await precacheLazyChunks(cache, assetUrls.filter((assetUrl) => /\.js(?:\?|$)/.test(assetUrl))).catch(() => undefined)
   await cache.put(APP_SHELL_URL, response)
   lastAppShellRefreshAt = Date.now()
 }
