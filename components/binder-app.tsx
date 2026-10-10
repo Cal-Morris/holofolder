@@ -909,6 +909,7 @@ export default function BinderApp({
     syncStatus,
     syncNotice,
     dismissSyncNotice,
+    resolvedCollectionOwnerUserId,
   } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId, readOnly: readOnlyMode })
   useOfflineStoreSync(!readOnlyMode)
   const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
@@ -925,10 +926,10 @@ export default function BinderApp({
     hasRemoteSettings: initialHasStoredSettings,
   })
   const binderAppearance = useBinderAppearance({
-    owner: initialCollectionOwnerUserId || user?.id || null,
+    owner: resolvedCollectionOwnerUserId,
     settings,
-    enabled: Boolean(user) && !readOnlyMode,
-    legacyKey: user ? `owner:${user.id}:${initialCollectionOwnerUserId || user.id}` : undefined,
+    enabled: Boolean(user && resolvedCollectionOwnerUserId) && !readOnlyMode,
+    legacyKey: user && resolvedCollectionOwnerUserId ? `owner:${user.id}:${resolvedCollectionOwnerUserId}` : undefined,
   })
   const updateSettings = useCallback((updates: Partial<BinderSettings>, appearancePageColors?: Record<string, string>) => {
     updateLegacySettings(updates)

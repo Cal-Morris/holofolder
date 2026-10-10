@@ -20,6 +20,10 @@ export function keepStableUserById<TUser extends { id: string }>(currentUser: TU
   return currentUser?.id === nextUser?.id ? currentUser : nextUser
 }
 
+export function getResolvedCollectionOwner(userId: string | null, resolvedForUserId: string | null, ownerId: string | null) {
+  return userId && userId === resolvedForUserId ? ownerId : null
+}
+
 export function getRemoteCollectionRefreshPlan<TUser extends { id: string }>(
   currentUser: TUser | null,
   knownOwnerUserId: string | null,
