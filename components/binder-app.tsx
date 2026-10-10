@@ -4008,6 +4008,12 @@ export default function BinderApp({
   }, [])
 
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
+  // Offline card search: own cards plus card data the service worker has cached (read lazily, per search session).
+  const getOfflineSearchCards = useCallback(
+    () => import("@/lib/offline-card-index").then(({ buildOfflineCardIndex }) => buildOfflineCardIndex(collection)),
+    [collection],
+  )
+
   const openCardBrowser = useCallback((
     pokemon: { id: number; name: string },
     options: { highlightCardId?: string | null; fromDetail?: boolean } = {},
@@ -6423,6 +6429,7 @@ export default function BinderApp({
                   totalPages={totalBinderPages}
                   onJumpToPage={handleSearchJumpToPage}
                   onBrowseCards={(pokemon, highlightCardId) => openCardBrowser(pokemon, { highlightCardId })}
+                  getOfflineCards={getOfflineSearchCards}
                 />
                 {selectedPokemon && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { LOCAL_COLLECTION_PENDING_OPS_KEY, LOCAL_COLLECTION_SNAPSHOT_KEY } from "@/lib/collection/offline-queue"
-import { flushCollectionMirror } from "@/lib/offline-store/collection-mirror"
+import { flushCollectionMirror, holdCollectionMirrorUntil } from "@/lib/offline-store/collection-mirror"
 import { getOfflineStore } from "@/lib/offline-store/kv"
 import { extractLastKnownPrices, migrateLocalStorageToOfflineStore, saveLastKnownPrices } from "@/lib/offline-store/records"
 
@@ -21,10 +21,10 @@ export function useOfflineStoreSync(enabled = true) {
     const store = getOfflineStore()
     if (!store) return
 
-    void migrateLocalStorageToOfflineStore(window.localStorage, store, {
+    holdCollectionMirrorUntil(migrateLocalStorageToOfflineStore(window.localStorage, store, {
       snapshot: LOCAL_COLLECTION_SNAPSHOT_KEY,
       pendingOperations: LOCAL_COLLECTION_PENDING_OPS_KEY,
-    }).catch((error) => console.error("[binderdex] IndexedDB migration failed:", error))
+    }).catch((error) => console.error("[binderdex] IndexedDB migration failed:", error)))
 
     const mirrorPrices = () => {
       let raw: string | null = null

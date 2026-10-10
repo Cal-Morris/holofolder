@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type SyntheticEvent } from "react"
 import { Check, Heart, Loader2, Search, Sparkles, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -8,6 +8,9 @@ import type { CollectedPokemon } from "@/hooks/use-collection"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 import { getOfflineStore } from "@/lib/offline-store/kv"
 import { loadSetQuery, saveSetQuery } from "@/lib/offline-store/records"
+import CardShowPrep from "@/components/card-show-prep"
+import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
+import { readOfflineSets, searchOfflineSets } from "@/lib/offline-card-index"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
 
 interface SetPopulationViewProps {
@@ -43,6 +46,17 @@ const SET_SHORTCUTS = [
   { label: "Perfect Order", query: "Perfect Order" },
   { label: "Ascended Heroes", query: "Ascended Heroes" },
 ]
+
+/** Offline, a card image that was never loaded falls back to its saved thumbnail (via the image proxy). */
+function savedThumbnailOnError(image: string | undefined) {
+  return (event: SyntheticEvent<HTMLImageElement>) => {
+    const element = event.currentTarget
+    const fallback = getProxiedThumbnailUrl(image)
+    if (!fallback || element.dataset.savedThumbnail === "1") return
+    element.dataset.savedThumbnail = "1"
+    element.src = fallback
+  }
+}
 
 function formatDexNumber(id: number) {
   return `#${String(id).padStart(4, "0")}`
@@ -85,6 +99,7 @@ export default function SetPopulationView({
   const [selectedCardIdsByDexId, setSelectedCardIdsByDexId] = useState<Record<number, string>>({})
   const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
   const [recentSets, setRecentSets] = useState<TCGSetSummary[]>([])
+  const [isShowingSavedSets, setIsShowingSavedSets] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -138,6 +153,7 @@ export default function SetPopulationView({
         setSlots(payload.slots)
       }
 
+      setIsShowingSavedSets(false)
       void fetch(`/api/tcg-set-slots?${queryString}`, {
         signal: controller.signal,
       })
@@ -155,11 +171,24 @@ export default function SetPopulationView({
         })
         .catch(async (fetchError) => {
           if (controller.signal.aborted) return
+          // Offline: first the exact copy saved for this lookup (IndexedDB), then any saved sets that match
+          // the search, so one can be opened; only then the error.
           const saved = offlineStore ? await loadSetQuery(offlineStore, queryString).catch(() => null) : null
           if (controller.signal.aborted) return
           if (saved) {
             applyPayload(saved)
             return
+          }
+          if (!selectedSetId && trimmedQuery.length >= 2) {
+            const savedSets = searchOfflineSets(await readOfflineSets().catch(() => []), trimmedQuery)
+            if (controller.signal.aborted) return
+            if (savedSets.length > 0) {
+              setSets(savedSets)
+              setSelectedSet(null)
+              setSlots([])
+              setIsShowingSavedSets(true)
+              return
+            }
           }
           setError(fetchError instanceof Error ? fetchError.message : "Could not load set coverage.")
         })
@@ -341,6 +370,10 @@ export default function SetPopulationView({
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
         </div>
 
+        {isShowingSavedSets ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">Offline: showing sets saved on this device.</p>
+        ) : null}
+
         {sets.length > 0 ? (
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {sets.map((set) => {
@@ -367,6 +400,12 @@ export default function SetPopulationView({
             })}
           </div>
         ) : null}
+
+        <CardShowPrep
+          candidateSets={[selectedSet, ...sets, ...recentSets].filter(
+            (set, index, all): set is TCGSetSummary => Boolean(set) && all.findIndex((other) => other?.id === set?.id) === index,
+          )}
+        />
 
         {selectedSet ? (
           <div className="mt-3 grid grid-cols-4 gap-2">
@@ -578,7 +617,7 @@ export default function SetPopulationView({
                   ) : null}
                   <div className="relative flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/45 bg-muted/45">
                     {primaryCard?.image ? (
-                      <img src={primaryCard.image} alt={primaryCard.name} className="h-full w-full object-contain" loading="lazy" />
+                      <img src={primaryCard.image} alt={primaryCard.name} className="h-full w-full object-contain" loading="lazy" onError={savedThumbnailOnError(primaryCard.image)} />
                     ) : (
                       <span className="text-xs font-semibold text-muted-foreground">{formatDexNumber(slot.dexId)}</span>
                     )}

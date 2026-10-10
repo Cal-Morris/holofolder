@@ -60,6 +60,9 @@ test.describe("IndexedDB offline store", () => {
 
   test("migrates an existing localStorage snapshot on first run", async ({ harness }) => {
     const { page } = harness
+    // Seed from a static same-origin page: with the binder open, its page-hide flush would write the
+    // collection to IndexedDB during the reload, and the migration would rightly keep that instead.
+    await page.goto("/icon.svg")
     await page.evaluate(() => new Promise<void>((resolve) => {
       const request = indexedDB.deleteDatabase("binderdex-offline")
       request.onsuccess = request.onerror = request.onblocked = () => resolve()
@@ -71,8 +74,7 @@ test.describe("IndexedDB offline store", () => {
         collection: [{ id: "legacy-25", pokemon_id: 25, pokemon_name: "pikachu", wanted_cards: [], status: "collected", collected_at: "2026-10-01T00:00:00.000Z" }],
       }))
     })
-    await page.reload()
-    await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
+    await harness.open()
 
     await expect.poll(() => readRecord<{ result: string }>(page, "meta:migrated-from-local-storage").then((marker) => marker?.result ?? null), { timeout: 15_000 })
       .toBe("migrated")

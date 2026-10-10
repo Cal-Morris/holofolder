@@ -6,11 +6,22 @@ import { getOfflineStore, type OfflineKeyValueStore } from "@/lib/offline-store/
 import { loadCollectionRecord, saveCollectionRecord, type CollectionRecord } from "@/lib/offline-store/records"
 
 const MIRROR_DELAY_MS = 400
+const MAX_MIGRATION_WAIT_MS = 5000
 
 let pendingCollection: { collection: CollectedPokemon[]; ownerUserId: string | null; savedAt: string } | null = null
 let pendingOperations: unknown[] | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 let flushing: Promise<void> = Promise.resolve()
+
+/**
+ * Mirror writes wait for the one-time localStorage migration, so the migration always sees the store as it
+ * was before this page load (otherwise a mirror write landing first makes it report "kept-existing").
+ */
+export function holdCollectionMirrorUntil(ready: Promise<unknown>, maxWaitMs = MAX_MIGRATION_WAIT_MS) {
+  // Never hold the durable copy hostage: if the migration stalls, mirror writes go ahead after maxWaitMs.
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, maxWaitMs))
+  flushing = flushing.then(() => Promise.race([ready, timeout])).then(() => undefined, () => undefined)
+}
 
 async function writeMirror(store: OfflineKeyValueStore, collectionUpdate: typeof pendingCollection, operationsUpdate: unknown[] | null) {
   const existing = await loadCollectionRecord(store)
