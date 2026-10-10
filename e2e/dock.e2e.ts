@@ -37,9 +37,12 @@ test.describe("compact bottom dock", () => {
     const lastRow = scroller.locator("[role=button]").last()
     await expect(lastRow).toBeVisible()
     await expect(lastRow).toContainText(/#1025/)
-    const rowBox = (await lastRow.boundingBox())!
-    const dockTop = (await bar(harness).boundingBox())!.y
-    expect(rowBox.y + rowBox.height, "last row must not be hidden by the dock").toBeLessThanOrEqual(dockTop)
-    await harness.expectHittable(lastRow)
+    // Virtual row measurements are published on the next animation frame.
+    await expect(async () => {
+      const rowBox = (await lastRow.boundingBox())!
+      const dockTop = (await bar(harness).boundingBox())!.y
+      expect(rowBox.y + rowBox.height, "last row must not be hidden by the dock").toBeLessThanOrEqual(dockTop)
+      await harness.expectHittable(lastRow)
+    }).toPass({ timeout: 7500 })
   })
 })
