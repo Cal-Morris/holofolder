@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { CollectedPokemon } from "@/hooks/use-collection"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
+import { getOfflineStore } from "@/lib/offline-store/kv"
+import { loadSetQuery, saveSetQuery } from "@/lib/offline-store/records"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
 
 interface SetPopulationViewProps {
@@ -87,6 +89,7 @@ export default function SetPopulationView({
   useEffect(() => {
     const controller = new AbortController()
 
+    const offlineStore = getOfflineStore()
     void fetch("/api/tcg-set-slots?recent=1", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) return null
@@ -95,10 +98,13 @@ export default function SetPopulationView({
       .then((payload) => {
         if (payload && Array.isArray(payload.sets)) {
           setRecentSets(payload.sets)
+          if (offlineStore) void saveSetQuery(offlineStore, "recent=1", payload).catch(() => undefined)
         }
       })
-      .catch(() => {
-        // Fall back to the static shortcuts below.
+      .catch(async () => {
+        // Offline: the last saved list, else the static shortcuts below.
+        const saved = offlineStore && !controller.signal.aborted ? await loadSetQuery(offlineStore, "recent=1").catch(() => null) : null
+        if (saved && !controller.signal.aborted) setRecentSets(saved.sets)
       })
 
     return () => controller.abort()
@@ -124,7 +130,15 @@ export default function SetPopulationView({
       if (trimmedQuery) params.set("query", trimmedQuery)
       if (selectedSetId) params.set("setId", selectedSetId)
 
-      void fetch(`/api/tcg-set-slots?${params.toString()}`, {
+      const queryString = params.toString()
+      const offlineStore = getOfflineStore()
+      const applyPayload = (payload: TCGSetSlotsResponse) => {
+        setSets(payload.sets)
+        setSelectedSet(payload.selectedSet)
+        setSlots(payload.slots)
+      }
+
+      void fetch(`/api/tcg-set-slots?${queryString}`, {
         signal: controller.signal,
       })
         .then(async (response) => {
@@ -135,12 +149,18 @@ export default function SetPopulationView({
           return payload as TCGSetSlotsResponse
         })
         .then((payload) => {
-          setSets(payload.sets)
-          setSelectedSet(payload.selectedSet)
-          setSlots(payload.slots)
+          applyPayload(payload)
+          // Remember sets the user looks at so they open offline (IndexedDB).
+          if (offlineStore && payload.selectedSet) void saveSetQuery(offlineStore, queryString, payload).catch(() => undefined)
         })
-        .catch((fetchError) => {
+        .catch(async (fetchError) => {
           if (controller.signal.aborted) return
+          const saved = offlineStore ? await loadSetQuery(offlineStore, queryString).catch(() => null) : null
+          if (controller.signal.aborted) return
+          if (saved) {
+            applyPayload(saved)
+            return
+          }
           setError(fetchError instanceof Error ? fetchError.message : "Could not load set coverage.")
         })
         .finally(() => {

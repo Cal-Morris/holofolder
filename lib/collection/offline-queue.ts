@@ -3,6 +3,7 @@
 import { writeLocalCollectedIds } from "@/lib/local-collection"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItem, normalizeCollectionItems } from "@/lib/collection/normalize"
+import { mirrorCollectionSnapshot, mirrorPendingOperations } from "@/lib/offline-store/collection-mirror"
 
 export interface LocalCollectionSnapshot {
   ownerUserId: string | null
@@ -63,6 +64,9 @@ export function readLocalCollectionSnapshot() {
 export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot) {
   if (typeof window === "undefined") return
 
+  // Durable copy in IndexedDB, written even if localStorage is full.
+  mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt)
+
   try {
     window.localStorage.setItem(LOCAL_COLLECTION_SNAPSHOT_KEY, JSON.stringify(snapshot))
   } catch {
@@ -115,6 +119,8 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
 export function writePendingCollectionOperations(operations: PendingCollectionOperation[]) {
   if (typeof window === "undefined") return
 
+  mirrorPendingOperations(operations)
+
   try {
     window.localStorage.setItem(LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(operations))
   } catch {
@@ -163,4 +169,20 @@ export function persistLocalCollectionState(collection: CollectedPokemon[], owne
 
 export function isOffline() {
   return typeof navigator !== "undefined" && navigator.onLine === false
+}
+
+/**
+ * Pending edits saved in IndexedDB but missing from localStorage (cleared or never written because it was
+ * full) are put back so they still sync. Only when the localStorage key is absent: "[]" means "all synced".
+ */
+export function restorePendingCollectionOperations(operations: unknown[]) {
+  if (typeof window === "undefined" || operations.length === 0) return 0
+
+  try {
+    if (window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY) !== null) return 0
+    window.localStorage.setItem(LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(operations))
+  } catch {
+    return 0
+  }
+  return readPendingCollectionOperations().length
 }
