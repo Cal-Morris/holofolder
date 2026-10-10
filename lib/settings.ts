@@ -43,7 +43,7 @@ export const DEFAULT_BINDER_SETTINGS: Readonly<BinderSettings> = Object.freeze({
 export const LEGACY_USER_SETTINGS_COLUMNS =
   "binder_rows, binder_cols, binder_color_id, binder_page_colors, binder_slot_glare_enabled, card_finish_effects_enabled, dark_mode"
 
-/** Pricing preference columns added by scripts/024_user_pricing_preferences.sql. */
+/** Pricing preference columns added by scripts/028_user_pricing_preferences.sql. */
 export const PRICING_PREFERENCE_COLUMNS = ["pricing_region", "preferred_currency", "preferred_card_language"] as const
 
 export const USER_SETTINGS_COLUMNS = `${LEGACY_USER_SETTINGS_COLUMNS}, ${PRICING_PREFERENCE_COLUMNS.join(", ")}`

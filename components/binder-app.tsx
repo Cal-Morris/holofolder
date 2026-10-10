@@ -23,7 +23,15 @@ import { getCardPriceKey, getPriceSourceLabel, useCardPrices, type CardPriceLook
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useBinderAppearance } from "@/hooks/use-binder-appearance"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
-import { getBrowserLocales, resolvePricingPreferences } from "@/lib/pricing-region"
+import { usePricingPreferences } from "@/hooks/use-pricing-preferences"
+import {
+  formatDisplayAmount,
+  formatDisplayRange,
+  formatDisplayTotals,
+  formatRegionalPriceLabel,
+  regionalizeCardPrices,
+  type PriceDisplayContext,
+} from "@/lib/regional-price"
 import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
 import { getTouchGestureIntent, useTouchGestures } from "@/hooks/use-touch-gestures"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
@@ -349,45 +357,6 @@ function getSlotFinishGlint(baseGlint: { x: number; y: number; angle: number }, 
   }
 }
 
-function formatCurrencyAmount(amount: number, currency: SupportedCurrency) {
-  return new Intl.NumberFormat(currency === "GBP" ? "en-GB" : "en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: amount >= 100 ? 0 : 2,
-  }).format(amount)
-}
-
-function formatPriceLabel(price: CardPriceSnapshot | undefined) {
-  if (price?.gbpAmount == null) {
-    return null
-  }
-
-  const primary = formatCurrencyAmount(price.gbpAmount, "GBP")
-
-  if (!price.originalCurrency || price.originalAmount == null) {
-    return primary
-  }
-
-  return `${primary} (${formatCurrencyAmount(price.originalAmount, price.originalCurrency)} ${price.originalCurrency})`
-}
-
-function formatGbpPriceAmount(amount: number | null | undefined) {
-  return typeof amount === "number" && Number.isFinite(amount)
-    ? formatCurrencyAmount(amount, "GBP")
-    : null
-}
-
-function formatGbpPriceRange(lowAmount: number | null | undefined, highAmount: number | null | undefined) {
-  const low = formatGbpPriceAmount(lowAmount)
-  const high = formatGbpPriceAmount(highAmount)
-
-  if (low && high) {
-    return low === high ? low : `${low}-${high}`
-  }
-
-  return low || high
-}
-
 function formatPriceConfidenceLabel(price: CardPriceSnapshot | undefined) {
   if (!price || price.confidence === "unknown") {
     return null
@@ -561,28 +530,6 @@ function combinePriceSummaries(summaries: PriceSummary[]): PriceSummary {
   }
 
   return combined
-}
-
-function formatPriceTotals(
-  gbpTotal: number,
-  originalTotals: Partial<Record<Exclude<SupportedCurrency, "GBP">, number>>,
-) {
-  if (gbpTotal <= 0) {
-    return ""
-  }
-
-  const primary = formatCurrencyAmount(gbpTotal, "GBP")
-  const originalParts: string[] = []
-
-  if (originalTotals.USD) {
-    originalParts.push(`${formatCurrencyAmount(originalTotals.USD, "USD")} USD`)
-  }
-
-  if (originalTotals.EUR) {
-    originalParts.push(`${formatCurrencyAmount(originalTotals.EUR, "EUR")} EUR`)
-  }
-
-  return originalParts.length > 0 ? `${primary} (${originalParts.join(" + ")})` : primary
 }
 
 function BinderSlotGlare({
@@ -1729,7 +1676,22 @@ export default function BinderApp({
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
   const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
-  const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
+  const { pricesByCardId: rawPricesByCardId, isLoading: isLoadingPrices, fxRates } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
+  const pricingPreferences = usePricingPreferences(settings)
+  // Region-grounded prices: re-weight each card's source evidence for the user's market.
+  const pricesByCardId = useMemo(
+    () => regionalizeCardPrices(rawPricesByCardId, pricingPreferences.region),
+    [pricingPreferences.region, rawPricesByCardId],
+  )
+  const priceFormat = useMemo(() => {
+    const context: PriceDisplayContext = { currency: pricingPreferences.currency, fxRates }
+    return {
+      label: (price: CardPriceSnapshot | undefined) => formatRegionalPriceLabel(price, context),
+      amount: (amount: number | null | undefined) => formatDisplayAmount(amount, context),
+      range: (low: number | null | undefined, high: number | null | undefined) => formatDisplayRange(low, high, context),
+      totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>) => formatDisplayTotals(gbpTotal, originalTotals, context),
+    }
+  }, [fxRates, pricingPreferences.currency])
   const filteredPriceSummary = useMemo(
     () => sumPriceSnapshots(filteredTrackedCards.map((item) => {
       const priceKey = getCollectionItemPriceKey(item)
@@ -1738,8 +1700,8 @@ export default function BinderApp({
     [filteredTrackedCards, pricesByCardId],
   )
   const filteredTotalLabel = useMemo(
-    () => formatPriceTotals(filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals),
-    [filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals],
+    () => priceFormat.totals(filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals),
+    [priceFormat, filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals],
   )
   const ownedPriceSummary = useMemo(
     () => sumPriceSnapshots(ownedTrackedCards.map((item) => {
@@ -1749,8 +1711,8 @@ export default function BinderApp({
     [ownedTrackedCards, pricesByCardId],
   )
   const ownedTotalLabel = useMemo(
-    () => formatPriceTotals(ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals),
-    [ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals],
+    () => priceFormat.totals(ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals),
+    [priceFormat, ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals],
   )
   const wantedPriceSummary = useMemo(
     () => sumPriceSnapshots(wantedCardEntries.map(({ card }) => {
@@ -1760,16 +1722,16 @@ export default function BinderApp({
     [pricesByCardId, wantedCardEntries],
   )
   const wantedTotalLabel = useMemo(
-    () => formatPriceTotals(wantedPriceSummary.gbpTotal, wantedPriceSummary.originalTotals),
-    [wantedPriceSummary.gbpTotal, wantedPriceSummary.originalTotals],
+    () => priceFormat.totals(wantedPriceSummary.gbpTotal, wantedPriceSummary.originalTotals),
+    [priceFormat, wantedPriceSummary.gbpTotal, wantedPriceSummary.originalTotals],
   )
   const wantedModeCombinedPriceSummary = useMemo(
     () => combinePriceSummaries([ownedPriceSummary, wantedPriceSummary]),
     [ownedPriceSummary, wantedPriceSummary],
   )
   const wantedModeCombinedTotalLabel = useMemo(
-    () => formatPriceTotals(wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals),
-    [wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals],
+    () => priceFormat.totals(wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals),
+    [priceFormat, wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals],
   )
   const wantedDashboard = useMemo(
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),
@@ -1986,8 +1948,8 @@ export default function BinderApp({
     [pricesByCardId, visiblePageTrackedCards],
   )
   const visiblePageTotalLabel = useMemo(
-    () => formatPriceTotals(visiblePagePriceSummary.gbpTotal, visiblePagePriceSummary.originalTotals),
-    [visiblePagePriceSummary.gbpTotal, visiblePagePriceSummary.originalTotals],
+    () => priceFormat.totals(visiblePagePriceSummary.gbpTotal, visiblePagePriceSummary.originalTotals),
+    [priceFormat, visiblePagePriceSummary.gbpTotal, visiblePagePriceSummary.originalTotals],
   )
   const visiblePageLabel = useMemo(() => {
     if (displayedSpreadPages.length === 1 && displayedSpreadPages[0]?.kind === "binder") {
@@ -3776,7 +3738,7 @@ export default function BinderApp({
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
   const selectedAssignedPriceSnapshot = selectedCardPriceKey ? pricesByCardId[selectedCardPriceKey] : undefined
-  const selectedCardPriceLabel = formatPriceLabel(selectedAssignedPriceSnapshot)
+  const selectedCardPriceLabel = priceFormat.label(selectedAssignedPriceSnapshot)
   const selectedWantedCards = collectionItem?.wanted_cards ?? []
   const selectedWantedCardPreview = selectedWantedCards[0] ?? null
   const selectedHasWantedCard = binderCardDisplay === "wanted" && Boolean(selectedPrimaryCardPreview)
@@ -3785,11 +3747,11 @@ export default function BinderApp({
     ? pricesByCardId[getCardPriceKey(selectedPrimaryCardPreview.cardId, selectedPrimaryCardPreview.cardLanguage ?? "en")]
     : undefined
   const selectedDetailPriceLabel = selectedPrimaryCardPreview
-    ? formatPriceLabel(selectedDetailPriceSnapshot) ?? (isLoadingPrices ? "Loading price..." : "No price yet")
+    ? priceFormat.label(selectedDetailPriceSnapshot) ?? (isLoadingPrices ? "Loading price..." : "No price yet")
     : null
-  const selectedMarketPriceLabel = formatGbpPriceAmount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount)
-  const selectedGoodPriceLabel = formatGbpPriceAmount(selectedDetailPriceSnapshot?.goodGbpAmount)
-  const selectedRangePriceLabel = formatGbpPriceRange(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount)
+  const selectedMarketPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount)
+  const selectedGoodPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.goodGbpAmount)
+  const selectedRangePriceLabel = priceFormat.range(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount)
   const selectedConfidenceLabel = formatPriceConfidenceLabel(selectedDetailPriceSnapshot)
   const selectedPriceSourceLabel = formatPriceSourceLabel(selectedDetailPriceSnapshot)
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
@@ -4382,7 +4344,7 @@ export default function BinderApp({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Wanted card</p>
-                    <span className="text-[10px] text-muted-foreground">{formatPriceLabel(pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")])}</span>
+                    <span className="text-[10px] text-muted-foreground">{priceFormat.label(pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")])}</span>
                   </div>
                   <p className="mt-0.5 break-words text-xs font-semibold">{card.card_name}</p>
                   <p className="mt-0.5 break-words text-[11px] text-muted-foreground">{[card.card_set, formatCardLanguageLabel(card.card_language), formatCardFinishLabel(card.card_finish)].filter(Boolean).join(" · ")}</p>
@@ -4903,7 +4865,7 @@ export default function BinderApp({
                 cardName={slotCardName}
                 cardFinish={slotCardFinish}
                 hasAssignedCard={Boolean(displayCard?.card_id)}
-                priceLabel={isPriceMode && itemPriceKey ? formatPriceLabel(pricesByCardId[itemPriceKey]) : null}
+                priceLabel={isPriceMode && itemPriceKey ? priceFormat.label(pricesByCardId[itemPriceKey]) : null}
                 showPriceMode={isPriceMode}
                 readOnly={readOnlyMode}
                 showBinderSlotGlare={settings.binderSlotGlareEnabled}
@@ -4962,11 +4924,11 @@ export default function BinderApp({
 
   const renderWantedCardsView = () => {
     const totalWantedCount = wantedDashboard.totalCards
-    const marketTotalLabel = formatGbpPriceAmount(wantedDashboard.marketTotalGbp)
-    const averagePriceLabel = formatGbpPriceAmount(wantedDashboard.averageGbp)
+    const marketTotalLabel = priceFormat.amount(wantedDashboard.marketTotalGbp)
+    const averagePriceLabel = priceFormat.amount(wantedDashboard.averageGbp)
     const pricedPercent = totalWantedCount > 0 ? Math.round((wantedDashboard.pricedCount / totalWantedCount) * 100) : 0
     const highestCard = wantedDashboard.highestCards[0]
-    const highestPriceLabel = formatGbpPriceAmount(highestCard?.effectiveGbpAmount)
+    const highestPriceLabel = priceFormat.amount(highestCard?.effectiveGbpAmount)
     const bandDenominator = Math.max(totalWantedCount, 1)
     const visibleSetBreakdown = wantedDashboard.setBreakdown.slice(0, 5)
     const visibleLanguageBreakdown = wantedDashboard.languageBreakdown.slice(0, 6)
@@ -5123,7 +5085,7 @@ export default function BinderApp({
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {wantedDashboard.priceBands.map((band) => {
                   const bandStyle = WANTED_PRICE_BAND_STYLES[band.id]
-                  const bandTotalLabel = formatGbpPriceAmount(band.totalGbp)
+                  const bandTotalLabel = priceFormat.amount(band.totalGbp)
                   const bandPercent = Math.round((band.count / bandDenominator) * 100)
 
                   return (
@@ -5267,7 +5229,7 @@ export default function BinderApp({
               <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {priorityCards.map((wantedCard) => {
                   const pokemon = getPokemonSummary(wantedCard.pokemonId)
-                  const priorityPriceLabel = formatGbpPriceAmount(wantedCard.effectiveGbpAmount)
+                  const priorityPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount)
 
                   return (
                     <button
@@ -5342,9 +5304,9 @@ export default function BinderApp({
               {sortedWantedDashboardCards.map((wantedCard) => {
                 const { pokemonId, pokemonName, card, price } = wantedCard
                 const pokemon = getPokemonSummary(pokemonId)
-                const goodPriceLabel = formatGbpPriceAmount(wantedCard.goodGbpAmount)
-                const marketPriceLabel = formatGbpPriceAmount(wantedCard.effectiveGbpAmount)
-                const rangePriceLabel = formatGbpPriceRange(price?.lowGbpAmount, price?.highGbpAmount)
+                const goodPriceLabel = priceFormat.amount(wantedCard.goodGbpAmount)
+                const marketPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount)
+                const rangePriceLabel = priceFormat.range(price?.lowGbpAmount, price?.highGbpAmount)
                 const confidenceLabel = formatPriceConfidenceLabel(price)
                 const sourceLabel = formatPriceSourceLabel(price)
                 const bandStyle = WANTED_PRICE_BAND_STYLES[wantedCard.priceBandId]
@@ -6285,7 +6247,7 @@ export default function BinderApp({
               collectionByPokemonId={collectionByPokemonId}
               pricesByKey={pricesByCardId}
               getPriceKey={getCollectionItemPriceKey}
-              formatPrice={formatPriceLabel}
+              formatPrice={priceFormat.label}
               onSelectPokemon={handlePokemonSelect}
               onToggleOwned={handleQuickCollect}
               onAddCard={(pokemon) => openCardSelectorForPokemon(pokemon, "collect")}
@@ -6299,7 +6261,7 @@ export default function BinderApp({
           ) : activeMainView === "sets" ? (
             <SetPopulationView
               collectionByPokemonId={collectionByPokemonId}
-              formatPrice={formatPriceLabel}
+              formatPrice={priceFormat.label}
               onSelectSlot={handleSelectSetSlot}
               onBrowseCard={(slot, card) => openCardBrowser({ id: slot.dexId, name: slot.pokemonName }, { highlightCardId: card.id })}
               onCollectCard={handleCollectSetCard}
@@ -6380,7 +6342,7 @@ export default function BinderApp({
                       <div className="px-2 py-1 text-xs text-muted-foreground">No wanted cards yet</div>
                     ) : wantedCardEntries.map(({ pokemonId, pokemonName, card }) => {
                       const priceKey = getCardPriceKey(card.card_id, card.card_language ?? "en")
-                      const priceLabel = formatPriceLabel(pricesByCardId[priceKey])
+                      const priceLabel = priceFormat.label(pricesByCardId[priceKey])
 
                       return (
                         <button
@@ -6917,7 +6879,7 @@ export default function BinderApp({
           onClose={closeCardBrowser}
           onWantCard={readOnlyMode ? undefined : (card, isWanted) => handleBrowseWantCard(cardBrowser.pokemon, card, isWanted)}
           onAddCard={readOnlyMode ? undefined : (card) => handleBrowseAddCard(cardBrowser.pokemon, card)}
-          formatPrice={formatPriceLabel}
+          formatPrice={priceFormat.label}
         />
       ) : null}
 
@@ -6931,7 +6893,7 @@ export default function BinderApp({
           selectedCollectedCardId={collectionItem?.card_id}
           selectedWantedCardId={collectionItem?.wanted_cards?.[0]?.card_id}
           mode={cardSelectorMode}
-          defaultCardLanguage={resolvePricingPreferences(settings, getBrowserLocales()).cardLanguage}
+          defaultCardLanguage={pricingPreferences.cardLanguage}
         />
       )}
 

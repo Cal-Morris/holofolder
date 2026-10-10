@@ -100,7 +100,7 @@ test("local settings caches from before this change keep automatic pricing", () 
   assert.equal(cleared.pricingRegion, null)
 })
 
-test("missing-column errors are detected so the API can fall back before migration 024", () => {
+test("missing-column errors are detected so the API can fall back before migration 028", () => {
   assert.equal(isMissingColumnError({ code: "42703", message: "column user_settings.pricing_region does not exist" }), true)
   assert.equal(isMissingColumnError({ code: "PGRST204", message: "Could not find the 'pricing_region' column" }), true)
   assert.equal(isMissingColumnError({ code: "23505", message: "duplicate key" }), false)
