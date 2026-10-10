@@ -117,21 +117,22 @@ See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKI
 
 ## Deployment
 
-- Vercel deploys `main` to production. Every PR push gets a preview deployment, and its **Vercel** status check is the CI gate.
+- Vercel deploys `main` to production. Every PR push gets a preview deployment, and its **Vercel** status check is the default merge gate.
 - The project is on the **Hobby plan**, which has a daily deployment limit. Every push, rebase and merge costs a deploy. So:
   - **verify locally first, then push once per PR**
   - don't push "retry" commits
   - only rebase when GitHub says the branch is out of date or conflicting
   - merge one PR at a time
-- A check failing with "Deployment rate limited" is not a code failure. Wait for the limit to reset rather than re-pushing.
+- **Keep merging when Vercel explicitly reports "Deployment rate limited" or an exhausted account build/deployment quota.** Verify the check details, run all required local checks on the current PR head, and require every other required check and review to pass. Record the quota failure and local validation in the PR, then merge without waiting for the reset or pushing retry commits.
+- A quota-blocked merge is **merged, deployment pending**. After the limit resets, deploy the latest `main` and verify its production deployment; don't redeploy an older PR head.
 - There are no GitHub Actions workflows. Don't add `.github/workflows` unless the owner asks.
 
 See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md).
 
 ## Principles
 
-- **Small, focused PRs, one concern each.** No drive-by refactors. Say what was verified and what wasn't.
-- **Merge only on a green Vercel check. Never bypass checks** (no admin merges, no skipping hooks).
+- **Small, focused PRs and commits, one concern each.** Use a separate short-lived branch off the latest `main` for each independent feature or fix wherever possible. Split unrelated work before committing; keep dependent changes together when needed for a working PR. No drive-by refactors. Say what was verified and what wasn't.
+- **Merge on a green Vercel check or the verified quota exception above.** Real build failures and other unmet checks or reviews still block merging. Admin merge is allowed only when needed to bypass the quota-only Vercel check after every other requirement passes. Never skip hooks.
 - **Mobile-first.** Verify at **375×667, 390×844 and 430×932**, in both a normal browser tab and **standalone PWA** mode with safe-area insets (59 px top, 34 px bottom in the e2e harness).
   - Tap targets are at least 36 px. No horizontal overflow.
   - Nothing goes under the dock: position against `--dock-inset`, `--dock-bar` and `--dock-clearance` in `globals.css`.
@@ -168,7 +169,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 
 ## Definition of done
 
-- [ ] One concern, on a short-lived branch off the latest `main`
+- [ ] One concern per PR and commit, on a short-lived branch off the latest `main`; independent features use separate branches wherever possible
 - [ ] `bun run test` passes, with new logic covered in `tests/`
 - [ ] `bun run typecheck` is clean
 - [ ] `bun run lint` passes with no new warnings, and the cap is lowered if you removed some
@@ -179,7 +180,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 - [ ] No invented data. Price signals are confidence-gated.
 - [ ] Migrations are numbered, idempotent and listed in `scripts/MIGRATIONS.md`. The PR says they need applying.
 - [ ] No secrets in the diff, and new env vars are added to `.env.example`
-- [ ] The PR description says what changed, why, how it was verified and any follow-ups. It was pushed once, and merged only after Vercel was green.
+- [ ] The PR description says what changed, why, how it was verified and any follow-ups. It was pushed once, and merged after Vercel was green or the quota exception was verified and deployment was reported as pending.
 
 ## Skills
 
