@@ -48,6 +48,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
   const wheelCooldownUntilRef = useRef(0)
   const isLongPressRef = useRef(false)
   const didSwipeRef = useRef(false)
+  const suppressTouchClickRef = useRef(false)
   const [isSwiping, setIsSwiping] = useState(false)
 
   const clearLongPressTimer = useCallback(() => {
@@ -86,6 +87,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() }
     isLongPressRef.current = false
     didSwipeRef.current = false
+    suppressTouchClickRef.current = false
     setIsSwiping(false)
 
     if (onLongPress) {
@@ -112,6 +114,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
       clearLongPressTimer()
       if (intent.horizontalIntent && !didSwipeRef.current) {
         didSwipeRef.current = true
+        suppressTouchClickRef.current = true
         setIsSwiping(true)
       }
     }
@@ -136,6 +139,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     // Check for horizontal swipe
     if (absX > swipeThreshold && absX > absY) {
       didSwipeRef.current = true
+      suppressTouchClickRef.current = true
       if (deltaX > 0) {
         onSwipeRight?.()
       } else {
@@ -146,6 +150,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     // Check for vertical swipe
     else if (absY > swipeThreshold && absY > absX && (onSwipeDown || onSwipeUp)) {
       didSwipeRef.current = true
+      suppressTouchClickRef.current = true
       if (deltaY > 0) {
         onSwipeDown?.()
       } else {
@@ -163,6 +168,19 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     clearLongPressTimer()
     touchStartRef.current = null
   }, [clearLongPressTimer])
+
+  const handlePointerDown = useCallback((e: PointerEvent) => {
+    if (e.pointerType === "mouse" || e.pointerType === "pen") {
+      suppressTouchClickRef.current = false
+    }
+  }, [])
+
+  const handleClickCapture = useCallback((e: MouseEvent) => {
+    // Compatibility clicks can arrive after the swipe timer, even on the newly rendered page.
+    if (!suppressTouchClickRef.current || e.detail === 0) return
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
 
   const handleWheel = useCallback((e: WheelEvent) => {
     if (!enableTrackpadSwipe || e.ctrlKey || e.metaKey) return
@@ -226,6 +244,9 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     element.addEventListener("touchmove", handleTouchMove, { passive: true })
     element.addEventListener("touchend", handleTouchEnd, { passive: true })
     element.addEventListener("touchcancel", handleTouchCancel, { passive: true })
+    element.addEventListener("pointerdown", handlePointerDown)
+    element.addEventListener("click", handleClickCapture, { capture: true })
+    element.addEventListener("dblclick", handleClickCapture, { capture: true })
     if (enableTrackpadSwipe) {
       window.addEventListener("wheel", handleWheel, { passive: false, capture: true })
     }
@@ -235,6 +256,9 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
       element.removeEventListener("touchmove", handleTouchMove)
       element.removeEventListener("touchend", handleTouchEnd)
       element.removeEventListener("touchcancel", handleTouchCancel)
+      element.removeEventListener("pointerdown", handlePointerDown)
+      element.removeEventListener("click", handleClickCapture, { capture: true })
+      element.removeEventListener("dblclick", handleClickCapture, { capture: true })
       if (enableTrackpadSwipe) {
         window.removeEventListener("wheel", handleWheel, { capture: true })
       }
@@ -244,6 +268,8 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
   }, [
     clearLongPressTimer,
     enableTrackpadSwipe,
+    handleClickCapture,
+    handlePointerDown,
     handleTouchCancel,
     handleTouchEnd,
     handleTouchMove,
