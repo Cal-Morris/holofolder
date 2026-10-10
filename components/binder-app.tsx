@@ -20,6 +20,7 @@ import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { getCardPriceKey, getPriceSourceLabel, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
+import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
@@ -883,6 +884,7 @@ export default function BinderApp({
     localCollectedCount,
     localPendingSyncCount,
   } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId, readOnly: readOnlyMode })
+  useOfflineStoreSync(!readOnlyMode)
   const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
     isSignedIn: Boolean(user),
     cloudCollectedCount: collectionCount,

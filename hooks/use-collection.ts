@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { readLocalCollectedIds, writeLocalCollectedIds } from "@/lib/local-collection"
+import { getOfflineStore } from "@/lib/offline-store/kv"
+import { loadCollectionRecord } from "@/lib/offline-store/records"
 import {
   COLLECTION_CHANGED_EVENT,
   createCollectionChangedPayload,
@@ -39,6 +41,7 @@ import {
 import {
   LOCAL_COLLECTION_PENDING_OPS_KEY,
   readLocalCollectionSnapshot,
+  restorePendingCollectionOperations,
   readPendingCollectionOperations,
   queuePendingCollectionOperation,
   removePendingCollectionOperation,
@@ -197,24 +200,48 @@ export function useCollection(options: UseCollectionOptions = {}) {
   useEffect(() => {
     if (readOnly) return
 
+    const applySnapshot = (snapshot: { ownerUserId: string | null; collection: CollectedPokemon[] }) => {
+      const isOffline = typeof navigator !== "undefined" && navigator.onLine === false
+      const ownerMatches = Boolean(collectionOwnerUserId && snapshot.ownerUserId === collectionOwnerUserId)
+
+      if (!isOffline && !ownerMatches) {
+        return
+      }
+
+      setCollection((current) => current.length > 0 ? current : snapshot.collection)
+
+      if (!collectionOwnerUserId && snapshot.ownerUserId) {
+        setCollectionOwnerUserId(snapshot.ownerUserId)
+      }
+    }
+
     const snapshot = readLocalCollectionSnapshot()
-    if (!snapshot || snapshot.collection.length === 0) {
+    if (snapshot && snapshot.collection.length > 0) {
+      applySnapshot(snapshot)
       return
     }
 
-    const isOffline = typeof navigator !== "undefined" && navigator.onLine === false
-    const ownerMatches = Boolean(collectionOwnerUserId && snapshot.ownerUserId === collectionOwnerUserId)
+    // localStorage has nothing (cleared, or too full to write): fall back to the IndexedDB copy.
+    const store = getOfflineStore()
+    if (!store) return
 
-    if (!isOffline && !ownerMatches) {
-      return
+    let cancelled = false
+    void loadCollectionRecord(store)
+      .then((record) => {
+        if (cancelled || !record) return
+        if (restorePendingCollectionOperations(record.pendingOperations) > 0) {
+          refreshLocalPendingSyncCount()
+        }
+        if (record.collection.length > 0) {
+          applySnapshot(record)
+        }
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
     }
-
-    setCollection((current) => current.length > 0 ? current : snapshot.collection)
-
-    if (!collectionOwnerUserId && snapshot.ownerUserId) {
-      setCollectionOwnerUserId(snapshot.ownerUserId)
-    }
-  }, [collectionOwnerUserId, readOnly])
+  }, [collectionOwnerUserId, readOnly, refreshLocalPendingSyncCount])
 
   const reloadRemoteCollection = useCallback(async () => {
     if (readOnly) return
