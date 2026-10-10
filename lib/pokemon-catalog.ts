@@ -1,4 +1,5 @@
 import catalog from "./pokemon-catalog.json"
+import { getOfficialArtworkUrl } from "@/lib/pokemon-artwork"
 
 export interface PokemonEntry {
   id: number
@@ -85,9 +86,7 @@ export function getPokemonById(id: number): PokemonEntry | undefined {
   return POKEMON_BY_ID.get(id)
 }
 
-export function getOfficialArtworkUrl(id: number): string {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
-}
+export { ARTWORK_DETAIL_WIDTH, ARTWORK_GRID_WIDTH, getOfficialArtworkSourceUrl, getOfficialArtworkUrl } from "@/lib/pokemon-artwork"
 
 export interface PokemonSummary extends PokemonEntry {
   sprites: {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowRight, BookOpen, Camera, Check, DollarSign, Heart, Layers3, Search, Share2, Sparkles, Star, Users, Wifi } from "lucide-react"
 import AuthModal from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
+import { getOfficialArtworkUrl } from "@/lib/pokemon-artwork"
 
 const PREVIEW_SLOTS = [
   { id: 145, name: "Zapdos", status: "owned" },
@@ -87,7 +88,7 @@ const VIEW_MODES = [
 ]
 
 function getPokemonArtworkUrl(id: number) {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
+  return getOfficialArtworkUrl(id, 320)
 }
 
 export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean }) {

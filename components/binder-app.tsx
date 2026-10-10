@@ -28,7 +28,7 @@ import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } 
 import { aggregateBinderSlotSweep, getNextSweepSlotIndex, type BinderSlotSweepFrame } from "@/lib/binder-slot-sweep"
 import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
 import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib/card-scan-evidence"
-import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
+import { POKEMON_CATALOG, formatPokemonDisplayName, ARTWORK_DETAIL_WIDTH, getOfficialArtworkUrl, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { buildBinderShareUrl } from "@/lib/binder-share"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
@@ -265,12 +265,13 @@ function getPokemonArtwork(pokemon: PokemonSummary) {
   return pokemon.sprites.other["official-artwork"].front_default
 }
 
-function getDisplayArtwork(pokemon: PokemonSummary, cardImage?: string | null) {
-  return cardImage || getPokemonArtwork(pokemon)
+// The detail sheet shows the artwork larger than a binder slot.
+function getDetailArtwork(pokemon: PokemonSummary, cardImage?: string | null) {
+  return cardImage || getOfficialArtworkUrl(pokemon.id, ARTWORK_DETAIL_WIDTH)
 }
 
 function getPokemonOfficialArtworkUrl(pokemonId: number) {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`
+  return getOfficialArtworkUrl(pokemonId)
 }
 
 function getUsableImageSource(value?: string | null) {
@@ -3736,7 +3737,7 @@ export default function BinderApp({
   const selectedPokemonHasAssignedCard = Boolean(collectionItem?.card_id)
   const selectedPokemonIsFavorite = collectionItem?.status === "finalized"
   const selectedPokemonDisplayName = selectedPokemon ? formatPokemonDisplayName(selectedPokemon.name) : ""
-  const selectedPokemonDisplayImage = selectedPokemon ? getDisplayArtwork(selectedPokemon, collectionItem?.card_image) : null
+  const selectedPokemonDisplayImage = selectedPokemon ? getDetailArtwork(selectedPokemon, collectionItem?.card_image) : null
   const selectedPokemonDisplayFit = getDisplayArtworkFit(collectionItem?.card_image)
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
@@ -3990,7 +3991,7 @@ export default function BinderApp({
             : collected
               ? "No card assigned yet"
               : "Choose how you want to track this slot."
-    const selectedPreviewImage = selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getPokemonArtwork(selectedPokemon)
+    const selectedPreviewImage = selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)
     const selectedPreviewAlt = selectedPrimaryCardPreview?.cardName ?? selectedPokemonDisplayName
     const selectedPreviewIsCard = Boolean(selectedPrimaryCardPreview?.cardImage)
     const selectedPreviewTone = selectedPreviewIsCard ? "" : selectedPokemonDisplayTone
@@ -6325,7 +6326,7 @@ export default function BinderApp({
                     <div className="flex items-center gap-3">
                       <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-muted to-muted/30">
                         <img
-                          src={selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getPokemonArtwork(selectedPokemon)}
+                          src={selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)}
                           alt={selectedPrimaryCardPreview?.cardName ?? selectedPokemonDisplayName}
                           className={selectedPrimaryCardPreview?.cardImage
                             ? "absolute inset-0 h-full w-full rounded-xl object-cover"
