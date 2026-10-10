@@ -10,15 +10,31 @@ export interface OverlayEntry {
 export class OverlayStack {
   private entries: OverlayEntry[] = []
   private nextId = 1
+  private listeners = new Set<() => void>()
 
   push(close: () => void): OverlayEntry {
     const entry = { id: this.nextId++, close }
     this.entries.push(entry)
+    this.notify()
     return entry
   }
 
   remove(id: number) {
+    const before = this.entries.length
     this.entries = this.entries.filter((entry) => entry.id !== id)
+    if (this.entries.length !== before) this.notify()
+  }
+
+  /** Subscribe to open/close changes (for UI that must react to "is any overlay open"). */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  private notify() {
+    for (const listener of [...this.listeners]) listener()
   }
 
   update(id: number, close: () => void) {

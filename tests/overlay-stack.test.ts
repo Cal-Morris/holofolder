@@ -46,3 +46,18 @@ describe("shouldDismissSwipe", () => {
     assert.equal(shouldDismissSwipe(-120, 50), false)
   })
 })
+
+describe("OverlayStack subscriptions", () => {
+  test("notifies on open and close, and stops after unsubscribe", () => {
+    const stack = new OverlayStack()
+    const sizes: number[] = []
+    const unsubscribe = stack.subscribe(() => sizes.push(stack.size))
+    const a = stack.push(() => undefined)
+    const b = stack.push(() => undefined)
+    stack.remove(a.id)
+    stack.remove(a.id) // already gone: no notification
+    unsubscribe()
+    stack.remove(b.id)
+    assert.deepEqual(sizes, [1, 2, 1])
+  })
+})

@@ -173,7 +173,8 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
               transform: "translateX(-50%)",
               width: "min(calc(100vw - 1rem), 28rem)",
               // Never taller than the space between the status bar and the bottom dock.
-              maxHeight: "calc(100dvh - env(safe-area-inset-top) - var(--dock-clearance) - 0.375rem - 0.5rem)",
+              // Stays below the status bar and below a top banner (offline / sync) when one is shown.
+              maxHeight: "calc(100dvh - max(env(safe-area-inset-top) + 0.5rem, var(--top-banner-bottom, 0px)) - var(--dock-clearance) - 0.375rem)",
             }}
     >
       <div className="flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-card/96 dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">

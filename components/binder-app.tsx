@@ -52,6 +52,7 @@ import { TRADING_CARD_ASPECT_RATIO, getSlotLabel, type PageScanCardMatchSummary,
 import { formatPriceConfidenceLabel, formatPriceSourceLabel } from "@/lib/card-labels"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
+import { TopBannerSlot } from "@/components/top-banner-slot"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
@@ -3335,7 +3336,7 @@ export default function BinderApp({
       />
 
       {!isOnline && !isShowModeOn && (
-        <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--top-inset)+0.25rem)] z-50 flex justify-center px-3">
+        <TopBannerSlot>
           <div className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300">
             <WifiOff className="h-3.5 w-3.5" />
             <span>Offline mode</span>
@@ -3345,7 +3346,7 @@ export default function BinderApp({
                 : "Using cached data where available"}
             </span>
           </div>
-        </div>
+        </TopBannerSlot>
       )}
 
       {ownedRemoveTarget && !readOnlyMode ? (
@@ -3367,7 +3368,7 @@ export default function BinderApp({
       {/* Pending-sync indicator and rollback notice (minimal markup; reuses the offline pill's look). */}
       {/* In Show mode the banner carries the pending count, so only a rollback notice floats (below the banner). */}
       {isOnline && user && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) && (
-        <div className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 ${isShowModeOn ? "top-[calc(var(--top-inset)+3.5rem)]" : "top-[calc(var(--top-inset)+0.25rem)]"}`}>
+        <TopBannerSlot topClassName={isShowModeOn ? "top-[calc(var(--top-inset)+3.5rem)]" : undefined}>
           <div
             role="status"
             data-sync-status={syncNotice ? "rolled-back" : syncStatus}
@@ -3388,7 +3389,7 @@ export default function BinderApp({
               </span>
             )}
           </div>
-        </div>
+        </TopBannerSlot>
       )}
 
       {/* Glass Navigation */}
