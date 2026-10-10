@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import Script from "next/script"
 import BinderApp from "@/components/binder-app"
-import { settingsFromRow, type BinderSettings } from "@/lib/settings"
+import { loadBinderBootstrap } from "@/lib/server/binder-bootstrap"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 
@@ -40,26 +40,14 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
     notFound()
   }
 
-  const [collectionResult, settingsResult] = await Promise.all([
-    admin
-      .from("pokemon_collection")
-      .select("*")
-      .eq("user_id", share.owner_user_id)
-      .order("pokemon_id", { ascending: true }),
-    admin
-      .from("user_settings")
-      .select("*")
-      .eq("user_id", share.owner_user_id)
-      .maybeSingle(),
-  ])
+  const bootstrap = await loadBinderBootstrap(admin, share.owner_user_id)
 
-  if (collectionResult.error) {
-    console.error("[binderdex] Failed to load shared collection:", collectionResult.error)
+  if (bootstrap.collectionError) {
+    console.error("[binderdex] Failed to load shared collection:", bootstrap.collectionError)
     notFound()
   }
 
-  const settingsRow = settingsResult.data
-  const initialSettings: BinderSettings = settingsFromRow(settingsRow)
+  const initialSettings = bootstrap.settings
 
   return (
     <>
@@ -68,10 +56,10 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
       </Script>
       <BinderApp
         initialUser={null}
-        initialCollection={collectionResult.data ?? []}
+        initialCollection={bootstrap.collection}
         initialCollectionOwnerUserId={share.owner_user_id}
         initialSettings={initialSettings}
-        initialHasStoredSettings={Boolean(settingsRow)}
+        initialHasStoredSettings={bootstrap.hasStoredSettings}
         initialDarkMode={initialSettings.darkMode}
         initialPriceMode={true}
         readOnlyMode={true}

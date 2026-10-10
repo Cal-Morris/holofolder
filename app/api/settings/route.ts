@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
 import { USER_SETTINGS_COLUMNS, settingsFromRow, settingsToRow } from "@/lib/settings"
 
@@ -11,19 +12,7 @@ async function requireUser() {
 }
 
 async function resolveSettingsOwnerUserId(userId: string) {
-  const admin = createAdminClient()
-  const { data: partnership, error } = await admin
-    .from("partnerships")
-    .select("owner_user_id")
-    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  return partnership?.owner_user_id || userId
+  return resolveCollectionOwnerUserId(createAdminClient(), userId)
 }
 
 export async function GET() {

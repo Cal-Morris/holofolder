@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isSlotStatus, normalizeCardFinish, normalizeCardLanguage } from "@/lib/domain/cards"
+import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 
 function normalizeWantedCards(value: unknown) {
   if (!Array.isArray(value)) return []
@@ -26,20 +27,8 @@ function normalizeWantedCards(value: unknown) {
   })
 }
 
-async function resolveCollectionOwnerUserId(userId: string) {
-  const admin = createAdminClient()
-  const { data: partnership, error } = await admin
-    .from("partnerships")
-    .select("owner_user_id")
-    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  return partnership?.owner_user_id || userId
+async function resolveOwnerUserId(userId: string) {
+  return resolveCollectionOwnerUserId(createAdminClient(), userId)
 }
 
 async function requireUser() {
@@ -73,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid collection status" }, { status: 400 })
     }
 
-    const ownerUserId = await resolveCollectionOwnerUserId(user.id)
+    const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
     const { data, error } = await admin
       .from("pokemon_collection")
@@ -130,7 +119,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid collection status" }, { status: 400 })
     }
 
-    const ownerUserId = await resolveCollectionOwnerUserId(user.id)
+    const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
     const { data, error } = await admin
       .from("pokemon_collection")
@@ -167,7 +156,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "pokemonId is required" }, { status: 400 })
     }
 
-    const ownerUserId = await resolveCollectionOwnerUserId(user.id)
+    const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
     const { error } = await admin
       .from("pokemon_collection")
