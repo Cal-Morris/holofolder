@@ -165,6 +165,11 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     const label = card ? `${card.name} ${card.localId}` : (url.match(/(\d+)\.png$/)?.[1] ? `#${url.match(/(\d+)\.png$/)![1]}` : "card")
     return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, card ? MOCK_CARDS.indexOf(card) : label.length) })
   })
+  await target.route("**/api/card-image-proxy**", (route) => {
+    const source = new URL(route.request().url()).searchParams.get("url") ?? ""
+    const label = source.match(/(\d+)\.png$/)?.[1] ? `#${source.match(/(\d+)\.png$/)![1]}` : "card"
+    return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, label.length) })
+  })
   await target.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: { sets: [], selectedSet: null, slots: [] } }))
 
   if (signedIn) {

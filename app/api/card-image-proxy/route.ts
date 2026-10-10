@@ -14,6 +14,39 @@ export function isAllowedImageHost(hostname: string) {
   )
 }
 
+// Pokémon artwork and sprites (PokeAPI on GitHub). Only this repository path: raw.githubusercontent.com serves anything.
+const POKEAPI_SPRITES_HOST = "raw.githubusercontent.com"
+const POKEAPI_SPRITES_PATH_PREFIX = "/PokeAPI/sprites/master/sprites/pokemon/"
+
+export function isAllowedImageUrl(url: URL) {
+  if (!["https:", "http:"].includes(url.protocol)) return false
+  if (isAllowedImageHost(url.hostname)) return true
+  return (
+    url.protocol === "https:" &&
+    url.hostname === POKEAPI_SPRITES_HOST &&
+    url.pathname.startsWith(POKEAPI_SPRITES_PATH_PREFIX) &&
+    !url.pathname.includes("..") &&
+    /\.(?:png|svg|gif|webp)$/i.test(url.pathname)
+  )
+}
+
+/** Widths the proxy will resize to (`&w=`). A fixed set keeps the CDN cache small. */
+export const PROXY_IMAGE_WIDTHS = [96, 160, 240, 320, 480] as const
+
+export function parseProxyImageWidth(value: string | null): number | null {
+  if (value === null) return null
+  const width = Number(value)
+  return (PROXY_IMAGE_WIDTHS as readonly number[]).includes(width) ? width : null
+}
+
+async function resizeImage(buffer: ArrayBuffer, width: number) {
+  const { default: sharp } = await import("sharp")
+  return sharp(Buffer.from(buffer))
+    .resize({ width, withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toBuffer()
+}
+
 export async function GET(request: NextRequest) {
   const rawUrl = request.nextUrl.searchParams.get("url")
 
@@ -29,8 +62,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid image URL" }, { status: 400 })
   }
 
-  if (!["https:", "http:"].includes(url.protocol) || !isAllowedImageHost(url.hostname)) {
+  if (!isAllowedImageUrl(url)) {
     return NextResponse.json({ error: "Image host is not allowed" }, { status: 400 })
+  }
+
+  const rawWidth = request.nextUrl.searchParams.get("w")
+  const width = parseProxyImageWidth(rawWidth)
+  if (rawWidth !== null && width === null) {
+    return NextResponse.json({ error: `Unsupported width; use one of ${PROXY_IMAGE_WIDTHS.join(", ")}` }, { status: 400 })
   }
 
   // TCGdex card images are served from the mirror store (R2 or Vercel Blob); TCGdex is only hit when the copy is missing.
@@ -67,10 +106,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `Upstream image fetch failed with ${upstream.status}` }, { status: upstream.status })
   }
 
-  const contentType = upstream.headers.get("content-type") || "image/webp"
-  const buffer = await upstream.arrayBuffer()
+  let contentType = upstream.headers.get("content-type") || "image/webp"
+  let body: ArrayBuffer | Buffer = await upstream.arrayBuffer()
 
-  return new NextResponse(buffer, {
+  // Resizing applies to the upstream path (artwork, fallback hosts); mirrored card images are served as stored.
+  if (width !== null && !contentType.includes("svg")) {
+    try {
+      body = await resizeImage(body, width)
+      contentType = "image/webp"
+    } catch (error) {
+      console.error("[card-image-proxy] resize failed, serving the original:", error)
+    }
+  }
+
+  return new NextResponse(new Uint8Array(body), {
     headers: {
       "content-type": contentType,
       "x-content-type-options": "nosniff",
