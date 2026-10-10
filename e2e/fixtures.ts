@@ -13,9 +13,9 @@ export const E2E_USER = {
   created_at: "2026-01-01T00:00:00.000Z",
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54399"
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54399"
 
-const SEEDED_COLLECTION = [
+export const SEEDED_COLLECTION = [
   { id: "e2e-1", user_id: E2E_USER.id, pokemon_id: 1, pokemon_name: "bulbasaur", card_id: "base1-44", card_name: "Bulbasaur", card_set: "Base Set", card_language: "en", card_finish: "normal", wanted_cards: [], status: "collected", collected_at: "2026-01-01T00:00:00.000Z" },
   { id: "e2e-4", user_id: E2E_USER.id, pokemon_id: 4, pokemon_name: "charmander", card_id: "base1-46", card_name: "Charmander", card_set: "Base Set", card_language: "en", card_finish: "normal", wanted_cards: [], status: "collected", collected_at: "2026-01-01T00:00:00.000Z" },
 ]

@@ -45,37 +45,75 @@ export function getCollectionRequestBody(item: CollectedPokemon) {
   }
 }
 
-export async function saveRemoteCollectionItem(item: CollectedPokemon) {
-  const response = await fetch("/api/collection", {
+/** A failed /api/collection write. `status` is null for network errors; on 409, `serverItem` is the current row. */
+export class CollectionWriteError extends Error {
+  status: number | null
+  serverItem: CollectedPokemon | null
+
+  constructor(message: string, status: number | null, serverItem: CollectedPokemon | null = null) {
+    super(message)
+    this.name = "CollectionWriteError"
+    this.status = status
+    this.serverItem = serverItem
+  }
+}
+
+export interface RemoteWriteOptions {
+  /** Fingerprint of the row this edit was based on; the server rejects the write with 409 if it changed. */
+  baseFingerprint?: string
+}
+
+async function sendCollectionWrite(input: string, init: RequestInit) {
+  try {
+    return await fetch(input, init)
+  } catch (error) {
+    throw new CollectionWriteError(extractErrorMessage(error), null)
+  }
+}
+
+async function toWriteError(response: Response, fallback: string) {
+  const payload = await readJsonResponse(response)
+  const message = payload?.error || `${fallback} (${response.status})`
+  const serverItem = response.status === 409
+    ? (payload?.item ? normalizeCollectionItem(payload.item) : null)
+    : null
+  if (isMissingStatusColumnError(message)) {
+    return new CollectionWriteError(
+      "The database is missing pokemon_collection.status. Run scripts/008_add_collection_status.sql against Supabase, then retry.",
+      response.status,
+    )
+  }
+  return new CollectionWriteError(message, response.status, serverItem)
+}
+
+export async function saveRemoteCollectionItem(item: CollectedPokemon, options: RemoteWriteOptions = {}) {
+  const response = await sendCollectionWrite("/api/collection", {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify(getCollectionRequestBody(item)),
+    body: JSON.stringify({
+      ...getCollectionRequestBody(item),
+      ...(options.baseFingerprint !== undefined ? { baseFingerprint: options.baseFingerprint } : {}),
+    }),
   })
 
   if (!response.ok) {
-    const payload = await readJsonResponse(response)
-    const message = payload?.error || `Failed to save collection item (${response.status})`
-    if (isMissingStatusColumnError(message)) {
-      throw new Error(
-        "The database is missing pokemon_collection.status. Run scripts/008_add_collection_status.sql against Supabase, then retry.",
-      )
-    }
-    throw new Error(message)
+    throw await toWriteError(response, "Failed to save collection item")
   }
 
   const payload = await readJsonResponse(response)
   return normalizeCollectionItem(payload?.item ?? item)
 }
 
-export async function deleteRemoteCollectionItem(pokemonId: number) {
-  const response = await fetch(`/api/collection?pokemonId=${pokemonId}`, {
+export async function deleteRemoteCollectionItem(pokemonId: number, options: RemoteWriteOptions = {}) {
+  const params = new URLSearchParams({ pokemonId: String(pokemonId) })
+  if (options.baseFingerprint !== undefined) params.set("baseFingerprint", options.baseFingerprint)
+  const response = await sendCollectionWrite(`/api/collection?${params.toString()}`, {
     method: "DELETE",
   })
 
   if (!response.ok) {
-    const payload = await readJsonResponse(response)
-    throw new Error(payload?.error || `Failed to delete collection item (${response.status})`)
+    throw await toWriteError(response, "Failed to delete collection item")
   }
 }
