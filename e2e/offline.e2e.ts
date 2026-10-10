@@ -89,7 +89,7 @@ test.describe("offline", () => {
     await harness.page.reload()
     const detail = await harness.openCardDetail()
     await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
-    await expect(harness.page.getByRole("list", { name: /printings/i }).getByRole("listitem")).toHaveCount(6)
+    await expect(harness.page.getByRole("list", { name: /cards/i }).getByRole("listitem")).toHaveCount(6)
   })
 
   test("when the server stalls (dead card-show Wi-Fi) the app opens from the shell instead of hanging", async ({ harness, context }) => {

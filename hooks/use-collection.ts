@@ -61,6 +61,7 @@ import {
 } from "@/lib/collection/sync"
 import {
   COLLECTION_AUTO_REFRESH_INTERVAL_MS,
+  getResolvedCollectionOwner,
   keepStableUserById,
   getRemoteCollectionRefreshPlan,
   shouldAutoRefreshCollection,
@@ -117,6 +118,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const [user, setUser] = useState<User | null>(initialUser)
   const [collection, setCollection] = useState<CollectedPokemon[]>(normalizeCollectionItems(initialCollection))
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
+  const [ownerResolvedForUserId, setOwnerResolvedForUserId] = useState<string | null>(initialCollectionOwnerUserId ? initialUser?.id ?? null : null)
+  const authenticatedUserId = useRef(initialUser?.id ?? null)
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
   const [localPendingSyncCount, setLocalPendingSyncCount] = useState(0)
   const [syncStatus, setSyncStatus] = useState<CollectionSyncStatus>("idle")
@@ -163,7 +166,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (error) throw error
 
     const ownerUserId = partnership?.owner_user_id || currentUser.id
-    setCollectionOwnerUserId(ownerUserId)
+    if (authenticatedUserId.current === currentUser.id) {
+      setCollectionOwnerUserId(ownerUserId)
+      setOwnerResolvedForUserId(currentUser.id)
+    }
     return ownerUserId
   }, [supabase])
 
@@ -354,18 +360,32 @@ export function useCollection(options: UseCollectionOptions = {}) {
   useEffect(() => {
     if (readOnly) return
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (authenticatedUserId.current !== (session?.user.id ?? null)) {
+        setCollection([])
+        setCollectionOwnerUserId(null)
+        setOwnerResolvedForUserId(null)
+      }
+      authenticatedUserId.current = session?.user.id ?? null
       setUser((existingUser) => keepStableUserById(existingUser, session?.user ?? null))
 
       if (session?.user) {
-        const ownerUserId = await resolveCollectionOwnerUserId(session.user)
-        const { data } = await supabase
-          .from("pokemon_collection")
-          .select("*")
-          .eq("user_id", ownerUserId)
-          .order("pokemon_id", { ascending: true })
+        const sessionUser = session.user
+        // Release Supabase's auth lock before making authenticated queries.
+        window.setTimeout(() => {
+          if (authenticatedUserId.current !== sessionUser.id) return
+          void (async () => {
+            const ownerUserId = await resolveCollectionOwnerUserId(sessionUser)
+            if (authenticatedUserId.current !== sessionUser.id) return
+            const { data } = await supabase
+              .from("pokemon_collection")
+              .select("*")
+              .eq("user_id", ownerUserId)
+              .order("pokemon_id", { ascending: true })
 
-        setCollection(applyPendingEdits(normalizeCollectionItems(data), readPendingCollectionOperations()))
+            if (authenticatedUserId.current === sessionUser.id) setCollection(applyPendingEdits(normalizeCollectionItems(data), readPendingCollectionOperations()))
+          })().catch(error => console.error("[binderdex] Error refreshing signed-in collection:", error))
+        }, 0)
       } else {
         setCollectionOwnerUserId(null)
         setCollection([])
@@ -974,6 +994,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   const signOut = useCallback(async () => {
     if (readOnly) return
+    authenticatedUserId.current = null
     setUser(null)
     setCollectionOwnerUserId(null)
     setCollection([])
@@ -1002,5 +1023,6 @@ export function useCollection(options: UseCollectionOptions = {}) {
     dismissSyncNotice: () => setSyncNotice(null),
     collectionCount: collection.filter((item) => item.status !== "wishlisted").length,
     collectionOwnerUserId,
+    resolvedCollectionOwnerUserId: getResolvedCollectionOwner(user?.id ?? null, ownerResolvedForUserId, collectionOwnerUserId),
   }
 }

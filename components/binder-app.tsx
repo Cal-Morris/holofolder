@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent } from "react"
+import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
@@ -19,6 +20,7 @@ import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignal
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { getCardPriceKey, getPriceSourceLabel, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
+import { useBinderAppearance } from "@/hooks/use-binder-appearance"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
@@ -61,6 +63,7 @@ import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_EASING, getAdjacentPageNumbers, g
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
 // import: it renders inside the card detail sheet, and loading it late shifts the sheet's
 // actions on phones.
+const DashboardBinderPreview = dynamic(() => import("@/components/dashboard-binder-preview"), { ssr: false, loading: () => <p role="status" className="p-4 text-sm text-muted-foreground">Opening your binder…</p> })
 const SettingsModal = dynamic(() => import("@/components/settings-modal"), { ssr: false })
 const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr: false })
 const PartnerModal = dynamic(() => import("@/components/partner-modal"), { ssr: false })
@@ -84,9 +87,9 @@ const GENERATIONS = [
   { id: 9, name: "Generation IX", start: 906, end: 1025, region: "Paldea" },
 ]
 
-const TRADING_CARD_ASPECT_RATIO = 2.5 / 3.5
-const TRADING_CARD_CORNER_RADIUS = "5%"
-const TRADING_CARD_INNER_CORNER_RADIUS = "4.25%"
+const TRADING_CARD_ASPECT_RATIO = 63 / 88
+const TRADING_CARD_CORNER_RADIUS = "4.76% / 3.41%"
+const TRADING_CARD_INNER_CORNER_RADIUS = "4% / 2.86%"
 const BINDER_SPREAD_GAP_ASPECT_RATIO = 0.025
 const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
@@ -858,6 +861,7 @@ export default function BinderApp({
   const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const [isCompactViewport, setIsCompactViewport] = useState(false)
   const [isWideBinderSpread, setIsWideBinderSpread] = useState(false)
+  const [binderDimension, setBinderDimension] = useState<"2d" | "3d">("2d")
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false)
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE)
   const [motionGlintStatus, setMotionGlintStatus] = useState<MotionGlintStatus>("fallback")
@@ -905,6 +909,7 @@ export default function BinderApp({
     syncStatus,
     syncNotice,
     dismissSyncNotice,
+    resolvedCollectionOwnerUserId,
   } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId, readOnly: readOnlyMode })
   useOfflineStoreSync(!readOnlyMode)
   const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
@@ -913,13 +918,45 @@ export default function BinderApp({
     localCollectedCount,
     localPendingSyncCount,
   })
-  const { settings, updateSettings } = useSettings({
+  const { settings, updateSettings: updateLegacySettings } = useSettings({
     initialSettings,
     initialUser,
     settingsOwnerUserId: initialCollectionOwnerUserId,
     readOnly: readOnlyMode,
     hasRemoteSettings: initialHasStoredSettings,
   })
+  const binderAppearance = useBinderAppearance({
+    owner: resolvedCollectionOwnerUserId,
+    settings,
+    enabled: Boolean(user && resolvedCollectionOwnerUserId) && !readOnlyMode,
+    legacyKey: user && resolvedCollectionOwnerUserId ? `owner:${user.id}:${resolvedCollectionOwnerUserId}` : undefined,
+  })
+  const updateSettings = useCallback((updates: Partial<BinderSettings>, appearancePageColors?: Record<string, string>) => {
+    updateLegacySettings(updates)
+    if (!binderAppearance.hasSavedDesign || readOnlyMode) return
+    if (updates.binderColorId === undefined && updates.binderPageColors === undefined && updates.binderRows === undefined && updates.binderCols === undefined) return
+    const design = binderAppearance.design
+    const rows = updates.binderRows ?? design.rows
+    const cols = updates.binderCols ?? design.cols
+    let pageColors = appearancePageColors ?? design.pageColors
+    if (appearancePageColors === undefined && updates.binderPageColors !== undefined) {
+      pageColors = Object.keys(updates.binderPageColors).length === 0 ? {} : { ...design.pageColors }
+      for (const page of Object.keys(settings.binderPageColors)) {
+        if (!(page in updates.binderPageColors)) delete pageColors[page]
+      }
+      for (const [page, color] of Object.entries(updates.binderPageColors)) {
+        if (color !== settings.binderPageColors[page] || pageColors[page] === undefined) pageColors[page] = getBinderColorPreset(color).swatch[0]
+      }
+    }
+    void binderAppearance.save({
+      ...design,
+      rows,
+      cols,
+      pageCount: Math.max(design.pageCount, Math.ceil(1025 / (rows * cols))),
+      pageColor: updates.binderColorId === undefined ? design.pageColor : getBinderColorPreset(updates.binderColorId).swatch[0],
+      pageColors,
+    }, binderAppearance.uploads).catch(() => {})
+  }, [updateLegacySettings, binderAppearance, readOnlyMode, settings.binderPageColors])
   const { fetchCardsForPokemon } = useTCGdex()
   const [slotPreviewCardsByPokemonId, setSlotPreviewCardsByPokemonId] = useState<Record<number, SlotPreviewCard>>({})
   const slotPreviewCardsByPokemonIdRef = useRef<Record<number, SlotPreviewCard>>({})
@@ -960,8 +997,13 @@ export default function BinderApp({
         : settings.binderColorId
     const binderColor = getBinderColorPreset(binderColorId)
 
-    return isDarkMode ? binderColor.dark : binderColor.light
-  }, [isDarkMode, settings.binderColorId, settings.binderPageColors])
+    const theme = isDarkMode ? binderColor.dark : binderColor.light
+    if (!binderAppearance.hasSavedDesign) return theme
+    const savedColor = pageNumber && pageNumber > 0
+      ? binderAppearance.design.pageColors[String(pageNumber)] || binderAppearance.design.pageColor
+      : binderAppearance.design.pageColor
+    return { ...theme, background: `linear-gradient(145deg, ${savedColor}, color-mix(in srgb, ${savedColor} 85%, black))`, border: `color-mix(in srgb, ${savedColor} 60%, white)` }
+  }, [isDarkMode, settings.binderColorId, settings.binderPageColors, binderAppearance.hasSavedDesign, binderAppearance.design])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -2174,8 +2216,8 @@ export default function BinderApp({
         ...settings.binderPageColors,
         [String(currentBinderPage)]: binderColorId,
       },
-    })
-  }, [currentBinderPage, readOnlyMode, settings.binderPageColors, updateSettings])
+    }, { ...binderAppearance.design.pageColors, [String(currentBinderPage)]: getBinderColorPreset(binderColorId).swatch[0] })
+  }, [currentBinderPage, readOnlyMode, settings.binderPageColors, updateSettings, binderAppearance.design.pageColors])
 
   const handleSetBinderColorForPageRange = useCallback((binderColorId: BinderColorId, endPage: number) => {
     if (readOnlyMode) return
@@ -2187,15 +2229,19 @@ export default function BinderApp({
       nextPageColors[String(page)] = binderColorId
     }
 
-    updateSettings({ binderPageColors: nextPageColors })
-  }, [readOnlyMode, settings.binderPageColors, totalBinderPages, updateSettings])
+    const appearancePageColors = { ...binderAppearance.design.pageColors }
+    for (let page = 1; page <= safeEndPage; page += 1) appearancePageColors[String(page)] = getBinderColorPreset(binderColorId).swatch[0]
+    updateSettings({ binderPageColors: nextPageColors }, appearancePageColors)
+  }, [readOnlyMode, settings.binderPageColors, totalBinderPages, updateSettings, binderAppearance.design.pageColors])
 
   const handleClearCurrentPageBinderColor = useCallback(() => {
     if (readOnlyMode) return
     const nextPageColors = { ...settings.binderPageColors }
     delete nextPageColors[String(currentBinderPage)]
-    updateSettings({ binderPageColors: nextPageColors })
-  }, [currentBinderPage, readOnlyMode, settings.binderPageColors, updateSettings])
+    const appearancePageColors = { ...binderAppearance.design.pageColors }
+    delete appearancePageColors[String(currentBinderPage)]
+    updateSettings({ binderPageColors: nextPageColors }, appearancePageColors)
+  }, [currentBinderPage, readOnlyMode, settings.binderPageColors, updateSettings, binderAppearance.design.pageColors])
 
   const { ref: binderRef, isSwiping, didSwipe } = useTouchGestures<HTMLDivElement>({
     onSwipeLeft: isSpreadLayout ? goToNextSpread : goToNextPage,
@@ -4072,7 +4118,7 @@ export default function BinderApp({
     const selectedPreviewTone = selectedPreviewIsCard ? "" : selectedPokemonDisplayTone
     const selectedPreviewFit = selectedPreviewIsCard ? "object-cover" : selectedPokemonDisplayFit
     const selectedPreviewFrameClass = selectedPreviewIsCard
-      ? "h-[6.4rem] w-[4.6rem] rounded-lg sm:h-[4.6rem] sm:w-[3.35rem]"
+      ? "trading-card w-[4.6rem] sm:w-[3.35rem]"
       : "h-20 w-20 rounded-2xl sm:h-14 sm:w-14"
     const selectedPreviewImageClass = selectedPreviewIsCard
       ? "absolute inset-0 h-full w-full"
@@ -4094,7 +4140,7 @@ export default function BinderApp({
       ? "This shared binder is read-only. You can browse, search, filter, and view prices, but only the owner can change collection state."
       : collected
         ? "Add or edit the card for this slot, or clear it if you no longer have one."
-        : "Add card picks a specific printing, Mark owned leaves it cardless, and Wanted card tracks a target without counting it owned."
+        : "Add card saves your chosen card, Mark owned leaves it cardless, and Wanted card tracks a card without counting it as owned."
 
     const quickPanel = (
       <>
@@ -4133,7 +4179,7 @@ export default function BinderApp({
                 maxHeight: "calc(100dvh - env(safe-area-inset-top) - var(--dock-clearance) - 0.375rem - 0.5rem)",
               }}
       >
-        <div className="flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-[linear-gradient(180deg,rgba(20,24,32,0.97)_0%,rgba(15,19,26,0.98)_100%)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
+        <div className="flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-card/96 dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
           <div className="flex min-h-0 flex-col gap-3">
             <div className="shrink-0" data-sheet-grabber={isMobileQuickPanel ? "" : undefined} {...(isMobileQuickPanel ? quickPanelSwipe : {})}>
             {isMobileQuickPanel ? <div aria-hidden="true" className="mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30" /> : null}
@@ -4215,7 +4261,7 @@ export default function BinderApp({
             <div className="-mx-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3" style={{ WebkitOverflowScrolling: "touch" }}>
             {selectedCurrentCardPreview ? (
               <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
-                <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted dark:border-white/10">
+                <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
                   {selectedCurrentCardPreview.cardImage ? (
                     <img
                       src={selectedCurrentCardPreview.cardImage}
@@ -4367,7 +4413,7 @@ export default function BinderApp({
                           disabled={isCollectionLoading}
                           variant="default"
                           size="sm"
-                          className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-[0_12px_24px_-18px_rgba(96,165,250,0.9)]"
+                          className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-sm"
                         >
                           <Check className="w-3.5 h-3.5" />
                           {selectedPokemonHasAssignedCard ? "Edit card" : "Add card"}
@@ -4392,7 +4438,7 @@ export default function BinderApp({
                           disabled={isCollectionLoading}
                           variant="secondary"
                           size="sm"
-                          className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-[0_12px_24px_-18px_rgba(52,211,153,0.8)]"
+                          className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-sm"
                         >
                           <Check className="w-3.5 h-3.5" />
                           Add card
@@ -4788,6 +4834,7 @@ export default function BinderApp({
     return (
       <div
         key={`binder-page-${pageNumber}`}
+        data-binder-page={pageNumber}
         className="relative h-full w-full overflow-hidden rounded-2xl transition-shadow"
         style={isActivePage ? { boxShadow: `0 0 0 2px ${pageTheme.activeOutline}` } : undefined}
       >
@@ -5250,7 +5297,7 @@ export default function BinderApp({
                       onClick={() => jumpToWantedPokemonPage(pokemon)}
                       className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2 rounded-2xl border border-border/55 bg-background/52 p-2 text-left transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.03]"
                     >
-                      <span className="relative h-16 overflow-hidden rounded-xl border border-border/55 bg-muted dark:border-white/10">
+                      <span className="trading-card relative w-full border border-border/55 bg-muted dark:border-white/10">
                         {wantedCard.card.card_image ? (
                           <img src={wantedCard.card.card_image} alt={wantedCard.card.card_name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
                         ) : (
@@ -5337,7 +5384,7 @@ export default function BinderApp({
                     <button
                       type="button"
                       onClick={() => pokemon && handlePokemonSelect(pokemon)}
-                      className="relative h-24 w-full overflow-hidden rounded-2xl border border-border/60 bg-muted text-left dark:border-white/10 sm:h-28 sm:w-[4.75rem]"
+                      className="trading-card relative w-full border border-border/60 bg-muted text-left dark:border-white/10 sm:w-[4.75rem]"
                     >
                       {card.card_image ? (
                         <img src={card.card_image} alt={card.card_name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
@@ -5436,7 +5483,7 @@ export default function BinderApp({
   }
 
   return (
-    <main className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none">
+    <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-background md:hidden"
@@ -5492,8 +5539,8 @@ export default function BinderApp({
           <div className="rounded-2xl border border-border/70 bg-card/96 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.24)] md:bg-card/86 md:backdrop-blur-xl dark:border-border/50 dark:bg-background dark:shadow-black/5 dark:md:bg-background/88">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1 md:px-2.5 md:py-1.5">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary shadow-lg shadow-primary/20 md:h-6 md:w-6">
-                <Sparkles className="h-3.5 w-3.5 text-primary-foreground md:h-3 md:w-3" />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary shadow-sm md:h-6 md:w-6">
+                <Grid3X3 className="h-3.5 w-3.5 text-primary-foreground md:h-3 md:w-3" />
               </div>
               <div className={`min-w-0 ${activeMainView === "binder" ? "max-md:hidden" : ""}`}>
                 <p className="truncate text-sm font-bold tracking-tight md:text-[13px]">BinderDex</p>
@@ -5501,7 +5548,7 @@ export default function BinderApp({
               </div>
             </div>
 
-            {activeMainView === "binder" && (
+            {activeMainView === "binder" && binderDimension === "2d" && (
               <div data-testid="mobile-header-pager" className="flex min-w-0 items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 md:hidden dark:border-border/30 dark:bg-muted/35">
                 <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
                   <ChevronLeft className="h-4 w-4" />
@@ -5769,6 +5816,7 @@ export default function BinderApp({
                 </button>
                 </div>
 
+                {(activeMainView !== "binder" || binderDimension === "2d") && <>
                 {isCompactViewport && (
                   <button
                     onClick={() => setIsMobileSpreadPreview((current) => !current)}
@@ -5908,7 +5956,9 @@ export default function BinderApp({
                 </>
               )}
 
-              {activeMainView === "binder" && (
+              </>}
+
+              {activeMainView === "binder" && binderDimension === "2d" && (
                 <div className="ml-auto flex shrink-0 items-center gap-1.5">
                   <div className="flex items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/40">
                     <Button variant="ghost" size="icon" className="h-7 w-7 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
@@ -6200,9 +6250,17 @@ export default function BinderApp({
           </div>
         )}
 
+        {activeMainView === "binder" && <div className={dashboardStyles.switcher}>
+          <div><p>Your collection</p>{binderAppearance.message && <span role="status" className="block max-w-[190px] text-[10px] text-muted-foreground">{binderAppearance.message}</span>}</div>
+          <div role="group" aria-label="Binder display">
+            <button type="button" aria-pressed={binderDimension === "2d"} onClick={() => setBinderDimension("2d")}>2D</button>
+            <button type="button" aria-pressed={binderDimension === "3d"} onClick={() => { closeAllOverlays(); setSelectedPokemon(null); setBinderDimension("3d") }}>3D</button>
+          </div>
+        </div>}
+
         <div className={`flex min-h-0 flex-1 flex-col space-y-2 animate-fade-in ${
           activeMainView === "binder"
-            ? "overflow-y-auto overflow-x-hidden md:overflow-visible"
+            ? binderDimension === "3d" ? "overflow-y-auto overflow-x-hidden" : "overflow-y-auto overflow-x-hidden md:overflow-visible"
             : "overflow-hidden"
         }`}>
           {activeMainView === "list" ? (
@@ -6234,6 +6292,14 @@ export default function BinderApp({
               onCollectCards={handleCollectSetCards}
               onWantCards={handleWantSetCards}
               readOnly={readOnlyMode}
+            />
+          ) : binderDimension === "3d" ? (
+            <DashboardBinderPreview
+              appearance={binderAppearance.design}
+              artwork={binderAppearance.artwork}
+              loading={binderAppearance.loading}
+              collection={collection}
+              enabled={Boolean(user) && !readOnlyMode}
             />
           ) : (
             <>
@@ -6309,7 +6375,7 @@ export default function BinderApp({
                           className="flex w-44 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 bg-card/82 p-1.5 text-left sm:w-56 sm:p-2"
                         >
                           {card.card_image ? (
-                            <img src={card.card_image} alt={card.card_name} className="h-12 w-8 rounded object-cover sm:h-14 sm:w-10" loading="lazy" />
+                            <img src={card.card_image} alt={card.card_name} className="trading-card w-8 object-cover sm:w-10" loading="lazy" />
                           ) : (
                             <div className="h-12 w-8 rounded bg-muted sm:h-14 sm:w-10" />
                           )}
@@ -6431,12 +6497,12 @@ export default function BinderApp({
                 {selectedPokemon && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
                     <div className="flex items-center gap-3">
-                      <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-muted to-muted/30">
+                      <div className={`relative flex shrink-0 items-center justify-center bg-muted/40 ${selectedPrimaryCardPreview?.cardImage ? "trading-card w-11" : "h-16 w-16 rounded-xl"}`}>
                         <img
                           src={selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)}
                           alt={selectedPrimaryCardPreview?.cardName ?? selectedPokemonDisplayName}
                           className={selectedPrimaryCardPreview?.cardImage
-                            ? "absolute inset-0 h-full w-full rounded-xl object-cover"
+                            ? "absolute inset-0 h-full w-full object-cover"
                             : `absolute inset-2 max-w-[calc(100%-1rem)] max-h-[calc(100%-1rem)] m-auto ${selectedPokemonDisplayFit} ${selectedPokemonDisplayTone}`}
                         />
                       </div>
@@ -6780,6 +6846,7 @@ export default function BinderApp({
 
       {/* Modals */}
       <SettingsModal
+        appearance={binderAppearance.hasSavedDesign ? binderAppearance.design : undefined}
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         user={user}

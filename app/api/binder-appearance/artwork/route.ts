@@ -1,0 +1,14 @@
+import { BINDER_ARTWORK_BUCKET, binderArtworkPath, isBinderUploadId } from "@/lib/binder-appearance"
+import { AppearanceError, appearanceError, requireAppearanceOwner } from "@/lib/server/binder-appearance"
+
+export async function GET(request: Request) {
+  try {
+    const { admin, ownerId } = await requireAppearanceOwner(request)
+    const id = new URL(request.url).searchParams.get("id")
+    if (!isBinderUploadId(id)) throw new AppearanceError("Invalid artwork id", 400)
+    const { data, error } = await admin.storage.from(BINDER_ARTWORK_BUCKET).createSignedUrl(binderArtworkPath(ownerId, id), 300)
+    if (error || !data) throw new AppearanceError("Artwork could not load", 404)
+    // shortcut: short-lived private redirect avoids Vercel's 4.5 MB response limit for 5 MB artwork.
+    return new Response(null, { status: 302, headers: { Location: data.signedUrl, "Cache-Control": "private, no-store" } })
+  } catch (error) { return appearanceError(error) }
+}

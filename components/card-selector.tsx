@@ -294,7 +294,7 @@ export default function CardSelector({
         actionLabel: "Track as wanted",
         scanLabel: "Scan wanted",
         emptyActionLabel: "Clear wanted card",
-        helper: "Selecting a card keeps this slot open and tracks the printing you want to find.",
+        helper: "Selecting a card keeps this slot open and tracks the card you want to find.",
         searchPlaceholder: "Search wanted card, number, set...",
         currentLabel: "Current wanted",
         activeClass: "border-amber-400/60 bg-amber-400/15 text-amber-700 shadow-[0_10px_24px_-18px_rgba(251,191,36,0.85)] dark:text-amber-300",
@@ -307,7 +307,7 @@ export default function CardSelector({
         actionLabel: "Add card",
         scanLabel: "Scan card",
         emptyActionLabel: "Mark owned without card",
-        helper: "Selecting a card marks the slot collected and attaches this printing to your binder.",
+        helper: "Selecting a card marks the slot collected and attaches this card to your binder.",
         searchPlaceholder: "Search card, number, set...",
         currentLabel: "Current card",
         activeClass: "border-emerald-400/55 bg-emerald-400/14 text-emerald-700 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)] dark:text-emerald-300",
@@ -1160,7 +1160,7 @@ export default function CardSelector({
                         onClick={() => selectCard(card)}
                         className="block w-full bg-card p-0 text-left"
                       >
-                        <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-[10px] bg-muted sm:rounded-none">
+                        <div className="trading-card relative w-full bg-muted">
                           <CardSelectorImage
                             src={card.image}
                             alt={card.name}

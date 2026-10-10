@@ -25,7 +25,7 @@ type BinderColorPreset = {
   light: BinderColorTheme
 }
 
-export const DEFAULT_BINDER_COLOR_ID: BinderColorId = "emerald"
+export const DEFAULT_BINDER_COLOR_ID: BinderColorId = "black"
 
 export const BINDER_COLOR_PRESETS: BinderColorPreset[] = [
   {
@@ -202,5 +202,6 @@ export const BINDER_COLOR_PRESETS: BinderColorPreset[] = [
 ]
 
 export function getBinderColorPreset(colorId: BinderColorId | null | undefined) {
-  return BINDER_COLOR_PRESETS.find((preset) => preset.id === colorId) ?? BINDER_COLOR_PRESETS[0]
+  return BINDER_COLOR_PRESETS.find((preset) => preset.id === colorId)
+    ?? BINDER_COLOR_PRESETS.find((preset) => preset.id === DEFAULT_BINDER_COLOR_ID)!
 }

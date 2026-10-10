@@ -21,11 +21,11 @@ test("each preset defines a full dark and light theme and a two-stop swatch", ()
   }
 })
 
-test("getBinderColorPreset finds presets and falls back to the first (default) preset", () => {
+test("getBinderColorPreset finds presets and falls back to the configured default preset", () => {
   for (const id of ALL_IDS) {
     assert.equal(getBinderColorPreset(id).id, id)
   }
-  assert.equal(BINDER_COLOR_PRESETS[0].id, DEFAULT_BINDER_COLOR_ID)
+  assert.equal(DEFAULT_BINDER_COLOR_ID, "black")
   assert.equal(getBinderColorPreset(null).id, DEFAULT_BINDER_COLOR_ID)
   assert.equal(getBinderColorPreset(undefined).id, DEFAULT_BINDER_COLOR_ID)
   assert.equal(getBinderColorPreset("nope" as BinderColorId).id, DEFAULT_BINDER_COLOR_ID)

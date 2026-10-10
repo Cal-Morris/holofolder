@@ -2,7 +2,7 @@
 
 The Supabase schema is defined by the numbered SQL files in this folder. There is no migration runner: apply them by hand (Supabase SQL editor or `psql`) in numeric order. Every file uses `IF NOT EXISTS` / `DROP … IF EXISTS` guards, so re-running one that is already applied is meant to be harmless, but keep a note of what production has had applied.
 
-When you add a migration, use the next free number (`024_…`), keep it idempotent, and add a row below.
+When you add a migration, use the next free number (`026_…`), keep it idempotent, and add a row below.
 
 | File | What it does |
 |---|---|
@@ -28,6 +28,8 @@ When you add a migration, use the next free number (`024_…`), keep it idempote
 | `021_card_price_source_evidence.sql` | Per-source price evidence (`source_prices`) |
 | `022_price_provider_observations.sql` | `price_provider_runs`, `card_price_observations`, `buy_signal` |
 | `023_price_provider_pokepulse.sql` | Allow the `pokepulse` provider in the 022 constraints |
+| `024_binder_appearances.sql` | Owner/partner binder appearance JSON with revision conflicts; private 5 MB artwork bucket. Apply before enabling appearance sync; existing collection/settings work without it. |
+| `025_restore_legacy_not_null_contracts.sql` | Restore 008's `status NOT NULL` and the documented, reconstructed settings nullability contracts. Fill only NULL status/grid values with existing app defaults; preserve known timestamps, using migration time only when both were missing. Does not rerun historical card/price backfills. |
 
 ## `user_settings` (from the missing 002/003)
 

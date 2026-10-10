@@ -10,50 +10,49 @@
   --dock-inset: max(env(safe-area-inset-bottom), 0.5rem);
   --dock-bar: 3.125rem;
   --dock-clearance: calc(var(--dock-inset) + var(--dock-bar));
-  /* Light theme - crisp paper surfaces with soft contrast */
-  --background: oklch(0.958 0.006 250);
-  --foreground: oklch(0.23 0.016 255);
-  --card: oklch(0.992 0.003 255);
-  --card-foreground: oklch(0.23 0.016 255);
-  --popover: oklch(0.996 0.002 255);
-  --popover-foreground: oklch(0.23 0.016 255);
-  --primary: oklch(0.6 0.16 250);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.945 0.012 205);
-  --secondary-foreground: oklch(0.23 0.016 255);
-  --muted: oklch(0.928 0.006 255);
-  --muted-foreground: oklch(0.52 0.012 255);
-  --accent: oklch(0.938 0.009 248);
-  --accent-foreground: oklch(0.23 0.016 255);
+  /* Paper and charcoal leave the colour to the cards and chosen pocket pages. */
+  --background: oklch(0.974 0.004 90);
+  --foreground: oklch(0.225 0.002 90);
+  --card: oklch(0.994 0.002 90);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.255 0.002 90);
+  --primary-foreground: oklch(0.994 0.002 90);
+  --secondary: oklch(0.933 0.004 90);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.941 0.004 90);
+  --muted-foreground: oklch(0.49 0.003 90);
+  --accent: oklch(0.92 0.004 90);
+  --accent-foreground: var(--foreground);
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.865 0.008 255);
-  --input: oklch(0.975 0.004 255);
-  --ring: oklch(0.6 0.16 250);
-  --radius: 0.75rem;
+  --border: oklch(0.875 0.004 90);
+  --input: oklch(0.985 0.002 90);
+  --ring: oklch(0.4 0.002 90);
+  --radius: 0.625rem;
 }
 
 .dark {
-  /* Dark theme - Premium and immersive */
-  --background: oklch(0.13 0.015 260);
-  --foreground: oklch(0.95 0.01 260);
-  --card: oklch(0.17 0.015 260);
-  --card-foreground: oklch(0.95 0.01 260);
-  --popover: oklch(0.17 0.015 260);
-  --popover-foreground: oklch(0.95 0.01 260);
-  --primary: oklch(0.7 0.15 250);
-  --primary-foreground: oklch(0.13 0.015 260);
-  --secondary: oklch(0.55 0.1 180);
-  --secondary-foreground: oklch(0.95 0.01 260);
-  --muted: oklch(0.25 0.015 260);
-  --muted-foreground: oklch(0.6 0.01 260);
-  --accent: oklch(0.7 0.15 250);
-  --accent-foreground: oklch(0.13 0.015 260);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.95 0.01 260);
-  --border: oklch(0.28 0.015 260);
-  --input: oklch(0.22 0.015 260);
-  --ring: oklch(0.7 0.15 250);
+  --background: oklch(0.17 0.002 90);
+  --foreground: oklch(0.958 0.004 90);
+  --card: oklch(0.215 0.002 90);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.94 0.004 90);
+  --primary-foreground: oklch(0.2 0.002 90);
+  --secondary: oklch(0.29 0.002 90);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.27 0.002 90);
+  --muted-foreground: oklch(0.7 0.003 90);
+  --accent: oklch(0.32 0.002 90);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.34 0.002 90);
+  --input: oklch(0.25 0.002 90);
+  --ring: oklch(0.75 0.003 90);
 }
 
 @theme inline {
@@ -531,5 +530,18 @@
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: var(--muted-foreground);
+  }
+}
+
+/* A 3 mm corner on a 63 × 88 mm card, independent of thumbnail size. */
+.trading-card {
+  aspect-ratio: 63 / 88;
+  border-radius: 4.76% / 3.41%;
+  overflow: hidden;
+}
+
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .group\/slot:hover img {
+    transform: none;
   }
 }
