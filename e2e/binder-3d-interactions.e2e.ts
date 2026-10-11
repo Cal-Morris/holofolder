@@ -29,6 +29,7 @@ test.describe("3D binder gestures", () => {
     }
     await swipe(-70)
     await expect(stage).toHaveAttribute("data-current-page", "2")
+    await expect(page).toHaveURL(/page=2/)
     await swipe(70)
     await expect(stage).toHaveAttribute("data-current-page", "1")
     await swipe(-50, 38)
