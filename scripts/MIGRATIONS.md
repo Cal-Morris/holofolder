@@ -32,6 +32,8 @@ When you add a migration, use the next free number (`026_…`), keep it idempote
 | `025_restore_legacy_not_null_contracts.sql` | Restore 008's `status NOT NULL` and the documented, reconstructed settings nullability contracts. Fill only NULL status/grid values with existing app defaults; preserve known timestamps, using migration time only when both were missing. Does not rerun historical card/price backfills. |
 | `026_card_price_finishes.sql` | Exact printing and finish price evidence (`finish_prices`); existing cache writes work before application |
 
+| `027_collection_analytics.sql` | Private committed collection activity and compact tracked daily price observations with 90-day retention. Apply before enabling history; the view tolerates missing tables. |
+
 ## `user_settings` (from the missing 002/003)
 
 The app expects this table (see `lib/settings.ts` for the column mapping). For a fresh project, create it before applying `012`:

@@ -3,7 +3,7 @@
 import { Area, AreaChart, Tooltip, XAxis, YAxis } from "recharts"
 import { useId } from "react"
 import { ChartContainer } from "@/components/ui/chart"
-import type { CardPriceSnapshot, SupportedCurrency } from "@/hooks/use-card-prices"
+import type { CardPriceSnapshot, SupportedCurrency } from "@/lib/card-pricing"
 import { isMomentumEligibleConfidence } from "@/lib/price-momentum"
 
 interface CardPriceEvidenceProps {
@@ -41,10 +41,10 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
   const gradientId = useId().replaceAll(":", "")
   const sourcePrices = price?.sourcePrices ?? []
   const trendPoints = price?.trendPoints ?? []
-  // Older cached snapshots may carry a "rising" call made on low-confidence data; never show it.
+  // Cached snapshots can contain timing calls made before confidence gates.
   const rawBuySignal = price?.buySignal ?? null
-  const buySignal = rawBuySignal?.status === "rising" && !isMomentumEligibleConfidence(price?.confidence)
-    ? null
+  const buySignal = rawBuySignal && !isMomentumEligibleConfidence(price?.confidence)
+    ? { status: "hold" as const, label: "Thin data", reason: "Price confidence is too low to call the timing." }
     : rawBuySignal
 
   if (!buySignal && sourcePrices.length === 0 && (!showTrend || trendPoints.length < 2)) {

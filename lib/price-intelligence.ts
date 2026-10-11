@@ -162,10 +162,13 @@ export function buildBuySignal(input: {
   trendPoints: Array<{ label: string; gbpAmount: number }>
 }): CardBuySignal | null {
   const market = input.marketGbpAmount
-  if (market == null || !Number.isFinite(market)) return null
+  if (market == null || !Number.isFinite(market) || market <= 0) return null
 
-  // "Rising" is never called on low/unknown confidence data (see lib/price-momentum.ts).
-  const canCallRising = input.confidence === "high" || input.confidence === "medium"
+  if (input.confidence !== "high" && input.confidence !== "medium") return {
+    status: "hold",
+    label: "Thin data",
+    reason: "Price confidence is too low to call the timing.",
+  }
 
   const current = readTrendPoint(input.trendPoints, ["trend", "now", "1d"]) ?? market
   const avg7 = readTrendPoint(input.trendPoints, ["7d"])
@@ -181,7 +184,7 @@ export function buildBuySignal(input: {
       }
     }
 
-    if (ratio >= 1.15 && canCallRising) {
+    if (ratio >= 1.15) {
       return {
         status: "rising",
         label: "Rising",
@@ -200,7 +203,7 @@ export function buildBuySignal(input: {
       }
     }
 
-    if (ratio >= 1.1 && canCallRising) {
+    if (ratio >= 1.1) {
       return {
         status: "rising",
         label: "Rising",
