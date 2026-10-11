@@ -232,6 +232,7 @@ type PageScanCardMatchSummary = {
 type QuickPanelPosition = {
   top: number
   left: number
+  maxHeight: number
 }
 
 interface BeforeInstallPromptEvent extends Event {
@@ -3916,12 +3917,15 @@ export default function BinderApp({
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
     const navBottom = shellNavRef.current?.getBoundingClientRect().bottom ?? 0
-    const edgePadding = Math.max(16, navBottom + 10)
+    const edgePadding = 16
+    const topClearance = Math.max(16, navBottom + 10)
     const bottomClearance = 16
     const verticalGap = 14
-    const spaceAbove = slotRect.top - edgePadding - verticalGap
+    const maxHeight = Math.max(0, viewportHeight - topClearance - bottomClearance)
+    const panelHeight = Math.min(panelRect.height, maxHeight)
+    const spaceAbove = slotRect.top - topClearance - verticalGap
     const spaceBelow = viewportHeight - slotRect.bottom - bottomClearance - verticalGap
-    const placeBelow = spaceBelow >= panelRect.height || spaceBelow > spaceAbove
+    const placeBelow = spaceBelow >= panelHeight || spaceBelow > spaceAbove
     const slotCenterX = slotRect.left + slotRect.width / 2
 
     let left = slotCenterX - panelRect.width / 2
@@ -3934,15 +3938,15 @@ export default function BinderApp({
 
     let top = placeBelow
       ? slotRect.bottom + verticalGap
-      : slotRect.top - panelRect.height - verticalGap
-    top = Math.max(edgePadding, Math.min(top, viewportHeight - panelRect.height - bottomClearance))
+      : slotRect.top - panelHeight - verticalGap
+    top = Math.max(topClearance, Math.min(top, viewportHeight - panelHeight - bottomClearance))
 
     setQuickPanelPosition((current) => {
-      if (current && Math.abs(current.top - top) < 1 && Math.abs(current.left - left) < 1) {
+      if (current && Math.abs(current.top - top) < 1 && Math.abs(current.left - left) < 1 && Math.abs(current.maxHeight - maxHeight) < 1) {
         return current
       }
 
-      return { top, left }
+      return { top, left, maxHeight }
     })
   }, [isDesktopViewport, isSearchOpen, selectedPokemon])
 
@@ -3961,11 +3965,14 @@ export default function BinderApp({
       updateQuickPanelPosition()
     })
 
+    const observer = new ResizeObserver(updateQuickPanelPosition)
+    if (quickPanelRef.current) observer.observe(quickPanelRef.current)
     window.addEventListener("resize", updateQuickPanelPosition, { passive: true })
     window.addEventListener("scroll", updateQuickPanelPosition, { passive: true })
 
     return () => {
       window.cancelAnimationFrame(frame)
+      observer.disconnect()
       window.removeEventListener("resize", updateQuickPanelPosition)
       window.removeEventListener("scroll", updateQuickPanelPosition)
     }
@@ -4094,11 +4101,11 @@ export default function BinderApp({
 
     const selectedStatusPill =
       selectedHasWantedCard
-        ? { label: "Wanted", className: "border-amber-500/25 bg-amber-500/10 text-amber-400" }
-        : selectedPokemonIsFavorite
-          ? { label: "Perfect", className: "border-amber-500/25 bg-amber-500/10 text-amber-400" }
-          : collected
-            ? { label: "Owned", className: "border-emerald-500/25 bg-emerald-500/10 text-emerald-400" }
+        ? { label: "Wanted", className: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400" }
+        : binderCardDisplay === "current" && selectedPokemonIsFavorite
+          ? { label: "Perfect", className: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400" }
+          : binderCardDisplay === "current" && collected
+            ? { label: "Owned", className: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" }
             : { label: "Open Slot", className: "border-border/60 bg-background/35 text-muted-foreground" }
 
     const selectedCardSummaryLabel =
@@ -4164,6 +4171,7 @@ export default function BinderApp({
           ? {
               top: quickPanelPosition.top,
               left: quickPanelPosition.left,
+              maxHeight: quickPanelPosition.maxHeight,
             }
           : isDesktopViewport
             ? {
@@ -4191,7 +4199,7 @@ export default function BinderApp({
                   alt={selectedPreviewAlt}
                   className={`${selectedPreviewImageClass} ${selectedPreviewFit} ${selectedPreviewTone}`}
                 />
-                {collected && !selectedPreviewIsCard && (
+                {binderCardDisplay === "current" && collected && !selectedPreviewIsCard && (
                   <div className={`absolute w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow ${selectedPreviewBadgeClass}`}>
                     <Check className="w-2.5 h-2.5 text-white" />
                   </div>
@@ -4201,7 +4209,7 @@ export default function BinderApp({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">#{String(selectedPokemon.id).padStart(4, "0")}</p>
-                    <h3 className="truncate text-[1.05rem] font-bold leading-tight tracking-tight">{selectedPokemonDisplayName}</h3>
+                    <h3 className="break-words text-[1.05rem] font-bold leading-tight tracking-tight">{selectedPokemonDisplayName}</h3>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <Button
@@ -4212,7 +4220,7 @@ export default function BinderApp({
                       aria-label={`All ${selectedPokemonDisplayName} cards`}
                     >
                       <Layers3 className="h-4 w-4" />
-                      <span className="hidden min-[360px]:inline">All cards</span>
+                      <span className="hidden sm:inline">All cards</span>
                     </Button>
                     <Button
                       variant="ghost"
@@ -4229,120 +4237,25 @@ export default function BinderApp({
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${selectedStatusPill.className}`}>
                     {selectedStatusPill.label}
                   </span>
-                  {collectionItem?.card_name ? (
+                  {selectedPrimaryCardPreview?.cardName ? (
                     <span className="rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]">
                       {selectedPokemonHasAssignedCard ? "Assigned Card" : "Tracked Card"}
                     </span>
                   ) : null}
                 </div>
-                <p className={`mt-1.5 min-h-[1rem] truncate text-[11px] leading-relaxed ${
+                <p className={`mt-1.5 min-h-[1rem] break-words text-xs leading-relaxed ${
                   selectedHasWantedCard
-                    ? "text-amber-400"
+                    ? "text-amber-700 dark:text-amber-400"
                   : collectionItem?.card_name
-                      ? "text-sky-300"
+                      ? "text-sky-700 dark:text-sky-300"
                       : "text-muted-foreground"
                 }`}>
                   {selectedCardSummaryLabel}
                 </p>
-                {selectedDetailChips.length > 0 ? (
-                  <div className="mt-2 flex items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap">
-                    {selectedDetailChips.map((detailChip) => (
-                      <span
-                        key={detailChip.key}
-                        className="shrink-0 rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
-                      >
-                        {detailChip.label}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </div>
             </div>
-            <div className="-mx-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3" style={{ WebkitOverflowScrolling: "touch" }}>
-            {selectedCurrentCardPreview ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
-                <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
-                  {selectedCurrentCardPreview.cardImage ? (
-                    <img
-                      src={selectedCurrentCardPreview.cardImage}
-                      alt={selectedCurrentCardPreview.cardName}
-                      className="absolute inset-0 h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-muted text-[9px] text-muted-foreground">No image</div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current card</p>
-                    {selectedAssignedPriceChipLabel ? (
-                      <span className="shrink-0 rounded-full border border-border/60 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]">
-                        {selectedAssignedPriceChipLabel}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-0.5 truncate text-xs font-semibold">{selectedCurrentCardPreview.cardName}</p>
-                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                    {[
-                      selectedCurrentCardPreview.cardSet,
-                      formatCardLanguageLabel(selectedCurrentCardPreview.cardLanguage),
-                      formatCardFinishLabel(selectedCurrentCardPreview.cardFinish),
-                    ].filter(Boolean).join(" · ")}
-                  </p>
-                </div>
-              </div>
-            ) : null}
-            {selectedWantedCards.map(card => {
-              const image = toCacheableCardImageUrl(card.card_image)
-              return (
-              <div key={getWantedCardKey(card)} className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
-                <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
-                  {image ? <NextImage unoptimized fill sizes="40px" src={image} alt={card.card_name} className="object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">No image</div>}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Wanted card</p>
-                    <span className="text-[10px] text-muted-foreground">{formatPriceLabel(pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")])}</span>
-                  </div>
-                  <p className="mt-0.5 truncate text-xs font-semibold">{card.card_name}</p>
-                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{[card.card_set, formatCardLanguageLabel(card.card_language), formatCardFinishLabel(card.card_finish)].filter(Boolean).join(" · ")}</p>
-                </div>
-              </div>
-            )})}
-            {!readOnlyMode && selectedPokemonHasAssignedCard ? (
-              <div className="rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
-                <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Variant</span>
-                  <span className="truncate text-[10px] text-muted-foreground">
-                    {formatCardFinishLabel(collectionItem?.card_finish)}
-                  </span>
-                </div>
-                <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
-                  {CARD_FINISH_OPTIONS.map((finishOption) => {
-                    const isActive = (collectionItem?.card_finish ?? "normal") === finishOption.id
-
-                    return (
-                      <button
-                        key={finishOption.id}
-                        type="button"
-                        onClick={() => handleSelectedCardFinishChange(finishOption.id)}
-                        disabled={isCollectionLoading || isActive}
-                        aria-pressed={isActive}
-                        className={`h-8 shrink-0 rounded-xl border px-3 text-[11px] font-semibold transition-colors disabled:pointer-events-none ${
-                          isActive
-                            ? "border-primary/55 bg-primary text-primary-foreground shadow-sm"
-                            : "border-border/60 bg-background/55 text-muted-foreground hover:bg-background/80 hover:text-foreground dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
-                        }`}
-                      >
-                        {finishOption.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : null}
+            <div className="-mx-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 [&>*]:shrink-0" style={{ WebkitOverflowScrolling: "touch" }}>
             {(selectedMarketPriceLabel || selectedGoodPriceLabel || (isLoadingPrices && (collectionItem?.card_id || selectedWantedCardPreview?.card_id))) ? (
               <div className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="grid grid-cols-2 gap-2">
@@ -4374,9 +4287,15 @@ export default function BinderApp({
                   </div>
                 ) : null}
                 {selectedPriceSourceLabel ? (
-                  <p className="mt-2 truncate px-1 text-[10px] text-muted-foreground">{selectedPriceSourceLabel}</p>
+                  <p className="mt-2 break-words px-1 text-xs text-muted-foreground">{selectedPriceSourceLabel}</p>
                 ) : null}
-                <CardPriceEvidence price={selectedDetailPriceSnapshot} />
+                <details className="mt-2 group">
+                  <summary className="flex min-h-9 cursor-pointer items-center justify-between text-xs font-semibold">
+                    Price details
+                    <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <CardPriceEvidence price={selectedDetailPriceSnapshot} />
+                </details>
               </div>
             ) : null}
             {/* On phones the actions come first so they are reachable without scrolling past prices. */}
@@ -4476,6 +4395,122 @@ export default function BinderApp({
                       </div>
                     )}
 
+                  </>
+                )}
+              </div>
+              </div>
+            </div>
+            <details className="group rounded-2xl border border-border/60 p-2.5">
+              <summary className="flex min-h-9 cursor-pointer items-center justify-between gap-2 text-xs font-semibold">
+                Card & variant
+                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-2 space-y-2">
+                {selectedDetailChips.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {selectedDetailChips.map((detailChip) => (
+                      <span
+                        key={detailChip.key}
+                        className="max-w-full break-words rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[11px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]"
+                      >
+                        {detailChip.label}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+            {selectedCurrentCardPreview ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
+                  {selectedCurrentCardPreview.cardImage ? (
+                    <img
+                      src={selectedCurrentCardPreview.cardImage}
+                      alt={selectedCurrentCardPreview.cardName}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-muted text-[9px] text-muted-foreground">No image</div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current card</p>
+                    {selectedAssignedPriceChipLabel ? (
+                      <span className="shrink-0 rounded-full border border-border/60 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]">
+                        {selectedAssignedPriceChipLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 break-words text-xs font-semibold">{selectedCurrentCardPreview.cardName}</p>
+                  <p className="mt-0.5 break-words text-[11px] text-muted-foreground">
+                    {[
+                      selectedCurrentCardPreview.cardSet,
+                      formatCardLanguageLabel(selectedCurrentCardPreview.cardLanguage),
+                      formatCardFinishLabel(selectedCurrentCardPreview.cardFinish),
+                    ].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            {selectedWantedCards.map(card => {
+              const image = toCacheableCardImageUrl(card.card_image)
+              return (
+              <div key={getWantedCardKey(card)} className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
+                  {image ? <NextImage unoptimized fill sizes="40px" src={image} alt={card.card_name} className="object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">No image</div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Wanted card</p>
+                    <span className="text-[10px] text-muted-foreground">{formatPriceLabel(pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")])}</span>
+                  </div>
+                  <p className="mt-0.5 break-words text-xs font-semibold">{card.card_name}</p>
+                  <p className="mt-0.5 break-words text-[11px] text-muted-foreground">{[card.card_set, formatCardLanguageLabel(card.card_language), formatCardFinishLabel(card.card_finish)].filter(Boolean).join(" · ")}</p>
+                </div>
+              </div>
+            )})}
+            {!readOnlyMode && selectedPokemonHasAssignedCard ? (
+              <div className="rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Variant</span>
+                  <span className="break-words text-[11px] text-muted-foreground">
+                    {formatCardFinishLabel(collectionItem?.card_finish)}
+                  </span>
+                </div>
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+                  {CARD_FINISH_OPTIONS.map((finishOption) => {
+                    const isActive = (collectionItem?.card_finish ?? "normal") === finishOption.id
+
+                    return (
+                      <button
+                        key={finishOption.id}
+                        type="button"
+                        onClick={() => handleSelectedCardFinishChange(finishOption.id)}
+                        disabled={isCollectionLoading || isActive}
+                        aria-pressed={isActive}
+                        className={`h-8 shrink-0 rounded-xl border px-3 text-[11px] font-semibold transition-colors disabled:pointer-events-none ${
+                          isActive
+                            ? "border-primary/55 bg-primary text-primary-foreground shadow-sm"
+                            : "border-border/60 bg-background/55 text-muted-foreground hover:bg-background/80 hover:text-foreground dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
+                        }`}
+                      >
+                        {finishOption.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+              </div>
+            </details>
+            <details className="group rounded-2xl border border-border/60 p-2.5">
+              <summary className="flex min-h-9 cursor-pointer items-center justify-between gap-2 text-xs font-semibold">
+                Collection options
+                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-2 space-y-2">
+                {!readOnlyMode && (
                     <div className="flex flex-wrap items-center gap-2">
                       <Button
                         onClick={handleOpenSelectedSlotScanner}
@@ -4513,14 +4548,12 @@ export default function BinderApp({
                         </Button>
                       )}
                     </div>
-                  </>
                 )}
-              </div>
-              </div>
-              <p className="hidden px-1 text-[11px] leading-relaxed text-muted-foreground/90 sm:block">
+              <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/90">
                 {panelHelperText}
               </p>
-            </div>
+              </div>
+            </details>
             </div>
           </div>
         </div>
