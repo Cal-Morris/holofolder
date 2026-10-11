@@ -39,7 +39,6 @@ import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
 import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
 import { getSelectedSlotCardDisplay, getBinderDisplayCard, type BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
-import { normalizeSlotPreviewImage, pickRepresentativeSlotPreviewCard, type SlotPreviewCard } from "@/lib/slot-preview-card"
 import { getSettingsLocalCollectedCount } from "@/lib/settings-collection-sync"
 import {
   OFFLINE_CACHE_WARMUP_MESSAGE_TYPE,
@@ -885,8 +884,6 @@ export default function BinderApp({
   const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
   const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
   const pageScanCardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map())
-  const slotPreviewCardRequestIdsRef = useRef(new Set<number>())
-  const slotPreviewCardMissIdsRef = useRef(new Set<number>())
   const shellNavRef = useRef<HTMLElement | null>(null)
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
@@ -963,8 +960,6 @@ export default function BinderApp({
     }, binderAppearance.uploads).catch(() => {})
   }, [updateLegacySettings, binderAppearance, readOnlyMode, settings.binderPageColors])
   const { fetchCardsForPokemon } = useTCGdex()
-  const [slotPreviewCardsByPokemonId, setSlotPreviewCardsByPokemonId] = useState<Record<number, SlotPreviewCard>>({})
-  const slotPreviewCardsByPokemonIdRef = useRef<Record<number, SlotPreviewCard>>({})
 
   const canEditBinder = !readOnlyMode
   const canFilterCollection = readOnlyMode || Boolean(user)
@@ -985,9 +980,6 @@ export default function BinderApp({
     [collection],
   )
 
-  useEffect(() => {
-    slotPreviewCardsByPokemonIdRef.current = slotPreviewCardsByPokemonId
-  }, [slotPreviewCardsByPokemonId])
 
   const slotsPerPage = settings.binderRows * settings.binderCols
   const currentPageBinderColorId = settings.binderPageColors[String(currentBinderPage)] ?? settings.binderColorId
@@ -1923,12 +1915,6 @@ export default function BinderApp({
     }, ADJACENT_PREFETCH_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [getPageSlots, isSpreadLayout, totalBinderPages, visibleBinderPageNumbers])
-  // Visible slots first, then the prefetched neighbours.
-  const slotPreviewTargetIds = useMemo(
-    () => new Set<number>([...visiblePagePokemonIds, ...prefetchPagePokemonIds]),
-    [prefetchPagePokemonIds, visiblePagePokemonIds],
-  )
-
   useEffect(() => {
     if (!shouldClearSelectedPokemonForPage(selectedPokemon?.id, visiblePagePokemonIds)) {
       return
@@ -1941,76 +1927,12 @@ export default function BinderApp({
     return () => window.cancelAnimationFrame(frameId)
   }, [selectedPokemon?.id, visiblePagePokemonIds])
 
-  useEffect(() => {
-    const pokemonIdsToRequest: number[] = []
-
-    slotPreviewTargetIds.forEach((pokemonId) => {
-      const item = collectionByPokemonId.get(pokemonId)
-      const selectedCardImage = normalizeSlotPreviewImage(getBinderDisplayCard(item, binderCardDisplay)?.card_image)
-
-      if (
-        selectedCardImage ||
-        slotPreviewCardsByPokemonIdRef.current[pokemonId] ||
-        slotPreviewCardRequestIdsRef.current.has(pokemonId) ||
-        slotPreviewCardMissIdsRef.current.has(pokemonId)
-      ) {
-        return
-      }
-
-      slotPreviewCardRequestIdsRef.current.add(pokemonId)
-      pokemonIdsToRequest.push(pokemonId)
-    })
-
-    if (pokemonIdsToRequest.length === 0) {
-      return
-    }
-
-    // Results are cached per Pokémon, so they are applied even if the page changed meanwhile
-    // (dropping them would leave in-flight slots without a preview until the next visit).
-    void Promise.all(
-      pokemonIdsToRequest.map(async (pokemonId) => {
-        const cards = await fetchCardsForPokemon(pokemonId, "en")
-        return {
-          pokemonId,
-          previewCard: pickRepresentativeSlotPreviewCard(cards),
-        }
-      }),
-    ).then((results) => {
-      results.forEach((result) => {
-        slotPreviewCardRequestIdsRef.current.delete(result.pokemonId)
-      })
-
-      const previewCardsByPokemonId = results.reduce<Record<number, SlotPreviewCard>>((acc, result) => {
-        if (result.previewCard) {
-          acc[result.pokemonId] = result.previewCard
-        } else {
-          slotPreviewCardMissIdsRef.current.add(result.pokemonId)
-        }
-
-        return acc
-      }, {})
-
-      if (Object.keys(previewCardsByPokemonId).length === 0) {
-        return
-      }
-
-      setSlotPreviewCardsByPokemonId((currentPreviewCardsByPokemonId) => ({
-        ...currentPreviewCardsByPokemonId,
-        ...previewCardsByPokemonId,
-      }))
-    }).catch(() => {
-      pokemonIdsToRequest.forEach((pokemonId) => {
-        slotPreviewCardRequestIdsRef.current.delete(pokemonId)
-      })
-    })
-  }, [binderCardDisplay, collectionByPokemonId, fetchCardsForPokemon, slotPreviewTargetIds])
-
   // Resolve the same printing for the grid and adjacent-page image prefetch.
   const getSlotCardImage = useCallback((pokemonId: number) => {
     const item = collectionByPokemonId.get(pokemonId)
     const displayCard = getBinderDisplayCard(item, binderCardDisplay)
-    return displayCard ? displayCard.card_image : slotPreviewCardsByPokemonId[pokemonId]?.image
-  }, [binderCardDisplay, collectionByPokemonId, slotPreviewCardsByPokemonId])
+    return displayCard?.card_image
+  }, [binderCardDisplay, collectionByPokemonId])
 
   // Decode the neighbouring pages' slot images at grid size, using exactly the URLs the grid
   // renders so the browser / service-worker cache serves them when the page turns.
@@ -2102,7 +2024,11 @@ export default function BinderApp({
   }, [binderStageSize, isDesktopViewport, isSpreadLayout, isWideBinderSpread, settings.binderCols, settings.binderRows])
 
   const navigateToPage = useCallback((page: number, direction: "left" | "right") => {
-    if (page < 1 || page > totalBinderPages || page === currentBinderPage) return
+    if (page < 1 || page > totalBinderPages) return
+    if (page === currentBinderPage) {
+      transitionContent(null, () => {})
+      return
+    }
 
     transitionContent(binderPageRef.current, () => setCurrentBinderPage(page), direction)
   }, [currentBinderPage, transitionContent, totalBinderPages])
@@ -2170,7 +2096,6 @@ export default function BinderApp({
 
     if (parsedPage === currentBinderPage) {
       setPageInputValue(String(currentBinderPage))
-      return
     }
 
     navigateToPage(parsedPage, parsedPage > currentBinderPage ? "left" : "right")
@@ -3838,46 +3763,25 @@ export default function BinderApp({
   const selectedPokemonHasAssignedCard = Boolean(collectionItem?.card_id)
   const selectedPokemonIsFavorite = collectionItem?.status === "finalized"
   const selectedPokemonDisplayName = selectedPokemon ? formatPokemonDisplayName(selectedPokemon.name) : ""
-  const selectedPokemonDisplayImage = selectedPokemon ? getDetailArtwork(selectedPokemon, collectionItem?.card_image) : null
-  const selectedPokemonDisplayFit = getDisplayArtworkFit(collectionItem?.card_image)
+  const selectedSlotCardDisplay = getSelectedSlotCardDisplay(collectionItem, binderCardDisplay)
+  const selectedPrimaryCardPreview = selectedSlotCardDisplay.primaryCard
+  const selectedCurrentCardPreview = selectedSlotCardDisplay.currentCard
+  const selectedPokemonDisplayImage = selectedPokemon ? getDetailArtwork(selectedPokemon, selectedPrimaryCardPreview?.cardImage) : null
+  const selectedPokemonDisplayFit = getDisplayArtworkFit(selectedPrimaryCardPreview?.cardImage)
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
   const selectedAssignedPriceSnapshot = selectedCardPriceKey ? pricesByCardId[selectedCardPriceKey] : undefined
   const selectedCardPriceLabel = formatPriceLabel(selectedAssignedPriceSnapshot)
   const selectedWantedCards = collectionItem?.wanted_cards ?? []
   const selectedWantedCardPreview = selectedWantedCards[0] ?? null
-  const selectedSlotCardDisplay = getSelectedSlotCardDisplay(collectionItem)
-  const selectedPrimaryCardPreview = selectedSlotCardDisplay.primaryCard
-  const selectedCurrentCardPreview = selectedSlotCardDisplay.currentCard
-  const selectedHasWantedCard = Boolean(selectedWantedCardPreview)
-  const selectedWantedPriceSnapshot = selectedWantedCardPreview
-    ? pricesByCardId[getCardPriceKey(selectedWantedCardPreview.card_id, selectedWantedCardPreview.card_language ?? "en")]
-    : undefined
-  const selectedWantedPriceLabel = (() => {
-    if (selectedWantedCards.length === 0) {
-      return null
-    }
-
-    if (selectedWantedCards.length === 1) {
-      const [card] = selectedWantedCards
-      return formatPriceLabel(pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")])
-    }
-
-    const selectedWantedPriceSummary = sumPriceSnapshots(
-      selectedWantedCards.map((card) => pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")]),
-    )
-    return formatPriceTotals(selectedWantedPriceSummary.gbpTotal, selectedWantedPriceSummary.originalTotals) || null
-  })()
-  const selectedWantedPriceChipLabel = selectedWantedCards.length > 0
-    ? selectedWantedPriceLabel ?? (isLoadingPrices ? "Loading price..." : "No price yet")
-    : null
+  const selectedHasWantedCard = binderCardDisplay === "wanted" && Boolean(selectedPrimaryCardPreview)
   const selectedAssignedPriceChipLabel = selectedCardPriceLabel ?? (isLoadingPrices && collectionItem?.card_id ? "Loading price..." : null)
-  const selectedDetailPriceLabel = selectedHasWantedCard
-    ? selectedWantedPriceChipLabel ?? selectedAssignedPriceChipLabel
-    : selectedAssignedPriceChipLabel
-  const selectedDetailPriceSnapshot = selectedHasWantedCard
-    ? selectedWantedPriceSnapshot ?? selectedAssignedPriceSnapshot
-    : selectedAssignedPriceSnapshot
+  const selectedDetailPriceSnapshot = selectedPrimaryCardPreview
+    ? pricesByCardId[getCardPriceKey(selectedPrimaryCardPreview.cardId, selectedPrimaryCardPreview.cardLanguage ?? "en")]
+    : undefined
+  const selectedDetailPriceLabel = selectedPrimaryCardPreview
+    ? formatPriceLabel(selectedDetailPriceSnapshot) ?? (isLoadingPrices ? "Loading price..." : "No price yet")
+    : null
   const selectedMarketPriceLabel = formatGbpPriceAmount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount)
   const selectedGoodPriceLabel = formatGbpPriceAmount(selectedDetailPriceSnapshot?.goodGbpAmount)
   const selectedRangePriceLabel = formatGbpPriceRange(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount)
@@ -4111,13 +4015,15 @@ export default function BinderApp({
     const selectedCardSummaryLabel =
       selectedHasWantedCard && selectedPrimaryCardPreview?.cardName
         ? `Wanted card: ${selectedPrimaryCardPreview.cardName}`
-          : collectionItem?.card_name
-            ? collectionItem.card_name.toLowerCase() === selectedPokemon.name.toLowerCase()
+          : selectedPrimaryCardPreview?.cardName
+            ? selectedPrimaryCardPreview.cardName.toLowerCase() === selectedPokemon.name.toLowerCase()
               ? selectedPokemonHasAssignedCard
                 ? "Assigned card selected"
                 : "Tracked card selected"
-              : collectionItem.card_name
-            : collected
+              : selectedPrimaryCardPreview.cardName
+            : binderCardDisplay === "wanted"
+              ? "No wanted card selected"
+              : collected
               ? "No card assigned yet"
               : "Choose how you want to track this slot."
     const selectedPreviewImage = selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)
@@ -4141,7 +4047,7 @@ export default function BinderApp({
       selectedPrimaryFinishLabel ? { key: "finish", label: formatCardFinishLabel(selectedPrimaryFinishLabel) } : null,
       collectionItem?.wanted_cards?.length ? { key: "wanted", label: `${collectionItem.wanted_cards.length} wanted` } : null,
       selectedDetailPriceLabel ? { key: "price", label: selectedDetailPriceLabel } : null,
-      selectedCollectedDateLabel ? { key: "collected", label: `Collected ${selectedCollectedDateLabel}` } : null,
+      selectedCollectedDateLabel ? { key: "collected", label: `Owned since ${selectedCollectedDateLabel}` } : null,
     ].filter((value): value is { key: string; label: string } => Boolean(value))
 
     const panelHelperText = readOnlyMode
@@ -4454,6 +4360,7 @@ export default function BinderApp({
             ) : null}
             {selectedWantedCards.map(card => {
               const image = toCacheableCardImageUrl(card.card_image)
+              const savedDate = formatCollectedDate(card.added_at)
               return (
               <div key={getWantedCardKey(card)} className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
@@ -4466,6 +4373,7 @@ export default function BinderApp({
                   </div>
                   <p className="mt-0.5 break-words text-xs font-semibold">{card.card_name}</p>
                   <p className="mt-0.5 break-words text-[11px] text-muted-foreground">{[card.card_set, formatCardLanguageLabel(card.card_language), formatCardFinishLabel(card.card_finish)].filter(Boolean).join(" · ")}</p>
+                  {savedDate ? <p className="mt-0.5 text-[11px] text-muted-foreground">Wanted saved {savedDate}</p> : null}
                 </div>
               </div>
             )})}
@@ -4961,11 +4869,10 @@ export default function BinderApp({
             const isSelected = selectedPokemon?.id === pokemon.id
             const isLongPressed = longPressedPokemon?.id === pokemon.id
             const item = getCollectionItem(pokemon.id)
-            const isCurrentWishlisted = item?.status === "wishlisted" || (binderCardDisplay === "wanted" && Boolean(item?.wanted_cards?.length))
+            const isCurrentWishlisted = binderCardDisplay === "wanted" && (item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length))
             const displayCard = getBinderDisplayCard(item, binderCardDisplay)
-            const representativeSlotPreview = slotPreviewCardsByPokemonId[pokemon.id] ?? null
             const slotCardImage = getSlotCardImage(pokemon.id)
-            const slotCardName = displayCard ? displayCard.card_name : representativeSlotPreview?.name
+            const slotCardName = displayCard?.card_name
             const slotCardFinish = displayCard?.card_finish
             const itemPriceKey = getCollectionItemPriceKey(displayCard)
 
@@ -4973,12 +4880,12 @@ export default function BinderApp({
               <PokemonSlot
                 key={`${pageNumber}-${pokemon.id}`}
                 pokemon={pokemon}
-                isCollected={isCurrentCollected && !(binderCardDisplay === "wanted" && Boolean(item?.wanted_cards?.length))}
+                isCollected={binderCardDisplay === "current" && isCurrentCollected}
                 isWishlisted={isCurrentWishlisted}
                 isSelected={isSelected}
                 isLongPressed={isLongPressed}
                 slotLabel={slotLabel}
-                status={item?.status}
+                status={binderCardDisplay === "current" ? item?.status : undefined}
                 cardImage={slotCardImage}
                 cardName={slotCardName}
                 cardFinish={slotCardFinish}
@@ -5607,7 +5514,7 @@ export default function BinderApp({
 
       {/* Glass Navigation */}
       <nav ref={shellNavRef} className="sticky top-0 z-40 mb-1 shrink-0 px-2.5 pt-[max(env(safe-area-inset-top),0.35rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+0.45rem)]">
-        <div className={`mx-auto w-full ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
+        <div className="mx-auto w-full max-w-7xl">
           <div className="rounded-2xl border border-border/70 bg-card/96 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.24)] md:bg-card/86 md:backdrop-blur-xl dark:border-border/50 dark:bg-background dark:shadow-black/5 dark:md:bg-background/88">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1 md:px-2.5 md:py-1.5">
             <div className="flex min-w-0 items-center gap-2">
@@ -6581,8 +6488,10 @@ export default function BinderApp({
                         <h2 className="truncate text-lg font-bold">{selectedPokemonDisplayName}</h2>
                         {selectedHasWantedCard && selectedPrimaryCardPreview?.cardName ? (
                           <p className="truncate text-xs text-amber-500">Wanted: {selectedPrimaryCardPreview.cardName}</p>
-                        ) : collectionItem?.card_name ? (
-                          <p className="truncate text-xs text-primary">{collectionItem.card_name}</p>
+                        ) : selectedPrimaryCardPreview?.cardName ? (
+                          <p className="truncate text-xs text-primary">{selectedPrimaryCardPreview.cardName}</p>
+                        ) : binderCardDisplay === "wanted" ? (
+                          <p className="text-xs text-muted-foreground">No wanted card selected</p>
                         ) : collected ? (
                           <p className="text-xs text-muted-foreground">Collected, no card assigned</p>
                         ) : readOnlyMode ? (

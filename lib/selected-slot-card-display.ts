@@ -35,9 +35,9 @@ function getCurrentCard(item: SelectedSlotDisplayItem | null | undefined): Selec
   }
 }
 
-export function getSelectedSlotCardDisplay(item: SelectedSlotDisplayItem | null | undefined) {
+export function getSelectedSlotCardDisplay(item: SelectedSlotDisplayItem | null | undefined, display: BinderCardDisplay) {
   return {
-    primaryCard: getCurrentCard(getBinderDisplayCard(item, "wanted")),
+    primaryCard: getCurrentCard(getBinderDisplayCard(item, display)),
     currentCard: getCurrentCard(getBinderDisplayCard(item, "current")),
   }
 }
@@ -46,5 +46,5 @@ export type BinderCardDisplay = "current" | "wanted"
 
 export function getBinderDisplayCard(item: SelectedSlotDisplayItem | null | undefined, display: BinderCardDisplay) {
   if (display === "wanted" && item?.wanted_cards?.[0]) return item.wanted_cards[0]
-  return item?.card_id && (display === "wanted" || item.status !== "wishlisted") ? item : null
+  return item?.card_id && (display === "wanted" ? item.status === "wishlisted" : item.status !== "wishlisted") ? item : null
 }
