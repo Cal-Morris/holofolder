@@ -76,6 +76,7 @@ const PokemonCardsBrowser = dynamic(() => import("@/components/pokemon-cards-bro
 // none, so the first switch to List or Sets suspended the whole shell and hid the dock.
 const DexListView = dynamic(() => import("@/components/dex-list-view"), { loading: () => null })
 const SetPopulationView = dynamic(() => import("@/components/set-population-view"), { loading: () => null })
+const PokemonBrowseView = dynamic(() => import("@/components/pokemon-browse-view"), { loading: () => null })
 
 const GENERATIONS = [
   { id: 0, name: "All Generations", start: 1, end: 1025, region: "" },
@@ -151,7 +152,7 @@ type DeviceMotionWithPermission = typeof DeviceMotionEvent & {
   requestPermission?: () => Promise<DeviceOrientationPermissionState>
 }
 type CollectionViewFilter = "all" | "needed" | "wanted" | "upgradeable" | "favorite"
-type ActiveMainView = "binder" | "list" | "wanted" | "sets"
+type ActiveMainView = "binder" | "list" | "wanted" | "sets" | "pokemon"
 
 const COLLECTION_VIEW_FILTERS: Array<{
   id: CollectionViewFilter
@@ -807,6 +808,8 @@ export default function BinderApp({
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
   const [activeMainView, setActiveMainView] = useState<ActiveMainView>("binder")
+  const lastBrowseViewRef = useRef<"pokemon" | "sets">("sets")
+  const [browseLoadError, setBrowseLoadError] = useState<string | null>(null)
   const [selectedGen, setSelectedGen] = useState(0)
   const [currentBinderPage, setCurrentBinderPage] = useState(1)
   const [pageInputValue, setPageInputValue] = useState("1")
@@ -4037,6 +4040,7 @@ export default function BinderApp({
   /** Switch main view (dock tab / desktop tab), closing any open overlay and card detail. */
   const switchMainView = useCallback(async (view: ActiveMainView) => {
     const request = ++viewRequestRef.current
+    setBrowseLoadError(null)
     closeAllOverlays()
     setCardBrowser(null)
     setSelectedPokemon(null)
@@ -4049,10 +4053,16 @@ export default function BinderApp({
     try {
       if (view === "list") await import("@/components/dex-list-view")
       if (view === "sets") await import("@/components/set-population-view")
+      if (view === "pokemon") await import("@/components/pokemon-browse-view")
     } catch {
-      // Let next/dynamic surface its normal loading error.
+      if (view === "pokemon" && request === viewRequestRef.current) {
+        setBrowseLoadError("Pokémon browsing could not load. Open it once while online to save it on this device.")
+        return
+      }
+      // Let existing destinations surface their normal loading error.
     }
     if (request !== viewRequestRef.current) return
+    if (view === "pokemon" || view === "sets") lastBrowseViewRef.current = view
     transitionContent(mainViewRef.current, () => {
       if (request === viewRequestRef.current) setActiveMainView(view)
     })
@@ -5876,6 +5886,14 @@ export default function BinderApp({
                   <span>Wanted</span>
                 </button>
                 <button
+                  onClick={() => switchMainView("pokemon")}
+                  aria-pressed={!isSearchOpen && activeMainView === "pokemon"}
+                  className={`flex min-h-9 items-center gap-1 rounded-lg px-2 text-[11px] font-medium transition-all ${!isSearchOpen && activeMainView === "pokemon" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <BookOpen className="h-3 w-3" />
+                  <span>Pokémon</span>
+                </button>
+                <button
                   onClick={() => {
                     switchMainView("sets")
                   }}
@@ -6340,7 +6358,15 @@ export default function BinderApp({
             ? binderDimension === "3d" ? "overflow-y-auto overflow-x-hidden" : "overflow-y-auto overflow-x-hidden md:overflow-visible"
             : "overflow-hidden"
         }`}>
-          {activeMainView === "list" ? (
+          {browseLoadError ? <p role="alert" className="shrink-0 rounded-2xl border border-border/55 bg-card/70 p-3 text-sm">{browseLoadError}</p> : null}
+          {(activeMainView === "pokemon" || activeMainView === "sets") ? (
+            <div role="group" aria-label="Browse perspective" className="flex shrink-0 gap-2 px-1 py-1">
+              {(["pokemon", "sets"] as const).map(view => <button key={view} type="button" aria-pressed={activeMainView === view} onClick={() => switchMainView(view)} className={`min-h-9 rounded-full border px-4 text-xs font-semibold ${activeMainView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-card/70"}`}>{view === "pokemon" ? "Pokémon" : "Sets"}</button>)}
+            </div>
+          ) : null}
+          {activeMainView === "pokemon" ? (
+            <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
+          ) : activeMainView === "list" ? (
             <DexListView
               pokemonList={filteredPokemonSummaryList}
               collectionByPokemonId={collectionByPokemonId}
@@ -6360,10 +6386,9 @@ export default function BinderApp({
           ) : activeMainView === "sets" ? (
             <SetPopulationView
               collectionByPokemonId={collectionByPokemonId}
-              pricesByKey={pricesByCardId}
-              getPriceKey={getCollectionItemPriceKey}
               formatPrice={formatPriceLabel}
               onSelectSlot={handleSelectSetSlot}
+              onBrowseCard={(slot, card) => openCardBrowser({ id: slot.dexId, name: slot.pokemonName }, { highlightCardId: card.id })}
               onCollectCard={handleCollectSetCard}
               onWantCard={handleWantSetCard}
               onCollectCards={handleCollectSetCards}
@@ -6846,12 +6871,12 @@ export default function BinderApp({
             </button>
             <button
               onClick={() => {
-                switchMainView("sets")
+                switchMainView(lastBrowseViewRef.current)
               }}
               aria-label="Sets"
               title="Sets"
               className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
-                !isSearchOpen && activeMainView === "sets" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                !isSearchOpen && (activeMainView === "sets" || activeMainView === "pokemon") ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
               <Layers3 className="h-4 w-4" />

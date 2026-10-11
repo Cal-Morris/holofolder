@@ -57,7 +57,7 @@ export default function PokemonCardsBrowser({
 }: PokemonCardsBrowserProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
-  const { fetchCardsForPokemon } = useTCGdex()
+  const { fetchCardsForPokemon, error: fetchError } = useTCGdex()
   const [cards, setCards] = useState<TCGCard[] | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [filter, setFilter] = useState<BrowseCardFilter>("all")
@@ -165,7 +165,7 @@ export default function PokemonCardsBrowser({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{formatDexNumber(pokemon.id)}</p>
               <h2 className="truncate text-lg font-bold leading-tight">{displayName} cards</h2>
               <p className="text-xs text-muted-foreground">
-                {cards === null ? "Loading cards…" : `${counts.all} card${counts.all === 1 ? "" : "s"} · ${counts.owned} owned · ${counts.wanted} wanted`}
+                {cards === null ? "Loading cards…" : fetchError ? "Card catalogue unavailable" : `${counts.all} card${counts.all === 1 ? "" : "s"} · ${counts.owned} owned · ${counts.wanted} wanted`}
               </p>
             </div>
             <button
@@ -214,12 +214,12 @@ export default function PokemonCardsBrowser({
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-3">
           {cards === null ? (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading every card…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading cards…
             </div>
           ) : visibleEntries.length === 0 ? (
             <div className="flex h-40 items-center justify-center px-6 text-center text-sm text-muted-foreground">
               {loadError
-                ? "No cards found for this Pokémon yet."
+                ? fetchError ? "Could not load cards. Offline, only previously opened Pokémon card lists are available." : "No mirrored cards found for this Pokémon yet."
                 : filter === "owned"
                   ? "You don't own any of these cards yet."
                   : filter === "wanted"
