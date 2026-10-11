@@ -5,6 +5,7 @@ import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
+import NextImage from "next/image"
 import { createPortal } from "react-dom"
 import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2 } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
@@ -36,13 +37,14 @@ import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { buildBinderShareUrl } from "@/lib/binder-share"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
 import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
-import { getSelectedSlotCardDisplay } from "@/lib/selected-slot-card-display"
+import { getSelectedSlotCardDisplay, getBinderDisplayCard, type BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
 import { normalizeSlotPreviewImage, pickRepresentativeSlotPreviewCard, type SlotPreviewCard } from "@/lib/slot-preview-card"
 import { getSettingsLocalCollectedCount } from "@/lib/settings-collection-sync"
 import {
   OFFLINE_CACHE_WARMUP_MESSAGE_TYPE,
   buildOfflineCacheWarmupUrls,
+  toCacheableCardImageUrl,
   getOfflineCacheWarmupSignature,
   shouldPostOfflineCacheWarmup,
 } from "@/lib/offline-cache-warmup"
@@ -861,6 +863,7 @@ export default function BinderApp({
   const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const [isCompactViewport, setIsCompactViewport] = useState(false)
   const [isWideBinderSpread, setIsWideBinderSpread] = useState(false)
+  const [binderCardDisplay, setBinderCardDisplay] = useState<BinderCardDisplay>("current")
   const [binderDimension, setBinderDimension] = useState<"2d" | "3d">("2d")
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false)
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE)
@@ -1944,12 +1947,7 @@ export default function BinderApp({
 
     slotPreviewTargetIds.forEach((pokemonId) => {
       const item = collectionByPokemonId.get(pokemonId)
-      const wantedCardPreview = item?.wanted_cards?.[0] ?? null
-      const selectedCardImage = normalizeSlotPreviewImage(
-        item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
-          ? wantedCardPreview?.card_image
-          : item?.card_image,
-      )
+      const selectedCardImage = normalizeSlotPreviewImage(getBinderDisplayCard(item, binderCardDisplay)?.card_image)
 
       if (
         selectedCardImage ||
@@ -2006,18 +2004,14 @@ export default function BinderApp({
         slotPreviewCardRequestIdsRef.current.delete(pokemonId)
       })
     })
-  }, [collectionByPokemonId, fetchCardsForPokemon, slotPreviewTargetIds])
+  }, [binderCardDisplay, collectionByPokemonId, fetchCardsForPokemon, slotPreviewTargetIds])
 
-  // The card image a slot shows (wanted card, owned card, or a representative printing).
+  // Resolve the same printing for the grid and adjacent-page image prefetch.
   const getSlotCardImage = useCallback((pokemonId: number) => {
     const item = collectionByPokemonId.get(pokemonId)
-    const isWishlisted = item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
-    const wantedCardPreview = item?.wanted_cards?.[0] ?? null
-    const selectedCardImage = isWishlisted && wantedCardPreview?.card_image
-      ? wantedCardPreview.card_image
-      : item?.card_image
-    return selectedCardImage || slotPreviewCardsByPokemonId[pokemonId]?.image
-  }, [collectionByPokemonId, slotPreviewCardsByPokemonId])
+    const displayCard = getBinderDisplayCard(item, binderCardDisplay)
+    return displayCard ? displayCard.card_image : slotPreviewCardsByPokemonId[pokemonId]?.image
+  }, [binderCardDisplay, collectionByPokemonId, slotPreviewCardsByPokemonId])
 
   // Decode the neighbouring pages' slot images at grid size, using exactly the URLs the grid
   // renders so the browser / service-worker cache serves them when the page turns.
@@ -2051,11 +2045,12 @@ export default function BinderApp({
     [offlineCacheWarmupUrls],
   )
   const visiblePageTrackedCards = useMemo(
-    () =>
-      collection.filter(
-        (item) => Boolean(item.card_id) && item.status !== "wishlisted" && visiblePagePokemonIds.has(item.pokemon_id),
-      ),
-    [collection, visiblePagePokemonIds],
+    () => collection.flatMap((item) => {
+      if (!visiblePagePokemonIds.has(item.pokemon_id)) return []
+      const card = getBinderDisplayCard(item, binderCardDisplay)
+      return card ? [card] : []
+    }),
+    [binderCardDisplay, collection, visiblePagePokemonIds],
   )
   const visiblePagePriceSummary = useMemo(
     () => sumPriceSnapshots(visiblePageTrackedCards.map((item) => {
@@ -2246,7 +2241,7 @@ export default function BinderApp({
   const { ref: binderRef, isSwiping, didSwipe } = useTouchGestures<HTMLDivElement>({
     onSwipeLeft: isSpreadLayout ? goToNextSpread : goToNextPage,
     onSwipeRight: isSpreadLayout ? goToPrevSpread : goToPrevPage,
-    swipeThreshold: 60,
+    swipeThreshold: 45,
   })
 
   const handleToggleCollected = async () => {
@@ -2835,7 +2830,12 @@ export default function BinderApp({
     }
 
     const summary = getPokemonSummary(pokemon.id)
-    if (summary) setSelectedPokemon(summary)
+    if (!isDesktopViewport && !readOnlyMode) {
+      setSelectedPokemon(null)
+      setLongPressedPokemon(pokemon)
+    } else if (summary) {
+      setSelectedPokemon(summary)
+    }
   }
 
   const handleLongPress = (pokemon: { id: number; name: string }) => {
@@ -4002,6 +4002,8 @@ export default function BinderApp({
   const controlsSheetRef = useRef<HTMLDivElement | null>(null)
   const filterSheetRef = useRef<HTMLDivElement | null>(null)
   const burstScannerRef = useRef<HTMLDivElement | null>(null)
+  const mobileActionsRef = useRef<HTMLDivElement | null>(null)
+  const closeMobileActions = useCallback(() => setLongPressedPokemon(null), [])
   const closeSelectedPokemon = useCallback(() => setSelectedPokemon(null), [])
   const closeSearch = useCallback(() => setIsSearchOpen(false), [])
   const closeControlsSheet = useCallback(() => setIsMobileNavExpanded(false), [])
@@ -4022,6 +4024,8 @@ export default function BinderApp({
     trapFocus: !isDesktopViewport && !isQuickPanelCovered,
     autoFocus: !isDesktopViewport,
   })
+  useOverlay(Boolean(longPressedPokemon) && !isDesktopViewport && !readOnlyMode, closeMobileActions, { containerRef: mobileActionsRef })
+  const mobileActionsSwipe = useSwipeToDismiss(mobileActionsRef, closeMobileActions, !isDesktopViewport)
   useOverlay(isSearchOpen, closeSearch, { containerRef: searchDialogRef, autoFocus: false })
   useOverlay(isMobileNavExpanded && !isSearchOpen, closeControlsSheet, { containerRef: controlsSheetRef })
   useOverlay(isMobileFilterSheetOpen && !isSearchOpen, closeFilterSheet, { containerRef: filterSheetRef })
@@ -4293,6 +4297,23 @@ export default function BinderApp({
                 </div>
               </div>
             ) : null}
+            {selectedWantedCards.map(card => {
+              const image = toCacheableCardImageUrl(card.card_image)
+              return (
+              <div key={getWantedCardKey(card)} className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
+                  {image ? <NextImage unoptimized fill sizes="40px" src={image} alt={card.card_name} className="object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">No image</div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Wanted card</p>
+                    <span className="text-[10px] text-muted-foreground">{formatPriceLabel(pricesByCardId[getCardPriceKey(card.card_id, card.card_language ?? "en")])}</span>
+                  </div>
+                  <p className="mt-0.5 truncate text-xs font-semibold">{card.card_name}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{[card.card_set, formatCardLanguageLabel(card.card_language), formatCardFinishLabel(card.card_finish)].filter(Boolean).join(" · ")}</p>
+                </div>
+              </div>
+            )})}
             {!readOnlyMode && selectedPokemonHasAssignedCard ? (
               <div className="rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="mb-2 flex items-center justify-between gap-2 px-1">
@@ -4536,11 +4557,18 @@ export default function BinderApp({
 
     const showFavoriteAction = collected && Boolean(item?.card_id)
     const mobileActionBar = (
+      <>
+      <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/20 sm:hidden" onClick={closeMobileActions} />
       <div
+        ref={mobileActionsRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${formatPokemonDisplayName(pokemon.name)} quick actions`}
         className="fixed inset-x-2 bottom-[calc(var(--dock-clearance)+0.5rem)] z-50 px-1 sm:hidden"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mx-auto max-w-md rounded-[1.15rem] border border-border/70 bg-card/97 p-2 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.48)] backdrop-blur-xl dark:border-border/50 dark:bg-background/97">
+          <div data-sheet-grabber {...mobileActionsSwipe} className="flex h-4 justify-center"><span aria-hidden="true" className="mt-1 h-1 w-8 rounded-full bg-muted-foreground/30" /></div>
           <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
             <p className="min-w-0 truncate text-xs font-semibold">
               {formatPokemonDisplayName(pokemon.name)}
@@ -4556,7 +4584,14 @@ export default function BinderApp({
             </button>
             <button
               type="button"
-              onClick={() => setLongPressedPokemon(null)}
+              onClick={() => { setLongPressedPokemon(null); setSelectedPokemon(pokemon) }}
+              className="flex h-9 shrink-0 items-center rounded-full px-2 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
+            >
+              Details
+            </button>
+            <button
+              type="button"
+              onClick={closeMobileActions}
               className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70 hover:text-foreground"
               aria-label="Close quick actions"
             >
@@ -4621,6 +4656,7 @@ export default function BinderApp({
           </div>
         </div>
       </div>
+      </>
     )
 
     return createPortal(mobileActionBar, document.body)
@@ -4653,12 +4689,11 @@ export default function BinderApp({
   }, [goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, isSearchOpen, isSpreadLayout])
 
   useEffect(() => {
-    if (longPressedPokemon) {
-      const handleClick = () => setLongPressedPokemon(null)
-      setTimeout(() => window.addEventListener("click", handleClick), 0)
-      return () => window.removeEventListener("click", handleClick)
-    }
-  }, [longPressedPokemon])
+    if (!longPressedPokemon || !isDesktopViewport) return
+    const handleClick = () => setLongPressedPokemon(null)
+    const timer = setTimeout(() => window.addEventListener("click", handleClick), 0)
+    return () => { clearTimeout(timer); window.removeEventListener("click", handleClick) }
+  }, [isDesktopViewport, longPressedPokemon])
 
   useEffect(() => {
     if (!isDesktopActionsOpen && !isDesktopFiltersOpen) return
@@ -4896,25 +4931,19 @@ export default function BinderApp({
             const isSelected = selectedPokemon?.id === pokemon.id
             const isLongPressed = longPressedPokemon?.id === pokemon.id
             const item = getCollectionItem(pokemon.id)
-            const isCurrentWishlisted = item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length)
-            const wantedCardPreview = item?.wanted_cards?.[0] ?? null
+            const isCurrentWishlisted = item?.status === "wishlisted" || (binderCardDisplay === "wanted" && Boolean(item?.wanted_cards?.length))
+            const displayCard = getBinderDisplayCard(item, binderCardDisplay)
             const representativeSlotPreview = slotPreviewCardsByPokemonId[pokemon.id] ?? null
-            // Same resolution the adjacent-page prefetch decodes.
             const slotCardImage = getSlotCardImage(pokemon.id)
-            const selectedSlotCardName = isCurrentWishlisted && wantedCardPreview?.card_name
-              ? wantedCardPreview.card_name
-              : item?.card_name
-            const slotCardName = selectedSlotCardName || representativeSlotPreview?.name
-            const slotCardFinish = isCurrentWishlisted && wantedCardPreview?.card_finish
-              ? wantedCardPreview.card_finish
-              : item?.card_finish
-            const itemPriceKey = getCollectionItemPriceKey(item)
+            const slotCardName = displayCard ? displayCard.card_name : representativeSlotPreview?.name
+            const slotCardFinish = displayCard?.card_finish
+            const itemPriceKey = getCollectionItemPriceKey(displayCard)
 
             return (
               <PokemonSlot
                 key={`${pageNumber}-${pokemon.id}`}
                 pokemon={pokemon}
-                isCollected={isCurrentCollected}
+                isCollected={isCurrentCollected && !(binderCardDisplay === "wanted" && Boolean(item?.wanted_cards?.length))}
                 isWishlisted={isCurrentWishlisted}
                 isSelected={isSelected}
                 isLongPressed={isLongPressed}
@@ -4923,7 +4952,7 @@ export default function BinderApp({
                 cardImage={slotCardImage}
                 cardName={slotCardName}
                 cardFinish={slotCardFinish}
-                hasAssignedCard={Boolean(item?.card_id)}
+                hasAssignedCard={Boolean(displayCard?.card_id)}
                 priceLabel={isPriceMode && itemPriceKey ? formatPriceLabel(pricesByCardId[itemPriceKey]) : null}
                 showPriceMode={isPriceMode}
                 readOnly={readOnlyMode}
@@ -6252,6 +6281,10 @@ export default function BinderApp({
 
         {activeMainView === "binder" && <div className={dashboardStyles.switcher}>
           <div><p>Your collection</p>{binderAppearance.message && <span role="status" className="block max-w-[190px] text-[10px] text-muted-foreground">{binderAppearance.message}</span>}</div>
+          <div role="group" aria-label="Binder cards">
+            <button type="button" aria-pressed={binderCardDisplay === "current"} onClick={() => setBinderCardDisplay("current")}>Current</button>
+            <button type="button" aria-pressed={binderCardDisplay === "wanted"} onClick={() => setBinderCardDisplay("wanted")}>Wanted</button>
+          </div>
           <div role="group" aria-label="Binder display">
             <button type="button" aria-pressed={binderDimension === "2d"} onClick={() => setBinderDimension("2d")}>2D</button>
             <button type="button" aria-pressed={binderDimension === "3d"} onClick={() => { closeAllOverlays(); setSelectedPokemon(null); setBinderDimension("3d") }}>3D</button>
@@ -6295,11 +6328,12 @@ export default function BinderApp({
             />
           ) : binderDimension === "3d" ? (
             <DashboardBinderPreview
-              onSelectPokemon={handlePokemonSelect}
+              onSelectPokemon={pokemon => { handlePokemonSelect(pokemon); handleSlotClick(pokemon) }}
               appearance={binderAppearance.design}
               artwork={binderAppearance.artwork}
               loading={binderAppearance.loading}
               collection={collection}
+              cardDisplay={binderCardDisplay}
               enabled={Boolean(user) && !readOnlyMode}
             />
           ) : (
@@ -7039,7 +7073,7 @@ function PokemonSlot({
       : "grayscale"
   const titleLabel = isWishlisted && cardName ? cardName : pokemon.name
   const subtitleLabel = isWishlisted && cardName
-    ? `Wanted for #${String(pokemon.id).padStart(4, "0")}`
+    ? `Wanted for #${String(pokemon.id).padStart(4, "0")}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
     : `#${String(pokemon.id).padStart(4, "0")}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
   const hasCardPreviewSource = Boolean(cardImageSource)
   const hasCardPreview = hasCardPreviewSource && !didFallbackPreviewImage

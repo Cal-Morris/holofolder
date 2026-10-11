@@ -96,6 +96,7 @@ async function setNetwork(page: Page, offline: boolean) {
 
 async function openDetail(page: Page, dexId: number) {
   await page.locator(`button[data-dex-id="${dexId}"]`).first().click()
+  await page.getByRole("dialog", { name: /quick actions$/i }).getByRole("button", { name: "Details", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: /details$/i })
   await expect(dialog).toBeVisible()
   return dialog

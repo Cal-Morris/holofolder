@@ -1,7 +1,8 @@
 .shell { --primary: #242528; --primary-foreground: #faf9f6; --ring: #77787b; background: #f5f4f0; }
 :global(.dark) .shell { --primary: #e9e9ec; --primary-foreground: #242528; background: #18191c; }
 .shell > nav > div > div { border-radius: 10px; box-shadow: none; }
-.switcher { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 6px; }
+.switcher { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 6px; }
+.switcher > div:first-child { flex: 1 1 100%; }
 .switcher p { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--muted-foreground); }
 .switcher > [role="group"] { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 7px; }
 .switcher button, .toolbar button, .pages button { min-height: 36px; min-width: 42px; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; }

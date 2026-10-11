@@ -40,7 +40,8 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     trackpadSwipeCooldown = 450,
   } = options
 
-  const ref = useRef<T>(null)
+  const [element, setElement] = useState<T | null>(null)
+  const ref = useCallback((node: T | null) => setElement(node), [])
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const wheelResetTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -77,12 +78,18 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
   }, [clearWheelResetTimer])
 
   const isEventWithinRef = useCallback((target: EventTarget | null) => {
-    const element = ref.current
     if (!element || !(target instanceof Node)) return false
     return element === target || element.contains(target)
-  }, [])
+  }, [element])
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
+    clearLongPressTimer()
+    if (e.touches.length !== 1) {
+      touchStartRef.current = null
+      suppressTouchClickRef.current = true
+      setIsSwiping(false)
+      return
+    }
     const touch = e.touches[0]
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() }
     isLongPressRef.current = false
@@ -100,10 +107,17 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
         }
       }, longPressDelay)
     }
-  }, [onLongPress, longPressDelay])
+  }, [clearLongPressTimer, onLongPress, longPressDelay])
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!touchStartRef.current) return
+    if (e.touches.length !== 1) {
+      clearLongPressTimer()
+      touchStartRef.current = null
+      suppressTouchClickRef.current = true
+      setIsSwiping(false)
+      return
+    }
 
     const touch = e.touches[0]
     const deltaX = touch.clientX - touchStartRef.current.x
@@ -137,7 +151,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     const absY = Math.abs(deltaY)
 
     // Check for horizontal swipe
-    if (absX > swipeThreshold && absX > absY) {
+    if (absX >= swipeThreshold && getTouchGestureIntent(deltaX, deltaY).horizontalIntent) {
       didSwipeRef.current = true
       suppressTouchClickRef.current = true
       if (deltaX > 0) {
@@ -167,6 +181,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
   const handleTouchCancel = useCallback(() => {
     clearLongPressTimer()
     touchStartRef.current = null
+    setIsSwiping(false)
   }, [clearLongPressTimer])
 
   const handlePointerDown = useCallback((e: PointerEvent) => {
@@ -237,7 +252,6 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
   ])
 
   useEffect(() => {
-    const element = ref.current
     if (!element) return
 
     element.addEventListener("touchstart", handleTouchStart, { passive: true })
@@ -263,9 +277,11 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
         window.removeEventListener("wheel", handleWheel, { capture: true })
       }
       clearLongPressTimer()
+      touchStartRef.current = null
       resetWheelSwipe()
     }
   }, [
+    element,
     clearLongPressTimer,
     enableTrackpadSwipe,
     handleClickCapture,

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { binderFill, isCardArtworkUrl, binderSpread, binderTurnPage, type BinderDesign, type BinderPart, type BinderView } from "@/lib/binder-design"
+import { getBinderDisplayCard, type BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import styles from "@/components/dashboard-binder-preview.module.css"
@@ -12,16 +13,18 @@ const Viewport = dynamic(() => import("@/components/binder-designer/viewport"), 
 const views: { label: string; view: BinderView }[] = [{ label: "Cover", view: "front" }, { label: "Inside", view: "inside" }, { label: "Spine", view: "spine" }]
 const noThumbnails = () => {}
 
-export default function DashboardBinderPreview({ appearance, artwork, loading, collection, enabled, onSelectPokemon }: { appearance: BinderDesign; artwork: Record<string, string>; loading: boolean; collection: CollectedPokemon[]; enabled: boolean; onSelectPokemon: (pokemon: PokemonSummary) => void }) {
+export default function DashboardBinderPreview({ appearance, artwork, loading, collection, cardDisplay, enabled, onSelectPokemon }: { appearance: BinderDesign; artwork: Record<string, string>; loading: boolean; collection: CollectedPokemon[]; cardDisplay: BinderCardDisplay; enabled: boolean; onSelectPokemon: (pokemon: PokemonSummary) => void }) {
   const [view, setView] = useState<BinderView>("inside")
   const [selectedPage, setPage] = useState(1)
   const design = useMemo(() => ({ ...appearance, pageCount: Math.max(appearance.pageCount, Math.ceil(1025 / (appearance.rows * appearance.cols))) }), [appearance])
   const page = Math.min(selectedPage, design.pageCount)
   const occupied = useMemo(() => collection.filter(item => (item.status === "collected" || item.status === "finalized")), [collection])
-  const cards = useMemo(() => occupied.filter(item => item.card_id).map(item => {
-    const image = item.card_image?.startsWith("/api/card-image-proxy?") ? item.card_image : `/api/card-image-proxy?url=${encodeURIComponent(item.card_image || "")}`
-    return { id: item.card_id!, name: item.card_name || item.pokemon_name, image: isCardArtworkUrl(image) ? image : "", slot: item.pokemon_id - 1 }
-  }), [occupied])
+  const cards = useMemo(() => collection.flatMap(item => {
+    const card = getBinderDisplayCard(item, cardDisplay)
+    if (!card?.card_id) return []
+    const image = card.card_image?.startsWith("/api/card-image-proxy?") ? card.card_image : `/api/card-image-proxy?url=${encodeURIComponent(card.card_image || "")}`
+    return [{ id: card.card_id, name: card.card_name || item.pokemon_name, image: isCardArtworkUrl(image) ? image : "", slot: item.pokemon_id - 1 }]
+  }), [collection, cardDisplay])
   const stats = useMemo(() => ({ placed: occupied.length, wanted: collection.reduce((count, item) => count + (item.wanted_cards?.length || 0) + (item.status === "wishlisted" && !item.wanted_cards?.length ? 1 : 0), 0), capacity: design.pageCount * design.rows * design.cols, sample: false, filled: binderFill(occupied.map(item => item.pokemon_id - 1), design.pageCount * design.rows * design.cols) }), [occupied, collection, design])
   const spread = binderSpread(page, design.pageCount)
   const visibleCards = cards.filter(card => {

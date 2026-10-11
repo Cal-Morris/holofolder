@@ -19,7 +19,7 @@ function header(page: Page) {
 
 const overlays: OverlaySpec[] = [
   {
-    name: "card detail",
+    name: "slot quick actions",
     open: async (harness) => {
       const opener = harness.page.locator("button[data-dex-id=\"1\"]").first()
       await opener.click()
