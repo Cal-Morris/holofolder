@@ -36,7 +36,7 @@ export function createBinderSwipeTracker() {
       start = null
       if (!origin || origin.pointerId !== event.pointerId || active.size) return null
       const dx = event.clientX - origin.clientX, dy = event.clientY - origin.clientY
-      return Math.abs(dx) >= 45 && Math.abs(dx) > Math.abs(dy) * 1.5 ? (dx < 0 ? 1 : -1) : null
+      return Math.abs(dx) >= 45 && Math.abs(dx) > Math.abs(dy) * 1.25 ? (dx < 0 ? 1 : -1) : null
     },
     cancel(event: PointerPosition) { active.delete(event.pointerId); start = null },
   }

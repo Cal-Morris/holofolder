@@ -20,16 +20,35 @@ test.describe("3D binder gestures", () => {
     await preload
     await canvas.scrollIntoViewIfNeeded()
     const touch = await page.context().newCDPSession(page)
-    const swipe = async (dx: number) => {
+    const swipe = async (dx: number, dy = 0) => {
       const box = (await canvas.boundingBox())!
       const x = box.x + box.width / 2, y = box.y + box.height / 2
       await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] })
-      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + dx, y, id: 1 }] })
+      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + dx, y: y + dy, id: 1 }] })
       await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
     }
     await swipe(-70)
     await expect(stage).toHaveAttribute("data-current-page", "2")
     await swipe(70)
+    await expect(stage).toHaveAttribute("data-current-page", "1")
+    await swipe(-50, 38)
+    await expect(stage).toHaveAttribute("data-current-page", "2")
+    // The accessible spread list exercises selection state independently of canvas hit detection below.
+    const laterCard = page.getByRole("list", { name: "Cards on this spread" }).getByRole("button", { name: "Pidgeot, slot 18", exact: true })
+    await expect(laterCard).toBeAttached()
+    await laterCard.dispatchEvent("click")
+    const laterActions = page.getByRole("dialog", { name: "Pidgeot quick actions", exact: true })
+    await expect(laterActions).toBeVisible()
+    await laterActions.getByRole("button", { name: "Details", exact: true }).click()
+    const laterDetails = page.getByRole("dialog", { name: "Pidgeot details", exact: true })
+    await expect(laterDetails).toBeVisible()
+    // The page-selection cleanup runs in requestAnimationFrame, so wait through it before asserting persistence.
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    await expect(laterDetails).toBeVisible()
+    await harness.closeControl(laterDetails).click()
+    await expect(laterDetails).toHaveCount(0)
+    await canvas.scrollIntoViewIfNeeded()
+    await swipe(50, 38)
     await expect(stage).toHaveAttribute("data-current-page", "1")
     // Project the real first pocket centre, so this tests canvas hit detection rather than an alternate button.
     const box = (await canvas.boundingBox())!, dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))))
@@ -39,6 +58,9 @@ test.describe("3D binder gestures", () => {
     const pocket = binderPocket(design.rows, design.cols, 0, 1)
     const point = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(camera)
     await canvas.tap({ position: { x: (point.x + 1) * box.width / 2, y: (1 - point.y) * box.height / 2 } })
+    const quickActions = page.getByRole("dialog", { name: /bulbasaur.*quick actions/i })
+    await expect(quickActions).toBeVisible()
+    await quickActions.getByRole("button", { name: "Details", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: /bulbasaur.*details/i })
     await expect(dialog).toBeVisible()
     await harness.closeControl(dialog).click()
@@ -46,11 +68,23 @@ test.describe("3D binder gestures", () => {
     const panBox = (await canvas.boundingBox())!, x = panBox.x + panBox.width / 2, y = panBox.y + panBox.height / 2
     await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: x - 25, y, id: 1 }, { x: x + 25, y, id: 2 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - 45, y, id: 1 }, { x: x + 45, y, id: 2 }] })
+    // Lift the second finger first, then the remaining finger.
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [{ x: x - 45, y, id: 1 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
     const zoomed = await canvas.screenshot()
     await swipe(-30)
     await expect(stage).toHaveAttribute("data-current-page", "1")
     expect((await canvas.screenshot()).equals(zoomed)).toBe(false)
+    const zoomCamera = camera.clone()
+    zoomCamera.position.sub(new Vector3(-1.12, 0, 0)).multiplyScalar(50 / 90).add(new Vector3(-1.12, 0, 0))
+    zoomCamera.lookAt(-1.12, 0, 0);zoomCamera.updateMatrixWorld()
+    const zoomPoint = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(zoomCamera)
+    // A cancelled contact must not leave the next tap in the old gesture.
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] })
+    await canvas.tap({ position: { x: (zoomPoint.x + 1) * panBox.width / 2 - 30, y: (1 - zoomPoint.y) * panBox.height / 2 } })
+    await expect(page.getByRole("dialog", { name: /bulbasaur/i })).toBeVisible()
+    await harness.closeControl(page.getByRole("dialog", { name: /bulbasaur/i })).click()
     const panned = await canvas.screenshot()
     await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: x - 25, y, id: 1 }, { x: x + 25, y, id: 2 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - 10, y: y + 10, id: 1 }, { x: x + 40, y: y + 10, id: 2 }] })
@@ -58,8 +92,104 @@ test.describe("3D binder gestures", () => {
     expect((await canvas.screenshot()).equals(panned)).toBe(false)
     await expect(stage).toHaveAttribute("data-current-page", "1")
     await expect(page.getByRole("dialog")).toHaveCount(0)
+    // Return to the fitted view after pinch/pan, then a fresh tap must still select a pocket.
+    await page.getByRole("button", { name: "2D", exact: true }).click()
+    await page.getByRole("button", { name: "3D", exact: true }).click()
+    await expect(stage).toHaveAttribute("data-opening-state", "settled")
+    const freshBox = (await canvas.boundingBox())!
+    const fx = freshBox.x + freshBox.width / 2, fy = freshBox.y + freshBox.height / 2
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: fx - 25, y: fy, id: 1 }, { x: fx + 25, y: fy, id: 2 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: fx - 45, y: fy, id: 1 }, { x: fx + 45, y: fy, id: 2 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: fx - 25, y: fy, id: 1 }, { x: fx + 25, y: fy, id: 2 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+    await canvas.tap({ position: { x: (point.x + 1) * freshBox.width / 2, y: (1 - point.y) * freshBox.height / 2 } })
+    await expect(page.getByRole("dialog", { name: /bulbasaur/i })).toBeVisible()
     await harness.expectNoHorizontalOverflow()
     await expect(harness.dock()).toBeVisible()
+  })
+
+  test("taps recover when a multi-touch gesture loses capture and ends outside the canvas", async ({ harness }) => {
+    const { page } = harness, design = defaultBinderDesign()
+    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
+    await page.getByRole("button", { name: "3D", exact: true }).click()
+    const stage = page.getByTestId("binder-3d-stage"), canvas = stage.locator("canvas")
+    await expect(stage).toHaveAttribute("data-opening-state", "settled")
+    await canvas.scrollIntoViewIfNeeded()
+    const tapPocket = async () => {
+      const fitted = (await canvas.boundingBox())!, dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))))
+      const camera = new PerspectiveCamera(34, fitted.width / fitted.height, .1, 100)
+      camera.position.set(-1.12, 2.5, Math.max(fitted.width < 450 ? 10 : 8, dimensions.coverZ * 3 + 6) + 1)
+      camera.lookAt(-1.12, 0, 0);camera.updateMatrixWorld()
+      const pocket = binderPocket(design.rows, design.cols, 0, 1)
+      const point = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(camera)
+      await canvas.tap({ position: { x: (point.x + 1) * fitted.width / 2, y: (1 - point.y) * fitted.height / 2 } })
+      return fitted
+    }
+    await tapPocket()
+    const initialActions = page.getByRole("dialog", { name: /bulbasaur.*quick actions/i })
+    await expect(initialActions).toBeVisible()
+    await harness.closeControl(initialActions).click()
+    await canvas.evaluate(element => {
+      const pointers: number[] = []
+      element.addEventListener("pointerdown", event => pointers.push((event as PointerEvent).pointerId), { capture: true })
+      Object.assign(element, { releaseTouches: () => pointers.forEach(id => element.releasePointerCapture(id)) })
+    })
+    const touch = await page.context().newCDPSession(page), box = (await canvas.boundingBox())!
+    const x = box.x + box.width / 2, y = box.y + 10
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: x - 25, y, id: 1 }, { x: x + 25, y, id: 2 }] })
+    await canvas.evaluate(element => Reflect.get(element, "releaseTouches")())
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - 25, y: box.y - 10, id: 1 }, { x: x + 25, y: box.y - 10, id: 2 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+    // Reset only the camera, preserving the renderer's pointer trackers.
+    const views = page.getByRole("group", { name: "3D binder views" })
+    await views.getByRole("button", { name: "Cover", exact: true }).click()
+    await views.getByRole("button", { name: "Inside", exact: true }).click()
+    await expect(stage).toHaveAttribute("data-opening-state", "settled")
+    await canvas.scrollIntoViewIfNeeded()
+    const fitted = await tapPocket()
+    const quickActions = page.getByRole("dialog", { name: /bulbasaur.*quick actions/i })
+    await expect(quickActions).toBeVisible()
+    await harness.closeControl(quickActions).click()
+    const sx = fitted.x + fitted.width / 2, sy = fitted.y + fitted.height / 2
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: sx, y: sy, id: 1 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: sx - 50, y: sy, id: 1 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+    await expect(stage).toHaveAttribute("data-current-page", "2")
+  })
+
+  test("2D swipes survive returning from 3D and ignore multi-touch", async ({ harness }) => {
+    const { page } = harness
+    await page.getByRole("button", { name: "3D", exact: true }).click()
+    await expect(page.getByTestId("binder-3d-stage").locator("canvas")).toBeVisible()
+    await page.getByRole("button", { name: "2D", exact: true }).click()
+    const grid = page.locator("[data-page-turn-ms]")
+    await expect(grid).toBeVisible()
+    const touch = await page.context().newCDPSession(page)
+    const box = (await grid.boundingBox())!, x = box.x + box.width / 2, y = box.y + box.height / 2
+    const pageNumber = page.getByRole("spinbutton", { name: "Binder page number" })
+    for (const { dx, dy } of [{ dx: -90, dy: 0 }, { dx: 90, dy: 0 }, { dx: -50, dy: 38 }, { dx: 50, dy: 38 }]) {
+      await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] })
+      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + dx, y: y + dy, id: 1 }] })
+      await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+      await expect(pageNumber).toHaveValue(dx < 0 ? "2" : "1")
+      await expect(harness.dialogs()).toHaveCount(0)
+    }
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }, { x: x + 25, y, id: 2 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - 80, y, id: 1 }, { x: x + 40, y, id: 2 }] })
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+    await expect(pageNumber).toHaveValue("1")
+    // Synthetic touch events also cover engines that keep delivering touchend during a pinch.
+    await grid.evaluate(element => {
+      const first = new Touch({ identifier: 1, target: element, clientX: 200, clientY: 100 })
+      const second = new Touch({ identifier: 2, target: element, clientX: 240, clientY: 100 })
+      const moved = new Touch({ identifier: 1, target: element, clientX: 120, clientY: 100 })
+      element.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [first, second], changedTouches: [first, second] }))
+      element.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, touches: [moved, second], changedTouches: [moved] }))
+      element.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [second], changedTouches: [moved] }))
+      element.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], changedTouches: [second] }))
+    })
+    await page.waitForTimeout(150) // Allow an incorrectly queued page turn to commit.
+    await expect(pageNumber).toHaveValue("1")
   })
 
   test("keeps the current spread visible while adjacent artwork loads and survives rapid turns", async ({ harness }) => {

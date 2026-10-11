@@ -375,6 +375,8 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   }
   const pointerMove=(e:PointerEvent)=>tap.move(e)
   const pointerCancel=(e:PointerEvent)=>{tapped=false;tap.cancel(e);swipe.cancel(e)}
+  // Implicit capture loss follows pointerup, so preserve its completed tap for the click.
+  const lostCapture=(e:PointerEvent)=>{tap.cancel(e);swipe.cancel(e)}
   const pointerUp=(e:PointerEvent)=>{
     const direction=swipe.up(e);tapped=tap.up(e)
     if(direction){tapped=false;if(!openingFrame)onPageTurn?.(direction)}
@@ -393,11 +395,11 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     }
   }
   const lost=(e:Event)=>{e.preventDefault();fail("3D is unavailable. Your draft can still be edited and saved. Reload to restore the preview.")}
-  renderer.domElement.addEventListener("pointerdown",pointerDown,true);renderer.domElement.addEventListener("pointermove",pointerMove);renderer.domElement.addEventListener("pointerup",pointerUp);renderer.domElement.addEventListener("click",click);renderer.domElement.addEventListener("pointercancel",pointerCancel);renderer.domElement.addEventListener("webglcontextlost",lost)
+  renderer.domElement.addEventListener("pointerdown",pointerDown,true);document.addEventListener("pointermove",pointerMove);document.addEventListener("pointerup",pointerUp);renderer.domElement.addEventListener("click",click);document.addEventListener("pointercancel",pointerCancel);renderer.domElement.addEventListener("lostpointercapture",lostCapture);renderer.domElement.addEventListener("webglcontextlost",lost)
   resize();setView("front")
   return {
     update(input: RenderInput){clearTimeout(pending);stopTurn();generation++;pending=setTimeout(()=>{build(input).catch(()=>{stage.setAttribute("aria-busy","false");if(!disposed)fail("The 3D preview could not update. Your draft is still here.")})},100)},
     setView, reset(){setView(view)},
-    dispose(){disposed=true;generation++;cancelAnimationFrame(openingFrame);cancelAnimationFrame(frameRequest);clearTimeout(pending);observer.disconnect();intersection.disconnect();document.removeEventListener("visibilitychange",onVisible);controls.dispose();disposeModel();grain.dispose();environment.dispose();renderer.dispose();renderer.domElement.remove();imageCache.clear()},
+    dispose(){disposed=true;generation++;cancelAnimationFrame(openingFrame);cancelAnimationFrame(frameRequest);clearTimeout(pending);observer.disconnect();intersection.disconnect();document.removeEventListener("visibilitychange",onVisible);document.removeEventListener("pointermove",pointerMove);document.removeEventListener("pointerup",pointerUp);document.removeEventListener("pointercancel",pointerCancel);controls.dispose();disposeModel();grain.dispose();environment.dispose();renderer.dispose();renderer.domElement.remove();imageCache.clear()},
   }
 }

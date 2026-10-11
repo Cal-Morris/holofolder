@@ -2246,7 +2246,7 @@ export default function BinderApp({
   const { ref: binderRef, isSwiping, didSwipe } = useTouchGestures<HTMLDivElement>({
     onSwipeLeft: isSpreadLayout ? goToNextSpread : goToNextPage,
     onSwipeRight: isSpreadLayout ? goToPrevSpread : goToPrevPage,
-    swipeThreshold: 60,
+    swipeThreshold: 45,
   })
 
   const handleToggleCollected = async () => {
