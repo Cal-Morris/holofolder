@@ -2835,7 +2835,12 @@ export default function BinderApp({
     }
 
     const summary = getPokemonSummary(pokemon.id)
-    if (summary) setSelectedPokemon(summary)
+    if (!isDesktopViewport && !readOnlyMode) {
+      setSelectedPokemon(null)
+      setLongPressedPokemon(pokemon)
+    } else if (summary) {
+      setSelectedPokemon(summary)
+    }
   }
 
   const handleLongPress = (pokemon: { id: number; name: string }) => {
@@ -3997,6 +4002,8 @@ export default function BinderApp({
     updateQuickPanelPosition,
     wishlisted,
   ])
+  const mobileActionsRef = useRef<HTMLDivElement | null>(null)
+  const closeMobileActions = useCallback(() => setLongPressedPokemon(null), [])
 
   const searchDialogRef = useRef<HTMLDivElement | null>(null)
   const controlsSheetRef = useRef<HTMLDivElement | null>(null)
@@ -4017,6 +4024,8 @@ export default function BinderApp({
 
   // Card detail: a popover next to the slot on desktop, a modal bottom sheet on mobile.
   useOverlay(isQuickPanelOpen, closeSelectedPokemon, {
+  useOverlay(Boolean(longPressedPokemon) && !isDesktopViewport && !readOnlyMode, closeMobileActions, { containerRef: mobileActionsRef })
+  const mobileActionsSwipe = useSwipeToDismiss(mobileActionsRef, closeMobileActions, !isDesktopViewport)
     containerRef: quickPanelRef,
     lockScroll: !isDesktopViewport,
     trapFocus: !isDesktopViewport && !isQuickPanelCovered,
@@ -4548,15 +4557,29 @@ export default function BinderApp({
             <button
               type="button"
               onClick={() => openCardBrowser({ id: pokemon.id, name: pokemon.name })}
+      <>
+      <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/20 sm:hidden" onClick={closeMobileActions} />
               className="-my-1 ml-auto flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+        ref={mobileActionsRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${formatPokemonDisplayName(pokemon.name)} quick actions`}
               aria-label={`All ${formatPokemonDisplayName(pokemon.name)} cards`}
             >
               <Layers3 className="h-3.5 w-3.5" />
               All cards
+          <div data-sheet-grabber {...mobileActionsSwipe} className="flex h-4 justify-center"><span aria-hidden="true" className="mt-1 h-1 w-8 rounded-full bg-muted-foreground/30" /></div>
             </button>
             <button
               type="button"
-              onClick={() => setLongPressedPokemon(null)}
+              onClick={() => { setLongPressedPokemon(null); setSelectedPokemon(pokemon) }}
+              className="flex h-9 shrink-0 items-center rounded-full px-2 text-xs font-semibold text-muted-foreground hover:bg-muted/70"
+            >
+              Details
+            </button>
+            <button
+              type="button"
+              onClick={closeMobileActions}
               className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70 hover:text-foreground"
               aria-label="Close quick actions"
             >
@@ -4633,6 +4656,7 @@ export default function BinderApp({
         if (isSpreadLayout) {
           goToPrevSpread()
         } else {
+      </>
           goToPrevPage()
         }
       }
@@ -4653,12 +4677,11 @@ export default function BinderApp({
   }, [goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, isSearchOpen, isSpreadLayout])
 
   useEffect(() => {
-    if (longPressedPokemon) {
-      const handleClick = () => setLongPressedPokemon(null)
-      setTimeout(() => window.addEventListener("click", handleClick), 0)
-      return () => window.removeEventListener("click", handleClick)
-    }
-  }, [longPressedPokemon])
+    if (!longPressedPokemon || !isDesktopViewport) return
+    const handleClick = () => setLongPressedPokemon(null)
+    const timer = setTimeout(() => window.addEventListener("click", handleClick), 0)
+    return () => { clearTimeout(timer); window.removeEventListener("click", handleClick) }
+  }, [isDesktopViewport, longPressedPokemon])
 
   useEffect(() => {
     if (!isDesktopActionsOpen && !isDesktopFiltersOpen) return
@@ -6295,7 +6318,7 @@ export default function BinderApp({
             />
           ) : binderDimension === "3d" ? (
             <DashboardBinderPreview
-              onSelectPokemon={handlePokemonSelect}
+              onSelectPokemon={pokemon => { handlePokemonSelect(pokemon); handleSlotClick(pokemon) }}
               appearance={binderAppearance.design}
               artwork={binderAppearance.artwork}
               loading={binderAppearance.loading}

@@ -17,7 +17,8 @@ test.describe("binder page turn", () => {
     await expect(harness.page.getByRole("button", { name: "Close quick actions" })).toBeVisible()
     await slot.dispatchEvent("click", { detail: 1 })
     await expect(harness.page.getByRole("button", { name: "Close quick actions" })).toBeVisible()
-    await expect(harness.dialogs()).toHaveCount(0)
+    await expect(harness.page.getByRole("dialog", { name: /quick actions$/i })).toBeVisible()
+    await expect(harness.page.getByRole("dialog", { name: /details$/i })).toHaveCount(0)
   })
 
   test("swipes do not select cards, including delayed clicks and slow drags", async ({ harness }) => {
