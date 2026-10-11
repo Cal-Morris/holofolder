@@ -1,3 +1,4 @@
+import { buildBuySignal } from "../lib/price-intelligence"
 import test from "node:test"
 import assert from "node:assert/strict"
 import { buildCardPriceSnapshotFromPricing } from "../lib/card-pricing"
@@ -66,4 +67,17 @@ test("buildCardPriceSnapshotFromPricing stays neutral when history is too thin",
 
   assert.equal(snapshot.buySignal?.status, "hold")
   assert.match(snapshot.buySignal?.reason ?? "", /not enough/i)
+})
+
+
+test("all timing calls require medium or high confidence, weak quotes retain thin-data context", () => {
+  for (const confidence of ["low", "unknown", undefined] as const) {
+    for (const marketGbpAmount of [8, 15]) {
+      const signal = buildBuySignal({ marketGbpAmount, lowGbpAmount: 7, highGbpAmount: 20, confidence, trendPoints: [{ label: "30d", gbpAmount: 10 }] })
+      assert.equal(signal?.status, "hold")
+      assert.equal(signal?.label, "Thin data")
+    }
+  }
+  assert.equal(buildBuySignal({ marketGbpAmount: 8, lowGbpAmount: 7, highGbpAmount: 20, confidence: "high", trendPoints: [{ label: "30d", gbpAmount: 10 }] })?.status, "good")
+  assert.equal(buildBuySignal({ marketGbpAmount: 0, lowGbpAmount: null, highGbpAmount: null, confidence: "high", trendPoints: [] }), null)
 })

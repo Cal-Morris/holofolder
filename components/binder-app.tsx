@@ -74,6 +74,7 @@ const PokemonCardsBrowser = dynamic(() => import("@/components/pokemon-cards-bro
 // `loading` gives these their own Suspense boundary. Without it, next/dynamic (with SSR) has
 // none, so the first switch to List or Sets suspended the whole shell and hid the dock.
 const DexListView = dynamic(() => import("@/components/dex-list-view"), { loading: () => null })
+const CollectionAnalyticsView = dynamic(() => import("@/components/collection-analytics-view"), { loading: () => null })
 const SetPopulationView = dynamic(() => import("@/components/set-population-view"), { loading: () => null })
 const PokemonBrowseView = dynamic(() => import("@/components/pokemon-browse-view"), { loading: () => null })
 
@@ -151,7 +152,7 @@ type DeviceMotionWithPermission = typeof DeviceMotionEvent & {
   requestPermission?: () => Promise<DeviceOrientationPermissionState>
 }
 type CollectionViewFilter = "all" | "needed" | "wanted" | "upgradeable" | "favorite"
-type ActiveMainView = "binder" | "list" | "wanted" | "sets" | "pokemon"
+type ActiveMainView = "binder" | "list" | "wanted" | "sets" | "pokemon" | "analytics"
 
 const COLLECTION_VIEW_FILTERS: Array<{
   id: CollectionViewFilter
@@ -808,7 +809,7 @@ export default function BinderApp({
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
   const [activeMainView, setActiveMainView] = useState<ActiveMainView>("binder")
   const lastBrowseViewRef = useRef<"pokemon" | "sets">("sets")
-  const [browseLoadError, setBrowseLoadError] = useState<string | null>(null)
+  const [viewLoadError, setViewLoadError] = useState<string | null>(null)
   const [selectedGen, setSelectedGen] = useState(0)
   const [currentBinderPage, setCurrentBinderPage] = useState(1)
   const [pageInputValue, setPageInputValue] = useState("1")
@@ -1688,7 +1689,7 @@ export default function BinderApp({
     })),
     [selectedTrackedCardItem],
   )
-  const shouldLoadCollectionPriceLookups = isPriceMode || collectionViewFilter === "wanted" || activeMainView === "list" || activeMainView === "wanted" || activeMainView === "sets"
+  const shouldLoadCollectionPriceLookups = isPriceMode || collectionViewFilter === "wanted" || activeMainView === "list" || activeMainView === "wanted" || activeMainView === "sets" || activeMainView === "analytics"
   const priceLookupCards = useMemo(
     () => {
       const byKey = new Map<string, CardPriceLookup>()
@@ -3944,7 +3945,7 @@ export default function BinderApp({
   /** Switch main view (dock tab / desktop tab), closing any open overlay and card detail. */
   const switchMainView = useCallback(async (view: ActiveMainView) => {
     const request = ++viewRequestRef.current
-    setBrowseLoadError(null)
+    setViewLoadError(null)
     closeAllOverlays()
     setCardBrowser(null)
     setSelectedPokemon(null)
@@ -3955,12 +3956,13 @@ export default function BinderApp({
     if (view === activeMainView) return
     // Keep the outgoing view visible until a lazy destination is ready.
     try {
+      if (view === "analytics") await import("@/components/collection-analytics-view")
       if (view === "list") await import("@/components/dex-list-view")
       if (view === "sets") await import("@/components/set-population-view")
       if (view === "pokemon") await import("@/components/pokemon-browse-view")
     } catch {
-      if (view === "pokemon" && request === viewRequestRef.current) {
-        setBrowseLoadError("Pokémon browsing could not load. Open it once while online to save it on this device.")
+      if ((view === "pokemon" || view === "analytics") && request === viewRequestRef.current) {
+        setViewLoadError(`${view === "pokemon" ? "Pokémon browsing" : "Analytics"} could not load. Open it once while online to save it on this device.`)
         return
       }
       // Let existing destinations surface their normal loading error.
@@ -5642,6 +5644,7 @@ export default function BinderApp({
 
                 {isDesktopActionsOpen && (
                   <div className="absolute right-0 top-[calc(100%+0.45rem)] z-50 w-56 overflow-hidden rounded-xl border border-border/60 bg-card/96 p-1.5 text-sm shadow-[0_18px_44px_-24px_rgba(15,23,42,0.34)] backdrop-blur-xl dark:border-border/45 dark:bg-background/96">
+                    {!readOnlyMode && <button className="flex min-h-9 w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-medium hover:bg-muted" onClick={() => { setIsDesktopActionsOpen(false); void switchMainView("analytics") }}>Analytics</button>}
                     {installPromptEvent && !isInstalledApp ? (
                       <button
                         onClick={() => {
@@ -5813,7 +5816,7 @@ export default function BinderApp({
                 </button>
                 </div>
 
-                {(activeMainView !== "binder" || binderDimension === "2d") && <>
+                {(activeMainView !== "pokemon" && activeMainView !== "analytics" && (activeMainView !== "binder" || binderDimension === "2d")) && <>
                 {isCompactViewport && (
                   <button
                     onClick={() => setIsMobileSpreadPreview((current) => !current)}
@@ -6265,7 +6268,7 @@ export default function BinderApp({
             ? binderDimension === "3d" ? "overflow-y-auto overflow-x-hidden" : "overflow-y-auto overflow-x-hidden md:overflow-visible"
             : "overflow-hidden"
         }`}>
-          {browseLoadError ? <p role="alert" className="shrink-0 rounded-2xl border border-border/55 bg-card/70 p-3 text-sm">{browseLoadError}</p> : null}
+          {viewLoadError ? <p role="alert" className="shrink-0 rounded-2xl border border-border/55 bg-card/70 p-3 text-sm">{viewLoadError}</p> : null}
           {(activeMainView === "pokemon" || activeMainView === "sets") ? (
             <div role="group" aria-label="Browse perspective" className="flex shrink-0 gap-2 px-1 py-1">
               {(["pokemon", "sets"] as const).map(view => <button key={view} type="button" aria-pressed={activeMainView === view} onClick={() => switchMainView(view)} className={`min-h-9 rounded-full border px-4 text-xs font-semibold ${activeMainView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-card/70"}`}>{view === "pokemon" ? "Pokémon" : "Sets"}</button>)}
@@ -6273,6 +6276,8 @@ export default function BinderApp({
           ) : null}
           {activeMainView === "pokemon" ? (
             <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
+          ) : activeMainView === "analytics" ? (
+            <CollectionAnalyticsView collection={collection} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} onBrowsePokemon={openCardBrowser} />
           ) : activeMainView === "list" ? (
             <DexListView
               pokemonList={filteredPokemonSummaryList}
@@ -6569,6 +6574,8 @@ export default function BinderApp({
             </div>
 
             <div className="space-y-3">
+              {!readOnlyMode && <button className="min-h-10 w-full rounded-xl border border-border px-3 py-2 text-left text-sm font-medium" onClick={() => void switchMainView("analytics")}>Analytics</button>}
+              {activeMainView !== "pokemon" && activeMainView !== "analytics" && <>
               <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-2xl border border-border/60 bg-background/62 p-1 dark:border-border/40 dark:bg-muted/35">
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev > 0 ? prev - 1 : GENERATIONS.length - 1)}>
                   <ChevronLeft className="h-4 w-4" />
@@ -6653,6 +6660,7 @@ export default function BinderApp({
                   {isScanningPage ? "Scanning" : "Scan page"}
                 </button>
               </div>
+              </>}
             </div>
           </div>
         </div>
