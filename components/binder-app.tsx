@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent, type TouchEvent as ReactTouchEvent } from "react"
+import { useState, useMemo, useEffect, useEffectEvent, useRef, useCallback, type CSSProperties, type SyntheticEvent, type TouchEvent as ReactTouchEvent } from "react"
 import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
@@ -1506,6 +1506,9 @@ export default function BinderApp({
   )
 
   const totalBinderPages = Math.max(1, Math.ceil(pokemonList.length / slotsPerPage))
+  const dashboardBinderDesign = useMemo(() => ({
+    ...binderAppearance.design, rows: settings.binderRows, cols: settings.binderCols, pageCount: totalBinderPages,
+  }), [binderAppearance.design, settings.binderRows, settings.binderCols, totalBinderPages])
   const firstNonEmptyPage = useMemo(() => {
     if (filteredPokemonList.length === 0) return 1
 
@@ -1615,20 +1618,16 @@ export default function BinderApp({
     [burstPreviewResult, settings.binderCols, settings.binderRows],
   )
 
+  const adjustPageForFilters = useEffectEvent(() => {
+    setCurrentBinderPage(current => {
+      const page = Math.min(current, totalBinderPages)
+      return getPageSlots(page).some(Boolean) ? page : firstNonEmptyPage
+    })
+  })
+
   useEffect(() => {
-    if (currentBinderPage > totalBinderPages) {
-      setCurrentBinderPage(totalBinderPages)
-      return
-    }
-
-    if (currentPageSlots.some(Boolean)) {
-      return
-    }
-
-    if (currentBinderPage !== firstNonEmptyPage) {
-      setCurrentBinderPage(firstNonEmptyPage)
-    }
-  }, [currentBinderPage, currentPageSlots, firstNonEmptyPage, totalBinderPages])
+    adjustPageForFilters()
+  }, [selectedGen, collectionViewFilter, settings.binderRows, settings.binderCols, firstNonEmptyPage, totalBinderPages])
 
   const collectionStats = useMemo(() => {
     const gen = GENERATIONS[selectedGen]
@@ -6329,7 +6328,9 @@ export default function BinderApp({
           ) : binderDimension === "3d" ? (
             <DashboardBinderPreview
               onSelectPokemon={pokemon => { handlePokemonSelect(pokemon); handleSlotClick(pokemon) }}
-              appearance={binderAppearance.design}
+              appearance={dashboardBinderDesign}
+              page={currentBinderPage}
+              onPageChange={setCurrentBinderPage}
               artwork={binderAppearance.artwork}
               loading={binderAppearance.loading}
               collection={collection}
