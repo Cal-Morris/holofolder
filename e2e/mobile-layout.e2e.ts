@@ -95,3 +95,35 @@ test.describe("vertical space by the dock", () => {
     expect(first.y).toBeGreaterThanOrEqual(harness.insets.top)
   })
 })
+
+
+test("binder controls stay in the header and cards keep their full proportions", async ({ harness }) => {
+  const { page } = harness
+  const checkSlots = async () => {
+    await expect.poll(async () => page.locator("button[data-dex-id]:visible").evaluateAll(elements =>
+      Math.max(...elements.map(element => {
+        const rect = element.getBoundingClientRect()
+        return Math.abs(rect.width / rect.height - 63 / 88)
+      })),
+    )).toBeLessThan(0.002)
+  }
+  const display = page.getByRole("group", { name: "Binder display" })
+  await expect(header(harness).getByRole("group", { name: "Binder display" })).toBeVisible()
+  await harness.expectMinTapTarget(display.getByRole("button", { name: "2D", exact: true }))
+  await harness.expectMinTapTarget(display.getByRole("button", { name: "3D", exact: true }))
+  await harness.expectHittable(display.getByRole("button", { name: "3D", exact: true }))
+  await checkSlots()
+  await display.getByRole("button", { name: "3D", exact: true }).click()
+  await expect(page.getByRole("region", { name: "Your 3D National Dex binder" })).toBeVisible()
+  await display.getByRole("button", { name: "2D", exact: true }).click()
+  await checkSlots()
+  await page.goto("/e2e-harness?cardArtwork=1")
+  await expect(page.locator('button[data-dex-id="1"] img').first()).toHaveCSS("object-fit", "contain")
+  for (const viewport of [{ width: 768, height: 667 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport)
+    await checkSlots()
+    await expect(header(harness).getByRole("group", { name: "Binder display" })).toBeVisible()
+    await expect.poll(async () => (await page.locator("footer").boundingBox())?.height ?? Infinity).toBeLessThan(36)
+    await harness.expectNoHorizontalOverflow()
+  }
+})
