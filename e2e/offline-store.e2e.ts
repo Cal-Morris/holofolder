@@ -91,7 +91,7 @@ test.describe("IndexedDB offline store", () => {
 
     await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
     await page.getByRole("button", { name: "Base Set", exact: true }).click()
-    const slotFilter = page.getByPlaceholder("Filter slots, names, numbers, rarities...")
+    const slotFilter = page.getByRole("textbox", { name: "Filter set checklist" })
     await expect(slotFilter).toBeVisible()
     await expect(page.getByRole("button", { name: "Select Charmander", exact: true })).toBeVisible()
     await expect.poll(async () => (await readRecord(page, "sets:query:query=Base+Set&setId=base1")) !== null, { timeout: 10_000 }).toBe(true)

@@ -115,7 +115,7 @@ test.describe("offline search and card show prep", () => {
     // Sets view offline: find the saved set by name and open it with its card thumbnails.
     const search = page.getByRole("textbox", { name: "Search sets by name or code" })
     await search.fill("legends")
-    await expect(page.getByText("Offline: showing sets saved on this device.")).toBeVisible()
+    await expect(page.getByText("Showing saved set data on this device.")).toBeVisible()
     await page.getByRole("button", { name: /^Legends Showcase/ }).first().click()
     await expect(page.getByRole("button", { name: "Select Mewtwo", exact: true })).toBeVisible()
     const thumbnail = page.locator('img[alt="Mewtwo"]').first()
