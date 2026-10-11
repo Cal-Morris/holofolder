@@ -3,6 +3,26 @@ import { test, expect, type Harness } from "./fixtures"
 const header = (harness: Harness) => harness.page.locator("nav").first()
 const pager = (harness: Harness) => harness.page.getByTestId("mobile-header-pager")
 
+test("desktop attribution reserves space below the whole binder", async ({ harness }) => {
+  for (const viewport of [{ width: 768, height: 667 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
+    await harness.page.setViewportSize(viewport)
+    const footer = harness.page.locator("footer")
+    await expect(footer).toBeVisible()
+    await expect.poll(async () => {
+      const footerBox = (await footer.boundingBox())!
+      const contentBox = (await harness.page.getByTestId("main-content").boundingBox())!
+      return contentBox.y + contentBox.height - footerBox.y
+    }).toBeLessThanOrEqual(0.5)
+    await expect.poll(async () => {
+      const footerBox = (await footer.boundingBox())!
+      const slots = await harness.page.locator("button[data-dex-id]:visible").evaluateAll(elements =>
+        elements.map(element => element.getBoundingClientRect().bottom))
+      return Math.max(...slots) - footerBox.y
+    }).toBeLessThanOrEqual(0.5)
+    await harness.expectNoHorizontalOverflow()
+  }
+})
+
 for (const signedIn of [false, true]) {
   test.describe(`binder header pager (${signedIn ? "signed in" : "signed out"})`, () => {
     test.use({ signedIn })
