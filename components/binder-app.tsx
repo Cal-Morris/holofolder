@@ -59,7 +59,8 @@ import {
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
-import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_EASING, getAdjacentPageNumbers, getPageTurnTiming } from "@/lib/binder-page-turn"
+import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
+import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
@@ -818,10 +819,10 @@ export default function BinderApp({
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; nested: boolean } | null>(null)
-  const [isPageTransitioning, setIsPageTransitioning] = useState(false)
-  const [transitionDirection, setTransitionDirection] = useState<"left" | "right" | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-  const pageTurnTiming = getPageTurnTiming(prefersReducedMotion)
+  const transitionContent = useNavigationTransition(prefersReducedMotion)
+  const mainViewRef = useRef<HTMLDivElement>(null)
+  const viewRequestRef = useRef(0)
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
     const query = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -878,6 +879,7 @@ export default function BinderApp({
   const hasHydratedPageFromQueryRef = useRef(false)
   const quickPanelRef = useRef<HTMLDivElement | null>(null)
   const binderStageRef = useRef<HTMLDivElement | null>(null)
+  const binderPageRef = useRef<HTMLDivElement | null>(null)
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
   const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
   const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
@@ -1909,7 +1911,6 @@ export default function BinderApp({
   // Once a page has settled, prefetch the neighbouring pages so a swipe renders immediately.
   const [prefetchPagePokemonIds, setPrefetchPagePokemonIds] = useState<number[]>([])
   useEffect(() => {
-    if (isPageTransitioning) return
     const timer = window.setTimeout(() => {
       const ids: number[] = []
       getAdjacentPageNumbers(visibleBinderPageNumbers, totalBinderPages, isSpreadLayout ? 2 : 1).forEach((pageNumber) => {
@@ -1920,7 +1921,7 @@ export default function BinderApp({
       setPrefetchPagePokemonIds(ids)
     }, ADJACENT_PREFETCH_DELAY_MS)
     return () => window.clearTimeout(timer)
-  }, [getPageSlots, isPageTransitioning, isSpreadLayout, totalBinderPages, visibleBinderPageNumbers])
+  }, [getPageSlots, isSpreadLayout, totalBinderPages, visibleBinderPageNumbers])
   // Visible slots first, then the prefetched neighbours.
   const slotPreviewTargetIds = useMemo(
     () => new Set<number>([...visiblePagePokemonIds, ...prefetchPagePokemonIds]),
@@ -2102,23 +2103,8 @@ export default function BinderApp({
   const navigateToPage = useCallback((page: number, direction: "left" | "right") => {
     if (page < 1 || page > totalBinderPages || page === currentBinderPage) return
 
-    if (pageTurnTiming.outMs === 0) {
-      // Reduced motion: swap immediately, no fade/slide.
-      setCurrentBinderPage(page)
-      return
-    }
-
-    setTransitionDirection(direction)
-    setIsPageTransitioning(true)
-
-    setTimeout(() => {
-      setCurrentBinderPage(page)
-      setTimeout(() => {
-        setIsPageTransitioning(false)
-        setTransitionDirection(null)
-      }, pageTurnTiming.settleMs)
-    }, pageTurnTiming.outMs)
-  }, [currentBinderPage, pageTurnTiming.outMs, pageTurnTiming.settleMs, totalBinderPages])
+    transitionContent(binderPageRef.current, () => setCurrentBinderPage(page), direction)
+  }, [currentBinderPage, transitionContent, totalBinderPages])
 
   const goToNextPage = useCallback(() => {
     if (currentBinderPage < totalBinderPages) {
@@ -2236,6 +2222,10 @@ export default function BinderApp({
     onSwipeRight: isSpreadLayout ? goToPrevSpread : goToPrevPage,
     swipeThreshold: 45,
   })
+  const setBinderStageRef = useCallback((node: HTMLDivElement | null) => {
+    binderStageRef.current = node
+    binderRef(node)
+  }, [binderRef])
 
   const handleToggleCollected = async () => {
     if (!selectedPokemon) return
@@ -2672,6 +2662,8 @@ export default function BinderApp({
   }
 
   const handlePokemonSelect = useCallback((pokemon: PokemonSummary) => {
+    viewRequestRef.current += 1
+    transitionContent(null, () => {})
     setSelectedPokemon(pokemon)
     setActiveMainView("binder")
     setIsSearchOpen(false)
@@ -2680,7 +2672,7 @@ export default function BinderApp({
       const targetPage = Math.ceil((idx + 1) / slotsPerPage)
       setCurrentBinderPage(targetPage)
     }
-  }, [pokemonList, slotsPerPage])
+  }, [pokemonList, slotsPerPage, transitionContent])
 
   const handleSearchJumpToPage = useCallback((page: number) => {
     if (page < 1 || page > totalBinderPages) return
@@ -4036,7 +4028,8 @@ export default function BinderApp({
   }, [])
 
   /** Switch main view (dock tab / desktop tab), closing any open overlay and card detail. */
-  const switchMainView = useCallback((view: ActiveMainView) => {
+  const switchMainView = useCallback(async (view: ActiveMainView) => {
+    const request = ++viewRequestRef.current
     closeAllOverlays()
     setCardBrowser(null)
     setSelectedPokemon(null)
@@ -4044,8 +4037,19 @@ export default function BinderApp({
     setIsSearchOpen(false)
     setIsMobileNavExpanded(false)
     setIsMobileFilterSheetOpen(false)
-    setActiveMainView(view)
-  }, [])
+    if (view === activeMainView) return
+    // Keep the outgoing view visible until a lazy destination is ready.
+    try {
+      if (view === "list") await import("@/components/dex-list-view")
+      if (view === "sets") await import("@/components/set-population-view")
+    } catch {
+      // Let next/dynamic surface its normal loading error.
+    }
+    if (request !== viewRequestRef.current) return
+    transitionContent(mainViewRef.current, () => {
+      if (request === viewRequestRef.current) setActiveMainView(view)
+    })
+  }, [activeMainView, transitionContent])
 
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
   // Offline card search: own cards plus card data the service worker has cached (read lazily, per search session).
@@ -6298,7 +6302,7 @@ export default function BinderApp({
           <span role="status" className="text-[10px] text-muted-foreground">{binderAppearance.message}</span>
         )}
 
-        <div className={`flex min-h-0 flex-1 flex-col space-y-2 animate-fade-in ${
+        <div ref={mainViewRef} className={`flex min-h-0 flex-1 flex-col space-y-2 ${
           activeMainView === "binder"
             ? binderDimension === "3d" ? "overflow-y-auto overflow-x-hidden" : "overflow-y-auto overflow-x-hidden md:overflow-visible"
             : "overflow-hidden"
@@ -6437,24 +6441,14 @@ export default function BinderApp({
             )}
 
             {/* Binder Grid */}
-            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+            <div ref={setBinderStageRef} className="flex min-h-0 flex-1 touch-pan-y items-center justify-center overflow-hidden overscroll-x-contain">
               <div
-                ref={binderRef}
-                data-page-turn-ms={pageTurnTiming.durationMs}
-                className={`relative max-h-full max-w-full transition-[opacity,transform] ${
-                  isPageTransitioning
-                    ? transitionDirection === "left"
-                      ? "opacity-0 -translate-x-4"
-                      : "opacity-0 translate-x-4"
-                    : "opacity-100 translate-x-0"
-                }`}
+                ref={binderPageRef}
+                data-page-turn-ms={prefersReducedMotion ? 0 : PAGE_TURN_MS}
+                className="relative max-h-full max-w-full"
                 style={{
                   width: binderFitSize ? `${binderFitSize.width}px` : "100%",
                   height: binderFitSize ? `${binderFitSize.height}px` : "auto",
-                  overscrollBehaviorX: "contain",
-                  touchAction: "pan-y",
-                  transitionDuration: `${pageTurnTiming.durationMs}ms`,
-                  transitionTimingFunction: PAGE_TURN_EASING,
                 }}
               >
                 <div className={`grid h-full w-full ${isSpreadLayout ? "grid-cols-2 gap-3 xl:gap-4" : "grid-cols-1"}`}>
