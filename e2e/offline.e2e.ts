@@ -50,6 +50,7 @@ async function expectBinderFromLocalData(harness: Harness) {
   await expect(page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
   await expect(page.getByText("Offline mode").first()).toBeVisible()
   const detail = await harness.openCardDetail()
+  await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
   // The owned printing comes from the saved collection, not the server.
   await expect(detail.getByText(/base set/i).first()).toBeVisible()
 }

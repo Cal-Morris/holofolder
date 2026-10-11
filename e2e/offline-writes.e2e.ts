@@ -99,6 +99,7 @@ async function openDetail(page: Page, dexId: number) {
   await page.getByRole("dialog", { name: /quick actions$/i }).getByRole("button", { name: "Details", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: /details$/i })
   await expect(dialog).toBeVisible()
+  await dialog.locator("summary").filter({ hasText: "Card & variant" }).click()
   return dialog
 }
 
