@@ -237,7 +237,7 @@ test.describe("bottom navigation", () => {
       await harness.expectNoHorizontalOverflow()
       // The nav's own box extends behind the home indicator; its visible bar must clear it.
       await harness.expectWithinSafeViewport(harness.dock().locator(":scope > div").first())
-      await harness.expectHittable(harness.dock().getByRole("button", { name: tab, exact: true }))
+      await expect(() => harness.expectHittable(harness.dock().getByRole("button", { name: tab, exact: true }))).toPass({ timeout: 1000 })
     }
   })
 

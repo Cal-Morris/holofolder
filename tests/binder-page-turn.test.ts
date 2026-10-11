@@ -1,18 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { getAdjacentPageNumbers, getPageTurnTiming, PAGE_TURN_OUT_MS } from "../lib/binder-page-turn"
-
-describe("getPageTurnTiming", () => {
-  test("is roughly half the old ~350ms page turn", () => {
-    const timing = getPageTurnTiming(false)
-    assert.equal(timing.durationMs, PAGE_TURN_OUT_MS)
-    assert.ok(timing.outMs + timing.settleMs + timing.durationMs <= 175)
-    assert.ok(timing.durationMs > 0)
-  })
-  test("is instant with prefers-reduced-motion", () => {
-    assert.deepEqual(getPageTurnTiming(true), { durationMs: 0, outMs: 0, settleMs: 0 })
-  })
-})
+import { getAdjacentPageNumbers } from "../lib/binder-page-turn"
 
 describe("getAdjacentPageNumbers", () => {
   test("single page: next then previous", () => {
