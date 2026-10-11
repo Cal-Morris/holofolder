@@ -34,7 +34,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   const spreads = new Map<number, Promise<Spread>>()
   interface Spread { group: THREE.Group; left: THREE.Group; right: THREE.Group; leftZ: number; rightZ: number }
   const pageTextures = new Map<string, THREE.Texture>(), motion = matchMedia("(prefers-reduced-motion: reduce)")
-  let turn: { group: THREE.Group; deform: Deformable[]; start: number; forward: boolean; rightZ: number; leftZ: number; landing: THREE.Group; previous: THREE.Group; token: number } | null = null
+  let turn: { group: THREE.Group; deform: Deformable[]; start: number; forward: boolean; rightZ: number; leftZ: number; landing: THREE.Group; previous: THREE.Group; token: number; settle: () => void } | null = null
   interface Deformable { object: THREE.Mesh | THREE.LineSegments; positions: Float32Array }
 
   let surfaceKeys: string[] = []
@@ -56,7 +56,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   }
   function stopTurn() {
     cancelAnimationFrame(frameRequest);frameRequest=0
-    if(turn){turn.landing.visible=true;disposeGroup(turn.previous);disposeGroup(turn.group)}
+    if(turn){turn.landing.visible=true;disposeGroup(turn.previous);disposeGroup(turn.group);turn.settle()}
     turn=null
     if(latestInput&&displayedPage){const spread=binderSpread(displayedPage,latestInput.design.pageCount);stage.dataset.currentSpread=`${spread.left}-${spread.right}`;stage.dataset.currentPage=String(displayedPage)}
     stage.setAttribute("aria-busy","false")
@@ -286,7 +286,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     outgoing.removeFromParent();openPages=pageRoot;root.add(pageRoot);pageRoot.visible=view==="inside"
     displayedPage=input.page;latestInput=input
     const landing=forward?left:right;landing.visible=false
-    turn={group:moving,deform:objects,start:performance.now(),forward,rightZ:forward?stack/2-previous.turnedLeaves*BINDER_LAYERS.leafPitch:rightZ,leftZ:forward?leftZ:-stack/2+previous.turnedLeaves*BINDER_LAYERS.leafPitch,landing,previous:prior,token}
+    turn={group:moving,deform:objects,start:performance.now(),forward,rightZ:forward?stack/2-previous.turnedLeaves*BINDER_LAYERS.leafPitch:rightZ,leftZ:forward?leftZ:-stack/2+previous.turnedLeaves*BINDER_LAYERS.leafPitch,landing,previous:prior,token,settle:()=>{if(!disposed){settled();preloadSpreads(input)}}}
     stage.setAttribute("aria-busy","true")
     const tick=(time:number)=>{
       const active=turn;if(!active)return
@@ -294,7 +294,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
       const t=Math.min(1,(time-active.start)/680),eased=t*t*(3-2*t),progress=active.forward?eased:1-eased
       active.group.position.z=active.rightZ+(active.leftZ-active.rightZ)*progress;deform(active.deform,progress);draw()
       if(t<1&&!document.hidden){frameRequest=requestAnimationFrame(tick);return}
-      active.landing.visible=true;disposeGroup(active.previous);disposeGroup(active.group);turn=null;frameRequest=0;settled();preloadSpreads(input);draw();void previews(token)
+      active.landing.visible=true;disposeGroup(active.previous);disposeGroup(active.group);turn=null;frameRequest=0;active.settle();draw();void previews(token)
     }
     frameRequest=requestAnimationFrame(tick)
   }

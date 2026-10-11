@@ -204,6 +204,7 @@ test.describe("3D binder gestures", () => {
       if (decodeURIComponent(route.request().url()).includes("/8/high.webp")) { requested = true;await loaded }
       await route.fallback()
     })
+    await page.clock.install()
     await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), preview = page.getByRole("region", { name: "Your 3D National Dex binder" })
@@ -211,14 +212,35 @@ test.describe("3D binder gestures", () => {
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
     await expect.poll(() => requested).toBe(true)
     const initial = await stage.locator("canvas").screenshot()
+    const artworkResponse = page.waitForResponse(response => decodeURIComponent(response.url()).includes("card-image-proxy") && decodeURIComponent(response.url()).includes("/8/high.webp"))
     try {
       await preview.getByRole("button", { name: "Next 3D binder spread" }).click()
       await expect(stage).toHaveAttribute("aria-busy", "true")
       await expect(stage).toHaveAttribute("data-current-page", "1")
       expect((await stage.locator("canvas").screenshot()).equals(initial)).toBe(true)
-    } finally { release() }
+    } finally {
+      await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 100)))
+      // Observe the turn being scheduled, then interrupt before its first animation frame.
+      await stage.evaluate(element => {
+        const schedule = window.requestAnimationFrame.bind(window)
+        window.requestAnimationFrame = callback => {
+          element.setAttribute("data-turn-frame-requested", "true")
+          return schedule(callback)
+        }
+      })
+      release()
+    }
+    await (await artworkResponse).finished()
+    await expect(stage).toHaveAttribute("data-turn-frame-requested", "true")
+    await expect(stage).toHaveAttribute("data-current-page", "1")
+    await expect(stage).toHaveAttribute("aria-busy", "true")
+    await preview.getByRole("button", { name: "Cover", exact: true }).evaluate(button => (button as HTMLButtonElement).click())
     await expect(stage).toHaveAttribute("data-current-page", "2")
     await expect(stage).toHaveAttribute("data-left-cards", "1")
+    await expect(stage).toHaveAttribute("data-preloaded-spreads", /(?:^|,)4(?:,|$)/)
+    await page.clock.resume()
+    await preview.getByRole("button", { name: "Inside", exact: true }).click()
+    await expect(stage).toHaveAttribute("data-opening-state", "settled")
     await preview.getByRole("button", { name: "Next 3D binder spread" }).click()
     await preview.getByRole("button", { name: "Next 3D binder spread" }).click()
     await preview.getByRole("button", { name: "Previous 3D binder spread" }).click()
