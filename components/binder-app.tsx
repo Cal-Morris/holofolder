@@ -6922,7 +6922,7 @@ export default function BinderApp({
         />
       )}
 
-      <footer className="hidden md:block fixed bottom-0 left-0 right-0 py-2.5 text-center text-muted-foreground/40 text-[10px] bg-background/80 backdrop-blur-sm border-t border-border/20 safe-area-bottom">
+      <footer className="hidden shrink-0 md:block py-2.5 text-center text-muted-foreground/40 text-[10px] bg-background/80 backdrop-blur-sm border-t border-border/20 safe-area-bottom">
         Made with 🩵 by{" "}
         <a
           href="https://callum.io"
