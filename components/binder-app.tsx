@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type SyntheticEvent, type TouchEvent as ReactTouchEvent } from "react"
 import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
@@ -23,7 +23,7 @@ import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, typ
 import { useBinderAppearance } from "@/hooks/use-binder-appearance"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
-import { useTouchGestures } from "@/hooks/use-touch-gestures"
+import { getTouchGestureIntent, useTouchGestures } from "@/hooks/use-touch-gestures"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { getBinderGridAspectRatio, scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
@@ -7005,8 +7005,11 @@ function PokemonSlot({
 }) {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
   const isLongPressTriggered = useRef(false)
+  const touchStartPosition = useRef({ x: 0, y: 0 })
 
-  const handleTouchStart = () => {
+  const handleTouchStart = (event: ReactTouchEvent) => {
+    const touch = event.touches[0]
+    touchStartPosition.current = { x: touch.clientX, y: touch.clientY }
     if (readOnly) return
     isLongPressTriggered.current = false
     longPressTimer.current = setTimeout(() => {
@@ -7015,16 +7018,7 @@ function PokemonSlot({
     }, 400)
   }
 
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-    }
-    if (!isLongPressTriggered.current) {
-      onClick()
-    }
-  }
-
-  const handleTouchCancel = () => {
+  const clearLongPressTimer = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current)
     }
@@ -7122,11 +7116,27 @@ function PokemonSlot({
         ref={buttonRef}
         data-dex-id={pokemon.id}
         aria-label={`${slotLabel} ${formatPokemonDisplayName(pokemon.name)} #${String(pokemon.id).padStart(4, "0")}`}
-        onClick={onClick}
+        onClick={(event) => {
+          if (event.detail !== 0 && isLongPressTriggered.current) {
+            event.preventDefault()
+            event.stopPropagation()
+            return
+          }
+          onClick()
+        }}
+        onPointerDown={() => {
+          isLongPressTriggered.current = false
+        }}
         onDoubleClick={onDoubleClick}
         onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchCancel}
+        onTouchMove={(event) => {
+          const touch = event.touches[0]
+          if (getTouchGestureIntent(touch.clientX - touchStartPosition.current.x, touch.clientY - touchStartPosition.current.y).movedEnough) {
+            clearLongPressTimer()
+          }
+        }}
+        onTouchEnd={clearLongPressTimer}
+        onTouchCancel={clearLongPressTimer}
         onContextMenu={(e) => {
           e.preventDefault()
           if (readOnly) return

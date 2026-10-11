@@ -4,6 +4,55 @@ const PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height=
 const artworkMarker = (dexId: number) => `official-artwork%2F${dexId}.png`
 
 test.describe("binder page turn", () => {
+  test("small finger movement still allows a long press", async ({ harness }) => {
+    const slot = harness.page.locator('button[data-dex-id="1"]').first()
+    await slot.evaluate(async (element) => {
+      const touch = new Touch({ identifier: 1, target: element, clientX: 100, clientY: 100 })
+      element.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touch], changedTouches: [touch] }))
+      const moved = new Touch({ identifier: 1, target: element, clientX: 101, clientY: 100 })
+      element.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, touches: [moved], changedTouches: [moved] }))
+      await new Promise((resolve) => setTimeout(resolve, 450))
+      element.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], changedTouches: [moved] }))
+    })
+    await expect(harness.page.getByRole("button", { name: "Close quick actions" })).toBeVisible()
+    await slot.dispatchEvent("click", { detail: 1 })
+    await expect(harness.page.getByRole("button", { name: "Close quick actions" })).toBeVisible()
+    await expect(harness.dialogs()).toHaveCount(0)
+  })
+
+  test("swipes do not select cards, including delayed clicks and slow drags", async ({ harness }) => {
+    const page = harness.page
+    const pageInput = page.getByRole("spinbutton", { name: "Binder page number" })
+    for (const deltaX of [-80, 80, -25]) {
+      const slot = page.locator("button[data-dex-id]").first()
+      await slot.evaluate(async (element, deltaX) => {
+        const box = element.getBoundingClientRect()
+        const startX = box.x + box.width / 2
+        const y = box.y + box.height / 2
+        const dispatch = (type: string, x: number) => {
+          const touch = new Touch({ identifier: 1, target: element, clientX: x, clientY: y })
+          element.dispatchEvent(new TouchEvent(type, {
+            bubbles: true, touches: type === "touchend" ? [] : [touch], changedTouches: [touch],
+          }))
+        }
+        dispatch("touchstart", startX)
+        dispatch("touchmove", startX + deltaX)
+        // A slow drag must cancel the card's 400 ms long press.
+        await new Promise((resolve) => setTimeout(resolve, 450))
+        dispatch("touchend", startX + deltaX)
+      }, deltaX)
+      await expect(page.getByRole("button", { name: "Close quick actions" })).toHaveCount(0)
+      await expect(pageInput).toHaveValue(deltaX === -80 ? "2" : "1")
+      // Model a compatibility click arriving after the old 150 ms swipe guard expires.
+      await page.waitForTimeout(200)
+      await page.locator("button[data-dex-id]").first().dispatchEvent("click", { detail: 1 })
+      await expect(harness.dialogs()).toHaveCount(0)
+    }
+    // Starting a fresh tap must release the guard.
+    await page.locator('button[data-dex-id="1"]').first().tap()
+    await expect(page.getByRole("dialog", { name: /bulbasaur/i })).toBeVisible()
+  })
+
   test("prefetches and decodes the next page's slot images before the turn", async ({ harness }) => {
     const page = harness.page
     const requested: string[] = []
