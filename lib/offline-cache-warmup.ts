@@ -53,11 +53,13 @@ export function buildOfflineCacheWarmupUrls(input: OfflineCacheWarmupInput) {
 
   if (collection.length > 0) {
     for (const item of collection) {
+      if (urls.size >= maxUrls) break
       addPokemonCacheUrls(urls, [item?.pokemon_id], language)
       addCardImageUrl(urls, item?.card_image)
 
       if (Array.isArray(item?.wanted_cards)) {
         for (const wantedCard of item.wanted_cards as OfflineCacheWarmupWantedCard[]) {
+          if (urls.size >= maxUrls) break
           addCardImageUrl(urls, wantedCard?.card_image)
         }
       }

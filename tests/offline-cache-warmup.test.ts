@@ -77,3 +77,31 @@ test("buildOfflineCacheWarmupUrls warms what visible slots render before the res
   assert.ok(urls.includes(getOfficialArtworkUrl(3)))
   assert.ok(urls.indexOf("/api/tcgdex-cache?pokemonId=1&language=en") < 10)
 })
+
+test("warmup stops scanning discarded collection and wanted URLs at the cap", () => {
+  let wantedReads = 0
+  let discardedCollectionReads = 0
+  const wantedImages = [
+    "/owned.png", "not a url", "/wanted/one.png", "/wanted/two.png",
+    ...Array.from({ length: 10_000 }, (_, index) => `/wanted/discarded-${index}.png`),
+  ]
+  const collection = [
+    {
+      pokemon_id: 1,
+      card_image: "/owned.png",
+      wanted_cards: wantedImages.map(image => ({ get card_image() { wantedReads += 1; return image } })),
+    },
+    ...Array.from({ length: 10_000 }, (_, index) => ({
+      get pokemon_id() { discardedCollectionReads += 1; return index + 2 },
+      card_image: `/discarded-${index}.png`,
+    })),
+  ]
+  const allUrls = buildOfflineCacheWarmupUrls({ collection: [
+    { pokemon_id: 1, card_image: "/owned.png", wanted_cards: wantedImages.map(card_image => ({ card_image })) },
+    ...Array.from({ length: 10_000 }, (_, index) => ({ pokemon_id: index + 2, card_image: `/discarded-${index}.png` })),
+  ], maxUrls: 50_000 })
+
+  assert.deepEqual(buildOfflineCacheWarmupUrls({ collection, maxUrls: 5 }), allUrls.slice(0, 5))
+  assert.equal(wantedReads, 4)
+  assert.equal(discardedCollectionReads, 0)
+})
