@@ -111,12 +111,14 @@ Admin API routes are `POST` only. Authenticate with `Authorization: Bearer <secr
 - Files `002`/`003` are not in the repo; `MIGRATIONS.md` reconstructs `user_settings`.
 - New migrations use the next free number, must be idempotent (`IF NOT EXISTS`, `DROP … IF EXISTS`) and need a row in [`scripts/MIGRATIONS.md`](scripts/MIGRATIONS.md).
 - Say in the PR that the migration must be applied, and make the app tolerate it not being applied yet.
+- **Apply migrations as part of shipping database changes.** Cal authorizes applying the task's numbered migrations to the existing hosted Supabase project without a separate confirmation. Inspect the target schema, apply only the required unapplied migrations in numeric order, and verify the resulting schema and data changes. Choose the migration/deployment order to keep the running app compatible. Record what was applied in the PR; don't leave migration application as a follow-up or call the release complete until it is verified. If access is unavailable or a migration fails, report the concrete blocker.
 - Don't move or rename `004_create_tcg_mirror_tables.sql`: the sync reads it at runtime.
 
 See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKILL.md).
 
 ## Deployment
 
+- **Ship small, scoped changes by default.** Unless Cal explicitly asks for local-only work, completing a small change includes committing it on its own branch, running the required local checks, pushing the branch, opening a PR, and merging once all required checks and reviews pass. Continue through production deployment verification using the `release-and-deploy` skill. This is standing authorization for those steps; don't stop at "fixed locally" or ask for separate permission to commit, push, open the PR or merge. If a gate fails, fix failures within the task's scope or report the concrete blocker. The verified quota exception below still applies.
 - Vercel deploys `main` to production. Every PR push gets a preview deployment, and its **Vercel** status check is the default merge gate.
 - The project is on the **Hobby plan**, which has a daily deployment limit. Every push, rebase and merge costs a deploy. So:
   - **verify locally first, then push once per PR**
@@ -178,7 +180,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 - [ ] Overlays use `useOverlay` and pass the overlay e2e expectations
 - [ ] Works offline (or degrades clearly), with no per-user data cached in the service worker
 - [ ] No invented data. Price signals are confidence-gated.
-- [ ] Migrations are numbered, idempotent and listed in `scripts/MIGRATIONS.md`. The PR says they need applying.
+- [ ] Migrations are numbered, idempotent and listed in `scripts/MIGRATIONS.md`, applied to the target Supabase project and verified. The PR records what was applied.
 - [ ] No secrets in the diff, and new env vars are added to `.env.example`
 - [ ] The PR description says what changed, why, how it was verified and any follow-ups. It was pushed once, and merged after Vercel was green or the quota exception was verified and deployment was reported as pending.
 
