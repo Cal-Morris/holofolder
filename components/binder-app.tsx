@@ -27,7 +27,7 @@ import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
 import { getTouchGestureIntent, useTouchGestures } from "@/hooks/use-touch-gestures"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
-import { getBinderGridAspectRatio, scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
+import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
 import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } from "@/lib/binder-page-scan-aggregate"
 import { aggregateBinderSlotSweep, getNextSweepSlotIndex, type BinderSlotSweepFrame } from "@/lib/binder-slot-sweep"
 import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
@@ -92,7 +92,6 @@ const GENERATIONS = [
 const TRADING_CARD_ASPECT_RATIO = 63 / 88
 const TRADING_CARD_CORNER_RADIUS = "4.76% / 3.41%"
 const TRADING_CARD_INNER_CORNER_RADIUS = "4% / 2.86%"
-const BINDER_SPREAD_GAP_ASPECT_RATIO = 0.025
 const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
 const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.45
@@ -988,7 +987,6 @@ export default function BinderApp({
   }, [slotPreviewCardsByPokemonId])
 
   const slotsPerPage = settings.binderRows * settings.binderCols
-  const binderPageAspectRatio = getBinderGridAspectRatio(settings.binderRows, settings.binderCols)
   const currentPageBinderColorId = settings.binderPageColors[String(currentBinderPage)] ?? settings.binderColorId
   const currentPageBinderColor = getBinderColorPreset(currentPageBinderColorId)
   const currentPageBinderTheme = isDarkMode ? currentPageBinderColor.dark : currentPageBinderColor.light
@@ -1092,7 +1090,7 @@ export default function BinderApp({
       }
       observer.disconnect()
     }
-  }, [activeMainView])
+  }, [activeMainView, binderDimension])
 
   const handleRequestMotionGlint = useCallback(async () => {
     if (typeof window === "undefined") {
@@ -2083,28 +2081,24 @@ export default function BinderApp({
 
     return "Binder Spread"
   }, [displayedSpreadPages])
-  const displayedBinderAspectRatio = isSpreadLayout
-    ? binderPageAspectRatio * 2 + BINDER_SPREAD_GAP_ASPECT_RATIO
-    : binderPageAspectRatio
   const binderFitSize = useMemo(() => {
-    if (
-      binderStageSize.width <= 0
-      || binderStageSize.height <= 0
-      || !Number.isFinite(displayedBinderAspectRatio)
-      || displayedBinderAspectRatio <= 0
-    ) {
-      return null
-    }
-
-    const widthFromStageHeight = binderStageSize.height * displayedBinderAspectRatio
-    const width = Math.min(binderStageSize.width, widthFromStageHeight)
-    const height = width / displayedBinderAspectRatio
+    const padding = isDesktopViewport ? 16 : 8
+    const gap = 6
+    const pages = isSpreadLayout ? 2 : 1
+    const spreadGap = isSpreadLayout ? (isWideBinderSpread ? 16 : 12) : 0
+    const horizontalChrome = padding * 2 + gap * (settings.binderCols - 1)
+    const verticalChrome = padding * 2 + gap * (settings.binderRows - 1)
+    const slotHeight = Math.min(
+      (binderStageSize.height - verticalChrome) / settings.binderRows,
+      ((binderStageSize.width - spreadGap) / pages - horizontalChrome) / settings.binderCols / TRADING_CARD_ASPECT_RATIO,
+    )
+    if (slotHeight <= 0) return null
 
     return {
-      width: Math.floor(width),
-      height: Math.floor(height),
+      width: pages * (slotHeight * TRADING_CARD_ASPECT_RATIO * settings.binderCols + horizontalChrome) + spreadGap,
+      height: slotHeight * settings.binderRows + verticalChrome,
     }
-  }, [binderStageSize.height, binderStageSize.width, displayedBinderAspectRatio])
+  }, [binderStageSize, isDesktopViewport, isSpreadLayout, isWideBinderSpread, settings.binderCols, settings.binderRows])
 
   const navigateToPage = useCallback((page: number, direction: "left" | "right") => {
     if (page < 1 || page > totalBinderPages || page === currentBinderPage) return
@@ -5511,6 +5505,19 @@ export default function BinderApp({
     )
   }
 
+  const binderDisplayControls = (
+    <div role="group" aria-label="Binder display" className={dashboardStyles.toggle}>
+      <button type="button" aria-pressed={binderDimension === "2d"} onClick={() => setBinderDimension("2d")}>2D</button>
+      <button type="button" aria-pressed={binderDimension === "3d"} onClick={() => { closeAllOverlays(); setSelectedPokemon(null); setBinderDimension("3d") }}>3D</button>
+    </div>
+  )
+  const binderCardControls = (
+    <div role="group" aria-label="Binder cards" className={dashboardStyles.toggle}>
+      <button type="button" aria-pressed={binderCardDisplay === "current"} onClick={() => setBinderCardDisplay("current")}>Current</button>
+      <button type="button" aria-pressed={binderCardDisplay === "wanted"} onClick={() => setBinderCardDisplay("wanted")}>Wanted</button>
+    </div>
+  )
+
   return (
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
@@ -5987,8 +5994,13 @@ export default function BinderApp({
 
               </>}
 
+              {activeMainView === "binder" && <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                {binderCardControls}
+                {binderDisplayControls}
+              </div>}
+
               {activeMainView === "binder" && binderDimension === "2d" && (
-                <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
                   <div className="flex items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/40">
                     <Button variant="ghost" size="icon" className="h-7 w-7 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
                       <ChevronLeft className="h-3.5 w-3.5" />
@@ -6051,6 +6063,10 @@ export default function BinderApp({
           </div>
           </div>
         </div>
+        {activeMainView === "binder" && <div className="flex items-center justify-between px-1 pt-1 md:hidden">
+          {binderCardControls}
+          {binderDisplayControls}
+        </div>}
       </nav>
 
       <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
@@ -6279,17 +6295,9 @@ export default function BinderApp({
           </div>
         )}
 
-        {activeMainView === "binder" && <div className={dashboardStyles.switcher}>
-          <div><p>Your collection</p>{binderAppearance.message && <span role="status" className="block max-w-[190px] text-[10px] text-muted-foreground">{binderAppearance.message}</span>}</div>
-          <div role="group" aria-label="Binder cards">
-            <button type="button" aria-pressed={binderCardDisplay === "current"} onClick={() => setBinderCardDisplay("current")}>Current</button>
-            <button type="button" aria-pressed={binderCardDisplay === "wanted"} onClick={() => setBinderCardDisplay("wanted")}>Wanted</button>
-          </div>
-          <div role="group" aria-label="Binder display">
-            <button type="button" aria-pressed={binderDimension === "2d"} onClick={() => setBinderDimension("2d")}>2D</button>
-            <button type="button" aria-pressed={binderDimension === "3d"} onClick={() => { closeAllOverlays(); setSelectedPokemon(null); setBinderDimension("3d") }}>3D</button>
-          </div>
-        </div>}
+        {activeMainView === "binder" && binderAppearance.message && (
+          <span role="status" className="text-[10px] text-muted-foreground">{binderAppearance.message}</span>
+        )}
 
         <div className={`flex min-h-0 flex-1 flex-col space-y-2 animate-fade-in ${
           activeMainView === "binder"
@@ -6428,7 +6436,7 @@ export default function BinderApp({
             )}
 
             {/* Binder Grid */}
-            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden pb-1 md:pb-0">
+            <div ref={binderStageRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
               <div
                 ref={binderRef}
                 data-page-turn-ms={pageTurnTiming.durationMs}
@@ -6440,7 +6448,6 @@ export default function BinderApp({
                     : "opacity-100 translate-x-0"
                 }`}
                 style={{
-                  aspectRatio: String(displayedBinderAspectRatio),
                   width: binderFitSize ? `${binderFitSize.width}px` : "100%",
                   height: binderFitSize ? `${binderFitSize.height}px` : "auto",
                   overscrollBehaviorX: "contain",
@@ -6956,18 +6963,8 @@ export default function BinderApp({
         />
       )}
 
-      <footer className="hidden shrink-0 md:block py-2.5 text-center text-muted-foreground/40 text-[10px] bg-background/80 backdrop-blur-sm border-t border-border/20 safe-area-bottom">
-        Made with 🩵 by{" "}
-        <a
-          href="https://callum.io"
-          target="_blank"
-          rel="noreferrer"
-          className="transition-colors hover:text-foreground/70"
-        >
-          Cal
-        </a>{" "}
-        for his wife, Laura
-        <CardDataAttribution className="mx-auto mt-0.5 max-w-3xl px-4 text-[9px] leading-snug" />
+      <footer className="hidden shrink-0 border-t border-border/20 bg-background/80 px-4 py-1 text-center text-[9px] leading-snug text-muted-foreground/60 md:block safe-area-bottom">
+        <CardDataAttribution compact />
       </footer>
     </main>
   )
@@ -7240,7 +7237,7 @@ function PokemonSlot({
             <img
               src={previewImageSrc}
               alt={cardName || pokemon.name}
-              className={`h-full w-full ${didFallbackPreviewImage ? "object-contain p-3 opacity-85" : "object-cover"} ${previewToneClass} transition-transform duration-150 group-hover:scale-[1.015]`}
+              className={`h-full w-full ${didFallbackPreviewImage ? "object-contain p-3 opacity-85" : "object-contain"} ${previewToneClass}`}
               loading={priority ? "eager" : "lazy"}
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
