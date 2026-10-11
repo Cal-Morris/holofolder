@@ -1,4 +1,4 @@
-import type { CardFinish, CardLanguage, WantedCard } from "@/lib/domain/cards"
+import type { CardFinish, CardLanguage, SlotStatus, WantedCard } from "@/lib/domain/cards"
 
 type SelectedSlotDisplayItem = {
   card_id?: string | null
@@ -7,6 +7,7 @@ type SelectedSlotDisplayItem = {
   card_set?: string | null
   card_language?: CardLanguage | null
   card_finish?: CardFinish | null
+  status?: SlotStatus
   wanted_cards?: WantedCard[] | null
 }
 
@@ -34,27 +35,16 @@ function getCurrentCard(item: SelectedSlotDisplayItem | null | undefined): Selec
   }
 }
 
-function getWantedCard(card: WantedCard | null | undefined): SelectedSlotDisplayCard | null {
-  if (!card) {
-    return null
-  }
-
+export function getSelectedSlotCardDisplay(item: SelectedSlotDisplayItem | null | undefined) {
   return {
-    cardId: card.card_id,
-    cardName: card.card_name,
-    cardImage: card.card_image,
-    cardSet: card.card_set,
-    cardLanguage: card.card_language,
-    cardFinish: card.card_finish,
+    primaryCard: getCurrentCard(getBinderDisplayCard(item, "wanted")),
+    currentCard: getCurrentCard(getBinderDisplayCard(item, "current")),
   }
 }
 
-export function getSelectedSlotCardDisplay(item: SelectedSlotDisplayItem | null | undefined) {
-  const wantedCard = getWantedCard(item?.wanted_cards?.[0])
-  const allocatedCard = getCurrentCard(item)
+export type BinderCardDisplay = "current" | "wanted"
 
-  return {
-    primaryCard: wantedCard ?? allocatedCard,
-    currentCard: wantedCard && allocatedCard ? allocatedCard : null,
-  }
+export function getBinderDisplayCard(item: SelectedSlotDisplayItem | null | undefined, display: BinderCardDisplay) {
+  if (display === "wanted" && item?.wanted_cards?.[0]) return item.wanted_cards[0]
+  return item?.card_id && (display === "wanted" || item.status !== "wishlisted") ? item : null
 }
