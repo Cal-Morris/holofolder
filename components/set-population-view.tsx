@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, type SyntheticEvent } from "react"
 import { Check, Heart, Loader2, Search, Sparkles, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { CardHighlights } from "@/components/card-highlights"
 import type { CollectedPokemon } from "@/hooks/use-collection"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 import { getOfflineStore } from "@/lib/offline-store/kv"
@@ -91,6 +92,7 @@ export default function SetPopulationView({
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
   const [sets, setSets] = useState<TCGSetSummary[]>([])
   const [selectedSet, setSelectedSet] = useState<TCGSetSummary | null>(null)
+  const [setCards, setSetCards] = useState<TCGSetSlotCard[]>([])
   const [slots, setSlots] = useState<TCGSetDexSlot[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +101,14 @@ export default function SetPopulationView({
   const [selectedCardIdsByDexId, setSelectedCardIdsByDexId] = useState<Record<number, string>>({})
   const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
   const [recentSets, setRecentSets] = useState<TCGSetSummary[]>([])
+  const priceLookups = useMemo(() => setCards.map((card) => ({ cardId: card.id, language: card.language })), [setCards])
+  const setPrices = useCardPrices(priceLookups, Boolean(selectedSet) && !isLoading)
+  const highlightCards = useMemo(() => setCards.map((card) => ({
+    id: card.id, language: card.language, name: card.name,
+    numberLabel: `${card.localId}/${card.set.officialCardCount ?? "?"}`,
+    setName: card.set.name, image: card.image, rarity: card.rarity,
+  })), [setCards])
+
   const [isShowingSavedSets, setIsShowingSavedSets] = useState(false)
 
   useEffect(() => {
@@ -131,6 +141,7 @@ export default function SetPopulationView({
     if (trimmedQuery.length < 2 && !selectedSetId) {
       setSets([])
       setSelectedSet(null)
+      setSetCards([])
       setSlots([])
       setError(null)
       return
@@ -151,6 +162,7 @@ export default function SetPopulationView({
         setSets(payload.sets)
         setSelectedSet(payload.selectedSet)
         setSlots(payload.slots)
+        setSetCards(payload.cards ?? payload.slots.flatMap((slot) => slot.cards))
       }
 
       setIsShowingSavedSets(false)
@@ -185,6 +197,7 @@ export default function SetPopulationView({
             if (savedSets.length > 0) {
               setSets(savedSets)
               setSelectedSet(null)
+              setSetCards([])
               setSlots([])
               setIsShowingSavedSets(true)
               return
@@ -519,6 +532,7 @@ export default function SetPopulationView({
       </div>
 
       <div data-testid="view-scroller" onScroll={heading.onScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2" style={{ WebkitOverflowScrolling: "touch" }}>
+        {selectedSet && !isLoading ? <CardHighlights key={selectedSet.id} name={selectedSet.name} cards={highlightCards} prices={setPrices.pricesByCardId} formatPrice={formatPrice} showValues isLoading={setPrices.isLoading} /> : null}
         {error ? (
           <div className="rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive">{error}</div>
         ) : !selectedSet && query.trim().length < 2 ? (

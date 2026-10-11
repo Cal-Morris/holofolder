@@ -2,13 +2,13 @@
 import { useEffect, useRef, useState } from "react"
 import { createBinderRenderer } from "./renderer"
 import type { BinderDesign, BinderPart, BinderStats, BinderView, StudioCard } from "@/lib/binder-design"
-export interface ViewportProps { compact?: boolean; onPageTurn?: (direction: -1 | 1) => void; design: BinderDesign; cards: readonly StudioCard[]; stats: BinderStats; page: number; artwork: Record<string,string>; view: BinderView; onSelect: (part: BinderPart) => void; onThumbnails: (images:string[])=>void }
+export interface ViewportProps { compact?: boolean; onSlotSelect?: (slot: number) => void; onPageTurn?: (direction: -1 | 1) => void; design: BinderDesign; cards: readonly StudioCard[]; stats: BinderStats; page: number; artwork: Record<string,string>; view: BinderView; onSelect: (part: BinderPart) => void; onThumbnails: (images:string[])=>void }
 export default function BinderViewport(props: ViewportProps) {
   const stage=useRef<HTMLDivElement>(null),engine=useRef<ReturnType<typeof createBinderRenderer>|null>(null),callbacks=useRef(props)
   const [error,setError]=useState(""),compact=Boolean(props.compact)
   useEffect(()=>{callbacks.current=props})
   useEffect(()=>{
-    try {engine.current=createBinderRenderer(stage.current!,p=>callbacks.current.onSelect(p),t=>callbacks.current.onThumbnails(t),setError,!compact,direction=>callbacks.current.onPageTurn?.(direction))} catch {queueMicrotask(()=>setError("Your browser cannot open the 3D preview. All appearance controls and device saving remain available."))}
+    try {engine.current=createBinderRenderer(stage.current!,p=>callbacks.current.onSelect(p),t=>callbacks.current.onThumbnails(t),setError,!compact,direction=>callbacks.current.onPageTurn?.(direction),callbacks.current.onSlotSelect?slot=>callbacks.current.onSlotSelect?.(slot):undefined)} catch {queueMicrotask(()=>setError("Your browser cannot open the 3D preview. All appearance controls and device saving remain available."))}
     return ()=>{engine.current?.dispose();engine.current=null}
   },[compact])
   const {design,cards,stats,page,artwork}=props

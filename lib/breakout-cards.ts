@@ -14,7 +14,7 @@
  */
 import { getRisingMomentum, type MomentumPriceInput, type PriceMomentum } from "@/lib/price-momentum"
 
-export const BREAKOUT_LIMIT = 3
+export const BREAKOUT_LIMIT = 10
 export const BREAKOUT_TIMEFRAME_WEIGHT = { "7d": 1, "30d": 0.5 } as const
 
 export interface BreakoutCandidate<TCard> {

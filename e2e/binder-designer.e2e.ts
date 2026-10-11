@@ -14,7 +14,7 @@ test("studio retains artwork framing, supports cancel and page colours",async({p
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   await expect(page.getByLabel("Preview collection")).toHaveValue("sample")
   await expect(page.locator(".studio-thumbnails img")).toHaveCount(5)
-  await expect(page.getByRole("img",{name:"3D binder, drag to orbit, scroll to zoom and click a surface",exact:true})).toBeVisible()
+  await expect(page.getByRole("img",{name:/^3D binder, swipe to turn pages/})).toBeVisible()
   await page.getByRole("button",{name:"Zip hardware",exact:true}).click()
   await page.locator(".studio-thumbnails button").first().click()
   await page.locator(".studio-stage canvas").click()

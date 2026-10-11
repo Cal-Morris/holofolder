@@ -31,6 +31,9 @@ export function getPriceDataAgeDays(updatedAt: string | null | undefined, now: n
 }
 
 export function applyPriceStaleness(snapshot: CardPriceSnapshot, now: number): CardPriceSnapshot {
+  if (snapshot.finishPrices) {
+    snapshot = { ...snapshot, finishPrices: snapshot.finishPrices.map((price) => ({ ...price, ...applyPriceStaleness(price, now) })) }
+  }
   if (snapshot.marketGbpAmount == null) return snapshot
 
   const ageDays = getPriceDataAgeDays(snapshot.updatedAt, now)
@@ -73,5 +76,6 @@ export function carryForwardMissingPrice(
     confidence: capConfidence(previous.snapshot.confidence, "low"),
     buySignal: null,
     updatedAt: lastObservedAt,
+    finishPrices: previous.snapshot.finishPrices?.map((price) => ({ ...price, confidence: "low", buySignal: null })),
   }
 }

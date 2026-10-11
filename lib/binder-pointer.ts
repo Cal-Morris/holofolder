@@ -21,3 +21,23 @@ export function createBinderTapTracker() {
     cancel(event: PointerPosition) { active.delete(event.pointerId); candidate = null },
   }
 }
+
+export function createBinderSwipeTracker() {
+  const active = new Set<number>()
+  let start: PointerPosition | null = null
+  return {
+    down(event: PointerPosition, enabled: boolean) {
+      active.add(event.pointerId)
+      start = enabled && active.size === 1 ? { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY } : null
+    },
+    up(event: PointerPosition): -1 | 1 | null {
+      active.delete(event.pointerId)
+      const origin = start
+      start = null
+      if (!origin || origin.pointerId !== event.pointerId || active.size) return null
+      const dx = event.clientX - origin.clientX, dy = event.clientY - origin.clientY
+      return Math.abs(dx) >= 45 && Math.abs(dx) > Math.abs(dy) * 1.5 ? (dx < 0 ? 1 : -1) : null
+    },
+    cancel(event: PointerPosition) { active.delete(event.pointerId); start = null },
+  }
+}

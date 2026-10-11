@@ -1,3 +1,4 @@
+import type { PricedCardFinish } from "../lib/card-pricing"
 import type { Page } from "@playwright/test"
 
 /**
@@ -9,6 +10,7 @@ export interface FixturePrice {
   market: number
   /** Cardmarket-style trend points (label -> GBP), e.g. { "30d": 10, "7d": 11, Trend: 12 }. */
   trend?: Record<string, number>
+  finishes?: Array<{ finish: PricedCardFinish; market: number; trend?: Record<string, number>; confidence?: FixturePrice["confidence"] }>
 }
 
 export async function mockCardPrices(page: Page, byCardId: Record<string, FixturePrice>) {
@@ -44,6 +46,14 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
             variantLabel: null,
             updatedAt: fixture ? updatedAt : null,
             fxDate: null,
+            finishPrices: fixture?.finishes?.map((variant) => ({
+              cardId: lookup.cardId, language: lookup.language ?? "en",
+              finish: variant.finish, variantKey: variant.finish, variantLabel: variant.finish,
+              marketGbpAmount: variant.market, gbpAmount: variant.market,
+              confidence: variant.confidence ?? fixture.confidence,
+              source: "cardmarket", sourcePrices: [], updatedAt, fxDate: null,
+              trendPoints: Object.entries(variant.trend ?? {}).map(([label, gbpAmount]) => ({ label, source: "cardmarket", gbpAmount, originalAmount: gbpAmount, originalCurrency: "GBP" })),
+            })) ?? [],
           }
         }),
       },

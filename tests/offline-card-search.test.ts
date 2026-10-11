@@ -167,3 +167,12 @@ test("planning downloads only set data and a few samples; downloading fetches th
   assert.equal(new Set(imageRequests).size, 10, "each image fetched exactly once")
   assert.equal(updates.at(-1), 10)
 })
+
+test("card show preparation includes Trainer and Energy highlight thumbnails", () => {
+  // Synthetic all-card payload, including a Trainer outside Pokémon dex slots.
+  const payload = { ...setSlots, cards: [setSlots.slots[0].cards[0], card("synthetic-trainer", "Trainer fixture", "99")] }
+  assert.deepEqual(getSetThumbnailUrls(payload), [
+    "/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F44%2Flow.webp",
+    "/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F99%2Flow.webp",
+  ])
+})

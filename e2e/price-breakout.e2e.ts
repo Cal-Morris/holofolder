@@ -40,3 +40,19 @@ test.describe("breakout cards in the all-cards view", () => {
     await expect(dialog.getByRole("region", { name: /breakout/i })).toHaveCount(0)
   })
 })
+
+test("shows more than three Pokémon breakouts and filters by finish", async ({ harness }) => {
+  // Synthetic finish-specific momentum on five printings.
+  await mockCardPrices(harness.page, Object.fromEntries(["me05-001", "sv03.5-001", "sv03.5-166", "swsh12pt5-001", "me02-001"].map((id) => [id, {
+    confidence: "high" as const, market: 12,
+    finishes: [{ finish: "normal" as const, market: 12, trend: { "7d": 10, Trend: 12 } }, { finish: "reverse_holo" as const, market: 20, trend: { "7d": 10, Trend: 20 } }],
+  }])))
+  const detail = await harness.openCardDetail()
+  await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
+  const dialog = harness.page.getByRole("dialog", { name: /all bulbasaur cards/i })
+  const region = dialog.getByRole("region", { name: /bulbasaur breakout cards/i })
+  await expect(region.getByRole("listitem")).toHaveCount(10)
+  await region.getByRole("button", { name: "Non-holo", exact: true }).click()
+  await expect(region.getByRole("listitem")).toHaveCount(5)
+  await harness.expectNoHorizontalOverflow()
+})

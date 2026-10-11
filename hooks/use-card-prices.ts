@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import {
   getCardPriceKey,
+  normalizeFinishPrices,
   normalizeBuySignal,
   normalizeCardLanguage,
   normalizePriceConfidence,
@@ -83,7 +84,7 @@ export function buildCardPriceFetchPlan(
     }
 
     cachedPrices[cacheKey] = cached
-    if (now - cached.fetchedAt >= CARD_PRICE_CACHE_STALE_MS) {
+    if (now - cached.fetchedAt >= CARD_PRICE_CACHE_STALE_MS || cached.finishPrices === undefined) {
       staleLookups.push(lookup)
     }
   }
@@ -178,6 +179,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
             }
 
             const snapshot: CardPriceSnapshot = {
+              finishPrices: normalizeFinishPrices(price.finishPrices),
               cardId: price.cardId,
               language: normalizeCardLanguage(price.language),
               gbpAmount: typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount) ? price.gbpAmount : null,
@@ -251,6 +253,7 @@ function readPriceCache(): Record<string, CardPriceSnapshot> {
       const snapshot = value as CardPriceSnapshot
       normalized[key] = {
         ...snapshot,
+        finishPrices: snapshot.finishPrices === undefined ? undefined : normalizeFinishPrices(snapshot.finishPrices),
         marketGbpAmount: typeof snapshot.marketGbpAmount === "number" && Number.isFinite(snapshot.marketGbpAmount)
           ? snapshot.marketGbpAmount
           : snapshot.gbpAmount,
