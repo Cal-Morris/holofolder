@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures"
 test.describe("card list requests", () => {
   test.use({ signedIn: true })
 
-  test("loading the binder fetches each visible Pokémon's card list once", async ({ harness }) => {
+  test("loading missing binder slots does not fetch arbitrary card lists", async ({ harness }) => {
     const { page } = harness
     // Count inside the document so nothing from the previous page load is mixed in.
     await page.addInitScript(() => {
@@ -29,12 +29,10 @@ test.describe("card list requests", () => {
     await page.reload()
     await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
     await expect(page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
-    // Let slot previews, collection refreshes and the offline warm-up settle.
+    // Let adjacent image prefetch, collection refreshes and offline warm-up settle.
     await page.waitForTimeout(6_000)
 
     const counts = await page.evaluate(() => (window as unknown as { __cardListRequests: Record<string, number> }).__cardListRequests)
-    expect(Object.keys(counts).length, "the binder page should request card lists").toBeGreaterThan(0)
-    const duplicates = Object.entries(counts).filter(([, count]) => count > 1)
-    expect(duplicates, "no Pokémon card list should be fetched twice").toEqual([])
+    expect(counts, "missing slots use Pokémon artwork without loading candidate printings").toEqual({})
   })
 })

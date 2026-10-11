@@ -19,8 +19,8 @@ export function useNavigationTransition(reducedMotion: boolean) {
     if (!document.startViewTransition) {
       flushSync(update)
       const animation = element.animate([
-        { opacity: 0.85, transform: `translateX(${direction === "left" ? 12 : direction === "right" ? -12 : 0}px)` },
-        { opacity: 1, transform: "translateX(0)" },
+        { opacity: 0.85 },
+        { opacity: 1 },
       ], { duration: PAGE_TURN_MS, easing: PAGE_TURN_EASING })
       active.current = { cancel: () => animation.cancel() }
       return

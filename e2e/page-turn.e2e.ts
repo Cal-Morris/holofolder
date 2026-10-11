@@ -113,6 +113,40 @@ test.describe("binder page turn", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
+  test("page snapshots keep the binder frame aligned in both directions", async ({ harness }) => {
+    const page = harness.page
+    for (const direction of ["Next", "Previous"]) {
+      const samples = await page.getByRole("button", { name: `${direction} binder page`, exact: true }).evaluate(async (button) => {
+        const start = document.startViewTransition.bind(document)
+        let captured: Promise<{ old: string; incoming: string; oldOpacity: number }> | undefined
+        document.startViewTransition = (update) => {
+          const transition = start(update)
+          captured = transition.ready.then(() => {
+            for (const animation of document.getAnimations()) {
+              if (animation instanceof CSSAnimation && animation.animationName.startsWith("binder-content-")) {
+                animation.pause()
+                animation.currentTime = 70
+              }
+            }
+            const root = document.documentElement
+            const old = getComputedStyle(root, "::view-transition-old(binder-content)")
+            const incoming = getComputedStyle(root, "::view-transition-new(binder-content)")
+            const values = { old: old.transform, incoming: incoming.transform, oldOpacity: Number(old.opacity) }
+            transition.skipTransition()
+            return values
+          })
+          return transition
+        }
+        ;(button as HTMLButtonElement).click()
+        while (!captured) await new Promise(requestAnimationFrame)
+        try { return await captured } finally { document.startViewTransition = start }
+      })
+      expect(samples.old).toBe("none")
+      expect(samples.incoming).toBe("none")
+      expect(samples.oldOpacity).toBeLessThan(1)
+    }
+  })
+
   test("rapid page turns and dock taps keep the latest destination", async ({ harness }) => {
     const page = harness.page
     const pager = page.getByTestId("mobile-header-pager")
@@ -136,6 +170,26 @@ test.describe("binder page turn", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
+  test("returning to the current page cancels a pending page update", async ({ harness }) => {
+    const page = harness.page
+    await page.evaluate(() => {
+      const start = document.startViewTransition.bind(document)
+      document.startViewTransition = (update) => start(async () => {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        if (typeof update === "function") await update()
+      })
+    })
+    await page.getByRole("button", { name: "Next binder page", exact: true }).click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.binderMotion)).toBe("left")
+    const input = page.getByRole("spinbutton", { name: "Binder page number" })
+    await input.fill("1")
+    await input.press("Enter")
+    await expect.poll(() => page.evaluate(() => document.documentElement.hasAttribute("data-binder-motion"))).toBe(false)
+    await page.waitForTimeout(350)
+    await expect(input).toHaveValue("1")
+    await expect(page.locator('button[data-dex-id="1"]')).toBeVisible()
+  })
+
   test("returning to the active tab cancels a pending view update", async ({ harness }) => {
     const page = harness.page
     await page.evaluate(() => {
@@ -157,7 +211,11 @@ test.describe("binder page turn", () => {
     const page = harness.page
     await page.evaluate(() => Object.defineProperty(document, "startViewTransition", { value: undefined, configurable: true }))
     const pager = page.getByTestId("mobile-header-pager")
-    await pager.getByRole("button", { name: /^next binder/i }).click()
+    const keyframes = await pager.getByRole("button", { name: /^next binder/i }).evaluate((button) => {
+      ;(button as HTMLButtonElement).click()
+      return document.getAnimations().flatMap(animation => animation.effect instanceof KeyframeEffect ? animation.effect.getKeyframes() : [])
+    })
+    expect(keyframes.some(frame => "transform" in frame)).toBe(false)
     await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toHaveValue("2")
     await pager.getByRole("button", { name: /^previous binder/i }).click()
     await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toHaveValue("1")
