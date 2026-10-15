@@ -52,6 +52,7 @@ test("history rejects malformed private rows and unusable price points", () => {
 
 test("history query accepts bounded cursor and identity, rejects language/filter injection", () => {
   assert.deepEqual(parseAnalyticsQuery(new URLSearchParams("cardId=fixture-1&language=ja&beforeId=123")), { cardId: "fixture-1", language: "ja", beforeId: "123" })
+  assert.equal(parseAnalyticsQuery(new URLSearchParams("cardId=mep-070~685563")).cardId, "mep-070~685563")
   for (const query of ["beforeId=-1", "beforeId=9223372036854775808", "cardId=x%2Cuser_id.eq.owner", "language=unknown", "ownerId=someone-else"]) assert.throws(() => parseAnalyticsQuery(new URLSearchParams(query)))
 })
 

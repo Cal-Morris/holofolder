@@ -83,7 +83,12 @@ export interface CollectedPokemon {
   collected_at: string
 }
 
-export interface TCGCard {
+export interface CardCatalogIdentity {
+  canonicalId?: string
+  aliasIds?: string[]
+}
+
+export interface TCGCard extends CardCatalogIdentity {
   id: string
   localId: string
   name: string

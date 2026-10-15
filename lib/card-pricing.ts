@@ -2,6 +2,7 @@
 // normalizers for the client (hooks/use-card-prices.ts), so it must not pull the service-role
 // Supabase client into the browser bundle. The admin client is loaded lazily on the server.
 import type { CardFinish } from "@/lib/domain/cards"
+import { readCatalogMetadata, selectCatalogPricing } from "@/lib/card-catalog"
 import type { createAdminClient } from "@/lib/supabase/admin"
 import { buildBuySignal, type CardBuySignal, type PriceProvider } from "@/lib/price-intelligence"
 
@@ -624,40 +625,41 @@ async function mapWithConcurrency<TInput, TOutput>(
   return results
 }
 
-async function fetchCardPriceSnapshot(
+export async function fetchCardPriceSnapshot(
   cardId: string,
   language: CardLanguage,
   fxRates: FxRates,
   metadata?: CardPriceMetadata,
 ): Promise<CardPriceSnapshot> {
   let tcgdexPayload: Record<string, unknown> | null = null
+  const catalog = readCatalogMetadata(metadata?.externalIds)
 
   try {
-    const response = await fetch(`https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(cardId)}`, {
+    const response = await fetch(`https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(catalog.tcgdexCardId ?? cardId)}`, {
       headers: {
         Accept: "application/json",
       },
       next: { revalidate: 60 * 60 * 12 },
     })
 
-    if (!response.ok) {
-      return emptySnapshot(cardId, language)
-    }
-
-    const payload = await response.json()
-    tcgdexPayload = readRecord(payload)
-    const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, tcgdexPayload?.pricing, fxRates, readRecord(tcgdexPayload?.variants))
-    if (snapshot.marketGbpAmount != null) {
-      return snapshot
+    if (response.ok) {
+      tcgdexPayload = readRecord(await response.json())
+      const exact = language !== "en" && catalog.variantId ? null : selectCatalogPricing(tcgdexPayload, catalog)
+      const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, exact?.pricing, fxRates, readRecord(exact?.variants))
+      if (snapshot.marketGbpAmount != null) return snapshot
     }
   } catch (error) {
     console.error(`[binderdex] Failed to fetch price for ${cardId} (${language}):`, error)
   }
 
+  // These product IDs identify English printings, not localized versions of the same artwork.
+  if (language !== "en") return emptySnapshot(cardId, language)
+
   const exactProductSnapshot = await fetchTcgplayerProductPriceFallback(cardId, language, fxRates, metadata?.externalIds)
   if (exactProductSnapshot.marketGbpAmount != null) {
     return exactProductSnapshot
   }
+  if (catalog.productId || catalog.variantId) return emptySnapshot(cardId, language)
 
   return await fetchTcgplayerSearchPriceFallback(cardId, language, fxRates, {
     cardId,
@@ -1213,6 +1215,8 @@ async function fetchTcgplayerProductDetails(productId: string): Promise<Tcgplaye
 }
 
 export function pickTcgplayerProductIdsFromExternalIds(value: unknown) {
+  const exactProduct = readCatalogMetadata(value).productId
+  if (exactProduct) return [exactProduct]
   const ids = new Set<string>()
   const externalIds = readRecord(value)
   const tcgdex = readRecord(externalIds?.tcgdex)

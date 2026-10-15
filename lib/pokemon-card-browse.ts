@@ -2,7 +2,8 @@
  * Pure helpers for the read-only "all cards for this Pokémon" view and the global card search.
  * Shared by the client UI, the search API and unit tests.
  */
-import type { CardFinish } from "@/lib/domain/cards"
+import { matchesCatalogCardId } from "@/lib/card-catalog"
+import type { CardCatalogIdentity, CardFinish } from "@/lib/domain/cards"
 
 export interface BrowseCardVariants {
   normal?: boolean
@@ -13,7 +14,7 @@ export interface BrowseCardVariants {
   jumbo?: boolean
 }
 
-export interface BrowseCard {
+export interface BrowseCard extends CardCatalogIdentity {
   id: string
   localId: string
   name: string
@@ -113,8 +114,8 @@ export function buildBrowseEntries<TCard extends BrowseCard>(
     .sort(compareBrowseCards)
     .map((card) => ({
       card,
-      owned: card.id === ownedCardId,
-      wanted: wantedIds.has(card.id),
+      owned: matchesCatalogCardId(card, ownedCardId),
+      wanted: [...wantedIds].some(id => matchesCatalogCardId(card, id)),
       variantLabels: getCardVariantLabels(card.variants),
       numberLabel: formatCardNumber(card),
     }))
@@ -138,7 +139,7 @@ export function parseCardSearchQuery(raw: string): ParsedCardSearchQuery {
   const query = sanitizeSearchText(raw).toLowerCase()
   if (!query) return { text: "", number: null, cardId: null }
 
-  const cardId = /^[a-z0-9.]+-[a-z0-9]+$/i.test(query) && /\d/.test(query) ? query : null
+  const cardId = /^[a-z0-9.]+-[a-z0-9]+(?:~\d+)?$/i.test(query) && /\d/.test(query) ? query : null
 
   // "44/102", "#44", "no. 44" or a trailing/leading bare number next to other words.
   const tokens = query.split(" ")

@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { getSetSlotState, getSetCardState, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter } from "../lib/set-checklist"
+import { getSetSlotState, getSetCardState, hasWantedSetCard, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter } from "../lib/set-checklist"
 import type { CollectedPokemon } from "../lib/domain/cards"
 import type { TCGSetSlotCard, TCGSetDexSlot } from "../lib/tcg-set-slots"
 
@@ -50,4 +50,30 @@ test("binder filters use species ownership and wants outside the selected sets",
   assert.equal(matchesSetSlotFilter(slot, { ...owned, status: "wishlisted" }, "wanted"), true)
   assert.equal(matchesSetSlotFilter(slot, undefined, "open"), true)
   assert.equal(matchesSetSlotFilter(slot, undefined, "wanted"), false)
+})
+
+test("reviewed parent/gallery aliases merge without losing saved alias state or physical printings", () => {
+  const canonical = { ...card, aliasIds: ["fixture-gallery-1"] }
+  const alias = { ...card, id: "fixture-gallery-1", canonicalId: card.id, aliasIds: [card.id], set: { id: "fixture-gallery", name: "Gallery" } }
+  const stamp = { ...card, id: `${card.id}~123`, name: "Fixture (Pokémon Center)" }
+  const reprint = { ...card, id: "other-set-1" }
+  const saved = { ...owned, card_id: alias.id, wanted_cards: [{ card_id: alias.id, card_name: "Fixture", added_at: "2026-01-01" }] }
+  const merged = mergeSetSlots([[{ ...slot, cards: [alias] }], [{ ...slot, cards: [canonical, stamp, reprint] }]])[0]
+  assert.deepEqual(merged.cards.map(c => c.id), [card.id, stamp.id, reprint.id])
+  assert.deepEqual(getSetSlotState(merged, saved), { ownedInSet: true, ownedElsewhere: false, wantedInSet: true })
+  assert.deepEqual(getSetCardState(merged.cards[0], [saved]), { owned: true, wanted: true })
+  assert.deepEqual(getSetCardState(stamp, [saved]), { owned: false, wanted: false })
+  assert.deepEqual(getSetChecklistCards({ sets: [], selectedSet: null, slots: [], cards: [alias, canonical, stamp, reprint] }).map(c => c.id), [card.id, stamp.id, reprint.id])
+  assert.equal(saved.card_id, alias.id)
+  assert.equal(saved.wanted_cards[0].card_id, alias.id)
+  assert.deepEqual(getSetCardState(canonical, [saved]), { owned: true, wanted: true })
+})
+
+
+test("duplicate alias wants match language and finish, not just artwork", () => {
+  const canonical = { ...card, aliasIds: ["old-1"] }
+  const saved = { ...owned, wanted_cards: [{ card_id: "old-1", card_name: "Fixture", added_at: "2026-01-01", card_language: "fr" as const, card_finish: "holo" as const }] }
+  assert.equal(hasWantedSetCard(canonical, saved), false)
+  assert.equal(hasWantedSetCard({ ...canonical, language: "fr", inferredFinish: "holo" }, saved), true)
+  assert.equal(hasWantedSetCard({ ...canonical, language: "fr", inferredFinish: "normal" }, saved), false)
 })

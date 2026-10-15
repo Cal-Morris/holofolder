@@ -1,5 +1,7 @@
 "use client"
 
+import { catalogCardIds, deduplicateCatalogCards, matchesCatalogCardId } from "@/lib/card-catalog"
+
 import NextImage from "next/image"
 import { useEffect, useMemo, useState, type SyntheticEvent } from "react"
 import { Check, Heart, Loader2, Search, Sparkles, X } from "lucide-react"
@@ -14,7 +16,7 @@ import CardShowPrep from "@/components/card-show-prep"
 import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { readOfflineSets, searchOfflineSets } from "@/lib/offline-card-index"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
-import { getSetSlotState, getSetCardState, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter, type SetSlotFilter } from "@/lib/set-checklist"
+import { getSetSlotState, getSetCardState, hasWantedSetCard, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter, type SetSlotFilter } from "@/lib/set-checklist"
 import { POKEMON_CATALOG, formatPokemonDisplayName } from "@/lib/pokemon-catalog"
 import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-browse"
 
@@ -73,7 +75,7 @@ function formatSetMeta(set: TCGSetSummary) {
 }
 
 function getSelectedSetCard(slot: TCGSetDexSlot, selectedCardIdsByDexId: Record<number, string>) {
-  return slot.cards.find((card) => card.id === selectedCardIdsByDexId[slot.dexId]) ?? slot.cards[0]
+  return slot.cards.find((card) => matchesCatalogCardId(card, selectedCardIdsByDexId[slot.dexId])) ?? slot.cards[0]
 }
 
 export default function SetPopulationView({
@@ -96,7 +98,7 @@ export default function SetPopulationView({
   const [sets, setSets] = useState<TCGSetSummary[]>([])
   const payloads = useMemo(() => selectedSets.flatMap(set => payloadsBySetId[set.id] ? [payloadsBySetId[set.id]] : []), [selectedSets, payloadsBySetId])
   const slots = useMemo(() => mergeSetSlots(payloads.map(payload => payload.slots)), [payloads])
-  const setCards = useMemo(() => [...new Map(payloads.flatMap(getSetChecklistCards).map(card => [card.id, card])).values()], [payloads])
+  const setCards = useMemo(() => deduplicateCatalogCards(payloads.flatMap(getSetChecklistCards)), [payloads])
   const selectedSet = selectedSets[0] ?? null
   const setLabel = selectedSets.map(set => set.name).join(" + ")
   const hasFullCardList = payloads.every(payload => Array.isArray(payload.cards))
@@ -203,7 +205,7 @@ export default function SetPopulationView({
 
   useEffect(() => {
     const validDexIds = new Set(slots.map((slot) => slot.dexId))
-    const validCardIdsByDexId = new Map(slots.map((slot) => [slot.dexId, new Set(slot.cards.map((card) => card.id))]))
+    const validCardIdsByDexId = new Map(slots.map((slot) => [slot.dexId, new Set(slot.cards.flatMap(catalogCardIds))]))
 
     setSelectedCardIdsByDexId((current) => {
       const next: Record<number, string> = {}
@@ -696,7 +698,7 @@ export default function SetPopulationView({
 
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       {wanted ? <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">Wanted Pokémon</span> : null}
-                      {primaryCard && isOwned && item?.card_id === primaryCard.id ? <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Your binder card</span> : null}
+                      {primaryCard && isOwned && matchesCatalogCardId(primaryCard, item?.card_id) ? <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Your binder card</span> : null}
                       {ownedElsewhere ? <span className="text-[11px] text-muted-foreground">{item?.card_id ? "Owned elsewhere" : "Owned printing unspecified"}</span> : null}
                       {priceLabel ? (
                         <span className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
@@ -720,7 +722,7 @@ export default function SetPopulationView({
                                     [slot.dexId]: card.id,
                                   }))
                                 }}
-                                aria-label={`${card.set.name} ${formatCardNumber(card)} ${card.rarity ?? ""}${isOwned && item?.card_id === card.id ? " Your binder card" : ""}`}
+                                aria-label={`${card.set.name} ${formatCardNumber(card)} ${card.rarity ?? ""} ${card.name}${isOwned && matchesCatalogCardId(card, item?.card_id) ? " Your binder card" : ""}`}
                                 aria-pressed={isActiveCard}
                                 className={`min-h-9 min-w-24 max-w-52 shrink-0 rounded-xl border px-2 py-1 text-left transition-colors ${
                                   isActiveCard
@@ -732,9 +734,10 @@ export default function SetPopulationView({
                                 <p className="truncate text-[10px] font-semibold">
                                   {card.set.officialCardCount ? `${card.localId}/${card.set.officialCardCount}` : `#${card.localId}`}
                                 </p>
+                                {card.name.includes("(") ? <p className="truncate text-[10px]">{card.name}</p> : null}
                                 <p className="truncate text-[10px]">
                                   {[card.rarity, ...getCardVariantLabels(card.variants)].filter(Boolean).join(" · ") || "Unknown rarity"}
-                                  {isOwned && item?.card_id === card.id ? " · Your binder card" : ""}
+                                  {isOwned && matchesCatalogCardId(card, item?.card_id) ? " · Your binder card" : ""}
                                   {wantedPrinting ? " · Wanted printing" : ""}
                                 </p>
                               </button>
@@ -748,19 +751,20 @@ export default function SetPopulationView({
                             type="button"
                             size="sm"
                             className="min-h-9 rounded-full px-3 text-[11px]"
-                            disabled={isOwned && item?.card_id === primaryCard.id}
+                            disabled={isOwned && matchesCatalogCardId(primaryCard, item?.card_id)}
                             onClick={(event) => {
                               event.stopPropagation()
                               onCollectCard(slot, primaryCard)
                             }}
                           >
-                            {isOwned && item?.card_id === primaryCard.id ? "In binder" : isOwned ? "Replace binder card" : "Add"}
+                            {isOwned && matchesCatalogCardId(primaryCard, item?.card_id) ? "In binder" : isOwned ? "Replace binder card" : "Add"}
                           </Button>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             className="min-h-9 rounded-full px-3 text-[11px]"
+                            disabled={hasWantedSetCard(primaryCard, item)}
                             onClick={(event) => {
                               event.stopPropagation()
                               onWantCard(slot, primaryCard)

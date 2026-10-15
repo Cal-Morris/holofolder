@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures"
 
-test("settings credits TCGdex and the Pokémon rights holders", async ({ harness, page }) => {
+test("settings credits all catalog sources and the Pokémon rights holders", async ({ harness, page }) => {
   await harness.open()
   await page.locator("nav").first().getByRole("button", { name: /open settings/i }).click()
   const attribution = page.getByRole("dialog").getByTestId("card-data-attribution")
@@ -8,4 +8,7 @@ test("settings credits TCGdex and the Pokémon rights holders", async ({ harness
   await expect(attribution).toContainText("TCGdex")
   await expect(attribution).toContainText("The Pokémon Company")
   await expect(attribution.getByRole("link", { name: "TCGdex" })).toHaveAttribute("href", "https://tcgdex.dev")
+  await expect(attribution.getByRole("link", { name: "Pokémon TCG", exact: true })).toHaveAttribute("href", "https://github.com/PokemonTCG/pokemon-tcg-data")
+  await expect(attribution.getByRole("link", { name: "TCGCSV" })).toHaveAttribute("href", "https://tcgcsv.com")
+  await harness.expectNoHorizontalOverflow()
 })

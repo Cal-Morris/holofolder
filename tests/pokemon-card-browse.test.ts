@@ -60,6 +60,9 @@ describe("card formatting", () => {
 })
 
 describe("parseCardSearchQuery", () => {
+  test("recognizes the stable ID of an individually catalogued printing", () => {
+    assert.equal(parseCardSearchQuery("mep-070~685563").cardId, "mep-070~685563")
+  })
   test("name with card number", () => {
     assert.deepEqual(parseCardSearchQuery("Bulbasaur 44/102"), { text: "bulbasaur", number: "44", cardId: null })
     assert.deepEqual(parseCardSearchQuery("pitch black #12"), { text: "pitch black", number: "12", cardId: null })
@@ -126,4 +129,13 @@ describe("fuzzy Pokémon search", () => {
     assert.equal(getEditDistance("abcd", "abdc"), 1)
     assert.equal(getEditDistance("abc", "xyzuvw", 2), 3)
   })
+})
+
+test("browse owned and wanted flags use reviewed aliases but never merge a stamp", () => {
+  const base = { ...card("base1-44", "44", "base1"), aliasIds: ["old-provider-44"] }
+  const stamp = { ...base, id: "base1-44~123", aliasIds: undefined }
+  const entries = buildBrowseEntries([base, stamp], { card_id: "old-provider-44", status: "collected", wanted_cards: [{ card_id: "old-provider-44" }] })
+  const byId = new Map(entries.map(entry => [entry.card.id, { owned: entry.owned, wanted: entry.wanted }]))
+  assert.deepEqual(byId.get(base.id), { owned: true, wanted: true })
+  assert.deepEqual(byId.get(stamp.id), { owned: false, wanted: false })
 })
