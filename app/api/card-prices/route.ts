@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { normalizeCardPriceLookups, refreshCardPriceLookups } from "@/lib/card-pricing"
+import { loadDisplayFxRates, normalizeCardPriceLookups, refreshCardPriceLookups } from "@/lib/card-pricing"
 
 const MAX_CARD_IDS = 200
 
@@ -18,8 +18,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ prices: [] })
     }
 
-    const result = await refreshCardPriceLookups(lookups, { force })
-    return NextResponse.json({ prices: result.prices })
+    const [result, fx] = await Promise.all([
+      refreshCardPriceLookups(lookups, { force }),
+      loadDisplayFxRates(),
+    ])
+    return NextResponse.json({ prices: result.prices, fx })
   } catch (error) {
     console.error("[binderdex] Failed to load card prices:", error)
     return NextResponse.json({ error: "Failed to load card prices." }, { status: 500 })

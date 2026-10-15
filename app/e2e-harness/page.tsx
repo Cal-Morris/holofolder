@@ -74,6 +74,9 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
         binderSlotGlareEnabled: false,
         cardFinishEffectsEnabled: false,
         darkMode: true,
+        pricingRegion: null,
+        preferredCurrency: null,
+        preferredCardLanguage: null,
       }}
       initialHasStoredSettings={false}
       initialDarkMode={true}

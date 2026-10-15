@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
+import { PricingPreferencesSettings } from "@/components/pricing-preferences-settings"
 import { useOverlay } from "@/hooks/use-overlay"
 import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -571,6 +572,10 @@ export default function SettingsModal({
                 </p>
               )}
             </div>
+          )}
+
+          {effectiveActiveTab === "account" && !isReadOnlyView && (
+            <PricingPreferencesSettings settings={settings} onUpdateSettings={onUpdateSettings} />
           )}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (

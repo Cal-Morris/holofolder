@@ -71,6 +71,8 @@ export interface FxRates {
   date: string
   eurToGbp: number
   usdToGbp: number
+  /** JPY -> GBP, used only for display; absent when the feed omits JPY. */
+  jpyToGbp?: number | null
 }
 
 interface CardPriceRow {
@@ -1574,6 +1576,7 @@ export function parseEcbFxRates(xml: string): FxRates {
   const dateMatch = xml.match(/time=['"](\d{4}-\d{2}-\d{2})['"]/)
   const usdMatch = xml.match(/currency=['"]USD['"]\s+rate=['"]([0-9.]+)['"]/)
   const gbpMatch = xml.match(/currency=['"]GBP['"]\s+rate=['"]([0-9.]+)['"]/)
+  const jpyMatch = xml.match(/currency=['"]JPY['"]\s+rate=['"]([0-9.]+)['"]/)
 
   const date = dateMatch?.[1]
   const eurToUsd = usdMatch?.[1] ? Number.parseFloat(usdMatch[1]) : NaN
@@ -1590,11 +1593,24 @@ export function parseEcbFxRates(xml: string): FxRates {
     throw new Error(`ECB FX feed rates out of bounds (EUR/GBP ${eurToGbp}, EUR/USD ${eurToUsd})`)
   }
 
+  const eurToJpy = jpyMatch?.[1] ? Number.parseFloat(jpyMatch[1]) : NaN
+  // JPY is display-only, so an implausible JPY rate is dropped rather than failing the feed.
+  const jpyToGbp = Number.isFinite(eurToJpy) && eurToJpy >= 50 && eurToJpy <= 400 ? eurToGbp / eurToJpy : null
+
   return {
     date,
     eurToGbp,
     usdToGbp: eurToGbp / eurToUsd,
+    jpyToGbp,
   }
+}
+
+/** Today's ECB rates for client-side currency display, or null when the feed is unavailable. */
+export async function loadDisplayFxRates(): Promise<FxRates | null> {
+  return fetchEcbFxRates().catch((error) => {
+    console.error("[binderdex] Failed to load ECB FX rates for display:", error)
+    return null
+  })
 }
 
 function readTimestamp(value: unknown) {

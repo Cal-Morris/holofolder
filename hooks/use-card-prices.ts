@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { normalizeDisplayFxRates, type DisplayFxRates } from "@/lib/regional-price"
 
 import {
   getCardPriceKey,
@@ -126,6 +127,7 @@ export function normalizeCardPriceLookups(cardLookups: Array<string | CardPriceL
 export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enabled: boolean) {
   const [pricesByCardId, setPricesByCardId] = useState<Record<string, CardPriceSnapshot>>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [fxRates, setFxRates] = useState<DisplayFxRates | null>(null)
 
   const stableLookups = useMemo(
     () => normalizeCardPriceLookups(cardLookups),
@@ -166,6 +168,10 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         }
 
         const payload = await response.json()
+        const fx = normalizeDisplayFxRates(payload?.fx)
+        if (fx && !cancelled) {
+          setFxRates((current) => (current?.date === fx.date && current.jpyToGbp === fx.jpyToGbp ? current : fx))
+        }
         return Array.isArray(payload?.prices) ? payload.prices : []
       })))
       .then((priceBatches) => {
@@ -233,6 +239,8 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
   return {
     pricesByCardId,
     isLoading,
+    /** Latest ECB rates from the price API, for converting into the user's display currency. */
+    fxRates,
   }
 }
 
