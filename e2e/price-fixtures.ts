@@ -1,4 +1,5 @@
 import type { PricedCardFinish } from "../lib/card-pricing"
+import type { CardPriceHistoryPoint } from "../lib/card-price-history"
 import type { Page } from "@playwright/test"
 
 /**
@@ -6,6 +7,7 @@ import type { Page } from "@playwright/test"
  * None of these amounts are real market data.
  */
 export interface FixturePrice {
+  history?: CardPriceHistoryPoint[]
   confidence: "high" | "medium" | "low" | "unknown"
   market: number
   /** Cardmarket-style trend points (label -> GBP), e.g. { "30d": 10, "7d": 11, Trend: 12 }. */
@@ -24,6 +26,7 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
           const fixture = byCardId[lookup.cardId]
           return {
             cardId: lookup.cardId,
+            historyPoints: fixture?.history ?? [],
             language: lookup.language ?? "en",
             gbpAmount: fixture?.market ?? null,
             marketGbpAmount: fixture?.market ?? null,

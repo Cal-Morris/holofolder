@@ -1,5 +1,9 @@
 import type { CardCatalogIdentity } from "./domain/cards"
 
+export function normalizeCatalogName(value: string) {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
+}
+
 type CatalogMetadata = CardCatalogIdentity & {
   localId?: string
   image?: string

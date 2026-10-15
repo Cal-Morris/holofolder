@@ -140,6 +140,43 @@ test("a catalog printing only uses its own product price", () => {
   assert.deepEqual(pickTcgplayerProductIdsFromExternalIds({ catalog: { productId: "685563" }, tcgdex: { thirdParty: { tcgplayer: 685562 } } }), ["685563"])
 })
 
+test("saved gallery IDs resolve through reviewed aliases without changing the saved price identity", async () => {
+  const originalFetch = globalThis.fetch
+  const requests: string[] = []
+  // Synthetic prices; the saved ID and upstream alias reproduce the catalog mismatch.
+  globalThis.fetch = (async (url: string | URL | Request) => {
+    requests.push(String(url))
+    return String(url).endsWith("/swsh4.5sv-SV068")
+      ? Response.json({ variants: { normal: false, holo: true }, pricing: { cardmarket: { updated: "2026-06-28", trend: 4, avg7: 3, avg30: 2, low: 1 } } })
+      : new Response("not found", { status: 404 })
+  }) as typeof fetch
+  try {
+    const result = await fetchCardPriceSnapshot("swsh4.5-SV068", "en", fxRates, {
+      id: "swsh4.5-SV068", name: null, localId: "SV068", setName: null, rarity: null,
+      externalIds: { catalog: { aliasIds: ["swsh4.5sv-SV068"] } },
+    })
+    assert.equal(result.cardId, "swsh4.5-SV068")
+    assert.equal(result.marketGbpAmount, 3.4)
+    assert.equal(result.finishPrices?.[0]?.finish, "holo")
+    assert.equal(result.trendPoints.length, 3)
+    assert.equal(requests.length, 2)
+  } finally { globalThis.fetch = originalFetch }
+})
+
+test("an alias outage does not prevent another reviewed alias from supplying prices", async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async (url: string | URL | Request) => String(url).endsWith("/working-1")
+    ? Response.json({ pricing: { tcgplayer: { normal: { marketPrice: 8 } } } })
+    : new Response("unavailable", { status: 503 })) as typeof fetch
+  try {
+    const result = await fetchCardPriceSnapshot("saved-1", "en", fxRates, {
+      id: "saved-1", name: null, localId: "1", setName: null, rarity: null,
+      externalIds: { catalog: { aliasIds: ["broken-1", "working-1"] } },
+    })
+    assert.equal(result.marketGbpAmount, 6)
+  } finally { globalThis.fetch = originalFetch }
+})
+
 test("a missing localized card cannot borrow its English product price", async () => {
   const originalFetch = globalThis.fetch
   const requests: string[] = []

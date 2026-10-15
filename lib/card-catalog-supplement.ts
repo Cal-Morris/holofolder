@@ -1,5 +1,5 @@
 import { inferDexIdsFromCardName } from "./card-dex-inference"
-import { readCatalogMetadata } from "./card-catalog"
+import { normalizeCatalogName, readCatalogMetadata } from "./card-catalog"
 import type { MirrorCardRow, MirrorSetRow, MirrorCardExternalSourceRow } from "./card-db-sync"
 
 export type CatalogProduct = {
@@ -33,9 +33,6 @@ const SET_ALIASES: Record<string, string> = {
 const GROUP_SETS: Record<number, string> = { 24451: "mep", 22872: "svp", 1451: "xyp", 2545: "swshp", 1453: "hgssp", 1938: "alternate-art-promos" }
 const STAMP_LABELS: Record<string, string> = { "pokemon-center": "Pokémon Center", staff: "Staff", "pre-release": "Prerelease", "set-logo": "Set logo", "1st-edition": "1st Edition" }
 
-export function normalizeCatalogName(value: string) {
-  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
-}
 function number(value: string) { return value.toLowerCase().replace(/(?<!\d)0+(?=\d)/g, "") }
 function parentSet(value: string) { return value.replace(/(?:tg|gg|sv)$/, "") }
 function details(product: CatalogProduct) { return Object.fromEntries((product.extendedData ?? []).map(d => [d.name, d.value])) }

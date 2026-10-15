@@ -42,13 +42,14 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
   const gradientId = useId().replaceAll(":", "")
   const sourcePrices = price?.sourcePrices ?? []
   const trendPoints = price?.trendPoints ?? []
+  const history = price?.historyPoints ?? []
   // Cached snapshots can contain timing calls made before confidence gates.
   const rawBuySignal = price?.buySignal ?? null
   const buySignal = rawBuySignal && !isMomentumEligibleConfidence(price?.confidence)
     ? { status: "hold" as const, label: "Thin data", reason: "Price confidence is too low to call the timing." }
     : rawBuySignal
 
-  if (!buySignal && sourcePrices.length === 0 && (!showTrend || trendPoints.length < 2)) {
+  if (!buySignal && sourcePrices.length === 0 && history.length === 0 && (!showTrend || trendPoints.length < 2)) {
     return null
   }
 
@@ -60,6 +61,22 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
 
   return (
     <div className="mt-2 space-y-2">
+      {history.length > 0 ? (
+        <details className="rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 text-[10px]" aria-label="Recorded price history">
+          <summary className="min-h-9 cursor-pointer py-2 font-semibold">TCGplayer history · USD · {history.length} quotes</summary>
+          <p className="my-2 text-muted-foreground">{history[0].date} to {history[history.length - 1].date}. US market quotes, not sold listings. Missing dates stay empty. Latest 12 quotes shown.</p>
+          <table className="w-full text-left tabular-nums">
+            <caption className="sr-only">Dated TCGplayer market quotes in US dollars</caption>
+            <thead><tr><th scope="col">Date</th><th scope="col">Finish</th><th scope="col" className="text-right">Market</th><th scope="col" className="text-right">Low</th></tr></thead>
+            <tbody>{history.slice(-12).reverse().map(point => (
+              <tr key={`${point.date}:${point.productId}:${point.finish}`}>
+                <td className="py-1">{point.date}</td><td>{point.finish === "reverse_holo" ? "Reverse" : point.finish === "holo" ? "Holo" : "Normal"}</td>
+                <td className="text-right">{formatCurrencyAmount(point.amount, "USD")}</td><td className="text-right">{point.lowAmount == null ? "Unknown" : formatCurrencyAmount(point.lowAmount, "USD")}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </details>
+      ) : null}
       {buySignal ? (
         <div className={getBuySignalClassName(buySignal.status)}>
           <div className="min-w-0">

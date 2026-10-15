@@ -2,6 +2,7 @@
 // so they open offline. The service worker caches what this fetches: /api/tcg-set-slots in its data cache
 // (network-first) and /api/card-image-proxy in its image cache (cache-first).
 import type { TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
+import { getCardPriceKey, normalizeCardPriceLookups, type CardPriceLookup } from "@/lib/card-pricing"
 
 /** Rough size of one proxied low-res card thumbnail, used until real samples are measured. */
 export const FALLBACK_THUMBNAIL_BYTES = 32 * 1024
@@ -41,6 +42,7 @@ export function getSetThumbnailUrls(payload: Pick<TCGSetSlotsResponse, "slots" |
 }
 
 export interface CardShowPlan {
+  priceLookups: CardPriceLookup[]
   sets: Array<{ set: TCGSetSummary; url: string; dataBytes: number; imageUrls: string[] }>
   imageUrls: string[]
   dataBytes: number
@@ -73,6 +75,7 @@ type Fetcher = (input: string, init?: RequestInit) => Promise<Response>
 export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher?: Fetcher; signal?: AbortSignal } = {}): Promise<CardShowPlan> {
   const fetcher = options.fetcher ?? ((input, init) => fetch(input, init))
   const planned: CardShowPlan["sets"] = []
+  const priceLookups: CardPriceLookup[] = []
 
   for (const set of sets) {
     const url = getSetSlotsUrl(set)
@@ -80,6 +83,8 @@ export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher
     if (!response.ok) throw new Error(`Couldn't load ${set.name} (${response.status})`)
     const text = await response.text()
     const payload = JSON.parse(text) as TCGSetSlotsResponse
+    const cards = payload.cards ?? payload.slots.flatMap(slot => slot.cards ?? [])
+    priceLookups.push(...cards.map(card => ({ cardId: card.id, language: card.language ?? "en" })))
     planned.push({ set, url, dataBytes: text.length, imageUrls: getSetThumbnailUrls(payload) })
   }
 
@@ -92,12 +97,42 @@ export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher
   const dataBytes = planned.reduce((sum, entry) => sum + entry.dataBytes, 0)
 
   return {
+    priceLookups: normalizeCardPriceLookups(priceLookups),
     sets: planned,
     imageUrls,
     dataBytes,
     sampledImageBytes,
     estimatedBytes: estimateCardShowBytes(imageUrls.length, dataBytes, sampledImageBytes),
   }
+}
+
+/** Save full price evidence before claiming the chosen sets are ready without signal. */
+export async function downloadCardShowPrices(plan: Pick<CardShowPlan, "priceLookups">, options: {
+  savePrices: (prices: unknown[]) => void | Promise<void>
+  fetcher?: Fetcher
+  signal?: AbortSignal
+  onProgress?: (progress: { done: number; total: number; priced: number }) => void
+}) {
+  const fetcher = options.fetcher ?? fetch
+  const lookups = normalizeCardPriceLookups(plan.priceLookups)
+  const progress = { done: 0, total: lookups.length, priced: 0 }
+  for (let offset = 0; offset < lookups.length; offset += 25) {
+    options.signal?.throwIfAborted()
+    const batch = lookups.slice(offset, offset + 25)
+    const response = await fetcher("/api/card-prices", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cards: batch }), signal: options.signal })
+    if (!response.ok) throw new Error(`Couldn't download prices (${response.status})`)
+    const payload = await response.json()
+    if (!Array.isArray(payload?.prices)) throw new Error("The price download was incomplete")
+    const requested = new Set(batch.map(card => getCardPriceKey(card.cardId, card.language)))
+    const prices = payload.prices.filter((price: { cardId?: unknown; language?: unknown }) => typeof price?.cardId === "string" && requested.has(getCardPriceKey(price.cardId, price.language)))
+    if (new Set(prices.map((price: { cardId: string; language: unknown }) => getCardPriceKey(price.cardId, price.language))).size !== batch.length) throw new Error("The price download was incomplete")
+    await options.savePrices(prices)
+    progress.done += batch.length
+    progress.priced += prices.filter((price: { marketGbpAmount?: unknown }) => typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount) && price.marketGbpAmount > 0).length
+    options.onProgress?.({ ...progress })
+  }
+  return progress
 }
 
 export interface CardShowProgress {
