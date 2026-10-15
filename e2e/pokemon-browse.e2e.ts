@@ -35,11 +35,11 @@ test.describe("Pokémon perspective", () => {
   test("a missing offline browse chunk leaves the current view usable", async ({ harness }) => {
     const page = harness.page
     await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
-    await expect(page.getByRole("heading", { name: "Explore Pokémon and cards by set" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Find matches across sets" })).toBeVisible()
     await page.route("**/_next/static/chunks/*.js", route => route.abort())
     await page.getByRole("group", { name: "Browse perspective" }).getByRole("button", { name: "Pokémon" }).click()
     await expect(page.getByRole("alert").filter({ hasText: "Pokémon browsing could not load" })).toBeVisible()
-    await expect(page.getByRole("heading", { name: "Explore Pokémon and cards by set" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Find matches across sets" })).toBeVisible()
     await harness.expectHittable(harness.dock().getByRole("button", { name: "Binder", exact: true }))
   })
 

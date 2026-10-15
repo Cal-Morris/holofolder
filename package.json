@@ -5,7 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "lint": "eslint . --max-warnings=76",
+    "lint": "eslint . --max-warnings=75",
     "sync-card-db": "bun scripts/sync-card-db.ts",
     "mirror-card-images": "bun scripts/mirror-card-images.ts",
     "start": "next start",
