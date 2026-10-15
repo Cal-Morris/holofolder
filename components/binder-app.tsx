@@ -767,7 +767,6 @@ export default function BinderApp({
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false)
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
-  const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; nested: boolean } | null>(null)
@@ -1814,14 +1813,6 @@ export default function BinderApp({
   const activeCollectionFilterOption = useMemo(
     () => COLLECTION_VIEW_FILTERS.find((filterOption) => filterOption.id === collectionViewFilter) ?? COLLECTION_VIEW_FILTERS[0],
     [collectionViewFilter],
-  )
-  const primaryCollectionFilters = useMemo(
-    () => COLLECTION_VIEW_FILTERS.filter((filterOption) => filterOption.id === "all" || filterOption.id === "needed"),
-    [],
-  )
-  const secondaryCollectionFilters = useMemo(
-    () => COLLECTION_VIEW_FILTERS.filter((filterOption) => filterOption.id === "wanted" || filterOption.id === "upgradeable" || filterOption.id === "favorite"),
-    [],
   )
 
   const isFilteredBinderLayout = collectionViewFilter !== "all"
@@ -3892,7 +3883,7 @@ export default function BinderApp({
   useOverlay(isBurstScannerOpen, closeBurstScannerSafely, { containerRef: burstScannerRef })
   const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel)
   const closeCardBrowser = useCallback(() => setCardBrowser(null), [])
-  const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet)
+  const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet, !isDesktopViewport)
   const filterSheetSwipe = useSwipeToDismiss(filterSheetRef, closeFilterSheet)
 
   /** Close every open overlay first so sheets/modals never stack on top of each other. */
@@ -4606,16 +4597,14 @@ export default function BinderApp({
   }, [isDesktopViewport, longPressedPokemon])
 
   useEffect(() => {
-    if (!isDesktopActionsOpen && !isDesktopFiltersOpen) return
+    if (!isDesktopActionsOpen) return
 
     const handleClick = () => {
       setIsDesktopActionsOpen(false)
-      setIsDesktopFiltersOpen(false)
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsDesktopActionsOpen(false)
-        setIsDesktopFiltersOpen(false)
       }
     }
 
@@ -4626,7 +4615,7 @@ export default function BinderApp({
       window.removeEventListener("click", handleClick)
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [isDesktopActionsOpen, isDesktopFiltersOpen])
+  }, [isDesktopActionsOpen])
 
   const binderIntroStats = [
     { label: "Collected", value: `${collectionStats.collected}/${collectionStats.total}` },
@@ -5487,7 +5476,7 @@ export default function BinderApp({
 
       {/* Glass Navigation */}
       <nav ref={shellNavRef} className="sticky top-0 z-40 mb-1 shrink-0 px-2.5 pt-[max(env(safe-area-inset-top),0.35rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+0.45rem)]">
-        <div className="mx-auto w-full max-w-7xl">
+        <div className="mx-auto w-full max-w-7xl md:max-w-none">
           <div className="rounded-2xl border border-border/70 bg-card/96 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.24)] md:bg-card/86 md:backdrop-blur-xl dark:border-border/50 dark:bg-background dark:shadow-black/5 dark:md:bg-background/88">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1 md:px-2.5 md:py-1.5">
             <div className="flex min-w-0 items-center gap-2">
@@ -5496,7 +5485,7 @@ export default function BinderApp({
               </div>
               <div className={`min-w-0 ${activeMainView === "binder" ? "max-md:hidden" : ""}`}>
                 <p className="truncate text-sm font-bold tracking-tight md:text-[13px]">BinderDex</p>
-                <p className="hidden text-[10px] text-muted-foreground sm:block md:hidden lg:block">National Dex binder tracking</p>
+                <p className="hidden text-[10px] text-muted-foreground sm:block md:hidden">National Dex binder tracking</p>
               </div>
             </div>
 
@@ -5594,7 +5583,6 @@ export default function BinderApp({
                   size="sm"
                   className="h-7 gap-1 rounded-full px-2"
                   onClick={() => {
-                    setIsDesktopFiltersOpen(false)
                     setIsDesktopActionsOpen((current) => !current)
                   }}
                   aria-expanded={isDesktopActionsOpen}
@@ -5713,15 +5701,16 @@ export default function BinderApp({
 
           <div className="hidden border-t border-border/40 px-2 py-1 md:block">
               <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap">
-                <div className="flex shrink-0 rounded-xl border border-border/50 bg-card/70 p-0.5 dark:border-border/30 dark:bg-muted/40">
+                <div className="flex shrink-0 items-center gap-0.5">
                 <button
                   onClick={openSearch}
-                  className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+                  aria-label="Search"
+                  className={`flex min-h-9 min-w-9 items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
                     isSearchOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <SearchIcon className="h-3 w-3" />
-                  <span>Search</span>
+                  <span className="hidden lg:inline">Search</span>
                 </button>
                 <button
                   onClick={() => {
@@ -5777,157 +5766,28 @@ export default function BinderApp({
                 </button>
                 </div>
 
-                {(activeMainView !== "pokemon" && activeMainView !== "analytics" && (activeMainView !== "binder" || binderDimension === "2d")) && <>
-                {isCompactViewport && (
-                  <button
-                    onClick={() => setIsMobileSpreadPreview((current) => !current)}
-                    aria-pressed={isMobileSpreadPreview}
-                    title={isMobileSpreadPreview ? "Show single page view" : "Preview binder spread"}
-                    className={`flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-medium transition-all ${
-                      isMobileSpreadPreview
-                        ? "border-primary/30 bg-primary/12 text-primary"
-                        : "border-border/50 bg-card/72 text-muted-foreground hover:text-foreground dark:border-border/30 dark:bg-muted/35"
-                    }`}
-                  >
-                    <BookOpen className="h-3 w-3" />
-                    <span>{isMobileSpreadPreview ? "Single" : "Spread"}</span>
-                  </button>
-                )}
-
-                <div className="flex shrink-0 items-center rounded-xl border border-border/50 bg-card/72 px-2 dark:border-border/30 dark:bg-muted/35">
-                <select
-                  value={selectedGen}
-                  onChange={(e) => setSelectedGen(Number(e.target.value))}
-                  className="h-6 min-w-[104px] bg-transparent px-1 text-[11px] font-medium cursor-pointer focus:outline-none"
+              {activeMainView !== "pokemon" && activeMainView !== "analytics" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto h-9 gap-1.5 rounded-xl px-3 text-xs"
+                  onClick={() => openExclusively(() => {
+                    setIsDesktopActionsOpen(false)
+                    setIsMobileNavExpanded(true)
+                  })}
+                  aria-haspopup="dialog"
+                  aria-expanded={isMobileNavExpanded}
                 >
-                  {GENERATIONS.map((gen) => (
-                    <option key={gen.id} value={gen.id}>
-                      {gen.id === 0 ? "All" : `Gen ${gen.id}`}{gen.region ? ` ${gen.region}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {canFilterCollection && (
-                <>
-                  <div className="flex shrink-0 items-center gap-1 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/35">
-                    {primaryCollectionFilters.map((filterOption) => {
-                      const isActive = collectionViewFilter === filterOption.id
-
-                      return (
-                        <button
-                          key={filterOption.id}
-                          onClick={() => setCollectionViewFilter(filterOption.id)}
-                          className={`rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
-                            isActive
-                              ? "bg-background text-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          {filterOption.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <div className="relative shrink-0" onClick={(event) => event.stopPropagation()}>
-                    <button
-                      onClick={() => {
-                        setIsDesktopActionsOpen(false)
-                        setIsDesktopFiltersOpen((current) => !current)
-                      }}
-                      className={`flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-medium transition-all ${
-                        collectionViewFilter === "wanted" || collectionViewFilter === "upgradeable" || collectionViewFilter === "favorite" || isPriceMode
-                          ? "border-primary/30 bg-primary/12 text-primary"
-                          : "border-border/50 bg-card/72 text-muted-foreground hover:text-foreground dark:border-border/30 dark:bg-muted/35"
-                      }`}
-                      aria-expanded={isDesktopFiltersOpen}
-                    >
-                      <SlidersHorizontal className="h-3 w-3" />
-                      <span>Filters</span>
-                    </button>
-
-                    {isDesktopFiltersOpen && (
-                      <div className="absolute left-0 top-[calc(100%+0.45rem)] z-50 w-56 overflow-hidden rounded-xl border border-border/60 bg-card/96 p-1.5 text-sm shadow-[0_18px_44px_-24px_rgba(15,23,42,0.34)] backdrop-blur-xl dark:border-border/45 dark:bg-background/96">
-                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">More filters</div>
-                        {secondaryCollectionFilters.map((filterOption) => {
-                          const isActive = collectionViewFilter === filterOption.id
-
-                          return (
-                            <button
-                              key={filterOption.id}
-                              onClick={() => {
-                                setCollectionViewFilter(filterOption.id)
-                                setIsDesktopFiltersOpen(false)
-                              }}
-                              className="flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-foreground hover:bg-muted/70"
-                            >
-                              <span>{filterOption.label}</span>
-                              {isActive ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
-                            </button>
-                          )
-                        })}
-
-                        <div className="my-1 h-px bg-border/50" />
-
-                        {hasTrackedCards ? (
-                          <button
-                            onClick={() => {
-                              setIsPriceMode((current) => !current)
-                              setIsDesktopFiltersOpen(false)
-                            }}
-                            className="flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-foreground hover:bg-muted/70"
-                          >
-                            <span className="flex items-center gap-2">
-                              {isLoadingPrices && isPriceMode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-bold">$</span>}
-                              Prices
-                            </span>
-                            {isPriceMode ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
-                          </button>
-                        ) : null}
-
-                        {activeMainView === "binder" ? (
-                          <button
-                            onClick={() => {
-                              setIsDesktopFiltersOpen(false)
-                              handlePhotoButtonClick()
-                            }}
-                            disabled={isScanningPage || isFilteredBinderLayout || currentPagePokemon.length === 0}
-                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-foreground hover:bg-muted/70 disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            {isScanningPage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                            {isScanningPage ? "Scanning page" : "Scan page"}
-                          </button>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-
-                  {isPriceMode && hasTrackedCards && (
-                    <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/8 px-2.5 py-1 text-[10px] font-medium text-primary tabular-nums">
-                      <span>Total {filteredTotalLabel || "No prices yet"}</span>
-                      {filteredPriceSummary.unpricedCount > 0 ? (
-                        <>
-                          <span className="text-primary/40">•</span>
-                          <span>{filteredPriceSummary.unpricedCount} unpriced</span>
-                        </>
-                      ) : null}
-                    </div>
-                  )}
-                </>
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  View
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
               )}
-
-              </>}
-
-              {activeMainView === "binder" && <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                {binderCardControls}
-                {binderDisplayControls}
-              </div>}
 
               {activeMainView === "binder" && binderDimension === "2d" && (
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <div className="flex items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 dark:border-border/30 dark:bg-muted/40">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
+                  <div className="flex items-center gap-0.5">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
                       <ChevronLeft className="h-3.5 w-3.5" />
                     </Button>
                     {isSpreadLayout && (
@@ -5954,18 +5814,18 @@ export default function BinderApp({
                         }
                       }}
                       aria-label="Binder page number"
-                      className="h-6 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-[11px] font-semibold tabular-nums"
+                      className="h-8 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-[11px] font-semibold tabular-nums"
                     />
                     <span className="pr-1 text-[11px] text-muted-foreground">/ {totalBinderPages}</span>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
                       <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
                   </div>
 
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-7 w-7 rounded-xl px-0"
+                    className="h-9 w-9 rounded-lg px-0"
                     onClick={handleJumpToPreviousNeeded}
                     disabled={activeJumpPokemonList.length === 0}
                     aria-label={`Previous ${activeJumpLabel.toLowerCase()}`}
@@ -5973,14 +5833,15 @@ export default function BinderApp({
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
                   <Button
-                    variant="default"
+                    variant="ghost"
                     size="sm"
-                    className="h-7 gap-1.5 rounded-xl px-2.5 text-[11px]"
+                    className="h-9 min-w-9 gap-1.5 rounded-lg px-2 text-[11px]"
                     onClick={handleJumpToNextNeeded}
+                    aria-label={`Next ${activeJumpLabel}`}
                     disabled={activeJumpPokemonList.length === 0}
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span>Next {activeJumpLabel}</span>
+                    <span className="hidden lg:inline">Next {activeJumpLabel}</span>
                   </Button>
                 </div>
               )}
@@ -6501,58 +6362,70 @@ export default function BinderApp({
       )}
 
       {isMobileNavExpanded && !isSearchOpen && (
-        <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm md:hidden" onClick={closeControlsSheet}>
+        <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/45" onClick={closeControlsSheet}>
           <div
             ref={controlsSheetRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Controls"
-            className="absolute inset-x-0 bottom-0 overflow-y-auto outline-none overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
+            aria-label={isDesktopViewport ? "View options" : "Controls"}
+            className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden outline-none rounded-t-[1.75rem] border-t border-border/65 bg-card px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background dark:shadow-2xl md:inset-x-auto md:bottom-auto md:right-4 md:top-24 md:w-80 md:rounded-2xl md:border md:pb-4"
             onClick={(event) => event.stopPropagation()}
             style={{
-              maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
+              maxHeight: isDesktopViewport ? "calc(100dvh - 7rem)" : "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
               WebkitOverflowScrolling: "touch",
               touchAction: "pan-y",
             }}
           >
-            <div data-sheet-grabber className="-mx-4 -mt-3 px-4 pt-3" {...controlsSheetSwipe}>
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60" />
+            <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3" {...controlsSheetSwipe}>
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60 md:hidden" />
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold">Controls</p>
-                <p className="text-xs text-muted-foreground">{collectionStats.percentage}% complete</p>
+                <p className="text-sm font-semibold">{isDesktopViewport ? "View options" : "Controls"}</p>
+                <p className="text-xs text-muted-foreground md:hidden">{collectionStats.percentage}% complete</p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-full"
                 onClick={closeControlsSheet}
-                aria-label="Close controls"
+                aria-label={isDesktopViewport ? "Close view options" : "Close controls"}
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
             </div>
 
-            <div className="space-y-3">
-              {!readOnlyMode && <button className="min-h-10 w-full rounded-xl border border-border px-3 py-2 text-left text-sm font-medium" onClick={() => void switchMainView("analytics")}>Analytics</button>}
+            <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain">
+              {!readOnlyMode && <button className="min-h-10 md:hidden w-full rounded-xl border border-border px-3 py-2 text-left text-sm font-medium" onClick={() => void switchMainView("analytics")}>Analytics</button>}
               {activeMainView !== "pokemon" && activeMainView !== "analytics" && <>
+              {activeMainView === "binder" && <div className="hidden space-y-3 md:block">
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Cards</p>
+                  {binderCardControls}
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Display</p>
+                  {binderDisplayControls}
+                </div>
+              </div>}
+              <label htmlFor="binder-generation" className="block text-xs font-medium text-muted-foreground">Generation</label>
               <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-2xl border border-border/60 bg-background/62 p-1 dark:border-border/40 dark:bg-muted/35">
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev > 0 ? prev - 1 : GENERATIONS.length - 1)}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev > 0 ? prev - 1 : GENERATIONS.length - 1)} aria-label="Previous generation">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <select
+                  id="binder-generation"
                   value={selectedGen}
                   onChange={(e) => setSelectedGen(Number(e.target.value))}
                   className="h-9 min-w-0 bg-transparent text-center text-sm font-semibold cursor-pointer focus:outline-none"
                 >
                   {GENERATIONS.map((gen) => (
                     <option key={gen.id} value={gen.id}>
-                      {gen.id === 0 ? "All Pokemon" : `Gen ${gen.id}${gen.region ? ` ${gen.region}` : ""}`}
+                      {gen.id === 0 ? "All generations" : `Gen ${gen.id}${gen.region ? ` ${gen.region}` : ""}`}
                     </option>
                   ))}
                 </select>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev < GENERATIONS.length - 1 ? prev + 1 : 0)}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev < GENERATIONS.length - 1 ? prev + 1 : 0)} aria-label="Next generation">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -6614,7 +6487,7 @@ export default function BinderApp({
                   </button>
                 )}
                 <button
-                  onClick={handlePhotoButtonClick}
+                  onClick={() => { closeControlsSheet(); handlePhotoButtonClick() }}
                   disabled={isScanningPage || isFilteredBinderLayout || currentPagePokemon.length === 0}
                   className="h-11 rounded-2xl border border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
                 >

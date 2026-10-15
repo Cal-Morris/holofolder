@@ -97,7 +97,7 @@ test.describe("vertical space by the dock", () => {
 })
 
 
-test("binder controls stay in the header and cards keep their full proportions", async ({ harness }) => {
+test("binder controls stay reachable and cards keep their full proportions", async ({ harness }) => {
   const { page } = harness
   const checkSlots = async () => {
     await expect.poll(async () => page.locator("button[data-dex-id]:visible").evaluateAll(elements =>
@@ -122,7 +122,16 @@ test("binder controls stay in the header and cards keep their full proportions",
   for (const viewport of [{ width: 768, height: 667 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport)
     await checkSlots()
-    await expect(header(harness).getByRole("group", { name: "Binder display" })).toBeVisible()
+    const view = header(harness).getByRole("button", { name: "View", exact: true })
+    await expect(view).toBeVisible()
+    await view.click()
+    const menu = page.getByRole("dialog", { name: "View options", exact: true })
+    const desktopDisplay = menu.getByRole("group", { name: "Binder display" })
+    await expect(desktopDisplay).toBeVisible()
+    await harness.expectMinTapTarget(desktopDisplay.getByRole("button", { name: "2D", exact: true }))
+    await harness.expectMinTapTarget(desktopDisplay.getByRole("button", { name: "3D", exact: true }))
+    await harness.expectHittable(desktopDisplay.getByRole("button", { name: "3D", exact: true }))
+    await menu.getByRole("button", { name: "Close view options", exact: true }).click()
     await expect.poll(async () => (await page.locator("footer").boundingBox())?.height ?? Infinity).toBeLessThan(36)
     await harness.expectNoHorizontalOverflow()
   }
