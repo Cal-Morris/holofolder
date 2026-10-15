@@ -1,5 +1,7 @@
 "use client"
 
+import { matchesCatalogCardId } from "@/lib/card-catalog"
+
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/hooks/use-tcgdex"
 import type { CardFinish } from "@/hooks/use-collection"
@@ -427,7 +429,7 @@ export default function CardSelector({
 
   const filteredCards = useMemo(() => filterCards(cards, filters), [cards, filters, filterCards])
   useEffect(() => {
-    const selectedCard = cards.find((card) => card.id === activeSelectedCardId) ?? filteredCards[0]
+    const selectedCard = cards.find((card) => matchesCatalogCardId(card, activeSelectedCardId)) ?? filteredCards[0]
     setSelectedFinish(selectedCard ? inferCardFinish(selectedCard) : "normal")
     setHasManuallySelectedFinish(false)
   }, [activeSelectedCardId, cards, filteredCards])
@@ -1150,7 +1152,7 @@ export default function CardSelector({
                     <div
                       key={card.id}
                       className={`relative group/card overflow-hidden rounded-xl border-2 bg-card text-left transition-all sm:hover:scale-[1.03] ${
-                        activeSelectedCardId === card.id ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
+                        matchesCatalogCardId(card, activeSelectedCardId) ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
                       }`}
                     >
                       {scanRankById.has(card.id) && (
@@ -1169,7 +1171,7 @@ export default function CardSelector({
                             alt={card.name}
                             className="absolute inset-0 h-full w-full object-cover bg-muted"
                           />
-                          {activeSelectedCardId === card.id ? (
+                          {matchesCatalogCardId(card, activeSelectedCardId) ? (
                             <div className={`absolute right-2 top-2 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] backdrop-blur ${intentCopy.activeClass}`}>
                               {intentCopy.currentLabel}
                             </div>
@@ -1178,6 +1180,7 @@ export default function CardSelector({
                           )}
                           <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/90 via-black/68 to-transparent p-2 sm:block">
                             <p className="truncate text-xs font-medium text-white">{card.set.name}</p>
+                            {card.name.includes("(") && <p className="mt-0.5 text-[10px] text-white">{card.name}</p>}
                             <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums">
                               <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-emerald-200">L {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
                               <span className="rounded-md bg-black/50 px-1.5 py-0.5 text-white">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
@@ -1199,6 +1202,7 @@ export default function CardSelector({
 
                         <div className="p-1.5 sm:hidden">
                           <p className="truncate text-[10px] font-semibold text-foreground">{card.set.name}</p>
+                          {card.name.includes("(") && <p className="mt-0.5 text-[10px] text-foreground">{card.name}</p>}
                           <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums">
                             <span className="rounded-md bg-muted px-1 py-0.5 text-emerald-600 dark:text-emerald-300">L {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
                             <span className="rounded-md bg-muted px-1 py-0.5 text-foreground">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>

@@ -1,4 +1,4 @@
-import type { CardFinish, CardLanguage } from "@/lib/domain/cards"
+import type { CardCatalogIdentity, CardFinish, CardLanguage } from "@/lib/domain/cards"
 
 export interface TCGSetSummary {
   id: string
@@ -8,7 +8,7 @@ export interface TCGSetSummary {
   releaseDate?: string
 }
 
-export interface TCGSetSlotCard {
+export interface TCGSetSlotCard extends CardCatalogIdentity {
   id: string
   localId: string
   name: string

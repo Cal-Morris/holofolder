@@ -143,7 +143,7 @@ export function parseAnalyticsQuery(params: URLSearchParams) {
   const cardId = params.get("cardId")
   const language = params.get("language") ?? "en"
   const beforeId = params.get("beforeId")
-  if (cardId !== null && !/^[a-zA-Z0-9_.:-]{1,120}$/.test(cardId)) throw new Error("Invalid card identity")
+  if (cardId !== null && !/^[a-zA-Z0-9_.:~-]{1,120}$/.test(cardId)) throw new Error("Invalid card identity")
   if (!isCardLanguage(language)) throw new Error("Invalid language")
   if (beforeId !== null && (!/^[1-9]\d{0,18}$/.test(beforeId) || BigInt(beforeId) > BigInt("9223372036854775807"))) throw new Error("Invalid activity cursor")
   return { cardId, language, beforeId }

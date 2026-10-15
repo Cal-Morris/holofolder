@@ -1,3 +1,4 @@
+import { preserveCatalogIds } from "./card-catalog"
 import { spawn } from "node:child_process"
 import { access, mkdir, readFile, readdir } from "node:fs/promises"
 import os from "node:os"
@@ -26,7 +27,7 @@ type MirrorSeriesRow = {
   raw_json: Record<string, unknown>
 }
 
-type MirrorSetRow = {
+export type MirrorSetRow = {
   id: string
   series_id: string
   name_json: Record<string, string>
@@ -36,7 +37,7 @@ type MirrorSetRow = {
   raw_json: Record<string, unknown>
 }
 
-type MirrorCardRow = {
+export type MirrorCardRow = {
   id: string
   series_id: string
   set_id: string
@@ -55,9 +56,9 @@ type MirrorCardRow = {
   raw_json: JsonObject
 }
 
-type MirrorCardExternalSourceRow = {
+export type MirrorCardExternalSourceRow = {
   card_id: string
-  source: "pokemon_tcg"
+  source: "pokemon_tcg" | "tcgcsv"
   source_card_id: string
   source_set_id: string | null
   raw_json: JsonObject
@@ -135,6 +136,7 @@ type TCGCard = {
         jumbo?: boolean
       }
   dexId?: number[]
+  variants_detailed?: Array<{ type?: string; size?: string; stamp?: string[]; thirdParty?: Record<string, unknown> }>
 }
 
 type PokemonTcgSet = {
@@ -599,8 +601,9 @@ function buildExternalIds(card: TCGCard, pokemonTcgCard?: PokemonTcgCard, pokemo
     }
   }
 
-  if (Array.isArray(card.variants)) {
-    const variantThirdParty = card.variants
+  const detailedVariants = Array.isArray(card.variants) ? card.variants : card.variants_detailed
+  if (Array.isArray(detailedVariants)) {
+    const variantThirdParty = detailedVariants
       .map((variant) => normalizeJsonObject(variant?.thirdParty))
       .filter((thirdParty) => Object.keys(thirdParty).length > 0)
 
@@ -1216,167 +1219,6 @@ async function insertJsonBatch<T>(
   }
 }
 
-async function seedMirror(
-  client: Client,
-  payload: Awaited<ReturnType<typeof buildMirrorPayload>>,
-  logger?: (message: string) => void,
-) {
-  logWith(
-    logger,
-    `Seeding ${payload.series.length} series, ${payload.sets.length} sets, ${payload.cards.length} cards, ${payload.externalSources.length} external source links, ${payload.dexLinks.length} dex links`,
-  )
-
-  await client.query("BEGIN")
-
-  try {
-    await client.query(
-      "TRUNCATE TABLE public.tcg_card_dex_ids, public.tcg_card_external_sources, public.tcg_cards, public.tcg_sets, public.tcg_series RESTART IDENTITY CASCADE",
-    )
-
-    await insertJsonBatch(
-      client,
-      "series",
-      payload.series,
-      `
-        INSERT INTO public.tcg_series (id, name_json, name_en, raw_json)
-        SELECT id, name_json, name_en, raw_json
-        FROM jsonb_to_recordset($1::jsonb) AS row(
-          id text,
-          name_json jsonb,
-          name_en text,
-          raw_json jsonb
-        )
-      `,
-      logger,
-      200,
-    )
-
-    await insertJsonBatch(
-      client,
-      "sets",
-      payload.sets,
-      `
-        INSERT INTO public.tcg_sets (id, series_id, name_json, name_en, official_card_count, release_date, raw_json)
-        SELECT id, series_id, name_json, name_en, official_card_count, release_date, raw_json
-        FROM jsonb_to_recordset($1::jsonb) AS row(
-          id text,
-          series_id text,
-          name_json jsonb,
-          name_en text,
-          official_card_count integer,
-          release_date date,
-          raw_json jsonb
-        )
-      `,
-      logger,
-      250,
-    )
-
-    await insertJsonBatch(
-      client,
-      "cards",
-      payload.cards,
-      `
-        INSERT INTO public.tcg_cards (
-          id,
-          series_id,
-          set_id,
-          local_id,
-          local_id_sort,
-          name_json,
-          name_en,
-          category,
-          rarity,
-          hp,
-          illustrator,
-          types_json,
-          image_languages_json,
-          variants_json,
-          external_ids_json,
-          raw_json
-        )
-        SELECT
-          id,
-          series_id,
-          set_id,
-          local_id,
-          local_id_sort,
-          name_json,
-          name_en,
-          category,
-          rarity,
-          hp,
-          illustrator,
-          types_json,
-          image_languages_json,
-          variants_json,
-          external_ids_json,
-          raw_json
-        FROM jsonb_to_recordset($1::jsonb) AS row(
-          id text,
-          series_id text,
-          set_id text,
-          local_id text,
-          local_id_sort integer,
-          name_json jsonb,
-          name_en text,
-          category text,
-          rarity text,
-          hp integer,
-          illustrator text,
-          types_json jsonb,
-          image_languages_json jsonb,
-          variants_json jsonb,
-          external_ids_json jsonb,
-          raw_json jsonb
-        )
-      `,
-      logger,
-      400,
-    )
-
-    await insertJsonBatch(
-      client,
-      "external sources",
-      payload.externalSources,
-      `
-        INSERT INTO public.tcg_card_external_sources (card_id, source, source_card_id, source_set_id, raw_json)
-        SELECT card_id, source, source_card_id, source_set_id, raw_json
-        FROM jsonb_to_recordset($1::jsonb) AS row(
-          card_id text,
-          source text,
-          source_card_id text,
-          source_set_id text,
-          raw_json jsonb
-        )
-      `,
-      logger,
-      1000,
-    )
-
-    await insertJsonBatch(
-      client,
-      "dex links",
-      payload.dexLinks,
-      `
-        INSERT INTO public.tcg_card_dex_ids (card_id, dex_id)
-        SELECT card_id, dex_id
-        FROM jsonb_to_recordset($1::jsonb) AS row(
-          card_id text,
-          dex_id integer
-        )
-      `,
-      logger,
-      1000,
-    )
-
-    await client.query("COMMIT")
-  } catch (error) {
-    await client.query("ROLLBACK")
-    throw error
-  }
-}
-
 export async function runCardDbSync(options: CardDbSyncOptions = {}): Promise<CardDbSyncResult> {
   const projectRoot = getProjectRoot(options.projectRoot)
   const logger = options.logger
@@ -1421,7 +1263,7 @@ export async function runCardDbSync(options: CardDbSyncOptions = {}): Promise<Ca
     }
 
     await applySchema(client, projectRoot, logger)
-    await seedMirror(client, payload, logger)
+    await upsertRestSetPayload(client, payload, logger)
   } finally {
     try {
       await client.query("select pg_advisory_unlock($1)", [CARD_DB_SYNC_LOCK_KEY])
@@ -1490,7 +1332,7 @@ async function fetchExcludedSeriesSetIds(logger?: (message: string) => void) {
   return excluded
 }
 
-async function upsertRestSetPayload(
+export async function upsertRestSetPayload(
   client: Client,
   payload: {
     series: MirrorSeriesRow[]
@@ -1500,10 +1342,9 @@ async function upsertRestSetPayload(
     dexLinks: Array<{ card_id: string; dex_id: number }>
   },
   logger?: (message: string) => void,
+  manageTransaction = true,
 ) {
-  const cardIds = payload.cards.map((card) => card.id)
-
-  await client.query("BEGIN")
+  if (manageTransaction) await client.query("BEGIN")
   try {
     await insertJsonBatch(
       client,
@@ -1543,19 +1384,11 @@ async function upsertRestSetPayload(
       250,
     )
 
-    // A card can only be re-keyed within its set when TCGdex renames ids; drop the old row so (set_id, local_id) stays unique.
-    await insertJsonBatch(
-      client,
-      "stale card ids",
-      payload.cards.map((card) => ({ id: card.id, set_id: card.set_id, local_id: card.local_id })),
-      `
-        DELETE FROM public.tcg_cards AS existing
-        USING jsonb_to_recordset($1::jsonb) AS row(id text, set_id text, local_id text)
-        WHERE existing.set_id = row.set_id AND existing.local_id = row.local_id AND existing.id <> row.id
-      `,
-      logger,
-      1000,
+    const existing = await client.query<{ id: string; set_id: string; local_id: string }>(
+      "select id, set_id, local_id from public.tcg_cards where set_id = ANY($1::text[])",
+      [[...new Set(payload.cards.map(card => card.set_id))]],
     )
+    payload = { ...payload, ...preserveCatalogIds(payload, existing.rows) }
 
     await insertJsonBatch(
       client,
@@ -1588,17 +1421,15 @@ async function upsertRestSetPayload(
           types_json = EXCLUDED.types_json,
           image_languages_json = EXCLUDED.image_languages_json,
           variants_json = EXCLUDED.variants_json,
-          external_ids_json = EXCLUDED.external_ids_json,
-          raw_json = EXCLUDED.raw_json
+          external_ids_json = public.tcg_cards.external_ids_json || EXCLUDED.external_ids_json
+            || CASE WHEN public.tcg_cards.external_ids_json ? 'catalog' OR EXCLUDED.external_ids_json ? 'catalog'
+                 THEN jsonb_build_object('catalog', coalesce(public.tcg_cards.external_ids_json->'catalog', '{}'::jsonb)
+                   || coalesce(EXCLUDED.external_ids_json->'catalog', '{}'::jsonb)) ELSE '{}'::jsonb END,
+          raw_json = public.tcg_cards.raw_json || EXCLUDED.raw_json
       `,
       logger,
       400,
     )
-
-    if (cardIds.length > 0) {
-      await client.query("DELETE FROM public.tcg_card_external_sources WHERE card_id = ANY($1::text[])", [cardIds])
-      await client.query("DELETE FROM public.tcg_card_dex_ids WHERE card_id = ANY($1::text[])", [cardIds])
-    }
 
     await insertJsonBatch(
       client,
@@ -1631,9 +1462,9 @@ async function upsertRestSetPayload(
       1000,
     )
 
-    await client.query("COMMIT")
+    if (manageTransaction) await client.query("COMMIT")
   } catch (error) {
-    await client.query("ROLLBACK")
+    if (manageTransaction) await client.query("ROLLBACK")
     throw error
   }
 }

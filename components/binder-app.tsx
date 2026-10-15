@@ -1,5 +1,8 @@
 "use client"
 
+import { matchesCatalogCardId } from "@/lib/card-catalog"
+import { hasWantedSetCard } from "@/lib/set-checklist"
+
 import { useState, useMemo, useEffect, useEffectEvent, useRef, useCallback, type CSSProperties, type SyntheticEvent, type TouchEvent as ReactTouchEvent } from "react"
 import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
 import { CardDataAttribution } from "@/components/card-data-attribution"
@@ -2277,6 +2280,7 @@ export default function BinderApp({
       return
     }
 
+    if (hasWantedSetCard(card, getCollectionItem(slot.dexId))) return
     await addWantedCard(
       slot.dexId,
       slot.pokemonName,
@@ -2293,7 +2297,7 @@ export default function BinderApp({
         added_at: new Date().toISOString(),
       },
     )
-  }, [addWantedCard, readOnlyMode, user])
+  }, [addWantedCard, getCollectionItem, readOnlyMode, user])
 
   const handleBrowseWantCard = useCallback(async (pokemon: { id: number; name: string }, card: TCGCard, isWanted: boolean) => {
     if (readOnlyMode) return
@@ -2303,7 +2307,8 @@ export default function BinderApp({
       return
     }
     if (isWanted) {
-      await removeWantedCard(pokemon.id, card.id)
+      const saved = getCollectionItem(pokemon.id)?.wanted_cards.find(wanted => matchesCatalogCardId(card, wanted.card_id))
+      await removeWantedCard(pokemon.id, saved?.card_id ?? card.id)
       return
     }
     await addWantedCard(pokemon.id, pokemon.name, {
@@ -2318,7 +2323,7 @@ export default function BinderApp({
       set_total: card.set.officialCardCount,
       added_at: new Date().toISOString(),
     })
-  }, [addWantedCard, readOnlyMode, removeWantedCard, user])
+  }, [addWantedCard, getCollectionItem, readOnlyMode, removeWantedCard, user])
 
   const handleBrowseAddCard = useCallback(async (pokemon: { id: number; name: string }, card: TCGCard) => {
     if (readOnlyMode) return
@@ -2436,7 +2441,7 @@ export default function BinderApp({
         if (firstWantedCardId) {
           await removeWantedCard(pokemon.id, firstWantedCardId)
         }
-      } else {
+      } else if (!existingCollectionItem?.wanted_cards.some(wanted => matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === (card.language ?? "en") && (wanted.card_finish ?? "normal") === finish)) {
         await addWantedCard(
           pokemon.id,
           pokemon.name,

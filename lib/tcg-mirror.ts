@@ -1,3 +1,5 @@
+import type { CardCatalogIdentity } from "@/lib/domain/cards"
+import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type TCGSetSummary } from "@/lib/tcg-set-slots"
 import { cacheLife, cacheTag } from "next/cache"
@@ -11,7 +13,7 @@ import {
 
 export type MirrorLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
-export interface MirroredTCGCard {
+export interface MirroredTCGCard extends CardCatalogIdentity {
   id: string
   localId: string
   name: string
@@ -36,7 +38,7 @@ export interface MirroredTCGCard {
   illustrator?: string
 }
 
-type MirroredCardQueryResult = {
+type MirroredCardQueryResult = CardCatalogIdentity & {
   id: string
   localId: string
   name: string
@@ -88,7 +90,7 @@ const MIRRORED_CARD_SELECT = `
 const IMAGE_LANGUAGE_FALLBACKS = TCGDEX_LANGUAGE_FALLBACKS
 const MIRROR_CACHE_LIFE = "days"
 const HIDDEN_SET_IDS = new Set(["jumbo"])
-const MIRROR_CACHE_VERSION = "v4-set-cards"
+const MIRROR_CACHE_VERSION = "v5-catalog-printings"
 
 function cacheSafeTag(prefix: string, value: string | number) {
   return `${prefix}:${String(value).replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 180)}`
@@ -102,6 +104,9 @@ export function pickExternalCardImageUrl(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined
   }
+
+  const reviewedImage = readCatalogMetadata(value).image
+  if (reviewedImage) return reviewedImage
 
   const externalIds = value as Record<string, unknown>
   const tcgdex = externalIds.tcgdex && typeof externalIds.tcgdex === "object" && !Array.isArray(externalIds.tcgdex)
@@ -222,9 +227,8 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
     throw error
   }
 
-  const cards = ((data || []) as any[])
-    .map((row): MirroredCardQueryResult => {
-      const card = row.tcg_cards
+  const cards = deduplicateCatalogCards(((data || []) as any[]).map(row => row.tcg_cards).filter(Boolean))
+    .map((card): MirroredCardQueryResult => {
       const set = card?.tcg_sets
 
       if (!card?.id || !card?.local_id || !card?.set_id || !card?.series_id || !set?.id) {
@@ -235,13 +239,15 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
       }
 
       const imageLanguage = pickImageLanguage(card.image_languages_json, language)
-      const image = imageLanguage
+      const image = readCatalogMetadata(card.external_ids_json).image ?? (imageLanguage
         ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
-        : pickExternalCardImageUrl(card.external_ids_json)
+        : pickExternalCardImageUrl(card.external_ids_json))
 
       return {
         id: card.id,
-        localId: card.local_id,
+        canonicalId: readCatalogMetadata(card.external_ids_json).canonicalId,
+        aliasIds: readCatalogMetadata(card.external_ids_json).aliasIds,
+        localId: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
         name: pickLocalizedText(card.name_json, language) || `Pokemon #${pokemonId}`,
         image,
         set: {
@@ -404,7 +410,7 @@ export async function getMirroredSetDexSlots(
     throw error
   }
 
-  const rows = (data || []) as any[]
+  const rows = deduplicateCatalogCards((data || []) as any[])
   const firstSet = rows[0]?.tcg_sets
   const selectedSet: TCGSetSummary | null = firstSet?.id
     ? {
@@ -425,9 +431,9 @@ export async function getMirroredSetDexSlots(
     }
 
     const imageLanguage = pickImageLanguage(card.image_languages_json, language)
-    const image = imageLanguage
+    const image = readCatalogMetadata(card.external_ids_json).image ?? (imageLanguage
       ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
-      : pickExternalCardImageUrl(card.external_ids_json)
+      : pickExternalCardImageUrl(card.external_ids_json))
     const setSummary: TCGSetSummary = {
       id: card.tcg_sets.id,
       name: pickLocalizedText(card.tcg_sets.name_json, language) || card.tcg_sets.name_en || card.tcg_sets.id,
@@ -437,7 +443,9 @@ export async function getMirroredSetDexSlots(
     }
     const slotCard: TCGSetSlotCard = {
       id: card.id,
-      localId: card.local_id,
+      canonicalId: readCatalogMetadata(card.external_ids_json).canonicalId,
+      aliasIds: readCatalogMetadata(card.external_ids_json).aliasIds,
+      localId: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
       name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
       image,
       language,
@@ -508,11 +516,13 @@ function toSearchCardResult(card: any, language: MirrorLanguage): SearchCardResu
   const imageLanguage = pickImageLanguage(card.image_languages_json, language)
   return {
     id: card.id,
-    localId: card.local_id,
+    canonicalId: readCatalogMetadata(card.external_ids_json).canonicalId,
+    aliasIds: readCatalogMetadata(card.external_ids_json).aliasIds,
+    localId: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
     name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
-    image: imageLanguage
+    image: readCatalogMetadata(card.external_ids_json).image ?? (imageLanguage
       ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
-      : pickExternalCardImageUrl(card.external_ids_json),
+      : pickExternalCardImageUrl(card.external_ids_json)),
     language,
     set: {
       id: set.id,
@@ -582,10 +592,10 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
   const results = new Map<string, SearchCardResult>()
   for (const response of responses) {
     if (response.error) throw response.error
-    for (const row of response.data || []) {
-      const card = toSearchCardResult(row, language)
-      if (card && !results.has(card.id)) results.set(card.id, card)
-    }
+  }
+  for (const row of deduplicateCatalogCards(responses.flatMap(response => response.data || []))) {
+    const card = toSearchCardResult(row, language)
+    if (card && !results.has(card.id)) results.set(card.id, card)
   }
 
   return Array.from(results.values()).slice(0, limit * 2)

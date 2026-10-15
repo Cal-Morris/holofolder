@@ -4,6 +4,7 @@ import {
   buildCardPriceSnapshotFromPricing,
   buildPokePulseSearchPriceSnapshot,
   buildTcgplayerProductPriceSnapshot,
+  fetchCardPriceSnapshot,
   pickPokePulseSearchItem,
   pickPokePulseMarketDataRecord,
   pickTcgplayerSearchProduct,
@@ -133,6 +134,41 @@ test("buildCardPriceSnapshotFromPricing lowers confidence and widens range when 
   assert.equal(snapshot.highGbpAmount, 19.55)
   assert.equal(snapshot.confidence, "low")
   assert.equal(snapshot.sourcePrices.length, 2)
+})
+
+test("a catalog printing only uses its own product price", () => {
+  assert.deepEqual(pickTcgplayerProductIdsFromExternalIds({ catalog: { productId: "685563" }, tcgdex: { thirdParty: { tcgplayer: 685562 } } }), ["685563"])
+})
+
+test("a missing localized card cannot borrow its English product price", async () => {
+  const originalFetch = globalThis.fetch
+  const requests: string[] = []
+  // Synthetic provider responses distinguish English product evidence from Japanese absence.
+  globalThis.fetch = (async (url: string | URL | Request) => {
+    requests.push(String(url))
+    return String(url).includes("tcgdex.net")
+      ? new Response("not found", { status: 404 })
+      : Response.json({ productId: 685563, marketPrice: 20, lowestPrice: 18 })
+  }) as typeof fetch
+  try {
+    const metadata = { id: "mep-070~685563", name: "Tyrunt (Pokémon Center)", localId: "070", setName: "MEP Black Star Promos", rarity: "Promo", externalIds: { catalog: { productId: "685563", variantId: "stamp", tcgdexCardId: "mep-070" } } }
+    const japanese = await fetchCardPriceSnapshot(metadata.id, "ja", fxRates, metadata)
+    assert.equal(japanese.marketGbpAmount, null)
+    assert.equal(requests.length, 1)
+    const english = await fetchCardPriceSnapshot(metadata.id, "en", fxRates, metadata)
+    assert.equal(english.marketGbpAmount, 15)
+    assert.equal(english.cardId, metadata.id)
+  } finally { globalThis.fetch = originalFetch }
+})
+
+test("an English-only stamp cannot reuse English variant evidence returned by a localized endpoint", async () => {
+  const originalFetch = globalThis.fetch
+  // Synthetic quote intentionally appears under a French endpoint with the same English product ID.
+  globalThis.fetch = (async () => Response.json({ variants_detailed: [{ variantId: "stamp", type: "holo", thirdParty: { tcgplayer: 685563 }, pricing: { tcgplayer: { holo: { marketPrice: 20, lowPrice: 18 } } } }] })) as typeof fetch
+  try {
+    const snapshot = await fetchCardPriceSnapshot("mep-070~685563", "fr", fxRates, { id: "mep-070~685563", name: "Tyrunt", localId: "070", setName: "Promos", rarity: "Promo", externalIds: { catalog: { productId: "685563", variantId: "stamp", tcgdexCardId: "mep-070" } } })
+    assert.equal(snapshot.marketGbpAmount, null)
+  } finally { globalThis.fetch = originalFetch }
 })
 
 test("pickTcgplayerProductIdsFromExternalIds reads direct and variant product ids", () => {
