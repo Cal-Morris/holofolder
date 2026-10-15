@@ -1687,8 +1687,8 @@ export default function BinderApp({
     const context: PriceDisplayContext = { currency: pricingPreferences.currency, fxRates }
     return {
       label: (price: CardPriceSnapshot | undefined) => formatRegionalPriceLabel(price, context),
-      amount: (amount: number | null | undefined) => formatDisplayAmount(amount, context),
-      range: (low: number | null | undefined, high: number | null | undefined) => formatDisplayRange(low, high, context),
+      amount: (amount: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayAmount(amount, context, price),
+      range: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayRange(low, high, context, price),
       totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>) => formatDisplayTotals(gbpTotal, originalTotals, context),
     }
   }, [fxRates, pricingPreferences.currency])
@@ -3746,9 +3746,9 @@ export default function BinderApp({
   const selectedDetailPriceLabel = selectedPrimaryCardPreview
     ? priceFormat.label(selectedDetailPriceSnapshot) ?? (isLoadingPrices ? "Loading price..." : "No price yet")
     : null
-  const selectedMarketPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount)
-  const selectedGoodPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.goodGbpAmount)
-  const selectedRangePriceLabel = priceFormat.range(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount)
+  const selectedMarketPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount, selectedDetailPriceSnapshot)
+  const selectedGoodPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.goodGbpAmount, selectedDetailPriceSnapshot)
+  const selectedRangePriceLabel = priceFormat.range(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount, selectedDetailPriceSnapshot)
   const selectedConfidenceLabel = formatPriceConfidenceLabel(selectedDetailPriceSnapshot)
   const selectedPriceSourceLabel = formatPriceSourceLabel(selectedDetailPriceSnapshot)
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
@@ -4925,7 +4925,7 @@ export default function BinderApp({
     const averagePriceLabel = priceFormat.amount(wantedDashboard.averageGbp)
     const pricedPercent = totalWantedCount > 0 ? Math.round((wantedDashboard.pricedCount / totalWantedCount) * 100) : 0
     const highestCard = wantedDashboard.highestCards[0]
-    const highestPriceLabel = priceFormat.amount(highestCard?.effectiveGbpAmount)
+    const highestPriceLabel = priceFormat.amount(highestCard?.effectiveGbpAmount, highestCard?.price)
     const bandDenominator = Math.max(totalWantedCount, 1)
     const visibleSetBreakdown = wantedDashboard.setBreakdown.slice(0, 5)
     const visibleLanguageBreakdown = wantedDashboard.languageBreakdown.slice(0, 6)
@@ -5226,7 +5226,7 @@ export default function BinderApp({
               <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {priorityCards.map((wantedCard) => {
                   const pokemon = getPokemonSummary(wantedCard.pokemonId)
-                  const priorityPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount)
+                  const priorityPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount, wantedCard.price)
 
                   return (
                     <button
@@ -5301,9 +5301,9 @@ export default function BinderApp({
               {sortedWantedDashboardCards.map((wantedCard) => {
                 const { pokemonId, pokemonName, card, price } = wantedCard
                 const pokemon = getPokemonSummary(pokemonId)
-                const goodPriceLabel = priceFormat.amount(wantedCard.goodGbpAmount)
-                const marketPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount)
-                const rangePriceLabel = priceFormat.range(price?.lowGbpAmount, price?.highGbpAmount)
+                const goodPriceLabel = priceFormat.amount(wantedCard.goodGbpAmount, price)
+                const marketPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount, wantedCard.price)
+                const rangePriceLabel = priceFormat.range(price?.lowGbpAmount, price?.highGbpAmount, price)
                 const confidenceLabel = formatPriceConfidenceLabel(price)
                 const sourceLabel = formatPriceSourceLabel(price)
                 const bandStyle = WANTED_PRICE_BAND_STYLES[wantedCard.priceBandId]

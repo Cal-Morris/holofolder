@@ -6,6 +6,8 @@ import {
   convertGbpForDisplay,
   downgradeConfidence,
   formatDisplayTotals,
+  formatDisplayAmount,
+  formatDisplayRange,
   formatRegionalPriceLabel,
   getSourceMarket,
   normalizeDisplayFxRates,
@@ -173,4 +175,14 @@ describe("FX", () => {
     assert.equal(normalizeDisplayFxRates({ date: "2026-10-01", eurToGbp: -1, usdToGbp: 0.75 }), null)
     assert.equal(normalizeDisplayFxRates(null), null)
   })
+})
+
+
+test("card amount and range use source FX evidence when API rates are unavailable", () => {
+  const price = snapshot([tcgplayer(7.5)])
+  const context = { currency: "USD" as const, fxRates: null }
+  assert.equal(formatDisplayAmount(7.5, context, price), "$10.00")
+  assert.equal(formatDisplayRange(3, 7.5, context, price), "$4.00-$10.00")
+  assert.equal(formatDisplayRange(3, 7.5, { currency: "JPY", fxRates: null }, price), "£3.00-£7.50")
+  assert.equal(formatDisplayRange(null, null, context, price), null)
 })

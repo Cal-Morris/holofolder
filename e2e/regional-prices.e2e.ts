@@ -8,8 +8,9 @@ test.describe("UK locale", () => {
 
   test("leads with the Cardmarket-grounded GBP price and shows the EUR market price second", async ({ harness }) => {
     const detail = await harness.openCardDetail()
+    await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£0.05")
     await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
-    await expect(detail.getByText("£0.05 (€0.06 EUR)").first()).toBeVisible()
+    await expect(detail.getByText("Current card", { exact: true }).locator("..").getByText("£0.05 (€0.06 EUR)", { exact: true })).toBeVisible()
   })
 })
 
@@ -18,7 +19,8 @@ test.describe("US locale", () => {
 
   test("leads with the TCGplayer price in USD", async ({ harness }) => {
     const detail = await harness.openCardDetail()
+    await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("$0.26")
     await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
-    await expect(detail.getByText("$0.26", { exact: true }).first()).toBeVisible()
+    await expect(detail.getByText("Current card", { exact: true }).locator("..").getByText("$0.26", { exact: true })).toBeVisible()
   })
 })
