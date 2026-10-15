@@ -2708,10 +2708,7 @@ export default function BinderApp({
     }
 
     const summary = getPokemonSummary(pokemon.id)
-    if (!isDesktopViewport && !readOnlyMode) {
-      setSelectedPokemon(null)
-      setLongPressedPokemon(pokemon)
-    } else if (summary) {
+    if (summary) {
       setSelectedPokemon(summary)
     }
   }
@@ -5714,7 +5711,7 @@ export default function BinderApp({
           </div>
 
           <div className="hidden border-t border-border/40 px-2 py-1 md:block">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap">
+              <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap">
                 <div className="flex shrink-0 rounded-xl border border-border/50 bg-card/70 p-0.5 dark:border-border/30 dark:bg-muted/40">
                 <button
                   onClick={openSearch}

@@ -832,7 +832,7 @@ export default function CardSelector({
         </div>
       )}
 
-      <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/80" onClick={onClose} />
       <div
         ref={selectorDialogRef}
         role="dialog"
@@ -848,7 +848,7 @@ export default function CardSelector({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="z-20 shrink-0 border-b border-border bg-card/96 px-4 py-3 backdrop-blur-xl sm:px-5">
+          <div className="z-20 shrink-0 border-b border-border bg-card px-4 py-3 sm:px-5">
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">

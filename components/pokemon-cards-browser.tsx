@@ -133,13 +133,13 @@ export default function PokemonCardsBrowser({
 
   const content = (
     <>
-      <div data-overlay-backdrop aria-hidden="true" className="fixed inset-0 z-[43] bg-black/55 backdrop-blur-[2px]" onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className="fixed inset-0 z-[43] bg-black/55" onClick={onClose} />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`All ${displayName} cards`}
-        className="fixed z-[44] flex flex-col overflow-hidden rounded-[1.6rem] border border-border/70 bg-card/98 shadow-[0_28px_80px_-30px_rgba(15,23,42,0.6)] outline-none backdrop-blur-xl dark:border-border/50 dark:bg-background/98"
+        className="fixed z-[44] flex flex-col overflow-hidden rounded-[1.6rem] border border-border/70 bg-card shadow-[0_28px_80px_-30px_rgba(15,23,42,0.6)] outline-none dark:border-border/50 dark:bg-background"
         style={isDesktop
           ? { left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: "min(calc(100vw - 2rem), 52rem)", maxHeight: "min(85vh, 56rem)" }
           : {
