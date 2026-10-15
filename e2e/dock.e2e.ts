@@ -34,10 +34,13 @@ test.describe("compact bottom dock", () => {
     await harness.dock().getByRole("button", { name: "List", exact: true }).click()
     const scroller = harness.page.getByTestId("view-scroller")
     await expect(scroller).toBeVisible()
-    await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight })
     const lastRow = scroller.locator("[role=button]").last()
+    // New row measurements can increase the estimated height after the first jump.
+    await expect.poll(async () => {
+      await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight })
+      return lastRow.textContent()
+    }).toMatch(/#1025/)
     await expect(lastRow).toBeVisible()
-    await expect(lastRow).toContainText(/#1025/)
     // Virtual row measurements are published on the next animation frame.
     await expect(async () => {
       const rowBox = (await lastRow.boundingBox())!

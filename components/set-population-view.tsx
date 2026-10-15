@@ -14,7 +14,8 @@ import CardShowPrep from "@/components/card-show-prep"
 import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { readOfflineSets, searchOfflineSets } from "@/lib/offline-card-index"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
-import { getSetSlotState, getSetCardState, getSetChecklistCards } from "@/lib/set-checklist"
+import { getSetSlotState, getSetCardState, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter, type SetSlotFilter } from "@/lib/set-checklist"
+import { POKEMON_CATALOG, formatPokemonDisplayName } from "@/lib/pokemon-catalog"
 import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-browse"
 
 interface SetPopulationViewProps {
@@ -28,8 +29,6 @@ interface SetPopulationViewProps {
   onWantCards?: (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => void | Promise<void>
   readOnly: boolean
 }
-
-type SetSlotFilter = "all" | "open" | "owned" | "wanted" | "multiple"
 
 const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -90,16 +89,21 @@ export default function SetPopulationView({
 }: SetPopulationViewProps) {
   const [query, setQuery] = useState("")
   const heading = useCollapseOnScroll()
-  const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
+  const [selectedSets, setSelectedSets] = useState<TCGSetSummary[]>([])
+  const [payloadsBySetId, setPayloadsBySetId] = useState<Record<string, TCGSetSlotsResponse>>({})
+  const [pokemonQuery, setPokemonQuery] = useState("")
+  const [matchedPokemonIds, setMatchedPokemonIds] = useState<number[]>([])
   const [sets, setSets] = useState<TCGSetSummary[]>([])
-  const [selectedSet, setSelectedSet] = useState<TCGSetSummary | null>(null)
-  const [setCards, setSetCards] = useState<TCGSetSlotCard[]>([])
-  const [slots, setSlots] = useState<TCGSetDexSlot[]>([])
+  const payloads = useMemo(() => selectedSets.flatMap(set => payloadsBySetId[set.id] ? [payloadsBySetId[set.id]] : []), [selectedSets, payloadsBySetId])
+  const slots = useMemo(() => mergeSetSlots(payloads.map(payload => payload.slots)), [payloads])
+  const setCards = useMemo(() => [...new Map(payloads.flatMap(getSetChecklistCards).map(card => [card.id, card])).values()], [payloads])
+  const selectedSet = selectedSets[0] ?? null
+  const setLabel = selectedSets.map(set => set.name).join(" + ")
+  const hasFullCardList = payloads.every(payload => Array.isArray(payload.cards))
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [slotSearch, setSlotSearch] = useState("")
   const [checklistView, setChecklistView] = useState<"pokemon" | "cards">("pokemon")
-  const [hasFullCardList, setHasFullCardList] = useState(true)
   const [slotFilter, setSlotFilter] = useState<SetSlotFilter>("all")
   const [selectedCardIdsByDexId, setSelectedCardIdsByDexId] = useState<Record<number, string>>({})
   const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
@@ -140,88 +144,62 @@ export default function SetPopulationView({
 
   useEffect(() => {
     const trimmedQuery = query.trim()
-
-    if (trimmedQuery.length < 2 && !selectedSetId) {
-      setSets([])
-      setSelectedSet(null)
-      setSetCards([])
-      setSlots([])
-      setError(null)
-      return
-    }
-
+    if (trimmedQuery.length < 2) return
     const controller = new AbortController()
-    const timer = window.setTimeout(() => {
-      setIsLoading(true)
-      setError(null)
-
-      const params = new URLSearchParams()
-      if (trimmedQuery) params.set("query", trimmedQuery)
-      if (selectedSetId) params.set("setId", selectedSetId)
-
-      const queryString = params.toString()
-      const offlineStore = getOfflineStore()
-      const applyPayload = (payload: TCGSetSlotsResponse) => {
-        setSets(payload.sets)
-        setSelectedSet(payload.selectedSet)
-        setSlots(payload.slots)
-        setSetCards(getSetChecklistCards(payload))
-        setHasFullCardList(Array.isArray(payload.cards))
+    const timer = window.setTimeout(async () => {
+      const queryString = new URLSearchParams({ query: trimmedQuery }).toString()
+      try {
+        const response = await fetch(`/api/tcg-set-slots?${queryString}`, { signal: controller.signal })
+        if (!response.ok) throw new Error(`Set search failed (${response.status})`)
+        const payload = await response.json() as TCGSetSlotsResponse
+        if (!controller.signal.aborted) setSets(payload.sets)
+      } catch {
+        if (controller.signal.aborted) return
+        const savedSets = searchOfflineSets([...recentSets, ...await readOfflineSets().catch(() => [])], trimmedQuery)
+        if (!controller.signal.aborted) {
+          setSets(savedSets)
+          setIsShowingSavedSets(savedSets.length > 0)
+          if (!savedSets.length) setError("Could not search sets. Try a saved set or reconnect.")
+        }
       }
-
-      setIsShowingSavedSets(false)
-      void fetch(`/api/tcg-set-slots?${queryString}`, {
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          const payload = await response.json().catch(() => null)
-          if (!response.ok) {
-            throw new Error(payload?.error || `Set lookup failed (${response.status})`)
-          }
-          return payload as TCGSetSlotsResponse
-        })
-        .then((payload) => {
-          applyPayload(payload)
-          // Remember sets the user looks at so they open offline (IndexedDB).
-          if (offlineStore && payload.selectedSet) void saveSetQuery(offlineStore, queryString, payload).catch(() => undefined)
-        })
-        .catch(async (fetchError) => {
-          if (controller.signal.aborted) return
-          // Offline: first the exact copy saved for this lookup (IndexedDB), then any saved sets that match
-          // the search, so one can be opened; only then the error.
-          const saved = offlineStore ? await loadSetQuery(offlineStore, queryString).catch(() => null) : null
-          if (controller.signal.aborted) return
-          if (saved) {
-            applyPayload(saved)
-            setIsShowingSavedSets(true)
-            return
-          }
-          if (!selectedSetId && trimmedQuery.length >= 2) {
-            const savedSets = searchOfflineSets(await readOfflineSets().catch(() => []), trimmedQuery)
-            if (controller.signal.aborted) return
-            if (savedSets.length > 0) {
-              setSets(savedSets)
-              setSelectedSet(null)
-              setSetCards([])
-              setSlots([])
-              setIsShowingSavedSets(true)
-              return
-            }
-          }
-          setError(fetchError instanceof Error ? fetchError.message : "Could not load set coverage.")
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) {
-            setIsLoading(false)
-          }
-        })
     }, 220)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [query, recentSets])
 
-    return () => {
-      window.clearTimeout(timer)
-      controller.abort()
-    }
-  }, [query, selectedSetId])
+  useEffect(() => {
+    const controller = new AbortController()
+    const missing = selectedSets.filter(set => !payloadsBySetId[set.id])
+    if (!missing.length) return () => controller.abort()
+
+    const offlineStore = getOfflineStore()
+    void Promise.all(missing.map(async set => {
+      const queryString = new URLSearchParams({ query: set.name, setId: set.id }).toString()
+      let payload: TCGSetSlotsResponse
+      try {
+        const response = await fetch(`/api/tcg-set-slots?${queryString}`, { signal: controller.signal })
+        const data = await response.json()
+        if (!response.ok || !data.selectedSet) throw new Error(data.error || `Could not load ${set.name}`)
+        payload = data
+        if (offlineStore) void saveSetQuery(offlineStore, queryString, payload).catch(() => undefined)
+      } catch {
+        if (controller.signal.aborted) return
+        const saved = offlineStore ? await loadSetQuery(offlineStore, queryString).catch(() => null) : null
+        if (controller.signal.aborted) return
+        if (!saved) {
+          setError(`Could not load ${set.name}. Remove and add it to retry.`)
+          return
+        }
+        payload = saved
+        setIsShowingSavedSets(true)
+      }
+      if (!controller.signal.aborted) setPayloadsBySetId(current => ({ ...current, [set.id]: payload }))
+    })).finally(() => {
+      if (!controller.signal.aborted) setIsLoading(false)
+    })
+    return () => controller.abort()
+    // Payload updates must not abort other sets still loading in this batch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSets])
 
   useEffect(() => {
     const validDexIds = new Set(slots.map((slot) => slot.dexId))
@@ -251,60 +229,50 @@ export default function SetPopulationView({
     })
   }, [slots])
 
+  const matchedSlots = useMemo(() => matchedPokemonIds.length ? slots.filter(slot => matchedPokemonIds.includes(slot.dexId)) : slots, [matchedPokemonIds, slots])
+
   const summary = useMemo(() => {
     let owned = 0
     let wanted = 0
 
-    for (const slot of slots) {
-      const state = getSetSlotState(slot, collectionByPokemonId.get(slot.dexId))
-      if (state.ownedInSet) owned += 1
-      if (state.wantedInSet) wanted += 1
+    for (const slot of matchedSlots) {
+      if (matchesSetSlotFilter(slot, collectionByPokemonId.get(slot.dexId), "owned")) owned += 1
+      if (matchesSetSlotFilter(slot, collectionByPokemonId.get(slot.dexId), "wanted")) wanted += 1
     }
 
     return {
-      total: slots.length,
+      total: matchedSlots.length,
       owned,
       wanted,
-      missing: Math.max(0, slots.length - owned),
+      missing: Math.max(0, matchedSlots.length - owned),
     }
-  }, [collectionByPokemonId, slots])
+  }, [collectionByPokemonId, matchedSlots])
 
   const filterCounts = useMemo(() => {
     const counts: Record<SetSlotFilter, number> = {
-      all: slots.length,
+      all: matchedSlots.length,
       open: 0,
       owned: 0,
       wanted: 0,
       multiple: 0,
     }
 
-    for (const slot of slots) {
+    for (const slot of matchedSlots) {
       const item = collectionByPokemonId.get(slot.dexId)
-      const { ownedInSet: isOwned, wantedInSet: isWanted } = getSetSlotState(slot, item)
-
-      if (!isOwned) counts.open += 1
-      if (isOwned) counts.owned += 1
-      if (isWanted) counts.wanted += 1
-      if (slot.cards.length > 1) counts.multiple += 1
+      for (const filter of SET_SLOT_FILTERS) {
+        if (filter.id !== "all" && matchesSetSlotFilter(slot, item, filter.id)) counts[filter.id] += 1
+      }
     }
 
     return counts
-  }, [collectionByPokemonId, slots])
+  }, [collectionByPokemonId, matchedSlots])
 
   const filteredSlots = useMemo(() => {
     const normalizedSearch = slotSearch.trim().toLowerCase()
 
-    return slots.filter((slot) => {
+    return matchedSlots.filter((slot) => {
       const item = collectionByPokemonId.get(slot.dexId)
-      const { ownedInSet: isOwned, wantedInSet: isWanted } = getSetSlotState(slot, item)
-      const matchesFilter =
-        slotFilter === "all"
-        || (slotFilter === "open" && !isOwned)
-        || (slotFilter === "owned" && isOwned)
-        || (slotFilter === "wanted" && isWanted)
-        || (slotFilter === "multiple" && slot.cards.length > 1)
-
-      if (!matchesFilter) return false
+      if (!matchesSetSlotFilter(slot, item, slotFilter)) return false
       if (!normalizedSearch) return true
 
       const haystack = [
@@ -316,9 +284,10 @@ export default function SetPopulationView({
 
       return haystack.includes(normalizedSearch)
     })
-  }, [collectionByPokemonId, slotFilter, slotSearch, slots])
+  }, [collectionByPokemonId, slotFilter, slotSearch, matchedSlots])
 
-  const cardEntries = useMemo(() => setCards.map(card => ({ card, ...getSetCardState(card, collectionByPokemonId.values()) })), [setCards, collectionByPokemonId])
+  const matchingCards = useMemo(() => matchedPokemonIds.length ? setCards.filter(card => slots.some(slot => matchedPokemonIds.includes(slot.dexId) && slot.cards.some(candidate => candidate.id === card.id))) : setCards, [matchedPokemonIds, setCards, slots])
+  const cardEntries = useMemo(() => matchingCards.map(card => ({ card, ...getSetCardState(card, collectionByPokemonId.values()) })), [matchingCards, collectionByPokemonId])
   const cardCounts = { all: cardEntries.length, open: cardEntries.filter(entry => !entry.owned).length, owned: cardEntries.filter(entry => entry.owned).length, wanted: cardEntries.filter(entry => entry.wanted).length, multiple: 0 }
   const cardSummary = { total: cardCounts.all, owned: cardCounts.owned, missing: cardCounts.open, wanted: cardCounts.wanted }
   const visibleCards = cardEntries.filter(entry => {
@@ -339,8 +308,17 @@ export default function SetPopulationView({
 
   const setShortcutQuery = (nextQuery: string) => {
     setQuery(nextQuery)
-    setSelectedSetId(null)
   }
+
+  const addSet = (set: TCGSetSummary) => {
+    setError(null)
+    setIsLoading([...selectedSets, set].some(selected => !payloadsBySetId[selected.id]))
+    setSelectedSets(current => current.some(selected => selected.id === set.id) ? current : [...current, set])
+    setQuery("")
+    setSets([])
+  }
+  const pokemonSuggestions = pokemonQuery.trim() ? POKEMON_CATALOG.filter(pokemon => !matchedPokemonIds.includes(pokemon.id)
+    && (formatPokemonDisplayName(pokemon.name).toLowerCase().includes(pokemonQuery.trim().toLowerCase()) || String(pokemon.id) === pokemonQuery.trim().replace(/^#0*/, ""))).slice(0, 8) : []
 
   const toggleSelectedDexId = (dexId: number) => {
     setSelectedDexIds((current) => {
@@ -360,7 +338,7 @@ export default function SetPopulationView({
         <div data-testid="view-heading" data-collapsed={heading.collapsed ? "" : undefined} className={`flex items-start justify-between gap-3 ${heading.collapsed ? "max-sm:hidden" : ""}`}>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Set Mode</p>
-            <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Explore Pokémon and cards by set</h2>
+            <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Find matches across sets</h2>
           </div>
           <div className="shrink-0 whitespace-nowrap rounded-full border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-semibold tabular-nums text-primary">
             {summary.total} slots
@@ -373,9 +351,10 @@ export default function SetPopulationView({
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setSelectedSetId(null)
+              setSets([])
+              setError(null)
             }}
-            placeholder="Search sets, e.g. Pitch Black or me05"
+            placeholder="Add sets by name or code"
             aria-label="Search sets by name or code"
             enterKeyHint="search"
             className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground/70"
@@ -385,7 +364,7 @@ export default function SetPopulationView({
               type="button"
               onClick={() => {
                 setQuery("")
-                setSelectedSetId(null)
+                setSets([])
               }}
               className="-my-1 flex h-9 w-9 items-center justify-center rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Clear set search"
@@ -403,15 +382,16 @@ export default function SetPopulationView({
         {sets.length > 0 ? (
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {sets.map((set) => {
-              const isActive = set.id === selectedSetId || set.id === selectedSet?.id
+              const isActive = selectedSets.some(selected => selected.id === set.id)
 
               return (
                 <button
                   key={set.id}
                   type="button"
+                  aria-label={set.name}
+                  aria-pressed={isActive}
                   onClick={() => {
-                    setSelectedSetId(set.id)
-                    setQuery(set.name)
+                    addSet(set)
                   }}
                   className={`w-[min(14rem,72vw)] shrink-0 rounded-2xl border px-3 py-2 text-left transition-all ${
                     isActive
@@ -427,13 +407,40 @@ export default function SetPopulationView({
           </div>
         ) : null}
 
-        <CardShowPrep
-          candidateSets={[selectedSet, ...sets, ...recentSets].filter(
+        {selectedSets.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            <div role="group" aria-label="Selected sets" className="flex flex-wrap gap-1.5">
+              {selectedSets.map(set => <button key={set.id} type="button" aria-label={`Remove ${set.name}`} onClick={() => { setIsLoading(selectedSets.some(selected => selected.id !== set.id && !payloadsBySetId[selected.id])); setError(null); setSelectedSets(current => current.filter(selected => selected.id !== set.id)) }} className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-3 text-xs font-semibold"><span className="truncate">{set.name}</span><X className="h-3.5 w-3.5 shrink-0" /></button>)}
+              <button type="button" aria-label="Clear all matches" onClick={() => { setIsLoading(false); setError(null); setSelectedSets([]); setMatchedPokemonIds([]); setPokemonQuery(""); setSlotSearch(""); setSlotFilter("all"); setQuery("") }} className="min-h-9 px-2 text-xs text-muted-foreground">Clear all</button>
+            </div>
+            <label className="flex items-center gap-2 rounded-2xl border border-border/55 bg-background/45 px-3">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="sr-only">Add Pokémon to match</span>
+              <input value={pokemonQuery} onChange={event => setPokemonQuery(event.target.value)} placeholder="Add Pokémon, e.g. Mareep" className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none" />
+            </label>
+            {pokemonQuery.trim() ? <div className="flex flex-wrap gap-1.5">
+              {pokemonSuggestions.map(pokemon => <button key={pokemon.id} type="button" aria-label={`Match ${formatPokemonDisplayName(pokemon.name)}`} onClick={() => { setMatchedPokemonIds(current => [...current, pokemon.id]); setPokemonQuery("") }} className="min-h-9 rounded-full border border-border/55 px-3 text-xs">{formatPokemonDisplayName(pokemon.name)}</button>)}
+              {!pokemonSuggestions.length ? <p className="text-xs text-muted-foreground">No more Pokémon match this search.</p> : null}
+            </div> : null}
+            {matchedPokemonIds.length > 0 ? <div role="group" aria-label="Selected Pokémon" className="flex flex-wrap gap-1.5">
+              {matchedPokemonIds.map(id => {
+                const name = formatPokemonDisplayName(POKEMON_CATALOG.find(pokemon => pokemon.id === id)!.name)
+                return <button key={id} type="button" aria-label={`Remove ${name}`} onClick={() => setMatchedPokemonIds(current => current.filter(selected => selected !== id))} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-3 text-xs font-semibold">{name}<X className="h-3.5 w-3.5" /></button>
+              })}
+            </div> : <p className="text-xs text-muted-foreground">All Pokémon in your selected sets. Add names to narrow the matches.</p>}
+          </div>
+        ) : null}
+
+        <details open={!selectedSet} className="mt-3">
+          <summary className="min-h-9 cursor-pointer py-2 text-xs font-semibold text-muted-foreground">Offline set tools</summary>
+          <CardShowPrep
+          candidateSets={[...selectedSets, ...sets, ...recentSets].filter(
             (set, index, all): set is TCGSetSummary => Boolean(set) && all.findIndex((other) => other?.id === set?.id) === index,
           )}
-        />
+          />
+        </details>
 
-        {selectedSet ? (
+        {selectedSet && checklistView === "cards" ? (
           <div className="mt-3 grid grid-cols-4 gap-2">
             {[
               [checklistView === "cards" ? "Cards" : "Pokémon", visibleSummary.total],
@@ -452,11 +459,11 @@ export default function SetPopulationView({
         {selectedSet ? (
           <div className="mt-3 space-y-2">
             <div role="group" aria-label="Set checklist" className="flex gap-2">
-              {(["pokemon", "cards"] as const).map(view => <button key={view} type="button" aria-pressed={checklistView === view} onClick={() => { setChecklistView(view); setSlotFilter("all") }} className={`min-h-9 rounded-full border px-3 text-xs font-semibold ${checklistView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-background/45"}`}>{view === "pokemon" ? "Pokémon" : "Cards"}</button>)}
+              {(["pokemon", "cards"] as const).map(view => <button key={view} type="button" aria-pressed={checklistView === view} onClick={() => { setChecklistView(view); setSlotFilter("all"); setSlotSearch("") }} className={`min-h-9 rounded-full border px-3 text-xs font-semibold ${checklistView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-background/45"}`}>{view === "pokemon" ? "Pokémon" : "Cards"}</button>)}
             </div>
-            {checklistView === "cards" ? <p className="text-xs text-muted-foreground">{hasFullCardList ? "Mirrored cards. Owned means the printing tracked in your binder." : "Saved Pokémon cards only. Full set checklist unavailable in this saved lookup."}</p> : <p className="text-xs text-muted-foreground">Owned and wanted counts match printings in this set.</p>}
+            {checklistView === "cards" ? <p className="text-xs text-muted-foreground">{hasFullCardList ? "Mirrored cards. Owned means the printing tracked in your binder." : "Saved Pokémon cards only. Full set checklist unavailable in this saved lookup."}</p> : <p className="text-xs text-muted-foreground">Filters use your whole binder. Matching printings are shown below.</p>}
 
-            <div className="flex items-center gap-2 rounded-2xl border border-border/45 bg-background/45 px-3 py-2 dark:border-white/10">
+            {checklistView === "cards" ? <div className="flex items-center gap-2 rounded-2xl border border-border/45 bg-background/45 px-3 py-2 dark:border-white/10">
               <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <input
                 value={slotSearch}
@@ -475,8 +482,8 @@ export default function SetPopulationView({
                   <X className="h-3.5 w-3.5" />
                 </button>
               ) : null}
-            </div>
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+            </div> : null}
+            <div role="group" aria-label={checklistView === "pokemon" ? "Filter by BinderDex state" : "Filter card printings"} className="flex flex-wrap gap-1.5">
               {SET_SLOT_FILTERS.filter(filter => checklistView === "pokemon" || filter.id !== "multiple").map((filter) => {
                 const isActive = slotFilter === filter.id
                 const count = checklistView === "cards" ? cardCounts[filter.id] : filterCounts[filter.id]
@@ -493,7 +500,7 @@ export default function SetPopulationView({
                         : "border-border/55 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10"
                     }`}
                   >
-                    {filter.id === "open" ? "Missing" : filter.label} <span className="tabular-nums opacity-75">{count}</span>
+                    {checklistView === "pokemon" ? ({ all: "All", open: "Missing from binder", owned: "Already have", wanted: "Wanted", multiple: "Multiple printings" }[filter.id]) : filter.id === "open" ? "Missing" : filter.label} <span className="tabular-nums opacity-75">{count}</span>
                   </button>
                 )
               })}
@@ -552,16 +559,15 @@ export default function SetPopulationView({
       </div>
 
       <div className="shrink-0 p-2">
-        {selectedSet && !isLoading ? <CardHighlights key={selectedSet.id} name={selectedSet.name} cards={highlightCards} prices={setPrices.pricesByCardId} formatPrice={formatPrice} showValues isLoading={setPrices.isLoading} /> : null}
-        {error ? (
-          <div className="rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive">{error}</div>
-        ) : !selectedSet && query.trim().length < 2 ? (
+        {selectedSets.length === 1 && matchedPokemonIds.length === 0 && !isLoading ? <CardHighlights key={selectedSet.id} name={selectedSet.name} cards={highlightCards} prices={setPrices.pricesByCardId} formatPrice={formatPrice} showValues isLoading={setPrices.isLoading} /> : null}
+        {error ? <div role="alert" className="mb-2 rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive">{error}</div> : null}
+        {!selectedSet ? (
           <div className="flex h-full items-center justify-center p-8 text-center">
             <div className="max-w-sm">
               <Sparkles className="mx-auto h-8 w-8 text-primary" />
               <h3 className="mt-3 text-lg font-semibold">Start with a set</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Search a set, browse its cards, or find the Pokémon it can add to your binder.
+                Choose the sets you have cards from, then narrow the matches by Pokémon or your binder state.
               </p>
               <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Latest sets</p>
               <div className="mt-2 flex flex-wrap justify-center gap-2">
@@ -571,8 +577,7 @@ export default function SetPopulationView({
                         key={set.id}
                         type="button"
                         onClick={() => {
-                          setSelectedSetId(set.id)
-                          setQuery(set.name)
+                          addSet(set)
                         }}
                         title={formatSetMeta(set) || set.id}
                         className="min-h-9 rounded-full border border-border/55 bg-background/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
@@ -594,7 +599,7 @@ export default function SetPopulationView({
             </div>
           </div>
         ) : selectedSet && checklistView === "cards" ? (
-          <ul aria-label={`${selectedSet.name} card checklist`} className="space-y-2">
+          <ul aria-label={`${setLabel} card checklist`} className="space-y-2">
             {visibleCards.length === 0 ? <li className="p-4 text-sm text-muted-foreground">{setCards.length ? "No cards match the current filters." : "Card checklist unavailable for this set."}</li> : null}
             {visibleCards.map(({ card, owned, wanted }) => {
               const mappedSlots = slots.filter(slot => slot.cards.some(slotCard => slotCard.id === card.id))
@@ -603,7 +608,7 @@ export default function SetPopulationView({
                 <div className="trading-card flex w-14 shrink-0 self-start items-center justify-center bg-muted/45">{card.image ? <NextImage unoptimized width={56} height={78} src={card.image} alt={card.name} loading="lazy" className="h-full w-full object-contain" onError={savedThumbnailOnError(card.image)} /> : <span className="text-xs text-muted-foreground">No image</span>}</div>
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-sm font-semibold">{card.name}</p>
-                  <p className="text-xs text-muted-foreground">{[formatCardNumber(card), card.rarity, ...getCardVariantLabels(card.variants)].filter(Boolean).join(" · ")}</p>
+                  <p className="text-xs text-muted-foreground">{[card.set.name, formatCardNumber(card), card.rarity, ...getCardVariantLabels(card.variants)].filter(Boolean).join(" · ")}</p>
                   <div className="mt-1 flex flex-wrap gap-2 text-xs">{owned ? <span className="font-semibold text-emerald-700 dark:text-emerald-300">Owned</span> : null}{wanted ? <span className="font-semibold text-amber-700 dark:text-amber-300">Wanted</span> : null}{price ? <span>{price}</span> : null}</div>
                   {mappedSlots.length ? <div className="mt-2 flex flex-wrap gap-1">{mappedSlots.map(slot => <button key={slot.dexId} type="button" onClick={() => onBrowseCard(slot, card)} className="min-h-9 rounded-full border border-border/55 px-3 text-xs capitalize">Browse {slot.pokemonName} cards</button>)}</div> : <p className="mt-2 text-xs text-muted-foreground">Unavailable for binder, no Pokémon slot</p>}
                 </div>
@@ -623,8 +628,9 @@ export default function SetPopulationView({
             ) : null}
             {filteredSlots.map((slot) => {
               const item = collectionByPokemonId.get(slot.dexId)
-              const { ownedInSet: isOwned, wantedInSet, ownedElsewhere } = getSetSlotState(slot, item)
-              const wantedCount = wantedInSet ? 1 : 0
+              const isOwned = Boolean(item && item.status !== "wishlisted")
+              const wanted = Boolean(item?.status === "wishlisted" || item?.wanted_cards.length)
+              const { ownedElsewhere } = getSetSlotState(slot, item)
               const primaryCard = getSelectedSetCard(slot, selectedCardIdsByDexId)
               const priceLabel = primaryCard ? formatPrice(setPrices.pricesByCardId[getCardPriceKey(primaryCard.id, primaryCard.language)]) : null
               const isSelected = selectedDexIds.has(slot.dexId)
@@ -632,15 +638,8 @@ export default function SetPopulationView({
               return (
                 <div
                   key={slot.dexId}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onSelectSlot(slot)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault()
-                      onSelectSlot(slot)
-                    }
-                  }}
+                  role="region"
+                  aria-label={`${formatPokemonDisplayName(slot.pokemonName)} matches`}
                   className={`grid w-full ${readOnly ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-[auto_auto_minmax(0,1fr)]"} items-center gap-3 rounded-2xl border p-2.5 text-left transition-all hover:border-border/60 hover:bg-background/70 dark:hover:border-white/10 ${
                     isSelected
                       ? "border-primary/35 bg-primary/8"
@@ -673,41 +672,42 @@ export default function SetPopulationView({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold capitalize">{slot.pokemonName}</p>
+                        <button type="button" onClick={() => onSelectSlot(slot)} className="min-h-9 text-left text-sm font-semibold">{formatPokemonDisplayName(slot.pokemonName)}</button>
                         <p className="truncate text-[11px] text-muted-foreground">
-                          {formatDexNumber(slot.dexId)} · {slot.cards.length} card{slot.cards.length === 1 ? "" : "s"} in {selectedSet?.name}
+                          {formatDexNumber(slot.dexId)} · {slot.cards.length} printing{slot.cards.length === 1 ? "" : "s"} across {new Set(slot.cards.map(card => card.set.id)).size} set{new Set(slot.cards.map(card => card.set.id)).size === 1 ? "" : "s"}
                         </p>
                         {primaryCard ? (
                           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            {primaryCard.set.officialCardCount ? `${primaryCard.localId}/${primaryCard.set.officialCardCount}` : `#${primaryCard.localId}`} · {primaryCard.rarity ?? "Unknown rarity"}
+                            {primaryCard.set.name} · {primaryCard.set.officialCardCount ? `${primaryCard.localId}/${primaryCard.set.officialCardCount}` : `#${primaryCard.localId}`} · {primaryCard.rarity ?? "Unknown rarity"}
                           </p>
                         ) : null}
                       </div>
                       <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold ${
                         isOwned
                           ? "border-emerald-400/35 bg-emerald-400/12 text-emerald-600 dark:text-emerald-300"
-                          : wantedCount > 0
-                            ? "border-amber-400/35 bg-amber-400/12 text-amber-600 dark:text-amber-300"
-                            : "border-border/55 bg-muted/35 text-muted-foreground"
+                          : "border-border/55 bg-muted/35 text-muted-foreground"
                       }`}>
                         {isOwned ? <Check className="h-3 w-3" /> : <Heart className="h-3 w-3" />}
-                        {isOwned ? "Owned in set" : wantedCount > 0 ? "Wanted in set" : "Missing"}
+                        {isOwned ? "Already have" : "Missing from binder"}
                       </span>
                     </div>
 
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {wanted ? <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">Wanted Pokémon</span> : null}
+                      {primaryCard && isOwned && item?.card_id === primaryCard.id ? <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Your binder card</span> : null}
                       {ownedElsewhere ? <span className="text-[11px] text-muted-foreground">{item?.card_id ? "Owned elsewhere" : "Owned printing unspecified"}</span> : null}
                       {priceLabel ? (
                         <span className="rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">
                           {priceLabel}
                         </span>
                       ) : null}
-                      {slot.cards.length > 1 ? (
+                      {slot.cards.length > 0 ? (
                         <div className="flex w-full gap-1 overflow-x-auto pb-0.5 scrollbar-hide">
                           {slot.cards.map((card) => {
                             const isActiveCard = primaryCard?.id === card.id
+                            const { wanted: wantedPrinting } = getSetCardState(card, item ? [item] : [])
 
                             return (
                               <button
@@ -720,18 +720,22 @@ export default function SetPopulationView({
                                     [slot.dexId]: card.id,
                                   }))
                                 }}
+                                aria-label={`${card.set.name} ${formatCardNumber(card)} ${card.rarity ?? ""}${isOwned && item?.card_id === card.id ? " Your binder card" : ""}`}
                                 aria-pressed={isActiveCard}
-                                className={`min-w-24 shrink-0 rounded-xl border px-2 py-1 text-left transition-colors ${
+                                className={`min-h-9 min-w-24 max-w-52 shrink-0 rounded-xl border px-2 py-1 text-left transition-colors ${
                                   isActiveCard
                                     ? "border-primary/45 bg-primary/12 text-foreground"
                                     : "border-border/45 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10"
                                 }`}
                               >
+                                <p className="truncate text-[11px] font-semibold">{card.set.name}</p>
                                 <p className="truncate text-[10px] font-semibold">
                                   {card.set.officialCardCount ? `${card.localId}/${card.set.officialCardCount}` : `#${card.localId}`}
                                 </p>
                                 <p className="truncate text-[10px]">
-                                  {card.rarity ?? "Unknown"}
+                                  {[card.rarity, ...getCardVariantLabels(card.variants)].filter(Boolean).join(" · ") || "Unknown rarity"}
+                                  {isOwned && item?.card_id === card.id ? " · Your binder card" : ""}
+                                  {wantedPrinting ? " · Wanted printing" : ""}
                                 </p>
                               </button>
                             )
@@ -744,12 +748,13 @@ export default function SetPopulationView({
                             type="button"
                             size="sm"
                             className="min-h-9 rounded-full px-3 text-[11px]"
+                            disabled={isOwned && item?.card_id === primaryCard.id}
                             onClick={(event) => {
                               event.stopPropagation()
                               onCollectCard(slot, primaryCard)
                             }}
                           >
-                            {item && item.status !== "wishlisted" && item.card_id !== primaryCard.id ? "Replace binder card" : "Add"}
+                            {isOwned && item?.card_id === primaryCard.id ? "In binder" : isOwned ? "Replace binder card" : "Add"}
                           </Button>
                           <Button
                             type="button"

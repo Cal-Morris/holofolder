@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { getSetSlotState, getSetCardState, getSetChecklistCards } from "../lib/set-checklist"
+import { getSetSlotState, getSetCardState, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter } from "../lib/set-checklist"
 import type { CollectedPokemon } from "../lib/domain/cards"
 import type { TCGSetSlotCard, TCGSetDexSlot } from "../lib/tcg-set-slots"
 
@@ -30,4 +30,24 @@ describe("set checklist identity", () => {
     assert.deepEqual(getSetChecklistCards({ sets: [], selectedSet: null, slots: [slot, { ...slot, dexId: 2 }] }), [card])
     assert.deepEqual(getSetCardState(trainer, [owned]), { owned: false, wanted: false })
   })
+})
+
+// Losing either set's alternate printings would hide legitimate matches.
+test("merge set slots keeps every printing under one Pokémon and deduplicates repeats", () => {
+  const other = { ...card, id: "fixture-other-2", set: { id: "fixture-other", name: "Other fixture" }, variants: { reverse: true } }
+  assert.deepEqual(mergeSetSlots([[slot], [{ ...slot, cards: [other, card] }, { ...slot, dexId: 2 }]]), [
+    { ...slot, cards: [card, other] }, { ...slot, dexId: 2 },
+  ])
+})
+
+test("binder filters use species ownership and wants outside the selected sets", () => {
+  const wantedElsewhere = { ...owned, wanted_cards: [{ card_id: "fixture-other-3", card_name: "Other", added_at: "2026-01-01" }] }
+  assert.equal(matchesSetSlotFilter(slot, wantedElsewhere, "owned"), true)
+  assert.equal(matchesSetSlotFilter(slot, wantedElsewhere, "open"), false)
+  assert.equal(matchesSetSlotFilter(slot, wantedElsewhere, "wanted"), true)
+  assert.equal(matchesSetSlotFilter(slot, { ...owned, status: "wishlisted" }, "owned"), false)
+  assert.equal(matchesSetSlotFilter(slot, { ...owned, status: "wishlisted" }, "open"), true)
+  assert.equal(matchesSetSlotFilter(slot, { ...owned, status: "wishlisted" }, "wanted"), true)
+  assert.equal(matchesSetSlotFilter(slot, undefined, "open"), true)
+  assert.equal(matchesSetSlotFilter(slot, undefined, "wanted"), false)
 })

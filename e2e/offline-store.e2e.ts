@@ -91,7 +91,7 @@ test.describe("IndexedDB offline store", () => {
 
     await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
     await page.getByRole("button", { name: "Base Set", exact: true }).click()
-    const slotFilter = page.getByRole("textbox", { name: "Filter set checklist" })
+    const slotFilter = page.getByRole("textbox", { name: "Add Pokémon to match" })
     await expect(slotFilter).toBeVisible()
     await expect(page.getByRole("button", { name: "Select Charmander", exact: true })).toBeVisible()
     await expect.poll(async () => (await readRecord(page, "sets:query:query=Base+Set&setId=base1")) !== null, { timeout: 10_000 }).toBe(true)
@@ -101,7 +101,7 @@ test.describe("IndexedDB offline store", () => {
     await page.route("**/api/tcg-set-slots**", (route) => route.abort("internetdisconnected"))
     await context.setOffline(true)
 
-    await page.getByRole("button", { name: "Clear set search" }).click()
+    await page.getByRole("button", { name: "Remove Base Set" }).click()
     await expect(page.getByRole("button", { name: "Select Charmander", exact: true })).toBeHidden()
     await page.getByRole("button", { name: "Base Set", exact: true }).click()
     await expect(page.getByRole("button", { name: "Select Charmander", exact: true })).toBeVisible()

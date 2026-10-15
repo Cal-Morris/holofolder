@@ -24,7 +24,7 @@ async function selectSet(harness: import("./fixtures").Harness) {
 test.describe("set checklists", () => {
   test.use({ signedIn: true })
 
-  test("other-set species ownership and wants never imply ownership of this set", async ({ harness }) => {
+  test("species filters include other-set ownership and wants while printing state stays exact", async ({ harness }) => {
     const page = harness.page
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: [{ ...SEEDED_COLLECTION[0], wanted_cards: [{ card_id: "fixture-other-1", card_name: "Other fixture", added_at: "2026-01-01" }] }] }))
     await page.reload()
@@ -33,14 +33,16 @@ test.describe("set checklists", () => {
     await expect(page.getByText("Owned elsewhere", { exact: true })).toBeVisible()
     await expect(page.getByRole("button", { name: "Replace binder card", exact: true })).toBeVisible()
     await harness.expectMinTapTarget(page.getByRole("button", { name: "Select bulbasaur", exact: true }))
-    await harness.expectMinTapTarget(page.getByRole("button", { name: /^Owned 0$/ }))
+    await harness.expectMinTapTarget(page.getByRole("button", { name: /^Already have 1$/ }))
     await page.getByRole("button", { name: "Select bulbasaur", exact: true }).click()
     await harness.expectMinTapTarget(page.getByRole("button", { name: "Replace selected binder cards", exact: true }))
     await page.getByRole("button", { name: "Deselect bulbasaur", exact: true }).click()
-    await page.getByRole("button", { name: /^Owned 0$/ }).click()
-    await expect(page.getByText("No slots match the current filters.")).toBeVisible()
-    await page.getByRole("button", { name: /^Wanted 0$/ }).click()
-    await expect(page.getByText("No slots match the current filters.")).toBeVisible()
+    await page.getByRole("button", { name: /^Already have 1$/ }).click()
+    await expect(page.getByRole("button", { name: "Select bulbasaur", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Select ivysaur", exact: true })).toHaveCount(0)
+    await page.getByRole("button", { name: /^Wanted 1$/ }).click()
+    await expect(page.getByRole("button", { name: "Select bulbasaur", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Select ivysaur", exact: true })).toHaveCount(0)
     const cards = page.getByRole("group", { name: "Set checklist" }).getByRole("button", { name: "Cards", exact: true })
     await harness.expectMinTapTarget(cards)
     await cards.click()
@@ -78,7 +80,7 @@ test.describe("set checklists", () => {
     await page.goto("/e2e-harness?signedIn=1&readOnly=1")
     await mockSet(page, { ...payload, cards: [{ ...card, id: "base1-44" }, trainer], slots: [{ ...payload.slots[0], cards: [{ ...card, id: "base1-44" }] }] })
     await selectSet(harness)
-    await expect(page.getByText("Owned in set", { exact: true })).toBeVisible()
+    await expect(page.getByText("Already have", { exact: true })).toBeVisible()
     await expect(page.getByRole("button", { name: "Add", exact: true })).toHaveCount(0)
     await expect(page.getByRole("button", { name: "Want", exact: true })).toHaveCount(0)
     await page.getByRole("group", { name: "Set checklist" }).getByRole("button", { name: "Cards", exact: true }).click()

@@ -29,3 +29,29 @@ export function getSetCardState(card: TCGSetSlotCard, collection: Iterable<Colle
 export function getSetChecklistCards(payload: TCGSetSlotsResponse) {
   return [...new Map((payload.cards ?? payload.slots.flatMap(slot => slot.cards)).map(card => [card.id, card])).values()]
 }
+
+export type SetSlotFilter = "all" | "open" | "owned" | "wanted" | "multiple"
+
+export function mergeSetSlots(groups: TCGSetDexSlot[][]): TCGSetDexSlot[] {
+  const slots = new Map<number, TCGSetDexSlot>()
+  for (const group of groups) {
+    for (const slot of group) {
+      const previous = slots.get(slot.dexId)
+      slots.set(slot.dexId, {
+        ...slot,
+        cards: [...new Map([...(previous?.cards ?? []), ...slot.cards].map(card => [card.id, card])).values()],
+      })
+    }
+  }
+  return [...slots.values()].sort((left, right) => left.dexId - right.dexId)
+}
+
+export function matchesSetSlotFilter(slot: TCGSetDexSlot, item: CollectedPokemon | undefined, filter: SetSlotFilter) {
+  const owned = Boolean(item && item.status !== "wishlisted")
+  const wanted = Boolean(item?.status === "wishlisted" || item?.wanted_cards.length)
+  return filter === "all"
+    || filter === "open" && !owned
+    || filter === "owned" && owned
+    || filter === "wanted" && wanted
+    || filter === "multiple" && slot.cards.length > 1
+}
