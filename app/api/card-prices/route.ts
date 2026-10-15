@@ -22,7 +22,11 @@ export async function POST(request: NextRequest) {
       refreshCardPriceLookups(lookups, { force }),
       loadDisplayFxRates(),
     ])
-    return NextResponse.json({ prices: result.prices, fx })
+    // Older clients send batches of 200; keep their quotes below the response-size limit.
+    const prices = lookups.length <= 25 ? result.prices : result.prices.map(price => ({ ...price,
+      historyPoints: undefined,
+    }))
+    return NextResponse.json({ prices, fx })
   } catch (error) {
     console.error("[binderdex] Failed to load card prices:", error)
     return NextResponse.json({ error: "Failed to load card prices." }, { status: 500 })

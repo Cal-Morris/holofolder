@@ -2,8 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { normalizeDisplayFxRates, type DisplayFxRates } from "@/lib/regional-price"
+import { normalizePriceHistory } from "@/lib/card-price-history"
+import { mapWithConcurrency } from "@/lib/card-db-sync-concurrency"
+import { getOfflineStore, type OfflineKeyValueStore } from "@/lib/offline-store/kv"
 
 import {
+  CARD_PRICE_MISSING_CACHE_TTL_MS,
   getCardPriceKey,
   normalizeFinishPrices,
   normalizeBuySignal,
@@ -52,7 +56,7 @@ export interface CardPriceSnapshot extends ServerCardPriceSnapshot {
 
 const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v7"
 export const CARD_PRICE_CACHE_STALE_MS = 2 * 60 * 60 * 1000
-const CARD_PRICE_REQUEST_BATCH_SIZE = 200
+const CARD_PRICE_REQUEST_BATCH_SIZE = 25
 
 export interface CardPriceFetchBatch {
   force: boolean
@@ -85,7 +89,8 @@ export function buildCardPriceFetchPlan(
     }
 
     cachedPrices[cacheKey] = cached
-    if (now - cached.fetchedAt >= CARD_PRICE_CACHE_STALE_MS || cached.finishPrices === undefined) {
+    const ttl = cached.marketGbpAmount == null ? CARD_PRICE_MISSING_CACHE_TTL_MS : CARD_PRICE_CACHE_STALE_MS
+    if (now - cached.fetchedAt >= ttl || cached.finishPrices === undefined || cached.historyPoints === undefined) {
       staleLookups.push(lookup)
     }
   }
@@ -146,16 +151,27 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
       isOnline: typeof navigator === "undefined" ? true : navigator.onLine,
     })
 
+    let cancelled = false
     setPricesByCardId((current) => ({ ...current, ...plan.cachedPrices }))
+    void loadPriceEvidence(stableLookups).then(evidence => {
+      if (cancelled) return
+      setPricesByCardId(current => {
+        const merged = { ...current }
+        for (const price of evidence) {
+          const key = getCardPriceKey(price.cardId, price.language)
+          if (!merged[key] || price.fetchedAt >= merged[key].fetchedAt) merged[key] = price
+        }
+        return merged
+      })
+    }).catch(() => undefined)
 
     if (plan.fetchBatches.length === 0) {
-      return
+      return () => { cancelled = true }
     }
 
-    let cancelled = false
     setIsLoading(true)
 
-    void Promise.all(plan.fetchBatches.map((batch) => fetch("/api/card-prices", {
+    void mapWithConcurrency(plan.fetchBatches, 2, (batch) => cancelled ? Promise.resolve([]) : fetch("/api/card-prices", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -173,7 +189,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
           setFxRates((current) => (current?.date === fx.date && current.jpyToGbp === fx.jpyToGbp ? current : fx))
         }
         return Array.isArray(payload?.prices) ? payload.prices : []
-      })))
+      }))
       .then((priceBatches) => {
         const mergedCache = readPriceCache()
         const updates: Record<string, CardPriceSnapshot> = {}
@@ -184,31 +200,8 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
               continue
             }
 
-            const snapshot: CardPriceSnapshot = {
-              finishPrices: normalizeFinishPrices(price.finishPrices),
-              cardId: price.cardId,
-              language: normalizeCardLanguage(price.language),
-              gbpAmount: typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount) ? price.gbpAmount : null,
-              marketGbpAmount: typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount)
-                ? price.marketGbpAmount
-                : typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount)
-                  ? price.gbpAmount
-                  : null,
-              goodGbpAmount: typeof price.goodGbpAmount === "number" && Number.isFinite(price.goodGbpAmount) ? price.goodGbpAmount : null,
-              lowGbpAmount: typeof price.lowGbpAmount === "number" && Number.isFinite(price.lowGbpAmount) ? price.lowGbpAmount : null,
-              highGbpAmount: typeof price.highGbpAmount === "number" && Number.isFinite(price.highGbpAmount) ? price.highGbpAmount : null,
-              confidence: normalizePriceConfidence(price.confidence),
-              sourcePrices: normalizeSourcePrices(price.sourcePrices),
-              trendPoints: normalizeTrendPoints(price.trendPoints),
-              buySignal: normalizeBuySignal(price.buySignal),
-              originalAmount: typeof price.originalAmount === "number" && Number.isFinite(price.originalAmount) ? price.originalAmount : null,
-              originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
-              source: normalizePriceSource(price.source),
-              variantLabel: typeof price.variantLabel === "string" ? price.variantLabel : null,
-              updatedAt: typeof price.updatedAt === "string" ? price.updatedAt : null,
-              fxDate: typeof price.fxDate === "string" ? price.fxDate : null,
-              fetchedAt: Date.now(),
-            }
+            const snapshot = normalizeFetchedCardPrice(price)
+            if (!snapshot) continue
             const cacheKey = getCardPriceKey(snapshot.cardId, snapshot.language)
 
             updates[cacheKey] = snapshot
@@ -217,6 +210,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         }
 
         writePriceCache(mergedCache)
+        void persistPriceEvidence(Object.values(updates)).catch(() => undefined)
 
         if (!cancelled) {
           setPricesByCardId((current) => ({ ...current, ...updates }))
@@ -244,6 +238,76 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
   }
 }
 
+function normalizeFetchedCardPrice(value: unknown): CardPriceSnapshot | null {
+  if (!value || typeof value !== "object" || typeof (value as { cardId?: unknown }).cardId !== "string") return null
+  const price = value as Partial<CardPriceSnapshot> & { cardId: string }
+  const snapshot: CardPriceSnapshot = {
+    historyPoints: normalizePriceHistory(price.historyPoints),
+    finishPrices: normalizeFinishPrices(price.finishPrices),
+    cardId: price.cardId,
+    language: normalizeCardLanguage(price.language),
+    gbpAmount: typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount) ? price.gbpAmount : null,
+    marketGbpAmount: typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount)
+      ? price.marketGbpAmount
+      : typeof price.gbpAmount === "number" && Number.isFinite(price.gbpAmount)
+        ? price.gbpAmount
+        : null,
+    goodGbpAmount: typeof price.goodGbpAmount === "number" && Number.isFinite(price.goodGbpAmount) ? price.goodGbpAmount : null,
+    lowGbpAmount: typeof price.lowGbpAmount === "number" && Number.isFinite(price.lowGbpAmount) ? price.lowGbpAmount : null,
+    highGbpAmount: typeof price.highGbpAmount === "number" && Number.isFinite(price.highGbpAmount) ? price.highGbpAmount : null,
+    confidence: normalizePriceConfidence(price.confidence),
+    sourcePrices: normalizeSourcePrices(price.sourcePrices),
+    trendPoints: normalizeTrendPoints(price.trendPoints),
+    buySignal: normalizeBuySignal(price.buySignal),
+    originalAmount: typeof price.originalAmount === "number" && Number.isFinite(price.originalAmount) ? price.originalAmount : null,
+    originalCurrency: price.originalCurrency === "USD" || price.originalCurrency === "EUR" ? price.originalCurrency : null,
+    source: normalizePriceSource(price.source),
+    variantLabel: typeof price.variantLabel === "string" ? price.variantLabel : null,
+    updatedAt: typeof price.updatedAt === "string" ? price.updatedAt : null,
+    fxDate: typeof price.fxDate === "string" ? price.fxDate : null,
+    fetchedAt: Date.now(),
+  }
+  return snapshot
+}
+
+/** Unlike background cache writes, a card-show download must report storage failure. */
+export async function saveCardPricesForOffline(prices: unknown[], store = getOfflineStore()) {
+  const cache = readPriceCache()
+  const updates: CardPriceSnapshot[] = []
+  for (const value of prices) {
+    const price = normalizeFetchedCardPrice(value)
+    if (price) {
+      cache[getCardPriceKey(price.cardId, price.language)] = price
+      updates.push(price)
+    }
+  }
+  await persistPriceEvidence(updates, store)
+  localStorage.setItem(CARD_PRICE_CACHE_KEY, compactPriceCache(cache))
+}
+
+async function persistPriceEvidence(prices: CardPriceSnapshot[], store = getOfflineStore()) {
+  if (!store) throw new Error("Offline price storage is unavailable on this device")
+  await mapWithConcurrency(prices, 4, price => store.set(`price-evidence:${getCardPriceKey(price.cardId, price.language)}`, price))
+}
+
+async function loadPriceEvidence(lookups: CardPriceLookup[], store: OfflineKeyValueStore | null = getOfflineStore()) {
+  if (!store) return []
+  const results = await mapWithConcurrency(lookups, 8, async lookup => {
+    const saved = await store.get<CardPriceSnapshot>(`price-evidence:${getCardPriceKey(lookup.cardId, lookup.language)}`)
+    if (!saved || saved.cardId !== lookup.cardId || saved.language !== lookup.language || !Number.isFinite(saved.fetchedAt)) return null
+    const price = normalizeFetchedCardPrice(saved)
+    return price ? { ...price, fetchedAt: saved.fetchedAt } : null
+  })
+  return results.filter((price): price is CardPriceSnapshot => price !== null)
+}
+
+// Keep full history in IndexedDB; localStorage's small quota is reserved for quick current quotes.
+function compactPriceCache(cache: Record<string, CardPriceSnapshot>) {
+  return JSON.stringify(Object.fromEntries(Object.entries(cache).map(([key, price]) => [key, { ...price,
+    historyPoints: price.historyPoints === undefined ? undefined : [],
+  }])))
+}
+
 function readPriceCache(): Record<string, CardPriceSnapshot> {
   try {
     const raw = localStorage.getItem(CARD_PRICE_CACHE_KEY)
@@ -261,6 +325,7 @@ function readPriceCache(): Record<string, CardPriceSnapshot> {
       const snapshot = value as CardPriceSnapshot
       normalized[key] = {
         ...snapshot,
+        historyPoints: snapshot.historyPoints === undefined ? undefined : normalizePriceHistory(snapshot.historyPoints),
         finishPrices: snapshot.finishPrices === undefined ? undefined : normalizeFinishPrices(snapshot.finishPrices),
         marketGbpAmount: typeof snapshot.marketGbpAmount === "number" && Number.isFinite(snapshot.marketGbpAmount)
           ? snapshot.marketGbpAmount
@@ -298,7 +363,7 @@ function chunkCardPriceLookups(lookups: CardPriceLookup[], batchSize: number) {
 
 function writePriceCache(cache: Record<string, CardPriceSnapshot>) {
   try {
-    localStorage.setItem(CARD_PRICE_CACHE_KEY, JSON.stringify(cache))
+    localStorage.setItem(CARD_PRICE_CACHE_KEY, compactPriceCache(cache))
   } catch {
     // ignore cache writes
   }

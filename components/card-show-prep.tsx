@@ -4,8 +4,10 @@
 // thumbnails for offline use. Deliberately plain markup; styling is up to the design owner.
 import { useEffect, useRef, useState } from "react"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
+import { saveCardPricesForOffline } from "@/hooks/use-card-prices"
 import {
   downloadCardShowImages,
+  downloadCardShowPrices,
   formatBytes,
   planCardShowPrep,
   type CardShowPlan,
@@ -17,7 +19,8 @@ type Phase =
   | { kind: "planning" }
   | { kind: "planned"; plan: CardShowPlan }
   | { kind: "downloading"; plan: CardShowPlan; progress: CardShowProgress }
-  | { kind: "done"; plan: CardShowPlan; progress: CardShowProgress }
+  | { kind: "prices"; plan: CardShowPlan; done: number; total: number }
+  | { kind: "done"; plan: CardShowPlan; progress: CardShowProgress; priced: number }
   | { kind: "error"; message: string }
 
 export default function CardShowPrep({ candidateSets }: { candidateSets: TCGSetSummary[] }) {
@@ -46,7 +49,7 @@ export default function CardShowPrep({ candidateSets }: { candidateSets: TCGSetS
   }, [])
 
   const chosenSets = candidateSets.filter((set) => chosen.has(set.id))
-  const busy = phase.kind === "planning" || phase.kind === "downloading"
+  const busy = phase.kind === "planning" || phase.kind === "downloading" || phase.kind === "prices"
 
   const toggle = (setId: string) => {
     setPhase({ kind: "idle" })
@@ -77,11 +80,20 @@ export default function CardShowPrep({ candidateSets }: { candidateSets: TCGSetS
     abortRef.current = controller
     const total = plan.imageUrls.length
     setPhase({ kind: "downloading", plan, progress: { done: 0, total, failed: 0 } })
-    const progress = await downloadCardShowImages(plan, {
-      signal: controller.signal,
-      onProgress: (next) => setPhase({ kind: "downloading", plan, progress: next }),
-    })
-    if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress })
+    try {
+      const progress = await downloadCardShowImages(plan, {
+        signal: controller.signal,
+        onProgress: (next) => setPhase({ kind: "downloading", plan, progress: next }),
+      })
+      if (controller.signal.aborted) return
+      setPhase({ kind: "prices", plan, done: 0, total: plan.priceLookups.length })
+      const prices = await downloadCardShowPrices(plan, { signal: controller.signal, savePrices: saveCardPricesForOffline,
+        onProgress: next => setPhase({ kind: "prices", plan, done: next.done, total: next.total }),
+      })
+      if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress, priced: prices.priced })
+    } catch (error) {
+      if (!controller.signal.aborted) setPhase({ kind: "error", message: error instanceof Error ? error.message : "Couldn't save prices on this device." })
+    }
   }
 
   const cancel = () => {
@@ -102,7 +114,7 @@ export default function CardShowPrep({ candidateSets }: { candidateSets: TCGSetS
 
       {open ? (
         <div className="mt-2 space-y-2 rounded-2xl border border-border/55 bg-background/45 p-3 dark:border-white/10">
-          <p className="text-xs text-muted-foreground">Save sets on this device so they open without signal: set coverage and card thumbnails.</p>
+          <p className="text-xs text-muted-foreground">Save sets on this device so they open without signal: set coverage, card thumbnails and available prices with their history. Prices can still change before the show.</p>
 
           {candidateSets.length === 0 ? (
             <p className="text-xs text-muted-foreground">Search for a set above first, then pick it here.</p>
@@ -131,8 +143,9 @@ export default function CardShowPrep({ candidateSets }: { candidateSets: TCGSetS
               ? `${phase.plan.sets.length} set${phase.plan.sets.length === 1 ? "" : "s"} · ${phase.plan.imageUrls.length} card images · about ${formatBytes(phase.plan.estimatedBytes)}`
               : null}
             {phase.kind === "downloading" ? `Downloading ${phase.progress.done}/${phase.progress.total} card images…` : null}
+            {phase.kind === "prices" ? `Saving prices ${phase.done}/${phase.total}…` : null}
             {phase.kind === "done"
-              ? `Ready offline: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""})`
+              ? `Ready offline: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""}, ${phase.priced}/${phase.plan.priceLookups.length} cards priced)`
               : null}
             {phase.kind === "error" ? phase.message : null}
           </div>
@@ -147,7 +160,7 @@ export default function CardShowPrep({ candidateSets }: { candidateSets: TCGSetS
                   Cancel
                 </button>
               </>
-            ) : phase.kind === "downloading" ? (
+            ) : phase.kind === "downloading" || phase.kind === "prices" ? (
               <button type="button" onClick={cancel} className="rounded-full border border-border/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground">
                 Stop
               </button>

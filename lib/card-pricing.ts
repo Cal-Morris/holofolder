@@ -3,6 +3,7 @@
 // Supabase client into the browser bundle. The admin client is loaded lazily on the server.
 import type { CardFinish } from "@/lib/domain/cards"
 import { readCatalogMetadata, selectCatalogPricing } from "@/lib/card-catalog"
+import { normalizePriceHistory, type CardPriceHistoryPoint } from "@/lib/card-price-history"
 import type { createAdminClient } from "@/lib/supabase/admin"
 import { buildBuySignal, type CardBuySignal, type PriceProvider } from "@/lib/price-intelligence"
 
@@ -16,6 +17,7 @@ export type PriceConfidence = "high" | "medium" | "low" | "unknown"
 export type BuySignalStatus = CardBuySignal["status"]
 
 export interface CardPriceSourceSummary {
+  productId?: string
   source: PriceSource
   label: string
   variantLabel: string | null
@@ -42,12 +44,13 @@ export interface CardPriceLookup {
 
 export type PricedCardFinish = Extract<CardFinish, "normal" | "holo" | "reverse_holo">
 
-export interface CardFinishPrice extends Omit<CardPriceSnapshot, "finishPrices"> {
+export interface CardFinishPrice extends Omit<CardPriceSnapshot, "finishPrices" | "historyPoints"> {
   finish: PricedCardFinish
   variantKey: string
 }
 
 export interface CardPriceSnapshot {
+  historyPoints?: CardPriceHistoryPoint[]
   finishPrices?: CardFinishPrice[]
   cardId: string
   language: CardLanguage
@@ -77,6 +80,7 @@ export interface FxRates {
 }
 
 interface CardPriceRow {
+  history_points?: unknown
   card_id: string
   language?: string | null
   gbp_amount: number | string | null
@@ -104,6 +108,7 @@ interface CardExternalIdsRow {
   name_en?: string | null
   rarity?: string | null
   external_ids_json: unknown
+  tcg_card_external_sources?: Array<{ source: string; source_card_id: string }>
   tcg_sets?: {
     name_en?: string | null
   } | null
@@ -162,6 +167,7 @@ export interface CardPriceRefreshResult {
 
 const FETCH_CONCURRENCY = 8
 export const CARD_PRICE_CACHE_TTL_MS = 2 * 60 * 60 * 1000
+export const CARD_PRICE_MISSING_CACHE_TTL_MS = 5 * 60 * 1000
 export const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ["en", "fr", "de", "es", "it", "pt-br", "ja", "ko"]
 const CARDMARKET_FIRST_LANGUAGES = new Set<CardLanguage>(["fr", "de", "es", "it", "pt-br"])
 const TCGPLAYER_VARIANT_PRIORITY = [
@@ -279,7 +285,8 @@ export async function refreshCardPriceLookups(
     previousByLookupKey.set(lookupKey, { snapshot, fetchedAt: row.fetched_at ?? null })
 
     const fetchedAtMs = Date.parse(row.fetched_at)
-    if (!options.force && Number.isFinite(fetchedAtMs) && now - fetchedAtMs < CARD_PRICE_CACHE_TTL_MS && Array.isArray(row.finish_prices)) {
+    const ttl = snapshot.marketGbpAmount == null ? CARD_PRICE_MISSING_CACHE_TTL_MS : CARD_PRICE_CACHE_TTL_MS
+    if (!options.force && Number.isFinite(fetchedAtMs) && now - fetchedAtMs < ttl && Array.isArray(row.finish_prices)) {
       freshByLookupKey.set(lookupKey, snapshot)
     }
   }
@@ -310,7 +317,7 @@ export async function refreshCardPriceLookups(
 
     refreshedSnapshots = fetchedSnapshots.map((snapshot) => applyPriceStaleness(
       carryForwardMissingPrice(
-        snapshot,
+        withPriceHistory(snapshot, previousByLookupKey.get(getCardPriceKey(snapshot.cardId, snapshot.language))?.snapshot.historyPoints ?? []),
         previousByLookupKey.get(getCardPriceKey(snapshot.cardId, snapshot.language)),
         now,
       ),
@@ -358,7 +365,7 @@ async function loadCardPriceMetadata(
 
   const { data, error } = await supabase
     .from("tcg_cards")
-    .select("id, local_id, name_en, rarity, external_ids_json, tcg_sets(name_en)")
+    .select("id, local_id, name_en, rarity, external_ids_json, tcg_sets(name_en), tcg_card_external_sources(source,source_card_id)")
     .in("id", cardIds)
 
   if (error) {
@@ -367,13 +374,17 @@ async function loadCardPriceMetadata(
   }
 
   for (const row of (data ?? []) as CardExternalIdsRow[]) {
+    const externalIds = readRecord(row.external_ids_json) ?? {}
+    const catalog = readCatalogMetadata(externalIds)
+    const reviewedProduct = row.tcg_card_external_sources?.find(source => source.source === "tcgcsv-pricing" && /^[1-9]\d*$/.test(source.source_card_id))?.source_card_id
     metadataByCardId.set(row.id, {
       id: row.id,
       localId: row.local_id ?? null,
       name: row.name_en ?? null,
       rarity: row.rarity ?? null,
       setName: row.tcg_sets?.name_en ?? null,
-      externalIds: row.external_ids_json,
+      externalIds: reviewedProduct && !catalog.productId && !catalog.variantId
+        ? { ...externalIds, catalog: { ...catalog, productId: reviewedProduct } } : externalIds,
     })
   }
 
@@ -393,7 +404,7 @@ function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
     ? Math.max(goodGbpAmount, marketGbpAmount)
     : marketGbpAmount ?? goodGbpAmount
 
-  return {
+  return withPriceHistory({
     finishPrices: normalizeFinishPrices(row.finish_prices),
     cardId: row.card_id,
     language: normalizeCardLanguage(row.language),
@@ -412,10 +423,14 @@ function rowToSnapshot(row: CardPriceRow): CardPriceSnapshot {
     variantLabel: row.variant_label,
     updatedAt: row.source_updated_at,
     fxDate: row.fx_date,
-  }
+  }, normalizePriceHistory(row.history_points))
 }
 
-function snapshotToRow(snapshot: CardPriceSnapshot) {
+function withPriceHistory(snapshot: CardPriceSnapshot, historyPoints: CardPriceHistoryPoint[]): CardPriceSnapshot {
+  return { ...snapshot, historyPoints }
+}
+
+export function snapshotToRow(snapshot: CardPriceSnapshot) {
   return {
     finish_prices: snapshot.finishPrices ?? [],
     card_id: snapshot.cardId,
@@ -465,6 +480,7 @@ export function normalizeSourcePrices(value: unknown): CardPriceSourceSummary[] 
 
     return [{
       source,
+      ...(normalizeProductId(record.productId) ? { productId: normalizeProductId(record.productId)! } : {}),
       label: typeof record.label === "string" ? record.label : getPriceSourceLabel(source),
       variantLabel: typeof record.variantLabel === "string" ? record.variantLabel : null,
       marketGbpAmount: toFiniteNumber(record.marketGbpAmount as number | string | null | undefined),
@@ -633,23 +649,28 @@ export async function fetchCardPriceSnapshot(
 ): Promise<CardPriceSnapshot> {
   let tcgdexPayload: Record<string, unknown> | null = null
   const catalog = readCatalogMetadata(metadata?.externalIds)
+  const upstreamIds = catalog.tcgdexCardId
+    ? [catalog.tcgdexCardId]
+    : [...new Set([cardId, ...(catalog.aliasIds ?? [])])]
 
-  try {
-    const response = await fetch(`https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(catalog.tcgdexCardId ?? cardId)}`, {
-      headers: {
-        Accept: "application/json",
-      },
-      next: { revalidate: 60 * 60 * 12 },
-    })
+  for (const upstreamId of upstreamIds) {
+    try {
+      const response = await fetch(`https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(upstreamId)}`, {
+        headers: {
+          Accept: "application/json",
+        },
+        next: { revalidate: 60 * 60 * 12 },
+      })
 
-    if (response.ok) {
-      tcgdexPayload = readRecord(await response.json())
-      const exact = language !== "en" && catalog.variantId ? null : selectCatalogPricing(tcgdexPayload, catalog)
-      const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, exact?.pricing, fxRates, readRecord(exact?.variants))
-      if (snapshot.marketGbpAmount != null) return snapshot
+      if (response.ok) {
+        tcgdexPayload = readRecord(await response.json())
+        const exact = language !== "en" && catalog.variantId ? null : selectCatalogPricing(tcgdexPayload, catalog)
+        const snapshot = buildCardPriceSnapshotFromPricing(cardId, language, exact?.pricing, fxRates, readRecord(exact?.variants))
+        if (snapshot.marketGbpAmount != null) return snapshot
+      }
+    } catch (error) {
+      console.error(`[binderdex] Failed to fetch price for ${upstreamId} (${language}):`, error)
     }
-  } catch (error) {
-    console.error(`[binderdex] Failed to fetch price for ${cardId} (${language}):`, error)
   }
 
   // These product IDs identify English printings, not localized versions of the same artwork.
@@ -1274,6 +1295,7 @@ export function buildTcgplayerProductPriceSnapshot(
     confidence: "medium",
     sourcePrices: [{
       source: "tcgplayer",
+      ...(productId ? { productId } : {}),
       label: productId ? `TCGplayer #${productId}` : "TCGplayer",
       variantLabel,
       marketGbpAmount,
@@ -1374,6 +1396,7 @@ function pickTcgplayerPrice(
       }),
       sourcePrices: [{
         source: "tcgplayer",
+        ...(normalizeProductId(variantRecord.productId) ? { productId: normalizeProductId(variantRecord.productId)! } : {}),
         label: "TCGplayer",
         variantLabel,
         marketGbpAmount,

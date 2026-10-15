@@ -72,7 +72,14 @@ async function mockNetwork(context: BrowserContext, page: Page) {
     return route.fulfill({ json: { cards: MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map((card) => ({ ...card, dexIds: undefined })), source: "mirror" } })
   }))
   await context.route("**/api/tcg-card-search**", guard((route) => route.fulfill({ json: { cards: [] } })))
-  await context.route("**/api/card-prices**", guard((route) => route.fulfill({ json: { prices: [] } })))
+  await context.route("**/api/card-prices**", guard((route) => {
+    const body = route.request().postDataJSON() ?? {}
+    // Synthetic quotes verify explicit card-show downloads survive going offline.
+    return route.fulfill({ json: { prices: (body.cards ?? []).map((card: { cardId: string; language: string }) => ({
+      ...card, marketGbpAmount: 5, gbpAmount: 5, confidence: "medium", source: "tcgplayer", finishPrices: [],
+      historyPoints: [{ date: "2026-09-15", source: "tcgplayer", currency: "USD", amount: 4, lowAmount: 2, finish: "normal", productId: "123" }],
+    })) } })
+  }))
   return network
 }
 
@@ -106,7 +113,17 @@ test.describe("offline search and card show prep", () => {
     await expect(prep.getByRole("status")).toHaveText(/1 set · 3 card images · about \d+ KB/)
     expect(network.proxyImages.length, "only the 3 samples before confirming").toBe(3)
     await prep.getByRole("button", { name: "Download for offline" }).click()
-    await expect(prep.getByRole("status")).toHaveText("Ready offline: Legends Showcase (3/3 card images)")
+    await expect(prep.getByRole("status")).toHaveText("Ready offline: Legends Showcase (3/3 card images, 3/3 cards priced)")
+    await expect.poll(() => page.evaluate(() => new Promise<number>((resolve, reject) => {
+      const request = indexedDB.open("binderdex-offline")
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        const db = request.result
+        const keys = db.transaction("records").objectStore("records").getAllKeys()
+        keys.onsuccess = () => { resolve(keys.result.filter(key => String(key).startsWith("price-evidence:")).length); db.close() }
+        keys.onerror = () => { reject(keys.error); db.close() }
+      }
+    }))).toBeGreaterThanOrEqual(3)
     expect(network.proxyImages.every((url) => url.endsWith("/low.webp")), "thumbnails go through the proxy at low res").toBe(true)
     expect(new Set(network.proxyImages).size, "each thumbnail downloaded once").toBe(3)
 

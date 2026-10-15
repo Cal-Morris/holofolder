@@ -2,10 +2,11 @@
 
 The Supabase schema is defined by the numbered SQL files in this folder. There is no migration runner: apply them by hand (Supabase SQL editor or `psql`) in numeric order. Every file uses `IF NOT EXISTS` / `DROP … IF EXISTS` guards, so re-running one that is already applied is meant to be harmless, but keep a note of what production has had applied.
 
-When you add a migration, use the next free number (`029_…`), keep it idempotent, and add a row below.
+When you add a migration, use the next free number (`030_…`), keep it idempotent, and add a row below.
 
 | File | What it does |
 |---|---|
+| `029_card_price_history_evidence.sql` | Native dated TCGplayer quotes in `card_prices.history_points`, separate from current GBP prices and rolling averages |
 | `001_create_pokemon_collection.sql` | `pokemon_collection` table (one row per collected Pokémon per user) with RLS |
 | `002`, `003` | **Not in the repo.** These created `user_settings` (see below) and were applied before the repo was tracked |
 | `004_create_tcg_mirror_tables.sql` | TCGdex mirror: `tcg_series`, `tcg_sets`, `tcg_cards`, `tcg_card_dex_ids`, `tcg_card_external_sources`. Also read at runtime by `lib/card-db-sync.ts` (`getSchemaSqlPath`), so don't move or rename it |

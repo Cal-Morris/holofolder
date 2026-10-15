@@ -14,6 +14,7 @@ import {
   ESTIMATE_SAMPLE_SIZE,
   FALLBACK_THUMBNAIL_BYTES,
   downloadCardShowImages,
+  downloadCardShowPrices,
   estimateCardShowBytes,
   formatBytes,
   getProxiedThumbnailUrl,
@@ -155,6 +156,7 @@ test("planning downloads only set data and a few samples; downloading fetches th
   }
 
   const plan = await planCardShowPrep([BASE], { fetcher })
+  assert.equal(plan.priceLookups.length, 10)
   assert.equal(plan.imageUrls.length, 10)
   assert.equal(requested.filter((url) => url.startsWith("/api/card-image-proxy")).length, ESTIMATE_SAMPLE_SIZE)
   assert.equal(plan.estimatedBytes, plan.dataBytes + 10 * 20_000)
@@ -166,6 +168,29 @@ test("planning downloads only set data and a few samples; downloading fetches th
   assert.equal(imageRequests.length, 10)
   assert.equal(new Set(imageRequests).size, 10, "each image fetched exactly once")
   assert.equal(updates.at(-1), 10)
+})
+
+test("card show prep saves price batches and reports unknown cards without inventing prices", async () => {
+  const saved: unknown[][] = []
+  const requested: string[] = []
+  const lookups = Array.from({ length: 26 }, (_, i) => ({ cardId: `fixture-${i}`, language: "en" as const }))
+  const result = await downloadCardShowPrices({ priceLookups: lookups }, {
+    savePrices: prices => { saved.push(prices) },
+    fetcher: async (url, init) => {
+      requested.push(url)
+      const body = JSON.parse(String(init?.body))
+      return Response.json({ prices: body.cards.map((card: { cardId: string; language: string }) => ({ ...card, marketGbpAmount: card.cardId === "fixture-0" ? null : 5 })) })
+    },
+  })
+  assert.equal(requested.length, 2)
+  assert.equal(saved.flat().length, 26)
+  assert.deepEqual(result, { done: 26, total: 26, priced: 25 })
+})
+
+test("card show prep cannot claim prices saved when the API or local storage failed", async () => {
+  const plan = { priceLookups: [{ cardId: "fixture-1", language: "en" as const }] }
+  await assert.rejects(downloadCardShowPrices(plan, { savePrices: () => {}, fetcher: async () => new Response("down", { status: 503 }) }))
+  await assert.rejects(downloadCardShowPrices(plan, { savePrices: () => { throw new Error("Storage full") }, fetcher: async () => Response.json({ prices: [{ cardId: "fixture-1", language: "en" }] }) }), /Storage full/)
 })
 
 test("card show preparation includes Trainer and Energy highlight thumbnails", () => {
