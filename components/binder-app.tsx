@@ -6373,7 +6373,7 @@ export default function BinderApp({
             role="dialog"
             aria-modal="true"
             aria-label={isDesktopViewport ? "View options" : "Controls"}
-            className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden outline-none rounded-t-[1.75rem] border-t border-border/65 bg-card px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background dark:shadow-2xl md:inset-x-auto md:bottom-auto md:right-4 md:top-24 md:w-80 md:rounded-2xl md:border md:pb-4"
+            className={`${dashboardStyles.viewOptions} absolute inset-x-0 bottom-0 flex flex-col overflow-hidden outline-none rounded-t-[1.75rem] border-t border-border/65 bg-card px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background dark:shadow-2xl md:inset-x-auto md:bottom-auto md:right-4 md:top-24 md:w-80 md:rounded-2xl md:border md:pb-3`}
             onClick={(event) => event.stopPropagation()}
             style={{
               maxHeight: isDesktopViewport ? "calc(100dvh - 7rem)" : "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
@@ -6383,7 +6383,7 @@ export default function BinderApp({
           >
             <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3" {...controlsSheetSwipe}>
             <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60 md:hidden" />
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mb-3 flex items-center justify-between gap-3 md:mb-2">
               <div>
                 <p className="text-sm font-semibold">{isDesktopViewport ? "View options" : "Controls"}</p>
                 <p className="text-xs text-muted-foreground md:hidden">{collectionStats.percentage}% complete</p>
@@ -6400,29 +6400,30 @@ export default function BinderApp({
             </div>
             </div>
 
-            <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain">
+            <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain md:space-y-2">
               {!readOnlyMode && <button className="min-h-10 md:hidden w-full rounded-xl border border-border px-3 py-2 text-left text-sm font-medium" onClick={() => void switchMainView("analytics")}>Analytics</button>}
               {activeMainView !== "pokemon" && activeMainView !== "analytics" && <>
-              {activeMainView === "binder" && <div className="hidden space-y-3 md:block">
-                <div>
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Cards</p>
+              {activeMainView === "binder" && <div className="hidden space-y-2 md:block">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-medium text-muted-foreground">Cards</p>
                   {binderCardControls}
                 </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Display</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-medium text-muted-foreground">Display</p>
                   {binderDisplayControls}
                 </div>
               </div>}
+              <div className="space-y-3 md:grid md:grid-cols-[4.5rem_1fr] md:items-center md:gap-2 md:space-y-0">
               <label htmlFor="binder-generation" className="block text-xs font-medium text-muted-foreground">Generation</label>
-              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-2xl border border-border/60 bg-background/62 p-1 dark:border-border/40 dark:bg-muted/35">
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev > 0 ? prev - 1 : GENERATIONS.length - 1)} aria-label="Previous generation">
+              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 rounded-2xl md:rounded-lg border border-border/60 bg-background/62 p-1 dark:border-border/40 dark:bg-muted/35">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl md:rounded-md" onClick={() => setSelectedGen(prev => prev > 0 ? prev - 1 : GENERATIONS.length - 1)} aria-label="Previous generation">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <select
                   id="binder-generation"
                   value={selectedGen}
                   onChange={(e) => setSelectedGen(Number(e.target.value))}
-                  className="h-9 min-w-0 bg-transparent text-center text-sm font-semibold cursor-pointer focus:outline-none"
+                  className="h-9 min-w-0 bg-transparent text-center text-sm md:text-xs font-semibold cursor-pointer focus:outline-none"
                 >
                   {GENERATIONS.map((gen) => (
                     <option key={gen.id} value={gen.id}>
@@ -6430,9 +6431,11 @@ export default function BinderApp({
                     </option>
                   ))}
                 </select>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setSelectedGen(prev => prev < GENERATIONS.length - 1 ? prev + 1 : 0)} aria-label="Next generation">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl md:rounded-md" onClick={() => setSelectedGen(prev => prev < GENERATIONS.length - 1 ? prev + 1 : 0)} aria-label="Next generation">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
+              </div>
+
               </div>
 
               {isCompactViewport && (
@@ -6454,7 +6457,9 @@ export default function BinderApp({
               )}
 
               {canFilterCollection && (
-                <div className="grid grid-cols-2 gap-2">
+                <div>
+                <p className="mb-2 hidden text-xs font-medium text-muted-foreground md:block">Show slots</p>
+                <div role="group" aria-label="Slot filters" className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-1">
                   {COLLECTION_VIEW_FILTERS.map((filterOption) => {
                     const isActive = collectionViewFilter === filterOption.id
 
@@ -6465,7 +6470,8 @@ export default function BinderApp({
                           setCollectionViewFilter(filterOption.id)
                           setIsMobileNavExpanded(false)
                         }}
-                        className={`h-11 rounded-2xl border px-3 text-sm font-semibold transition-all ${
+                        aria-pressed={isActive}
+                        className={`h-11 rounded-2xl border md:h-9 md:flex-[1_0_28%] md:rounded-lg md:px-2.5 md:text-xs px-3 text-sm font-semibold transition-all ${
                           isActive
                             ? "border-primary/35 bg-primary/12 text-primary"
                             : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
@@ -6476,27 +6482,31 @@ export default function BinderApp({
                     )
                   })}
                 </div>
+                </div>
               )}
 
-              <div className={`grid gap-2 ${hasTrackedCards ? "grid-cols-2" : "grid-cols-1"}`}>
+              <div className={`grid gap-2 md:flex md:flex-col md:gap-0 md:border-t md:border-border/60 md:pt-1 ${hasTrackedCards ? "grid-cols-2" : "grid-cols-1"}`}>
                 {hasTrackedCards && (
                   <button
                     onClick={() => setIsPriceMode((current) => !current)}
-                    className={`h-11 rounded-2xl border px-3 text-sm font-semibold transition-all ${
+                    aria-pressed={isPriceMode}
+                    className={`h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent px-3 text-sm font-semibold transition-all ${
                       isPriceMode
                         ? "border-primary/35 bg-primary/12 text-primary"
                         : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
                     }`}
                   >
-                    {isLoadingPrices && isPriceMode ? "Loading prices" : "Prices"}
+                    <span>{isLoadingPrices && isPriceMode ? "Loading prices" : "Prices"}</span>
+                    <span className="hidden text-muted-foreground md:inline">{isPriceMode ? "On" : "Off"}</span>
                   </button>
                 )}
                 <button
                   onClick={() => { closeControlsSheet(); handlePhotoButtonClick() }}
                   disabled={isScanningPage || isFilteredBinderLayout || currentPagePokemon.length === 0}
-                  className="h-11 rounded-2xl border border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
+                  className="h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
                 >
-                  {isScanningPage ? "Scanning" : "Scan page"}
+                  <span>{isScanningPage ? "Scanning" : "Scan page"}</span>
+                  <Camera aria-hidden="true" className="hidden h-3.5 w-3.5 md:block" />
                 </button>
               </div>
               </>}
@@ -6649,7 +6659,7 @@ export default function BinderApp({
                   onClick={() => setIsPriceMode((current) => !current)}
                   aria-label={isPriceMode ? "Hide prices" : "Show prices"}
                 >
-                  {isLoadingPrices && isPriceMode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-bold">$</span>}
+                  {isLoadingPrices && isPriceMode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-bold">{{ GBP: "£", USD: "$", EUR: "€", JPY: "¥" }[pricingPreferences.currency]}</span>}
                 </Button>
               )}
               <Button

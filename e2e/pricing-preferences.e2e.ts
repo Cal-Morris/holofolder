@@ -26,6 +26,12 @@ test("settings defaults region and currency from the browser locale and allows o
   await currency.selectOption("EUR")
   await expect(summary).toContainText("in EUR")
 
+  await region.selectOption("UK")
+  await expect(currency).toHaveValue("EUR")
+  await expect(summary).toContainText("in EUR")
+  await currency.selectOption("auto")
+  await expect(summary).toContainText("in GBP")
+
   await language.selectOption("ja")
   await expect(summary).toContainText("Japanese")
 

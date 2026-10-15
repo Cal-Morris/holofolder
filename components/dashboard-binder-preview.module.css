@@ -24,3 +24,8 @@
 .pages button:disabled { opacity: .35; cursor: default; }
 .caption { padding: 0 16px 12px; font-size: 11px; line-height: 1.5; color: #b4b5bb; }
 @media (max-width: 500px) { .heading { padding: 12px; }.heading h2 { font-size: 20px; }.heading a { max-width: 105px; } }
+
+@media (min-width: 768px) {
+  .viewOptions .toggle { width: 216px; }
+  .viewOptions .toggle button { flex: 1; }
+}

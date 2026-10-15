@@ -45,7 +45,7 @@ export function PricingPreferencesSettings({ settings, onUpdateSettings, locales
         <h3 id={`${baseId}-title`} className="font-semibold">Region &amp; pricing</h3>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Prices lead with your region&apos;s own market and currency, with the converted price after it.
+        Prices use your selected currency and prefer your region&apos;s market. Original currencies are kept in source details.
       </p>
 
       <div className="grid gap-3">
