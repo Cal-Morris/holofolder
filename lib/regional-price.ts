@@ -272,9 +272,10 @@ export function formatDisplayRange(
   lowGbpAmount: number | null | undefined,
   highGbpAmount: number | null | undefined,
   context: PriceDisplayContext,
+  snapshot?: CardPriceSnapshot,
 ) {
-  const low = formatDisplayAmount(lowGbpAmount, context)
-  const high = formatDisplayAmount(highGbpAmount, context)
+  const low = formatDisplayAmount(lowGbpAmount, context, snapshot)
+  const high = formatDisplayAmount(highGbpAmount, context, snapshot)
 
   if (low && high) {
     return low === high ? low : `${low}-${high}`

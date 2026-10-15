@@ -815,7 +815,7 @@ export default function BinderApp({
   const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const [isCompactViewport, setIsCompactViewport] = useState(false)
   const [isWideBinderSpread, setIsWideBinderSpread] = useState(false)
-  const [binderCardDisplay, setBinderCardDisplay] = useState<BinderCardDisplay>("current")
+  const [binderCardDisplay, setBinderCardDisplay] = useState<BinderCardDisplay>("mixed")
   const [binderDimension, setBinderDimension] = useState<"2d" | "3d">("2d")
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false)
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE)
@@ -1687,8 +1687,8 @@ export default function BinderApp({
     const context: PriceDisplayContext = { currency: pricingPreferences.currency, fxRates }
     return {
       label: (price: CardPriceSnapshot | undefined) => formatRegionalPriceLabel(price, context),
-      amount: (amount: number | null | undefined) => formatDisplayAmount(amount, context),
-      range: (low: number | null | undefined, high: number | null | undefined) => formatDisplayRange(low, high, context),
+      amount: (amount: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayAmount(amount, context, price),
+      range: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayRange(low, high, context, price),
       totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>) => formatDisplayTotals(gbpTotal, originalTotals, context),
     }
   }, [fxRates, pricingPreferences.currency])
@@ -3738,7 +3738,7 @@ export default function BinderApp({
   const selectedCardPriceLabel = priceFormat.label(selectedAssignedPriceSnapshot)
   const selectedWantedCards = collectionItem?.wanted_cards ?? []
   const selectedWantedCardPreview = selectedWantedCards[0] ?? null
-  const selectedHasWantedCard = binderCardDisplay === "wanted" && Boolean(selectedPrimaryCardPreview)
+  const selectedHasWantedCard = binderCardDisplay !== "current" && Boolean(selectedPrimaryCardPreview) && (binderCardDisplay === "wanted" || Boolean(collectionItem?.wanted_cards?.length) || collectionItem?.status === "wishlisted")
   const selectedAssignedPriceChipLabel = selectedCardPriceLabel ?? (isLoadingPrices && collectionItem?.card_id ? "Loading price..." : null)
   const selectedDetailPriceSnapshot = selectedPrimaryCardPreview
     ? pricesByCardId[getCardPriceKey(selectedPrimaryCardPreview.cardId, selectedPrimaryCardPreview.cardLanguage ?? "en")]
@@ -3746,9 +3746,9 @@ export default function BinderApp({
   const selectedDetailPriceLabel = selectedPrimaryCardPreview
     ? priceFormat.label(selectedDetailPriceSnapshot) ?? (isLoadingPrices ? "Loading price..." : "No price yet")
     : null
-  const selectedMarketPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount)
-  const selectedGoodPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.goodGbpAmount)
-  const selectedRangePriceLabel = priceFormat.range(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount)
+  const selectedMarketPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount, selectedDetailPriceSnapshot)
+  const selectedGoodPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.goodGbpAmount, selectedDetailPriceSnapshot)
+  const selectedRangePriceLabel = priceFormat.range(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount, selectedDetailPriceSnapshot)
   const selectedConfidenceLabel = formatPriceConfidenceLabel(selectedDetailPriceSnapshot)
   const selectedPriceSourceLabel = formatPriceSourceLabel(selectedDetailPriceSnapshot)
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
@@ -3978,9 +3978,9 @@ export default function BinderApp({
     const selectedStatusPill =
       selectedHasWantedCard
         ? { label: "Wanted", className: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400" }
-        : binderCardDisplay === "current" && selectedPokemonIsFavorite
+        : binderCardDisplay !== "wanted" && selectedPokemonIsFavorite
           ? { label: "Perfect", className: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400" }
-          : binderCardDisplay === "current" && collected
+          : binderCardDisplay !== "wanted" && collected
             ? { label: "Owned", className: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" }
             : { label: "Open Slot", className: "border-border/60 bg-background/35 text-muted-foreground" }
 
@@ -4077,7 +4077,7 @@ export default function BinderApp({
                   alt={selectedPreviewAlt}
                   className={`${selectedPreviewImageClass} ${selectedPreviewFit} ${selectedPreviewTone}`}
                 />
-                {binderCardDisplay === "current" && collected && !selectedPreviewIsCard && (
+                {binderCardDisplay !== "wanted" && collected && !selectedPreviewIsCard && (
                   <div className={`absolute w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow ${selectedPreviewBadgeClass}`}>
                     <Check className="w-2.5 h-2.5 text-white" />
                   </div>
@@ -4841,7 +4841,7 @@ export default function BinderApp({
             const isSelected = selectedPokemon?.id === pokemon.id
             const isLongPressed = longPressedPokemon?.id === pokemon.id
             const item = getCollectionItem(pokemon.id)
-            const isCurrentWishlisted = binderCardDisplay === "wanted" && (item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length))
+            const isCurrentWishlisted = binderCardDisplay !== "current" && (item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length))
             const displayCard = getBinderDisplayCard(item, binderCardDisplay)
             const slotCardImage = getSlotCardImage(pokemon.id)
             const slotCardName = displayCard?.card_name
@@ -4852,12 +4852,12 @@ export default function BinderApp({
               <PokemonSlot
                 key={`${pageNumber}-${pokemon.id}`}
                 pokemon={pokemon}
-                isCollected={binderCardDisplay === "current" && isCurrentCollected}
+                isCollected={binderCardDisplay !== "wanted" && isCurrentCollected}
                 isWishlisted={isCurrentWishlisted}
                 isSelected={isSelected}
                 isLongPressed={isLongPressed}
                 slotLabel={slotLabel}
-                status={binderCardDisplay === "current" ? item?.status : undefined}
+                status={binderCardDisplay !== "wanted" ? item?.status : undefined}
                 cardImage={slotCardImage}
                 cardName={slotCardName}
                 cardFinish={slotCardFinish}
@@ -4925,7 +4925,7 @@ export default function BinderApp({
     const averagePriceLabel = priceFormat.amount(wantedDashboard.averageGbp)
     const pricedPercent = totalWantedCount > 0 ? Math.round((wantedDashboard.pricedCount / totalWantedCount) * 100) : 0
     const highestCard = wantedDashboard.highestCards[0]
-    const highestPriceLabel = priceFormat.amount(highestCard?.effectiveGbpAmount)
+    const highestPriceLabel = priceFormat.amount(highestCard?.effectiveGbpAmount, highestCard?.price)
     const bandDenominator = Math.max(totalWantedCount, 1)
     const visibleSetBreakdown = wantedDashboard.setBreakdown.slice(0, 5)
     const visibleLanguageBreakdown = wantedDashboard.languageBreakdown.slice(0, 6)
@@ -5226,7 +5226,7 @@ export default function BinderApp({
               <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {priorityCards.map((wantedCard) => {
                   const pokemon = getPokemonSummary(wantedCard.pokemonId)
-                  const priorityPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount)
+                  const priorityPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount, wantedCard.price)
 
                   return (
                     <button
@@ -5301,9 +5301,9 @@ export default function BinderApp({
               {sortedWantedDashboardCards.map((wantedCard) => {
                 const { pokemonId, pokemonName, card, price } = wantedCard
                 const pokemon = getPokemonSummary(pokemonId)
-                const goodPriceLabel = priceFormat.amount(wantedCard.goodGbpAmount)
-                const marketPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount)
-                const rangePriceLabel = priceFormat.range(price?.lowGbpAmount, price?.highGbpAmount)
+                const goodPriceLabel = priceFormat.amount(wantedCard.goodGbpAmount, price)
+                const marketPriceLabel = priceFormat.amount(wantedCard.effectiveGbpAmount, wantedCard.price)
+                const rangePriceLabel = priceFormat.range(price?.lowGbpAmount, price?.highGbpAmount, price)
                 const confidenceLabel = formatPriceConfidenceLabel(price)
                 const sourceLabel = formatPriceSourceLabel(price)
                 const bandStyle = WANTED_PRICE_BAND_STYLES[wantedCard.priceBandId]
@@ -5428,7 +5428,8 @@ export default function BinderApp({
   )
   const binderCardControls = (
     <div role="group" aria-label="Binder cards" className={dashboardStyles.toggle}>
-      <button type="button" aria-pressed={binderCardDisplay === "current"} onClick={() => setBinderCardDisplay("current")}>Current</button>
+      <button type="button" aria-pressed={binderCardDisplay === "mixed"} onClick={() => setBinderCardDisplay("mixed")}>Mixed</button>
+      <button type="button" aria-pressed={binderCardDisplay === "current"} onClick={() => setBinderCardDisplay("current")}>Owned</button>
       <button type="button" aria-pressed={binderCardDisplay === "wanted"} onClick={() => setBinderCardDisplay("wanted")}>Wanted</button>
     </div>
   )

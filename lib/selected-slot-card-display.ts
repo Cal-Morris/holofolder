@@ -42,9 +42,9 @@ export function getSelectedSlotCardDisplay(item: SelectedSlotDisplayItem | null 
   }
 }
 
-export type BinderCardDisplay = "current" | "wanted"
+export type BinderCardDisplay = "mixed" | "current" | "wanted"
 
 export function getBinderDisplayCard(item: SelectedSlotDisplayItem | null | undefined, display: BinderCardDisplay) {
-  if (display === "wanted" && item?.wanted_cards?.[0]) return item.wanted_cards[0]
-  return item?.card_id && (display === "wanted" ? item.status === "wishlisted" : item.status !== "wishlisted") ? item : null
+  if (display !== "current" && item?.wanted_cards?.[0]) return item.wanted_cards[0]
+  return item?.card_id && (display === "mixed" || (display === "wanted" ? item.status === "wishlisted" : item.status !== "wishlisted")) ? item : null
 }

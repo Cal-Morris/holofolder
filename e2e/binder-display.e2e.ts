@@ -19,6 +19,10 @@ test.describe("binder printing display", () => {
     await page.evaluate(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
     await page.reload()
     const slot = page.locator('button[data-dex-id="1"]')
+    const modes = page.getByRole("group", { name: "Binder cards" })
+    await expect(modes.getByRole("button", { name: "Mixed", exact: true })).toHaveAttribute("aria-pressed", "true")
+    await expect(slot.locator("img")).toHaveAttribute("alt", "Wanted Bulbasaur")
+    await modes.getByRole("button", { name: "Owned", exact: true }).click()
     await expect(slot.locator("img")).toHaveAttribute("alt", "Owned Bulbasaur")
     await slot.click()
     const detail = page.getByRole("dialog", { name: /bulbasaur details/i })
@@ -39,13 +43,16 @@ test.describe("binder printing display", () => {
     await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£20.00")
   })
 
-  test("legacy wishlisted printing keeps its metadata and saved date in both modes", async ({ harness }) => {
+  test("legacy wishlisted printing keeps its metadata and saved date across all modes", async ({ harness }) => {
     const { page } = harness
     // Synthetic legacy row, before wanted_cards held its printing.
     const legacy = { ...SEEDED_COLLECTION[0], status: "wishlisted", card_name: "Legacy Wanted Bulbasaur", card_image: "https://assets.tcgdex.net/ja/mock/base1/44/high.webp", card_set: "Legacy Set", card_language: "ja", card_finish: "reverse_holo", collected_at: "2025-02-03T00:00:00.000Z", wanted_cards: [] }
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: [legacy] }))
     await page.reload()
     const slot = page.locator('button[data-dex-id="1"]')
+    const modes = page.getByRole("group", { name: "Binder cards" })
+    await expect(slot.locator("img")).toHaveAttribute("alt", "Legacy Wanted Bulbasaur")
+    await modes.getByRole("button", { name: "Owned", exact: true }).click()
     await expect(slot.locator("img")).toHaveAttribute("src", /official-artwork%2F1.png/)
     let detail = await harness.openCardDetail()
     await detail.locator("summary").filter({ hasText: "Card & variant" }).click()

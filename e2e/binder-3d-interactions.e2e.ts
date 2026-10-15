@@ -15,7 +15,8 @@ test.describe("3D binder gestures", () => {
     await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), canvas = stage.locator("canvas")
-    await expect(stage).toHaveAttribute("data-current-page", "1")
+    // Software WebGL can take longer to build the first spread than to turn a page.
+    await expect(stage).toHaveAttribute("data-current-page", "1", { timeout: 30_000 })
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
     await preload
     await canvas.scrollIntoViewIfNeeded()
