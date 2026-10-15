@@ -8,6 +8,7 @@ test.describe("UK locale", () => {
 
   test("leads with the Cardmarket-grounded GBP price and shows the EUR market price second", async ({ harness }) => {
     const detail = await harness.openCardDetail()
+    await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
     await expect(detail.getByText("£0.05 (€0.06 EUR)").first()).toBeVisible()
   })
 })
@@ -17,6 +18,7 @@ test.describe("US locale", () => {
 
   test("leads with the TCGplayer price in USD", async ({ harness }) => {
     const detail = await harness.openCardDetail()
+    await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
     await expect(detail.getByText("$0.26", { exact: true }).first()).toBeVisible()
   })
 })

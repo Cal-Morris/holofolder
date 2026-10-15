@@ -38,9 +38,6 @@ test.describe("3D binder gestures", () => {
     const laterCard = page.getByRole("list", { name: "Cards on this spread" }).getByRole("button", { name: "Pidgeot, slot 18", exact: true })
     await expect(laterCard).toBeAttached()
     await laterCard.dispatchEvent("click")
-    const laterActions = page.getByRole("dialog", { name: "Pidgeot quick actions", exact: true })
-    await expect(laterActions).toBeVisible()
-    await laterActions.getByRole("button", { name: "Details", exact: true }).click()
     const laterDetails = page.getByRole("dialog", { name: "Pidgeot details", exact: true })
     await expect(laterDetails).toBeVisible()
     // The page-selection cleanup runs in requestAnimationFrame, so wait through it before asserting persistence.
@@ -59,9 +56,6 @@ test.describe("3D binder gestures", () => {
     const pocket = binderPocket(design.rows, design.cols, 0, 1)
     const point = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(camera)
     await canvas.tap({ position: { x: (point.x + 1) * box.width / 2, y: (1 - point.y) * box.height / 2 } })
-    const quickActions = page.getByRole("dialog", { name: /bulbasaur.*quick actions/i })
-    await expect(quickActions).toBeVisible()
-    await quickActions.getByRole("button", { name: "Details", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: /bulbasaur.*details/i })
     await expect(dialog).toBeVisible()
     await harness.closeControl(dialog).click()
@@ -127,9 +121,9 @@ test.describe("3D binder gestures", () => {
       return fitted
     }
     await tapPocket()
-    const initialActions = page.getByRole("dialog", { name: /bulbasaur.*quick actions/i })
-    await expect(initialActions).toBeVisible()
-    await harness.closeControl(initialActions).click()
+    const initialDetails = page.getByRole("dialog", { name: /bulbasaur.*details/i })
+    await expect(initialDetails).toBeVisible()
+    await harness.closeControl(initialDetails).click()
     await canvas.evaluate(element => {
       const pointers: number[] = []
       element.addEventListener("pointerdown", event => pointers.push((event as PointerEvent).pointerId), { capture: true })
@@ -148,9 +142,9 @@ test.describe("3D binder gestures", () => {
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
     await canvas.scrollIntoViewIfNeeded()
     const fitted = await tapPocket()
-    const quickActions = page.getByRole("dialog", { name: /bulbasaur.*quick actions/i })
-    await expect(quickActions).toBeVisible()
-    await harness.closeControl(quickActions).click()
+    const details = page.getByRole("dialog", { name: /bulbasaur.*details/i })
+    await expect(details).toBeVisible()
+    await harness.closeControl(details).click()
     const sx = fitted.x + fitted.width / 2, sy = fitted.y + fitted.height / 2
     await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: sx, y: sy, id: 1 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: sx - 50, y: sy, id: 1 }] })

@@ -39,7 +39,6 @@ test.describe("card detail actions on phones", () => {
   for (const dexId of [1, 2]) {
     test(`primary actions are visible without scrolling (dex #${dexId})`, async ({ harness }) => {
       await harness.page.locator(`button[data-dex-id="${dexId}"]`).first().click()
-      await harness.page.getByRole("dialog", { name: /quick actions$/i }).getByRole("button", { name: "Details", exact: true }).click()
       const dialog = harness.page.getByRole("dialog", { name: /details$/i })
       await expect(dialog).toBeVisible()
       const sheet = (await dialog.boundingBox())!
