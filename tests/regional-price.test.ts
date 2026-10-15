@@ -126,9 +126,9 @@ describe("regionalizeCardPrice", () => {
 })
 
 describe("display", () => {
-  test("UK shows GBP first and the foreign market price second", () => {
+  test("UK prices use GBP without appending foreign currencies", () => {
     const result = regionalizeCardPrice(snapshot([tcgplayer(11.66)]), "UK")
-    assert.equal(formatRegionalPriceLabel(result, { currency: "GBP", fxRates: FX }), `£11.66 ($${(11.66 / FX.usdToGbp).toFixed(2)} USD)`)
+    assert.equal(formatRegionalPriceLabel(result, { currency: "GBP", fxRates: FX }), "£11.66")
   })
 
   test("US shows USD without a redundant USD suffix", () => {
@@ -141,9 +141,9 @@ describe("display", () => {
     assert.equal(formatRegionalPriceLabel(result, { currency: "EUR", fxRates: FX }), "€10.00")
   })
 
-  test("GBP-anchored price shown in USD keeps the GBP market price second", () => {
+  test("explicit currency overrides use only the selected currency", () => {
     const result = regionalizeCardPrice(snapshot([ukSold(9)]), "UK")
-    assert.equal(formatRegionalPriceLabel(result, { currency: "USD", fxRates: FX }), "$12.00 (£9.00 GBP)")
+    assert.equal(formatRegionalPriceLabel(result, { currency: "USD", fxRates: FX }), "$12.00")
   })
 
   test("JPY rounds to whole yen", () => {
@@ -156,9 +156,9 @@ describe("display", () => {
     assert.deepEqual(convertGbpForDisplay(7.5, { currency: "JPY", fxRates: null }, base), { amount: 7.5, currency: "GBP" })
   })
 
-  test("totals skip the secondary part already in the display currency", () => {
+  test("totals use only the selected currency", () => {
     assert.equal(formatDisplayTotals(15, { USD: 20 }, { currency: "USD", fxRates: FX }), "$20.00")
-    assert.equal(formatDisplayTotals(15, { USD: 20, EUR: 5 }, { currency: "GBP", fxRates: FX }), "£15.00 ($20.00 USD + €5.00 EUR)")
+    assert.equal(formatDisplayTotals(15, { USD: 20, EUR: 5 }, { currency: "GBP", fxRates: FX }), "£15.00")
   })
 })
 

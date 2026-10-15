@@ -247,25 +247,12 @@ export function formatDisplayAmount(gbpAmount: number | null | undefined, contex
   return formatMoney(converted.amount, converted.currency)
 }
 
-/** "£11.66 ($15.42 USD)": the user's currency first, then the anchor market's own price when it differs. */
+/** Headline prices use the selected currency; source details retain original amounts. */
 export function formatRegionalPriceLabel(
   price: CardPriceSnapshot | RegionalCardPriceSnapshot | undefined,
   context: PriceDisplayContext,
 ) {
-  if (price?.gbpAmount == null) {
-    return null
-  }
-
-  const converted = convertGbpForDisplay(price.gbpAmount, context, price)
-  const primary = formatMoney(converted.amount, converted.currency)
-  const nativeAmount = "nativeAmount" in price ? price.nativeAmount : price.originalAmount
-  const nativeCurrency = "nativeCurrency" in price ? price.nativeCurrency : price.originalCurrency
-
-  if (nativeAmount == null || !nativeCurrency || nativeCurrency === converted.currency) {
-    return primary
-  }
-
-  return `${primary} (${formatMoney(nativeAmount, nativeCurrency)} ${nativeCurrency})`
+  return formatDisplayAmount(price?.gbpAmount, context, price)
 }
 
 export function formatDisplayRange(
@@ -286,20 +273,14 @@ export function formatDisplayRange(
 
 export function formatDisplayTotals(
   gbpTotal: number,
-  originalTotals: Partial<Record<SupportedCurrency, number>>,
+  _originalTotals: Partial<Record<SupportedCurrency, number>>,
   context: PriceDisplayContext,
 ) {
   if (gbpTotal <= 0) {
     return ""
   }
 
-  const converted = convertGbpForDisplay(gbpTotal, context)
-  const primary = formatMoney(converted.amount, converted.currency)
-  const originalParts = (["USD", "EUR"] as const)
-    .filter((currency) => currency !== converted.currency && (originalTotals[currency] ?? 0) > 0)
-    .map((currency) => `${formatMoney(originalTotals[currency] as number, currency)} ${currency}`)
-
-  return originalParts.length > 0 ? `${primary} (${originalParts.join(" + ")})` : primary
+  return formatDisplayAmount(gbpTotal, context) ?? ""
 }
 
 function positiveRate(value: unknown) {

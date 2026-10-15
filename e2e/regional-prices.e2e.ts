@@ -6,11 +6,16 @@ import { test, expect } from "./fixtures"
 test.describe("UK locale", () => {
   test.use({ locale: "en-GB", signedIn: true })
 
-  test("leads with the Cardmarket-grounded GBP price and shows the EUR market price second", async ({ harness }) => {
+  test("shows UK prices and the Prices control in GBP only", async ({ harness }) => {
+    await expect(harness.page.getByRole("button", { name: "Show prices", exact: true })).toHaveText("£")
     const detail = await harness.openCardDetail()
     await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£0.05")
+    await detail.locator("summary").filter({ hasText: "Price details" }).click()
+    await expect(detail.getByText("Original US$0.26 USD", { exact: true })).toBeVisible()
+    await expect(detail.getByText("Original €0.06 EUR", { exact: true })).toBeVisible()
+    await detail.locator("summary").filter({ hasText: "Price details" }).click()
     await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
-    await expect(detail.getByText("Current card", { exact: true }).locator("..").getByText("£0.05 (€0.06 EUR)", { exact: true })).toBeVisible()
+    await expect(detail.getByText("Current card", { exact: true }).locator("..").getByText("£0.05", { exact: true })).toBeVisible()
   })
 })
 

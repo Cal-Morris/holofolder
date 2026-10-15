@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures"
 test.use({ signedIn: true })
 
 for (const width of [768, 1024, 1280, 1440]) {
-  test(`desktop toolbar fits at ${width}px without scrolling`, async ({ harness }) => {
+  test(`desktop toolbar fits at ${width}px without scrolling`, async ({ harness }, testInfo) => {
     await harness.page.setViewportSize({ width, height: 900 })
     const search = harness.page.locator("nav").first().getByRole("button", { name: "Search", exact: true })
     const toolbar = search.locator("../..")
@@ -19,6 +19,10 @@ for (const width of [768, 1024, 1280, 1440]) {
     const menu = harness.page.getByRole("dialog", { name: "View options", exact: true })
     await expect(menu).toBeVisible()
     await harness.expectWithinSafeViewport(menu)
+    if (width === 1024 && testInfo.project.name === "browser-375x667") {
+      await testInfo.attach("desktop-view-menu", { body: await harness.page.screenshot({ path: testInfo.outputPath("view-options.png") }), contentType: "image/png" })
+    }
+    expect((await menu.boundingBox())!.height, "View menu stays compact").toBeLessThanOrEqual(420)
     expect((await menu.boundingBox())!.width).toBeLessThanOrEqual(340)
     await harness.expectMinTapTarget(menu.getByRole("button", { name: "Close view options", exact: true }), 36)
     await expect(menu.getByRole("group", { name: "Binder display" })).toBeVisible()
@@ -43,5 +47,13 @@ for (const width of [768, 1024, 1280, 1440]) {
     await harness.tapBackdrop(menu)
     await expect(menu).toHaveCount(0)
     await harness.expectScrollUnlocked()
+    if (width === 1024 && testInfo.project.name === "browser-375x667") {
+      await harness.page.getByRole("button", { name: "More", exact: true }).click()
+      await harness.page.getByRole("button", { name: "Light mode", exact: true }).click()
+      await opener.click()
+      await harness.expectHittable(menu.getByRole("button", { name: "Perfect", exact: true }))
+      await testInfo.attach("desktop-view-menu-light", { body: await harness.page.screenshot({ path: testInfo.outputPath("view-options-light.png") }), contentType: "image/png" })
+      await menu.getByRole("button", { name: "Close view options", exact: true }).click()
+    }
   })
 }

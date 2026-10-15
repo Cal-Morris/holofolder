@@ -11,7 +11,8 @@ interface CardPriceEvidenceProps {
   showTrend?: boolean
 }
 
-function formatCurrencyAmount(amount: number, currency: SupportedCurrency) {
+function formatCurrencyAmount(amount: number | null | undefined, currency: SupportedCurrency) {
+  if (amount == null || !Number.isFinite(amount) || amount <= 0) return null
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency,
@@ -73,6 +74,7 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
           {sourcePrices.map((source) => {
             const market = formatGbpAmount(source.marketGbpAmount)
             const low = formatGbpAmount(source.lowGbpAmount)
+            const originalMarket = source.originalCurrency === "GBP" ? null : formatCurrencyAmount(source.originalMarketAmount, source.originalCurrency)
             const updated = formatUpdatedAt(source.updatedAt)
 
             return (
@@ -91,7 +93,10 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
                     ].filter(Boolean).join(" · ")}
                   </p>
                 </div>
-                <p className="font-semibold tabular-nums">{market ?? "No market"}</p>
+                <div className="text-right tabular-nums">
+                  <p className="font-semibold">{market ?? "No market"}</p>
+                  {originalMarket && <p className="text-muted-foreground">Original {originalMarket} {source.originalCurrency}</p>}
+                </div>
               </div>
             )
           })}
