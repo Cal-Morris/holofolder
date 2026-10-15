@@ -3,7 +3,7 @@ import { test, expect, SEEDED_COLLECTION, SUPABASE_URL } from "./fixtures"
 test.describe("Binder card display", () => {
   test.use({ signedIn: true })
 
-  test("uses current by default, switches both binders to wanted, and retains both details", async ({ harness }) => {
+  test("defaults to mixed, switches both binders between owned and wanted, and retains both details", async ({ harness }) => {
     const { page } = harness
     // Synthetic printings, deliberately distinct names, languages and finishes.
     const wanted = { card_id: "sv03.5-166", card_name: "Wanted Bulbasaur", card_image: "https://assets.tcgdex.net/ja/sv/sv03.5/166/high.webp", card_set: "151", card_language: "ja", card_finish: "reverse_holo", added_at: "2026-10-11T00:00:00.000Z" }
@@ -11,9 +11,15 @@ test.describe("Binder card display", () => {
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: rows }))
     await page.reload()
     const modes = page.getByRole("group", { name: "Binder cards", exact: true })
-    const current = modes.getByRole("button", { name: "Current", exact: true })
+    const current = modes.getByRole("button", { name: "Owned", exact: true })
     const wantedMode = modes.getByRole("button", { name: "Wanted", exact: true })
     const slot = page.getByRole("button", { name: /Bulbasaur #0001/ }).first()
+    const mixed = modes.getByRole("button", { name: "Mixed", exact: true })
+    await expect(mixed).toHaveAttribute("aria-pressed", "true")
+    await expect(slot.getByRole("img", { name: "Wanted Bulbasaur", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: /Charmander #0004/ }).first().getByRole("img", { name: "Current Charmander", exact: true })).toBeVisible()
+    await harness.expectMinTapTarget(mixed)
+    await current.click()
     await expect(current).toHaveAttribute("aria-pressed", "true")
     await expect(slot.getByRole("img", { name: "Current Bulbasaur", exact: true })).toBeVisible()
     await harness.expectMinTapTarget(current)
@@ -28,6 +34,8 @@ test.describe("Binder card display", () => {
     await expect(preview).toBeVisible({ timeout: 30_000 })
     const cards = preview.getByRole("list", { name: "Cards on this spread" }).getByRole("listitem")
     await expect(cards).toHaveText(["Wanted Bulbasaur, slot 1"])
+    await mixed.click()
+    await expect(cards).toHaveText(["Wanted Bulbasaur, slot 1", "Current Charmander, slot 4"])
     await current.click()
     await expect(cards).toHaveText(["Current Bulbasaur, slot 1", "Current Charmander, slot 4"])
     await wantedMode.click()
@@ -47,7 +55,7 @@ test.describe("Binder card display", () => {
     await expect(slot.getByRole("img", { name: "Current Bulbasaur", exact: true })).toBeVisible()
   })
 
-  test("current never promotes a wanted-only printing into an owned slot", async ({ harness }) => {
+  test("owned never promotes a wanted-only printing into an owned slot", async ({ harness }) => {
     const { page } = harness
     // Synthetic wanted-only printing; this row owns no card.
     const wanted = { card_id: "sv03.5-166", card_name: "Only Wanted Bulbasaur", card_image: "https://assets.tcgdex.net/en/sv/sv03.5/166/high.webp", card_language: "en", card_finish: "holo", added_at: "2026-10-11T00:00:00.000Z" }
@@ -55,9 +63,9 @@ test.describe("Binder card display", () => {
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: rows }))
     await page.reload()
     const modes = page.getByRole("group", { name: "Binder cards", exact: true })
-    await modes.getByRole("button", { name: "Wanted", exact: true }).click()
+    await expect(modes.getByRole("button", { name: "Mixed", exact: true })).toHaveAttribute("aria-pressed", "true")
     await expect(page.getByRole("button", { name: /Bulbasaur #0001/ }).first().getByRole("img", { name: "Only Wanted Bulbasaur", exact: true })).toBeVisible()
-    await modes.getByRole("button", { name: "Current", exact: true }).click()
+    await modes.getByRole("button", { name: "Owned", exact: true }).click()
     await expect(page.getByRole("button", { name: /Bulbasaur #0001/ }).first().getByRole("img", { name: "Only Wanted Bulbasaur", exact: true })).toHaveCount(0)
     await page.getByRole("group", { name: "Binder display", exact: true }).getByRole("button", { name: "3D", exact: true }).click()
     const preview = page.getByRole("region", { name: "Your 3D National Dex binder" })

@@ -30,7 +30,7 @@ test("getSelectedSlotCardDisplay follows the selected mode and retains owned met
 })
 
 
-test("binder defaults to current and wanted mode keeps each printing's metadata together", () => {
+test("owned and wanted mode keeps each printing's metadata together", () => {
   const current = { card_id: "current", card_name: "Current", card_image: "current.png", card_language: "en" as const, card_finish: "holo" as const, status: "collected" as const }
   const wanted = { card_id: "wanted", card_name: "Wanted", card_image: "wanted.png", card_language: "ja" as const, card_finish: "reverse_holo" as const, added_at: "2026-10-11T00:00:00Z" }
   const item = { ...current, wanted_cards: [wanted] }
@@ -57,4 +57,20 @@ test("current details do not borrow wanted metadata, and missing wanted stays mi
   assert.equal(getSelectedSlotCardDisplay(item, "current").primaryCard?.cardId, "owned")
   assert.equal(getSelectedSlotCardDisplay(item, "current").primaryCard?.cardSet, undefined)
   assert.equal(getSelectedSlotCardDisplay({ ...item, wanted_cards: [] }, "wanted").primaryCard, null)
+})
+
+
+test("mixed restores wanted-first printings alongside owned and legacy wanted slots", () => {
+  const owned = { card_id: "owned", card_name: "Owned", status: "collected" as const }
+  const wanted = { card_id: "wanted", card_name: "Wanted", added_at: "2026-10-11T00:00:00Z" }
+  const both = { ...owned, wanted_cards: [wanted] }
+  assert.equal(getBinderDisplayCard(both, "mixed"), wanted)
+  assert.equal(getBinderDisplayCard(owned, "mixed"), owned)
+  assert.equal(getBinderDisplayCard({ status: "wishlisted", wanted_cards: [wanted] }, "mixed"), wanted)
+  const legacy = { ...owned, status: "wishlisted" as const }
+  assert.equal(getBinderDisplayCard(legacy, "mixed"), legacy)
+  assert.equal(getBinderDisplayCard(null, "mixed"), null)
+  assert.equal(getBinderDisplayCard({ wanted_cards: [] }, "mixed"), null)
+  assert.equal(getSelectedSlotCardDisplay(both, "mixed").primaryCard?.cardId, "wanted")
+  assert.equal(getSelectedSlotCardDisplay(both, "mixed").currentCard?.cardId, "owned")
 })
