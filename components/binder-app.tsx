@@ -16,6 +16,9 @@ import type { CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
 import { closeAllOverlays, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
+import OwnedRemoveSheet from "@/components/owned-remove-sheet"
+import UndoSnackbar from "@/components/undo-snackbar"
+import type { OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { aggregateCardScanMatches, aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
 import type { CardImageDescriptor } from "@/lib/card-image-match"
@@ -23,7 +26,7 @@ import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-t
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { getCardPriceKey, getPriceSourceLabel, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
-import { useCollection, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
+import { useCollection, type CardFinish, type CardLanguage, type CollectedPokemon, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useBinderAppearance } from "@/hooks/use-binder-appearance"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { usePricingPreferences } from "@/hooks/use-pricing-preferences"
@@ -771,6 +774,8 @@ export default function BinderApp({
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
+  const [ownedRemoveTarget, setOwnedRemoveTarget] = useState<{ id: number; name: string } | null>(null)
+  const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; nested: boolean } | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
@@ -853,6 +858,8 @@ export default function BinderApp({
     addWantedCard,
     removeFromCollection,
     removeWantedCard,
+    removeOwnedCard,
+    restoreCollectionItem,
     updateStatus,
     collectionCount,
     signOut,
@@ -2218,6 +2225,42 @@ export default function BinderApp({
 
     await removeFromCollection(selectedPokemon.id)
   }
+
+  /** Owned slot: ask whether to move it back to Wanted (primary) or remove it completely. */
+  const requestOwnedRemoval = useCallback((pokemon: { id: number; name: string }) => {
+    if (readOnlyMode) return
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+    setLongPressedPokemon(null)
+    setOwnedRemoveTarget({ id: pokemon.id, name: pokemon.name })
+  }, [readOnlyMode, user])
+
+  const closeOwnedRemoveSheet = useCallback(() => setOwnedRemoveTarget(null), [])
+
+  const handleOwnedRemovalChoice = useCallback(async (mode: OwnedRemovalMode) => {
+    const target = ownedRemoveTarget
+    setOwnedRemoveTarget(null)
+    if (!target) return
+    const result = await removeOwnedCard(target.id, mode)
+    if ("previous" in result && result.previous) {
+      const displayName = formatPokemonDisplayName(target.name)
+      setOwnedRemoveUndo({
+        message: mode === "to-wanted" ? `${displayName} moved back to Wanted` : `${displayName} removed`,
+        previous: result.previous,
+      })
+    }
+  }, [ownedRemoveTarget, removeOwnedCard])
+
+  const dismissOwnedRemoveUndo = useCallback(() => setOwnedRemoveUndo(null), [])
+
+  const handleUndoOwnedRemoval = useCallback(async () => {
+    const undo = ownedRemoveUndo
+    setOwnedRemoveUndo(null)
+    if (!undo) return
+    await restoreCollectionItem(undo.previous)
+  }, [ownedRemoveUndo, restoreCollectionItem])
 
   const handleQuickCollect = async (pokemon: { id: number; name: string }) => {
     if (readOnlyMode) return
@@ -4021,7 +4064,7 @@ export default function BinderApp({
     const panelHelperText = readOnlyMode
       ? "This shared binder is read-only. You can browse, search, filter, and view prices, but only the owner can change collection state."
       : collected
-        ? "Add or edit the card for this slot, or clear it if you no longer have one."
+        ? "Add or edit the card for this slot, or remove it to move it back to Wanted if you no longer have it."
         : "Add card saves your chosen card, Mark owned leaves it cardless, and Wanted card tracks a card without counting it as owned."
 
     const quickPanel = (
@@ -4199,7 +4242,20 @@ export default function BinderApp({
                   </Button>
                 </div>
 
-                {!readOnlyMode && (collected || wishlisted) && (
+                {!readOnlyMode && collected && selectedPokemon && (
+                  <Button
+                    onClick={() => requestOwnedRemoval({ id: selectedPokemon.id, name: selectedPokemon.name })}
+                    disabled={isCollectionLoading}
+                    variant="outline"
+                    size="sm"
+                    aria-haspopup="dialog"
+                    className="h-9 shrink-0 rounded-xl gap-1 border-destructive/25 bg-destructive/8 px-3 text-xs text-destructive shadow-none hover:bg-destructive/12 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                    Remove
+                  </Button>
+                )}
+                {!readOnlyMode && !collected && wishlisted && (
                   <Button
                     onClick={handleRemoveSelectedPokemon}
                     disabled={isCollectionLoading}
@@ -4531,7 +4587,11 @@ export default function BinderApp({
               type="button"
               onClick={() => {
                 setLongPressedPokemon(null)
-                handleQuickCollect(pokemon)
+                if (collected) {
+                  requestOwnedRemoval(pokemon)
+                } else {
+                  handleQuickCollect(pokemon)
+                }
               }}
               className={`flex h-10 min-w-0 items-center justify-center gap-1 rounded-xl border px-1.5 text-xs font-bold ${
                 collected
@@ -5453,6 +5513,22 @@ export default function BinderApp({
         </div>
       )}
 
+      {ownedRemoveTarget && !readOnlyMode ? (
+        <OwnedRemoveSheet
+          pokemonName={formatPokemonDisplayName(ownedRemoveTarget.name)}
+          cardName={getCollectionItem(ownedRemoveTarget.id)?.card_name}
+          onChoose={handleOwnedRemovalChoice}
+          onClose={closeOwnedRemoveSheet}
+        />
+      ) : null}
+      {ownedRemoveUndo && !readOnlyMode ? (
+        <UndoSnackbar
+          message={ownedRemoveUndo.message}
+          onUndo={handleUndoOwnedRemoval}
+          onDismiss={dismissOwnedRemoveUndo}
+        />
+      ) : null}
+
       {/* Pending-sync indicator and rollback notice (minimal markup; reuses the offline pill's look). */}
       {isOnline && user && !readOnlyMode && (localPendingSyncCount > 0 || syncNotice) && (
         <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.45rem)] z-50 flex justify-center px-3">
@@ -6114,6 +6190,7 @@ export default function BinderApp({
               formatPrice={priceFormat.label}
               onSelectPokemon={handlePokemonSelect}
               onToggleOwned={handleQuickCollect}
+              onRemoveOwned={requestOwnedRemoval}
               onAddCard={(pokemon) => openCardSelectorForPokemon(pokemon, "collect")}
               onAddWanted={(pokemon) => openCardSelectorForPokemon(pokemon, "wishlist")}
               onTogglePerfect={handleToggleFavorite}

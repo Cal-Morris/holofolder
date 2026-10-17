@@ -22,6 +22,8 @@ interface DexListViewProps {
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
   onSelectPokemon: (pokemon: PokemonSummary) => void
   onToggleOwned: (pokemon: PokemonSummary) => void
+  /** Owned slot: offer "Move back to Wanted" / "Remove completely". Falls back to onToggleOwned when absent. */
+  onRemoveOwned?: (pokemon: PokemonSummary) => void
   onAddCard: (pokemon: PokemonSummary) => void
   onAddWanted: (pokemon: PokemonSummary) => void
   onTogglePerfect: (pokemonId: number) => void
@@ -93,6 +95,7 @@ export default function DexListView({
   formatPrice,
   onSelectPokemon,
   onToggleOwned,
+  onRemoveOwned,
   onAddCard,
   onAddWanted,
   onTogglePerfect,
@@ -309,18 +312,37 @@ export default function DexListView({
                       ) : null}
                       {!readOnly ? (
                         <span className="ml-auto flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant={item?.status !== "wishlisted" && item ? "default" : "outline"}
-                            size="sm"
-                            className="h-8 rounded-full px-3 text-[11px]"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              onToggleOwned(pokemon)
-                            }}
-                          >
-                            {item?.status !== "wishlisted" && item ? "Owned" : "Own"}
-                          </Button>
+                          {item && item.status !== "wishlisted" ? (
+                            <Button
+                              type="button"
+                              variant="default"
+                              size="sm"
+                              className="h-9 gap-1 rounded-full px-3 text-[11px]"
+                              aria-haspopup={onRemoveOwned ? "dialog" : undefined}
+                              aria-label={`Owned: remove ${pokemon.name}`}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                if (onRemoveOwned) onRemoveOwned(pokemon)
+                                else onToggleOwned(pokemon)
+                              }}
+                            >
+                              <Check className="h-3 w-3" />
+                              Owned
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 rounded-full px-3 text-[11px]"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                onToggleOwned(pokemon)
+                              }}
+                            >
+                              Own
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="outline"
