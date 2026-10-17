@@ -74,6 +74,7 @@ import {
   saveRemoteCollectionItem,
   deleteRemoteCollectionItem,
 } from "@/lib/collection/remote"
+import { isOwnedCollectionItem, planOwnedRemoval, type OwnedRemovalMode } from "@/lib/collection/owned-removal"
 
 /** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
 export type CollectionSyncStatus = "idle" | "syncing" | "waiting"
@@ -785,6 +786,35 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return result.queued ? { success: true, queued: true, ...("error" in result ? { error: result.error } : {}) } : { success: true }
   }, [commitItemChange, readOnly])
 
+  /**
+   * Remove the owned card from a slot: "to-wanted" turns the slot back into a wanted slot (one row write),
+   * "remove" deletes the row. Returns the previous row so the caller can offer an exact undo.
+   */
+  const removeOwnedCard = useCallback(async (pokemonId: number, mode: OwnedRemovalMode = "to-wanted") => {
+    if (readOnly) return { error: "Read-only binder" }
+    const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+    if (!isOwnedCollectionItem(existingItem)) return { error: "Not owned" }
+
+    const { previous, next } = planOwnedRemoval(existingItem, mode)
+    const result = await commitItemChange(pokemonId, next)
+    if ("rolledBack" in result) {
+      console.error("[binderdex] Error removing owned card:", result.error)
+      return { error: extractErrorMessage(result.error) }
+    }
+    return { previous, data: next, queued: result.queued }
+  }, [collection, commitItemChange, readOnly])
+
+  /** Write a previously saved row back exactly as it was (used by undo). */
+  const restoreCollectionItem = useCallback(async (previous: CollectedPokemon) => {
+    if (readOnly) return { error: "Read-only binder" }
+    const result = await commitItemChange(previous.pokemon_id, previous)
+    if ("rolledBack" in result) {
+      console.error("[binderdex] Error restoring collection item:", result.error)
+      return { error: extractErrorMessage(result.error) }
+    }
+    return { data: result.item ?? previous, queued: result.queued }
+  }, [commitItemChange, readOnly])
+
   const addWantedCard = useCallback(async (
     pokemonId: number,
     pokemonName: string,
@@ -1008,6 +1038,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
     addWantedCard,
     removeFromCollection,
     removeWantedCard,
+    removeOwnedCard,
+    restoreCollectionItem,
     updateStatus,
     cycleStatus,
     isCollected,
