@@ -6931,6 +6931,8 @@ export default function BinderApp({
           selectedWantedCardId={collectionItem?.wanted_cards?.[0]?.card_id}
           mode={cardSelectorMode}
           defaultCardLanguage={pricingPreferences.cardLanguage}
+          pricingRegion={pricingPreferences.region}
+          formatAmount={priceFormat.amount}
         />
       )}
 

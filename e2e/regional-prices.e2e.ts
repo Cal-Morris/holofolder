@@ -17,6 +17,15 @@ test.describe("UK locale", () => {
     await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
     await expect(detail.getByText("Current card", { exact: true }).locator("..").getByText("£0.05", { exact: true })).toBeVisible()
   })
+
+  test("the card selector prices each printing for the UK", async ({ harness }) => {
+    const detail = await harness.openCardDetail()
+    await detail.getByRole("button", { name: /edit card|add card/i }).first().click()
+    const selector = harness.page.getByRole("dialog", { name: /card selector/i })
+    await expect(selector.getByText("M £0.05", { exact: true }).filter({ visible: true }).first()).toBeVisible()
+    await expect(selector.getByText("M £0.20", { exact: true }).filter({ visible: true })).toHaveCount(0)
+    await harness.expectNoHorizontalOverflow()
+  })
 })
 
 test.describe("US locale", () => {
@@ -27,5 +36,13 @@ test.describe("US locale", () => {
     await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("$0.26")
     await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
     await expect(detail.getByText("Current card", { exact: true }).locator("..").getByText("$0.26", { exact: true })).toBeVisible()
+  })
+
+  test("the card selector prices each printing in USD", async ({ harness }) => {
+    const detail = await harness.openCardDetail()
+    await detail.getByRole("button", { name: /edit card|add card/i }).first().click()
+    const selector = harness.page.getByRole("dialog", { name: /card selector/i })
+    await expect(selector.getByText("M $0.26", { exact: true }).filter({ visible: true }).first()).toBeVisible()
+    await expect(selector.getByText(/£/).filter({ visible: true })).toHaveCount(0)
   })
 })
