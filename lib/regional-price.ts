@@ -1,5 +1,7 @@
 import type {
+  CardFinishPrice,
   CardPriceSnapshot,
+  PricedCardFinish,
   CardPriceSourceSummary,
   FxRates,
   PriceConfidence,
@@ -183,6 +185,32 @@ export function regionalizeCardPrices<T extends CardPriceSnapshot>(
   const result: Record<string, RegionalCardPriceSnapshot<T>> = {}
   for (const [key, snapshot] of Object.entries(pricesByKey)) {
     result[key] = regionalizeCardPrice(snapshot, region)
+  }
+  return result
+}
+
+const STANDARD_FINISH_VARIANT_KEYS = new Set([
+  "normal", "unlimited", "holo", "holofoil", "unlimited-holofoil", "reverse", "reverse_holo", "reverseholofoil", "reverse-holofoil", "reverse-holo",
+])
+
+/**
+ * The region-weighted price of each finish a snapshot quotes (normal, holo, reverse holo). Only standard
+ * printings count (not 1st Edition or other special variant rows); the snapshot's own source wins ties.
+ */
+export function getRegionalFinishPrices(
+  snapshot: CardPriceSnapshot | undefined,
+  region: PricingRegion,
+): Partial<Record<PricedCardFinish, RegionalCardPriceSnapshot>> {
+  const result: Partial<Record<PricedCardFinish, RegionalCardPriceSnapshot>> = {}
+  const byFinish = new Map<PricedCardFinish, CardFinishPrice[]>()
+  for (const price of snapshot?.finishPrices ?? []) {
+    if (!STANDARD_FINISH_VARIANT_KEYS.has(price.variantKey.toLowerCase())) continue
+    byFinish.set(price.finish, [...(byFinish.get(price.finish) ?? []), price])
+  }
+  for (const [finish, prices] of byFinish) {
+    const chosen = prices.find((price) => price.source === snapshot?.source) ?? prices[0]
+    const regional = regionalizeCardPrice(chosen as CardPriceSnapshot, region)
+    if (typeof regional.gbpAmount === "number" && regional.gbpAmount > 0) result[finish] = regional
   }
   return result
 }

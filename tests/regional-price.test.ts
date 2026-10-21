@@ -9,6 +9,7 @@ import {
   formatDisplayAmount,
   formatDisplayRange,
   formatRegionalPriceLabel,
+  getRegionalFinishPrices,
   getSourceMarket,
   normalizeDisplayFxRates,
   regionalizeCardPrice,
@@ -185,4 +186,31 @@ test("card amount and range use source FX evidence when API rates are unavailabl
   assert.equal(formatDisplayRange(3, 7.5, context, price), "$4.00-$10.00")
   assert.equal(formatDisplayRange(3, 7.5, { currency: "JPY", fxRates: null }, price), "£3.00-£7.50")
   assert.equal(formatDisplayRange(null, null, context, price), null)
+})
+
+describe("finish prices", () => {
+  const finish = (finishId: "normal" | "holo" | "reverse_holo", variantKey: string, sources: CardPriceSourceSummary[]) =>
+    ({ ...snapshot(sources), finish: finishId, variantKey })
+
+  test("weights each standard finish for the region and skips special variant rows", () => {
+    const base = snapshot([tcgplayer(10)], {
+      finishPrices: [
+        finish("normal", "normal", [tcgplayer(10), cardmarket(4)]),
+        finish("normal", "1st-edition", [tcgplayer(300)]),
+        finish("reverse_holo", "reverseHolofoil", [tcgplayer(2)]),
+      ],
+    })
+    const uk = getRegionalFinishPrices(base, "UK")
+    // UK: Cardmarket is native, TCGplayer disagrees by more than 35%, so it is ignored.
+    assert.equal(uk.normal?.gbpAmount, 4)
+    assert.equal(uk.reverse_holo?.gbpAmount, 2)
+    assert.equal(uk.reverse_holo?.priceBasis, "foreign")
+    assert.equal(uk.holo, undefined)
+    assert.equal(getRegionalFinishPrices(base, "US").normal?.gbpAmount, 10)
+  })
+
+  test("is empty without finish quotes", () => {
+    assert.deepEqual(getRegionalFinishPrices(undefined, "UK"), {})
+    assert.deepEqual(getRegionalFinishPrices(snapshot([tcgplayer(1)]), "UK"), {})
+  })
 })

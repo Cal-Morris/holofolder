@@ -35,6 +35,7 @@ import {
   formatDisplayRange,
   formatDisplayTotals,
   formatRegionalPriceLabel,
+  getRegionalFinishPrices,
   regionalizeCardPrices,
   type PriceDisplayContext,
 } from "@/lib/regional-price"
@@ -3803,6 +3804,10 @@ export default function BinderApp({
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
   const selectedAssignedPriceSnapshot = selectedCardPriceKey ? pricesByCardId[selectedCardPriceKey] : undefined
   const selectedCardPriceLabel = priceFormat.label(selectedAssignedPriceSnapshot)
+  const selectedFinishPrices = useMemo(
+    () => getRegionalFinishPrices(selectedAssignedPriceSnapshot, pricingPreferences.region),
+    [pricingPreferences.region, selectedAssignedPriceSnapshot],
+  )
   const selectedWantedCards = collectionItem?.wanted_cards ?? []
   const selectedWantedCardPreview = selectedWantedCards[0] ?? null
   const selectedHasWantedCard = binderCardDisplay !== "current" && Boolean(selectedPrimaryCardPreview) && (binderCardDisplay === "wanted" || Boolean(collectionItem?.wanted_cards?.length) || collectionItem?.status === "wishlisted")
@@ -4471,6 +4476,8 @@ export default function BinderApp({
                 <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
                   {CARD_FINISH_OPTIONS.map((finishOption) => {
                     const isActive = (collectionItem?.card_finish ?? "normal") === finishOption.id
+                    const finishPrice = selectedFinishPrices[finishOption.id as keyof typeof selectedFinishPrices]
+                    const finishPriceLabel = finishPrice ? priceFormat.label({ ...finishPrice, fetchedAt: 0 })?.split(" (")[0] ?? null : null
 
                     return (
                       <button
@@ -4479,6 +4486,7 @@ export default function BinderApp({
                         onClick={() => handleSelectedCardFinishChange(finishOption.id)}
                         disabled={isCollectionLoading || isActive}
                         aria-pressed={isActive}
+                        aria-label={finishPriceLabel ? `${finishOption.label}, ${finishPriceLabel}` : undefined}
                         className={`h-8 shrink-0 rounded-xl border px-3 text-[11px] font-semibold transition-colors disabled:pointer-events-none ${
                           isActive
                             ? "border-primary/55 bg-primary text-primary-foreground shadow-sm"
@@ -4486,6 +4494,7 @@ export default function BinderApp({
                         }`}
                       >
                         {finishOption.label}
+                        {finishPriceLabel ? <span className="ml-1 font-bold tabular-nums opacity-80" data-testid="finish-price">{finishPriceLabel}</span> : null}
                       </button>
                     )
                   })}
