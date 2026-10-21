@@ -147,7 +147,7 @@ export function isIllustratorCardsResponse(value: unknown): value is Illustrator
 // Illustrator view
 
 export type IllustratorCardFilter = "all" | "owned" | "wanted" | "missing"
-export type IllustratorCardSort = "newest" | "oldest" | "set" | "name"
+export type IllustratorCardSort = "newest" | "oldest" | "set" | "name" | "price-desc" | "price-asc"
 
 export const ILLUSTRATOR_CARD_FILTERS: Array<{ id: IllustratorCardFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -161,7 +161,16 @@ export const ILLUSTRATOR_CARD_SORTS: Array<{ id: IllustratorCardSort; label: str
   { id: "oldest", label: "Oldest first" },
   { id: "set", label: "Set name" },
   { id: "name", label: "Card name" },
+  { id: "price-desc", label: "Price: high to low" },
+  { id: "price-asc", label: "Price: low to high" },
 ]
+
+/** A card's headline price (GBP, region-weighted) or null when it has none. */
+export type CardPriceOf = (card: BrowseCard) => number | null | undefined
+
+function usablePrice(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null
+}
 
 export interface IllustratorCollectionItem {
   card_id?: string | null
@@ -181,8 +190,19 @@ function compareByNumber(a: BrowseCard, b: BrowseCard) {
   return a.localId.localeCompare(b.localId, undefined, { numeric: true })
 }
 
-export function compareIllustratorCards(sort: IllustratorCardSort) {
+/** Cards with no price always sort last, in either direction; ties fall back to newest first. */
+export function compareIllustratorCards(sort: IllustratorCardSort, priceOf?: CardPriceOf) {
   return (a: BrowseCard, b: BrowseCard) => {
+    if (sort === "price-desc" || sort === "price-asc") {
+      const aPrice = usablePrice(priceOf?.(a))
+      const bPrice = usablePrice(priceOf?.(b))
+      if (aPrice !== bPrice) {
+        if (aPrice == null) return 1
+        if (bPrice == null) return -1
+        return sort === "price-desc" ? bPrice - aPrice : aPrice - bPrice
+      }
+      return compareBrowseCards(a, b)
+    }
     if (sort === "newest") return compareBrowseCards(a, b)
     if (sort === "oldest") {
       const aDate = a.set.releaseDate ?? ""
@@ -206,9 +226,9 @@ export function compareIllustratorCards(sort: IllustratorCardSort) {
 export function buildIllustratorEntries(
   cards: readonly IllustratorCard[],
   collection: Iterable<IllustratorCollectionItem>,
-  options: { filter?: IllustratorCardFilter; sort?: IllustratorCardSort; text?: string } = {},
+  options: { filter?: IllustratorCardFilter; sort?: IllustratorCardSort; text?: string; priceOf?: CardPriceOf } = {},
 ): IllustratorCardEntry[] {
-  const { filter = "all", sort = "newest", text = "" } = options
+  const { filter = "all", sort = "newest", text = "", priceOf } = options
   const ownedIds = new Set<string>()
   const wantedIds = new Set<string>()
   for (const item of collection) {
@@ -218,7 +238,7 @@ export function buildIllustratorEntries(
 
   const needle = normalizeIllustratorText(text)
   return [...cards]
-    .sort(compareIllustratorCards(sort))
+    .sort(compareIllustratorCards(sort, priceOf))
     .map((card) => {
       const ids = catalogCardIds(card)
       return {

@@ -1,10 +1,15 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, Heart, Loader2, Palette, Search as SearchIcon, X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
+import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
+import { PriceRisingBadge } from "@/components/price-rising-badge"
+import type { PricingRegion } from "@/lib/pricing-region"
 import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
+import type { BrowseCard } from "@/lib/pokemon-card-browse"
 import { loadIllustratorCards } from "@/lib/illustrator-client"
 import {
   buildIllustratorEntries,
@@ -21,6 +26,10 @@ export interface IllustratorCardsBrowserProps {
   illustrator: string
   collection: readonly IllustratorCollectionItem[]
   isDesktop: boolean
+  /** The user's pricing region; prices are re-weighted for it before sorting and display. */
+  pricingRegion: PricingRegion
+  /** Formats a headline price in the user's display currency. */
+  formatPrice: (price: CardPriceSnapshot | undefined) => string | null
   onClose: () => void
 }
 
@@ -30,7 +39,7 @@ type LoadState =
   | { status: "unavailable" }
 
 /** Read-only view of every card by one illustrator, across all sets. Never enters the edit flow. */
-export default function IllustratorCardsBrowser({ illustrator, collection, isDesktop, onClose }: IllustratorCardsBrowserProps) {
+export default function IllustratorCardsBrowser({ illustrator, collection, isDesktop, pricingRegion, formatPrice, onClose }: IllustratorCardsBrowserProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<LoadState>({ status: "loading" })
   const [filter, setFilter] = useState<IllustratorCardFilter>("all")
@@ -56,10 +65,21 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
   const cards = state.status === "ready" ? state.cards : null
   const allEntries = useMemo(() => buildIllustratorEntries(cards ?? [], collection), [cards, collection])
   const counts = useMemo(() => countIllustratorEntries(allEntries), [allEntries])
-  const visibleEntries = useMemo(
-    () => buildIllustratorEntries(cards ?? [], collection, { filter, sort, text: textFilter }),
-    [cards, collection, filter, sort, textFilter],
+  // One batched lookup for every card (served from the on-device cache first, so it also works offline).
+  const priceLookups = useMemo(
+    () => (cards ?? []).map((card) => ({ cardId: card.id, language: card.language ?? "en" })),
+    [cards],
   )
+  const { pricesByCardId, isLoading: isLoadingPrices } = useRegionalCardPrices(priceLookups, priceLookups.length > 0, pricingRegion)
+  const priceOf = useCallback(
+    (card: BrowseCard) => pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]?.gbpAmount ?? null,
+    [pricesByCardId],
+  )
+  const visibleEntries = useMemo(
+    () => buildIllustratorEntries(cards ?? [], collection, { filter, sort, text: textFilter, priceOf }),
+    [cards, collection, filter, sort, textFilter, priceOf],
+  )
+  const isPriceSort = sort === "price-desc" || sort === "price-asc"
   const setCount = useMemo(() => new Set((cards ?? []).map((card) => card.set.id)).size, [cards])
 
   const content = (
@@ -155,6 +175,11 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-3">
+          {isPriceSort && state.status === "ready" && visibleEntries.length > 0 ? (
+            <p className="mb-2 text-[11px] text-muted-foreground" data-testid="illustrator-price-sort-note">
+              {isLoadingPrices ? "Loading prices…" : "Cards without a price are listed last."}
+            </p>
+          ) : null}
           {state.status === "ready" && state.fromDevice ? (
             <p className="mb-2 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Offline: showing the copy saved on this device.</p>
           ) : null}
@@ -181,11 +206,14 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
               {visibleEntries.map((entry) => {
                 const { card } = entry
                 const image = getProxiedThumbnailUrl(card.image)
+                const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]
+                const price = formatPrice(priceSnapshot)?.split(" (")[0] ?? null
                 return (
                   <li
                     key={card.id}
                     data-card-id={card.id}
                     aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ", owned" : ""}${entry.wanted ? ", wanted" : ""}`}
+                    data-price={price ?? undefined}
                     className={`flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-background/60 ${
                       entry.owned ? "border-emerald-400/45" : entry.wanted ? "border-amber-400/45" : "border-border/50"
                     }`}
@@ -209,6 +237,7 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
                           </span>
                         ) : null}
                       </div>
+                      <PriceRisingBadge price={priceSnapshot} className="absolute right-1.5 top-1.5" />
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-2">
                       <p className="truncate text-xs font-semibold" title={card.name}>{card.name}</p>
@@ -217,6 +246,11 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
                         <span className="tabular-nums">{entry.numberLabel}</span>
                         {card.set.releaseDate ? <span className="tabular-nums">{card.set.releaseDate.slice(0, 4)}</span> : null}
                       </div>
+                      <p className="truncate text-xs font-bold tabular-nums" data-testid="illustrator-card-price">
+                        {price
+                          ? <span className="text-foreground">{price}</span>
+                          : <span className="font-medium text-muted-foreground">{isLoadingPrices ? "Pricing…" : "No price"}</span>}
+                      </p>
                       {card.rarity || entry.variantLabels.length > 0 ? (
                         <p className="truncate text-[10px] text-muted-foreground">{[card.rarity, ...entry.variantLabels].filter(Boolean).join(" · ")}</p>
                       ) : null}
