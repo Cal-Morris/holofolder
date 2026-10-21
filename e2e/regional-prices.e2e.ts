@@ -28,6 +28,49 @@ test.describe("UK locale", () => {
   })
 })
 
+test.describe("variant prices (UK)", () => {
+  test.use({ locale: "en-GB", signedIn: true })
+
+  test("each variant chip on the card detail shows its own UK price", async ({ harness }) => {
+    // TEST FIXTURE ONLY: Bulbasaur 44 normal (Cardmarket £0.05 vs TCGplayer £0.20) and a TCGplayer-only reverse holo £0.80.
+    const evidence = (gbp: number, source: "tcgplayer" | "cardmarket") => ({
+      source, label: source, variantLabel: null, marketGbpAmount: gbp, lowGbpAmount: null,
+      originalMarketAmount: source === "tcgplayer" ? gbp * 1.3 : gbp * 1.2, originalLowAmount: null,
+      originalCurrency: source === "tcgplayer" ? "USD" : "EUR", updatedAt: new Date().toISOString(),
+    })
+    const quote = (gbp: number, sources: ReturnType<typeof evidence>[]) => ({
+      gbpAmount: gbp, marketGbpAmount: gbp, goodGbpAmount: null, lowGbpAmount: null, highGbpAmount: null, confidence: "medium",
+      sourcePrices: sources, trendPoints: [], buySignal: null, originalAmount: null, originalCurrency: null,
+      source: sources[0].source, variantLabel: null, updatedAt: new Date().toISOString(), fxDate: null,
+    })
+    await harness.page.route("**/api/card-prices**", async (route) => {
+      const lookups: Array<{ cardId: string; language?: string }> = route.request().postDataJSON()?.cards ?? []
+      await route.fulfill({ json: { prices: lookups.map(({ cardId, language }) => ({
+        cardId, language: language ?? "en", historyPoints: [],
+        ...quote(0.2, [evidence(0.2, "tcgplayer"), evidence(0.05, "cardmarket")]),
+        finishPrices: cardId === "base1-44" ? [
+          { ...quote(0.2, [evidence(0.2, "tcgplayer"), evidence(0.05, "cardmarket")]), cardId, language: "en", finish: "normal", variantKey: "normal" },
+          { ...quote(0.8, [evidence(0.8, "tcgplayer")]), cardId, language: "en", finish: "reverse_holo", variantKey: "reverseHolofoil" },
+          { ...quote(90, [evidence(90, "tcgplayer")]), cardId, language: "en", finish: "normal", variantKey: "1st-edition" },
+        ] : [],
+      })) } })
+    })
+    await harness.page.addInitScript(() => {
+      localStorage.removeItem("binderdex_card_price_cache_v7")
+      indexedDB.deleteDatabase("binderdex-offline")
+    })
+    await harness.open()
+
+    const detail = await harness.openCardDetail()
+    await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
+    await expect(detail.getByRole("button", { name: "Normal, £0.05", exact: true })).toBeVisible()
+    await expect(detail.getByRole("button", { name: "Reverse, £0.80", exact: true })).toBeVisible()
+    // No quote for a finish: the chip stays a plain label.
+    await expect(detail.getByRole("button", { name: "Holo", exact: true })).toBeVisible()
+    await harness.expectNoHorizontalOverflow()
+  })
+})
+
 test.describe("US locale", () => {
   test.use({ locale: "en-US", signedIn: true })
 
