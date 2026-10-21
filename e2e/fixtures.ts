@@ -73,6 +73,11 @@ export const MOCK_CARDS: MockCard[] = [
   mockCard(4, "Charmander", "sv03.5", "151", "168", 165, "2023-09-22", "Illustration Rare", { holo: true }),
   mockCard(5, "Charmeleon", "sv03.5", "151", "005", 165, "2023-09-22", "Uncommon", { normal: true, reverse: true }),
   mockCard(6, "Charizard ex", "sv03.5", "151", "006", 165, "2023-09-22", "Double Rare", { holo: true }),
+  // Synthetic Squirtle printings for the wanted-slot regression tests: a normal set, 30th Celebration and
+  // 30th Classic Collection (which has no official card count in TCGdex).
+  mockCard(7, "Squirtle", "sv03.5", "151", "007", 165, "2023-09-22", "Common", { normal: true, reverse: true }),
+  mockCard(7, "Squirtle", "30th", "30th Celebration", "007", 128, "2026-09-16", "Common", { holo: true }),
+  mockCard(7, "Squirtle", "30th-c", "30th Classic Collection", "003", 0, "2026-09-16", "None", { normal: true }),
 ]
 
 const CARD_PALETTE = ["#2563eb", "#16a34a", "#dc2626", "#9333ea", "#ea580c", "#0891b2"]

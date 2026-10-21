@@ -75,6 +75,7 @@ import {
   deleteRemoteCollectionItem,
 } from "@/lib/collection/remote"
 import { isOwnedCollectionItem, planOwnedRemoval, type OwnedRemovalMode } from "@/lib/collection/owned-removal"
+import { resolveWantedCardsAfterOwnedAdd } from "@/lib/collection/owned-add"
 
 /** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
 export type CollectionSyncStatus = "idle" | "syncing" | "waiting"
@@ -112,6 +113,8 @@ interface UseCollectionOptions {
 interface SaveCollectionOptions {
   cardFinish?: CardFinish
   wantedCards?: WantedCard[]
+  /** Other ids the added card is known by (catalog canonical id and aliases), so a wanted alias is fulfilled too. */
+  cardIds?: readonly string[]
 }
 
 export function useCollection(options: UseCollectionOptions = {}) {
@@ -750,6 +753,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (readOnly) return { error: "Read-only binder" }
 
     const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
+    const cardFinish = options.cardFinish ?? existingItem?.card_finish ?? "normal"
     const nextItem = normalizeCollectionItem({
       id: existingItem?.id,
       pokemon_id: pokemonId,
@@ -759,8 +763,17 @@ export function useCollection(options: UseCollectionOptions = {}) {
       card_image: cardImage,
       card_set: cardSet,
       card_language: cardLanguage,
-      card_finish: options.cardFinish ?? existingItem?.card_finish ?? "normal",
-      wanted_cards: options.wantedCards ?? existingItem?.wanted_cards ?? [],
+      card_finish: cardFinish,
+      // Adding a card as owned fills a wanted slot; otherwise it would keep showing as wanted.
+      wanted_cards: resolveWantedCardsAfterOwnedAdd({
+        existing: existingItem,
+        wantedCards: options.wantedCards ?? existingItem?.wanted_cards ?? [],
+        status,
+        cardId,
+        cardIds: options.cardIds,
+        cardLanguage,
+        cardFinish,
+      }),
       status,
       collected_at: existingItem?.collected_at ?? new Date().toISOString(),
     })
