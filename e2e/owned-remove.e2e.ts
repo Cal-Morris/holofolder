@@ -40,6 +40,8 @@ test.describe("remove an owned card", () => {
 
     // Make the owned card a holo first, so undo has a non-default variant to restore.
     let detail = await openDetail(page, 4)
+    // The finish chips live in the collapsed "Card & variant" section.
+    await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
     await detail.getByRole("button", { name: "Holo", exact: true }).click()
     await expect.poll(() => server.rows.get(4)?.card_finish).toBe("holo")
     const ownedRow = { ...server.rows.get(4)! }

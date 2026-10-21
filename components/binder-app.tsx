@@ -1,6 +1,6 @@
 "use client"
 
-import { matchesCatalogCardId } from "@/lib/card-catalog"
+import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
 
 import { useState, useMemo, useEffect, useEffectEvent, useRef, useCallback, type CSSProperties, type SyntheticEvent, type TouchEvent as ReactTouchEvent } from "react"
@@ -2312,6 +2312,7 @@ export default function BinderApp({
       {
         cardFinish: card.inferredFinish,
         wantedCards: existingItem?.wanted_cards ?? [],
+        cardIds: catalogCardIds(card),
       },
     )
   }, [addToCollection, getCollectionItem, readOnlyMode, user])
@@ -2388,6 +2389,7 @@ export default function BinderApp({
       {
         cardFinish: inferCardFinish(card.rarity, card.variants),
         wantedCards: existingItem?.wanted_cards ?? [],
+        cardIds: catalogCardIds(card),
       },
     )
   }, [addToCollection, getCollectionItem, readOnlyMode, user])
@@ -2515,6 +2517,7 @@ export default function BinderApp({
         {
           cardFinish: finish,
           wantedCards: existingCollectionItem?.wanted_cards ?? [],
+          ...(card ? { cardIds: catalogCardIds(card) } : {}),
         },
       )
     }
