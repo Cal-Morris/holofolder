@@ -1,6 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server"
 import { parseTcgdexCardImageUrl, type LoadedCardImage } from "@/lib/card-image-blob"
-import { getCardImageSourceForHost, parseSourceCardImageUrl } from "@/lib/card-image-sources"
+import { getCardImageSourceForHost, isCardImageSourceUrl, parseSourceCardImageUrl } from "@/lib/card-image-sources"
 import { getCardImageStoreKind, getDefaultCardImageMirror } from "@/lib/card-image-store"
 import { IMMUTABLE_IMAGE_CACHE_HEADERS } from "@/lib/http-cache"
 
@@ -20,6 +20,7 @@ const POKEAPI_SPRITES_PATH_PREFIX = "/PokeAPI/sprites/master/sprites/pokemon/"
 
 export function isAllowedImageUrl(url: URL) {
   if (!["https:", "http:"].includes(url.protocol)) return false
+  if (getCardImageSourceForHost(url.hostname)) return isCardImageSourceUrl(url)
   if (isAllowedImageHost(url.hostname)) return true
   return (
     url.protocol === "https:" &&

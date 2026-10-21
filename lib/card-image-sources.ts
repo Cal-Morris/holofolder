@@ -10,17 +10,25 @@ import { pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
  */
 export const CARD_IMAGE_SOURCE_PREFIX = "cards/src"
 
-export type CardImageSource = "tcgplayer" | "pokemontcg" | "scrydex" | "limitless"
+export type CardImageSource = "tcgplayer" | "pokemontcg" | "scrydex" | "limitless" | "playshop"
 
 export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> = {
   "product-images.tcgplayer.com": "tcgplayer",
   "images.pokemontcg.io": "pokemontcg",
   "images.scrydex.com": "scrydex",
   "limitlesstcg.nyc3.cdn.digitaloceanspaces.com": "limitless",
+  // Shared Shopify CDN: only the playshop.fr store path is a card image source (see PATH_RULES).
+  "cdn.shopify.com": "playshop",
 }
 
+/** Sources on a host that also serves other content: only URLs matching the source's path rule are card images. */
+const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop"])
+
 /** Source priority when several are known for a card (best scans first). */
-export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = ["limitless", "scrydex", "pokemontcg", "tcgplayer"]
+export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = ["limitless", "scrydex", "pokemontcg", "tcgplayer", "playshop"]
+
+/** Sources whose stored copy is trimmed of the plain white margin around the card (retailer photos). */
+export const TRIMMED_CARD_IMAGE_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop"])
 
 export interface SourceCardImageRef {
   source: CardImageSource
@@ -39,10 +47,22 @@ const PATH_RULES: Record<CardImageSource, { pattern: RegExp; key: (match: RegExp
   scrydex: { pattern: /^\/pokemon\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(large|medium|small)$/, key: (m) => `${m[1]}/${m[2]}` },
   // https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<SET>_<NNN>_<R>_<LANG>[_LG|_SM].png
   limitless: { pattern: /^\/tpci\/([A-Z0-9]{1,10})\/([A-Za-z0-9][A-Za-z0-9_-]{0,63})\.(png|jpg|webp)$/, key: (m) => `${m[1]}/${m[2]}` },
+  // https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png|jpg> (playshop.fr product scans of single cards)
+  playshop: { pattern: /^\/s\/files\/1\/1015\/7057\/6719\/files\/([a-z0-9][a-z0-9-]{0,95})\.(png|jpg)$/, key: (m) => m[1] },
 }
 
 export function getCardImageSourceForHost(hostname: string): CardImageSource | null {
   return Object.hasOwn(CARD_IMAGE_SOURCE_HOSTS, hostname) ? CARD_IMAGE_SOURCE_HOSTS[hostname] : null
+}
+
+/**
+ * True when the URL may be served as a card image: its host is a fallback source and, for hosts shared with
+ * other content, its path matches the source's rule. Use this (not the host alone) before proxying.
+ */
+export function isCardImageSourceUrl(url: URL) {
+  const source = getCardImageSourceForHost(url.hostname)
+  if (!source) return false
+  return !SHARED_HOST_SOURCES.has(source) || parseSourceCardImageUrl(url) !== null
 }
 
 /** Parses an image URL from one of the fallback sources; anything else (or any odd path) returns null. */

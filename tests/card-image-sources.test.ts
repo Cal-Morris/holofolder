@@ -2,7 +2,7 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { createCardImageMirror, type CardImageBlobDeps } from "../lib/card-image-blob"
 import { mirrorSetImages, planSourceImageRefs } from "../lib/card-image-backfill"
-import { pickExternalCardImageUrl, pickMirrorableSourceImage, parseSourceCardImageUrl } from "../lib/card-image-sources"
+import { isCardImageSourceUrl, pickExternalCardImageUrl, pickMirrorableSourceImage, parseSourceCardImageUrl } from "../lib/card-image-sources"
 import { readCatalogMetadata } from "../lib/card-catalog"
 
 const STORE = "https://pub-test.r2.dev/"
@@ -160,3 +160,21 @@ describe("source image mirroring", () => {
     assert.equal(calls.transform, 1)
   })
 })
+
+describe("playshop source", () => {
+  test("accepts only the playshop.fr store path on the shared Shopify CDN", () => {
+    const ok = "https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2018sm-fr-1-feuillajou.png"
+    assert.equal(parseSourceCardImageUrl(ok)?.pathname, "cards/src/playshop/pokemon-2018sm-fr-1-feuillajou.webp")
+    assert.equal(isCardImageSourceUrl(new URL(ok)), true)
+    for (const other of [
+      "https://cdn.shopify.com/s/files/1/0000/0000/0001/files/pokemon-2018sm-fr-1-feuillajou.png",
+      "https://cdn.shopify.com/s/files/1/1015/7057/6719/files/../x.png",
+      "https://cdn.shopify.com/shopifycloud/anything.js",
+    ]) {
+      assert.equal(isCardImageSourceUrl(new URL(other)), false, other)
+    }
+    assert.equal(parseSourceCardImageUrl(`${ok}?v=1`), null)
+    assert.equal(isCardImageSourceUrl(new URL("https://images.scrydex.com/pokemon/mep-120/large")), true)
+  })
+})
+

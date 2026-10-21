@@ -11,6 +11,7 @@ const CATALOG_IMAGE_HOSTS = new Set([
   "images.pokemontcg.io",
   "images.scrydex.com",
   "limitlesstcg.nyc3.cdn.digitaloceanspaces.com",
+  "cdn.shopify.com",
 ])
 
 type CatalogMetadata = CardCatalogIdentity & {
