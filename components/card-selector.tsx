@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import { useOverlay } from "@/hooks/use-overlay"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
+import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { getCardSelectorQuickActions } from "@/lib/card-selector-actions"
 import { completeCardSelectorSelection } from "@/lib/card-selector-selection-flow"
@@ -33,7 +35,13 @@ interface CardSelectorProps {
   mode?: CardSelectorMode
   /** Initial card language (the user's preferred card language setting). */
   defaultCardLanguage?: CardLanguage
+  /** The user's pricing region; card prices are weighted for it. */
+  pricingRegion?: PricingRegion
+  /** Formats a GBP amount in the user's display currency (GBP when omitted). */
+  formatAmount?: CardSelectorAmountFormatter
 }
+
+type CardSelectorAmountFormatter = (gbpAmount: number | null | undefined, price?: CardPriceSnapshot) => string | null
 
 type CardScanMatch = CardScanFrameMatch<TCGCard>
 
@@ -82,16 +90,16 @@ function formatGbpAmount(amount: number | null | undefined) {
     : null
 }
 
-function getCardSelectorPriceLabels(price: CardPriceSnapshot | undefined) {
-  const low = formatGbpAmount(price?.lowGbpAmount)
-  const high = formatGbpAmount(price?.highGbpAmount)
+function getCardSelectorPriceLabels(price: CardPriceSnapshot | undefined, formatAmount: CardSelectorAmountFormatter = formatGbpAmount) {
+  const low = formatAmount(price?.lowGbpAmount, price)
+  const high = formatAmount(price?.highGbpAmount, price)
   const confidence = price?.confidence && price.confidence !== "unknown"
     ? price.confidence.charAt(0).toUpperCase() + price.confidence.slice(1)
     : null
 
   return {
-    good: formatGbpAmount(price?.goodGbpAmount),
-    market: formatGbpAmount(price?.marketGbpAmount ?? price?.gbpAmount),
+    good: formatAmount(price?.goodGbpAmount, price),
+    market: formatAmount(price?.marketGbpAmount ?? price?.gbpAmount, price),
     range: low && high ? (low === high ? low : `${low}-${high}`) : low || high,
     confidence,
   }
@@ -256,6 +264,8 @@ export default function CardSelector({
   selectedWantedCardId,
   mode = "collect",
   defaultCardLanguage,
+  pricingRegion = DEFAULT_PRICING_REGION,
+  formatAmount = formatGbpAmount,
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
   const [cards, setCards] = useState<TCGCard[]>([])
@@ -290,7 +300,7 @@ export default function CardSelector({
     () => cards.map((card) => ({ cardId: card.id, language: selectedCardLanguage })),
     [cards, selectedCardLanguage],
   )
-  const { pricesByCardId, isLoading: isLoadingPrices } = useCardPrices(priceLookups, cards.length > 0)
+  const { pricesByCardId, isLoading: isLoadingPrices } = useRegionalCardPrices(priceLookups, cards.length > 0, pricingRegion)
   const intentCopy = isWishlistMode
     ? {
         title: `Choose wanted card for ${pokemonName}`,
@@ -1079,7 +1089,7 @@ export default function CardSelector({
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         {scanMatches.map((match, index) => {
                           const price = pricesByCardId[getCardPriceKey(match.card.id, selectedCardLanguage)]
-                          const priceLabels = getCardSelectorPriceLabels(price)
+                          const priceLabels = getCardSelectorPriceLabels(price, formatAmount)
 
                           return (
                             <button
@@ -1146,7 +1156,7 @@ export default function CardSelector({
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
                 {displayedCards.map((card) => {
                   const price = pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)]
-                  const priceLabels = getCardSelectorPriceLabels(price)
+                  const priceLabels = getCardSelectorPriceLabels(price, formatAmount)
 
                   return (
                     <div
