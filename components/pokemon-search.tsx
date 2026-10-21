@@ -25,6 +25,9 @@ import { searchOfflineCards } from "@/lib/offline-card-index"
 import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { loadIllustratorDirectory } from "@/lib/illustrator-client"
 import { normalizeIllustratorText, searchIllustrators, type IllustratorSummary } from "@/lib/illustrators"
+import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
+import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 
 type SearchStateFilter = PokemonSearchStateFilter
 
@@ -57,6 +60,10 @@ interface PokemonSearchProps {
   getOfflineCards?: () => Promise<SearchCardResult[]>
   /** Open the read-only view of every card by an illustrator. Enables illustrator results. */
   onBrowseIllustrator?: (name: string) => void
+  /** Formats a card's headline price in the user's display currency; card hits show no price without it. */
+  formatPrice?: (price: CardPriceSnapshot | undefined) => string | null
+  /** The user's pricing region, used to weight card hit prices. */
+  pricingRegion?: PricingRegion
 }
 
 const CARD_SEARCH_DEBOUNCE_MS = 250
@@ -187,6 +194,8 @@ export default function PokemonSearch({
   onBrowseCards,
   getOfflineCards,
   onBrowseIllustrator,
+  formatPrice,
+  pricingRegion = DEFAULT_PRICING_REGION,
 }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter)
@@ -232,6 +241,12 @@ export default function PokemonSearch({
   }, [activeFilter, matchesFilter, pokemonList, query])
 
   const cardSearch = useCardSearch(query, Boolean(onBrowseCards), getOfflineCards)
+  // One batched price lookup for every card hit (cached on the device, so offline hits keep their prices).
+  const cardPriceLookups = useMemo(
+    () => formatPrice ? cardSearch.groups.flatMap((group) => group.cards.map((card) => ({ cardId: card.id, language: card.language ?? "en" }))) : [],
+    [cardSearch.groups, formatPrice],
+  )
+  const { pricesByCardId: cardPrices } = useRegionalCardPrices(cardPriceLookups, cardPriceLookups.length > 0, pricingRegion)
   const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator))
 
   const pageJump = useMemo(() => {
@@ -539,6 +554,7 @@ export default function PokemonSearch({
                       <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
                         {group.cards.map((card) => {
                           const thumb = cardThumbnail(card.image)
+                          const price = formatPrice?.(cardPrices[getCardPriceKey(card.id, card.language ?? "en")])?.split(" (")[0] ?? null
                           return (
                             <button
                               key={card.id}
@@ -555,6 +571,7 @@ export default function PokemonSearch({
                               </div>
                               <p className="mt-1 truncate text-[10px] font-semibold">{card.set.name}</p>
                               <p className="truncate text-[10px] text-muted-foreground tabular-nums">{formatCardNumber(card)}</p>
+                              {price ? <p className="truncate text-[11px] font-bold tabular-nums" data-testid="search-card-price">{price}</p> : null}
                             </button>
                           )
                         })}
