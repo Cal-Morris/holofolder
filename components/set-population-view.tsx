@@ -6,7 +6,9 @@ import NextImage from "next/image"
 import { useEffect, useMemo, useState, type SyntheticEvent } from "react"
 import { Check, Heart, Loader2, Search, Sparkles, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
+import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import { CardHighlights } from "@/components/card-highlights"
 import type { CollectedPokemon } from "@/hooks/use-collection"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
@@ -23,6 +25,8 @@ import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-brows
 interface SetPopulationViewProps {
   collectionByPokemonId: Map<number, CollectedPokemon>
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
+  /** The user's pricing region; set card prices are weighted for it. */
+  pricingRegion?: PricingRegion
   onSelectSlot: (slot: TCGSetDexSlot) => void
   onBrowseCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void
   onCollectCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void | Promise<void>
@@ -81,6 +85,7 @@ function getSelectedSetCard(slot: TCGSetDexSlot, selectedCardIdsByDexId: Record<
 export default function SetPopulationView({
   collectionByPokemonId,
   formatPrice,
+  pricingRegion = DEFAULT_PRICING_REGION,
   onSelectSlot,
   onBrowseCard,
   onCollectCard,
@@ -111,7 +116,7 @@ export default function SetPopulationView({
   const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
   const [recentSets, setRecentSets] = useState<TCGSetSummary[]>([])
   const priceLookups = useMemo(() => setCards.map((card) => ({ cardId: card.id, language: card.language })), [setCards])
-  const setPrices = useCardPrices(priceLookups, Boolean(selectedSet) && !isLoading)
+  const setPrices = useRegionalCardPrices(priceLookups, Boolean(selectedSet) && !isLoading, pricingRegion)
   const highlightCards = useMemo(() => setCards.map((card) => ({
     id: card.id, language: card.language, name: card.name,
     numberLabel: `${card.localId}/${card.set.officialCardCount ?? "?"}`,

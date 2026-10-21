@@ -5,7 +5,9 @@ import { createPortal } from "react-dom"
 import { Check, Heart, Loader2, Plus, Search as SearchIcon, X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
-import { getCardPriceKey, useCardPrices, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
+import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import { formatPokemonDisplayName, getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { CardHighlights } from "@/components/card-highlights"
@@ -27,6 +29,8 @@ export interface PokemonCardsBrowserProps {
   onWantCard?: (card: TCGCard, isWanted: boolean) => void | Promise<void>
   onAddCard?: (card: TCGCard) => void | Promise<void>
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
+  /** The user's pricing region; printing prices are weighted for it. */
+  pricingRegion?: PricingRegion
 }
 
 const FILTERS: Array<{ id: BrowseCardFilter; label: string }> = [
@@ -54,6 +58,7 @@ export default function PokemonCardsBrowser({
   onWantCard,
   onAddCard,
   formatPrice,
+  pricingRegion = DEFAULT_PRICING_REGION,
 }: PokemonCardsBrowserProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -99,7 +104,7 @@ export default function PokemonCardsBrowser({
     () => allEntries.map((entry) => ({ cardId: entry.card.id, language: entry.card.language ?? "en" })),
     [allEntries],
   )
-  const { pricesByCardId } = useCardPrices(priceLookups, priceLookups.length > 0)
+  const { pricesByCardId } = useRegionalCardPrices(priceLookups, priceLookups.length > 0, pricingRegion)
   const highlightCards = useMemo(() => allEntries.map((entry) => ({
     id: entry.card.id, language: entry.card.language, name: entry.card.name,
     numberLabel: entry.numberLabel, setName: entry.card.set.name, image: entry.card.image, rarity: entry.card.rarity,

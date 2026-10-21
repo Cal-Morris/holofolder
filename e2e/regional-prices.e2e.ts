@@ -71,6 +71,37 @@ test.describe("variant prices (UK)", () => {
   })
 })
 
+test.describe("list prices (UK)", () => {
+  test.use({ locale: "en-GB", signedIn: true })
+
+  test("all-cards browse and set checklists use the UK price", async ({ harness }) => {
+    const detail = await harness.openCardDetail()
+    await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
+    const browser = harness.page.getByRole("dialog", { name: /all bulbasaur cards/i })
+    const tile = browser.getByRole("listitem", { name: /44\/102 base set/i })
+    await expect(tile).toContainText("£0.05")
+    await expect(tile).not.toContainText("£0.20")
+    await harness.page.keyboard.press("Escape")
+    await harness.page.keyboard.press("Escape")
+    await expect(harness.dialogs()).toHaveCount(0)
+
+    // TEST FIXTURE ONLY: a one-card set.
+    const set = { id: "fixture-set", name: "Fixture Set", officialCardCount: 1 }
+    const card = { id: "fixture-set-1", localId: "1", name: "Fixture Bulbasaur", language: "en", set, inferredFinish: "normal" }
+    await harness.page.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: new URL(route.request().url()).searchParams.has("setId")
+      ? { sets: [set], selectedSet: set, cards: [card], slots: [{ dexId: 1, pokemonName: "bulbasaur", cards: [card] }] }
+      : { sets: [set], selectedSet: null, slots: [] } }))
+    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.page.getByRole("textbox", { name: "Search sets by name or code" }).fill("fixture")
+    await harness.page.getByRole("button", { name: /Fixture Set/ }).first().click()
+    await harness.page.getByRole("group", { name: "Set checklist" }).getByRole("button", { name: "Cards", exact: true }).click()
+    const row = harness.page.getByRole("list", { name: "Fixture Set card checklist" }).getByRole("listitem", { name: /fixture bulbasaur/i })
+    await expect(row).toContainText("£0.05")
+    await expect(row).not.toContainText("£0.20")
+    await harness.expectNoHorizontalOverflow()
+  })
+})
+
 test.describe("US locale", () => {
   test.use({ locale: "en-US", signedIn: true })
 

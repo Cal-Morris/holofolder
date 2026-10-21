@@ -6271,6 +6271,7 @@ export default function BinderApp({
             <SetPopulationView
               collectionByPokemonId={collectionByPokemonId}
               formatPrice={priceFormat.label}
+              pricingRegion={pricingPreferences.region}
               onSelectSlot={handleSelectSetSlot}
               onBrowseCard={(slot, card) => openCardBrowser({ id: slot.dexId, name: slot.pokemonName }, { highlightCardId: card.id })}
               onCollectCard={handleCollectSetCard}
@@ -6914,6 +6915,7 @@ export default function BinderApp({
           onWantCard={readOnlyMode ? undefined : (card, isWanted) => handleBrowseWantCard(cardBrowser.pokemon, card, isWanted)}
           onAddCard={readOnlyMode ? undefined : (card) => handleBrowseAddCard(cardBrowser.pokemon, card)}
           formatPrice={priceFormat.label}
+          pricingRegion={pricingPreferences.region}
         />
       ) : null}
 
