@@ -1,6 +1,11 @@
 # Card image mirror storage
 
-TCGdex card images (only `assets.tcgdex.net`) are mirrored into object storage and served through `/api/card-image-proxy`. The storage backend is chosen by `CARD_IMAGE_STORE` (see `lib/card-image-store.ts`):
+Card images are mirrored into object storage and served through `/api/card-image-proxy`; clients never load card images from a third-party host directly. Two kinds of image are mirrored:
+
+- **TCGdex** (`assets.tcgdex.net`), the primary source.
+- **Fallback sources** for cards TCGdex has no image for (see `lib/card-image-sources.ts`): TCGplayer product images (`product-images.tcgplayer.com`), pokemontcg.io (`images.pokemontcg.io`), Scrydex (`images.scrydex.com`) and Limitless (`limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/…`).
+
+The storage backend is chosen by `CARD_IMAGE_STORE` (see `lib/card-image-store.ts`):
 
 | `CARD_IMAGE_STORE` | Backend | Required env |
 | --- | --- | --- |
@@ -11,7 +16,21 @@ TCGdex card images (only `assets.tcgdex.net`) are mirrored into object storage a
 
 If a backend is selected but its credentials are missing or invalid, the mirror is off and TCGdex is served live. It never falls through to the other backend. If the store refuses requests (401/403, a blocked store) or throttles them (429/503), the proxy skips it for a cooldown period and serves TCGdex directly.
 
-Object keys are deterministic: `cards/<lang>/<setId>/<localId>/<high|low>.<webp|png|jpg>`. Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Blob) and carry `Cache-Control: public, max-age=31536000, immutable`.
+Object keys are deterministic:
+
+- TCGdex: `cards/<lang>/<setId>/<localId>/<high|low>.<webp|png|jpg>`, stored as fetched.
+- Fallback sources: `cards/src/<source>/<key>.webp`, derived from the origin URL only (so the proxy needs no database lookup):
+
+  | Source | Origin URL | Key |
+  | --- | --- | --- |
+  | `tcgplayer` | `https://product-images.tcgplayer.com/<productId>.jpg` | `cards/src/tcgplayer/<productId>.webp` |
+  | `pokemontcg` | `https://images.pokemontcg.io/<set>/<file>.png` | `cards/src/pokemontcg/<set>/<file>.webp` |
+  | `scrydex` | `https://images.scrydex.com/pokemon/<cardId>/<large\|medium\|small>` | `cards/src/scrydex/<cardId>/<size>.webp` |
+  | `limitless` | `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<file>.png` | `cards/src/limitless/<SET>/<file>.webp` |
+
+  Fallback images are converted to WebP (quality 85, at most 734 px wide) before upload (`lib/card-image-transform.ts`), so a 900 KB PNG scan becomes about 60–120 KB.
+
+Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Blob) and carry `Cache-Control: public, max-age=31536000, immutable`.
 
 ## Cloudflare R2 setup
 
@@ -40,3 +59,19 @@ Object keys are deterministic: `cards/<lang>/<setId>/<localId>/<high|low>.<webp|
 6. Verify: `curl -sI "https://binder.cal.gg/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F001%2Fhigh.webp"` should show `x-card-image-source: r2`. It shows `tcgdex` the first time an image is fetched and while the store is in its cooldown.
 
 R2 free tier (Standard storage, per month): 10 GB-month storage, 1M Class A ops (PutObject, ListObjects), 10M Class B ops (GetObject, HeadObject), no egress fees. The full mirror is about 40k objects and roughly 2 GB, so it fits comfortably. Usage beyond the free tier is billed, not blocked.
+
+## Fallback sources
+
+Which image a card shows is decided when the mirror tables are read (`lib/tcg-mirror.ts`):
+
+1. A reviewed catalog image (`external_ids_json.catalog.image`), set by the catalog tooling when TCGdex has no image or the card is a printing TCGdex doesn't list. Allowed hosts are in `lib/card-catalog.ts`.
+2. The TCGdex image, in the requested language or the nearest fallback language (`image_languages_json`), or `external_ids_json.tcgdex.image` for sets missing from the asset manifest.
+3. `pickExternalCardImageUrl` in `lib/card-image-sources.ts`: the pokemontcg.io / Scrydex image matched during the sync, then the TCGplayer product image from TCGdex's third-party ids.
+
+`pickMirrorableSourceImage` follows the same order to find the fallback image for each card, and the backfill uses it:
+
+- `POST /api/admin/sync-card-db` copies a synced set's TCGdex images **and** its fallback images.
+- `POST /api/admin/mirror-card-images?set=<id>` and `bun run mirror-card-images --set <id>` do the same for existing sets. Fallback images are checked with one `HEAD` each (Class B) and uploaded only when missing. The per-set result reports `sourcePlanned` and `sourceUploaded`.
+- The proxy also copies a fallback image the first time anyone views it (`x-card-image-source: upstream`). After that it's served from the store (`x-card-image-source: r2`).
+
+To add a source, add its host and a strict path rule to `lib/card-image-sources.ts`, add the host to `CATALOG_IMAGE_HOSTS` in `lib/card-catalog.ts` if catalog images may use it, and cover the URL shapes in `tests/card-image-sources.test.ts`. Never allow a whole host with arbitrary paths.

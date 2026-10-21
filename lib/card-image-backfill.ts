@@ -7,6 +7,7 @@ import {
   type TcgdexCardImageRef,
 } from "./card-image-blob"
 import { mapWithConcurrency } from "./card-db-sync-concurrency"
+import { pickMirrorableSourceImage, type SourceCardImageRef } from "./card-image-sources"
 
 export interface MirrorableCard {
   seriesId: string
@@ -16,6 +17,8 @@ export interface MirrorableCard {
   imageLanguages: string[]
   /** external_ids_json.tcgdex.image, used when the asset manifest has no entry yet (e.g. brand-new sets). */
   tcgdexImageUrl?: string | null
+  /** tcg_cards.external_ids_json: catalog / pokemontcg / TCGplayer fallbacks for cards TCGdex has no image for. */
+  externalIds?: unknown
 }
 
 export interface MirrorSetImagesOptions {
@@ -37,6 +40,9 @@ export interface MirrorSetImagesResult {
   failed: number
   /** True when every planned image for this set is now in the store. */
   complete: boolean
+  /** Fallback-source images (TCGplayer, pokemontcg.io, Scrydex, Limitless) among `planned` / `uploaded`. */
+  sourcePlanned?: number
+  sourceUploaded?: number
   /** Up to three distinct failure messages, so a failing backfill is diagnosable from its response. */
   errors?: string[]
 }
@@ -69,6 +75,17 @@ export function planCardImageRefs(cards: MirrorableCard[], options: Pick<MirrorS
   return refs
 }
 
+/** Fallback-source images the app shows for these cards (one per distinct store key). */
+export function planSourceImageRefs(cards: MirrorableCard[]): SourceCardImageRef[] {
+  const refs = new Map<string, SourceCardImageRef>()
+  for (const card of cards) {
+    if (card.externalIds === undefined) continue
+    const ref = pickMirrorableSourceImage({ imageLanguages: card.imageLanguages, externalIds: card.externalIds })
+    if (ref && !refs.has(ref.pathname)) refs.set(ref.pathname, ref)
+  }
+  return [...refs.values()]
+}
+
 /** Copies a set's missing images into Blob. Uses one `list` per language to skip existing copies (idempotent / resumable). */
 export async function mirrorSetImages(
   mirror: CardImageMirror,
@@ -76,7 +93,9 @@ export async function mirrorSetImages(
   cards: MirrorableCard[],
   options: MirrorSetImagesOptions,
 ): Promise<MirrorSetImagesResult> {
-  const refs = planCardImageRefs(cards.filter((card) => card.setId === setId), options)
+  const setCards = cards.filter((card) => card.setId === setId)
+  const refs = planCardImageRefs(setCards, options)
+  const sourceRefs = planSourceImageRefs(setCards)
   const existing = new Set<string>()
   for (const language of new Set(refs.map((ref) => ref.language))) {
     for (const pathname of await mirror.listSetPathnames(language, setId)) existing.add(pathname)
@@ -103,12 +122,35 @@ export async function mirrorSetImages(
     }
   })
 
+  // Source images are spread over per-source prefixes, so each is checked with a HEAD (Class B) before uploading.
+  let sourceExisting = 0
+  let sourceUploaded = 0
+  await mapWithConcurrency(sourceRefs, options.concurrency ?? 8, async (ref) => {
+    if ((options.deadline && Date.now() > options.deadline) || uploaded + failed >= maxUploads || mirror.isBlobBlocked()) {
+      skipped += 1
+      return
+    }
+    try {
+      const result = await mirror.ensureSourceMirrored(ref)
+      if (result.uploaded) {
+        uploaded += 1
+        sourceUploaded += 1
+      } else {
+        sourceExisting += 1
+      }
+    } catch (error) {
+      failed += 1
+      if (errors.size < MAX_REPORTED_ERRORS) errors.add(`${ref.source}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  })
+
   return {
     setId,
-    planned: refs.length,
-    alreadyMirrored: refs.length - missing.length,
+    planned: refs.length + sourceRefs.length,
+    alreadyMirrored: refs.length - missing.length + sourceExisting,
     uploaded,
     failed,
+    ...(sourceRefs.length ? { sourcePlanned: sourceRefs.length, sourceUploaded } : {}),
     complete: skipped === 0 && failed === 0,
     ...(errors.size > 0 ? { errors: [...errors] } : {}),
   }

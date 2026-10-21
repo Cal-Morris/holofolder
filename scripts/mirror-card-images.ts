@@ -1,5 +1,6 @@
 /**
- * Local backfill of TCGdex card images into the card image store (Cloudflare R2), without going through a
+ * Local backfill of card images (TCGdex plus the fallback sources in lib/card-image-sources.ts) into the card image
+ * store (Cloudflare R2), without going through a
  * Vercel deployment. Uses the same mirror/backfill code as /api/admin/mirror-card-images.
  *
  *   bun scripts/mirror-card-images.ts [--set a,b] [--from <setId>] [--lang en] [--quality high,low]
@@ -20,6 +21,7 @@ import { mirrorSetImages, parseImageLanguages, type MirrorableCard } from "../li
 import { createCardImageMirror, type CardImageQuality } from "../lib/card-image-blob"
 import { createR2Deps, getR2Config } from "../lib/card-image-r2"
 import { getCardImageStoreKind } from "../lib/card-image-store"
+import { convertSourceImageToWebp } from "../lib/card-image-transform"
 import { loadProjectEnvFiles } from "../lib/load-project-env"
 
 function arg(name: string) {
@@ -87,6 +89,7 @@ interface CardRow {
   local_id: string
   image_languages_json: unknown
   tcgdex_image: string | null
+  external_ids_json: unknown
 }
 
 function toMirrorable(row: CardRow): MirrorableCard {
@@ -96,6 +99,7 @@ function toMirrorable(row: CardRow): MirrorableCard {
     localId: row.local_id,
     imageLanguages: parseImageLanguages(row.image_languages_json),
     tcgdexImageUrl: row.tcgdex_image,
+    externalIds: row.external_ids_json,
   }
 }
 
@@ -119,7 +123,7 @@ function createRestCardSource(baseUrl: string, anonKey: string): CardSource {
       return (await getAll<{ id: string }>("tcg_sets?select=id&order=id")).map((row) => row.id)
     },
     async cards(setId) {
-      const select = "series_id,set_id,local_id,image_languages_json,tcgdex_image:external_ids_json->tcgdex->>image"
+      const select = "series_id,set_id,local_id,image_languages_json,tcgdex_image:external_ids_json->tcgdex->>image,external_ids_json"
       return (await getAll<CardRow>(`tcg_cards?select=${select}&set_id=eq.${encodeURIComponent(setId)}&order=local_id`)).map(toMirrorable)
     },
     async close() {},
@@ -135,7 +139,7 @@ async function createPgCardSource(): Promise<CardSource> {
     },
     async cards(setId) {
       const result = await client.query<CardRow>(
-        "select series_id, set_id, local_id, image_languages_json, external_ids_json->'tcgdex'->>'image' as tcgdex_image from public.tcg_cards where set_id = $1",
+        "select series_id, set_id, local_id, image_languages_json, external_ids_json->'tcgdex'->>'image' as tcgdex_image, external_ids_json from public.tcg_cards where set_id = $1",
         [setId],
       )
       return result.rows.map(toMirrorable)
@@ -159,6 +163,7 @@ async function main() {
   const mirror = createCardImageMirror({
     ...createR2Deps(config, { fetch: politeFetch }),
     logger: (message) => console.warn(`[mirror] ${message}`),
+    transformSourceImage: convertSourceImageToWebp,
   })
 
   const languages = list(arg("lang")).length ? list(arg("lang")) : ["en"]

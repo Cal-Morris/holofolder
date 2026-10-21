@@ -4,6 +4,15 @@ export function normalizeCatalogName(value: string) {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
+/** Hosts a reviewed catalog image may come from (TCGdex plus the fallback sources in lib/card-image-sources.ts). */
+const CATALOG_IMAGE_HOSTS = new Set([
+  "assets.tcgdex.net",
+  "product-images.tcgplayer.com",
+  "images.pokemontcg.io",
+  "images.scrydex.com",
+  "limitlesstcg.nyc3.cdn.digitaloceanspaces.com",
+])
+
 type CatalogMetadata = CardCatalogIdentity & {
   localId?: string
   image?: string
@@ -34,7 +43,7 @@ export function readCatalogMetadata(value: unknown): CatalogMetadata {
   if (typeof image === "string") {
     try {
       const url = new URL(image)
-      if (url.protocol === "https:" && ["assets.tcgdex.net", "product-images.tcgplayer.com", "images.pokemontcg.io"].includes(url.hostname)) {
+      if (url.protocol === "https:" && CATALOG_IMAGE_HOSTS.has(url.hostname)) {
         result.image = image
       }
     } catch { /* Invalid source images stay unavailable. */ }

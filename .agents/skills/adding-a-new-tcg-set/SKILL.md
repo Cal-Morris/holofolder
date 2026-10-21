@@ -30,7 +30,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
    - Local alternative that costs no deploy: `bun run mirror-card-images --set <id>`. Flags: `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb`. It retries 429s and 5xx with backoff, and stops before the budgets.
    - Uploads never overwrite (`If-None-Match: *`).
 5. **Respect limits.**
-   - Only `assets.tcgdex.net` images are mirrored.
+   - TCGdex images are mirrored, plus fallback-source images (TCGplayer, pokemontcg.io, Scrydex, Limitless) for cards without a TCGdex image. See `docs/card-image-store.md`.
    - Keep within the R2 free tier: 10 GB-month storage and 1M Class A operations per month. The whole mirror is about 40k objects and 2 GB.
    - TCGdex 404s are permanent; don't retry them in a loop.
 6. **Verify.**
