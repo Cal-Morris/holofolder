@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server"
-import { parseTcgdexCardImageUrl } from "@/lib/card-image-blob"
+import { parseTcgdexCardImageUrl, type LoadedCardImage } from "@/lib/card-image-blob"
+import { getCardImageSourceForHost, parseSourceCardImageUrl } from "@/lib/card-image-sources"
 import { getCardImageStoreKind, getDefaultCardImageMirror } from "@/lib/card-image-store"
 import { IMMUTABLE_IMAGE_CACHE_HEADERS } from "@/lib/http-cache"
 
@@ -9,8 +10,7 @@ export function isAllowedImageHost(hostname: string) {
   return (
     hostname === "assets.tcgdex.net" ||
     hostname.endsWith(".tcgdex.net") ||
-    hostname === "images.pokemontcg.io" ||
-    hostname === "product-images.tcgplayer.com"
+    getCardImageSourceForHost(hostname) !== null
   )
 }
 
@@ -72,27 +72,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `Unsupported width; use one of ${PROXY_IMAGE_WIDTHS.join(", ")}` }, { status: 400 })
   }
 
-  // TCGdex card images are served from the mirror store (R2 or Vercel Blob); TCGdex is only hit when the copy is missing.
+  // Card images (TCGdex and the fallback sources) are served from the mirror store (R2 or Vercel Blob); the origin is
+  // only hit when the copy is missing, and that copy is then uploaded after responding.
   const tcgdexImage = parseTcgdexCardImageUrl(url)
-  const mirror = tcgdexImage ? getDefaultCardImageMirror() : null
-  if (tcgdexImage && mirror) {
+  const sourceImage = tcgdexImage ? null : parseSourceCardImageUrl(url)
+  const mirror = tcgdexImage || sourceImage ? getDefaultCardImageMirror() : null
+  if (mirror && (tcgdexImage || sourceImage)) {
+    let image: LoadedCardImage
     try {
-      const image = await mirror.loadImage(tcgdexImage)
-      if (image.pendingUpload) {
-        after(image.pendingUpload)
-      }
-      return new NextResponse(image.body, {
-        headers: {
-          "content-type": image.contentType,
-          "x-content-type-options": "nosniff",
-          "x-card-image-source": image.source === "blob" ? getCardImageStoreKind() : image.source,
-          ...IMMUTABLE_IMAGE_CACHE_HEADERS,
-        },
-      })
+      image = tcgdexImage ? await mirror.loadImage(tcgdexImage) : await mirror.loadSourceImage(sourceImage!)
     } catch (error) {
       const status = typeof (error as { status?: unknown })?.status === "number" ? (error as { status: number }).status : 502
       return NextResponse.json({ error: "Card image unavailable" }, { status: status === 404 ? 404 : 502 })
     }
+    if (image.pendingUpload) {
+      after(image.pendingUpload)
+    }
+    return new NextResponse(image.body, {
+      headers: {
+        "content-type": image.contentType,
+        "x-content-type-options": "nosniff",
+        "x-card-image-source": image.source === "blob" ? getCardImageStoreKind() : image.source,
+        ...IMMUTABLE_IMAGE_CACHE_HEADERS,
+      },
+    })
   }
 
   const upstream = await fetch(url.toString(), {

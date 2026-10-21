@@ -1589,6 +1589,7 @@ export async function runIncrementalCardDbSync(options: IncrementalCardDbSyncOpt
               localId: card.local_id,
               imageLanguages: parseImageLanguages(card.image_languages_json),
               tcgdexImageUrl: pickTcgdexImageFromExternalIds(card.external_ids_json),
+              externalIds: card.external_ids_json,
             })),
             { languages: ["en"], qualities: ["high", "low"], deadline: startedAt + timeBudgetMs },
           )
@@ -1645,7 +1646,7 @@ export interface CardImageBackfillResult {
 }
 
 /**
- * Copies TCGdex card images for mirrored sets into Vercel Blob, set by set (ordered by set id), resumable via cursor.
+ * Copies card images (TCGdex plus fallback sources) for mirrored sets into the card image store, set by set (ordered by set id), resumable via cursor.
  * Re-running is cheap: existing blobs are skipped with one `list` call per set and language.
  */
 export async function runCardImageBackfill(options: {
@@ -1684,8 +1685,9 @@ export async function runCardImageBackfill(options: {
         local_id: string
         image_languages_json: unknown
         tcgdex_image: string | null
+        external_ids_json: unknown
       }>(
-        "select series_id, set_id, local_id, image_languages_json, external_ids_json->'tcgdex'->>'image' as tcgdex_image from public.tcg_cards where set_id = $1",
+        "select series_id, set_id, local_id, image_languages_json, external_ids_json->'tcgdex'->>'image' as tcgdex_image, external_ids_json from public.tcg_cards where set_id = $1",
         [setId],
       )
       const cards: MirrorableCard[] = cardResult.rows.map((row) => ({
@@ -1694,6 +1696,7 @@ export async function runCardImageBackfill(options: {
         localId: row.local_id,
         imageLanguages: parseImageLanguages(row.image_languages_json),
         tcgdexImageUrl: row.tcgdex_image,
+        externalIds: row.external_ids_json,
       }))
       const result = await mirrorSetImages(mirror, setId, cards, {
         languages: request.languages,

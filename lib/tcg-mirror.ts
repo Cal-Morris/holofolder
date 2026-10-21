@@ -3,7 +3,8 @@ import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog
 import { createAdminClient } from "@/lib/supabase/admin"
 import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type TCGSetSummary } from "@/lib/tcg-set-slots"
 import { cacheLife, cacheTag } from "next/cache"
-import { buildTcgdexAssetImageUrl, pickLocalizedText, pickTcgdexImageFromExternalIds, TCGDEX_LANGUAGE_FALLBACKS } from "@/lib/tcgdex-shared"
+import { buildTcgdexAssetImageUrl, pickLocalizedText, TCGDEX_LANGUAGE_FALLBACKS } from "@/lib/tcgdex-shared"
+import { pickExternalCardImageUrl } from "@/lib/card-image-sources"
 import {
   compareBrowseCards,
   inferCardFinish,
@@ -107,79 +108,7 @@ function buildCardImageUrl(language: string, seriesId: string, setId: string, lo
   return buildTcgdexAssetImageUrl(language, seriesId, setId, localId)
 }
 
-export function pickExternalCardImageUrl(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined
-  }
-
-  const reviewedImage = readCatalogMetadata(value).image
-  if (reviewedImage) return reviewedImage
-
-  const externalIds = value as Record<string, unknown>
-  const tcgdex = externalIds.tcgdex && typeof externalIds.tcgdex === "object" && !Array.isArray(externalIds.tcgdex)
-    ? externalIds.tcgdex as Record<string, unknown>
-    : null
-  const pokemonTcg = externalIds.pokemon_tcg && typeof externalIds.pokemon_tcg === "object" && !Array.isArray(externalIds.pokemon_tcg)
-    ? externalIds.pokemon_tcg as Record<string, unknown>
-    : null
-  const tcgplayerProductId = pickTcgplayerProductId(tcgdex)
-
-  const tcgdexImage = pickTcgdexImageFromExternalIds(externalIds)
-
-  return tcgdexImage
-    ? tcgdexImage
-    : typeof pokemonTcg?.imageLarge === "string" && pokemonTcg.imageLarge.length > 0
-      ? pokemonTcg.imageLarge
-      : typeof pokemonTcg?.imageSmall === "string" && pokemonTcg.imageSmall.length > 0
-        ? pokemonTcg.imageSmall
-        : tcgplayerProductId
-          ? `https://product-images.tcgplayer.com/${encodeURIComponent(tcgplayerProductId)}.jpg`
-          : undefined
-}
-
-function pickTcgplayerProductId(tcgdex: Record<string, unknown> | null) {
-  if (!tcgdex) {
-    return null
-  }
-
-  const directThirdParty = tcgdex.thirdParty && typeof tcgdex.thirdParty === "object" && !Array.isArray(tcgdex.thirdParty)
-    ? tcgdex.thirdParty as Record<string, unknown>
-    : null
-  const directProductId = normalizeProductId(directThirdParty?.tcgplayer)
-  if (directProductId) {
-    return directProductId
-  }
-
-  if (!Array.isArray(tcgdex.variantThirdParty)) {
-    return null
-  }
-
-  for (const candidate of tcgdex.variantThirdParty) {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-      continue
-    }
-
-    const productId = normalizeProductId((candidate as Record<string, unknown>).tcgplayer)
-    if (productId) {
-      return productId
-    }
-  }
-
-  return null
-}
-
-function normalizeProductId(value: unknown) {
-  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
-    return String(value)
-  }
-
-  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
-    return value.trim()
-  }
-
-  return null
-}
-
+export { pickExternalCardImageUrl }
 
 function pickImageLanguage(value: unknown, requestedLanguage: MirrorLanguage) {
   if (!Array.isArray(value)) {

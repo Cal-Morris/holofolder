@@ -8,6 +8,8 @@ test("isAllowedImageHost allows mirrored card art fallback hosts", () => {
   assert.equal(isAllowedImageHost("en.tcgdex.net"), true)
   assert.equal(isAllowedImageHost("images.pokemontcg.io"), true)
   assert.equal(isAllowedImageHost("product-images.tcgplayer.com"), true)
+  assert.equal(isAllowedImageHost("images.scrydex.com"), true)
+  assert.equal(isAllowedImageHost("limitlesstcg.nyc3.cdn.digitaloceanspaces.com"), true)
 })
 
 test("isAllowedImageHost rejects unrelated image hosts", () => {

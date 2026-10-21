@@ -1,4 +1,5 @@
 import { buildTcgdexAssetImageUrl, TCGDEX_ASSET_HOST } from "./tcgdex-shared"
+import type { SourceCardImageRef } from "./card-image-sources"
 import {
   BlobAccessError,
   BlobNotFoundError,
@@ -13,8 +14,9 @@ import {
 /**
  * Mirror of TCGdex card images in Vercel Blob.
  *
- * Only `assets.tcgdex.net` card images are ever copied (never Scrydex / pokemontcg.io / Limitless / TCGplayer).
- * Blob is the primary source once an image is mirrored; TCGdex is only contacted when a copy is missing.
+ * TCGdex card images (`assets.tcgdex.net`) and fallback-source images (TCGplayer, pokemontcg.io, Scrydex, Limitless;
+ * see `lib/card-image-sources.ts`) are copied. The store is the primary source once an image is mirrored; the origin
+ * is only contacted when a copy is missing.
  * Without BLOB_READ_WRITE_TOKEN (or with CARD_IMAGE_BLOB=0) everything falls back to live TCGdex.
  */
 
@@ -154,13 +156,19 @@ export interface CardImageBlobDeps {
   now?: () => number
   /** Public base URL objects are readable at (`<baseUrl><pathname>`), when known up front (R2). */
   baseUrl?: string
+  /**
+   * Converts a fallback-source image before it is stored (e.g. to WebP). Without it, source images are stored as
+   * fetched.
+   */
+  transformSourceImage?: (image: { body: ArrayBuffer; contentType: string }) => Promise<{ body: ArrayBuffer; contentType: string }>
 }
 
 export interface LoadedCardImage {
   body: ArrayBuffer
   contentType: string
-  source: "blob" | "tcgdex"
-  /** Upload to run after responding (only when the image came from TCGdex and Blob is enabled). */
+  /** `blob` = served from the store; `tcgdex` / `upstream` = fetched from the TCGdex / fallback-source origin. */
+  source: "blob" | "tcgdex" | "upstream"
+  /** Upload to run after responding (only when the image came from the origin and the store is enabled). */
   pendingUpload?: () => Promise<void>
 }
 
@@ -325,6 +333,35 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     return readImageResponse(response)
   }
 
+  /** Fetches a fallback-source image and applies `transformSourceImage` (the stored form). */
+  async function fetchFromSource(ref: SourceCardImageRef) {
+    const response = await deps.fetch(ref.url, {
+      headers: { Accept: "image/avif,image/webp,image/*;q=0.8" },
+      signal: AbortSignal.timeout(20_000),
+    })
+    if (!response.ok) {
+      throw Object.assign(new Error(`${ref.source} image fetch failed with ${response.status}`), { status: response.status })
+    }
+    const image = await readImageResponse(response)
+    return deps.transformSourceImage ? deps.transformSourceImage(image) : image
+  }
+
+  /** Copies one fallback-source image to the store unless it is already there. */
+  async function ensureSourceMirrored(ref: SourceCardImageRef, options: { assumeMissing?: boolean } = {}) {
+    assertBlobAvailable()
+    if (!options.assumeMissing) {
+      const existing = await findExisting(ref.pathname)
+      if (existing) return { url: existing, uploaded: false }
+    }
+    let uploadedHere = false
+    const url = await runOnce(ref.pathname, async () => {
+      const image = await fetchFromSource(ref)
+      uploadedHere = true
+      return putOrReuse(ref.pathname, image.body, image.contentType)
+    })
+    return { url, uploaded: uploadedHere }
+  }
+
   /** Copies one TCGdex image to Blob unless it is already there. Returns the blob URL and whether it uploaded. */
   async function ensureMirrored(ref: TcgdexCardImageRef, options: { assumeMissing?: boolean } = {}) {
     const pathname = getCardImageBlobPathname(ref)
@@ -343,14 +380,18 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
   }
 
   /**
-   * Loads an image for the proxy: Blob first, TCGdex only when the copy is missing (in which case the bytes are
-   * also scheduled for upload so the next request is served from Blob).
+   * Store first, origin only when the copy is missing (in which case the bytes are also scheduled for upload so the
+   * next request is served from the store).
    */
-  async function loadImage(ref: TcgdexCardImageRef): Promise<LoadedCardImage> {
-    const pathname = getCardImageBlobPathname(ref)
+  async function loadStoredOrOrigin(
+    pathname: string,
+    fetchOrigin: () => Promise<{ body: ArrayBuffer; contentType: string }>,
+    originSource: "tcgdex" | "upstream",
+    uploadContentType?: string,
+  ): Promise<LoadedCardImage> {
     if (isBlobBlocked()) {
-      // A blocked store must not add latency: no Blob lookup and no upload attempt until the cooldown ends.
-      return { ...(await fetchFromTcgdex(ref)), source: "tcgdex" }
+      // A blocked store must not add latency: no store lookup and no upload attempt until the cooldown ends.
+      return { ...(await fetchOrigin()), source: originSource }
     }
 
     const candidateUrl = knownUrls.get(pathname) ?? (blobBaseUrl ? `${blobBaseUrl}${pathname}` : null)
@@ -375,21 +416,31 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
       deps.logger?.(`Blob lookup failed for ${pathname}: ${error instanceof Error ? error.message : String(error)}`)
     }
 
-    const image = await fetchFromTcgdex(ref)
+    const image = await fetchOrigin()
     if (isBlobBlocked()) {
-      return { ...image, source: "tcgdex" }
+      return { ...image, source: originSource }
     }
     return {
       ...image,
-      source: "tcgdex",
+      source: originSource,
       pendingUpload: async () => {
         try {
-          await upload(pathname, image.body, getCardImageContentType(ref.extension))
+          await upload(pathname, image.body, uploadContentType ?? image.contentType)
         } catch (error) {
           deps.logger?.(`Blob upload failed for ${pathname}: ${error instanceof Error ? error.message : String(error)}`)
         }
       },
     }
+  }
+
+  /** Loads a TCGdex card image for the proxy (store first, TCGdex when the copy is missing). */
+  async function loadImage(ref: TcgdexCardImageRef): Promise<LoadedCardImage> {
+    return loadStoredOrOrigin(getCardImageBlobPathname(ref), () => fetchFromTcgdex(ref), "tcgdex", getCardImageContentType(ref.extension))
+  }
+
+  /** Loads a fallback-source card image for the proxy (store first, the source when the copy is missing). */
+  async function loadSourceImage(ref: SourceCardImageRef): Promise<LoadedCardImage> {
+    return loadStoredOrOrigin(ref.pathname, () => fetchFromSource(ref), "upstream")
   }
 
   /** Existing blob pathnames under `cards/<lang>/<setId>/` (one list call per set). */
@@ -398,7 +449,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     return new Set(await deps.list(getCardImageBlobSetPrefix(language, setId)).catch(noteBlobError))
   }
 
-  return { ensureMirrored, loadImage, listSetPathnames, upload, fetchFromTcgdex, isBlobBlocked }
+  return { ensureMirrored, ensureSourceMirrored, loadImage, loadSourceImage, listSetPathnames, upload, fetchFromTcgdex, isBlobBlocked }
 }
 
 export type CardImageMirror = ReturnType<typeof createCardImageMirror>

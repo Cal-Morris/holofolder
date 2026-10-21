@@ -64,7 +64,7 @@ Stack:
    - Rising and Breakout signals are computed client-side from trend points, behind confidence gates.
 4. **Images.**
    - Card images are only ever served through `/api/card-image-proxy` (same-origin, immutable cache headers).
-   - TCGdex card images are mirrored into R2 (or Blob) under deterministic keys. On a miss the proxy serves TCGdex and uploads afterwards. Blocked or throttled stores are skipped for a cooldown.
+   - TCGdex card images, and fallback-source images (TCGplayer, pokemontcg.io, Scrydex, Limitless) for cards TCGdex has no image for, are mirrored into R2 (or Blob) under deterministic keys (see `docs/card-image-store.md`). On a miss the proxy serves the origin and uploads afterwards. Blocked or throttled stores are skipped for a cooldown.
    - Pokémon artwork from PokeAPI is resized by the proxy (`&w=` in 96/160/240/320/480).
    - The response header `x-card-image-source` is `r2`, `blob`, `tcgdex` or `upstream`.
 5. **Offline.**
