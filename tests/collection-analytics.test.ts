@@ -68,3 +68,11 @@ test("activity names actual printing and wanted changes, keeping saved dates sep
   assert.equal(activityDescription(event), "Replaced Old with New; Wanted Want")
   assert.equal(activityDescription({ ...event, before_state: event.after_state, after_state: null }), "Removed New; Removed wanted Want")
 })
+
+test("a reverse holo is valued from TCGplayer's reverseHolofoil row, never a 1st Edition row", () => {
+  const reverse = { ...owned, card_finish: "reverse_holo" as const }
+  const withRows = (variantKey: string) => ({ "fixture-card::en": { ...quote, finishPrices: [{ ...quote, gbpAmount: 3, marketGbpAmount: 3, finish: "reverse_holo" as const, variantKey }] } })
+  assert.equal(buildCollectionAnalytics([reverse], withRows("reverseHolofoil"), now).valueGbp, 3)
+  assert.equal(buildCollectionAnalytics([reverse], withRows("reverse-holofoil"), now).valueGbp, 3)
+  assert.equal(buildCollectionAnalytics([{ ...owned }], { "fixture-card::en": { ...quote, finishPrices: [{ ...quote, gbpAmount: 90, marketGbpAmount: 90, finish: "normal" as const, variantKey: "1st-edition" }] } }, now).pricedCards, 0)
+})

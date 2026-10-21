@@ -1,4 +1,4 @@
-import { getCardPriceKey, type CardPriceSnapshot } from "@/lib/card-pricing"
+import { getCardPriceKey, isStandardFinishVariantKey, type CardPriceSnapshot } from "@/lib/card-pricing"
 import { isCardFinish, isCardLanguage, type CollectedPokemon, type WantedCard } from "@/lib/domain/cards"
 import { getRisingMomentum, measurePriceMomentum, type PriceMomentum } from "@/lib/price-momentum"
 import { getPriceDataAgeDays } from "@/lib/price-freshness"
@@ -19,7 +19,7 @@ function exactQuote(card: AnalyticsCard["card"], snapshot: CardPriceSnapshot | u
   if (!snapshot) return null
   const finish = card.card_finish ?? "normal"
   if (snapshot.finishPrices?.length) {
-    const matching = snapshot.finishPrices.filter(price => price.finish === finish && ["normal", "unlimited", "holo", "holofoil", "unlimited-holofoil", "reverse", "reverse_holo", "reverse-holofoil", "reverse-holo"].includes(price.variantKey.toLowerCase()))
+    const matching = snapshot.finishPrices.filter(price => price.finish === finish && isStandardFinishVariantKey(price.variantKey))
     return matching.find(price => price.source === snapshot.source) ?? matching[0] ?? null
   }
   const variant = snapshot.variantLabel?.toLowerCase().replaceAll(/[^a-z]/g, "")
