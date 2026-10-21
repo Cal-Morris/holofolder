@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import NextImage from "next/image"
 import { createPortal } from "react-dom"
-import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2 } from "lucide-react"
+import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2, Palette } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import type { CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
@@ -40,7 +40,7 @@ import {
 } from "@/lib/regional-price"
 import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
 import { getTouchGestureIntent, useTouchGestures } from "@/hooks/use-touch-gestures"
-import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
+import { loadCardsForPokemon, useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
 import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } from "@/lib/binder-page-scan-aggregate"
@@ -86,6 +86,7 @@ const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr: false 
 const PartnerModal = dynamic(() => import("@/components/partner-modal"), { ssr: false })
 const CardSelector = dynamic(() => import("@/components/card-selector"), { ssr: false })
 const PokemonCardsBrowser = dynamic(() => import("@/components/pokemon-cards-browser"), { ssr: false })
+const IllustratorCardsBrowser = dynamic(() => import("@/components/illustrator-cards-browser"), { ssr: false })
 // `loading` gives these their own Suspense boundary. Without it, next/dynamic (with SSR) has
 // none, so the first switch to List or Sets suspended the whole shell and hid the dock.
 const DexListView = dynamic(() => import("@/components/dex-list-view"), { loading: () => null })
@@ -778,6 +779,7 @@ export default function BinderApp({
   const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; nested: boolean } | null>(null)
+  const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const transitionContent = useNavigationTransition(prefersReducedMotion)
   const mainViewRef = useRef<HTMLDivElement>(null)
@@ -3768,6 +3770,29 @@ export default function BinderApp({
   const selectedPokemonDisplayName = selectedPokemon ? formatPokemonDisplayName(selectedPokemon.name) : ""
   const selectedSlotCardDisplay = getSelectedSlotCardDisplay(collectionItem, binderCardDisplay)
   const selectedPrimaryCardPreview = selectedSlotCardDisplay.primaryCard
+  // The illustrator of the card shown in the detail sheet, looked up from the Pokémon's card list (the same
+  // list the card selector uses, so it is usually cached and also works offline once that list was loaded).
+  const [selectedCardIllustrator, setSelectedCardIllustrator] = useState<{ key: string; name: string } | null>(null)
+  const selectedIllustratorLookupKey = selectedPokemon && selectedPrimaryCardPreview?.cardId
+    ? `${selectedPokemon.id}:${selectedPrimaryCardPreview.cardId}`
+    : null
+  useEffect(() => {
+    if (!selectedIllustratorLookupKey) return
+    const [pokemonId, ...cardIdParts] = selectedIllustratorLookupKey.split(":")
+    const cardId = cardIdParts.join(":")
+    let cancelled = false
+    loadCardsForPokemon(Number(pokemonId), "en")
+      .then((cards) => {
+        if (cancelled) return
+        const name = cards.find((card) => matchesCatalogCardId(card, cardId))?.illustrator?.trim()
+        setSelectedCardIllustrator(name ? { key: selectedIllustratorLookupKey, name } : null)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [selectedIllustratorLookupKey])
+  const selectedIllustratorName = selectedCardIllustrator?.key === selectedIllustratorLookupKey ? selectedCardIllustrator?.name ?? null : null
   const selectedCurrentCardPreview = selectedSlotCardDisplay.currentCard
   const selectedPokemonDisplayImage = selectedPokemon ? getDetailArtwork(selectedPokemon, selectedPrimaryCardPreview?.cardImage) : null
   const selectedPokemonDisplayFit = getDisplayArtworkFit(selectedPrimaryCardPreview?.cardImage)
@@ -3914,7 +3939,7 @@ export default function BinderApp({
   const isQuickPanelOpen = Boolean(selectedPokemon) && !isSearchOpen
   const isMobileQuickPanel = isQuickPanelOpen && !isDesktopViewport
   // The card selector and the all-cards view open on top of the card detail, which stays mounted but hidden.
-  const isQuickPanelCovered = isCardSelectorOpen || Boolean(cardBrowser?.nested)
+  const isQuickPanelCovered = isCardSelectorOpen || Boolean(cardBrowser?.nested) || Boolean(illustratorBrowser?.nested)
 
   // Card detail: a popover next to the slot on desktop, a modal bottom sheet on mobile.
   useOverlay(isQuickPanelOpen, closeSelectedPokemon, {
@@ -3931,6 +3956,7 @@ export default function BinderApp({
   useOverlay(isBurstScannerOpen, closeBurstScannerSafely, { containerRef: burstScannerRef })
   const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel)
   const closeCardBrowser = useCallback(() => setCardBrowser(null), [])
+  const closeIllustratorBrowser = useCallback(() => setIllustratorBrowser(null), [])
   const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet, !isDesktopViewport)
   const filterSheetSwipe = useSwipeToDismiss(filterSheetRef, closeFilterSheet)
 
@@ -3947,6 +3973,7 @@ export default function BinderApp({
     setViewLoadError(null)
     closeAllOverlays()
     setCardBrowser(null)
+    setIllustratorBrowser(null)
     setSelectedPokemon(null)
     setLongPressedPokemon(null)
     setIsSearchOpen(false)
@@ -3991,6 +4018,18 @@ export default function BinderApp({
     openExclusively(() => {
       setSelectedPokemon(null)
       setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, nested: false })
+    })
+  }, [openExclusively])
+
+  /** Open every card by an illustrator. From the card detail it stacks one level; otherwise it replaces any overlay. */
+  const openIllustratorBrowser = useCallback((name: string, options: { fromDetail?: boolean } = {}) => {
+    if (options.fromDetail) {
+      setIllustratorBrowser({ name, nested: true })
+      return
+    }
+    openExclusively(() => {
+      setSelectedPokemon(null)
+      setIllustratorBrowser({ name, nested: false })
     })
   }, [openExclusively])
 
@@ -4213,6 +4252,23 @@ export default function BinderApp({
                   </summary>
                   <CardPriceEvidence price={selectedDetailPriceSnapshot} />
                 </details>
+              </div>
+            ) : null}
+            {selectedIllustratorName ? (
+              <div className="max-sm:order-[-1]">
+                <button
+                  type="button"
+                  onClick={() => openIllustratorBrowser(selectedIllustratorName, { fromDetail: true })}
+                  aria-label={`Illustrator ${selectedIllustratorName}: show all their cards`}
+                  className="flex min-h-10 w-full items-center gap-2.5 rounded-2xl border border-border/60 bg-background/25 px-3 py-2 text-left transition-colors hover:border-primary/30 hover:bg-primary/10 dark:border-white/10 dark:bg-white/[0.03]"
+                >
+                  <Palette className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Illustrator</span>
+                    <span className="block truncate text-sm font-semibold text-primary underline-offset-2 hover:underline">{selectedIllustratorName}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
               </div>
             ) : null}
             {/* On phones the actions come first so they are reachable without scrolling past prices. */}
@@ -6404,6 +6460,7 @@ export default function BinderApp({
                   onJumpToPage={handleSearchJumpToPage}
                   onBrowseCards={(pokemon, highlightCardId) => openCardBrowser(pokemon, { highlightCardId })}
                   getOfflineCards={getOfflineSearchCards}
+                  onBrowseIllustrator={(name) => openIllustratorBrowser(name)}
                 />
                 {selectedPokemon && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
@@ -6843,6 +6900,16 @@ export default function BinderApp({
           onWantCard={readOnlyMode ? undefined : (card, isWanted) => handleBrowseWantCard(cardBrowser.pokemon, card, isWanted)}
           onAddCard={readOnlyMode ? undefined : (card) => handleBrowseAddCard(cardBrowser.pokemon, card)}
           formatPrice={priceFormat.label}
+        />
+      ) : null}
+
+      {illustratorBrowser ? (
+        <IllustratorCardsBrowser
+          key={illustratorBrowser.name}
+          illustrator={illustratorBrowser.name}
+          collection={collection}
+          isDesktop={isDesktopViewport}
+          onClose={closeIllustratorBrowser}
         />
       ) : null}
 
