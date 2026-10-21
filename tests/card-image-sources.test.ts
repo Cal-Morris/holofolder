@@ -51,6 +51,7 @@ describe("parseSourceCardImageUrl", () => {
     const cases: Array<[string, string]> = [
       ["https://product-images.tcgplayer.com/716203.jpg", "cards/src/tcgplayer/716203.webp"],
       ["https://images.pokemontcg.io/smp/SM168_hires.png", "cards/src/pokemontcg/smp/SM168_hires.webp"],
+      ["https://images.pokemontcg.io/ex10/!_hires.png", "cards/src/pokemontcg/ex10/exclamation_hires.webp"],
       ["https://images.scrydex.com/pokemon/me55c-106p/large", "cards/src/scrydex/me55c-106p/large.webp"],
       ["https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/MEP/MEP_001_R_EN_LG.png", "cards/src/limitless/MEP/MEP_001_R_EN_LG.webp"],
     ]

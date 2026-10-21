@@ -75,3 +75,13 @@ Which image a card shows is decided when the mirror tables are read (`lib/tcg-mi
 - The proxy also copies a fallback image the first time anyone views it (`x-card-image-source: upstream`). After that it's served from the store (`x-card-image-source: r2`).
 
 To add a source, add its host and a strict path rule to `lib/card-image-sources.ts`, add the host to `CATALOG_IMAGE_HOSTS` in `lib/card-catalog.ts` if catalog images may use it, and cover the URL shapes in `tests/card-image-sources.test.ts`. Never allow a whole host with arbitrary paths.
+
+## Filling gaps
+
+`bun scripts/fill-card-gaps.ts` (dry run; `--apply` to write) fills what TCGdex lacks from public sources, using the rules in `lib/card-gap-fill.ts`:
+
+- **Images.** A card with no image is matched to a pokemontcg-data card (pokemontcg.io scan, or the Scrydex scan when pokemontcg.io has none) or a TCGplayer product, by collector number and name. Reprint collections such as Classic Collection are matched by name and same-name cards are paired in collector order. The match is stored in `external_ids_json.catalog.image` (`imageSource` records where it came from) and never replaces an image the card already has. Every URL is checked first, and only hosts in `lib/card-image-sources.ts` are used, so each one can be mirrored.
+- **Aliases.** The same printing under two ids (for example `me55c-106p` and `30th-c-022`) gets `catalog.canonicalId` / `aliasIds`, so only one is listed.
+- **Promo sets.** Distributions TCGdex doesn't list (Trick or Trade, Burger King, Countdown Calendar) are imported from TCGplayer product data into the `catalog-supplements` series, with ids `tcgplayer-<productId>`, the printed number as `local_id` and Pokédex links inferred from the card name.
+
+Afterwards run the backfill for the touched sets (`POST /api/admin/mirror-card-images?set=<id>`) and revalidate the mirror cache with a real `POST /api/admin/sync-card-db?set=<id>&images=0`.
