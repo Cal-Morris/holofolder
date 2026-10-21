@@ -43,6 +43,13 @@ export interface TCGSetSlotsResponse {
 export const RECENT_SET_MIN_OFFICIAL_CARDS = 20
 
 /**
+ * Max sets returned for a Sets view name search. Generic words match whole families
+ * ("promo" matches 12 sets, "McDonald" 15), and the results
+ * are a horizontal scroller, so keep this well above the largest family.
+ */
+export const SET_SEARCH_RESULT_LIMIT = 30
+
+/**
  * TCGdex ids for the Pokémon TCG 30th anniversary sets ("30th Celebration" and "30th Classic Collection").
  * 30th Classic Collection reports 0 official cards (all reprints), so it bypasses the size filter.
  */
