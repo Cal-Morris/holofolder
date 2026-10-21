@@ -44,6 +44,18 @@ export interface CardPriceLookup {
 
 export type PricedCardFinish = Extract<CardFinish, "normal" | "holo" | "reverse_holo">
 
+// Finish quote rows for the standard printing of each finish (lower-cased variant keys, as TCGplayer and
+// the Cardmarket base row name them). 1st Edition and other special printings are deliberately absent.
+const STANDARD_FINISH_VARIANT_KEYS = new Set([
+  "normal", "unlimited", "holo", "holofoil", "unlimited-holofoil",
+  "reverse", "reverse_holo", "reverseholofoil", "reverse-holofoil", "reverse-holo",
+])
+
+/** True for a finish quote row that prices the standard printing (not 1st Edition or another special row). */
+export function isStandardFinishVariantKey(variantKey: string) {
+  return STANDARD_FINISH_VARIANT_KEYS.has(variantKey.toLowerCase())
+}
+
 export interface CardFinishPrice extends Omit<CardPriceSnapshot, "finishPrices" | "historyPoints"> {
   finish: PricedCardFinish
   variantKey: string

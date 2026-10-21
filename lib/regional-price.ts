@@ -8,6 +8,7 @@ import type {
   SupportedCurrency,
 } from "@/lib/card-pricing"
 import type { DisplayCurrency, PricingRegion } from "@/lib/pricing-region"
+import { isStandardFinishVariantKey } from "@/lib/card-pricing"
 
 /**
  * Region-grounded pricing.
@@ -189,10 +190,6 @@ export function regionalizeCardPrices<T extends CardPriceSnapshot>(
   return result
 }
 
-const STANDARD_FINISH_VARIANT_KEYS = new Set([
-  "normal", "unlimited", "holo", "holofoil", "unlimited-holofoil", "reverse", "reverse_holo", "reverseholofoil", "reverse-holofoil", "reverse-holo",
-])
-
 /**
  * The region-weighted price of each finish a snapshot quotes (normal, holo, reverse holo). Only standard
  * printings count (not 1st Edition or other special variant rows); the snapshot's own source wins ties.
@@ -204,7 +201,7 @@ export function getRegionalFinishPrices(
   const result: Partial<Record<PricedCardFinish, RegionalCardPriceSnapshot>> = {}
   const byFinish = new Map<PricedCardFinish, CardFinishPrice[]>()
   for (const price of snapshot?.finishPrices ?? []) {
-    if (!STANDARD_FINISH_VARIANT_KEYS.has(price.variantKey.toLowerCase())) continue
+    if (!isStandardFinishVariantKey(price.variantKey)) continue
     byFinish.set(price.finish, [...(byFinish.get(price.finish) ?? []), price])
   }
   for (const [finish, prices] of byFinish) {
