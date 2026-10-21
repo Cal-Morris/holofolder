@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { searchMirroredSets, getMirroredSetDexSlots, getRecentMirroredSets } from "@/lib/tcg-mirror"
 import { normalizeCardLanguage } from "@/lib/domain/cards"
 import { POKEMON_CATALOG } from "@/lib/pokemon-catalog"
+import { SET_SEARCH_RESULT_LIMIT } from "@/lib/tcg-set-slots"
 import { PUBLIC_JSON_CACHE_HEADERS } from "@/lib/http-cache"
 
 export const instant = false
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     const language = normalizeCardLanguage(searchParams.get("language"))
     const pokemonNames = new Map(POKEMON_CATALOG.map((pokemon) => [pokemon.id, pokemon.name] as const))
     const sets = query.length >= 2 || requestedSetId
-      ? await searchMirroredSets(requestedSetId || query, requestedSetId ? 12 : 8)
+      ? await searchMirroredSets(requestedSetId || query, requestedSetId ? 12 : SET_SEARCH_RESULT_LIMIT)
       : []
     const selectedSetId = requestedSetId || null
 
