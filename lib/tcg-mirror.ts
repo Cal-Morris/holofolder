@@ -5,11 +5,18 @@ import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type
 import { cacheLife, cacheTag } from "next/cache"
 import { buildTcgdexAssetImageUrl, pickLocalizedText, pickTcgdexImageFromExternalIds, TCGDEX_LANGUAGE_FALLBACKS } from "@/lib/tcgdex-shared"
 import {
+  compareBrowseCards,
   inferCardFinish,
   normalizeLocalId,
   parseCardSearchQuery,
   type SearchCardResult,
 } from "@/lib/pokemon-card-browse"
+import {
+  buildIllustratorDirectory,
+  cleanIllustratorName,
+  type IllustratorCard,
+  type IllustratorSummary,
+} from "@/lib/illustrators"
 
 export type MirrorLanguage = "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko"
 
@@ -531,7 +538,7 @@ function toSearchCardResult(card: any, language: MirrorLanguage): SearchCardResu
       releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
     },
     rarity: typeof card.rarity === "string" ? card.rarity : undefined,
-    variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json : undefined,
+    variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json as Record<string, boolean> : undefined,
     dexIds,
   }
 }
@@ -599,4 +606,150 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
   }
 
   return Array.from(results.values()).slice(0, limit * 2)
+}
+
+const ILLUSTRATOR_DIRECTORY_FUNCTION = "tcg_illustrator_directory"
+const MIRROR_PAGE_SIZE = 1000
+const MAX_ILLUSTRATOR_DIRECTORY_PAGES = 60
+const MAX_ILLUSTRATOR_CARDS = 3000
+
+function isMissingFunctionError(error: unknown) {
+  const code = (error as { code?: unknown } | null)?.code
+  const message = String((error as { message?: unknown } | null)?.message ?? "")
+  return code === "PGRST202" || code === "42883" || /could not find the function|does not exist/i.test(message)
+}
+
+/**
+ * Every illustrator in the mirror with their card count. Uses the `tcg_illustrator_directory()` function
+ * (migration 030); until that is applied it pages through `tcg_cards.illustrator` instead.
+ */
+export async function getMirroredIllustratorDirectory(): Promise<IllustratorSummary[]> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-illustrators")
+
+  const admin = createAdminClient()
+  const { data, error } = await admin.rpc(ILLUSTRATOR_DIRECTORY_FUNCTION)
+  if (!error) {
+    return buildIllustratorDirectory(((data || []) as Array<{ illustrator?: unknown; card_count?: unknown }>)
+      .map((row) => ({ name: row.illustrator, count: typeof row.card_count === "number" ? row.card_count : Number(row.card_count) })))
+  }
+  if (!isMissingFunctionError(error)) throw error
+
+  const names: Array<{ name: unknown }> = []
+  for (let page = 0; page < MAX_ILLUSTRATOR_DIRECTORY_PAGES; page += 1) {
+    const from = page * MIRROR_PAGE_SIZE
+    const { data: rows, error: pageError } = await admin
+      .from("tcg_cards")
+      .select("illustrator")
+      .not("illustrator", "is", null)
+      .not("set_id", "in", `(${[...HIDDEN_SET_IDS].join(",")})`)
+      .order("id", { ascending: true })
+      .range(from, from + MIRROR_PAGE_SIZE - 1)
+    if (pageError) throw pageError
+    for (const row of (rows || []) as Array<{ illustrator?: unknown }>) names.push({ name: row.illustrator })
+    if (!rows || rows.length < MIRROR_PAGE_SIZE) break
+  }
+  return buildIllustratorDirectory(names)
+}
+
+const ILLUSTRATOR_CARD_SELECT = `
+  id,
+  series_id,
+  set_id,
+  local_id,
+  name_json,
+  name_en,
+  rarity,
+  illustrator,
+  image_languages_json,
+  external_ids_json,
+  variants_json,
+  tcg_sets!inner(
+    id,
+    name_json,
+    name_en,
+    official_card_count,
+    release_date
+  ),
+  tcg_card_dex_ids(
+    dex_id
+  )
+`
+
+type IllustratorCardRow = {
+  id: string
+  series_id?: string | null
+  set_id?: string | null
+  local_id?: string | null
+  name_json?: unknown
+  name_en?: string | null
+  rarity?: unknown
+  illustrator?: unknown
+  image_languages_json?: unknown
+  external_ids_json?: unknown
+  variants_json?: unknown
+  tcg_sets?: { id?: string; name_json?: unknown; name_en?: string | null; official_card_count?: unknown; release_date?: unknown } | null
+  tcg_card_dex_ids?: Array<{ dex_id?: unknown }> | null
+}
+
+function toIllustratorCard(card: IllustratorCardRow, language: MirrorLanguage): IllustratorCard | null {
+  const set = card?.tcg_sets
+  if (!card?.id || !card.local_id || !card.set_id || !card.series_id || !set?.id || HIDDEN_SET_IDS.has(card.set_id)) {
+    return null
+  }
+  const dexIds = (Array.isArray(card.tcg_card_dex_ids) ? card.tcg_card_dex_ids : [])
+    .map((link) => (typeof link?.dex_id === "number" ? link.dex_id : null))
+    .filter((dexId): dexId is number => Boolean(dexId))
+  const imageLanguage = pickImageLanguage(card.image_languages_json, language)
+  const metadata = readCatalogMetadata(card.external_ids_json)
+  return {
+    id: card.id,
+    canonicalId: metadata.canonicalId,
+    aliasIds: metadata.aliasIds,
+    localId: metadata.localId ?? card.local_id,
+    name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
+    image: metadata.image ?? (imageLanguage
+      ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
+      : pickExternalCardImageUrl(card.external_ids_json)),
+    language,
+    set: {
+      id: set.id,
+      name: pickLocalizedText(set.name_json, language) || set.name_en || set.id,
+      officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
+      releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
+    },
+    rarity: typeof card.rarity === "string" ? card.rarity : undefined,
+    variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json as Record<string, boolean> : undefined,
+    dexIds,
+    illustrator: typeof card.illustrator === "string" ? card.illustrator : undefined,
+  }
+}
+
+/** Every mirrored card credited to one illustrator (exact name, as listed in the directory), across all sets. */
+export async function getMirroredCardsByIllustrator(name: string, language: MirrorLanguage = "en"): Promise<IllustratorCard[]> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+  const illustrator = cleanIllustratorName(name)
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-illustrators", cacheSafeTag("illustrator", illustrator.toLowerCase()), cacheSafeTag("language", language))
+  if (!illustrator) return []
+
+  const admin = createAdminClient()
+  const rows: IllustratorCardRow[] = []
+  for (let from = 0; from < MAX_ILLUSTRATOR_CARDS; from += MIRROR_PAGE_SIZE) {
+    const { data, error } = await admin
+      .from("tcg_cards")
+      .select(ILLUSTRATOR_CARD_SELECT)
+      .eq("illustrator", illustrator)
+      .order("id", { ascending: true })
+      .range(from, from + MIRROR_PAGE_SIZE - 1)
+    if (error) throw error
+    rows.push(...((data || []) as unknown as IllustratorCardRow[]))
+    if (!data || data.length < MIRROR_PAGE_SIZE) break
+  }
+
+  return deduplicateCatalogCards(rows)
+    .map((row) => toIllustratorCard(row, language))
+    .filter((card): card is IllustratorCard => Boolean(card))
+    .sort(compareBrowseCards)
 }

@@ -65,7 +65,7 @@ export function extractCardsFromCachedResponse(url: string, payload: unknown): S
         if (result) cards.push(result)
       }
     }
-  } else if (path.startsWith("/api/tcg-card-search") && Array.isArray(payload.cards)) {
+  } else if ((path.startsWith("/api/tcg-card-search") || path.startsWith("/api/tcg-illustrators")) && Array.isArray(payload.cards)) {
     for (const card of payload.cards) {
       const result = toSearchCard(card, positiveInts(isRecord(card) ? card.dexIds : null))
       if (result && result.dexIds.length > 0) cards.push(result)

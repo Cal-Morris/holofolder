@@ -45,6 +45,7 @@ type MockCard = {
   rarity: string
   variants: Record<string, boolean>
   dexIds: number[]
+  illustrator?: string
 }
 
 function mockCard(dexId: number, name: string, setId: string, setName: string, localId: string, total: number, releaseDate: string, rarity: string, variants: Record<string, boolean>): MockCard {
@@ -86,6 +87,33 @@ export function placeholderSvg(label: string, seed: number) {
   const color = CARD_PALETTE[seed % CARD_PALETTE.length]
   const safe = label.replace(/[^a-zA-Z0-9 #./-]/g, "").slice(0, 24)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="245" height="342" viewBox="0 0 245 342"><rect width="245" height="342" rx="14" fill="${color}"/><rect x="12" y="12" width="221" height="318" rx="10" fill="#f8fafc" opacity="0.9"/><rect x="24" y="48" width="197" height="140" rx="6" fill="${color}" opacity="0.35"/><text x="122" y="230" font-family="sans-serif" font-size="20" font-weight="700" text-anchor="middle" fill="#0f172a">${safe}</text></svg>`
+}
+
+/**
+ * Synthetic illustrator credits for the mock printings (illustrator browse tests). Not real credits for
+ * these cards; any printing not listed has no illustrator.
+ */
+const MOCK_ILLUSTRATORS: Record<string, string> = {
+  "base1-44": "Mitsuhiro Arita",
+  "base1-46": "Mitsuhiro Arita",
+  "sv03.5-166": "Mitsuhiro Arita",
+  "sv03.5-168": "Kouki Saitō",
+  "sv03.5-001": "5ban Graphics",
+  "sv03.5-004": "5ban Graphics",
+}
+for (const card of MOCK_CARDS) {
+  if (MOCK_ILLUSTRATORS[card.id]) card.illustrator = MOCK_ILLUSTRATORS[card.id]
+}
+
+/** Directory and per-illustrator lists, shaped like /api/tcg-illustrators. */
+export function mockIllustratorResponse(url: string) {
+  const name = new URL(url).searchParams.get("name")
+  if (name === null) {
+    const counts = new Map<string, number>()
+    for (const card of MOCK_CARDS) if (card.illustrator) counts.set(card.illustrator, (counts.get(card.illustrator) ?? 0) + 1)
+    return { illustrators: [...counts].map(([illustratorName, cardCount]) => ({ name: illustratorName, cardCount })).sort((a, b) => b.cardCount - a.cardCount) }
+  }
+  return { illustrator: name, cards: MOCK_CARDS.filter((card) => card.illustrator === name) }
 }
 
 /** Make the page look like an installed PWA (display-mode: standalone, navigator.standalone, safe areas). */
@@ -176,6 +204,7 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     const label = source.match(/(\d+)\.png$/)?.[1] ? `#${source.match(/(\d+)\.png$/)![1]}` : "card"
     return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, label.length) })
   })
+  await target.route("**/api/tcg-illustrators**", (route) => route.fulfill({ json: mockIllustratorResponse(route.request().url()) }))
   await target.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: { sets: [], selectedSet: null, slots: [] } }))
 
   if (signedIn) {

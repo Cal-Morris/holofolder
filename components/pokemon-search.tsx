@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"
-import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2 } from "lucide-react"
+import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2, Palette } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary } from "@/lib/pokemon-catalog"
 import {
@@ -23,6 +23,8 @@ import {
 } from "@/lib/pokemon-card-browse"
 import { searchOfflineCards } from "@/lib/offline-card-index"
 import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
+import { loadIllustratorDirectory } from "@/lib/illustrator-client"
+import { normalizeIllustratorText, searchIllustrators, type IllustratorSummary } from "@/lib/illustrators"
 
 type SearchStateFilter = PokemonSearchStateFilter
 
@@ -53,6 +55,8 @@ interface PokemonSearchProps {
   onBrowseCards?: (pokemon: { id: number; name: string }, highlightCardId?: string) => void
   /** Cards available on this device (own cards + cached card data), searched when the card search API can't be reached. */
   getOfflineCards?: () => Promise<SearchCardResult[]>
+  /** Open the read-only view of every card by an illustrator. Enables illustrator results. */
+  onBrowseIllustrator?: (name: string) => void
 }
 
 const CARD_SEARCH_DEBOUNCE_MS = 250
@@ -130,6 +134,25 @@ function useCardSearch(query: string, enabled: boolean, getOfflineCards?: () => 
     : { groups: [] as CardSearchGroup[], loading: true, offline: false }
 }
 
+/** Fuzzy illustrator matches from the directory (loaded once; offline it uses the copy saved on this device). */
+function useIllustratorSearch(query: string, enabled: boolean) {
+  const [directory, setDirectory] = useState<IllustratorSummary[] | null>(null)
+  const active = enabled && normalizeIllustratorText(query).length >= 2
+
+  useEffect(() => {
+    if (!active || directory) return
+    let cancelled = false
+    void loadIllustratorDirectory().then((result) => {
+      if (!cancelled && result.data) setDirectory(result.data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [active, directory])
+
+  return useMemo(() => (active && directory ? searchIllustrators(directory, query, 5) : []), [active, directory, query])
+}
+
 /** Offline, a thumbnail that was never loaded falls back to its saved copy (via the image proxy). */
 function savedThumbnailOnError(image: string | undefined) {
   return (event: React.SyntheticEvent<HTMLImageElement>) => {
@@ -163,6 +186,7 @@ export default function PokemonSearch({
   onJumpToPage,
   onBrowseCards,
   getOfflineCards,
+  onBrowseIllustrator,
 }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter)
@@ -208,6 +232,7 @@ export default function PokemonSearch({
   }, [activeFilter, matchesFilter, pokemonList, query])
 
   const cardSearch = useCardSearch(query, Boolean(onBrowseCards), getOfflineCards)
+  const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator))
 
   const pageJump = useMemo(() => {
     if (!onJumpToPage || totalPages < 1) return null
@@ -289,7 +314,7 @@ export default function PokemonSearch({
         <Input
           ref={searchInputRef}
           type="text"
-          placeholder={onBrowseCards ? "Search Pokémon, cards, sets or #dex…" : "Search or browse Pokémon..."}
+          placeholder={onBrowseCards ? "Search Pokémon, cards, sets, artists or #dex…" : "Search or browse Pokémon..."}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -350,9 +375,9 @@ export default function PokemonSearch({
       ) : null}
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/70">
-        {visibleResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
+        {visibleResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
           <div className="h-full overflow-y-auto">
-            {visibleResults.length > 0 && (cardSearch.groups.length > 0 || cardSearch.loading) ? (
+            {visibleResults.length > 0 && (illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading) ? (
               <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pokémon</p>
             ) : null}
             {visibleResults.map((pokemon, index) => {
@@ -462,6 +487,31 @@ export default function PokemonSearch({
                 </div>
               )
             })}
+            {illustratorResults.length > 0 ? (
+              <section aria-label="Illustrator results" className="border-t border-border/50 px-3 pb-2">
+                <p className="px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Illustrators</p>
+                <div className="flex flex-col gap-1">
+                  {illustratorResults.map((illustrator) => (
+                    <button
+                      key={illustrator.name}
+                      type="button"
+                      onClick={() => onBrowseIllustrator?.(illustrator.name)}
+                      aria-label={`Illustrator ${illustrator.name}, ${illustrator.cardCount} card${illustrator.cardCount === 1 ? "" : "s"}`}
+                      className="flex min-h-11 w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-primary/10"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        <Palette className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{illustrator.name}</span>
+                        <span className="block text-[11px] text-muted-foreground">{illustrator.cardCount} card{illustrator.cardCount === 1 ? "" : "s"}</span>
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             {cardSearch.groups.length > 0 || cardSearch.loading ? (
               <section aria-label="Card results" className="border-t border-border/50 pb-2">
                 <p className="flex items-center gap-2 px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
