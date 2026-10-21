@@ -116,6 +116,18 @@ describe("illustrator view entries", () => {
     assert.deepEqual(ids("name"), ["promo-1", "sv03.5-166", "base1-44", "30th-c-001", "sv03.5-196"])
   })
 
+  test("sorts by price either way, with unpriced cards last and ties newest first", () => {
+    const prices: Record<string, number | null> = { "base1-44": 120, "sv03.5-166": 45.5, "sv03.5-196": 45.5, "promo-1": 0, "30th-c-001": null }
+    const priceOf = (card: { id: string }) => prices[card.id]
+    const ids = (sort: "price-desc" | "price-asc") => buildIllustratorEntries(CARDS, [], { sort, priceOf }).map((entry) => entry.card.id)
+    // A zero price counts as unpriced.
+    assert.deepEqual(ids("price-desc"), ["base1-44", "sv03.5-166", "sv03.5-196", "30th-c-001", "promo-1"])
+    assert.deepEqual(ids("price-asc"), ["sv03.5-166", "sv03.5-196", "base1-44", "30th-c-001", "promo-1"])
+    // With no prices loaded yet, a price sort is just newest first.
+    assert.deepEqual(buildIllustratorEntries(CARDS, [], { sort: "price-desc" }).map((entry) => entry.card.id),
+      buildIllustratorEntries(CARDS, [], { sort: "newest" }).map((entry) => entry.card.id))
+  })
+
   test("filters by state and by text", () => {
     const ids = (options: Parameters<typeof buildIllustratorEntries>[2]) => buildIllustratorEntries(CARDS, collection, options).map((entry) => entry.card.id).sort()
     assert.deepEqual(ids({ filter: "owned" }), ["base1-44", "promo-1"])

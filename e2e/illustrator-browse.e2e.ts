@@ -182,3 +182,51 @@ test.describe("browse by illustrator", () => {
     await setNetwork(harness.page, false)
   })
 })
+
+test.describe("illustrator prices (UK)", () => {
+  test.use({ signedIn: true, locale: "en-GB" })
+
+  test("shows each card's price and sorts by price, unpriced cards last", async ({ harness }) => {
+    // Synthetic Cardmarket-only quotes (TEST FIXTURE ONLY): Bulbasaur 44 £120, Bulbasaur 166 £45.50, Charmander 46 unpriced.
+    const quotes: Record<string, number | null> = { "base1-44": 120, "sv03.5-166": 45.5, "base1-46": null }
+    await harness.page.route("**/api/card-prices**", async (route) => {
+      const lookups: Array<{ cardId: string; language?: string }> = route.request().postDataJSON()?.cards ?? []
+      await route.fulfill({ json: { prices: lookups.map(({ cardId, language }) => {
+        const gbp = quotes[cardId] ?? null
+        return {
+          cardId, language: language ?? "en", gbpAmount: gbp, marketGbpAmount: gbp, confidence: gbp ? "medium" : "unknown",
+          sourcePrices: gbp ? [{ source: "cardmarket", label: "Cardmarket", variantLabel: "Trend", marketGbpAmount: gbp, originalMarketAmount: gbp * 1.15, originalCurrency: "EUR" }] : [],
+          trendPoints: [], source: gbp ? "cardmarket" : null, originalAmount: gbp ? gbp * 1.15 : null, originalCurrency: gbp ? "EUR" : null,
+        }
+      }) } })
+    })
+
+    // The harness already priced the owned cards with the default fixture; start again from empty caches.
+    await harness.page.addInitScript(() => {
+      localStorage.removeItem("binderdex_card_price_cache_v7")
+      // Queued before the app opens the store, so the app always starts from an empty offline cache.
+      indexedDB.deleteDatabase("binderdex-offline")
+    })
+    await harness.open()
+
+    const dialog = await openFromSearch(harness, "arita")
+    const price = (name: RegExp) => dialog.getByRole("listitem", { name }).getByTestId("illustrator-card-price")
+    await expect(price(/bulbasaur 44\/102/i)).toHaveText("£120")
+    await expect(price(/bulbasaur 166\/165/i)).toHaveText("£45.50")
+    await expect(price(/charmander 46\/102/i)).toHaveText("No price")
+
+    const sort = dialog.getByRole("combobox", { name: "Sort cards" })
+    await sort.selectOption("price-desc")
+    await expect(illustratorCards(harness).nth(0)).toHaveAccessibleName(/^bulbasaur 44\/102/i)
+    await expect(illustratorCards(harness).nth(1)).toHaveAccessibleName(/^bulbasaur 166\/165/i)
+    await expect(illustratorCards(harness).nth(2)).toHaveAccessibleName(/^charmander 46\/102/i)
+    await expect(dialog.getByTestId("illustrator-price-sort-note")).toHaveText("Cards without a price are listed last.")
+    await screenshot(harness, "price-sort")
+
+    await sort.selectOption("price-asc")
+    await expect(illustratorCards(harness).nth(0)).toHaveAccessibleName(/^bulbasaur 166\/165/i)
+    await expect(illustratorCards(harness).nth(1)).toHaveAccessibleName(/^bulbasaur 44\/102/i)
+    await expect(illustratorCards(harness).nth(2)).toHaveAccessibleName(/^charmander 46\/102/i)
+    await harness.expectNoHorizontalOverflow()
+  })
+})

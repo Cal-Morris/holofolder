@@ -6912,6 +6912,8 @@ export default function BinderApp({
           illustrator={illustratorBrowser.name}
           collection={collection}
           isDesktop={isDesktopViewport}
+          pricingRegion={pricingPreferences.region}
+          formatPrice={priceFormat.label}
           onClose={closeIllustratorBrowser}
         />
       ) : null}
