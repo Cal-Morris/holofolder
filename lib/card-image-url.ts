@@ -1,9 +1,9 @@
-import { getCardImageSourceForHost } from "@/lib/card-image-sources"
+import { isCardImageSourceUrl } from "@/lib/card-image-sources"
 
 const CARD_IMAGE_PROXY_PATH = "/api/card-image-proxy"
 
-function isCardImageHost(hostname: string) {
-  return hostname === "assets.tcgdex.net" || hostname.endsWith(".tcgdex.net") || getCardImageSourceForHost(hostname) !== null
+function isCardImageUrl(url: URL) {
+  return url.hostname === "assets.tcgdex.net" || url.hostname.endsWith(".tcgdex.net") || isCardImageSourceUrl(url)
 }
 
 /**
@@ -20,7 +20,7 @@ export function toCardImageSrc(value: unknown): string | null {
   try {
     const url = new URL(trimmed)
     if (url.protocol !== "https:" && url.protocol !== "http:") return null
-    return isCardImageHost(url.hostname) ? `${CARD_IMAGE_PROXY_PATH}?url=${encodeURIComponent(url.toString())}` : trimmed
+    return isCardImageUrl(url) ? `${CARD_IMAGE_PROXY_PATH}?url=${encodeURIComponent(url.toString())}` : trimmed
   } catch {
     return null
   }

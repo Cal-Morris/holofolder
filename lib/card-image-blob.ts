@@ -1,5 +1,5 @@
 import { buildTcgdexAssetImageUrl, TCGDEX_ASSET_HOST } from "./tcgdex-shared"
-import type { SourceCardImageRef } from "./card-image-sources"
+import type { CardImageSource, SourceCardImageRef } from "./card-image-sources"
 import {
   BlobAccessError,
   BlobNotFoundError,
@@ -163,7 +163,7 @@ export interface CardImageBlobDeps {
    * Converts a fallback-source image before it is stored (e.g. to WebP). Without it, source images are stored as
    * fetched.
    */
-  transformSourceImage?: (image: { body: ArrayBuffer; contentType: string }) => Promise<{ body: ArrayBuffer; contentType: string }>
+  transformSourceImage?: (image: { body: ArrayBuffer; contentType: string; source?: CardImageSource }) => Promise<{ body: ArrayBuffer; contentType: string }>
 }
 
 export interface LoadedCardImage {
@@ -347,7 +347,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
       throw Object.assign(new Error(`${ref.source} image fetch failed with ${response.status}`), { status: response.status })
     }
     const image = await readImageResponse(response)
-    return deps.transformSourceImage ? deps.transformSourceImage(image) : image
+    return deps.transformSourceImage ? deps.transformSourceImage({ ...image, source: ref.source }) : image
   }
 
   /** Copies one fallback-source image to the store unless it is already there. */

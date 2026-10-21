@@ -42,3 +42,9 @@ test("getOfficialArtworkUrl points at the proxy with a grid width by default", (
   assert.equal(url.searchParams.get("w"), "240")
   assert.equal(new URL(getOfficialArtworkUrl(25, 480), "https://x").searchParams.get("w"), "480")
 })
+
+test("isAllowedImageUrl allows only the playshop.fr store path on the shared Shopify CDN", () => {
+  assert.equal(isAllowedImageUrl(new URL("https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2013bw-1-phyllali.png")), true)
+  assert.equal(isAllowedImageUrl(new URL("https://cdn.shopify.com/s/files/1/0000/0000/0001/files/logo.png")), false)
+})
+

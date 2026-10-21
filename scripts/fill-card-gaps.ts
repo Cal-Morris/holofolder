@@ -1,5 +1,5 @@
 /**
- * Fills catalog gaps from public sources (pokemontcg-data / Scrydex, Limitless and TCGplayer product data):
+ * Fills catalog gaps from public sources (pokemontcg-data / Scrydex, Limitless, TCGplayer product data and playshop.fr scans):
  * images for cards the primary source has no image for, cross-source aliases, and promo sets the
  * primary source does not list. See lib/card-gap-fill.ts for the rules and docs/card-image-store.md
  * for how the images are mirrored.
@@ -14,7 +14,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readCatalogMetadata } from "../lib/card-catalog"
 import { mapWithConcurrency } from "../lib/card-db-sync-concurrency"
-import { currentFallbackImageUrl, GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapImagePatch, type GapPlan, type GapLegacyCard, type GapProduct } from "../lib/card-gap-fill"
+import { currentFallbackImageUrl, GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapImagePatch, type GapShopProduct, type GapPlan, type GapLegacyCard, type GapProduct } from "../lib/card-gap-fill"
 import { loadProjectEnvFiles } from "../lib/load-project-env"
 
 const args = process.argv.slice(2)
@@ -59,6 +59,32 @@ async function checkImages(urls: string[], scrydexPlaceholder: string | null) {
   return known
 }
 const checkedThisRun = new Set<string>()
+
+/** playshop.fr products for the given TCGdex set ids, found through the store's product sitemaps. */
+async function playshopProducts(setIds: string[]): Promise<Record<string, GapShopProduct[]>> {
+  if (!setIds.length) return {}
+  const file = path.join(cacheDir, "playshop.json")
+  try { if (Date.now() - (await stat(file)).mtimeMs < 86_400_000) return JSON.parse(await readFile(file, "utf8")) } catch { /* Fetch a fresh copy. */ }
+  const get = async (url: string) => { const r = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(30_000) }); if (!r.ok) throw new Error(`playshop ${new URL(url).pathname}: HTTP ${r.status}`); return r.text() }
+  const sitemaps = [...(await get("https://playshop.fr/sitemap.xml")).matchAll(/<loc>(https:\/\/playshop\.fr\/sitemap_products_[^<]+)<\/loc>/g)].map(m => m[1].replaceAll("&amp;", "&"))
+  const handles: string[] = []
+  for (const sitemap of sitemaps) {
+    for (const m of (await get(sitemap)).matchAll(/<loc>https:\/\/playshop\.fr\/products\/(pokemon-[a-z0-9-]+)<\/loc>/g)) {
+      if (setIds.some(id => m[1].startsWith(`pokemon-${id}-`))) handles.push(m[1])
+    }
+  }
+  const result: Record<string, GapShopProduct[]> = Object.fromEntries(setIds.map(id => [id, []]))
+  await mapWithConcurrency(handles, 3, async handle => {
+    const product = JSON.parse(await get(`https://playshop.fr/products/${handle}.json`)).product as { title: string; images: Array<{ src: string }> }
+    // Only single-image products: extra images are packaging or back shots.
+    if (product.images.length !== 1) return
+    const setId = setIds.filter(id => handle.startsWith(`pokemon-${id}-`)).sort((a, b) => b.length - a.length)[0]
+    result[setId].push({ handle, title: product.title, image: product.images[0].src })
+  })
+  for (const list of Object.values(result)) list.sort((a, b) => a.handle.localeCompare(b.handle))
+  await writeFile(file, JSON.stringify(result))
+  return result
+}
 
 function rest(base: string, key: string) {
   const headers = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }
@@ -110,12 +136,13 @@ async function main() {
   const scrydexPlaceholder = await scrydexPlaceholderEtag()
   if (!scrydexPlaceholder) console.warn("[gap-fill] Scrydex placeholder check failed; Scrydex images are skipped this run.")
   const check = (urls: string[]) => checkImages(urls, scrydexPlaceholder)
+  const playshop = await playshopProducts(Object.values(GAP_IMAGE_SOURCES).flat().flatMap(s => "playshop" in s ? [s.playshop] : []))
   const productChecks = await check([...groups].flatMap(g => tcgcsv[g].map(p => `https://product-images.tcgplayer.com/${p.productId}.jpg`)))
   // Cards that render a fallback image which no longer exists are filled like cards without an image.
   const current = cards.flatMap(card => { const url = currentFallbackImageUrl(card); return url ? [[card.id, url] as const] : [] })
   const currentChecks = await check(current.map(([, url]) => url))
   const brokenImages = new Set(current.filter(([, url]) => !currentChecks[url]).map(([id]) => id))
-  const input = { brokenImages, cards, existingSetIds: new Set(sets.map(s => s.id)), existingSeriesIds: new Set(series.map(s => s.id)), pokemontcg, tcgcsv,
+  const input = { brokenImages, cards, existingSetIds: new Set(sets.map(s => s.id)), existingSeriesIds: new Set(series.map(s => s.id)), pokemontcg, tcgcsv, playshop,
     hasProductImage: (pid: string) => productChecks[`https://product-images.tcgplayer.com/${pid}.jpg`] === true }
   // Plan, check every chosen image, and replan without the dead ones so the next source is tried.
   const unavailableImages = new Set<string>()

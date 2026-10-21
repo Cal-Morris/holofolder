@@ -12,6 +12,8 @@ import type { MirrorCardExternalSourceRow, MirrorCardRow, MirrorSetRow } from ".
 
 export type GapProduct = { productId: number; groupId: number; name: string; extendedData?: Array<{ name: string; value: string }> }
 export type GapLegacyCard = { id: string; name: string; number: string; images?: { large?: string; small?: string } }
+/** A playshop.fr product: one scanned card, handle `pokemon-<setId>-<number>-<slug>`, title `<NNN>/<TTT> - <name>`. */
+export type GapShopProduct = { handle: string; title: string; image: string }
 export type GapCard = Pick<MirrorCardRow, "id" | "set_id" | "local_id" | "name_en" | "image_languages_json" | "external_ids_json">
 
 /**
@@ -19,8 +21,9 @@ export type GapCard = Pick<MirrorCardRow, "id" | "set_id" | "local_id" | "name_e
  * tcgcsv: a TCGplayer product group (matched by number and name).
  * scrydex / limitless: an expansion code on that image host, addressed by the card's own collector
  * number. These hosts publish no card list, so use them only for sets numbered like the source.
+ * playshop: a TCGdex set id; playshop.fr lists scans of single cards under that id (French-only sets).
  */
-type Source = { pokemontcg: string } | { tcgcsv: number } | { scrydex: string } | { limitless: string }
+type Source = { pokemontcg: string } | { tcgcsv: number } | { scrydex: string } | { limitless: string } | { playshop: string }
 
 /** Where to look for images, in order, for each set with cards that have no image. */
 export const GAP_IMAGE_SOURCES: Record<string, Source[]> = {
@@ -47,6 +50,10 @@ export const GAP_IMAGE_SOURCES: Record<string, Source[]> = {
   "2024sv": [{ scrydex: "mcd24" }],
   "first-partner-packs": [{ tcgcsv: 2776 }],
   xya: [{ tcgcsv: 1938 }],
+  // French McDonald's collections: no card database has scans; playshop.fr product scans (single cards only).
+  "2013bw": [{ playshop: "2013bw" }],
+  "2018sm-fr": [{ playshop: "2018sm-fr" }],
+  "2019sm-fr": [{ playshop: "2019sm-fr" }],
 }
 
 /** Cards that are the same printing under two ids. The alias is hidden behind the canonical card. */
@@ -106,6 +113,15 @@ function productCandidates(products: GapProduct[], hasImage: (pid: string) => bo
       image: `https://product-images.tcgplayer.com/${p.productId}.jpg`, productId: String(p.productId), ref: `tcgcsv:${p.productId}` }
   })
 }
+function shopCandidates(setId: string, products: GapShopProduct[]): Candidate[] {
+  const prefix = `pokemon-${setId}-`
+  return products.flatMap(p => {
+    const number = p.handle.startsWith(prefix) ? p.handle.slice(prefix.length).match(/^([a-z0-9]+)-/)?.[1] : undefined
+    const image = p.image.split("?")[0]
+    if (!number || !parseSourceCardImageUrl(image)) return []
+    return [{ key: p.handle, name: normalizeGapName(p.title.split(" - ").slice(1).join(" - ") || p.title), number: normalizeGapNumber(number), qualified: false, finishOnly: true, image, ref: `playshop:${p.handle}` }]
+  })
+}
 /** Several products for one card: prefer the plain printing, then accept finish-only differences. */
 function choose(matches: Candidate[]) {
   if (matches.length <= 1) return matches[0]
@@ -161,6 +177,8 @@ export function planCardGapFill(input: {
   pokemontcg: Record<string, GapLegacyCard[]>
   tcgcsv: Record<number, GapProduct[]>
   hasProductImage: (productId: string) => boolean
+  /** playshop.fr products by TCGdex set id (see GapShopProduct). */
+  playshop?: Record<string, GapShopProduct[]>
   /** Cards whose current image URL is dead (checked by the caller); they are filled like cards without one. */
   brokenImages?: ReadonlySet<string>
   /** Candidate image URLs the caller found dead; the next source is tried instead. */
@@ -195,7 +213,8 @@ export function planCardGapFill(input: {
     const missing = setCards.filter(c => needsImage(c) && !patched.has(c.id) && !(aliasIds.has(c.id)))
     if (!missing.length) continue
     const configured = sources.map(s => "pokemontcg" in s ? legacyCandidates(input.pokemontcg[s.pokemontcg] ?? [])
-      : "tcgcsv" in s ? productCandidates(input.tcgcsv[s.tcgcsv] ?? [], input.hasProductImage) : s)
+      : "tcgcsv" in s ? productCandidates(input.tcgcsv[s.tcgcsv] ?? [], input.hasProductImage)
+      : "playshop" in s ? shopCandidates(s.playshop, input.playshop?.[s.playshop] ?? []) : s)
     for (const card of missing) {
       const name = normalizeGapName(card.name_en), number = normalizeGapNumber(card.local_id)
       let found: Candidate | undefined, reason = "No source image matches the collector number and name"

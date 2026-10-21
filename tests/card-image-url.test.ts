@@ -26,3 +26,11 @@ describe("toCardImageSrc", () => {
     for (const value of [null, undefined, "", "  ", "null", "undefined", "javascript:alert(1)", "not a url", 42]) assert.equal(toCardImageSrc(value), null)
   })
 })
+
+test("only proxies the playshop.fr path on the shared Shopify CDN", () => {
+  const scan = "https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2019sm-fr-1-bulbizarre.png"
+  assert.equal(toCardImageSrc(scan), `/api/card-image-proxy?url=${encodeURIComponent(scan)}`)
+  const other = "https://cdn.shopify.com/s/files/1/0000/0000/0001/files/logo.png"
+  assert.equal(toCardImageSrc(other), other)
+})
+

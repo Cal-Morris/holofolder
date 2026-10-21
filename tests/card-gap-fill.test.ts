@@ -127,4 +127,17 @@ describe("card gap fill", () => {
     ])
     assert.deepEqual(replanned.unresolved.map(u => u.cardId), ["tk-sm-r-1"])
   })
+
+  test("matches playshop.fr single-card scans by number and name", () => {
+    const shop = (handle: string, title: string) => ({ handle, title, image: `https://cdn.shopify.com/s/files/1/1015/7057/6719/files/${handle}.png?v=1` })
+    const plan = planCardGapFill({ ...base,
+      cards: [card("2018sm-fr-1", "2018sm-fr", "1", "Feuillajou"), card("2018sm-fr-2", "2018sm-fr", "2", "Croquine"), card("2019sm-fr-33", "2019sm-fr", "33", "Taupiqueur d'Alola"), card("2019sm-fr-33b", "2019sm-fr", "33b", "Taupiqueur d'Alola")],
+      playshop: { "2018sm-fr": [shop("pokemon-2018sm-fr-1-feuillajou", "001/040 - Feuillajou"), shop("pokemon-2018sm-fr-2-croquine", "002/040 - Sovkipou")], "2019sm-fr": [shop("pokemon-2019sm-fr-33-taupiqueur-d", "033/040 - Taupiqueur d'Alola")] } })
+    assert.deepEqual(plan.images.map(p => [p.cardId, p.image, p.source]), [
+      ["2018sm-fr-1", "https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2018sm-fr-1-feuillajou.png", "playshop:pokemon-2018sm-fr-1-feuillajou"],
+      ["2019sm-fr-33", "https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2019sm-fr-33-taupiqueur-d.png", "playshop:pokemon-2019sm-fr-33-taupiqueur-d"],
+    ])
+    assert.deepEqual(plan.unresolved.map(u => u.cardId).sort(), ["2018sm-fr-2", "2019sm-fr-33b"])
+  })
 })
+
