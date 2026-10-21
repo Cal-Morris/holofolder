@@ -1,5 +1,6 @@
 "use client"
 
+import { toCardImageSrc } from "@/lib/card-image-url"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
@@ -230,12 +231,13 @@ function CardSelectorImage({
   fallbackClassName?: string
 }) {
   const [failed, setFailed] = useState(false)
+  const imageSrc = toCardImageSrc(src)
 
   useEffect(() => {
     setFailed(false)
   }, [src])
 
-  if (!src || failed) {
+  if (!imageSrc || failed) {
     return (
       <div className={fallbackClassName}>
         <span className="text-xs text-muted-foreground">No Image</span>
@@ -245,7 +247,7 @@ function CardSelectorImage({
 
   return (
     <img
-      src={src}
+      src={imageSrc}
       alt={alt}
       className={className}
       loading="lazy"

@@ -1,3 +1,4 @@
+import { toCardImageSrc } from "@/lib/card-image-url"
 export interface PokemonSearchPreviewInput {
   pokemonArtwork?: string | null
   cardImage?: string | null
@@ -21,7 +22,7 @@ function getUsableImageSource(value?: string | null) {
 
 export function buildPokemonSearchPreview(input: PokemonSearchPreviewInput): PokemonSearchPreview {
   const pokemonArtwork = getUsableImageSource(input.pokemonArtwork)
-  const cardImage = getUsableImageSource(input.cardImage)
+  const cardImage = toCardImageSrc(input.cardImage)
   const isWishlisted = input.status === "wishlisted"
   const toneClass = isWishlisted ? "grayscale saturate-[0.8] brightness-[0.92]" : ""
 

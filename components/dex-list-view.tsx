@@ -1,5 +1,6 @@
 "use client"
 
+import { toCardImageSrc } from "@/lib/card-image-url"
 import { useCallback, useMemo, useState, type UIEvent } from "react"
 import { Check, Heart, Star, X, Search, Plus, BadgeCheck, Layers3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -260,7 +261,7 @@ export default function DexListView({
                 >
                   <div className={`relative flex shrink-0 items-center justify-center border border-border/45 bg-muted/45 ${item?.card_image ? "trading-card w-10" : "h-14 w-14 overflow-hidden rounded-xl"}`}>
                     <img
-                      src={item?.card_image || pokemon.sprites.other["official-artwork"].front_default}
+                      src={toCardImageSrc(item?.card_image) || pokemon.sprites.other["official-artwork"].front_default}
                       alt={item?.card_name || pokemon.name}
                       className={`h-full w-full ${item?.card_image ? "object-cover" : "object-contain p-1"}`}
                       loading="lazy"
