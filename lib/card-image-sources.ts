@@ -33,8 +33,8 @@ export interface SourceCardImageRef {
 const PATH_RULES: Record<CardImageSource, { pattern: RegExp; key: (match: RegExpExecArray) => string }> = {
   // https://product-images.tcgplayer.com/<productId>.jpg
   tcgplayer: { pattern: /^\/([1-9]\d{0,9})\.jpg$/, key: (m) => m[1] },
-  // https://images.pokemontcg.io/<setId>/<number>[_hires].png
-  pokemontcg: { pattern: /^\/([a-z0-9][a-z0-9.-]{0,31})\/([A-Za-z0-9][A-Za-z0-9_-]{0,47})\.png$/, key: (m) => `${m[1]}/${m[2]}` },
+  // https://images.pokemontcg.io/<setId>/<number>[_hires].png ("!" is a collector number in Unown sets; keys stay plain ASCII)
+  pokemontcg: { pattern: /^\/([a-z0-9][a-z0-9.-]{0,31})\/([A-Za-z0-9!][A-Za-z0-9_!-]{0,47})\.png$/, key: (m) => `${m[1]}/${m[2].replaceAll("!", "exclamation")}` },
   // https://images.scrydex.com/pokemon/<cardId>/<large|medium|small>
   scrydex: { pattern: /^\/pokemon\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(large|medium|small)$/, key: (m) => `${m[1]}/${m[2]}` },
   // https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<SET>_<NNN>_<R>_<LANG>[_LG|_SM].png
