@@ -146,3 +146,23 @@ test.describe("global search", () => {
     await expect(dialog).toBeHidden()
   })
 })
+
+test.describe("card hit prices in search (UK)", () => {
+  test.use({ signedIn: true, locale: "en-GB" })
+
+  test("each card hit shows its price in the user's currency without overflowing", async ({ harness }) => {
+    // Default harness fixture (TEST FIXTURE ONLY): the UK price is the Cardmarket quote, £0.05.
+    const prices: string[] = []
+    harness.page.on("request", (request) => { if (request.url().includes("/api/card-prices")) prices.push(request.url()) })
+    await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
+    const dialog = harness.page.getByRole("dialog", { name: /search pokemon/i })
+    await dialog.getByRole("textbox").fill("charm")
+    const cards = dialog.getByRole("region", { name: /card results/i })
+    const hit = cards.getByRole("button", { name: /charmander 168\/165 151/i })
+    await expect(hit.getByTestId("search-card-price")).toHaveText("£0.05")
+    await expect(cards.getByTestId("search-card-price")).toHaveCount(4)
+    await harness.expectNoHorizontalOverflow()
+    // Prices for every hit come from batched requests, never one request per card.
+    expect(prices.length).toBeLessThanOrEqual(2)
+  })
+})

@@ -6464,6 +6464,8 @@ export default function BinderApp({
                   onBrowseCards={(pokemon, highlightCardId) => openCardBrowser(pokemon, { highlightCardId })}
                   getOfflineCards={getOfflineSearchCards}
                   onBrowseIllustrator={(name) => openIllustratorBrowser(name)}
+                  formatPrice={priceFormat.label}
+                  pricingRegion={pricingPreferences.region}
                 />
                 {selectedPokemon && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
