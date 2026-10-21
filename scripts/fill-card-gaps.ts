@@ -1,5 +1,5 @@
 /**
- * Fills catalog gaps from public sources (pokemontcg-data / Scrydex and TCGplayer product data):
+ * Fills catalog gaps from public sources (pokemontcg-data / Scrydex, Limitless and TCGplayer product data):
  * images for cards the primary source has no image for, cross-source aliases, and promo sets the
  * primary source does not list. See lib/card-gap-fill.ts for the rules and docs/card-image-store.md
  * for how the images are mirrored.
@@ -14,7 +14,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readCatalogMetadata } from "../lib/card-catalog"
 import { mapWithConcurrency } from "../lib/card-db-sync-concurrency"
-import { currentFallbackImageUrl, GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapLegacyCard, type GapProduct } from "../lib/card-gap-fill"
+import { currentFallbackImageUrl, GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapImagePatch, type GapPlan, type GapLegacyCard, type GapProduct } from "../lib/card-gap-fill"
 import { loadProjectEnvFiles } from "../lib/load-project-env"
 
 const args = process.argv.slice(2)
@@ -33,17 +33,32 @@ async function cachedJson<T>(name: string, url: string): Promise<T> {
   return value
 }
 
-/** HEAD each image once; results are cached so reruns do not hit the origins again. */
-async function checkImages(urls: string[]) {
+const SCRYDEX = "https://images.scrydex.com/"
+/** Scrydex answers unknown card ids with 200 and a stock "image not found" picture; its ETag identifies it. */
+async function scrydexPlaceholderEtag() {
+  const response = await fetch(`${SCRYDEX}pokemon/binderdex-missing-0/large`, { method: "HEAD", headers: { "User-Agent": USER_AGENT, Accept: "image/png" }, signal: AbortSignal.timeout(20_000) }).catch(() => null)
+  return response?.headers.get("etag") ?? null
+}
+
+/**
+ * HEAD each image once; results are cached so reruns do not hit the origins again. Scrydex answers
+ * are rechecked every run and only count when they are not the placeholder picture.
+ */
+async function checkImages(urls: string[], scrydexPlaceholder: string | null) {
   const file = path.join(cacheDir, "image-checks.json")
   const known: Record<string, boolean> = await readFile(file, "utf8").then(JSON.parse).catch(() => ({}))
-  await mapWithConcurrency(urls.filter(url => !(url in known)), 6, async url => {
-    const response = await fetch(url, { method: "HEAD", headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(20_000) }).catch(() => null)
-    known[url] = Boolean(response?.ok && (response.headers.get("content-type") ?? "").startsWith("image/"))
+  const todo = [...new Set(urls)].filter(url => !(url in known) || (url.startsWith(SCRYDEX) && !checkedThisRun.has(url)))
+  await mapWithConcurrency(todo, 6, async url => {
+    const scrydex = url.startsWith(SCRYDEX)
+    const response = await fetch(url, { method: "HEAD", headers: { "User-Agent": USER_AGENT, ...(scrydex ? { Accept: "image/png" } : {}) }, signal: AbortSignal.timeout(20_000) }).catch(() => null)
+    const ok = Boolean(response?.ok && (response.headers.get("content-type") ?? "").startsWith("image/"))
+    known[url] = ok && !(scrydex && (!scrydexPlaceholder || response?.headers.get("etag") === scrydexPlaceholder))
+    if (scrydex) checkedThisRun.add(url)
   })
   await writeFile(file, JSON.stringify(known))
   return known
 }
+const checkedThisRun = new Set<string>()
 
 function rest(base: string, key: string) {
   const headers = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }
@@ -92,23 +107,35 @@ async function main() {
   const tcgcsv: Record<number, GapProduct[]> = {}
   for (const group of groups) tcgcsv[group] = (await cachedJson<{ results: GapProduct[] }>(`tcgcsv-${group}.json`, `https://tcgcsv.com/tcgplayer/3/${group}/products`)).results
 
-  const productChecks = await checkImages([...groups].flatMap(g => tcgcsv[g].map(p => `https://product-images.tcgplayer.com/${p.productId}.jpg`)))
+  const scrydexPlaceholder = await scrydexPlaceholderEtag()
+  if (!scrydexPlaceholder) console.warn("[gap-fill] Scrydex placeholder check failed; Scrydex images are skipped this run.")
+  const check = (urls: string[]) => checkImages(urls, scrydexPlaceholder)
+  const productChecks = await check([...groups].flatMap(g => tcgcsv[g].map(p => `https://product-images.tcgplayer.com/${p.productId}.jpg`)))
   // Cards that render a fallback image which no longer exists are filled like cards without an image.
   const current = cards.flatMap(card => { const url = currentFallbackImageUrl(card); return url ? [[card.id, url] as const] : [] })
-  const currentChecks = await checkImages(current.map(([, url]) => url))
+  const currentChecks = await check(current.map(([, url]) => url))
   const brokenImages = new Set(current.filter(([, url]) => !currentChecks[url]).map(([id]) => id))
   const input = { brokenImages, cards, existingSetIds: new Set(sets.map(s => s.id)), existingSeriesIds: new Set(series.map(s => s.id)), pokemontcg, tcgcsv,
     hasProductImage: (pid: string) => productChecks[`https://product-images.tcgplayer.com/${pid}.jpg`] === true }
-  const draft = planCardGapFill(input)
-  // Confirm every non-TCGplayer image exists too; a dead link would only show a broken card.
-  let checks = await checkImages(draft.images.map(p => p.image))
-  // pokemontcg.io lacks a few scans that Scrydex serves under the same card id.
-  draft.images = draft.images.map(p => {
-    const id = p.source.startsWith("pokemontcg:") ? p.source.slice("pokemontcg:".length) : null
-    return checks[p.image] || !id || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id) ? p : { ...p, image: `https://images.scrydex.com/pokemon/${id}/large` }
-  })
-  checks = { ...checks, ...await checkImages(draft.images.map(p => p.image)) }
-  const plan = { ...draft, images: draft.images.filter(p => checks[p.image]), unresolved: [...draft.unresolved, ...draft.images.filter(p => !checks[p.image]).map(p => ({ cardId: p.cardId, reason: `Source image unavailable: ${p.image}` }))] }
+  // Plan, check every chosen image, and replan without the dead ones so the next source is tried.
+  const unavailableImages = new Set<string>()
+  let plan!: GapPlan
+  for (let round = 0; round < 5; round++) {
+    const draft = planCardGapFill({ ...input, unavailableImages })
+    let checks = await check(draft.images.map(p => p.image))
+    // pokemontcg.io lacks a few scans that Scrydex serves under the same card id.
+    const images: Array<GapImagePatch & { original?: string }> = draft.images.map(p => {
+      const id = p.source.startsWith("pokemontcg:") ? p.source.slice("pokemontcg:".length) : null
+      return checks[p.image] || !id || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id) ? p : { ...p, original: p.image, image: `https://images.scrydex.com/pokemon/${id}/large` }
+    })
+    checks = { ...checks, ...await check(images.map(p => p.image)) }
+    const dead = images.filter(p => !checks[p.image])
+    const fresh = dead.filter(p => !unavailableImages.has(p.image))
+    plan = { ...draft, images: images.filter(p => checks[p.image]).map(({ original: _original, ...p }) => p),
+      unresolved: [...draft.unresolved, ...dead.map(p => ({ cardId: p.cardId, reason: `Source image unavailable: ${p.image}` }))] }
+    if (!fresh.length) break
+    for (const p of fresh) { unavailableImages.add(p.image); if (p.original) unavailableImages.add(p.original) }
+  }
 
   const report = {
     brokenImages: [...brokenImages].sort(), images: plan.images.length, imagesBySet: Object.fromEntries([...new Set(plan.images.map(p => cards.find(c => c.id === p.cardId)?.set_id ?? "?"))].map(s => [s, plan.images.filter(p => cards.find(c => c.id === p.cardId)?.set_id === s).length])),
