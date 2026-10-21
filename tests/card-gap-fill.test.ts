@@ -112,4 +112,19 @@ describe("card gap fill", () => {
       ["2014xy-1", "https://images.scrydex.com/pokemon/mcd14-1/large", "scrydex:mcd14-1"],
     ])
   })
+
+  test("addresses Scrydex and Limitless by collector number and skips dead candidates", () => {
+    const energy = card("tk-sm-r-1", "tk-sm-r", "1", "Lightning Energy")
+    const promo = card("hgssp-HGSS18", "hgssp", "HGSS18", "Tropical Tidal Wave", { external_ids_json: { catalog: { image: "https://images.scrydex.com/pokemon/hsp-HGSS18/large" } } })
+    const input = { ...base, cards: [energy, promo], brokenImages: new Set(["hgssp-HGSS18"]), pokemontcg: { hsp: [scrydex("hsp-HGSS18", "Tropical Tidal Wave", "HGSS18")] } }
+    assert.deepEqual(planCardGapFill(input).images.map(p => [p.cardId, p.image]), [
+      ["hgssp-HGSS18", "https://images.scrydex.com/pokemon/hsp-HGSS18/large"],
+      ["tk-sm-r-1", "https://images.scrydex.com/pokemon/tk10b-1/large"],
+    ])
+    const replanned = planCardGapFill({ ...input, unavailableImages: new Set(["https://images.scrydex.com/pokemon/hsp-HGSS18/large", "https://images.scrydex.com/pokemon/tk10b-1/large"]) })
+    assert.deepEqual(replanned.images.map(p => [p.cardId, p.image, p.source]), [
+      ["hgssp-HGSS18", "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/HSP/HSP_018_R_EN_LG.png", "limitless:HSP_018_R_EN_LG"],
+    ])
+    assert.deepEqual(replanned.unresolved.map(u => u.cardId), ["tk-sm-r-1"])
+  })
 })

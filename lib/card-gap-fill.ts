@@ -14,7 +14,13 @@ export type GapProduct = { productId: number; groupId: number; name: string; ext
 export type GapLegacyCard = { id: string; name: string; number: string; images?: { large?: string; small?: string } }
 export type GapCard = Pick<MirrorCardRow, "id" | "set_id" | "local_id" | "name_en" | "image_languages_json" | "external_ids_json">
 
-type Source = { pokemontcg: string } | { tcgcsv: number }
+/**
+ * pokemontcg: a pokemontcg-data set (cards matched by number and name).
+ * tcgcsv: a TCGplayer product group (matched by number and name).
+ * scrydex / limitless: an expansion code on that image host, addressed by the card's own collector
+ * number. These hosts publish no card list, so use them only for sets numbered like the source.
+ */
+type Source = { pokemontcg: string } | { tcgcsv: number } | { scrydex: string } | { limitless: string }
 
 /** Where to look for images, in order, for each set with cards that have no image. */
 export const GAP_IMAGE_SOURCES: Record<string, Source[]> = {
@@ -26,17 +32,19 @@ export const GAP_IMAGE_SOURCES: Record<string, Source[]> = {
   ecard2: [{ pokemontcg: "ecard2" }],
   smp: [{ pokemontcg: "smp" }],
   sm2: [{ pokemontcg: "sm2" }],
-  hgssp: [{ pokemontcg: "hsp" }],
+  hgssp: [{ pokemontcg: "hsp" }, { limitless: "HSP" }],
   ex10: [{ pokemontcg: "ex10" }],
   exu: [{ pokemontcg: "ex10" }],
   "ex5.5": [{ tcgcsv: 2214 }],
   mfb: [{ tcgcsv: 23330 }],
-  "tk-hs-g": [{ tcgcsv: 1540 }],
-  "tk-hs-r": [{ tcgcsv: 1540 }],
-  "tk-dp-m": [{ tcgcsv: 1541 }],
-  "tk-dp-l": [{ tcgcsv: 1541 }],
-  "tk-sm-r": [{ tcgcsv: 2069 }],
-  "tk-sm-l": [{ tcgcsv: 2069 }],
+  "tk-hs-g": [{ tcgcsv: 1540 }, { scrydex: "tk4b" }],
+  "tk-hs-r": [{ tcgcsv: 1540 }, { scrydex: "tk4a" }],
+  "tk-dp-m": [{ tcgcsv: 1541 }, { scrydex: "tk3a" }],
+  "tk-dp-l": [{ tcgcsv: 1541 }, { scrydex: "tk3b" }],
+  "tk-sm-r": [{ tcgcsv: 2069 }, { scrydex: "tk10b" }],
+  "tk-sm-l": [{ tcgcsv: 2069 }, { scrydex: "tk10a" }],
+  mep: [{ scrydex: "mep" }],
+  "2024sv": [{ scrydex: "mcd24" }],
   "first-partner-packs": [{ tcgcsv: 2776 }],
   xya: [{ tcgcsv: 1938 }],
 }
@@ -107,6 +115,19 @@ function choose(matches: Candidate[]) {
   return undefined
 }
 
+const SAFE_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
+/** Image hosts addressed by collector number: one candidate for the card itself, or none. */
+function numberedCandidate(source: { scrydex: string } | { limitless: string }, card: GapCard, name: string, number: string): Candidate[] {
+  if ("scrydex" in source) {
+    const id = `${source.scrydex}-${card.local_id}`
+    return SAFE_KEY.test(id) ? [{ key: id, name, number, qualified: false, finishOnly: true, image: `https://images.scrydex.com/pokemon/${id}/large`, ref: `scrydex:${id}` }] : []
+  }
+  const digits = card.local_id.match(/(\d+)$/)?.[1]
+  if (!digits || !/^[A-Z0-9]{1,10}$/.test(source.limitless)) return []
+  const file = `${source.limitless}_${digits.padStart(3, "0")}_R_EN_LG`
+  return [{ key: file, name, number, qualified: false, finishOnly: true, image: `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${source.limitless}/${file}.png`, ref: `limitless:${file}` }]
+}
+
 export function cardHasImage(card: GapCard) {
   return card.image_languages_json.length > 0 || Boolean(readCatalogMetadata(card.external_ids_json).image) || Boolean(pickExternalCardImageUrl(card.external_ids_json))
 }
@@ -142,8 +163,11 @@ export function planCardGapFill(input: {
   hasProductImage: (productId: string) => boolean
   /** Cards whose current image URL is dead (checked by the caller); they are filled like cards without one. */
   brokenImages?: ReadonlySet<string>
+  /** Candidate image URLs the caller found dead; the next source is tried instead. */
+  unavailableImages?: ReadonlySet<string>
 }): GapPlan {
   const broken = input.brokenImages ?? new Set<string>()
+  const unavailable = input.unavailableImages ?? new Set<string>()
   const needsImage = (c: GapCard) => !cardHasImage(c) || broken.has(c.id)
   const plan: GapPlan = { images: [], aliases: [], series: [], sets: [], cards: [], externalSources: [], dexLinks: [], unresolved: [], notes: [] }
   const byId = new Map(input.cards.map(c => [c.id, c]))
@@ -170,16 +194,18 @@ export function planCardGapFill(input: {
     const setCards = bySet.get(setId) ?? []
     const missing = setCards.filter(c => needsImage(c) && !patched.has(c.id) && !(aliasIds.has(c.id)))
     if (!missing.length) continue
-    const configured = sources.map(s => "pokemontcg" in s ? legacyCandidates(input.pokemontcg[s.pokemontcg] ?? []) : productCandidates(input.tcgcsv[s.tcgcsv] ?? [], input.hasProductImage))
+    const configured = sources.map(s => "pokemontcg" in s ? legacyCandidates(input.pokemontcg[s.pokemontcg] ?? [])
+      : "tcgcsv" in s ? productCandidates(input.tcgcsv[s.tcgcsv] ?? [], input.hasProductImage) : s)
     for (const card of missing) {
       const name = normalizeGapName(card.name_en), number = normalizeGapNumber(card.local_id)
       let found: Candidate | undefined, reason = "No source image matches the collector number and name"
       // The card's own pokemontcg-data id names its Scrydex scan, which covers scans pokemontcg.io lacks.
       const own = (card.external_ids_json.pokemon_tcg as { cardId?: unknown } | undefined)?.cardId
-      const ownPool: Candidate[] = typeof own === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(own)
+      const ownPool: Candidate[] = typeof own === "string" && SAFE_KEY.test(own)
         ? [{ key: own, name, number, qualified: false, finishOnly: true, image: `https://images.scrydex.com/pokemon/${own}/large`, ref: `scrydex:${own}` }]
         : []
-      for (const pool of [ownPool, ...configured]) {
+      for (const configuredPool of [ownPool, ...configured]) {
+        const pool = (Array.isArray(configuredPool) ? configuredPool : numberedCandidate(configuredPool, card, name, number)).filter(c => !unavailable.has(c.image))
         const exact = pool.filter(c => c.name === name && c.number === number)
         if (exact.length) { found = choose(exact); if (found) break; reason = "Several source printings match"; continue }
         // Reprint collections renumber cards, so match on the name and pair same-name cards in collector order.
