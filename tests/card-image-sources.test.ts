@@ -11,7 +11,7 @@ function fakeDeps(options: { existing?: string[]; originStatus?: number } = {}) 
   const store = new Map<string, { body: ArrayBuffer; contentType: string }>(
     (options.existing ?? []).map((pathname) => [pathname, { body: new Uint8Array([1]).buffer, contentType: "image/webp" }]),
   )
-  const calls = { origin: [] as string[], put: [] as Array<{ pathname: string; contentType: string }>, head: 0, transform: 0 }
+  const calls = { origin: [] as string[], accept: [] as string[], put: [] as Array<{ pathname: string; contentType: string }>, head: 0, transform: 0 }
   const deps: CardImageBlobDeps = {
     baseUrl: STORE,
     async head(pathname) {
@@ -26,13 +26,14 @@ function fakeDeps(options: { existing?: string[]; originStatus?: number } = {}) 
     async list(prefix) {
       return [...store.keys()].filter((pathname) => pathname.startsWith(prefix))
     },
-    fetch: (async (input: RequestInfo | URL) => {
+    fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.startsWith(STORE)) {
         const hit = store.get(url.slice(STORE.length))
         return hit ? new Response(hit.body, { headers: { "content-type": hit.contentType } }) : new Response("missing", { status: 404, headers: { "content-type": "text/plain" } })
       }
       calls.origin.push(url)
+      calls.accept.push(String(new Headers(init?.headers).get("accept")))
       const status = options.originStatus ?? 200
       return status === 200
         ? new Response(new Uint8Array([7, 7, 7]), { headers: { "content-type": "image/png" } })
@@ -119,6 +120,15 @@ describe("source image mirroring", () => {
     const second = await mirror.loadSourceImage(ref)
     assert.equal(second.source, "blob")
     assert.equal(calls.origin.length, 1)
+  })
+
+  test("never asks a fallback source for AVIF (the WebP conversion cannot decode it)", async () => {
+    const { deps, calls } = fakeDeps()
+    const mirror = createCardImageMirror(deps)
+    const ref = parseSourceCardImageUrl("https://images.scrydex.com/pokemon/me55c-4/large")!
+    await mirror.ensureSourceMirrored(ref, { assumeMissing: true })
+    assert.equal(calls.accept.length, 1)
+    assert.doesNotMatch(calls.accept[0], /avif/)
   })
 
   test("ensureSourceMirrored skips existing copies and reports origin 404s", async () => {

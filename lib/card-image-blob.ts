@@ -48,6 +48,9 @@ const CONTENT_TYPES: Record<CardImageExtension, string> = {
 }
 
 /** Parses `https://assets.tcgdex.net/<lang>/<series>/<set>/<localId>/<quality>.<ext>`; anything else returns null. */
+/** What fallback-source fetches accept: formats the WebP conversion can always decode. */
+export const SOURCE_IMAGE_ACCEPT = "image/webp,image/png,image/jpeg;q=0.9"
+
 export function parseTcgdexCardImageUrl(value: string | URL): TcgdexCardImageRef | null {
   let url: URL
   try {
@@ -335,8 +338,9 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
 
   /** Fetches a fallback-source image and applies `transformSourceImage` (the stored form). */
   async function fetchFromSource(ref: SourceCardImageRef) {
+    // No AVIF: some origins (Scrydex) negotiate it, and the runtime's sharp cannot decode it for the WebP conversion.
     const response = await deps.fetch(ref.url, {
-      headers: { Accept: "image/avif,image/webp,image/*;q=0.8" },
+      headers: { Accept: SOURCE_IMAGE_ACCEPT },
       signal: AbortSignal.timeout(20_000),
     })
     if (!response.ok) {
