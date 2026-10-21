@@ -1,5 +1,6 @@
 "use client"
 
+import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, deduplicateCatalogCards, matchesCatalogCardId } from "@/lib/card-catalog"
 
 import NextImage from "next/image"
@@ -56,6 +57,7 @@ const SET_SHORTCUTS = [
 ]
 
 /** Offline, a card image that was never loaded falls back to its saved thumbnail (via the image proxy). */
+/** Offline, the full-size image may not be saved; fall back once to the saved low-res thumbnail. */
 function savedThumbnailOnError(image: string | undefined) {
   return (event: SyntheticEvent<HTMLImageElement>) => {
     const element = event.currentTarget
@@ -612,7 +614,7 @@ export default function SetPopulationView({
               const mappedSlots = slots.filter(slot => slot.cards.some(slotCard => slotCard.id === card.id))
               const price = formatPrice(setPrices.pricesByCardId[getCardPriceKey(card.id, card.language)])
               return <li key={card.id} aria-label={`${card.name} ${formatCardNumber(card)}${owned ? ", owned" : ""}${wanted ? ", wanted" : ""}`} className="flex min-w-0 gap-3 rounded-2xl border border-border/45 bg-background/45 p-3">
-                <div className="trading-card flex w-14 shrink-0 self-start items-center justify-center bg-muted/45">{card.image ? <NextImage unoptimized width={56} height={78} src={card.image} alt={card.name} loading="lazy" className="h-full w-full object-contain" onError={savedThumbnailOnError(card.image)} /> : <span className="text-xs text-muted-foreground">No image</span>}</div>
+                <div className="trading-card flex w-14 shrink-0 self-start items-center justify-center bg-muted/45">{card.image ? <NextImage unoptimized width={56} height={78} src={getProxiedThumbnailUrl(card.image) ?? card.image} alt={card.name} loading="lazy" className="h-full w-full object-contain" /> : <span className="text-xs text-muted-foreground">No image</span>}</div>
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-sm font-semibold">{card.name}</p>
                   <p className="text-xs text-muted-foreground">{[card.set.name, formatCardNumber(card), card.rarity, ...getCardVariantLabels(card.variants)].filter(Boolean).join(" · ")}</p>
@@ -673,7 +675,7 @@ export default function SetPopulationView({
                   ) : null}
                   <div className="trading-card relative flex w-12 shrink-0 items-center justify-center border border-border/45 bg-muted/45">
                     {primaryCard?.image ? (
-                      <img src={primaryCard.image} alt={primaryCard.name} className="h-full w-full object-contain" loading="lazy" onError={savedThumbnailOnError(primaryCard.image)} />
+                      <img src={toCardImageSrc(primaryCard.image) ?? undefined} alt={primaryCard.name} className="h-full w-full object-contain" loading="lazy" onError={savedThumbnailOnError(primaryCard.image)} />
                     ) : (
                       <span className="text-xs font-semibold text-muted-foreground">{formatDexNumber(slot.dexId)}</span>
                     )}

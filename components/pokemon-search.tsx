@@ -1,5 +1,6 @@
 "use client"
 
+import { toCardImageSrc } from "@/lib/card-image-url"
 import type React from "react"
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"
@@ -22,7 +23,6 @@ import {
   type SearchCardResult,
 } from "@/lib/pokemon-card-browse"
 import { searchOfflineCards } from "@/lib/offline-card-index"
-import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { loadIllustratorDirectory } from "@/lib/illustrator-client"
 import { normalizeIllustratorText, searchIllustrators, type IllustratorSummary } from "@/lib/illustrators"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -70,7 +70,7 @@ const CARD_SEARCH_DEBOUNCE_MS = 250
 
 function cardThumbnail(image?: string) {
   if (!image) return null
-  return image.endsWith("/high.webp") ? image.replace(/\/high\.webp$/, "/low.webp") : image
+  return toCardImageSrc(image.replace(/\/high\.webp$/, "/low.webp"))
 }
 
 type CardSearchState = { key: string; groups: CardSearchGroup[]; loading: boolean; offline: boolean }
@@ -161,16 +161,6 @@ function useIllustratorSearch(query: string, enabled: boolean) {
 }
 
 /** Offline, a thumbnail that was never loaded falls back to its saved copy (via the image proxy). */
-function savedThumbnailOnError(image: string | undefined) {
-  return (event: React.SyntheticEvent<HTMLImageElement>) => {
-    const element = event.currentTarget
-    const fallback = getProxiedThumbnailUrl(image)
-    if (!fallback || element.dataset.savedThumbnail === "1") return
-    element.dataset.savedThumbnail = "1"
-    element.src = fallback
-  }
-}
-
 const SEARCH_FILTERS: Array<{
   id: SearchStateFilter
   label: string
@@ -566,7 +556,7 @@ export default function PokemonSearch({
                               <div className="trading-card w-full border border-border/50 bg-muted/40">
                                 {thumb ? (
                                   // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" onError={savedThumbnailOnError(card.image)} />
+                                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
                                 ) : null}
                               </div>
                               <p className="mt-1 truncate text-[10px] font-semibold">{card.set.name}</p>

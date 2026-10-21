@@ -1,5 +1,6 @@
 "use client"
 
+import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
 
@@ -296,7 +297,7 @@ function getPokemonArtwork(pokemon: PokemonSummary) {
 
 // The detail sheet shows the artwork larger than a binder slot.
 function getDetailArtwork(pokemon: PokemonSummary, cardImage?: string | null) {
-  return cardImage || getOfficialArtworkUrl(pokemon.id, ARTWORK_DETAIL_WIDTH)
+  return toCardImageSrc(cardImage) || getOfficialArtworkUrl(pokemon.id, ARTWORK_DETAIL_WIDTH)
 }
 
 function getPokemonOfficialArtworkUrl(pokemonId: number) {
@@ -312,7 +313,7 @@ function getUsableImageSource(value?: string | null) {
 
 /** The image URL a binder slot renders: its card image, else the Pokémon artwork at grid size. */
 function resolveSlotImageUrl(pokemonId: number, cardImage?: string | null) {
-  return getUsableImageSource(cardImage) || getPokemonOfficialArtworkUrl(pokemonId)
+  return toCardImageSrc(getUsableImageSource(cardImage)) || getPokemonOfficialArtworkUrl(pokemonId)
 }
 
 function getDisplayArtworkFit(cardImage?: string | null) {
@@ -4084,7 +4085,7 @@ export default function BinderApp({
               : collected
               ? "No card assigned yet"
               : "Choose how you want to track this slot."
-    const selectedPreviewImage = selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)
+    const selectedPreviewImage = toCardImageSrc(selectedPrimaryCardPreview?.cardImage) ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)
     const selectedPreviewAlt = selectedPrimaryCardPreview?.cardName ?? selectedPokemonDisplayName
     const selectedPreviewIsCard = Boolean(selectedPrimaryCardPreview?.cardImage)
     const selectedPreviewTone = selectedPreviewIsCard ? "" : selectedPokemonDisplayTone
@@ -4417,7 +4418,7 @@ export default function BinderApp({
                 <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
                   {selectedCurrentCardPreview.cardImage ? (
                     <img
-                      src={selectedCurrentCardPreview.cardImage}
+                      src={toCardImageSrc(selectedCurrentCardPreview.cardImage) ?? undefined}
                       alt={selectedCurrentCardPreview.cardName}
                       className="absolute inset-0 h-full w-full object-cover"
                       loading="lazy"
@@ -5359,7 +5360,7 @@ export default function BinderApp({
                     >
                       <span className="trading-card relative w-full border border-border/55 bg-muted dark:border-white/10">
                         {wantedCard.card.card_image ? (
-                          <img src={wantedCard.card.card_image} alt={wantedCard.card.card_name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                          <img src={toCardImageSrc(wantedCard.card.card_image) ?? undefined} alt={wantedCard.card.card_name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">No image</span>
                         )}
@@ -5447,7 +5448,7 @@ export default function BinderApp({
                       className="trading-card relative w-full border border-border/60 bg-muted text-left dark:border-white/10 sm:w-[4.75rem]"
                     >
                       {card.card_image ? (
-                        <img src={card.card_image} alt={card.card_name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                        <img src={toCardImageSrc(card.card_image) ?? undefined} alt={card.card_name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">No image</div>
                       )}
@@ -6366,7 +6367,7 @@ export default function BinderApp({
                           className="flex w-44 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 bg-card/82 p-1.5 text-left sm:w-56 sm:p-2"
                         >
                           {card.card_image ? (
-                            <img src={card.card_image} alt={card.card_name} className="trading-card w-8 object-cover sm:w-10" loading="lazy" />
+                            <img src={toCardImageSrc(card.card_image) ?? undefined} alt={card.card_name} className="trading-card w-8 object-cover sm:w-10" loading="lazy" />
                           ) : (
                             <div className="h-12 w-8 rounded bg-muted sm:h-14 sm:w-10" />
                           )}
@@ -6482,7 +6483,7 @@ export default function BinderApp({
                     <div className="flex items-center gap-3">
                       <div className={`relative flex shrink-0 items-center justify-center bg-muted/40 ${selectedPrimaryCardPreview?.cardImage ? "trading-card w-11" : "h-16 w-16 rounded-xl"}`}>
                         <img
-                          src={selectedPrimaryCardPreview?.cardImage ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)}
+                          src={toCardImageSrc(selectedPrimaryCardPreview?.cardImage) ?? selectedPokemonDisplayImage ?? getDetailArtwork(selectedPokemon)}
                           alt={selectedPrimaryCardPreview?.cardName ?? selectedPokemonDisplayName}
                           className={selectedPrimaryCardPreview?.cardImage
                             ? "absolute inset-0 h-full w-full object-cover"
