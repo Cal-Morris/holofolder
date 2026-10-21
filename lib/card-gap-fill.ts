@@ -19,6 +19,7 @@ type Source = { pokemontcg: string } | { tcgcsv: number }
 /** Where to look for images, in order, for each set with cards that have no image. */
 export const GAP_IMAGE_SOURCES: Record<string, Source[]> = {
   "30th-c": [{ pokemontcg: "me55c" }, { tcgcsv: 24837 }],
+  "30th": [{ pokemontcg: "me55" }],
   cel25cc: [{ pokemontcg: "cel25c" }, { tcgcsv: 2931 }],
   cel25: [{ pokemontcg: "cel25c" }],
   fut20: [{ pokemontcg: "fut20" }],
@@ -110,6 +111,14 @@ export function cardHasImage(card: GapCard) {
   return card.image_languages_json.length > 0 || Boolean(readCatalogMetadata(card.external_ids_json).image) || Boolean(pickExternalCardImageUrl(card.external_ids_json))
 }
 
+/** The URL a card without TCGdex languages renders from, or null; callers check these for dead links. */
+export function currentFallbackImageUrl(card: GapCard): string | null {
+  if (card.image_languages_json.length) return null
+  const url = readCatalogMetadata(card.external_ids_json).image ?? pickExternalCardImageUrl(card.external_ids_json)
+  if (!url) return null
+  return /^https:\/\/assets\.tcgdex\.net\//.test(url) && !/\.(?:webp|png|jpg)$/.test(url) ? `${url}/high.webp` : url
+}
+
 export type GapImagePatch = { cardId: string; image: string; productId?: string; source: string }
 export type GapPlan = {
   images: GapImagePatch[]
@@ -131,7 +140,11 @@ export function planCardGapFill(input: {
   pokemontcg: Record<string, GapLegacyCard[]>
   tcgcsv: Record<number, GapProduct[]>
   hasProductImage: (productId: string) => boolean
+  /** Cards whose current image URL is dead (checked by the caller); they are filled like cards without one. */
+  brokenImages?: ReadonlySet<string>
 }): GapPlan {
+  const broken = input.brokenImages ?? new Set<string>()
+  const needsImage = (c: GapCard) => !cardHasImage(c) || broken.has(c.id)
   const plan: GapPlan = { images: [], aliases: [], series: [], sets: [], cards: [], externalSources: [], dexLinks: [], unresolved: [], notes: [] }
   const byId = new Map(input.cards.map(c => [c.id, c]))
   const bySet = new Map<string, GapCard[]>()
@@ -147,19 +160,26 @@ export function planCardGapFill(input: {
     plan.aliases.push({ cardId: alias.id, catalog: { canonicalId: canonical.id, aliasIds: [canonical.id] } })
     plan.aliases.push({ cardId: canonical.id, catalog: { aliasIds: [alias.id] } })
     for (const card of [canonical, alias]) {
-      if (image && !cardHasImage(card)) { plan.images.push({ cardId: card.id, image, source: `pokemontcg:${a.source.cardId}` }); patched.add(card.id) }
+      if (image && needsImage(card)) { plan.images.push({ cardId: card.id, image, source: `pokemontcg:${a.source.cardId}` }); patched.add(card.id) }
     }
   }
 
-  for (const [setId, sources] of Object.entries(GAP_IMAGE_SOURCES)) {
+  const setIds = new Set([...Object.keys(GAP_IMAGE_SOURCES), ...[...broken].flatMap(id => byId.get(id)?.set_id ?? [])])
+  for (const setId of setIds) {
+    const sources = GAP_IMAGE_SOURCES[setId] ?? []
     const setCards = bySet.get(setId) ?? []
-    const missing = setCards.filter(c => !cardHasImage(c) && !patched.has(c.id) && !(aliasIds.has(c.id)))
+    const missing = setCards.filter(c => needsImage(c) && !patched.has(c.id) && !(aliasIds.has(c.id)))
     if (!missing.length) continue
-    const pools = sources.map(s => "pokemontcg" in s ? legacyCandidates(input.pokemontcg[s.pokemontcg] ?? []) : productCandidates(input.tcgcsv[s.tcgcsv] ?? [], input.hasProductImage))
+    const configured = sources.map(s => "pokemontcg" in s ? legacyCandidates(input.pokemontcg[s.pokemontcg] ?? []) : productCandidates(input.tcgcsv[s.tcgcsv] ?? [], input.hasProductImage))
     for (const card of missing) {
       const name = normalizeGapName(card.name_en), number = normalizeGapNumber(card.local_id)
       let found: Candidate | undefined, reason = "No source image matches the collector number and name"
-      for (const pool of pools) {
+      // The card's own pokemontcg-data id names its Scrydex scan, which covers scans pokemontcg.io lacks.
+      const own = (card.external_ids_json.pokemon_tcg as { cardId?: unknown } | undefined)?.cardId
+      const ownPool: Candidate[] = typeof own === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(own)
+        ? [{ key: own, name, number, qualified: false, finishOnly: true, image: `https://images.scrydex.com/pokemon/${own}/large`, ref: `scrydex:${own}` }]
+        : []
+      for (const pool of [ownPool, ...configured]) {
         const exact = pool.filter(c => c.name === name && c.number === number)
         if (exact.length) { found = choose(exact); if (found) break; reason = "Several source printings match"; continue }
         // Reprint collections renumber cards, so match on the name and pair same-name cards in collector order.

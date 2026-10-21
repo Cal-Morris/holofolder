@@ -14,7 +14,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readCatalogMetadata } from "../lib/card-catalog"
 import { mapWithConcurrency } from "../lib/card-db-sync-concurrency"
-import { GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapLegacyCard, type GapProduct } from "../lib/card-gap-fill"
+import { currentFallbackImageUrl, GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapLegacyCard, type GapProduct } from "../lib/card-gap-fill"
 import { loadProjectEnvFiles } from "../lib/load-project-env"
 
 const args = process.argv.slice(2)
@@ -93,7 +93,11 @@ async function main() {
   for (const group of groups) tcgcsv[group] = (await cachedJson<{ results: GapProduct[] }>(`tcgcsv-${group}.json`, `https://tcgcsv.com/tcgplayer/3/${group}/products`)).results
 
   const productChecks = await checkImages([...groups].flatMap(g => tcgcsv[g].map(p => `https://product-images.tcgplayer.com/${p.productId}.jpg`)))
-  const input = { cards, existingSetIds: new Set(sets.map(s => s.id)), existingSeriesIds: new Set(series.map(s => s.id)), pokemontcg, tcgcsv,
+  // Cards that render a fallback image which no longer exists are filled like cards without an image.
+  const current = cards.flatMap(card => { const url = currentFallbackImageUrl(card); return url ? [[card.id, url] as const] : [] })
+  const currentChecks = await checkImages(current.map(([, url]) => url))
+  const brokenImages = new Set(current.filter(([, url]) => !currentChecks[url]).map(([id]) => id))
+  const input = { brokenImages, cards, existingSetIds: new Set(sets.map(s => s.id)), existingSeriesIds: new Set(series.map(s => s.id)), pokemontcg, tcgcsv,
     hasProductImage: (pid: string) => productChecks[`https://product-images.tcgplayer.com/${pid}.jpg`] === true }
   const draft = planCardGapFill(input)
   // Confirm every non-TCGplayer image exists too; a dead link would only show a broken card.
@@ -107,7 +111,7 @@ async function main() {
   const plan = { ...draft, images: draft.images.filter(p => checks[p.image]), unresolved: [...draft.unresolved, ...draft.images.filter(p => !checks[p.image]).map(p => ({ cardId: p.cardId, reason: `Source image unavailable: ${p.image}` }))] }
 
   const report = {
-    images: plan.images.length, imagesBySet: Object.fromEntries([...new Set(plan.images.map(p => cards.find(c => c.id === p.cardId)?.set_id ?? "?"))].map(s => [s, plan.images.filter(p => cards.find(c => c.id === p.cardId)?.set_id === s).length])),
+    brokenImages: [...brokenImages].sort(), images: plan.images.length, imagesBySet: Object.fromEntries([...new Set(plan.images.map(p => cards.find(c => c.id === p.cardId)?.set_id ?? "?"))].map(s => [s, plan.images.filter(p => cards.find(c => c.id === p.cardId)?.set_id === s).length])),
     aliases: plan.aliases, sets: plan.sets.map(s => ({ id: s.id, cards: plan.cards.filter(c => c.set_id === s.id).length })), dexLinks: plan.dexLinks.length,
     unresolved: plan.unresolved, notes: plan.notes, imagePatches: plan.images,
   }

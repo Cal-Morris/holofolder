@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { normalizeGapName, normalizeGapNumber, planCardGapFill, splitProductName, type GapCard, type GapProduct } from "../lib/card-gap-fill"
+import { currentFallbackImageUrl, normalizeGapName, normalizeGapNumber, planCardGapFill, splitProductName, type GapCard, type GapProduct } from "../lib/card-gap-fill"
 
 const card = (id: string, set_id: string, local_id: string, name_en: string, extra: Partial<GapCard> = {}): GapCard =>
   ({ id, set_id, local_id, name_en, image_languages_json: [], external_ids_json: {}, ...extra })
@@ -97,5 +97,19 @@ describe("card gap fill", () => {
     assert.deepEqual(plan.cards[0].external_ids_json, { catalog: { productId: "283766", image: "https://product-images.tcgplayer.com/283766.jpg" } })
     assert.deepEqual(plan.dexLinks, [{ card_id: "tcgplayer-283766", dex_id: 94 }, { card_id: "tcgplayer-283818", dex_id: 168 }, { card_id: "tcgplayer-283831", dex_id: 827 }])
     assert.deepEqual(plan.externalSources.map(s => [s.card_id, s.source, s.source_set_id]), [["tcgplayer-283766", "tcgcsv", "3179"], ["tcgplayer-283818", "tcgcsv", "3179"], ["tcgplayer-283831", "tcgcsv", "3179"]])
+  })
+
+  test("replaces dead images, preferring the card's own Scrydex scan", () => {
+    const dead = card("2014xy-1", "2014xy", "1", "Chespin", { external_ids_json: { pokemon_tcg: { cardId: "mcd14-1", imageLarge: "https://images.pokemontcg.io/mcd14/1_hires.png" } } })
+    const mew = card("30th-B", "30th", "B", "Mew", { external_ids_json: { tcgdex: { image: "https://assets.tcgdex.net/en/me/30th/B" } } })
+    assert.equal(currentFallbackImageUrl(dead), "https://images.pokemontcg.io/mcd14/1_hires.png")
+    assert.equal(currentFallbackImageUrl(mew), "https://assets.tcgdex.net/en/me/30th/B/high.webp")
+    assert.equal(currentFallbackImageUrl({ ...mew, image_languages_json: ["en"] }), null)
+    const input = { ...base, cards: [dead, mew], pokemontcg: { me55: [scrydex("me55-B", "Mew", "B")] } }
+    assert.deepEqual(planCardGapFill(input).images, [])
+    assert.deepEqual(planCardGapFill({ ...input, brokenImages: new Set(["2014xy-1", "30th-B"]) }).images.map(p => [p.cardId, p.image, p.source]), [
+      ["30th-B", "https://images.scrydex.com/pokemon/me55-B/large", "pokemontcg:me55-B"],
+      ["2014xy-1", "https://images.scrydex.com/pokemon/mcd14-1/large", "scrydex:mcd14-1"],
+    ])
   })
 })
