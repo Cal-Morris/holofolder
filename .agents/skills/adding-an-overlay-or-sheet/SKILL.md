@@ -33,6 +33,7 @@ Every overlay must use `hooks/use-overlay.ts`. The stack bookkeeping and swipe m
    - Opening a dock-launched overlay replaces any open one.
    - A dock tab switch calls `closeAllOverlays()`. Make sure your open state is cleared there if you own it in `binder-app.tsx`.
    - Only deliberate one-level stacks are allowed (e.g. the card selector over the card detail, or All cards over the detail). Closing the top one returns to exactly the one below.
+   - To navigate from an overlay (e.g. the binder switcher), close it first and navigate with `runAfterOverlayHistory` from an effect, so popping the overlay's history entry can't undo the navigation.
 6. **Lazy-load** big or rarely opened overlays with `next/dynamic(…, { ssr: false })`. Don't lazy-load content that renders inside an already open sheet (it shifts the layout). SSR-kept dynamics need a `loading` option.
 7. **Tests.** Add the overlay to the `e2e/overlays.e2e.ts` patterns:
    - the close control is within the safe viewport and hittable, and is at least 36 px

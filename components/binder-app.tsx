@@ -1,6 +1,7 @@
 "use client"
 
 import type { Binder } from "@/lib/binders/model"
+import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
@@ -16,7 +17,7 @@ import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, Chev
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import type { CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
-import { closeAllOverlays, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
+import { closeAllOverlays, runAfterOverlayHistory, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import OwnedRemoveSheet from "@/components/owned-remove-sheet"
 import UndoSnackbar from "@/components/undo-snackbar"
@@ -89,6 +90,7 @@ const DashboardBinderPreview = dynamic(() => import("@/components/dashboard-bind
 const SettingsModal = dynamic(() => import("@/components/settings-modal"), { ssr: false })
 const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr: false })
 const PartnerModal = dynamic(() => import("@/components/partner-modal"), { ssr: false })
+const BinderSwitcherSheet = dynamic(() => import("@/components/binder-switcher-sheet"), { ssr: false })
 const CardSelector = dynamic(() => import("@/components/card-selector"), { ssr: false })
 const PokemonCardsBrowser = dynamic(() => import("@/components/pokemon-cards-browser"), { ssr: false })
 const IllustratorCardsBrowser = dynamic(() => import("@/components/illustrator-cards-browser"), { ssr: false })
@@ -486,6 +488,9 @@ export default function BinderApp({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isPartnerOpen, setIsPartnerOpen] = useState(false)
+  const [isBinderSwitcherOpen, setIsBinderSwitcherOpen] = useState(false)
+  const [binders, setBinders] = useState<Binder[]>(initialBinders)
+  const activeBinder = binders.find((binder) => binder.id === initialBinderId) ?? null
   const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false)
   const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -603,6 +608,25 @@ export default function BinderApp({
     readOnly: readOnlyMode,
   })
   useOfflineStoreSync(!readOnlyMode)
+
+  // The binder on screen is this device's last opened one (the server reads the cookie on the next visit).
+  useEffect(() => {
+    if (!readOnlyMode) rememberLastOpenedBinder(initialBinderId)
+  }, [initialBinderId, readOnlyMode])
+
+  const [pendingBinderSwitch, setPendingBinderSwitch] = useState<string | null>(null)
+  const switchBinder = useCallback((binderId: string) => {
+    setIsBinderSwitcherOpen(false)
+    if (binderId === initialBinderId) return
+    rememberLastOpenedBinder(binderId)
+    setPendingBinderSwitch(binderId)
+  }, [initialBinderId])
+  // Navigate after the sheet has closed and its history entry is popped (BinderApp remounts per binder).
+  useEffect(() => {
+    if (!pendingBinderSwitch || isBinderSwitcherOpen) return
+    runAfterOverlayHistory(() => router.push(binderHref(pendingBinderSwitch, window.location.href)))
+  }, [isBinderSwitcherOpen, pendingBinderSwitch, router])
+  const closeBinderSwitcher = useCallback(() => setIsBinderSwitcherOpen(false), [])
   const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
     isSignedIn: Boolean(user),
     cloudCollectedCount: collectionCount,
@@ -4517,6 +4541,30 @@ export default function BinderApp({
         <div className="mx-auto w-full max-w-7xl md:max-w-none">
           <div className="rounded-2xl border border-border/70 bg-card/96 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.24)] md:bg-card/86 md:backdrop-blur-xl dark:border-border/50 dark:bg-background dark:shadow-black/5 dark:md:bg-background/88">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1 md:px-2.5 md:py-1.5">
+            {activeBinder && !readOnlyMode ? (
+              <button
+                type="button"
+                data-testid="binder-switcher-trigger"
+                onClick={() => setIsBinderSwitcherOpen(true)}
+                aria-haspopup="dialog"
+                aria-label={`Binders: ${activeBinder.name}`}
+                className="-my-1 -ml-1 flex min-h-11 min-w-11 items-center gap-2 rounded-xl px-1 text-left hover:bg-muted/60"
+              >
+                <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary shadow-sm md:h-6 md:w-6">
+                  <Grid3X3 className="h-3.5 w-3.5 text-primary-foreground md:h-3 md:w-3" />
+                  <ChevronDown aria-hidden="true" className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-card text-foreground shadow-sm ring-1 ring-border/60 ${activeMainView === "binder" ? "md:hidden" : "hidden"}`} />
+                </span>
+                <span className={`min-w-0 ${activeMainView === "binder" ? "max-md:hidden" : ""}`}>
+                  <span className="flex items-center gap-0.5">
+                    <span className="block max-w-[11rem] truncate text-sm font-bold tracking-tight md:text-[13px]">{activeBinder.name}</span>
+                    <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  </span>
+                  <span className="hidden text-[10px] text-muted-foreground sm:block md:hidden">
+                    {binders.length === 1 ? "Tap to add a binder" : `${binders.length} binders`}
+                  </span>
+                </span>
+              </button>
+            ) : (
             <div className="flex min-w-0 items-center gap-2">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary shadow-sm md:h-6 md:w-6">
                 <Grid3X3 className="h-3.5 w-3.5 text-primary-foreground md:h-3 md:w-3" />
@@ -4526,6 +4574,7 @@ export default function BinderApp({
                 <p className="hidden text-[10px] text-muted-foreground sm:block md:hidden">National Dex binder tracking</p>
               </div>
             </div>
+            )}
 
             {activeMainView === "binder" && binderDimension === "2d" && (
               <div data-testid="mobile-header-pager" className="flex min-w-0 items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 md:hidden dark:border-border/30 dark:bg-muted/35">
@@ -5643,6 +5692,17 @@ export default function BinderApp({
         onRequestMotionGlint={handleRequestMotionGlint}
       />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      {isBinderSwitcherOpen && activeBinder && (
+        <BinderSwitcherSheet
+          binders={binders}
+          activeBinderId={activeBinder.id}
+          canManage={!readOnlyMode && Boolean(user)}
+          isOnline={isOnline}
+          onSwitch={switchBinder}
+          onBindersChange={setBinders}
+          onClose={closeBinderSwitcher}
+        />
+      )}
       {isPartnerOpen ? (
         <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
       ) : null}
