@@ -509,19 +509,22 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
     if (numberCandidates) byName = byName.in("local_id", numberCandidates)
     requests.push(byName.limit(limit))
 
-    const setMatches = await admin
-      .from("tcg_sets")
-      .select("id")
-      .or(`id.ilike.${parsed.text},name_en.ilike.%${parsed.text}%`)
-      .order("release_date", { ascending: false, nullsFirst: false })
-      .limit(4)
-    if (setMatches.error) throw setMatches.error
-    const setIds = ((setMatches.data || []) as Array<{ id: string }>).map((set) => set.id).filter((id) => !HIDDEN_SET_IDS.has(id))
-    if (setIds.length > 0) {
+    // The set lookup and the card query that depends on it run alongside the name query
+    // instead of before it.
+    requests.push((async () => {
+      const setMatches = await admin
+        .from("tcg_sets")
+        .select("id")
+        .or(`id.ilike.${parsed.text},name_en.ilike.%${parsed.text}%`)
+        .order("release_date", { ascending: false, nullsFirst: false })
+        .limit(4)
+      if (setMatches.error) return { data: null, error: setMatches.error }
+      const setIds = ((setMatches.data || []) as Array<{ id: string }>).map((set) => set.id).filter((id) => !HIDDEN_SET_IDS.has(id))
+      if (setIds.length === 0) return { data: [], error: null }
       let bySet = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).in("set_id", setIds)
       if (numberCandidates) bySet = bySet.in("local_id", numberCandidates)
-      requests.push(bySet.order("local_id_sort", { ascending: true, nullsFirst: false }).limit(limit))
-    }
+      return await bySet.order("local_id_sort", { ascending: true, nullsFirst: false }).limit(limit)
+    })())
   }
 
   const responses = await Promise.all(requests)
