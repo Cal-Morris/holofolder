@@ -9,19 +9,23 @@ import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/
 import type { CardFinish } from "@/hooks/use-collection"
 import { Button } from "@/components/ui/button"
 import { useOverlay } from "@/hooks/use-overlay"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import CardPickerFiltersSheet from "@/components/card-picker-filters-sheet"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import {
-  CARD_PICKER_SORTS,
   getCardPickerSortAmount,
-  normalizeCardPickerSort,
   readCardPickerSort,
   saveCardPickerSort,
   sortCardPickerCards,
   type CardPickerSort,
 } from "@/lib/card-selector-sort"
+import {
+  getActiveFilterChips,
+  getRecordedFinish,
+  getVariantFilter,
+  type CardPickerFilterKey,
+  type CardPickerVariantChoice,
+} from "@/lib/card-picker-filters"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { getCardSelectorQuickActions } from "@/lib/card-selector-actions"
@@ -31,7 +35,7 @@ import { aggregateCardScanMatches, type AggregatedCardScanMatch, type CardScanFr
 import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
-import { X, Search, Check, Loader2, Camera, Languages, Heart } from "lucide-react"
+import { X, Search, Check, Loader2, Camera, Heart, MoreHorizontal, SlidersHorizontal } from "lucide-react"
 
 export type CardSelectorMode = "collect" | "wishlist"
 
@@ -56,17 +60,6 @@ type CardSelectorAmountFormatter = (gbpAmount: number | null | undefined, price?
 
 type CardScanMatch = CardScanFrameMatch<TCGCard>
 
-const ALL_FILTERS_VALUE = "__all__"
-const CARD_LANGUAGES: Array<{ id: CardLanguage; label: string; shortLabel: string }> = [
-  { id: "en", label: "English", shortLabel: "EN" },
-  { id: "it", label: "Italian", shortLabel: "IT" },
-  { id: "fr", label: "French", shortLabel: "FR" },
-  { id: "de", label: "German", shortLabel: "DE" },
-  { id: "es", label: "Spanish", shortLabel: "ES" },
-  { id: "pt-br", label: "Portuguese", shortLabel: "PT" },
-  { id: "ja", label: "Japanese", shortLabel: "JA" },
-  { id: "ko", label: "Korean", shortLabel: "KO" },
-]
 const CARD_SCAN_FRAME_COUNT = 8
 const CARD_SCAN_FRAME_DELAY_MS = 450
 const CARD_SCAN_MIN_USABLE_FRAMES = 3
@@ -75,21 +68,6 @@ const CARD_SCAN_CANDIDATE_ASSET_OCR_LIMIT = 18
 const CARD_GUIDE_INSET_X = 0.18
 const CARD_GUIDE_INSET_Y = 0.1
 const CARD_ASPECT_RATIO = 2.5 / 3.5
-const CARD_FINISHES: Array<{ id: CardFinish; label: string }> = [
-  { id: "normal", label: "Normal" },
-  { id: "holo", label: "Holo" },
-  { id: "reverse_holo", label: "Reverse" },
-  { id: "double_rare", label: "Double" },
-  { id: "ultra_rare", label: "Ultra" },
-  { id: "illustration_rare", label: "IR" },
-  { id: "special_illustration_rare", label: "SIR" },
-  { id: "secret_rare", label: "Secret" },
-  { id: "hyper_rare", label: "Hyper" },
-  { id: "radiant_rare", label: "Radiant" },
-  { id: "ace_spec", label: "ACE" },
-  { id: "amazing_rare", label: "Amazing" },
-  { id: "shiny_rare", label: "Shiny" },
-]
 
 function formatGbpAmount(amount: number | null | undefined) {
   return typeof amount === "number" && Number.isFinite(amount)
@@ -226,8 +204,10 @@ export default function CardSelector({
   const [sort, setSort] = useState<CardPickerSort>(readCardPickerSort)
   const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>(defaultCardLanguage ?? "en")
   const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode)
-  const [selectedFinish, setSelectedFinish] = useState<CardFinish>("normal")
-  const [hasManuallySelectedFinish, setHasManuallySelectedFinish] = useState(false)
+  const [variantChoice, setVariantChoice] = useState<CardPickerVariantChoice>("any")
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+  const [isMoreOpen, setIsMoreOpen] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement | null>(null)
   const [isScanningCard, setIsScanningCard] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null)
@@ -249,7 +229,8 @@ export default function CardSelector({
   const activeSelectedCardId = isWishlistMode
     ? selectedWantedCardId ?? (mode === "wishlist" ? selectedCardId : undefined)
     : selectedCollectedCardId ?? (mode === "collect" ? selectedCardId : undefined)
-  const selectedLanguageLabel = CARD_LANGUAGES.find((language) => language.id === selectedCardLanguage)?.label ?? "English"
+  const recordedFinish = getRecordedFinish(variantChoice)
+  const finishFor = useCallback((card: TCGCard | undefined): CardFinish => recordedFinish ?? (card ? inferCardFinish(card) : "normal"), [recordedFinish])
   const priceLookups = useMemo(
     () => cards.map((card) => ({ cardId: card.id, language: selectedCardLanguage })),
     [cards, selectedCardLanguage],
@@ -264,7 +245,7 @@ export default function CardSelector({
         scanLabel: "Scan wanted",
         emptyActionLabel: "Clear wanted card",
         helper: "Selecting a card keeps this slot open and tracks the card you want to find.",
-        searchPlaceholder: "Search wanted card, number, set...",
+        searchPlaceholder: "Search name or number",
         currentLabel: "Current wanted",
         activeClass: "border-amber-400/60 bg-amber-400/15 text-amber-700 shadow-[0_10px_24px_-18px_rgba(251,191,36,0.85)] dark:text-amber-300",
         accentClass: "border-amber-400/40 bg-amber-400/12 text-amber-700 dark:text-amber-300",
@@ -277,7 +258,7 @@ export default function CardSelector({
         scanLabel: "Scan card",
         emptyActionLabel: "Mark owned without card",
         helper: "Selecting a card marks the slot collected and attaches this card to your binder.",
-        searchPlaceholder: "Search card, number, set...",
+        searchPlaceholder: "Search name or number",
         currentLabel: "Current card",
         activeClass: "border-emerald-400/55 bg-emerald-400/14 text-emerald-700 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)] dark:text-emerald-300",
         accentClass: "border-emerald-400/40 bg-emerald-400/12 text-emerald-700 dark:text-emerald-300",
@@ -289,23 +270,22 @@ export default function CardSelector({
   const intentHoverCardClass = isWishlistMode
     ? "hover:border-amber-400/65 hover:ring-2 hover:ring-amber-400/20"
     : "hover:border-emerald-400/65 hover:ring-2 hover:ring-emerald-400/20"
-  const activeFiltersCount = [filters.set, filters.rarity, filters.variant, filters.searchQuery].filter(Boolean).length
 
   const selectorQuickActions = useMemo(() => getCardSelectorQuickActions(selectionMode), [selectionMode])
 
   const selectCard = useCallback((card: TCGCard, selectedMode: CardSelectorMode = selectionMode) => {
     completeCardSelectorSelection({
       onClose,
-      onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectedMode, hasManuallySelectedFinish ? selectedFinish : inferCardFinish(card)),
+      onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectedMode, finishFor(card)),
     })
-  }, [hasManuallySelectedFinish, onClose, onSelect, selectedCardLanguage, selectedFinish, selectionMode])
+  }, [finishFor, onClose, onSelect, selectedCardLanguage, selectionMode])
 
   const selectWithoutCard = useCallback(() => {
     completeCardSelectorSelection({
       onClose,
-      onSelect: () => onSelect(null, selectionMode, selectedFinish),
+      onSelect: () => onSelect(null, selectionMode, finishFor(cards.find((card) => matchesCatalogCardId(card, activeSelectedCardId)))),
     })
-  }, [onClose, onSelect, selectedFinish, selectionMode])
+  }, [activeSelectedCardId, cards, finishFor, onClose, onSelect, selectionMode])
 
   useEffect(() => {
     setSelectionMode(mode)
@@ -391,19 +371,18 @@ export default function CardSelector({
     }
   }, [isCardScannerOpen])
 
-  const filteredCards = useMemo(() => filterCards(cards, filters), [cards, filters, filterCards])
-  useEffect(() => {
-    const selectedCard = cards.find((card) => matchesCatalogCardId(card, activeSelectedCardId)) ?? filteredCards[0]
-    setSelectedFinish(selectedCard ? inferCardFinish(selectedCard) : "normal")
-    setHasManuallySelectedFinish(false)
-  }, [activeSelectedCardId, cards, filteredCards])
+  const variantFilter = getVariantFilter(variantChoice)
+  const filteredCards = useMemo(
+    () => filterCards(cards, { ...filters, variant: variantFilter }),
+    [cards, filters, filterCards, variantFilter],
+  )
   const scanRankById = useMemo(() => {
     return new Map(scanMatches.map((match, index) => [match.card.id, index + 1]))
   }, [scanMatches])
   const displayedCards = useMemo(() => {
     if (scanRankById.size === 0) {
       return sortCardPickerCards(filteredCards, sort, (card) =>
-        getCardPickerSortAmount(pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)], selectedFinish, pricingRegion))
+        getCardPickerSortAmount(pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)], finishFor(card), pricingRegion))
     }
 
     return [...filteredCards]
@@ -421,7 +400,7 @@ export default function CardSelector({
 
         return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: "base" })
       })
-  }, [filteredCards, pricesByCardId, pricingRegion, scanRankById, selectedCardLanguage, selectedFinish, sort])
+  }, [filteredCards, pricesByCardId, pricingRegion, scanRankById, selectedCardLanguage, finishFor, sort])
 
   const uniqueSets = useMemo(() => {
     return [...new Map(cards.map((card) => [card.set.id, card.set])).values()]
@@ -433,7 +412,29 @@ export default function CardSelector({
     return [...new Set(cards.map((c) => c.rarity).filter(Boolean))] as string[]
   }, [cards])
 
-  const hasActiveFilters = Boolean(filters.set || filters.rarity || filters.variant || filters.searchQuery)
+  const defaultLanguage = defaultCardLanguage ?? "en"
+  const activeFilterChips = useMemo(() => getActiveFilterChips(
+    { filters, language: selectedCardLanguage, defaultLanguage, variant: variantChoice, sort },
+    (id) => uniqueSets.find((set) => set.id === id)?.name,
+  ), [defaultLanguage, filters, selectedCardLanguage, sort, uniqueSets, variantChoice])
+  const updateSort = useCallback((next: CardPickerSort) => {
+    setSort(next)
+    saveCardPickerSort(next)
+  }, [])
+  const clearFilter = useCallback((key: CardPickerFilterKey) => {
+    if (key === "sort") updateSort("default")
+    else if (key === "language") setSelectedCardLanguage(defaultLanguage)
+    else if (key === "variant") setVariantChoice("any")
+    else setFilters((current) => ({ ...current, [key]: undefined }))
+  }, [defaultLanguage, updateSort])
+  const resetFilters = useCallback(() => {
+    setFilters((current) => ({ searchQuery: current.searchQuery }))
+    setVariantChoice("any")
+    setSelectedCardLanguage(defaultLanguage)
+    updateSort("default")
+  }, [defaultLanguage, updateSort])
+  const closeMoreMenu = useCallback(() => setIsMoreOpen(false), [])
+  useOverlay(isMoreOpen, closeMoreMenu, { containerRef: moreMenuRef, lockScroll: false, history: false })
 
   const getDescriptorForCard = useCallback(async (card: TCGCard) => {
     if (!card.image) {
@@ -815,100 +816,168 @@ export default function CardSelector({
         }}
       >
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="z-20 shrink-0 border-b border-border bg-card px-4 py-3 sm:px-5">
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${intentCopy.accentClass}`}>
-                    {intentCopy.label}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground sm:text-xs">
-                    {filteredCards.length} of {cards.length} cards
-                  </span>
-                </div>
-                <h2 className="mt-2 truncate text-base font-semibold leading-tight tracking-normal sm:text-lg">
-                  {intentCopy.title}
-                </h2>
-                <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground sm:max-w-2xl sm:text-xs">
-                  {intentCopy.helper}
-                </p>
+          <div className="z-20 shrink-0 border-b border-border bg-card px-4 pb-2.5 pt-2 sm:px-5 sm:pt-3">
+            <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
+            <h2 className="sr-only">{intentCopy.title}</h2>
+            <p className="sr-only">{intentCopy.helper}</p>
+            <div className="flex items-center gap-2">
+              <div role="group" aria-label="Picker mode" className="grid shrink-0 grid-cols-2 rounded-full border border-border/60 bg-background/70 p-0.5 dark:border-white/10 dark:bg-white/[0.04]">
+                <button
+                  type="button"
+                  aria-pressed={selectionMode === "collect"}
+                  aria-label="Add card"
+                  onClick={() => setSelectionMode("collect")}
+                  className={`flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors ${
+                    selectionMode === "collect"
+                      ? "bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-400/50 dark:text-emerald-300"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  <span>Add<span className="hidden sm:inline"> card</span></span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={selectionMode === "wishlist"}
+                  aria-label="Wanted"
+                  onClick={() => setSelectionMode("wishlist")}
+                  className={`flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors ${
+                    selectionMode === "wishlist"
+                      ? "bg-amber-500/15 text-amber-700 ring-1 ring-amber-400/55 dark:text-amber-300"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Heart className={`h-3.5 w-3.5 ${selectionMode === "wishlist" ? "fill-current" : ""}`} />
+                  <span>Want<span className="hidden sm:inline">ed</span></span>
+                </button>
               </div>
-              <Button variant="ghost" size="icon" className="mr-0.5 h-9 w-9 shrink-0 rounded-full" onClick={onClose} aria-label="Close card selector">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold capitalize leading-tight">{pokemonName}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{filteredCards.length} of {cards.length} cards</p>
+              </div>
+              <div className="relative shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                  aria-label="More options"
+                  aria-haspopup="menu"
+                  aria-expanded={isMoreOpen}
+                  onClick={() => setIsMoreOpen((open) => !open)}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+                {isMoreOpen && <div aria-hidden="true" className="fixed inset-0 z-20" onClick={() => setIsMoreOpen(false)} />}
+                {isMoreOpen && (
+                  <div
+                    ref={moreMenuRef}
+                    role="menu"
+                    aria-label="More options"
+                    className="absolute right-0 top-10 z-30 w-56 rounded-2xl border border-border bg-card p-1 shadow-xl"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMoreOpen(false)
+                        selectWithoutCard()
+                      }}
+                      className="flex min-h-10 w-full items-center rounded-xl px-3 text-left text-sm hover:bg-muted/70"
+                    >
+                      {intentCopy.emptyActionLabel}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full" onClick={onClose} aria-label="Close card selector">
                 <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 rounded-2xl border border-border/60 bg-background/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-              <button
-                type="button"
-                aria-pressed={selectionMode === "collect"}
-                onClick={() => setSelectionMode("collect")}
-                className={`flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
-                  selectionMode === "collect"
-                    ? "border border-emerald-400/50 bg-emerald-400/14 text-emerald-300 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)]"
-                    : "text-muted-foreground hover:bg-background/70 hover:text-foreground dark:hover:bg-white/[0.06]"
-                }`}
-              >
-                <Check className="h-4 w-4" />
-                <span>Add card</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={selectionMode === "wishlist"}
-                onClick={() => setSelectionMode("wishlist")}
-                className={`flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${
-                  selectionMode === "wishlist"
-                    ? "border border-amber-400/55 bg-amber-400/15 text-amber-300 shadow-[0_10px_24px_-18px_rgba(251,191,36,0.85)]"
-                    : "text-muted-foreground hover:bg-background/70 hover:text-foreground dark:hover:bg-white/[0.06]"
-                }`}
-              >
-                <Heart className={`h-4 w-4 ${selectionMode === "wishlist" ? "fill-current" : ""}`} />
-                <span>Wanted</span>
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto px-1 scrollbar-hide sm:flex-wrap sm:gap-2 sm:px-0">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-2xl sm:px-3"
-                onClick={openCardScanner}
-                disabled={isLoading || cards.length === 0 || isScanningCard}
-              >
-                {isScanningCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                <span>{intentCopy.scanLabel}</span>
-              </Button>
-              <Button variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-[12px] sm:h-9 sm:rounded-2xl sm:px-3" onClick={selectWithoutCard}>
-                {intentCopy.emptyActionLabel}
-              </Button>
-              <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[12px] text-muted-foreground sm:rounded-2xl">
-                <Languages className="h-3.5 w-3.5" />
-                <span>{selectedLanguageLabel}</span>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto px-1 scrollbar-hide sm:flex-wrap sm:px-0">
-              {CARD_FINISHES.map((finish) => (
+            <div className="mt-2 flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  aria-label="Search cards"
+                  placeholder={intentCopy.searchPlaceholder}
+                  value={filters.searchQuery || ""}
+                  onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
+                  className="h-11 w-full rounded-2xl border border-border/60 bg-background/85 pl-9 pr-11 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 [&::-webkit-search-cancel-button]:hidden"
+                />
                 <button
-                  key={finish.id}
                   type="button"
-                  aria-pressed={selectedFinish === finish.id}
-                  onClick={() => {
-                    setSelectedFinish(finish.id)
-                    setHasManuallySelectedFinish(true)
-                  }}
-                  className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
-                    selectedFinish === finish.id
-                      ? "border-primary/40 bg-primary/12 text-primary"
-                      : "border-border/50 bg-background/65 text-muted-foreground hover:text-foreground"
-                  }`}
+                  onClick={openCardScanner}
+                  disabled={isLoading || cards.length === 0 || isScanningCard}
+                  aria-label={intentCopy.scanLabel}
+                  className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted/70 hover:text-foreground disabled:opacity-40"
                 >
-                  {finish.label}
+                  {isScanningCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                 </button>
-              ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFiltersOpen(true)}
+                aria-haspopup="dialog"
+                className={`flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border px-3 text-xs font-semibold transition-colors ${
+                  activeFilterChips.length > 0
+                    ? "border-primary/45 bg-primary/12 text-primary"
+                    : "border-border/60 bg-background/85 text-foreground hover:bg-muted/60"
+                }`}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span>Filters · Sort</span>
+                {activeFilterChips.length > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
+                    {activeFilterChips.length}
+                  </span>
+                )}
+              </button>
             </div>
+
+            {activeFilterChips.length > 0 && (
+              <div role="list" aria-label="Active filters" className="-mx-4 mt-2 flex items-center gap-1.5 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
+                {activeFilterChips.map((chip) => (
+                  <span role="listitem" key={chip.key} className="shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => clearFilter(chip.key)}
+                      aria-label={`Remove filter ${chip.label}`}
+                      className="flex h-9 items-center gap-1 rounded-full border border-primary/35 bg-primary/10 pl-3 pr-2 text-xs font-semibold text-primary"
+                    >
+                      <span className="max-w-[10rem] truncate">{chip.label}</span>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                ))}
+                {activeFilterChips.length > 1 && (
+                  <button type="button" onClick={resetFilters} className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                    Clear all
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+
+          {isFiltersOpen && (
+            <CardPickerFiltersSheet
+              sort={sort}
+              onSortChange={updateSort}
+              language={selectedCardLanguage}
+              onLanguageChange={setSelectedCardLanguage}
+              variant={variantChoice}
+              onVariantChange={setVariantChoice}
+              set={filters.set}
+              sets={uniqueSets}
+              onSetChange={(set) => setFilters((f) => ({ ...f, set }))}
+              rarity={filters.rarity}
+              rarities={uniqueRarities}
+              onRarityChange={(rarity) => setFilters((f) => ({ ...f, rarity }))}
+              resultCount={filteredCards.length}
+              onReset={resetFilters}
+              onClose={() => setIsFiltersOpen(false)}
+            />
+          )}
 
           <div
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
@@ -917,123 +986,6 @@ export default function CardSelector({
               touchAction: "pan-y",
             }}
           >
-            <div className="border-b border-border bg-muted/15 px-4 py-3 sm:px-5 sm:py-4">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder={intentCopy.searchPlaceholder}
-                    value={filters.searchQuery || ""}
-                    onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
-                    className="h-11 flex-1 rounded-2xl bg-background/85 text-sm shadow-none"
-                  />
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                  {CARD_LANGUAGES.map((language) => {
-                    const isSelected = selectedCardLanguage === language.id
-
-                    return (
-                      <button
-                        key={language.id}
-                        type="button"
-                        onClick={() => setSelectedCardLanguage(language.id)}
-                        className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
-                          isSelected
-                            ? "border-primary/40 bg-primary/12 text-primary"
-                            : "border-border/50 bg-background/65 text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <span className="sm:hidden">{language.shortLabel}</span>
-                        <span className="hidden sm:inline">{language.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Card art stays on the English print, but pricing is refreshed for the selected card language.
-                </p>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                  <Select
-                    value={filters.set || ALL_FILTERS_VALUE}
-                    onValueChange={(value) => setFilters((f) => ({ ...f, set: value === ALL_FILTERS_VALUE ? undefined : value }))}
-                  >
-                    <SelectTrigger className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
-                      <SelectValue placeholder="All Sets" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ALL_FILTERS_VALUE}>All Sets</SelectItem>
-                      {uniqueSets.map((set) => (
-                        <SelectItem key={set.id} value={set.id}>
-                          {set.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={filters.rarity || ALL_FILTERS_VALUE}
-                    onValueChange={(value) =>
-                      setFilters((f) => ({ ...f, rarity: value === ALL_FILTERS_VALUE ? undefined : value }))
-                    }
-                  >
-                    <SelectTrigger className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
-                      <SelectValue placeholder="All Rarities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ALL_FILTERS_VALUE}>All Rarities</SelectItem>
-                      {uniqueRarities.map((rarity) => (
-                        <SelectItem key={rarity} value={rarity}>
-                          {rarity}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={filters.variant || ALL_FILTERS_VALUE}
-                    onValueChange={(value) =>
-                      setFilters((f) => ({ ...f, variant: value === ALL_FILTERS_VALUE ? undefined : value }))
-                    }
-                  >
-                    <SelectTrigger className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
-                      <SelectValue placeholder="All Variants" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ALL_FILTERS_VALUE}>All Variants</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="holo">Holo</SelectItem>
-                      <SelectItem value="reverse">Reverse Holo</SelectItem>
-                      <SelectItem value="firstEdition">1st Edition</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={sort}
-                    onValueChange={(value) => {
-                      const next = normalizeCardPickerSort(value)
-                      setSort(next)
-                      saveCardPickerSort(next)
-                    }}
-                  >
-                    <SelectTrigger aria-label="Sort cards" className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
-                      <SelectValue placeholder="Default order" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CARD_PICKER_SORTS.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setFilters({})}
-                      className="h-9 rounded-2xl px-3 text-xs text-muted-foreground sm:h-10 sm:px-4 sm:text-sm"
-                    >
-                      Clear {activeFiltersCount}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
 
             {(isScanningCard || scanError || scanMatches.length > 0 || scanPreviewUrl) && (
               <div className="border-b border-border bg-background/70 p-3 sm:p-4">
