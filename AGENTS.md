@@ -174,6 +174,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 - Normalize untrusted input (API bodies, DB rows, localStorage) with the `normalize*` and `is*` helpers before use.
 - API routes return JSON errors with proper status codes (401, 400, 409, 503 and so on), and compare secrets in constant time.
 - Use semantic HTML and ARIA labels on icon-only buttons. e2e tests locate elements by role and accessible name.
+- Pages don't `await` the session or cookies at the top level: pass a promise to a client component and `use()` it inside `<Suspense>`, so the page stays in the static shell. Read the user with `getSessionUser`/`getClaims` (local JWT check), not `getUser()`, except in write routes. See [`nextjs-conventions`](.agents/skills/nextjs-conventions/SKILL.md).
 - Modals and rarely used views load with `next/dynamic`. An SSR-kept dynamic view needs a `loading` option so it gets its own Suspense boundary; without one, the whole shell (including the dock) suspends.
 
 ## Definition of done
@@ -203,6 +204,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 | [offline-and-caching](.agents/skills/offline-and-caching/SKILL.md) | Touching `sw.js`, IndexedDB or the offline queue |
 | [mobile-ui-verification](.agents/skills/mobile-ui-verification/SKILL.md) | Any UI change |
 | [release-and-deploy](.agents/skills/release-and-deploy/SKILL.md) | Opening, checking and merging PRs on the Hobby plan |
+| [nextjs-conventions](.agents/skills/nextjs-conventions/SKILL.md) | Adding or changing pages, layouts, `proxy.ts`, `next.config` or heavy client dependencies (static shells, getClaims, first-load JS) |
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
