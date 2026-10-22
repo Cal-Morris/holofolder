@@ -230,7 +230,7 @@ function getProjectRoot(projectRoot?: string) {
   return projectRoot || process.cwd()
 }
 
-function getRepoDir(projectRoot?: string) {
+function getRepoDir() {
   const configuredRepoDir = process.env.BINDERDEX_TCG_REPO_DIR
   if (configuredRepoDir) {
     return configuredRepoDir
@@ -239,8 +239,8 @@ function getRepoDir(projectRoot?: string) {
   return path.join(os.homedir(), ".cache", "binderdex", "tcgdex-cards-database")
 }
 
-function getDataDir(projectRoot?: string) {
-  return path.join(getRepoDir(projectRoot), "data")
+function getDataDir() {
+  return path.join(getRepoDir(), "data")
 }
 
 function getSchemaSqlPath(projectRoot?: string) {
@@ -308,7 +308,7 @@ async function pathExists(target: string) {
 }
 
 async function ensureCardsDatabaseRepo(projectRoot: string, logger?: (message: string) => void) {
-  const repoDir = getRepoDir(projectRoot)
+  const repoDir = getRepoDir()
   await mkdir(path.dirname(repoDir), { recursive: true })
 
   const hasGitDir = await pathExists(path.join(/*turbopackIgnore: true*/ repoDir, ".git"))
@@ -983,7 +983,7 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
   const matchedPokemonTcgSetIds = new Set<string>()
   const matchedPokemonTcgCardIds = new Set<string>()
 
-  const cardFiles = await findCardFiles(getDataDir(projectRoot))
+  const cardFiles = await findCardFiles(getDataDir())
   logWith(logger, `Found ${cardFiles.length} card files`)
 
   for (const [index, filePath] of cardFiles.entries()) {

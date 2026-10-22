@@ -316,10 +316,6 @@ function resolveSlotImageUrl(pokemonId: number, cardImage?: string | null) {
   return toCardImageSrc(getUsableImageSource(cardImage)) || getPokemonOfficialArtworkUrl(pokemonId)
 }
 
-function getDisplayArtworkFit(cardImage?: string | null) {
-  return "object-contain"
-}
-
 function getDisplayArtworkTone(status?: SlotStatus) {
   return status === "wishlisted" ? "grayscale saturate-[0.8] brightness-[0.92]" : ""
 }
@@ -733,7 +729,7 @@ async function captureGuidedSlotFrame(video: HTMLVideoElement, canvas: HTMLCanva
   }
 }
 
-function getScannerOverlayLayout(result: BinderPageScanResult, rows: number, cols: number) {
+function getScannerOverlayLayout(result: BinderPageScanResult) {
   return result.slots.map((slot) => ({
     left: (slot.x / result.width) * 100,
     top: (slot.y / result.height) * 100,
@@ -948,8 +944,6 @@ export default function BinderApp({
 
   const slotsPerPage = settings.binderRows * settings.binderCols
   const currentPageBinderColorId = settings.binderPageColors[String(currentBinderPage)] ?? settings.binderColorId
-  const currentPageBinderColor = getBinderColorPreset(currentPageBinderColorId)
-  const currentPageBinderTheme = isDarkMode ? currentPageBinderColor.dark : currentPageBinderColor.light
   const isSpreadLayout = isWideBinderSpread || (isCompactViewport && isMobileSpreadPreview)
   const getBinderThemeForPage = useCallback((pageNumber?: number | null) => {
     const binderColorId =
@@ -1571,9 +1565,9 @@ export default function BinderApp({
   const burstPreviewSlots = useMemo(
     () =>
       burstPreviewResult
-        ? getScannerOverlayLayout(burstPreviewResult, settings.binderRows, settings.binderCols)
+        ? getScannerOverlayLayout(burstPreviewResult)
         : [],
-    [burstPreviewResult, settings.binderCols, settings.binderRows],
+    [burstPreviewResult],
   )
 
   const adjustPageForFilters = useEffectEvent(() => {
@@ -2124,22 +2118,6 @@ export default function BinderApp({
     binderStageRef.current = node
     binderRef(node)
   }, [binderRef])
-
-  const handleToggleCollected = async () => {
-    if (!selectedPokemon) return
-    if (readOnlyMode) return
-
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    if (isCollected(selectedPokemon.id)) {
-      await removeFromCollection(selectedPokemon.id)
-    } else {
-      setIsCardSelectorOpen(true)
-    }
-  }
 
   const handleOpenCardSelector = () => {
     if (!selectedPokemon) return
@@ -3800,7 +3778,7 @@ export default function BinderApp({
   const selectedIllustratorName = selectedCardIllustrator?.key === selectedIllustratorLookupKey ? selectedCardIllustrator?.name ?? null : null
   const selectedCurrentCardPreview = selectedSlotCardDisplay.currentCard
   const selectedPokemonDisplayImage = selectedPokemon ? getDetailArtwork(selectedPokemon, selectedPrimaryCardPreview?.cardImage) : null
-  const selectedPokemonDisplayFit = getDisplayArtworkFit(selectedPrimaryCardPreview?.cardImage)
+  const selectedPokemonDisplayFit = "object-contain"
   const selectedPokemonDisplayTone = getDisplayArtworkTone(collectionItem?.status)
   const selectedCardPriceKey = getCollectionItemPriceKey(collectionItem)
   const selectedAssignedPriceSnapshot = selectedCardPriceKey ? pricesByCardId[selectedCardPriceKey] : undefined

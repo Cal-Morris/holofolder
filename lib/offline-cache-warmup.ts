@@ -1,6 +1,6 @@
 export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
 
-import { normalizeCardLanguage, type CardLanguage } from "@/lib/domain/cards"
+import { normalizeCardLanguage } from "@/lib/domain/cards"
 import { getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
 
 interface OfflineCacheWarmupWantedCard {
