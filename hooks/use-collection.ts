@@ -76,7 +76,8 @@ import {
 } from "@/lib/collection/remote"
 import { isOwnedCollectionItem, planOwnedRemoval, type OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { resolveWantedCardsAfterOwnedAdd } from "@/lib/collection/owned-add"
-import { loadCollectionRows } from "@/lib/collection/load"
+import { syncCollectionRows } from "@/lib/collection/load"
+import { collectionBaselineRows, createCollectionBaseline, type CollectionSyncBaseline } from "@/lib/collection/delta-sync"
 
 /** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
 export type CollectionSyncStatus = "idle" | "syncing" | "waiting"
@@ -125,6 +126,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
   const [ownerResolvedForUserId, setOwnerResolvedForUserId] = useState<string | null>(initialCollectionOwnerUserId ? initialUser?.id ?? null : null)
   const authenticatedUserId = useRef(initialUser?.id ?? null)
+  // Server rows last read, so refreshes can fetch only what changed (lib/collection/delta-sync.ts).
+  // Seeded from the server-rendered rows; rows without updated_at (local snapshots) just mean a full first fetch.
+  const collectionBaselineRef = useRef<CollectionSyncBaseline | null>(
+    initialCollectionOwnerUserId && initialCollection.length > 0
+      ? createCollectionBaseline(initialCollectionOwnerUserId, initialCollection as Record<string, unknown>[])
+      : null,
+  )
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
   const [localPendingSyncCount, setLocalPendingSyncCount] = useState(0)
   const [syncStatus, setSyncStatus] = useState<CollectionSyncStatus>("idle")
@@ -314,11 +322,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
       if (refreshPlan) {
         const ownerUserId = refreshPlan.knownOwnerUserId ?? await resolveCollectionOwnerUserId(refreshPlan.user)
-        const { data, error } = await loadCollectionRows(supabase, ownerUserId)
-
-        if (error) throw error
+        const baseline = await syncCollectionRows(supabase, ownerUserId, collectionBaselineRef.current)
+        collectionBaselineRef.current = baseline
         // Queued edits stay visible until they are synced.
-        setCollection(applyPendingEdits(normalizeCollectionItems(data), readPendingCollectionOperations()))
+        setCollection(applyPendingEdits(normalizeCollectionItems(collectionBaselineRows(baseline)), readPendingCollectionOperations()))
       } else {
         setCollection([])
       }
@@ -363,6 +370,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (authenticatedUserId.current !== (session?.user.id ?? null)) {
+        collectionBaselineRef.current = null
         setCollection([])
         setCollectionOwnerUserId(null)
         setOwnerResolvedForUserId(null)
@@ -378,9 +386,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
           void (async () => {
             const ownerUserId = await resolveCollectionOwnerUserId(sessionUser)
             if (authenticatedUserId.current !== sessionUser.id) return
-            const { data } = await loadCollectionRows(supabase, ownerUserId)
-
-            if (authenticatedUserId.current === sessionUser.id) setCollection(applyPendingEdits(normalizeCollectionItems(data), readPendingCollectionOperations()))
+            const baseline = await syncCollectionRows(supabase, ownerUserId, collectionBaselineRef.current)
+            if (authenticatedUserId.current !== sessionUser.id) return
+            collectionBaselineRef.current = baseline
+            setCollection(applyPendingEdits(normalizeCollectionItems(collectionBaselineRows(baseline)), readPendingCollectionOperations()))
           })().catch(error => console.error("[binderdex] Error refreshing signed-in collection:", error))
         }, 0)
       } else {
