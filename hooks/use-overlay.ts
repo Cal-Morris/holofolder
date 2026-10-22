@@ -85,6 +85,16 @@ function unlockScroll() {
   }
 }
 
+/**
+ * Run a navigation once the history entries of overlays that just closed are popped, so the back traversal
+ * can't undo it. Call it after the closing render has committed (e.g. from an effect).
+ */
+export function runAfterOverlayHistory(navigate: () => void) {
+  if (typeof window === "undefined") return
+  installGlobalPopstateListener()
+  requestHistoryPush(navigate)
+}
+
 /** Close every open overlay (used when switching main views/tabs). */
 export function closeAllOverlays() {
   stack.closeAll()

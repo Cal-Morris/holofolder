@@ -35,8 +35,9 @@ Verification: row count, owned and wanted counts, and an md5 over (pokemon_id, c
   then the default. It passes `binderId` and the binder list to the client. Switching binders navigates and remounts the app (`key=binderId`).
 - Delta-sync baselines are keyed by owner + binder. Queued edits carry `binderId` and the API writes to that binder;
   edits for another binder still flush, but only update the screen when that binder is open.
-- The localStorage and IndexedDB snapshot carries `binderId` and is only applied to the same binder. The default binder keeps the
-  existing keys, and other binders use `…:<binderId>` keys, so offline at a show you can open any binder you've opened before.
+- The localStorage and IndexedDB snapshot carries `binderId` and is only applied to the same binder (shipped). Switching binders
+  needs a connection for now. Follow-up: keep one snapshot per binder (`…:<binderId>` keys) so any binder opened before also
+  opens offline.
 - Realtime stays per owner, so any binder change triggers a (cheap) delta refresh.
 
 ## Share links

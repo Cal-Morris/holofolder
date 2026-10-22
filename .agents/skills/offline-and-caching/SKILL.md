@@ -17,6 +17,7 @@ description: Change binderdex offline behaviour, including the service worker (p
 - **`app/app-shell/` and `components/offline-app-shell.tsx`**: a static shell that boots `BinderApp` from on-device data only (session from the cookie, collection snapshot, stored settings). The pure logic is in `lib/offline-shell.ts`.
 - **`lib/collection/offline-queue.ts`**:
   - The localStorage snapshot `pokemon_collection_snapshot_v1` and pending ops `pokemon_collection_pending_ops_v1`. localStorage is the synchronous first read.
+  - Snapshots and queued ops carry a `binderId`. A snapshot is only applied to the binder it was saved for, and queued ops flush to their own binder (ops without one go to the default binder). Switching binders needs a connection for now.
   - `hooks/use-collection.ts` flushes the queue when online, and polls or listens via Realtime.
 - **`lib/collection/sync.ts`**: the conflict model for queued writes.
   - Each edit stores its base row, and `/api/collection` does compare-and-set on `baseFingerprint`, answering `409` with the current row.

@@ -8,7 +8,7 @@ binderdex is a mobile-first Pokémon binder tracker, live at https://binder.cal.
 - National Dex binder pages
 - collection and wanted lists
 - card matching and camera scanning
-- partner (shared) collections and read-only share links
+- several named binders per owner, partner (shared) collections and read-only share links per binder
 - card prices with confidence-gated signals
 - an installable PWA that works offline
 
@@ -25,7 +25,7 @@ Stack:
 | Path | What lives there |
 |---|---|
 | `app/` | Routes and API handlers. `page.tsx` is the binder (server bootstrap via `lib/server/`), plus `home/`, `auth/`, `share/` (read-only binders) and `app-shell/` (static offline shell). `e2e-harness/` is served only when `BINDERDEX_E2E=1`. |
-| `app/api/` | `collection`, `settings`, `binder-share`, `card-prices` (+ `refresh` for the cron and on-demand workflow), `tcgdex-cache`, `tcg-set-slots`, `tcg-card-search`, `card-image-proxy`, and `admin/{sync-card-db,mirror-card-images}`. |
+| `app/api/` | `collection`, `binders` (create, rename, reorder, delete), `settings`, `binder-share`, `card-prices` (+ `refresh` for the cron and on-demand workflow), `tcgdex-cache`, `tcg-set-slots`, `tcg-card-search`, `card-image-proxy`, and `admin/{sync-card-db,mirror-card-images}`. |
 | `proxy.ts` | Next 16 request proxy (formerly middleware). It refreshes the Supabase session. |
 | `components/` | `binder-app.tsx` is the main client app (binder, list, wanted and sets views, dock, card detail sheet). Modals and secondary views (`settings-modal`, `auth-modal`, `partner-modal`, `card-selector`, `pokemon-cards-browser`, `dex-list-view`, `set-population-view`) are `next/dynamic` imports. |
 | `hooks/` | `use-collection` (sync boundary: optimistic edits, offline queue, realtime and polling), `use-settings`, `use-card-prices`, `use-overlay` (the shared overlay primitive), `use-tcgdex`, `use-partner`, `use-offline-store-sync`, `use-collapse-on-scroll`, `use-touch-gestures`. |
@@ -50,8 +50,9 @@ Stack:
 
 1. **Card data (TCGdex mirror).** `bun run sync-card-db` or `POST /api/admin/sync-card-db` loads TCGdex series, sets, cards, dex links and external ids into the Postgres tables `tcg_*` (migration 004). The app reads them through `lib/tcg-mirror.ts`, which uses cached queries tagged `tcg-mirror` and revalidated after a sync. These reads are served via `/api/tcgdex-cache`, `/api/tcg-set-slots` and `/api/tcg-card-search`.
 2. **User data (Supabase).**
-   - `pokemon_collection` (one row per Pokémon, with `status`, the owned printing and a `wanted_cards` JSONB list), `user_settings`, `partnerships` / `partner_invites` and `binder_shares`, all with RLS.
-   - Partners share the owner's collection (`lib/server/collection-owner.ts`).
+   - `binders` (named binders per owner, one `is_default`; `docs/multiple-binders.md`), `pokemon_collection` (one row per Pokémon per binder, keyed `(binder_id, pokemon_id)`, with `status`, the owned printing and a `wanted_cards` JSONB list), `user_settings`, `partnerships` / `partner_invites` and `binder_shares`, all with RLS.
+   - Partners share the owner's collection (`lib/server/collection-owner.ts`), so they get every binder of the owner automatically.
+   - Every collection read and write is scoped by binder (`scopeCollectionQuery` in `lib/collection/load.ts`). `/` opens `?binder=`, else the `binderdex_binder` cookie (last opened on this device), else the default; `BinderApp` remounts per binder. Requests without a binder id use the owner's default binder.
    - Clients write through `/api/collection` and `/api/settings`. Edits are optimistic and queued in localStorage (`lib/collection/offline-queue.ts`), mirrored to IndexedDB, and flushed when back online, on new edits, and when the app becomes visible.
    - Queued collection writes send a `baseFingerprint`. The API does compare-and-set and answers `409` with the current row on a conflict, and the client does a three-way merge (`lib/collection/sync.ts`).
    - Retries use exponential backoff. A hard 4xx rolls the edit back and tells the user.
