@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, use, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowUpRight, BookOpen, Camera, Heart, Share2, Users, Wifi } from "lucide-react"
@@ -22,12 +22,27 @@ const features = [
   { id: "offline", icon: Wifi, title: "Offline access.", text: "Install BinderDex on your phone and keep your collection to hand. Offline edits sync when you’re connected again." },
 ]
 
-export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean }) {
+const SIGNED_OUT: Promise<boolean> = Promise.resolve(false)
+
+function SignedInTextValue({ signedIn, yes, no }: { signedIn: Promise<boolean>; yes: ReactNode; no: ReactNode }) {
+  return <>{use(signedIn) ? yes : no}</>
+}
+
+/** Signed-out text in the static shell; swaps to the signed-in text once the session check streams in. */
+function SignedInText(props: { signedIn: Promise<boolean>; yes: ReactNode; no: ReactNode }) {
+  return <Suspense fallback={props.no}><SignedInTextValue {...props} /></Suspense>
+}
+
+/**
+ * The landing page. Everything except the signed-in labels is prerendered into the static shell:
+ * `signedIn` is a promise the server starts (it reads cookies) and streams in after the shell.
+ */
+export default function HomePage({ signedIn = SIGNED_OUT }: { signedIn?: Promise<boolean> }) {
   useServiceWorkerRegistration()
   const router = useRouter()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const openAuthOrApp = () => {
-    if (isSignedIn) router.push("/")
+  const openAuthOrApp = async () => {
+    if (await signedIn) router.push("/")
     else setIsAuthOpen(true)
   }
 
@@ -37,7 +52,7 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
       <header className={styles.header}>
         <a href="#top" className={styles.brand}><span className={styles.brandMark} aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>BinderDex</a>
         <MarketingNavigation />
-        <button type="button" onClick={openAuthOrApp} className={styles.smallButton}>{isSignedIn ? "Open app" : "Sign in"}</button>
+        <button type="button" onClick={openAuthOrApp} className={styles.smallButton}><SignedInText signedIn={signedIn} yes="Open app" no="Sign in" /></button>
       </header>
 
       <section className={styles.hero} aria-labelledby="hero-heading">
@@ -45,7 +60,7 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
           <h1 id="hero-heading">Show us<br />your binder.</h1>
           <p className={styles.intro}>Keep track of your Pokémon cards, right down to the pocket.</p>
           <div className={styles.actions}>
-            <button type="button" onClick={openAuthOrApp} className={styles.primaryButton}>{isSignedIn ? "Open your binder" : "Start your collection"}<ArrowUpRight size={18} /></button>
+            <button type="button" onClick={openAuthOrApp} className={styles.primaryButton}><SignedInText signedIn={signedIn} yes="Open your binder" no="Start your collection" /><ArrowUpRight size={18} /></button>
             <Link href="/studio" className={styles.textLink}>Try the binder studio <ArrowUpRight size={16} /></Link>
           </div>
         </div>
@@ -101,7 +116,7 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
           <p className={styles.priceAmount}>Free</p>
           <p className={styles.accessNote}>No subscription fee during early access.</p>
           <ul><li>National Dex tracking and wanted lists</li><li>Card prices, history and market signals</li><li>Card and page scanning</li><li>Partner collections and share links</li><li>Offline collection access</li><li>Binder Studio appearance designer</li></ul>
-          <button type="button" onClick={openAuthOrApp} className={styles.primaryButton}>{isSignedIn ? "Open your collection" : "Start collecting"}<ArrowUpRight size={18} /></button>
+          <button type="button" onClick={openAuthOrApp} className={styles.primaryButton}><SignedInText signedIn={signedIn} yes="Open your collection" no="Start collecting" /><ArrowUpRight size={18} /></button>
         </article>
       </section>
 
@@ -116,7 +131,7 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
 
       <footer className={styles.footer}><div><a href="#top" className={styles.brand}>BinderDex</a></div><CardDataAttribution className={styles.attribution} /></footer>
     </main>
-    {!isSignedIn ? <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} /> : null}
+    <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </>
   )
 }
