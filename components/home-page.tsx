@@ -3,8 +3,8 @@
 import { Suspense, use, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { ArrowUpRight, BookOpen, Camera, Heart, Share2, Users, Wifi } from "lucide-react"
-import AuthModal from "@/components/auth-modal"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { MarketingCardFan } from "@/components/marketing-card-fan"
 import { MarketingBinderPreview } from "@/components/marketing-binder-preview"
@@ -12,6 +12,10 @@ import { MarketingNavigation } from "@/components/marketing-navigation"
 import { FEATURED_CARDS, getFeaturedCardImageSrcSet, getFeaturedCardImageUrl } from "@/lib/featured-cards"
 import styles from "@/components/home-page.module.css"
 import { useServiceWorkerRegistration } from "@/hooks/use-service-worker-registration"
+
+// Client-only and loaded after hydration: keeps supabase-js and the sign-in form off the landing
+// page's critical path. A tap before it arrives still opens it, because isOpen is already true.
+const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr: false })
 
 const features = [
   { id: "collection-tracking", icon: BookOpen, title: "Collection tracking.", text: "Match each Pokémon to the card you own. Keep its set, language and finish with it, and mark the cards you want to upgrade." },
