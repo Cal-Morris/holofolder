@@ -37,6 +37,7 @@ import {
   formatDisplayAmount,
   formatDisplayRange,
   formatDisplayTotals,
+  formatMoney,
   formatRegionalPriceLabel,
   getRegionalFinishPrices,
   regionalizeCardPrices,
@@ -82,6 +83,10 @@ import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
 import { SHOW_MODE_PROMPT_KEY, parsePromptSnooze, shouldOfferShowMode } from "@/lib/show-mode"
 import { useShowMode } from "@/hooks/use-show-mode"
+import { useShowSession } from "@/hooks/use-show-session"
+import { summarizeShowSession } from "@/lib/show-session"
+import type { SearchCardResult } from "@/lib/pokemon-card-browse"
+import type { QuickCardAction } from "@/components/quick-card-check"
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
@@ -498,6 +503,7 @@ export default function BinderApp({
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false)
   const { isShowModeOn, setShowMode } = useShowMode()
+  const showSession = useShowSession()
   // "Not now" on the binder's Show mode card. Read after mount so server and client renders agree.
   const [showModePromptSnoozedAt, setShowModePromptSnoozedAt] = useState<number | null | undefined>(undefined)
   const quickPressTimerRef = useRef<number | null>(null)
@@ -3438,6 +3444,66 @@ export default function BinderApp({
     }
     setShowModePromptSnoozedAt(now)
   }, [])
+  // Show mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
+  const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }) => {
+    const item = getCollectionItem(pokemon.id)
+    return {
+      owned: item?.status === "collected" && Boolean(item.card_id) && matchesCatalogCardId(card, item.card_id as string),
+      wanted: Boolean(item?.wanted_cards?.some((wanted) => matchesCatalogCardId(card, wanted.card_id))),
+    }
+  }, [getCollectionItem])
+  const handleQuickCardAction = useCallback(async (
+    action: QuickCardAction,
+    card: SearchCardResult,
+    pokemon: { id: number; name: string },
+    finish: CardFinish,
+  ): Promise<(() => Promise<void>) | null> => {
+    if (readOnlyMode) return null
+    if (!user) {
+      setIsQuickModeOpen(false)
+      openExclusively(() => setIsAuthOpen(true))
+      return null
+    }
+    const previous = getCollectionItem(pokemon.id)
+    const snapshot = previous ? { ...previous, wanted_cards: [...(previous.wanted_cards ?? [])] } : null
+    const undo = async () => {
+      if (snapshot) await restoreCollectionItem(snapshot)
+      else await removeFromCollection(pokemon.id)
+    }
+    const language = (card.language ?? "en") as CardLanguage
+    if (action === "want") {
+      if (getQuickCardState(card, pokemon).wanted) return null
+      await addWantedCard(pokemon.id, pokemon.name, {
+        card_id: card.id,
+        card_name: card.name,
+        card_image: card.image,
+        card_set: card.set.name,
+        card_language: language,
+        card_finish: finish,
+        rarity: card.rarity,
+        local_id: card.localId,
+        set_total: card.set.officialCardCount,
+        added_at: new Date().toISOString(),
+      })
+      return undo
+    }
+    // Bought, Add owned and Got it all put this printing in the binder and take it off the want list.
+    if (getQuickCardState(card, pokemon).owned && previous?.card_finish === finish) return null
+    await addToCollection(pokemon.id, pokemon.name, card.id, card.name, card.image, card.set.name, language, "collected", {
+      cardFinish: finish,
+      wantedCards: (previous?.wanted_cards ?? []).filter((wanted) => !matchesCatalogCardId(card, wanted.card_id)),
+      cardIds: catalogCardIds(card),
+    })
+    return undo
+  }, [addToCollection, addWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
+  const quickCardCheck = useMemo(
+    () => (isShowModeOn
+      ? { currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, getCardState: getQuickCardState, onAction: handleQuickCardAction }
+      : undefined),
+    [fxRates, getQuickCardState, handleQuickCardAction, isShowModeOn, pricingPreferences.currency, readOnlyMode],
+  )
+  const showTally = useMemo(() => summarizeShowSession(showSession.session), [showSession.session])
+
   const isShowModeOfferVisible =
     !readOnlyMode &&
     activeMainView === "binder" &&
@@ -4548,8 +4614,9 @@ export default function BinderApp({
       ) : null}
 
       {/* Pending-sync indicator and rollback notice (minimal markup; reuses the offline pill's look). */}
-      {isOnline && user && !readOnlyMode && (localPendingSyncCount > 0 || syncNotice) && (
-        <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.45rem)] z-50 flex justify-center px-3">
+      {/* In Show mode the banner carries the pending count, so only a rollback notice floats (below the banner). */}
+      {isOnline && user && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) && (
+        <div className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 ${isShowModeOn ? "top-[calc(env(safe-area-inset-top)+3.75rem)]" : "top-[calc(env(safe-area-inset-top)+0.45rem)]"}`}>
           <div
             role="status"
             data-sync-status={syncNotice ? "rolled-back" : syncStatus}
@@ -4585,8 +4652,10 @@ export default function BinderApp({
               <p className="min-w-0 flex-1 leading-tight">
                 <span className="block text-sm font-bold">Show mode on</span>
                 <span role="status" className="block truncate text-[11px] font-medium text-black/70">
-                  {isOnline
-                    ? "Screen stays on"
+                  {showTally.count > 0 && showTally.currency
+                    ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}${isOnline ? (user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} syncing` : "") : " · offline"}`
+                    : isOnline
+                    ? user && localPendingSyncCount > 0 ? `${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} syncing` : "Screen stays on"
                     : `Offline${user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} to sync` : " · using saved cards and prices"}`}
                 </span>
               </p>
@@ -5327,6 +5396,7 @@ export default function BinderApp({
           isOnline={isOnline}
           hiddenDestinations={readOnlyMode ? ["scan", "analytics", "settings"] : []}
           showModeOn={isShowModeOn}
+          cardCheck={quickCardCheck}
         />
       )}
 
