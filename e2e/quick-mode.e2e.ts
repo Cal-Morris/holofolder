@@ -77,6 +77,12 @@ test.describe("quick mode", () => {
     await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmander, 151 /i }).first().click()
     await expect(dialog).toBeHidden()
     await expect(harness.page.getByRole("dialog", { name: /charmander/i })).toBeVisible()
+
+    // The pick is shared with Search's "Recently viewed" row.
+    await harness.page.keyboard.press("Escape")
+    await expect(harness.dialogs()).toHaveCount(0)
+    await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
+    await expect(harness.page.getByRole("region", { name: "Recently viewed cards" }).getByRole("button", { name: /^Charmander / }).first()).toBeVisible()
   })
 
   test("Enter takes the top Pokémon to its binder slot, and the search is remembered", async ({ harness }) => {

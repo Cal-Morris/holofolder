@@ -164,7 +164,8 @@ export default function QuickMode({
     event.preventDefault()
     if (destinations[0] && pokemonResults.length === 0 && cardResults.length === 0) go(destinations[0].id)
     else if (pokemonResults[0]) pickPokemon(pokemonResults[0])
-    else if (cardResults[0]) pickCard(cardResults[0].card, cardResults[0].pokemon) else if (destinations[0]) go(destinations[0].id)
+    else if (cardResults[0]) pickCard(cardResults[0].card, cardResults[0].pokemon)
+    else if (destinations[0]) go(destinations[0].id)
   }
 
   const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0
