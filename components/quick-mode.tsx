@@ -4,12 +4,14 @@
 // app destinations, Pokémon, cards (offline: the cards on this device) and illustrators. See
 // lib/quick-mode.ts for the pure helpers and docs in AGENTS.md (Quick mode).
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import dynamic from "next/dynamic"
 import {
   BarChart3,
   Camera,
   Grid3X3,
   Heart,
   History,
+  Layers,
   Layers3,
   ListChecks,
   Loader2,
@@ -40,6 +42,33 @@ import {
   type QuickDestination,
   type QuickDestinationId,
 } from "@/lib/quick-mode"
+import { formatMoney, type DisplayFxRates } from "@/lib/regional-price"
+import type { DisplayCurrency } from "@/lib/pricing-region"
+import type { CardFinish } from "@/lib/domain/cards"
+import type { QuickBundleEntry, QuickCardAction, QuickCardState } from "@/components/quick-card-check"
+
+const QuickCardCheck = dynamic(() => import("@/components/quick-card-check"), { ssr: false })
+const QuickBundle = dynamic(() => import("@/components/quick-bundle"), { ssr: false })
+
+const BUNDLE_KEY = "binderdex:show-bundle:v1"
+
+function readBundle(): QuickBundleEntry[] {
+  try {
+    const value = JSON.parse(window.sessionStorage.getItem(BUNDLE_KEY) ?? "[]")
+    return Array.isArray(value) ? value.filter((entry) => entry && typeof entry.key === "string" && entry.card) : []
+  } catch {
+    return []
+  }
+}
+
+/** Show mode's deal checker: tapping a card opens its check instead of the card browser. */
+export interface QuickCardCheckOptions {
+  currency: DisplayCurrency
+  fxRates?: DisplayFxRates | null
+  readOnly?: boolean
+  getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }) => QuickCardState
+  onAction: (action: QuickCardAction, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => Promise<(() => Promise<void>) | null>
+}
 
 const DESTINATION_ICONS: Record<QuickDestinationId, LucideIcon> = {
   binder: Grid3X3,
@@ -73,6 +102,8 @@ export interface QuickModeProps {
   isOnline: boolean
   /** Destinations hidden in this context (e.g. scan while read-only). */
   hiddenDestinations?: readonly QuickDestinationId[]
+  /** Set (in Show mode) to check prices: a picked card opens its deal check. */
+  cardCheck?: QuickCardCheckOptions
 }
 
 function cardThumbnail(image?: string) {
@@ -96,7 +127,19 @@ export default function QuickMode({
   isOnline,
   hiddenDestinations = [],
   showModeOn = false,
+  cardCheck,
 }: QuickModeProps) {
+  const [checking, setChecking] = useState<{ card: SearchCardResult; pokemon: { id: number; name: string } } | null>(null)
+  const [isBundleOpen, setIsBundleOpen] = useState(false)
+  const [bundle, setBundle] = useState<QuickBundleEntry[]>(() => (typeof window === "undefined" ? [] : readBundle()))
+  const updateBundle = useCallback((next: QuickBundleEntry[]) => {
+    setBundle(next)
+    try {
+      window.sessionStorage.setItem(BUNDLE_KEY, JSON.stringify(next))
+    } catch {
+      // The bundle still works for this visit.
+    }
+  }, [])
   const [query, setQuery] = useState("")
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentQuickSearches(typeof window === "undefined" ? undefined : window.localStorage))
   const dialogRef = useRef<HTMLDivElement | null>(null)
@@ -152,8 +195,9 @@ export default function QuickMode({
   const pickCard = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }) => {
     remember()
     writeRecentCards(window.localStorage, addRecentCard(readRecentCards(window.localStorage), toRecentCard(card, pokemon)))
-    onSelectCard(card, pokemon)
-  }, [onSelectCard, remember])
+    if (cardCheck) setChecking({ card, pokemon })
+    else onSelectCard(card, pokemon)
+  }, [cardCheck, onSelectCard, remember])
 
   const go = useCallback((destination: QuickDestinationId) => {
     remember()
@@ -191,7 +235,7 @@ export default function QuickMode({
         <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold leading-tight">Quick mode</h2>
-            <p className="truncate text-xs text-muted-foreground">Search anything, or jump straight there.</p>
+            <p className="truncate text-xs text-muted-foreground">{cardCheck ? "Find a card to check its price." : "Search anything, or jump straight there."}</p>
           </div>
           {!isOnline && (
             <span role="status" className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
@@ -208,6 +252,38 @@ export default function QuickMode({
           </button>
         </header>
 
+        {cardCheck && checking ? (
+          <QuickCardCheck
+            key={`${checking.card.id}:${checking.card.language ?? "en"}`}
+            card={checking.card}
+            pokemon={checking.pokemon}
+            state={cardCheck.getCardState(checking.card, checking.pokemon)}
+            currency={cardCheck.currency}
+            fxRates={cardCheck.fxRates}
+            pricingRegion={pricingRegion}
+            isOnline={isOnline}
+            readOnly={cardCheck.readOnly}
+            onBack={() => {
+              setChecking(null)
+              window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
+            }}
+            onOpenDetails={() => onSelectCard(checking.card, checking.pokemon)}
+            onAction={(action, finish) => cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
+            isInBundle={(key) => bundle.some((entry) => entry.key === key)}
+            onAddToBundle={(entry) => updateBundle([...bundle.filter((item) => item.key !== entry.key), entry])}
+          />
+        ) : cardCheck && isBundleOpen ? (
+          <QuickBundle
+            entries={bundle}
+            currency={cardCheck.currency}
+            readOnly={cardCheck.readOnly}
+            onBack={() => setIsBundleOpen(false)}
+            onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
+            onClear={() => updateBundle([])}
+            onAction={(action, entry) => cardCheck.onAction(action, entry.card, entry.pokemon, entry.finish)}
+          />
+        ) : (
+        <>
         {/* Results grow upwards from the search field so the best match sits nearest the thumb. */}
         <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-2 pb-2" data-testid="quick-results">
           <div>
@@ -342,6 +418,22 @@ export default function QuickMode({
         </div>
 
         <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
+          {cardCheck && bundle.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsBundleOpen(true)}
+              className="mb-2 flex h-12 w-full items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-left text-sm font-semibold text-primary"
+            >
+              <Layers className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">
+                Bundle · {bundle.length} card{bundle.length === 1 ? "" : "s"}
+                {bundle.some((entry) => entry.marketPrice !== null)
+                  ? ` · market ${formatMoney(bundle.reduce((sum, entry) => sum + (entry.marketPrice ?? 0), 0), bundle[0].currency)}`
+                  : ""}
+              </span>
+              <span className="shrink-0">Check bundle</span>
+            </button>
+          )}
           <label className="relative block">
             <span className="sr-only">Search cards, Pokémon, sets and pages</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -362,6 +454,8 @@ export default function QuickMode({
             />
           </label>
         </div>
+        </>
+        )}
       </div>
     </div>
   )

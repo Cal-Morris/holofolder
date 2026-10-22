@@ -6,6 +6,7 @@ import { CardDataAttribution } from "@/components/card-data-attribution"
 import { PricingPreferencesSettings } from "@/components/pricing-preferences-settings"
 import { useOverlay } from "@/hooks/use-overlay"
 import { useShowMode } from "@/hooks/use-show-mode"
+import { DealThresholdSettings, ShowTallySettings } from "@/components/deal-settings"
 import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone, Ticket } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -284,11 +285,13 @@ export default function SettingsModal({
               <div className="space-y-1">
                 <p className="text-sm font-medium">Show mode</p>
                 <p className="text-xs text-muted-foreground">
-                  For card shows: Search opens Quick mode, the screen stays on, and a banner shows it&apos;s on. Saved on this device.
+                  For card shows: Search opens Quick mode, tapping a card checks an asking price, and the screen stays on. Saved on this device.
                 </p>
               </div>
               <Switch checked={isShowModeOn} onCheckedChange={setShowMode} aria-label="Show mode" />
             </div>
+            <DealThresholdSettings />
+            <ShowTallySettings />
             <div className="flex items-center gap-2">
               {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
               <h3 className="font-semibold">Appearance</h3>

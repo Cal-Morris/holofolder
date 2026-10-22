@@ -1,0 +1,291 @@
+"use client"
+
+// Show mode's card check: what you need at a stall, one-handed. Ownership state, the market price for the
+// chosen variant, an asking-price keypad with a verdict (lib/deal-check.ts), and big Bought / Add owned /
+// Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Check, ExternalLink, Heart, Layers, Plus, ShoppingBag, TrendingUp, WifiOff } from "lucide-react"
+import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
+import { getCardPriceKey } from "@/hooks/use-card-prices"
+import { useShowSession } from "@/hooks/use-show-session"
+import { toCardImageSrc } from "@/lib/card-image-url"
+import { formatCardNumber, inferCardFinish, type SearchCardResult } from "@/lib/pokemon-card-browse"
+import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
+import { convertGbpForDisplay, formatMoney, getRegionalFinishPrices, type DisplayFxRates } from "@/lib/regional-price"
+import type { DisplayCurrency, PricingRegion } from "@/lib/pricing-region"
+import type { PricedCardFinish } from "@/lib/card-pricing"
+import type { CardFinish } from "@/lib/domain/cards"
+import { getPriceDataAgeDays } from "@/lib/price-freshness"
+import { getRisingMomentum } from "@/lib/price-momentum"
+import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
+import { formatCardFinishLabel } from "@/lib/card-labels"
+import UndoSnackbar from "@/components/undo-snackbar"
+import { DealKeypad, DealVerdictPanel } from "@/components/deal-keypad"
+
+export type QuickCardAction = "bought" | "add-owned" | "want" | "got"
+
+export interface QuickCardState {
+  owned: boolean
+  wanted: boolean
+}
+
+/** A card waiting in the bundle, priced in the display currency when the check was made. */
+export interface QuickBundleEntry {
+  key: string
+  card: SearchCardResult
+  pokemon: { id: number; name: string }
+  finish: CardFinish
+  marketPrice: number | null
+  currency: MoneyCurrency
+}
+
+export type MoneyCurrency = Parameters<typeof formatMoney>[1]
+
+export interface QuickCardCheckProps {
+  card: SearchCardResult
+  pokemon: { id: number; name: string }
+  state: QuickCardState
+  currency: DisplayCurrency
+  fxRates?: DisplayFxRates | null
+  pricingRegion: PricingRegion
+  isOnline: boolean
+  readOnly?: boolean
+  onBack: () => void
+  onOpenDetails: () => void
+  /** Runs the action; resolves to an undo function, or null when nothing changed. */
+  onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
+  isInBundle: (key: string) => boolean
+  onAddToBundle: (entry: QuickBundleEntry) => void
+}
+
+export function bundleKey(card: SearchCardResult, finish: string) {
+  return `${card.id}:${card.language ?? "en"}:${finish}`
+}
+
+export function formatPriceAge(fetchedAt: number | undefined, now: number) {
+  if (!fetchedAt) return null
+  const minutes = Math.max(0, Math.round((now - fetchedAt) / 60_000))
+  if (minutes < 2) return "just now"
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 48) return `${hours} h ago`
+  return `${Math.round(hours / 24)} days ago`
+}
+
+export default function QuickCardCheck({
+  card,
+  pokemon,
+  state,
+  currency,
+  fxRates: fxRatesProp,
+  pricingRegion,
+  isOnline,
+  readOnly = false,
+  onBack,
+  onOpenDetails,
+  onAction,
+  isInBundle,
+  onAddToBundle,
+}: QuickCardCheckProps) {
+  const language = card.language ?? "en"
+  const lookups = useMemo(() => [{ cardId: card.id, language }], [card.id, language])
+  const { pricesByCardId, fxRates: hookRates, isLoading } = useRegionalCardPrices(lookups, true, pricingRegion)
+  const snapshot = pricesByCardId[getCardPriceKey(card.id, language)]
+  const fxRates = fxRatesProp ?? hookRates ?? null
+  const context = useMemo(() => ({ currency, fxRates }), [currency, fxRates])
+  const [thresholds] = useState(() => readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
+  const { logPurchases, removePurchases } = useShowSession()
+
+  const inferred = inferCardFinish(card.rarity, card.variants)
+  const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any"), [card.variants, inferred])
+  const [finish, setFinish] = useState<CardFinish>(finishChoices[0]?.finish ?? inferred)
+  const finishPrices = useMemo(() => getRegionalFinishPrices(snapshot, pricingRegion), [pricingRegion, snapshot])
+  // A variant with its own quote uses it; otherwise the headline price stands for the card's main printing.
+  const price = finishPrices[finish as PricedCardFinish] ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
+
+  const toDisplay = useCallback((gbp: number | null | undefined) => (typeof gbp === "number" && gbp > 0 ? convertGbpForDisplay(gbp, context, snapshot) : null), [context, snapshot])
+  const market = toDisplay(price?.gbpAmount)
+  const low = toDisplay(price?.lowGbpAmount)
+  const high = toDisplay(price?.highGbpAmount)
+  const moneyCurrency = market?.currency ?? currency
+  const money = (amount: number) => formatMoney(amount, moneyCurrency)
+
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const dataAgeDays = getPriceDataAgeDays(price?.updatedAt ?? snapshot?.updatedAt, now)
+  const isRising = Boolean(getRisingMomentum(snapshot, now))
+  const cacheAge = formatPriceAge(snapshot?.fetchedAt, now)
+
+  const [input, setInput] = useState("")
+  const askingPrice = parseAskingPrice(input)
+  const deal = askingPrice && market
+    ? checkDeal({ askingPrice, marketPrice: market.amount, thresholds, confidence: price?.confidence, dataAgeDays, isRising })
+    : null
+
+  const [busy, setBusy] = useState(false)
+  const [undo, setUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
+  const run = async (action: QuickCardAction) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const revert = await onAction(action, finish)
+      const purchaseIds = action === "bought" && askingPrice
+        ? logPurchases([{ cardId: card.id, cardName: card.name, language, finish, price: askingPrice, marketPrice: market?.amount ?? null, currency: moneyCurrency }])
+        : []
+      navigator.vibrate?.(action === "bought" ? [12, 40, 12] : 15)
+      const message = action === "bought"
+        ? `Bought ${card.name}${askingPrice ? ` for ${money(askingPrice)}` : ""}`
+        : action === "want" ? `${card.name} added to Wanted` : action === "got" ? `Got ${card.name}` : `${card.name} added to your binder`
+      if (revert || purchaseIds.length > 0) {
+        setUndo({
+          message,
+          run: async () => {
+            if (purchaseIds.length > 0) removePurchases(purchaseIds)
+            await revert?.()
+          },
+        })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const key = bundleKey(card, finish)
+  const inBundle = isInBundle(key)
+  const thumb = card.image ? toCardImageSrc(card.image.replace(/\/high\.webp$/, "/low.webp")) : null
+  const statusLabel = state.owned ? "Owned" : state.wanted ? "Wanted" : "Missing"
+  const statusTone = state.owned
+    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+    : state.wanted ? "bg-rose-500/15 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"
+  const bigButton = "flex h-14 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 text-[15px] font-bold disabled:opacity-45"
+
+  return (
+    <section aria-label={`Check ${card.name}`} className="flex min-h-0 flex-1 flex-col" data-testid="quick-card-check">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
+        <div className="flex items-start gap-3">
+          <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/70">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <span className="trading-card relative w-14 shrink-0 overflow-hidden bg-muted/50">
+            {/* eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker */}
+            {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-lg font-bold leading-tight">{card.name}</h3>
+            <p className="truncate text-xs text-muted-foreground">
+              {card.set.name} · {formatCardNumber(card)}{language !== "en" ? ` · ${language.toUpperCase()}` : ""}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span data-testid="quick-card-status" className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone}`}>{statusLabel}</span>
+              {isRising && (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                  <TrendingUp className="h-3 w-3" aria-hidden />Rising
+                </span>
+              )}
+              <button type="button" onClick={onOpenDetails} className="flex h-7 items-center gap-1 rounded-full px-1.5 text-[11px] font-semibold text-primary">
+                More details<ExternalLink className="h-3 w-3" aria-hidden />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {finishChoices.length > 0 && (
+          <div role="radiogroup" aria-label="Variant" className="flex gap-1.5">
+            {finishChoices.map((choice) => (
+              <button
+                key={choice.finish}
+                type="button"
+                role="radio"
+                aria-checked={finish === choice.finish}
+                onClick={() => setFinish(choice.finish)}
+                className={`h-11 flex-1 rounded-xl border text-sm font-semibold ${finish === choice.finish ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`}
+              >
+                {choice.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-border/60 bg-card px-3 py-2" data-testid="quick-card-market">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Market{finishChoices.length > 0 ? ` · ${formatCardFinishLabel(finish)}` : ""}
+            </span>
+            <span className="text-2xl font-black tabular-nums" data-testid="quick-card-market-price">
+              {market ? money(market.amount) : isLoading ? "…" : "No price"}
+            </span>
+          </div>
+          {(low || high) && (
+            <p className="text-right text-xs tabular-nums text-muted-foreground">
+              {low ? `Low ${money(low.amount)}` : ""}{low && high ? " · " : ""}{high ? `High ${money(high.amount)}` : ""}
+            </p>
+          )}
+          {(cacheAge || !isOnline) && (
+            <p className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground" data-testid="quick-card-cache-age">
+              {!isOnline && <WifiOff className="h-3 w-3" aria-hidden />}
+              {cacheAge ? `${isOnline ? "Updated" : "Offline · saved price from"} ${cacheAge}` : "Offline · no saved price on this device"}
+            </p>
+          )}
+        </div>
+
+        <DealVerdictPanel
+          deal={deal}
+          money={money}
+          emptyText={market ? `Type the asking price. Pay up to ${money(market.amount * (1 + thresholds.fairPct / 100))}.` : "No market price for this card yet, so no verdict."}
+        />
+      </div>
+
+      <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2">
+        <DealKeypad value={input} onChange={setInput} />
+        <div className="flex gap-2">
+          {!readOnly && (
+            <button type="button" disabled={busy} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
+              <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought
+            </button>
+          )}
+          {!readOnly && (state.wanted && !state.owned ? (
+            <button type="button" disabled={busy} onClick={() => void run("got")} aria-label="Mark got" className={`${bigButton} bg-emerald-600 text-white`}>
+              <Check className="h-5 w-5 shrink-0" aria-hidden />Got it
+            </button>
+          ) : (
+            <button type="button" disabled={busy || state.owned} onClick={() => void run("add-owned")} aria-label={state.owned ? "Owned" : "Add owned"} className={`${bigButton} bg-emerald-600 text-white`}>
+              <Plus className="h-5 w-5 shrink-0" aria-hidden />{state.owned ? "Owned" : "Own"}
+            </button>
+          ))}
+          {!readOnly && (
+            <button type="button" disabled={busy || state.wanted || state.owned} onClick={() => void run("want")} aria-label="Want" className={`${bigButton} bg-rose-500/15 text-rose-700 dark:text-rose-300`}>
+              <Heart className="h-5 w-5 shrink-0" aria-hidden />Want
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={inBundle}
+            onClick={() => {
+              navigator.vibrate?.(10)
+              onAddToBundle({ key, card, pokemon, finish, marketPrice: market?.amount ?? null, currency: moneyCurrency })
+            }}
+            aria-label={inBundle ? "In bundle" : "Add to bundle"}
+            className={`${bigButton} border border-border/70 bg-card`}
+          >
+            <Layers className="h-5 w-5 shrink-0" aria-hidden />{inBundle ? "Added" : "Bundle"}
+          </button>
+        </div>
+      </div>
+
+      {undo && (
+        <UndoSnackbar
+          message={undo.message}
+          onUndo={() => {
+            const current = undo
+            setUndo(null)
+            void current.run()
+          }}
+          onDismiss={() => setUndo(null)}
+        />
+      )}
+    </section>
+  )
+}
