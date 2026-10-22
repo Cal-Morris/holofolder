@@ -23,6 +23,11 @@ async function pickFromSelector(page: Page, action: "Add card" | "Want card", se
   const button = selector.getByRole("button", { name: `${action} Squirtle from ${setName}`, exact: true })
   await expect(button).toBeVisible()
   await button.click()
+  // A printing with more than one finish asks which variant; take the suggested one.
+  const variants = page.getByRole("dialog", { name: "Which variant?" })
+  if (await variants.isVisible().catch(() => false) || await variants.waitFor({ timeout: 1000 }).then(() => true, () => false)) {
+    await variants.locator('[data-suggested="true"]').click()
+  }
   await expect(selector).toHaveCount(0)
 }
 
@@ -162,5 +167,35 @@ test.describe("sharing the want list", () => {
     const text = await page.evaluate(() => (window as unknown as { __wantedShare?: string }).__wantedShare ?? "")
     expect(text).toContain("\n151\n• Squirtle 007/165 · JA")
     await harness.expectNoHorizontalOverflow()
+  })
+
+  test("the wanted printing is listed first, and a two-finish card asks which variant", async ({ harness }) => {
+    const { page } = harness
+    const server = new FakeCollectionServer()
+    await server.install(page)
+    await wantSquirtle(page, server, "151", "sv03.5-007")
+
+    const detail = await openDetail(page)
+    await detail.getByRole("button", { name: "Add card", exact: true }).click()
+    const selector = page.getByRole("dialog", { name: /card selector/i })
+    const first = selector.getByRole("button", { name: /^Add card Squirtle from / }).first()
+    await expect(first).toHaveAttribute("aria-label", "Add card Squirtle from 151")
+    await expect(first.getByText("Wanted", { exact: true })).toBeVisible()
+
+    // 151 comes as normal and reverse holo: the variant is chosen for the card in hand.
+    await first.click()
+    const variants = page.getByRole("dialog", { name: "Which variant?" })
+    await expect(variants).toBeVisible()
+    await expect(variants.locator('[data-suggested="true"]')).toHaveAttribute("aria-label", /^Add Reverse/)
+    await harness.expectMinTapTarget(variants.getByRole("button", { name: /^Add Normal/ }), 36)
+    await variants.getByRole("button", { name: "Back to cards" }).click()
+    await expect(variants).toHaveCount(0)
+    await expect(selector).toBeVisible()
+
+    await first.click()
+    await variants.getByRole("button", { name: /^Add Normal/ }).click()
+    await expect(selector).toHaveCount(0)
+    await expect.poll(() => server.rows.get(SQUIRTLE)?.card_finish).toBe("normal")
+    expect(server.rows.get(SQUIRTLE)!.card_id).toBe("sv03.5-007")
   })
 })

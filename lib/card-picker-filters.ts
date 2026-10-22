@@ -89,3 +89,26 @@ export function getActiveFilterChips(state: CardPickerFilterState, setNameById: 
   if (state.filters.rarity) chips.push({ key: "rarity", label: state.filters.rarity })
   return chips
 }
+
+export type CardPickerStandardFinish = "normal" | "holo" | "reverse_holo"
+
+const STANDARD_FINISH_LABELS: Record<CardPickerStandardFinish, string> = { normal: "Normal", holo: "Holo", reverse_holo: "Reverse" }
+
+/**
+ * The finishes to ask about after a card is tapped. Empty when there is nothing to choose: the user
+ * already chose a variant in Filters, the printing exists in only one standard finish, or its finish
+ * comes from its rarity (IR, SIR, ex and so on).
+ */
+export function getCardPickerFinishChoices(
+  variants: { normal?: boolean; holo?: boolean; reverse?: boolean; firstEdition?: boolean } | undefined,
+  inferredFinish: CardFinish,
+  variantChoice: CardPickerVariantChoice,
+): Array<{ finish: CardPickerStandardFinish; label: string }> {
+  if (getRecordedFinish(variantChoice) !== null) return []
+  if (!(inferredFinish in STANDARD_FINISH_LABELS)) return []
+  const finishes: CardPickerStandardFinish[] = []
+  if (variants?.normal || variants?.firstEdition) finishes.push("normal")
+  if (variants?.holo) finishes.push("holo")
+  if (variants?.reverse) finishes.push("reverse_holo")
+  return finishes.length > 1 ? finishes.map((finish) => ({ finish, label: STANDARD_FINISH_LABELS[finish] })) : []
+}

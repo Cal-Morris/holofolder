@@ -14,8 +14,10 @@ const prices: Record<string, number | null> = { a: 0.5, b: null, c: 12, d: 3 }
 const ids = (list: Array<{ id: string }>) => list.map((entry) => entry.id)
 
 describe("card picker sort", () => {
-  test("default keeps the incoming order", () => {
-    assert.deepEqual(ids(sortCardPickerCards(cards, "default", (entry) => prices[entry.id])), ["a", "b", "c", "d"])
+  test("best match puts likely picks first, then newest set", () => {
+    assert.deepEqual(ids(sortCardPickerCards(cards, "default", (entry) => prices[entry.id])), ["b", "a", "d", "c"])
+    const rank = (entry: { id: string }) => (entry.id === "d" ? 0 : entry.id === "c" ? 1 : Number.POSITIVE_INFINITY)
+    assert.deepEqual(ids(sortCardPickerCards(cards, "default", () => null, rank)), ["d", "c", "b", "a"])
   })
 
   test("price sorts rank priced cards and list unpriced cards last", () => {

@@ -25,3 +25,14 @@ describe("card picker filters", () => {
     assert.deepEqual(chips.map((chip) => chip.label), ["Price: high to low", "Japanese", "Holo", "151", "Common"])
   })
 })
+
+describe("card picker finish choices", () => {
+  test("asks only when a printing has more than one standard finish", async () => {
+    const { getCardPickerFinishChoices } = await import("../lib/card-picker-filters")
+    assert.deepEqual(getCardPickerFinishChoices({ normal: true, reverse: true }, "reverse_holo", "any").map((choice) => choice.finish), ["normal", "reverse_holo"])
+    assert.deepEqual(getCardPickerFinishChoices({ holo: true }, "holo", "any"), [])
+    assert.deepEqual(getCardPickerFinishChoices({ holo: true, reverse: true }, "illustration_rare", "any"), [])
+    assert.deepEqual(getCardPickerFinishChoices({ normal: true, reverse: true }, "reverse_holo", "normal"), [])
+    assert.equal(getCardPickerFinishChoices({ normal: true, reverse: true }, "reverse_holo", "first_edition").length, 2)
+  })
+})
