@@ -25,6 +25,7 @@
     "@supabase/supabase-js": "^2.106.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.1",
+    "@vercel/speed-insights": "^2.0.0",
     "@workflow/world-postgres": "4.2.0",
     "aws4fetch": "^1.0.20",
     "class-variance-authority": "^0.7.1",

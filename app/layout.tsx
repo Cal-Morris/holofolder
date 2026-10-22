@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 
 // next/font must be assigned at module scope. The classNames are not applied: the
@@ -14,7 +15,6 @@ const THEME_COLOR_DARK = "#171a22"
 export const metadata: Metadata = {
   title: "BinderDex",
   description: "Mobile-first Pokemon binder tracking with National Dex positions, collection status, and card matching.",
-  generator: "v0.app",
   applicationName: "BinderDex",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -61,6 +61,8 @@ export default async function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground">
         {children}
         <Analytics />
+        {/* Real-user Core Web Vitals per route (enabled on the Vercel project). */}
+        <SpeedInsights />
       </body>
     </html>
   )

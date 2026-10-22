@@ -13,6 +13,15 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
+import {
+  CARD_PICKER_SORTS,
+  getCardPickerSortAmount,
+  normalizeCardPickerSort,
+  readCardPickerSort,
+  saveCardPickerSort,
+  sortCardPickerCards,
+  type CardPickerSort,
+} from "@/lib/card-selector-sort"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { getCardSelectorQuickActions } from "@/lib/card-selector-actions"
@@ -214,6 +223,7 @@ export default function CardSelector({
   const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
   const [cards, setCards] = useState<TCGCard[]>([])
   const [filters, setFilters] = useState<CardFilters>({})
+  const [sort, setSort] = useState<CardPickerSort>(readCardPickerSort)
   const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>(defaultCardLanguage ?? "en")
   const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode)
   const [selectedFinish, setSelectedFinish] = useState<CardFinish>("normal")
@@ -392,7 +402,8 @@ export default function CardSelector({
   }, [scanMatches])
   const displayedCards = useMemo(() => {
     if (scanRankById.size === 0) {
-      return filteredCards
+      return sortCardPickerCards(filteredCards, sort, (card) =>
+        getCardPickerSortAmount(pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)], selectedFinish, pricingRegion))
     }
 
     return [...filteredCards]
@@ -410,7 +421,7 @@ export default function CardSelector({
 
         return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: "base" })
       })
-  }, [filteredCards, scanRankById])
+  }, [filteredCards, pricesByCardId, pricingRegion, scanRankById, selectedCardLanguage, selectedFinish, sort])
 
   const uniqueSets = useMemo(() => {
     return [...new Map(cards.map((card) => [card.set.id, card.set])).values()]
@@ -941,7 +952,7 @@ export default function CardSelector({
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Card art stays on the English print, but pricing is refreshed for the selected card language.
                 </p>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
                   <Select
                     value={filters.set || ALL_FILTERS_VALUE}
                     onValueChange={(value) => setFilters((f) => ({ ...f, set: value === ALL_FILTERS_VALUE ? undefined : value }))}
@@ -991,6 +1002,23 @@ export default function CardSelector({
                       <SelectItem value="holo">Holo</SelectItem>
                       <SelectItem value="reverse">Reverse Holo</SelectItem>
                       <SelectItem value="firstEdition">1st Edition</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={sort}
+                    onValueChange={(value) => {
+                      const next = normalizeCardPickerSort(value)
+                      setSort(next)
+                      saveCardPickerSort(next)
+                    }}
+                  >
+                    <SelectTrigger aria-label="Sort cards" className="h-9 w-full rounded-2xl bg-background/80 px-3 text-left text-xs shadow-none sm:h-10 sm:text-sm">
+                      <SelectValue placeholder="Default order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CARD_PICKER_SORTS.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {hasActiveFilters && (
