@@ -347,7 +347,8 @@ export default function PokemonSearch({
                 setActiveFilter(filterOption.id)
                 setSelectedIndex(-1)
               }}
-              className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+              aria-pressed={isActive}
+              className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
                 isActive
                   ? "border-primary/35 bg-primary/12 text-primary"
                   : "border-border/50 bg-card text-muted-foreground hover:border-primary/20 hover:text-foreground"
@@ -481,7 +482,7 @@ export default function PokemonSearch({
                         type="button"
                         onClick={() => handleJumpToPage(meta.pageNumber!)}
                         aria-label={`Go to page ${meta.pageNumber}`}
-                        className="inline-flex h-8 items-center gap-1 rounded-full border border-border/60 bg-background/75 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                        className="inline-flex h-9 items-center gap-1 rounded-full border border-border/60 bg-background/75 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
                         <MapPinned className="h-3 w-3" />
                         <span className="hidden sm:inline">Page</span>

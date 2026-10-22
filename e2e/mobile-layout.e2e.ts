@@ -136,3 +136,21 @@ test("binder controls stay reachable and cards keep their full proportions", asy
     await harness.expectNoHorizontalOverflow()
   }
 })
+
+test.describe("search sheet", () => {
+  test.use({ signedIn: true })
+
+  test("filter chips are full-size tap targets and report which one is active", async ({ harness }) => {
+    await harness.open()
+    await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
+    const dialog = harness.page.getByRole("dialog")
+    await dialog.getByRole("textbox").first().fill("pika")
+    const chips = dialog.locator("button[aria-pressed]")
+    await expect(chips.first()).toBeVisible()
+    const heights = await chips.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().height))
+    expect(heights.length).toBeGreaterThan(1)
+    for (const height of heights) expect(height).toBeGreaterThanOrEqual(36)
+    await expect(chips.filter({ hasText: /^All/ })).toHaveAttribute("aria-pressed", "true")
+    await harness.expectNoHorizontalOverflow()
+  })
+})
