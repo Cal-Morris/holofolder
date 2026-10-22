@@ -1,7 +1,8 @@
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/hooks/use-collection"
+import { getRisingMomentum } from "@/lib/price-momentum"
 
-export type WantedDashboardSort = "highest" | "lowest" | "dex" | "set" | "newest" | "unpriced"
+export type WantedDashboardSort = "highest" | "lowest" | "cheapest-set" | "name" | "set" | "newest" | "rising" | "dex" | "unpriced"
 export type WantedDashboardPriceBandId = "under-5" | "five-to-15" | "fifteen-to-50" | "over-50" | "unpriced"
 
 export interface WantedDashboardEntry {
@@ -141,10 +142,59 @@ export function buildWantedDashboardSummary(
   }
 }
 
-export function sortWantedDashboardEntries(
-  cards: WantedDashboardCard[],
+export const WANTED_SORTS: Array<{ id: WantedDashboardSort; label: string; short: string }> = [
+  { id: "highest", label: "Price: high to low", short: "Price ↓" },
+  { id: "lowest", label: "Price: low to high", short: "Price ↑" },
+  { id: "cheapest-set", label: "Cheapest set to finish first", short: "Cheapest set" },
+  { id: "name", label: "Name", short: "Name" },
+  { id: "set", label: "Set", short: "Set" },
+  { id: "newest", label: "Recently added", short: "Newest" },
+  { id: "rising", label: "Rising prices first", short: "Rising" },
+  { id: "dex", label: "Pokédex number", short: "Dex no." },
+  { id: "unpriced", label: "Unpriced first", short: "Unpriced" },
+]
+
+export function normalizeWantedSort(value: unknown): WantedDashboardSort {
+  return WANTED_SORTS.some((sort) => sort.id === value) ? value as WantedDashboardSort : "highest"
+}
+
+export function sortWantedDashboardEntries<T extends WantedDashboardCard>(
+  cards: T[],
   sort: WantedDashboardSort,
-): WantedDashboardCard[] {
+  now = Date.now(),
+): T[] {
+  if (sort === "cheapest-set") {
+    // Sets whose remaining wanted cards cost least come first; unpriced cards count as unknown
+    // and push their set after fully priced ones. Within a set, cheapest card first.
+    const setCost = new Map<string, { total: number; unpriced: number }>()
+    for (const card of cards) {
+      const key = card.card.card_set || "Unknown set"
+      const current = setCost.get(key) ?? { total: 0, unpriced: 0 }
+      if (card.effectiveGbpAmount == null) current.unpriced += 1
+      else current.total = roundMoney(current.total + card.effectiveGbpAmount)
+      setCost.set(key, current)
+    }
+    return [...cards].sort((left, right) => {
+      const leftSet = left.card.card_set || "Unknown set"
+      const rightSet = right.card.card_set || "Unknown set"
+      const a = setCost.get(leftSet)!
+      const b = setCost.get(rightSet)!
+      return Number(a.unpriced > 0) - Number(b.unpriced > 0) ||
+        a.total - b.total ||
+        leftSet.localeCompare(rightSet) ||
+        comparePriceAscending(left, right) ||
+        compareDex(left, right)
+    })
+  }
+
+  if (sort === "rising") {
+    const change = new Map(cards.map((card) => [card.key, getRisingMomentum(card.price, now)?.change ?? null]))
+    return [...cards].sort((left, right) =>
+      compareMaybePrice(negate(change.get(left.key) ?? null), negate(change.get(right.key) ?? null)) ||
+      comparePriceDescending(left, right) ||
+      compareDex(left, right))
+  }
+
   return [...cards].sort((left, right) => {
     if (sort === "highest") {
       return comparePriceDescending(left, right) || compareDex(left, right)
@@ -162,14 +212,80 @@ export function sortWantedDashboardEntries(
       return compareDex(left, right)
     }
 
+    if (sort === "name") {
+      return left.card.card_name.localeCompare(right.card.card_name) ||
+        (left.card.card_set || "").localeCompare(right.card.card_set || "") ||
+        compareLocalId(left, right)
+    }
+
     if (sort === "set") {
       return (left.card.card_set || "").localeCompare(right.card.card_set || "") ||
+        compareLocalId(left, right) ||
         compareDex(left, right) ||
         left.card.card_name.localeCompare(right.card.card_name)
     }
 
     return compareNewest(left, right) || compareDex(left, right)
   })
+}
+
+function negate(value: number | null) {
+  return value == null ? null : -value
+}
+
+function compareLocalId(left: WantedDashboardCard, right: WantedDashboardCard) {
+  const a = Number.parseInt(left.card.local_id ?? "", 10)
+  const b = Number.parseInt(right.card.local_id ?? "", 10)
+  return compareMaybePrice(Number.isFinite(a) ? a : null, Number.isFinite(b) ? b : null)
+}
+
+/** The want list's filters. Empty lists mean "any". */
+export interface WantedFilters {
+  bands: WantedDashboardPriceBandId[]
+  sets: string[]
+  finishes: string[]
+  languages: string[]
+  risingOnly: boolean
+}
+
+export const EMPTY_WANTED_FILTERS: WantedFilters = { bands: [], sets: [], finishes: [], languages: [], risingOnly: false }
+
+const PRICE_BAND_IDS = new Set<string>(["under-5", "five-to-15", "fifteen-to-50", "over-50", "unpriced"])
+
+function stringList(value: unknown, limit = 50) {
+  return Array.isArray(value) ? [...new Set(value.filter((item): item is string => typeof item === "string" && item.length > 0 && item.length <= 120))].slice(0, limit) : []
+}
+
+export function normalizeWantedFilters(value: unknown): WantedFilters {
+  if (!value || typeof value !== "object") return EMPTY_WANTED_FILTERS
+  const raw = value as Record<string, unknown>
+  return {
+    bands: stringList(raw.bands).filter((band): band is WantedDashboardPriceBandId => PRICE_BAND_IDS.has(band)),
+    sets: stringList(raw.sets),
+    finishes: stringList(raw.finishes),
+    languages: stringList(raw.languages),
+    risingOnly: raw.risingOnly === true,
+  }
+}
+
+export function countWantedFilters(filters: WantedFilters) {
+  return filters.bands.length + filters.sets.length + filters.finishes.length + filters.languages.length + Number(filters.risingOnly)
+}
+
+export function applyWantedFilters<T extends WantedDashboardCard>(cards: T[], filters: WantedFilters, now = Date.now()): T[] {
+  if (countWantedFilters(filters) === 0) return cards
+  return cards.filter((card) =>
+    (filters.bands.length === 0 || filters.bands.includes(card.priceBandId)) &&
+    (filters.sets.length === 0 || filters.sets.includes(card.card.card_set || "Unknown set")) &&
+    (filters.finishes.length === 0 || filters.finishes.includes(card.card.card_finish ?? "normal")) &&
+    (filters.languages.length === 0 || filters.languages.includes(card.card.card_language ?? "en")) &&
+    (!filters.risingOnly || getRisingMomentum(card.price, now) != null))
+}
+
+export function toggleWantedFilter<K extends Exclude<keyof WantedFilters, "risingOnly">>(filters: WantedFilters, key: K, value: WantedFilters[K][number]): WantedFilters {
+  const list = filters[key] as string[]
+  const next = list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
+  return { ...filters, [key]: next }
 }
 
 function getWantedCardPriceKey(cardId: string, language: unknown = "en") {

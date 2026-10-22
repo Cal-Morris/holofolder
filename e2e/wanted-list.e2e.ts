@@ -36,15 +36,11 @@ test.describe("want list on mobile", () => {
     await expect(() => harness.expectHittable(search)).toPass()
     await harness.expectMinTapTarget(page.getByRole("button", { name: "Got it: Charmander" }), 44)
     await harness.expectMinTapTarget(page.getByRole("button", { name: "Share list" }), 44)
-    await harness.expectMinTapTarget(page.getByRole("combobox", { name: "Sort want list" }), 44)
+    await harness.expectMinTapTarget(page.getByTestId("wanted-sort-filter"), 44)
     await harness.expectNoHorizontalOverflow()
 
-    // An Insights chip filters the list and shows up as a removable chip.
     await insights.locator("summary").click()
-    await insights.getByRole("button", { name: /^30th Celebration/ }).click()
-    await expect(page.getByTestId("wanted-row")).toHaveCount(1)
-    await page.getByRole("button", { name: "Remove filter 30th Celebration" }).click()
-    await expect(page.getByTestId("wanted-row")).toHaveCount(6)
+    await expect(insights).toContainText("5 of 6 priced")
   })
 
   test("search by name, Pokémon, set, number and illustrator", async ({ harness }) => {
@@ -72,17 +68,73 @@ test.describe("want list on mobile", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
-  test("sort by price and recently added", async ({ harness }) => {
+  test("sort from the sheet, and the choice is remembered", async ({ harness }) => {
     const { page } = harness
     const ids = () => page.getByTestId("wanted-row").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-card-id")))
-    const sort = page.getByRole("combobox", { name: "Sort want list" })
+    const openSheet = async () => {
+      await page.getByTestId("wanted-sort-filter").click()
+      const sheet = page.getByRole("dialog", { name: "Sort and filter want list" })
+      await expect(sheet).toBeVisible()
+      return sheet
+    }
+    const pickSort = async (label: string) => {
+      const sheet = await openSheet()
+      const option = sheet.getByRole("radio", { name: label })
+      await harness.expectMinTapTarget(option, 44)
+      await option.click()
+      await expect(option).toHaveAttribute("aria-checked", "true")
+      await sheet.getByRole("button", { name: /^Show \d+ cards?$/ }).click()
+      await expect(sheet).toBeHidden()
+    }
 
-    await sort.selectOption("highest")
     await expect.poll(ids).toEqual(["sv03.5-168", "sv03.5-166", "sv03.5-006", "sv03.5-007", "sv03.5-005", "30th-007"])
-    await sort.selectOption("lowest")
+    await pickSort("Price: low to high")
     await expect.poll(ids).toEqual(["sv03.5-005", "sv03.5-007", "sv03.5-006", "sv03.5-166", "sv03.5-168", "30th-007"])
-    await sort.selectOption("newest")
+    await pickSort("Name")
+    await expect.poll(ids).toEqual(["sv03.5-166", "sv03.5-006", "sv03.5-168", "sv03.5-005", "sv03.5-007", "30th-007"])
+    await pickSort("Rising prices first")
+    await expect.poll(async () => (await ids())[0]).toBe("sv03.5-168")
+    // 151 is fully priced, the 30th Celebration set has an unpriced card, so 151 comes first, cheapest card first.
+    await pickSort("Cheapest set to finish first")
+    await expect.poll(ids).toEqual(["sv03.5-005", "sv03.5-007", "sv03.5-006", "sv03.5-166", "sv03.5-168", "30th-007"])
+    await pickSort("Recently added")
     await expect.poll(async () => (await ids())[0]).toBe("30th-007")
+    await expect(page.getByTestId("wanted-sort-filter")).toContainText("Newest")
+
+    await page.reload()
+    await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
+    await harness.dock().getByRole("button", { name: "Wanted", exact: true }).click()
+    await expect(page.getByTestId("wanted-row")).toHaveCount(6)
+    await expect(page.getByTestId("wanted-sort-filter")).toContainText("Newest")
+    await expect.poll(async () => (await ids())[0]).toBe("30th-007")
+  })
+
+  test("filters from the sheet show as removable chips", async ({ harness }) => {
+    const { page } = harness
+    const rows = page.getByTestId("wanted-row")
+    await page.getByTestId("wanted-sort-filter").click()
+    const sheet = page.getByRole("dialog", { name: "Sort and filter want list" })
+    await expect(sheet).toBeVisible()
+    await harness.expectWithinSafeViewport(sheet.getByRole("button", { name: /^Show \d+ cards?$/ }))
+
+    await sheet.getByRole("button", { name: /^Holo/ }).click()
+    await expect(sheet.getByRole("button", { name: /^Show 4 cards$/ })).toBeVisible()
+    await sheet.getByRole("button", { name: /^Rising only/ }).click()
+    await expect(sheet.getByRole("button", { name: /^Show 1 card$/ })).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(sheet).toBeHidden()
+
+    await expect(rows).toHaveCount(1)
+    await expect(page.getByTestId("wanted-match-count")).toHaveText("Showing 1 of 6")
+    await expect(page.getByTestId("wanted-sort-filter")).toContainText("2")
+    const risingChip = page.getByRole("button", { name: "Remove filter Rising only" })
+    await harness.expectMinTapTarget(risingChip, 44)
+    await risingChip.click()
+    await expect(rows).toHaveCount(4)
+    await page.getByRole("button", { name: /^Remove filter Holo/ }).click()
+    await expect(rows).toHaveCount(6)
+    await expect(page.getByTestId("wanted-active-filters")).toHaveCount(0)
+    await harness.expectNoHorizontalOverflow()
   })
 
   test("Got it takes the card off the want list", async ({ harness }) => {

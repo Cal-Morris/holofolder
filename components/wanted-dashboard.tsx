@@ -1,25 +1,29 @@
-"use client"
-
-// The want list: a search box, one summary line and plain rows (image, name, set and number,
-// variant, UK price, rising badge). The analytics (price bands, sets, finishes) live in a
-// collapsed Insights section. It only renders in the Wanted view, so binder-app loads it in its
-// own chunk. Sort and filter state lives in binder-app (the binder header also reads it).
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { toCardImageSrc } from "@/lib/card-image-url"
-import { Check, ChevronDown, Heart, Search, Share2, WifiOff, X } from "lucide-react"
+import { Check, ChevronDown, Heart, Search, Share2, SlidersHorizontal, WifiOff, X } from "lucide-react"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/hooks/use-collection"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
-import { filterWantedDashboardEntries, type buildWantedDashboardSummary, type WantedDashboardPriceBandId, type WantedDashboardSort } from "@/lib/wanted-dashboard"
+import { getRisingMomentum } from "@/lib/price-momentum"
+import {
+  EMPTY_WANTED_FILTERS,
+  WANTED_SORTS,
+  applyWantedFilters,
+  countWantedFilters,
+  filterWantedDashboardEntries,
+  normalizeWantedFilters,
+  normalizeWantedSort,
+  sortWantedDashboardEntries,
+  type buildWantedDashboardSummary,
+  type WantedDashboardPriceBandId,
+  type WantedDashboardSort,
+  type WantedFilters,
+} from "@/lib/wanted-dashboard"
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
 
-export type WantedExplorerFilter =
-  | { kind: "all"; label: string }
-  | { kind: "band"; label: string; value: WantedDashboardPriceBandId }
-  | { kind: "set"; label: string; value: string }
-  | { kind: "language"; label: string; value: string }
-  | { kind: "finish"; label: string; value: string }
+const WantedFiltersSheet = dynamic(() => import("@/components/wanted-filters-sheet"), { loading: () => null })
 
 type WantedDashboardSummary = ReturnType<typeof buildWantedDashboardSummary>
 type WantedDashboardEntry = WantedDashboardSummary["cards"][number]
@@ -32,15 +36,10 @@ type PriceFormat = {
 
 export type WantedDashboardProps = {
   wantedDashboard: WantedDashboardSummary
-  sortedWantedDashboardCards: WantedDashboardEntry[]
   priceFormat: PriceFormat
   isLoadingPrices: boolean
   isOnline?: boolean
   readOnlyMode: boolean
-  wantedSort: WantedDashboardSort
-  setWantedSort: (sort: WantedDashboardSort) => void
-  wantedExplorerFilter: WantedExplorerFilter
-  setWantedExplorerFilter: (filter: WantedExplorerFilter) => void
   wantedShareMessage: string | null
   handleShareWantedList: () => void
   handleGotWantedCard: (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => void
@@ -48,15 +47,6 @@ export type WantedDashboardProps = {
   handlePokemonSelect: (pokemon: PokemonSummary) => void
   jumpToWantedPokemonPage: (pokemon: PokemonSummary | null) => void
 }
-
-const WANTED_SORT_OPTIONS: Array<{ id: WantedDashboardSort; label: string }> = [
-  { id: "highest", label: "Price ↓" },
-  { id: "lowest", label: "Price ↑" },
-  { id: "newest", label: "Newest" },
-  { id: "set", label: "Set" },
-  { id: "dex", label: "Dex no." },
-  { id: "unpriced", label: "Unpriced" },
-]
 
 const BAND_DOT: Record<WantedDashboardPriceBandId, string> = {
   "under-5": "bg-emerald-500",
@@ -66,7 +56,52 @@ const BAND_DOT: Record<WantedDashboardPriceBandId, string> = {
   unpriced: "bg-slate-400",
 }
 
-const ALL_WANTED: WantedExplorerFilter = { kind: "all", label: "All wanted" }
+/** Sort and filters are remembered on this device between visits. */
+export const WANTED_VIEW_STORAGE_KEY = "binderdex:wanted-view:v1"
+
+function readRememberedWantedView(): { sort: WantedDashboardSort; filters: WantedFilters } {
+  try {
+    const raw = typeof window === "undefined" ? null : window.localStorage.getItem(WANTED_VIEW_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as { sort?: unknown; filters?: unknown }
+      return { sort: normalizeWantedSort(parsed.sort), filters: normalizeWantedFilters(parsed.filters) }
+    }
+  } catch {
+    // Unreadable or blocked storage: start from the defaults.
+  }
+  return { sort: "highest", filters: EMPTY_WANTED_FILTERS }
+}
+
+function useRememberedWantedView() {
+  // The want list only renders on the client (it is loaded after the binder shell), so reading
+  // storage in the initialiser is safe and avoids a flash of the default order.
+  const [sort, setSort] = useState<WantedDashboardSort>(() => readRememberedWantedView().sort)
+  const [filters, setFilters] = useState<WantedFilters>(() => readRememberedWantedView().filters)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(WANTED_VIEW_STORAGE_KEY, JSON.stringify({ sort, filters }))
+    } catch {
+      // Storage full or blocked: the choice still applies for this visit.
+    }
+  }, [filters, sort])
+
+  return { sort, setSort, filters, setFilters }
+}
+
+type ActiveChip = { key: string; label: string; remove: (filters: WantedFilters) => WantedFilters }
+
+function getActiveFilterChips(filters: WantedFilters, bandLabels: Map<string, string>): ActiveChip[] {
+  const without = <K extends Exclude<keyof WantedFilters, "risingOnly">>(key: K, value: string) =>
+    (current: WantedFilters) => ({ ...current, [key]: (current[key] as string[]).filter((item) => item !== value) })
+  return [
+    ...filters.bands.map((band) => ({ key: `band:${band}`, label: bandLabels.get(band) ?? band, remove: without("bands", band) })),
+    ...(filters.risingOnly ? [{ key: "rising", label: "Rising only", remove: (current: WantedFilters) => ({ ...current, risingOnly: false }) }] : []),
+    ...filters.sets.map((set) => ({ key: `set:${set}`, label: set, remove: without("sets", set) })),
+    ...filters.finishes.map((finish) => ({ key: `finish:${finish}`, label: formatCardFinishLabel(finish), remove: without("finishes", finish) })),
+    ...filters.languages.map((language) => ({ key: `language:${language}`, label: formatCardLanguageLabel(language), remove: without("languages", language) })),
+  ]
+}
 
 function cardNumberLabel(card: WantedCard) {
   if (!card.local_id) return null
@@ -75,15 +110,10 @@ function cardNumberLabel(card: WantedCard) {
 
 export default function WantedDashboard({
   wantedDashboard,
-  sortedWantedDashboardCards,
   priceFormat,
   isLoadingPrices,
   isOnline = true,
   readOnlyMode,
-  wantedSort,
-  setWantedSort,
-  wantedExplorerFilter,
-  setWantedExplorerFilter,
   wantedShareMessage,
   handleShareWantedList,
   handleGotWantedCard,
@@ -91,12 +121,22 @@ export default function WantedDashboard({
   handlePokemonSelect,
 }: WantedDashboardProps) {
   const [query, setQuery] = useState("")
-  const visibleCards = useMemo(
-    () => filterWantedDashboardEntries(sortedWantedDashboardCards, query),
-    [query, sortedWantedDashboardCards],
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const { sort, setSort, filters, setFilters } = useRememberedWantedView()
+  const sortedCards = useMemo(
+    () => sortWantedDashboardEntries(applyWantedFilters(wantedDashboard.cards, filters), sort),
+    [filters, sort, wantedDashboard.cards],
   )
+  const visibleCards = useMemo(() => filterWantedDashboardEntries(sortedCards, query), [query, sortedCards])
+  const risingCount = useMemo(
+    () => wantedDashboard.cards.filter((card) => getRisingMomentum(card.price) != null).length,
+    [wantedDashboard.cards],
+  )
+  const activeChips = getActiveFilterChips(filters, new Map(wantedDashboard.priceBands.map((band) => [band.id, band.label])))
+  const filterCount = countWantedFilters(filters)
+  const sortLabel = WANTED_SORTS.find((option) => option.id === sort)?.short ?? "Sort"
   const totalWantedCount = wantedDashboard.totalCards
-  const isFiltered = wantedExplorerFilter.kind !== "all"
+  const isFiltered = filterCount > 0
   const isSearching = query.trim().length > 0
   const marketTotalLabel = priceFormat.amount(wantedDashboard.marketTotalGbp)
   const hasAnyPrice = wantedDashboard.pricedCount > 0
@@ -170,31 +210,45 @@ export default function WantedDashboard({
                 <span className="text-muted-foreground"> · {wantedDashboard.unpricedCount} unpriced</span>
               ) : null}
             </p>
-            <label className="relative shrink-0">
-              <span className="sr-only">Sort want list</span>
-              <select
-                value={wantedSort}
-                onChange={(event) => setWantedSort(event.target.value as WantedDashboardSort)}
-                aria-label="Sort want list"
-                className="h-11 appearance-none rounded-2xl border border-border/60 bg-card pl-3 pr-7 text-xs font-semibold dark:border-white/10"
-              >
-                {WANTED_SORT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            </label>
+            <button
+              type="button"
+              onClick={() => setIsSheetOpen(true)}
+              aria-label={`Sort and filter, sorted by ${WANTED_SORTS.find((option) => option.id === sort)?.label ?? sort}${filterCount ? `, ${filterCount} ${filterCount === 1 ? "filter" : "filters"} on` : ""}`}
+              aria-haspopup="dialog"
+              data-testid="wanted-sort-filter"
+              className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border border-border/60 bg-card pl-3 pr-3 text-xs font-semibold transition hover:border-primary/35 dark:border-white/10"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+              {sortLabel}
+              {filterCount > 0 ? (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[0.68rem] tabular-nums text-primary-foreground">{filterCount}</span>
+              ) : null}
+            </button>
           </div>
 
-          {isFiltered ? (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => setWantedExplorerFilter(ALL_WANTED)}
-                aria-label={`Remove filter ${wantedExplorerFilter.label}`}
-                className="inline-flex min-h-9 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary"
-              >
-                {wantedExplorerFilter.label}
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
+          {activeChips.length > 0 ? (
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none]" data-testid="wanted-active-filters">
+              {activeChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setFilters((current) => chip.remove(current))}
+                  aria-label={`Remove filter ${chip.label}`}
+                  className="inline-flex h-11 shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3.5 text-xs font-semibold text-primary"
+                >
+                  {chip.label}
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              ))}
+              {activeChips.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setFilters(EMPTY_WANTED_FILTERS)}
+                  className="inline-flex h-11 shrink-0 items-center rounded-full px-3 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  Clear all
+                </button>
+              ) : null}
             </div>
           ) : null}
           {wantedShareMessage ? <p role="status" className="text-xs text-muted-foreground">{wantedShareMessage}</p> : null}
@@ -213,7 +267,7 @@ export default function WantedDashboard({
               type="button"
               onClick={() => {
                 setQuery("")
-                setWantedExplorerFilter(ALL_WANTED)
+                setFilters(EMPTY_WANTED_FILTERS)
               }}
               className="mt-3 inline-flex h-11 items-center rounded-2xl border border-border/60 px-4 text-sm font-semibold dark:border-white/10"
             >
@@ -236,19 +290,31 @@ export default function WantedDashboard({
             ))}
           </ul>
         )}
-        {isSearching && visibleCards.length > 0 ? (
-          <p className="px-1 text-xs text-muted-foreground">{visibleCards.length} of {totalWantedCount} match</p>
+        {(isSearching || isFiltered) && visibleCards.length > 0 ? (
+          <p className="px-1 text-xs text-muted-foreground" data-testid="wanted-match-count">Showing {visibleCards.length} of {totalWantedCount}</p>
         ) : null}
 
-        <WantedInsights
-          wantedDashboard={wantedDashboard}
-          priceFormat={priceFormat}
-          activeFilter={wantedExplorerFilter}
-          onFilter={(filter, sort) => {
-            setWantedExplorerFilter(filter)
-            if (sort) setWantedSort(sort)
-          }}
-        />
+        <WantedInsights wantedDashboard={wantedDashboard} priceFormat={priceFormat} />
+
+        {isSheetOpen ? (
+          <WantedFiltersSheet
+            sort={sort}
+            onSortChange={setSort}
+            filters={filters}
+            onFiltersChange={setFilters}
+            priceBands={wantedDashboard.priceBands}
+            sets={wantedDashboard.setBreakdown}
+            finishes={wantedDashboard.finishBreakdown}
+            languages={wantedDashboard.languageBreakdown}
+            risingCount={risingCount}
+            resultCount={visibleCards.length}
+            onReset={() => {
+              setSort("highest")
+              setFilters(EMPTY_WANTED_FILTERS)
+            }}
+            onClose={() => setIsSheetOpen(false)}
+          />
+        ) : null}
       </div>
     </div>
   )
@@ -337,23 +403,14 @@ function WantedRow({
 function WantedInsights({
   wantedDashboard,
   priceFormat,
-  activeFilter,
-  onFilter,
 }: {
   wantedDashboard: WantedDashboardSummary
   priceFormat: PriceFormat
-  activeFilter: WantedExplorerFilter
-  onFilter: (filter: WantedExplorerFilter, sort?: WantedDashboardSort) => void
 }) {
   const averageLabel = priceFormat.amount(wantedDashboard.averageGbp)
   const highest = wantedDashboard.highestCards[0]
   const highestLabel = priceFormat.amount(highest?.effectiveGbpAmount, highest?.price)
-  const isActive = (kind: WantedExplorerFilter["kind"], value: string) =>
-    activeFilter.kind === kind && activeFilter.kind !== "all" && activeFilter.value === value
-  const chipClass = (active: boolean) =>
-    `inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition dark:border-white/10 ${
-      active ? "border-primary/45 bg-primary/10 text-primary" : "border-border/55 bg-background/60 hover:border-primary/35"
-    }`
+  const topSets = wantedDashboard.setBreakdown.slice(0, 5)
 
   return (
     <details className="group rounded-2xl border border-border/60 bg-card/80 dark:border-white/10 dark:bg-card/65" data-testid="wanted-insights">
@@ -367,55 +424,24 @@ function WantedInsights({
           {averageLabel ? ` · average ${averageLabel}` : ""}
           {highest && highestLabel ? ` · top ${highest.card.card_name} ${highestLabel}` : ""}
         </p>
-        <div>
-          <p className="mb-1.5 font-semibold text-muted-foreground">Price</p>
-          <div className="flex flex-wrap gap-1.5">
-            {wantedDashboard.priceBands.filter((band) => band.count > 0).map((band) => (
-              <button
-                key={band.id}
-                type="button"
-                onClick={() => onFilter({ kind: "band", value: band.id, label: band.label }, band.id === "unpriced" ? "unpriced" : undefined)}
-                className={chipClass(isActive("band", band.id))}
-              >
-                <span className={`h-2 w-2 rounded-full ${BAND_DOT[band.id]}`} aria-hidden="true" />
-                {band.label} <span className="tabular-nums text-muted-foreground">{band.count}</span>
-              </button>
+        <ul className="space-y-1" aria-label="Cards by price">
+          {wantedDashboard.priceBands.filter((band) => band.count > 0).map((band) => (
+            <li key={band.id} className="flex items-center gap-2">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${BAND_DOT[band.id]}`} aria-hidden="true" />
+              <span className="min-w-0 flex-1">{band.label}</span>
+              <span className="tabular-nums text-muted-foreground">{band.count}</span>
+            </li>
+          ))}
+        </ul>
+        {topSets.length > 1 ? (
+          <ul className="space-y-1 border-t border-border/40 pt-2 dark:border-white/10" aria-label="Most wanted sets">
+            {topSets.map((set) => (
+              <li key={set.label} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">{set.label}</span>
+                <span className="tabular-nums text-muted-foreground">{set.count}</span>
+              </li>
             ))}
-          </div>
-        </div>
-        <div>
-          <p className="mb-1.5 font-semibold text-muted-foreground">Sets</p>
-          <div className="flex flex-wrap gap-1.5">
-            {wantedDashboard.setBreakdown.slice(0, 8).map((group) => (
-              <button key={group.label} type="button" onClick={() => onFilter({ kind: "set", value: group.label, label: group.label })} className={chipClass(isActive("set", group.label))}>
-                {group.label} <span className="tabular-nums text-muted-foreground">{group.count}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        {wantedDashboard.finishBreakdown.length > 1 ? (
-          <div>
-            <p className="mb-1.5 font-semibold text-muted-foreground">Variant</p>
-            <div className="flex flex-wrap gap-1.5">
-              {wantedDashboard.finishBreakdown.map((group) => (
-                <button key={group.label} type="button" onClick={() => onFilter({ kind: "finish", value: group.label, label: formatCardFinishLabel(group.label) })} className={chipClass(isActive("finish", group.label))}>
-                  {formatCardFinishLabel(group.label)} <span className="tabular-nums text-muted-foreground">{group.count}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {wantedDashboard.languageBreakdown.length > 1 ? (
-          <div>
-            <p className="mb-1.5 font-semibold text-muted-foreground">Language</p>
-            <div className="flex flex-wrap gap-1.5">
-              {wantedDashboard.languageBreakdown.map((group) => (
-                <button key={group.label} type="button" onClick={() => onFilter({ kind: "language", value: group.label, label: formatCardLanguageLabel(group.label) })} className={chipClass(isActive("language", group.label))}>
-                  {formatCardLanguageLabel(group.label)} <span className="tabular-nums text-muted-foreground">{group.count}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          </ul>
         ) : null}
       </div>
     </details>
