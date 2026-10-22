@@ -81,7 +81,8 @@ import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
 // import: it renders inside the card detail sheet, and loading it late shifts the sheet's
-// actions on phones.
+// actions on phones. Its chart is the exception: it loads in its own chunk behind a
+// placeholder of the same height (see card-price-evidence.tsx).
 const DashboardBinderPreview = dynamic(() => import("@/components/dashboard-binder-preview"), { ssr: false, loading: () => <p role="status" className="p-4 text-sm text-muted-foreground">Opening your binder…</p> })
 const SettingsModal = dynamic(() => import("@/components/settings-modal"), { ssr: false })
 const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr: false })

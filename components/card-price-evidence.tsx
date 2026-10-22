@@ -1,29 +1,30 @@
 "use client"
 
-import { Area, AreaChart, Tooltip, XAxis, YAxis } from "recharts"
-import { useId } from "react"
-import { ChartContainer } from "@/components/ui/chart"
-import type { CardPriceSnapshot, SupportedCurrency } from "@/lib/card-pricing"
+import dynamic from "next/dynamic"
+import type { CardPriceSnapshot } from "@/lib/card-pricing"
+import { formatCurrencyAmount, formatGbpAmount } from "@/lib/price-format"
 import { isMomentumEligibleConfidence } from "@/lib/price-momentum"
+
+// The chart library is large and only needed once a card's price details are open, so the
+// trend chart loads in its own chunk. The placeholder has the chart's exact height, so the
+// sheet doesn't shift when it arrives.
+const loadCardPriceTrendChart = () => import("@/components/card-price-trend-chart")
+const CardPriceTrendChart = dynamic(loadCardPriceTrendChart, {
+  ssr: false,
+  loading: () => <div className="h-20 w-full" aria-hidden="true" />,
+})
+
+// Fetch the chunk once the app is idle so the chart is ready (and cached for offline use)
+// before anyone opens a card.
+if (typeof window !== "undefined") {
+  const prefetch = () => { void loadCardPriceTrendChart().catch(() => undefined) }
+  if ("requestIdleCallback" in window) window.requestIdleCallback(prefetch, { timeout: 5000 })
+  else setTimeout(prefetch, 3000)
+}
 
 interface CardPriceEvidenceProps {
   price: CardPriceSnapshot | undefined
   showTrend?: boolean
-}
-
-function formatCurrencyAmount(amount: number | null | undefined, currency: SupportedCurrency) {
-  if (amount == null || !Number.isFinite(amount) || amount <= 0) return null
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: amount >= 100 ? 0 : 2,
-  }).format(amount)
-}
-
-function formatGbpAmount(amount: number | null | undefined) {
-  return typeof amount === "number" && Number.isFinite(amount)
-    ? formatCurrencyAmount(amount, "GBP")
-    : null
 }
 
 function formatUpdatedAt(value: string | null | undefined) {
@@ -39,7 +40,6 @@ function formatUpdatedAt(value: string | null | undefined) {
 }
 
 export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidenceProps) {
-  const gradientId = useId().replaceAll(":", "")
   const sourcePrices = price?.sourcePrices ?? []
   const trendPoints = price?.trendPoints ?? []
   const history = price?.historyPoints ?? []
@@ -126,43 +126,7 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
             <span className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">Cardmarket trend</span>
             <span className="text-muted-foreground">avg 30d to now</span>
           </div>
-          <ChartContainer
-            config={{ value: { label: "Price", color: "var(--chart-2)" } }}
-            className="h-20 w-full aspect-auto"
-          >
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={4} fontSize={10} />
-              <YAxis hide domain={["dataMin", "dataMax"]} />
-              <Tooltip
-                cursor={false}
-                content={({ active, payload, label }) => {
-                  if (!active || !payload?.length) return null
-                  const item = payload[0]?.payload as { value?: number; original?: string } | undefined
-                  return (
-                    <div className="rounded-lg border border-border/60 bg-background px-2 py-1 text-[10px] shadow-lg dark:border-white/10">
-                      <p className="font-semibold">{label}</p>
-                      <p className="tabular-nums">{formatGbpAmount(item?.value)}{item?.original ? ` · ${item.original}` : ""}</p>
-                    </div>
-                  )
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="var(--color-value)"
-                strokeWidth={2}
-                fill={`url(#${gradientId})`}
-                dot={{ r: 2 }}
-                activeDot={{ r: 3 }}
-              />
-            </AreaChart>
-          </ChartContainer>
+          <CardPriceTrendChart data={chartData} />
         </div>
       ) : null}
     </div>
