@@ -93,7 +93,7 @@ bun run dev                  # http://localhost:3000
 | `bun run test` | Unit tests in `tests/` (`bun test tests/`) |
 | `bun run test:coverage` | Unit tests with coverage |
 | `bun run typecheck` | `tsc --noEmit`; must be clean. `next build` also type-checks. |
-| `bun run lint` | ESLint with **`--max-warnings=79`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
+| `bun run lint` | ESLint with **`--max-warnings=68`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
 | `bun run build` | Production build |
 | `bun run test:e2e` | Playwright: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `BINDERDEX_E2E=1` |
 | `bun run test:e2e:install` | Installs Chromium for Playwright (or set `CHROME_PATH`) |
