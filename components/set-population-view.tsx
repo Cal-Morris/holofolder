@@ -20,7 +20,7 @@ import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { readOfflineSets, searchOfflineSets } from "@/lib/offline-card-index"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
 import { getSetSlotState, getSetCardState, hasWantedSetCard, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter, type SetSlotFilter } from "@/lib/set-checklist"
-import { POKEMON_CATALOG, formatPokemonDisplayName } from "@/lib/pokemon-catalog"
+import { POKEMON_CATALOG, formatPokemonDisplayName, formatDexNumber } from "@/lib/pokemon-catalog"
 import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-browse"
 
 interface SetPopulationViewProps {
@@ -66,10 +66,6 @@ function savedThumbnailOnError(image: string | undefined) {
     element.dataset.savedThumbnail = "1"
     element.src = fallback
   }
-}
-
-function formatDexNumber(id: number) {
-  return `#${String(id).padStart(4, "0")}`
 }
 
 function formatSetMeta(set: TCGSetSummary) {

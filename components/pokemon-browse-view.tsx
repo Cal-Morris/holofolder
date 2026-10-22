@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react"
 import { Search } from "lucide-react"
 import type { CollectedPokemon } from "@/lib/domain/cards"
-import { POKEMON_CATALOG, formatPokemonDisplayName, getOfficialArtworkUrl, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
+import { POKEMON_CATALOG, formatPokemonDisplayName, getOfficialArtworkUrl, getPokemonSummary, type PokemonSummary, formatDexNumber } from "@/lib/pokemon-catalog"
 import { useVirtualRows } from "@/hooks/use-virtual-rows"
 
 interface PokemonBrowseViewProps {
@@ -52,7 +52,7 @@ export default function PokemonBrowseView({ collectionByPokemonId, onBrowsePokem
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={getOfficialArtworkUrl(pokemon.id)} alt="" loading="lazy" className="h-12 w-12 shrink-0 object-contain" />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] tabular-nums text-muted-foreground">#{String(pokemon.id).padStart(4, "0")}</p>
+            <p className="text-[11px] tabular-nums text-muted-foreground">{formatDexNumber(pokemon.id)}</p>
             <p className="truncate text-sm font-semibold">{formatPokemonDisplayName(pokemon.name)}</p>
             <p className="text-xs text-muted-foreground">{owned ? "Owned species" : "Missing species"}{wanted ? " · Wanted printing" : ""}</p>
           </div>
