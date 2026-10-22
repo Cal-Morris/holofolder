@@ -89,9 +89,20 @@ export async function GET(request: NextRequest) {
     if (image.pendingUpload) {
       after(image.pendingUpload)
     }
-    return new NextResponse(image.body, {
+    // The store keeps the original scan; `&w=` serves a smaller WebP for thumbnails and phones (cached at the CDN).
+    let mirroredBody: ArrayBuffer | Buffer = image.body
+    let mirroredType = image.contentType
+    if (width !== null && !image.contentType.includes("svg")) {
+      try {
+        mirroredBody = await resizeImage(image.body, width)
+        mirroredType = "image/webp"
+      } catch (error) {
+        console.error("[card-image-proxy] resize failed, serving the original:", error)
+      }
+    }
+    return new NextResponse(new Uint8Array(mirroredBody), {
       headers: {
-        "content-type": image.contentType,
+        "content-type": mirroredType,
         "x-content-type-options": "nosniff",
         "x-card-image-source": image.source === "blob" ? getCardImageStoreKind() : image.source,
         ...IMMUTABLE_IMAGE_CACHE_HEADERS,
@@ -113,7 +124,6 @@ export async function GET(request: NextRequest) {
   let contentType = upstream.headers.get("content-type") || "image/webp"
   let body: ArrayBuffer | Buffer = await upstream.arrayBuffer()
 
-  // Resizing applies to the upstream path (artwork, fallback hosts); mirrored card images are served as stored.
   if (width !== null && !contentType.includes("svg")) {
     try {
       body = await resizeImage(body, width)

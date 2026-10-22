@@ -9,7 +9,7 @@ import { CardDataAttribution } from "@/components/card-data-attribution"
 import { MarketingCardFan } from "@/components/marketing-card-fan"
 import { MarketingBinderPreview } from "@/components/marketing-binder-preview"
 import { MarketingNavigation } from "@/components/marketing-navigation"
-import { FEATURED_CARDS, getFeaturedCardImageUrl } from "@/lib/featured-cards"
+import { FEATURED_CARDS, getFeaturedCardImageSrcSet, getFeaturedCardImageUrl } from "@/lib/featured-cards"
 import styles from "@/components/home-page.module.css"
 import { useServiceWorkerRegistration } from "@/hooks/use-service-worker-registration"
 
@@ -65,7 +65,7 @@ export default function HomePage({ isSignedIn = false }: { isSignedIn?: boolean 
               <div key={card.id} className={styles.pocket}>
                 <div className={`trading-card ${styles.cardFace}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={getFeaturedCardImageUrl(card)} alt={`${card.name}, ${card.set}, ${card.num}`} width={630} height={880} loading="lazy" />
+                  <img src={getFeaturedCardImageUrl(card)} srcSet={getFeaturedCardImageSrcSet(card)} sizes="(max-width: 650px) 30vw, 180px" alt={`${card.name}, ${card.set}, ${card.num}`} width={630} height={880} loading="lazy" decoding="async" />
                 </div>
               </div>
             ))}

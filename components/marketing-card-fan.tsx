@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { ArrowLeft, ArrowRight, Pause, Play } from "lucide-react"
-import { FEATURED_CARDS, getFeaturedCardImageUrl } from "@/lib/featured-cards"
+import { FEATURED_CARDS, getFeaturedCardImageSrcSet, getFeaturedCardImageUrl } from "@/lib/featured-cards"
 import styles from "@/components/home-page.module.css"
 
 const cards = FEATURED_CARDS.slice(0, 6)
+/** Matches `.fanCard` widths in home-page.module.css (phone, tablet, desktop). */
+const FAN_CARD_SIZES = "(max-width: 650px) 160px, (max-width: 900px) 185px, 250px"
 
 export function MarketingCardFan() {
   const stage = useRef<HTMLDivElement>(null)
@@ -174,9 +176,18 @@ export function MarketingCardFan() {
                 data-card-id={card.id}
                 data-position={position}
               >
-                {/* Native images preserve the full scan and use the app's image mirror. */}
+                {/* Native images use the app's image mirror; the front card at load is the LCP image, so the cards behind it load at low priority. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={getFeaturedCardImageUrl(card)} alt={position === 0 ? `${card.name}, ${card.set}, ${card.num}` : ""} width={630} height={880} fetchPriority={cardIndex === 0 ? "high" : "auto"} />
+                <img
+                  src={getFeaturedCardImageUrl(card)}
+                  srcSet={getFeaturedCardImageSrcSet(card)}
+                  sizes={FAN_CARD_SIZES}
+                  alt={position === 0 ? `${card.name}, ${card.set}, ${card.num}` : ""}
+                  width={630}
+                  height={880}
+                  fetchPriority={cardIndex === 0 ? "high" : "low"}
+                  decoding={cardIndex === 0 ? "sync" : "async"}
+                />
               </div>
             )
           })}

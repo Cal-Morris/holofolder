@@ -1,6 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { isAllowedImageHost, isAllowedImageUrl, parseProxyImageWidth } from "../app/api/card-image-proxy/route"
+import { FEATURED_CARDS, getFeaturedCardImageSrcSet, getFeaturedCardImageUrl } from "../lib/featured-cards"
 import { getOfficialArtworkSourceUrl, getOfficialArtworkUrl } from "../lib/pokemon-artwork"
 
 test("isAllowedImageHost allows mirrored card art fallback hosts", () => {
@@ -48,3 +49,16 @@ test("isAllowedImageUrl allows only the playshop.fr store path on the shared Sho
   assert.equal(isAllowedImageUrl(new URL("https://cdn.shopify.com/s/files/1/0000/0000/0001/files/logo.png")), false)
 })
 
+
+test("featured card srcset offers proxy widths and the original scan", () => {
+  const card = FEATURED_CARDS[0]
+  const srcset = getFeaturedCardImageSrcSet(card)
+  const candidates = srcset.split(", ")
+  assert.equal(candidates.length, 5)
+  assert.equal(candidates[0], `${getFeaturedCardImageUrl(card, 160)} 160w`)
+  assert.equal(candidates.at(-1), `${getFeaturedCardImageUrl(card)} 600w`)
+  for (const candidate of candidates.slice(0, -1)) {
+    const width = Number(candidate.match(/&w=(\d+) /)?.[1])
+    assert.equal(parseProxyImageWidth(String(width)), width)
+  }
+})

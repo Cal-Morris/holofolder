@@ -811,6 +811,18 @@ export const FEATURED_CARDS: readonly FeaturedCard[] = [
   }
 ]
 
-export function getFeaturedCardImageUrl(card: FeaturedCard): string {
-  return `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+export function getFeaturedCardImageUrl(card: FeaturedCard, width?: number): string {
+  const url = `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+  return width ? `${url}&w=${width}` : url
+}
+
+/** Proxy widths offered to the browser; the original scan (600px wide) covers anything larger. */
+const FEATURED_CARD_SRCSET_WIDTHS = [160, 240, 320, 480] as const
+
+/** `srcset` for a featured card so phones download a scan sized to the slot rather than the full image. */
+export function getFeaturedCardImageSrcSet(card: FeaturedCard): string {
+  return [
+    ...FEATURED_CARD_SRCSET_WIDTHS.map((width) => `${getFeaturedCardImageUrl(card, width)} ${width}w`),
+    `${getFeaturedCardImageUrl(card)} 600w`,
+  ].join(", ")
 }
