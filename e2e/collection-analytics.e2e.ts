@@ -109,3 +109,26 @@ test("read-only binders expose no private analytics destination", async ({ harne
   await expect(page.getByRole("button", { name: "Analytics", exact: true })).toHaveCount(0)
   expect(privateRequests).toBe(0)
 })
+
+test.describe("collection export", () => {
+  test.use({ signedIn: true })
+
+  test("exports the collection as a CSV, offline too", async ({ harness }) => {
+    const page = harness.page
+    await page.route("**/api/collection-analytics?**", route => route.fulfill({ json: { activity: [], priceHistory: [], nextCursor: null, historyAvailable: true } }))
+    await harness.open()
+    await openAnalytics(page)
+    await page.context().setOffline(true)
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Export CSV", exact: true }).click(),
+    ])
+    await page.context().setOffline(false)
+    expect(download.suggestedFilename()).toMatch(/^binderdex-collection-\d{4}-\d{2}-\d{2}\.csv$/)
+    const fs = await import("node:fs/promises")
+    const lines = (await fs.readFile((await download.path())!, "utf8")).trimEnd().split("\r\n")
+    expect(lines[0]).toBe("dex_number,pokemon,list,slot_status,card_id,card_name,set,language,finish,market_gbp,price_source,added")
+    expect(lines.length).toBeGreaterThan(1)
+    await harness.expectNoHorizontalOverflow()
+  })
+})
