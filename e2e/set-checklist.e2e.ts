@@ -108,4 +108,21 @@ test.describe("set checklists", () => {
     await page.getByRole("group", { name: "Set checklist" }).getByRole("button", { name: "Cards", exact: true }).click()
     await expect(page.getByText("Fixture Trainer", { exact: true })).toBeVisible()
   })
+
+  test("selected sets show how much of the set the binder holds", async ({ harness }) => {
+    const page = harness.page
+    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: [{ ...SEEDED_COLLECTION[0], card_id: card.id }, { ...SEEDED_COLLECTION[1], card_id: trainer.id, status: "wishlisted" }] }))
+    await page.reload()
+    await mockSet(page)
+    await selectSet(harness)
+    const completion = page.getByRole("list", { name: "Set completion" })
+    await expect(completion.getByRole("listitem")).toHaveCount(1)
+    await expect(completion).toContainText("1/2 cards · 50%")
+    const bar = completion.getByRole("progressbar", { name: "Fixture Set completion" })
+    await expect(bar).toHaveAttribute("aria-valuenow", "1")
+    await expect(bar).toHaveAttribute("aria-valuemax", "2")
+    await completion.scrollIntoViewIfNeeded()
+    await expect(bar).toBeVisible()
+    await page.screenshot({ path: `/tmp/set-progress-${page.viewportSize()!.width}.png` })
+  })
 })
