@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import BinderApp from "@/components/binder-app"
+import { BinderSkeleton } from "@/components/binder-skeleton"
 import { createClient } from "@/lib/supabase/client"
 import { readOfflineShellState, type OfflineShellState } from "@/lib/offline-shell"
 
@@ -38,11 +39,7 @@ export default function OfflineAppShell() {
   }, [])
 
   if (!boot) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground" aria-busy="true">
-        Opening your binder…
-      </main>
-    )
+    return <BinderSkeleton />
   }
 
   return (
