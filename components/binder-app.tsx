@@ -4846,8 +4846,8 @@ export default function BinderApp({
               <Button
                 variant="ghost"
                 size="icon"
-                // On a narrow binder page the labelled Show mode button takes its place (theme stays in Settings › Display).
-                className={`h-9 w-9 rounded-full md:hidden ${activeMainView === "binder" && binderDimension === "2d" ? "max-[399px]:hidden" : ""}`}
+                // On a phone's 2D binder page the labelled Show mode button takes its place (theme stays in Settings › Display).
+                className={`h-9 w-9 rounded-full md:hidden ${activeMainView === "binder" && binderDimension === "2d" ? "max-md:hidden" : ""}`}
                 onClick={toggleDarkMode}
                 aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
               >
@@ -4870,7 +4870,7 @@ export default function BinderApp({
                 <Ticket className="h-4 w-4 md:h-3.5 md:w-3.5" aria-hidden />
                 {/* Signed out, a narrow 2D binder header also holds Sign in and the pager, so the pill drops its
                     text there; the "At a card show?" card below spells it out. */}
-                <span className={!user && activeMainView === "binder" && binderDimension === "2d" ? "max-[399px]:sr-only" : ""}>Show</span>
+                <span className={!user && activeMainView === "binder" && binderDimension === "2d" ? "max-md:sr-only" : ""}>Show</span>
               </button>
             </div>
           </div>
