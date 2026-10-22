@@ -73,6 +73,7 @@ Stack:
    - Card data is network-first with a 5 s cache fallback. Images are cache-first, capped at 1,500 entries.
    - The app warms the cache for visible slots.
    - `components/offline-app-shell.tsx` boots the binder from on-device data only.
+   - `/` paints `BinderSkeleton` from the static shell, then `components/binder-start.tsx` shows the saved binder straight away (the same account, owner and binder the server last opened, from `lib/binder-start.ts`) or the server's collection, whichever comes first.
 
 ## Setup
 
