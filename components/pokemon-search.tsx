@@ -4,7 +4,7 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 import type React from "react"
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"
-import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2, Palette } from "lucide-react"
+import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2, Palette, History } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary } from "@/lib/pokemon-catalog"
 import {
@@ -23,6 +23,7 @@ import {
   type SearchCardResult,
 } from "@/lib/pokemon-card-browse"
 import { searchOfflineCards } from "@/lib/offline-card-index"
+import { addRecentCard, readRecentCards, toRecentCard, writeRecentCards, type RecentCard } from "@/lib/recent-cards"
 import { loadIllustratorDirectory } from "@/lib/illustrator-client"
 import { normalizeIllustratorText, searchIllustrators, type IllustratorSummary } from "@/lib/illustrators"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -188,6 +189,23 @@ export default function PokemonSearch({
   pricingRegion = DEFAULT_PRICING_REGION,
 }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
+  // Read after mount so the server render and first client render agree.
+  const [recentCards, setRecentCards] = useState<RecentCard[]>([])
+  useEffect(() => {
+    if (!onBrowseCards) return
+    const frameId = window.requestAnimationFrame(() => setRecentCards(readRecentCards(window.localStorage)))
+    return () => window.cancelAnimationFrame(frameId)
+  }, [onBrowseCards])
+  // Opening a card closes the search, so write storage now rather than inside a state update that may be dropped.
+  const rememberCard = useCallback((card: RecentCard) => {
+    const next = addRecentCard(readRecentCards(window.localStorage), card)
+    writeRecentCards(window.localStorage, next)
+    setRecentCards(next)
+  }, [])
+  const clearRecentCards = useCallback(() => {
+    writeRecentCards(window.localStorage, [])
+    setRecentCards([])
+  }, [])
   const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -254,6 +272,8 @@ export default function PokemonSearch({
   )
   const { pricesByCardId: cardPrices } = useRegionalCardPrices(cardPriceLookups, cardPriceLookups.length > 0, pricingRegion)
   const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator))
+
+  const showRecentCards = Boolean(onBrowseCards) && !query.trim() && recentCards.length > 0
 
   const pageJump = useMemo(() => {
     if (!onJumpToPage || totalPages < 1) return null
@@ -397,9 +417,53 @@ export default function PokemonSearch({
       ) : null}
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/70">
-        {visibleResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
+        {showRecentCards || visibleResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
           <div className="h-full overflow-y-auto">
-            {visibleResults.length > 0 && (illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading) ? (
+            {showRecentCards ? (
+              <section aria-label="Recently viewed cards" className="border-b border-border/50 pb-2">
+                <div className="flex items-center justify-between gap-2 px-4 pt-2">
+                  <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    <History className="h-3 w-3" />
+                    Recently viewed
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearRecentCards}
+                    aria-label="Clear recently viewed cards"
+                    className="-mr-2 min-h-9 rounded-full px-3 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex gap-2 overflow-x-auto px-3 pb-1">
+                  {recentCards.map((card) => {
+                    const thumb = cardThumbnail(card.image)
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => {
+                          rememberCard({ ...card, viewedAt: new Date().toISOString() })
+                          onBrowseCards?.({ id: card.dexId, name: card.pokemonName }, card.id)
+                        }}
+                        aria-label={`${card.name} ${card.number} ${card.setName}`}
+                        className="w-[4.6rem] shrink-0 text-left"
+                      >
+                        <div className="trading-card w-full border border-border/50 bg-muted/40">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                          ) : null}
+                        </div>
+                        <p className="mt-1 truncate text-[10px] font-semibold">{card.name}</p>
+                        <p className="truncate text-[10px] text-muted-foreground tabular-nums">{card.number}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ) : null}
+            {visibleResults.length > 0 && (showRecentCards || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading) ? (
               <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pokémon</p>
             ) : null}
             {visibleResults.map((pokemon, index) => {
@@ -566,7 +630,10 @@ export default function PokemonSearch({
                             <button
                               key={card.id}
                               type="button"
-                              onClick={() => onBrowseCards?.({ id: group.dexId, name: group.name }, card.id)}
+                              onClick={() => {
+                                rememberCard(toRecentCard(card, { id: group.dexId, name: group.name }))
+                                onBrowseCards?.({ id: group.dexId, name: group.name }, card.id)
+                              }}
                               aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}`}
                               className="w-[4.6rem] shrink-0 text-left"
                             >
