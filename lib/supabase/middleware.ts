@@ -32,15 +32,15 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
-  // IMPORTANT: If you remove getUser() and you use server-side rendering
-  // with the Supabase client, your users may be randomly logged out.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Do not run code between createServerClient and supabase.auth.getClaims(). A simple mistake
+  // could make it very hard to debug issues with users being randomly logged out.
+  //
+  // getClaims() refreshes an expired session (writing the new cookies through setAll above) and
+  // verifies the access token's signature locally against the project's cached JWKS (ES256), so
+  // the proxy no longer makes a Supabase Auth round trip on every request the way getUser() did.
+  // Pages and route handlers that need the full user record still call getUser() themselves.
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const user = claimsData?.claims?.sub ? claimsData.claims : null
 
   if (
     // if the user is not logged in and the app path, in this case, /protected, is accessed, redirect to the login page
