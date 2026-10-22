@@ -14,6 +14,7 @@
     "test": "bun test tests/",
     "test:coverage": "bun test tests/ --coverage",
     "test:e2e": "playwright test",
+    "analyze:first-load": "node scripts/first-load-js.mjs .next",
     "test:e2e:install": "playwright install chromium",
     "typecheck": "tsc --noEmit"
   },
