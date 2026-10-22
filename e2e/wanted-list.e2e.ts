@@ -137,10 +137,45 @@ test.describe("want list on mobile", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
-  test("Got it takes the card off the want list", async ({ harness }) => {
+  test("Got it takes the card off the want list, with undo", async ({ harness }) => {
     const { page } = harness
+    const row = page.locator('[data-testid="wanted-row"][data-card-id="sv03.5-005"]')
     await page.getByRole("button", { name: "Got it: Charmeleon" }).click()
-    await expect(page.locator('[data-testid="wanted-row"][data-card-id="sv03.5-005"]')).toHaveCount(0)
+    await expect(row).toHaveCount(0)
     await expect(page.getByTestId("wanted-summary")).toContainText("5 wanted")
+
+    const snackbar = page.getByTestId("undo-snackbar")
+    await expect(snackbar).toContainText("Charmeleon moved to your binder")
+    const undo = snackbar.getByRole("button", { name: "Undo", exact: true })
+    await harness.expectMinTapTarget(undo, 44)
+    await harness.expectWithinSafeViewport(undo)
+    await undo.click()
+    await expect(row).toHaveCount(1)
+    await expect(page.getByTestId("wanted-summary")).toContainText("6 wanted")
+  })
+
+  test("the row menu removes a card (with undo) and shows it in the binder", async ({ harness }) => {
+    const { page } = harness
+    const rows = page.getByTestId("wanted-row")
+    const more = page.getByRole("button", { name: "More actions for Squirtle" }).first()
+    await harness.expectMinTapTarget(more, 44)
+
+    await page.getByRole("button", { name: "More actions for Charizard ex" }).click()
+    const menu = page.getByRole("dialog", { name: "Actions for Charizard ex" })
+    await expect(menu).toBeVisible()
+    await harness.expectWithinSafeViewport(menu.getByRole("button", { name: "Cancel" }))
+    await harness.expectMinTapTarget(menu.getByRole("button", { name: "Remove from want list" }), 44)
+    await menu.getByRole("button", { name: "Remove from want list" }).click()
+    await expect(menu).toBeHidden()
+    await expect(rows).toHaveCount(5)
+    await expect(page.getByTestId("undo-snackbar")).toContainText("Charizard ex removed from want list")
+    await page.getByTestId("undo-snackbar").getByRole("button", { name: "Undo", exact: true }).click()
+    await expect(rows).toHaveCount(6)
+
+    await page.getByRole("button", { name: "More actions for Bulbasaur" }).click()
+    await page.getByRole("dialog", { name: "Actions for Bulbasaur" }).getByRole("button", { name: "Show in binder" }).click()
+    await expect(page.getByTestId("wanted-list")).toHaveCount(0)
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    await harness.expectNoHorizontalOverflow()
   })
 })

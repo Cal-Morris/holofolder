@@ -2089,8 +2089,9 @@ export default function BinderApp({
     const existingItem = getCollectionItem(pokemonId)
     const wantedKey = getWantedCardKey(wantedCard)
     const nextWantedCards = (existingItem?.wanted_cards ?? []).filter((card) => getWantedCardKey(card) !== wantedKey)
+    const previous = existingItem ? { ...existingItem, wanted_cards: [...(existingItem.wanted_cards ?? [])] } : null
 
-    await addToCollection(
+    const gotResult = await addToCollection(
       pokemonId,
       pokemonName,
       wantedCard.card_id,
@@ -2104,6 +2105,9 @@ export default function BinderApp({
         wantedCards: nextWantedCards,
       },
     )
+    if (previous && "data" in gotResult) {
+      setOwnedRemoveUndo({ message: `${wantedCard.card_name} moved to your binder`, previous })
+    }
   }, [addToCollection, getCollectionItem, readOnlyMode, user])
 
   const handleClearWantedCard = useCallback(async (pokemonId: number, wantedCard: WantedCard) => {
@@ -2119,13 +2123,16 @@ export default function BinderApp({
     const wantedKey = getWantedCardKey(wantedCard)
     const nextWantedCards = existingItem.wanted_cards.filter((card) => getWantedCardKey(card) !== wantedKey)
     const existingIsOwned = existingItem.status !== "wishlisted"
+    const previous = { ...existingItem, wanted_cards: [...existingItem.wanted_cards] }
+    const offerUndo = () => setOwnedRemoveUndo({ message: `${wantedCard.card_name} removed from want list`, previous })
 
     if (!existingIsOwned && nextWantedCards.length === 0) {
-      await removeFromCollection(pokemonId)
+      const removed = await removeFromCollection(pokemonId)
+      if ("success" in removed) offerUndo()
       return
     }
 
-    await addToCollection(
+    const cleared = await addToCollection(
       pokemonId,
       existingItem.pokemon_name,
       existingIsOwned ? existingItem.card_id : undefined,
@@ -2139,6 +2146,7 @@ export default function BinderApp({
         wantedCards: nextWantedCards,
       },
     )
+    if ("data" in cleared) offerUndo()
   }, [addToCollection, getCollectionItem, readOnlyMode, removeFromCollection, user])
 
   const handleCollectSetCards = useCallback(async (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => {
