@@ -159,8 +159,8 @@ test.describe("card picker price sort (UK)", () => {
     const filtersButton = selector.getByRole("button", { name: /filters · sort/i })
     const sheet = page.getByRole("dialog", { name: "Filters and sort" })
     const sortSelect = sheet.getByRole("combobox", { name: "Sort cards" })
-    const order = () => selector.getByRole("button", { name: /^Add card Squirtle from / })
-      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")!.replace("Add card Squirtle from ", "")))
+    const order = () => selector.getByRole("button", { name: /^(Add|Want) card Squirtle from / })
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")!.replace(/^(Add|Want) card Squirtle from /, "")))
     const chooseSort = async (label: string) => {
       await filtersButton.click()
       await sortSelect.selectOption({ label })
@@ -196,6 +196,7 @@ test.describe("card picker price sort (UK)", () => {
     await (await openSquirtle()).getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
     await expect(selector).toBeVisible()
     await expect(selector.getByRole("button", { name: "Remove filter Price: high to low" })).toBeVisible()
+    await expect(selector.getByRole("status").filter({ hasText: /offline/i })).toBeVisible()
     await expect.poll(order).toEqual(["30th Celebration", "151", "30th Classic Collection"])
     await page.context().setOffline(false)
   })

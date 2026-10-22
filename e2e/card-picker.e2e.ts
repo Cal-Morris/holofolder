@@ -77,4 +77,21 @@ test.describe("card picker layout", () => {
     await expect(selector).toHaveCount(0)
     await expect(page.locator('button[data-dex-id="7"]').first()).toBeVisible()
   })
+
+  test("a search with no matches says so and clears in one tap", async ({ harness }) => {
+    const selector = await openPicker(harness)
+    await selector.getByRole("searchbox", { name: "Search cards" }).fill("zzzz no such card")
+    await expect(selector.getByText("No cards match", { exact: true })).toBeVisible()
+    await selector.getByRole("button", { name: "Clear search and filters" }).click()
+    await expect(selector.getByText("3 of 3 cards")).toBeVisible()
+    await expect(selector.getByRole("searchbox", { name: "Search cards" })).toHaveValue("")
+  })
+
+  test("a single-finish card is picked in one tap", async ({ harness }) => {
+    const { page } = harness
+    const selector = await openPicker(harness)
+    await selector.getByRole("button", { name: "Add card Squirtle from 30th Celebration", exact: true }).click()
+    await expect(page.getByRole("dialog", { name: "Which variant?" })).toHaveCount(0)
+    await expect(selector).toHaveCount(0)
+  })
 })

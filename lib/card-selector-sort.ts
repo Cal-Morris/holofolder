@@ -11,7 +11,7 @@ import type { PricingRegion } from "@/lib/pricing-region"
 export type CardPickerSort = "default" | "price-desc" | "price-asc" | "newest" | "oldest"
 
 export const CARD_PICKER_SORTS: Array<{ id: CardPickerSort; label: string }> = [
-  { id: "default", label: "Default order" },
+  { id: "default", label: "Best match" },
   { id: "price-desc", label: "Price: high to low" },
   { id: "price-asc", label: "Price: low to high" },
   { id: "newest", label: "Newest set" },
@@ -79,13 +79,25 @@ function compareNumber(a: SortableCard, b: SortableCard) {
   return a.set.id.localeCompare(b.set.id) || a.localId.localeCompare(b.localId, undefined, { numeric: true, sensitivity: "base" })
 }
 
-/** Returns `cards` in the chosen order. "default" keeps the incoming order; sorts are stable. */
+/**
+ * Returns `cards` in the chosen order. "default" (Best match) puts the most likely picks first: cards
+ * `likelyRank` ranks (lower first, e.g. the slot's wanted or current card), then newest set first.
+ */
 export function sortCardPickerCards<TCard extends SortableCard>(
   cards: readonly TCard[],
   sort: CardPickerSort,
   amountOf: (card: TCard) => number | null,
+  likelyRank: (card: TCard) => number = () => Number.POSITIVE_INFINITY,
 ): TCard[] {
-  if (sort === "default") return [...cards]
+  if (sort === "default") {
+    const ranks = new Map(cards.map((card) => [card, likelyRank(card)]))
+    return [...cards].sort((a, b) => {
+      const aRank = ranks.get(a) ?? Number.POSITIVE_INFINITY
+      const bRank = ranks.get(b) ?? Number.POSITIVE_INFINITY
+      if (aRank !== bRank) return aRank < bRank ? -1 : 1
+      return compareReleaseDate(a, b, -1) || compareNumber(a, b)
+    })
+  }
   if (sort === "newest" || sort === "oldest") {
     const direction = sort === "newest" ? -1 : 1
     return [...cards].sort((a, b) => compareReleaseDate(a, b, direction) || compareNumber(a, b))
