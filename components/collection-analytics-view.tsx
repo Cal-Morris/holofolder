@@ -1,8 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { Download } from "lucide-react"
 import { Line, LineChart, Tooltip, XAxis, YAxis } from "recharts"
 import { collectionFingerprint } from "@/lib/collection/sync"
+import { buildCollectionCsv, collectionCsvFilename } from "@/lib/collection-export"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import { ChartContainer } from "@/components/ui/chart"
 import { buildCollectionAnalytics, normalizeAnalyticsHistory, activityDescription, type AnalyticsMover } from "@/lib/collection-analytics"
@@ -21,6 +23,28 @@ const money = (amount: number) => new Intl.NumberFormat("en-GB", { style: "curre
 const panel = "rounded-2xl border border-border/60 bg-card/70 p-4"
 const button = "min-h-9 rounded-xl border border-border/60 px-3 py-2 text-sm hover:bg-muted"
 const emptyHistory = normalizeAnalyticsHistory(null)
+
+/** Saves the CSV. Phones get the share sheet (Files, Drive, mail), everything else a download. Works offline. */
+async function exportCollectionCsv(collection: CollectedPokemon[], pricesByKey: Record<string, CardPriceSnapshot>) {
+  const file = new File([buildCollectionCsv(collection, pricesByKey)], collectionCsvFilename(), { type: "text/csv" })
+  const isTouch = window.matchMedia?.("(pointer: coarse)").matches
+  if (isTouch && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: file.name })
+      return
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return
+    }
+  }
+  const url = URL.createObjectURL(file)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = file.name
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 export default function CollectionAnalyticsView(props: Props) {
   // A remount clears private history immediately when the signed-in collection owner changes.
@@ -88,7 +112,9 @@ function AnalyticsContent({ collection, pricesByKey, ownerId, readOnly, isOnline
     </li>)}</ul>}
   </section>
   return <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4" aria-label="Collection analytics">
-    <header className="py-4"><p className="text-xs uppercase tracking-widest text-muted-foreground">Your collection</p><h1 className="mt-1 text-2xl font-semibold">Analytics</h1><p className="mt-1 text-sm text-muted-foreground">Completion, card values and changes over time.</p></header>
+    <header className="flex flex-wrap items-end justify-between gap-3 py-4"><div className="min-w-0"><p className="text-xs uppercase tracking-widest text-muted-foreground">Your collection</p><h1 className="mt-1 text-2xl font-semibold">Analytics</h1><p className="mt-1 text-sm text-muted-foreground">Completion, card values and changes over time.</p></div>
+      {collection.length > 0 && <button type="button" className={`${button} inline-flex shrink-0 items-center gap-2`} onClick={() => void exportCollectionCsv(collection, pricesByKey)}><Download className="h-4 w-4" aria-hidden="true" />Export CSV</button>}
+    </header>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {[["Dex completion", `${summary.ownedSpecies} / 1025`], ["Assigned cards", String(summary.assignedCards)], ["Wanted cards", String(summary.wantedCards)], ["Priced owned value", summary.pricedCards ? money(summary.valueGbp) : "Unknown"]].map(([label, value]) => <section key={label} className={panel}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-xl font-semibold tabular-nums">{value}</p></section>)}
     </div>
