@@ -7,6 +7,7 @@ import {
   type CardPriceRefreshResult,
 } from "@/lib/card-pricing"
 import { DEFAULT_REFRESH_INTERVAL, normalizeRefreshInterval, type RefreshInterval } from "@/lib/price-refresh-interval"
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows"
 
 interface CollectionPriceRow {
   card_id: string | null
@@ -119,22 +120,25 @@ async function loadTrackedCardPriceLookups(ownerUserId: string | null): Promise<
 
   console.log(`[binderdex] Loading tracked cards${ownerUserId ? ` for owner ${ownerUserId}` : ""}`)
   const admin = createAdminClient()
-  let query = admin
-    .from("pokemon_collection")
-    .select("card_id, card_language, wanted_cards")
+  // Pages past PostgREST's 1000-row cap; the all-users refresh reads every collection row.
+  const { data, error } = await fetchAllRows<CollectionPriceRow>((from, to) => {
+    let query = admin
+      .from("pokemon_collection")
+      .select("card_id, card_language, wanted_cards")
 
-  if (ownerUserId) {
-    query = query.eq("user_id", ownerUserId)
-  }
+    if (ownerUserId) {
+      query = query.eq("user_id", ownerUserId)
+    }
 
-  const { data, error } = await query
+    return query.order("id", { ascending: true }).range(from, to)
+  })
 
   if (error) {
     throw error
   }
 
   const byKey = new Map<string, CardPriceLookup>()
-  for (const row of (data ?? []) as CollectionPriceRow[]) {
+  for (const row of data) {
     if (row.card_id) {
       const language = normalizeCardLanguage(row.card_language)
       byKey.set(`${row.card_id}::${language}`, {

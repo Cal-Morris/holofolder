@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { loadCollectionRows } from "@/lib/collection/load"
 import { settingsFromRow, type BinderSettings, type UserSettingsRow } from "@/lib/settings"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,11 +17,7 @@ export interface BinderBootstrap {
 /** Loads the owner's collection and binder settings in parallel for the initial page render. */
 export async function loadBinderBootstrap(client: AnySupabaseClient, ownerUserId: string): Promise<BinderBootstrap> {
   const [collectionResult, settingsResult] = await Promise.all([
-    client
-      .from("pokemon_collection")
-      .select("*")
-      .eq("user_id", ownerUserId)
-      .order("pokemon_id", { ascending: true }),
+    loadCollectionRows(client, ownerUserId),
     client
       .from("user_settings")
       .select("*")
