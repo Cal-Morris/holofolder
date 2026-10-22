@@ -220,6 +220,22 @@ export default function PokemonSearch({
     })
   }, [currentPagePokemonIds, getResultMeta])
 
+  // Chip counts depend on the collection and current page, not the query: one pass over the catalogue, reused
+  // on every keystroke (previously each chip re-filtered the whole list on every render).
+  const filterCounts = useMemo(() => {
+    const counts = new Map<SearchStateFilter, number>(SEARCH_FILTERS.map((filterOption) => [filterOption.id, 0]))
+    for (const pokemon of pokemonList) {
+      const meta = getResultMeta?.(pokemon)
+      const context = { slotState: meta?.slotState, isCurrentPage: currentPagePokemonIds.has(pokemon.id) }
+      for (const filterOption of SEARCH_FILTERS) {
+        if (matchesPokemonSearchStateFilter(filterOption.id, context)) {
+          counts.set(filterOption.id, (counts.get(filterOption.id) ?? 0) + 1)
+        }
+      }
+    }
+    return counts
+  }, [currentPagePokemonIds, getResultMeta, pokemonList])
+
   const visibleResults = useMemo(() => {
     const byFilter = pokemonList.filter((pokemon) => matchesFilter(activeFilter, pokemon))
 
@@ -331,7 +347,7 @@ export default function PokemonSearch({
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {SEARCH_FILTERS.map((filterOption) => {
-          const count = pokemonList.filter((pokemon) => matchesFilter(filterOption.id, pokemon)).length
+          const count = filterCounts.get(filterOption.id) ?? 0
 
           if (filterOption.id !== "all" && count === 0) {
             return null
