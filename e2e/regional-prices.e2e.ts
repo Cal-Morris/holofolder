@@ -120,3 +120,79 @@ test.describe("US locale", () => {
     await expect(selector.getByText(/£/).filter({ visible: true })).toHaveCount(0)
   })
 })
+
+test.describe("card picker price sort (UK)", () => {
+  test.use({ locale: "en-GB", signedIn: true })
+
+  // TEST FIXTURE ONLY: synthetic Squirtle quotes, one printing unpriced.
+  const QUOTES: Record<string, number | null> = { "sv03.5-007": 0.5, "30th-007": 12, "30th-c-003": null }
+
+  test("sorts printings by UK price in Add and Wanted modes, remembers it and works offline", async ({ harness }) => {
+    const { page } = harness
+    await page.route("**/api/card-prices**", async (route) => {
+      const lookups: Array<{ cardId: string; language?: string }> = route.request().postDataJSON()?.cards ?? []
+      await route.fulfill({ json: { prices: lookups.map(({ cardId, language }) => {
+        const gbp = QUOTES[cardId] ?? null
+        return {
+          cardId, language: language ?? "en", gbpAmount: gbp, marketGbpAmount: gbp, goodGbpAmount: null, lowGbpAmount: null,
+          highGbpAmount: null, confidence: gbp ? "medium" : "unknown", trendPoints: [], historyPoints: [], finishPrices: [],
+          sourcePrices: gbp ? [{ source: "cardmarket", label: "Cardmarket", variantLabel: null, marketGbpAmount: gbp, lowGbpAmount: null,
+            originalMarketAmount: gbp * 1.2, originalLowAmount: null, originalCurrency: "EUR", updatedAt: new Date().toISOString() }] : [],
+          source: gbp ? "cardmarket" : null, variantLabel: null, originalAmount: gbp ? gbp * 1.2 : null, originalCurrency: gbp ? "EUR" : null,
+          updatedAt: new Date().toISOString(), fxDate: null, buySignal: null,
+        }
+      }) } })
+    })
+    await page.addInitScript(() => {
+      localStorage.removeItem("binderdex_card_price_cache_v7")
+      indexedDB.deleteDatabase("binderdex-offline")
+    })
+    await harness.open()
+
+    const openSquirtle = async () => {
+      await page.locator('button[data-dex-id="7"]').first().click()
+      const detail = page.getByRole("dialog", { name: /squirtle details/i })
+      await expect(detail).toBeVisible()
+      return detail
+    }
+    const selector = page.getByRole("dialog", { name: /card selector/i })
+    const sortTrigger = selector.getByRole("combobox", { name: "Sort cards" })
+    const order = () => selector.getByRole("button", { name: /^Add card Squirtle from / })
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")!.replace("Add card Squirtle from ", "")))
+    const chooseSort = async (label: string) => {
+      await sortTrigger.click()
+      await page.getByRole("option", { name: label, exact: true }).click()
+      await expect(sortTrigger).toContainText(label)
+    }
+
+    await (await openSquirtle()).getByRole("button", { name: "Add card", exact: true }).click()
+    await expect(selector.getByText("M £12.00", { exact: true }).filter({ visible: true })).toBeVisible()
+    await expect(sortTrigger).toContainText("Default order")
+    expect((await sortTrigger.boundingBox())!.height).toBeGreaterThanOrEqual(36)
+
+    await chooseSort("Price: high to low")
+    await expect.poll(order).toEqual(["30th Celebration", "151", "30th Classic Collection"])
+    await chooseSort("Price: low to high")
+    await expect.poll(order).toEqual(["151", "30th Celebration", "30th Classic Collection"])
+    await harness.expectNoHorizontalOverflow()
+
+    // Wanted mode keeps the same sort.
+    await selector.getByRole("button", { name: /wanted/i }).filter({ hasText: "Wanted" }).first().click()
+    await expect.poll(order).toEqual(["151", "30th Celebration", "30th Classic Collection"])
+    await chooseSort("Price: high to low")
+    await expect.poll(order).toEqual(["30th Celebration", "151", "30th Classic Collection"])
+
+    // Remembered for the session, and still sorted from cached prices with the price API offline.
+    await selector.getByRole("button", { name: "Close card selector" }).click()
+    await expect(selector).toHaveCount(0)
+    await page.keyboard.press("Escape")
+    await page.unroute("**/api/card-prices**")
+    await page.route("**/api/card-prices**", (route) => route.abort("internetdisconnected"))
+    await page.context().setOffline(true)
+    await (await openSquirtle()).getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
+    await expect(selector).toBeVisible()
+    await expect(sortTrigger).toContainText("Price: high to low")
+    await expect.poll(order).toEqual(["30th Celebration", "151", "30th Classic Collection"])
+    await page.context().setOffline(false)
+  })
+})
