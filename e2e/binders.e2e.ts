@@ -141,7 +141,7 @@ test.describe("multiple binders", () => {
     await fake.install(page)
     await openWithBinders(harness)
 
-    let sheet = await openSwitcher(harness)
+    const sheet = await openSwitcher(harness)
     await sheet.getByRole("button", { name: "Edit" }).click()
     await sheet.getByRole("button", { name: "Rename Trades" }).click()
     await sheet.getByRole("textbox", { name: "New name for Trades" }).fill("Trade binder")

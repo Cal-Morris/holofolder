@@ -190,7 +190,7 @@ export default function BinderSwitcherSheet({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--dock-clearance)+0.75rem)] sm:pb-4">
           {!isOnline && canManage && (
             <p className="mb-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
-              You're offline. Reconnect to switch or edit binders.
+              You&apos;re offline. Reconnect to switch or edit binders.
             </p>
           )}
           <ul className="flex flex-col gap-1.5" aria-label="Your binders">

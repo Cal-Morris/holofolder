@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getSessionUser } from "@/lib/supabase/session-user"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { ensureDefaultBinderId, listOwnerBinders } from "@/lib/server/binders"
 import { isBinderId, normalizeBinderName, type Binder } from "@/lib/binders/model"
@@ -10,9 +11,10 @@ import { canCreateBinder, nextBinderSortOrder, planBinderDelete, validateBinderO
  * Binders of the signed-in owner. A partner manages the owner's binders (they share every binder), so every
  * request resolves the owner first and then uses the service role, like /api/collection.
  */
-async function requireOwner() {
+async function requireOwner({ readOnly = false } = {}) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Reads verify the session token locally (no Auth round trip); writes keep getUser().
+  const user = readOnly ? await getSessionUser(supabase) : (await supabase.auth.getUser()).data.user
   if (!user) return null
   const admin = createAdminClient()
   const ownerUserId = await resolveCollectionOwnerUserId(admin, user.id)
@@ -51,7 +53,7 @@ function failure(label: string, error: unknown) {
 
 export async function GET() {
   try {
-    const session = await requireOwner()
+    const session = await requireOwner({ readOnly: true })
     if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     return respond(await listWithCounts(session.admin, session.ownerUserId))
   } catch (error) {
