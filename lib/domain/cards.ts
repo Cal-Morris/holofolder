@@ -65,6 +65,7 @@ export interface WantedCard {
   rarity?: string
   local_id?: string
   set_total?: number
+  illustrator?: string
   added_at: string
 }
 

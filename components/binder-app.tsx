@@ -2086,6 +2086,7 @@ export default function BinderApp({
       rarity: card.rarity,
       local_id: card.localId,
       set_total: card.set.officialCardCount,
+      illustrator: card.illustrator,
       added_at: new Date().toISOString(),
     })
   }, [addWantedCard, getCollectionItem, readOnlyMode, removeWantedCard, user])
@@ -2221,6 +2222,7 @@ export default function BinderApp({
             rarity: card.rarity,
             local_id: card.localId,
             set_total: card.set?.officialCardCount,
+            illustrator: card.illustrator,
             added_at: new Date().toISOString(),
           },
         )
@@ -5192,6 +5194,7 @@ export default function BinderApp({
               sortedWantedDashboardCards={sortedWantedDashboardCards}
               priceFormat={priceFormat}
               isLoadingPrices={isLoadingPrices}
+              isOnline={isOnline}
               readOnlyMode={readOnlyMode}
               wantedSort={wantedSort}
               setWantedSort={setWantedSort}

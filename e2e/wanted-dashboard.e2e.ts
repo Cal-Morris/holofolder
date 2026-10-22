@@ -11,6 +11,11 @@ async function wantSquirtle(page: Page, server: FakeCollectionServer) {
   await detail.getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
   const selector = page.getByRole("dialog", { name: /card selector/i })
   await selector.getByRole("button", { name: "Want card Squirtle from 151", exact: true }).click()
+  // 151 comes in two finishes, so the picker asks which variant; take the suggested one.
+  const variants = page.getByRole("dialog", { name: "Which variant?" })
+  if (await variants.waitFor({ timeout: 1500 }).then(() => true, () => false)) {
+    await variants.locator('[data-suggested="true"]').click()
+  }
   await expect(selector).toHaveCount(0)
   await expect.poll(() => server.rows.get(SQUIRTLE)?.status).toBe("wishlisted")
 }
@@ -18,7 +23,7 @@ async function wantSquirtle(page: Page, server: FakeCollectionServer) {
 test.describe("want-list dashboard", () => {
   test.use({ signedIn: true })
 
-  test("lists wanted cards and jumps back to the binder page", async ({ harness }) => {
+  test("lists wanted cards and opens the card detail", async ({ harness }) => {
     const { page } = harness
     const server = new FakeCollectionServer()
     await server.install(page)
@@ -30,12 +35,11 @@ test.describe("want-list dashboard", () => {
     await wantSquirtle(page, server)
 
     await harness.dock().getByRole("button", { name: "Wanted", exact: true }).click()
-    await expect(page.getByRole("heading", { name: "Buying dashboard" })).toBeVisible()
-    await expect(page.getByRole("heading", { name: /^1 cards, sorted for buying$/ })).toBeVisible()
+    await expect(page.getByTestId("wanted-summary")).toContainText("1 wanted")
     const main = page.getByTestId("main-content")
     await expect(main.getByRole("button", { name: "Share list" })).toBeVisible()
 
-    await main.getByRole("button", { name: "Page", exact: true }).click()
+    await main.getByRole("button", { name: "Open Squirtle from 151" }).click()
     await expect(page.getByRole("dialog", { name: /squirtle details/i })).toBeVisible()
   })
 })

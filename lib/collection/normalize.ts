@@ -22,6 +22,7 @@ export function normalizeWantedCard(value: unknown): WantedCard | null {
     rarity: typeof item.rarity === "string" ? item.rarity : undefined,
     local_id: typeof item.local_id === "string" ? item.local_id : undefined,
     set_total: typeof item.set_total === "number" && Number.isFinite(item.set_total) ? item.set_total : undefined,
+    illustrator: typeof item.illustrator === "string" && item.illustrator.trim() ? item.illustrator.trim() : undefined,
     added_at: typeof item.added_at === "string" ? item.added_at : new Date().toISOString(),
   }
 }

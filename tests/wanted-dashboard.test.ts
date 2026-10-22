@@ -2,6 +2,8 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
   buildWantedDashboardSummary,
+  filterWantedDashboardEntries,
+  matchesWantedSearch,
   sortWantedDashboardEntries,
   type WantedDashboardEntry,
 } from "../lib/wanted-dashboard"
@@ -145,4 +147,24 @@ test("sortWantedDashboardEntries supports buying-focused sort orders", () => {
     "charmander",
     "pikachu",
   ])
+})
+
+test("matchesWantedSearch finds cards by name, Pokémon, set, number, rarity and illustrator", () => {
+  const charmander = { ...wantedEntry(4, "sv03.5-168", { card_name: "Charmander", card_set: "151", local_id: "168", set_total: 165, rarity: "Illustration Rare", illustrator: "Kouki Saitō", card_finish: "holo" }), pokemonName: "charmander" }
+  const squirtle = { ...wantedEntry(7, "sv03.5-007", { card_name: "Squirtle", card_set: "151", local_id: "007", set_total: 165 }), pokemonName: "squirtle" }
+  const ex = { ...wantedEntry(6, "sv03.5-006", { card_name: "Charizard ex", card_set: "Obsidian Flames", local_id: "006" }), pokemonName: "charizard" }
+
+  assert.equal(matchesWantedSearch(charmander, ""), true)
+  assert.equal(matchesWantedSearch(charmander, "CHARM"), true)
+  assert.equal(matchesWantedSearch(charmander, "kouki saito"), true, "accents are ignored")
+  assert.equal(matchesWantedSearch(charmander, "illustration"), true)
+  assert.equal(matchesWantedSearch(charmander, "151 168"), true)
+  assert.equal(matchesWantedSearch(charmander, "168/165"), true)
+  assert.equal(matchesWantedSearch(squirtle, "#7"), true)
+  assert.equal(matchesWantedSearch(squirtle, "7"), true)
+  assert.equal(matchesWantedSearch(squirtle, "007"), true)
+  assert.equal(matchesWantedSearch(charmander, "7"), false, "numbers match a whole card number")
+  assert.equal(matchesWantedSearch(ex, "obsidian char"), true)
+  assert.equal(matchesWantedSearch(ex, "obsidian squirtle"), false, "every word must match")
+  assert.deepEqual(filterWantedDashboardEntries([charmander, squirtle, ex], "char").map((card) => card.pokemonId), [4, 6])
 })

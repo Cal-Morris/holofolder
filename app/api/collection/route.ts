@@ -26,6 +26,7 @@ function normalizeWantedCards(value: unknown) {
       rarity: typeof card.rarity === "string" ? card.rarity : null,
       local_id: typeof card.local_id === "string" ? card.local_id : null,
       set_total: typeof card.set_total === "number" && Number.isFinite(card.set_total) ? card.set_total : null,
+      illustrator: typeof card.illustrator === "string" && card.illustrator.trim() ? card.illustrator.trim().slice(0, 120) : null,
       added_at: typeof card.added_at === "string" ? card.added_at : new Date().toISOString(),
     }]
   })
