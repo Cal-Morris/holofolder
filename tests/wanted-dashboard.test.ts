@@ -5,6 +5,12 @@ import {
   filterWantedDashboardEntries,
   matchesWantedSearch,
   sortWantedDashboardEntries,
+  applyWantedFilters,
+  countWantedFilters,
+  normalizeWantedFilters,
+  normalizeWantedSort,
+  toggleWantedFilter,
+  EMPTY_WANTED_FILTERS,
   type WantedDashboardEntry,
 } from "../lib/wanted-dashboard"
 import type { CardPriceSnapshot } from "../hooks/use-card-prices"
@@ -167,4 +173,74 @@ test("matchesWantedSearch finds cards by name, Pokémon, set, number, rarity and
   assert.equal(matchesWantedSearch(ex, "obsidian char"), true)
   assert.equal(matchesWantedSearch(ex, "obsidian squirtle"), false, "every word must match")
   assert.deepEqual(filterWantedDashboardEntries([charmander, squirtle, ex], "char").map((card) => card.pokemonId), [4, 6])
+})
+
+function risingPrice(cardId: string, amount: number): CardPriceSnapshot {
+  return {
+    ...price(cardId, amount),
+    updatedAt: "2026-10-20T00:00:00.000Z",
+    trendPoints: [
+      { label: "30d", source: "cardmarket", gbpAmount: amount / 1.5, originalAmount: 0, originalCurrency: "GBP" },
+      { label: "7d", source: "cardmarket", gbpAmount: amount / 1.2, originalAmount: 0, originalCurrency: "GBP" },
+      { label: "Trend", source: "cardmarket", gbpAmount: amount, originalAmount: 0, originalCurrency: "GBP" },
+    ],
+  }
+}
+
+test("sortWantedDashboardEntries orders sets by cost to complete, by name and by rising", () => {
+  const now = Date.parse("2026-10-21T00:00:00.000Z")
+  const summary = buildWantedDashboardSummary(
+    [
+      wantedEntry(1, "a1", { card_set: "Alpha", card_name: "Zubat" }),
+      wantedEntry(2, "a2", { card_set: "Alpha", card_name: "Abra" }),
+      wantedEntry(3, "b1", { card_set: "Beta", card_name: "Mew" }),
+      wantedEntry(4, "c1", { card_set: "Cheap", card_name: "Pidgey" }),
+      wantedEntry(5, "u1", { card_set: "Unknown", card_name: "Eevee" }),
+    ],
+    {
+      "a1::en": price("a1", 6),
+      "a2::en": price("a2", 4),
+      "b1::en": risingPrice("b1", 30),
+      "c1::en": risingPrice("c1", 2),
+      "u1::en": price("u1", null),
+    },
+  )
+
+  // Cheap (2) < Alpha (10) < Beta (30); a set with an unpriced card goes last.
+  assert.deepEqual(sortWantedDashboardEntries(summary.cards, "cheapest-set").map((card) => card.card.card_id), ["c1", "a2", "a1", "b1", "u1"])
+  assert.deepEqual(sortWantedDashboardEntries(summary.cards, "name").map((card) => card.card.card_name), ["Abra", "Eevee", "Mew", "Pidgey", "Zubat"])
+  const rising = sortWantedDashboardEntries(summary.cards, "rising", now).map((card) => card.card.card_id)
+  assert.deepEqual(rising.slice(0, 2).sort(), ["b1", "c1"])
+  assert.deepEqual(rising.slice(2), ["a1", "a2", "u1"])
+})
+
+test("wanted filters combine across groups, toggle, and survive bad stored data", () => {
+  const now = Date.parse("2026-10-21T00:00:00.000Z")
+  const summary = buildWantedDashboardSummary(
+    [
+      wantedEntry(1, "a1", { card_set: "Alpha", card_finish: "holo" }),
+      wantedEntry(2, "a2", { card_set: "Alpha", card_language: "ja" }),
+      wantedEntry(3, "b1", { card_set: "Beta" }),
+    ],
+    { "a1::en": risingPrice("a1", 30), "a2::ja": price("a2", 3), "b1::en": price("b1", 60) },
+  )
+
+  let filters = toggleWantedFilter(EMPTY_WANTED_FILTERS, "sets", "Alpha")
+  assert.deepEqual(applyWantedFilters(summary.cards, filters, now).map((card) => card.card.card_id), ["a1", "a2"])
+  filters = toggleWantedFilter(filters, "finishes", "holo")
+  assert.deepEqual(applyWantedFilters(summary.cards, filters, now).map((card) => card.card.card_id), ["a1"])
+  assert.equal(countWantedFilters(filters), 2)
+  filters = toggleWantedFilter(filters, "sets", "Alpha")
+  assert.deepEqual(filters.sets, [])
+  assert.deepEqual(applyWantedFilters(summary.cards, { ...EMPTY_WANTED_FILTERS, risingOnly: true }, now).map((card) => card.card.card_id), ["a1"])
+  assert.deepEqual(applyWantedFilters(summary.cards, { ...EMPTY_WANTED_FILTERS, bands: ["over-50"] }, now).map((card) => card.card.card_id), ["b1"])
+
+  assert.deepEqual(normalizeWantedFilters({ bands: ["nope", "under-5"], sets: [1, "Alpha", "Alpha"], risingOnly: "yes" }), {
+    ...EMPTY_WANTED_FILTERS,
+    bands: ["under-5"],
+    sets: ["Alpha"],
+  })
+  assert.deepEqual(normalizeWantedFilters(null), EMPTY_WANTED_FILTERS)
+  assert.equal(normalizeWantedSort("rising"), "rising")
+  assert.equal(normalizeWantedSort("bogus"), "highest")
 })

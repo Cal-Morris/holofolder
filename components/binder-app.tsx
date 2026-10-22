@@ -66,14 +66,9 @@ import {
   shouldPostOfflineCacheWarmup,
 } from "@/lib/offline-cache-warmup"
 import { buildPokemonSearchPreview } from "@/lib/pokemon-search-preview"
-import {
-  buildWantedDashboardSummary,
-  sortWantedDashboardEntries,
-  type WantedDashboardSort,
-} from "@/lib/wanted-dashboard"
+import { buildWantedDashboardSummary } from "@/lib/wanted-dashboard"
 import { buildWantedListText } from "@/lib/wanted-share"
 import { TRADING_CARD_ASPECT_RATIO, getSlotLabel, type PageScanCardMatchSummary, type PageScanSummary } from "@/lib/page-scan"
-import type { WantedExplorerFilter } from "@/components/wanted-dashboard"
 import { formatCardFinishLabel, formatCardLanguageLabel, formatPriceConfidenceLabel, formatPriceSourceLabel } from "@/lib/card-labels"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
@@ -516,8 +511,6 @@ export default function BinderApp({
   const [currentBinderPage, setCurrentBinderPage] = useState(1)
   const [pageInputValue, setPageInputValue] = useState("1")
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>("all")
-  const [wantedSort, setWantedSort] = useState<WantedDashboardSort>("highest")
-  const [wantedExplorerFilter, setWantedExplorerFilter] = useState<WantedExplorerFilter>({ kind: "all", label: "All wanted" })
   const [wantedShareMessage, setWantedShareMessage] = useState<string | null>(null)
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false)
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
@@ -1491,36 +1484,6 @@ export default function BinderApp({
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),
     [pricesByCardId, wantedCardEntries],
   )
-  const filteredWantedDashboardCards = useMemo(() => {
-    if (wantedExplorerFilter.kind === "all") {
-      return wantedDashboard.cards
-    }
-
-    return wantedDashboard.cards.filter((wantedCard) => {
-      if (wantedExplorerFilter.kind === "band") {
-        return wantedCard.priceBandId === wantedExplorerFilter.value
-      }
-
-      if (wantedExplorerFilter.kind === "set") {
-        return (wantedCard.card.card_set || "Unknown set") === wantedExplorerFilter.value
-      }
-
-      if (wantedExplorerFilter.kind === "language") {
-        return (wantedCard.card.card_language ?? "en") === wantedExplorerFilter.value
-      }
-
-      if (wantedExplorerFilter.kind === "finish") {
-        return (wantedCard.card.card_finish ?? "normal") === wantedExplorerFilter.value
-      }
-
-      return true
-    })
-  }, [wantedDashboard.cards, wantedExplorerFilter])
-  const sortedWantedDashboardCards = useMemo(
-    () => sortWantedDashboardEntries(filteredWantedDashboardCards, wantedSort),
-    [filteredWantedDashboardCards, wantedSort],
-  )
-
   useEffect(() => {
     if (!hasTrackedCards && isPriceMode) {
       setIsPriceMode(false)
@@ -5191,15 +5154,10 @@ export default function BinderApp({
           ) : activeMainView === "wanted" ? (
             <WantedDashboard
               wantedDashboard={wantedDashboard}
-              sortedWantedDashboardCards={sortedWantedDashboardCards}
               priceFormat={priceFormat}
               isLoadingPrices={isLoadingPrices}
               isOnline={isOnline}
               readOnlyMode={readOnlyMode}
-              wantedSort={wantedSort}
-              setWantedSort={setWantedSort}
-              wantedExplorerFilter={wantedExplorerFilter}
-              setWantedExplorerFilter={setWantedExplorerFilter}
               wantedShareMessage={wantedShareMessage}
               handleShareWantedList={handleShareWantedList}
               handleGotWantedCard={handleGotWantedCard}
