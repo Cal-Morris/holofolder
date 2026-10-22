@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
           wanted_cards: normalizeWantedCards(body?.wantedCards),
           status,
         },
-        { onConflict: binderId ? "binder_id,pokemon_id" : "user_id,pokemon_id" },
+        { onConflict: "binder_id,pokemon_id" },
       )
       .select("*")
       .single()

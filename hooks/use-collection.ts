@@ -942,7 +942,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
       : []
 
     const binderRowField = binderId ? { binder_id: binderId } : {}
-    const upsertConflictTarget = binderId ? "binder_id,pokemon_id" : "user_id,pokemon_id"
+    // Without a binder id the insert trigger files rows into the default binder before the conflict check.
+    const upsertConflictTarget = "binder_id,pokemon_id"
 
     try {
       if (replaceRemote && idsToRemove.length > 0) {

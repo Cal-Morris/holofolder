@@ -460,6 +460,11 @@ function BinderSlotGlare({
   )
 }
 
+/** The share-link endpoint for one binder (the owner's default when unknown). */
+function binderShareUrl(binderId: string | null) {
+  return binderId ? `/api/binder-share?binderId=${encodeURIComponent(binderId)}` : "/api/binder-share"
+}
+
 export default function BinderApp({
   initialUser,
   initialCollection,
@@ -2926,7 +2931,7 @@ export default function BinderApp({
       setShareMessage(null)
 
       try {
-        const response = await fetch("/api/binder-share", {
+        const response = await fetch(binderShareUrl(initialBinderId), {
           cache: "no-store",
         })
         const payload = await response.json().catch(() => null)
@@ -2955,7 +2960,7 @@ export default function BinderApp({
     return () => {
       cancelled = true
     }
-  }, [readOnlyMode, user])
+  }, [initialBinderId, readOnlyMode, user])
 
   const handleEnableReadOnlyShare = useCallback(async () => {
     if (readOnlyMode || !user) return
@@ -2967,6 +2972,8 @@ export default function BinderApp({
     try {
       const response = await fetch("/api/binder-share", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(initialBinderId ? { binderId: initialBinderId } : {}),
       })
       const payload = await response.json().catch(() => null)
 
@@ -2982,7 +2989,7 @@ export default function BinderApp({
     } finally {
       setIsShareLoading(false)
     }
-  }, [readOnlyMode, user])
+  }, [initialBinderId, readOnlyMode, user])
 
   const handleCopyReadOnlyShareLink = useCallback(async () => {
     if (!fullShareUrl) {
@@ -3007,7 +3014,7 @@ export default function BinderApp({
     setShareCopyMessage(null)
 
     try {
-      const response = await fetch("/api/binder-share", {
+      const response = await fetch(binderShareUrl(initialBinderId), {
         method: "DELETE",
       })
       const payload = await response.json().catch(() => null)
@@ -3024,7 +3031,7 @@ export default function BinderApp({
     } finally {
       setIsShareLoading(false)
     }
-  }, [readOnlyMode, sharePath, user])
+  }, [initialBinderId, readOnlyMode, sharePath, user])
 
   const handleRefreshPrices = useCallback(async () => {
     if (readOnlyMode) return
