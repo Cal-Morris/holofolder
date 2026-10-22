@@ -28,7 +28,7 @@ const HUNT_COLLECTION = [
   {
     id: "e2e-6", user_id: SEEDED_COLLECTION[0].user_id, pokemon_id: 6, pokemon_name: "charizard", card_id: null, card_name: null, card_set: null, card_language: null, card_finish: null, status: "wishlisted", collected_at: ADDED,
     wanted_cards: [
-      { card_id: "sv03.5-006", card_name: "Charizard ex", card_set: "151", card_language: "en", card_finish: "holo", rarity: "Double Rare", local_id: "006", set_total: 165, card_image: image("sv", "sv03.5", "006"), added_at: ADDED },
+      { card_id: "sv03.5-006", card_name: "Charizard ex", card_set: "151", card_language: "en", card_finish: "holo", rarity: "Double Rare", local_id: "006", set_total: 165, illustrator: "5ban Graphics", card_image: image("sv", "sv03.5", "006"), added_at: ADDED },
     ],
   },
   { id: "e2e-7", user_id: SEEDED_COLLECTION[0].user_id, pokemon_id: 7, pokemon_name: "squirtle", card_id: null, card_name: null, card_set: null, card_language: null, card_finish: null, status: "wishlisted", collected_at: ADDED, wanted_cards: [] },
@@ -124,6 +124,9 @@ test.describe("Show mode finder", () => {
     await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Bulbasaur"])
     await expect(hunt.getByRole("button", { name: /^Bulbasaur, / })).toHaveCount(1)
     await expect(hunt.getByRole("button", { name: /^Bulbasaur, 151 166/ })).toBeVisible()
+    // The want list's own illustrator counts too (Charizard), alongside the directory's cards (Charmander).
+    await hunt.getByRole("combobox", { name: "Illustrator" }).selectOption("5ban Graphics")
+    await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Charizard", "Hunting Charmander"])
     await hunt.getByRole("combobox", { name: "Illustrator" }).selectOption("")
     await expect.poll(() => groupNames(hunt)).toHaveLength(4)
   })

@@ -163,7 +163,15 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
     }
   }, [illustrator])
 
-  const illustratorIds = illustrator && illustratorCards?.name === illustrator ? illustratorCards.ids ?? new Set<string>() : illustrator ? new Set<string>() : null
+  // The want list remembers each card's illustrator, so the filter works offline; the directory adds older entries.
+  const illustratorIds = illustrator
+    ? new Set([
+        ...(illustratorCards?.name === illustrator ? illustratorCards.ids ?? [] : []),
+        ...cards.filter((card) => card.wanted.illustrator === illustrator).map((card) => card.wanted.card_id),
+      ])
+    : null
+  const illustratorNames = [...new Set([...cards.flatMap((card) => (card.wanted.illustrator ? [card.wanted.illustrator] : [])), ...directory.map((entry) => entry.name)])]
+    .sort((a, b) => a.localeCompare(b))
   const groups = buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds })
   const total = cards.length
   const filtering = Boolean(era || setId || illustrator)
@@ -210,7 +218,7 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
               <Palette className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <select aria-label="Illustrator" value={illustrator} onChange={(event) => setIllustrator(event.target.value)} className={`${selectClass} pl-8`}>
                 <option value="">Any illustrator</option>
-                {directory.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
+                {illustratorNames.map((name) => <option key={name} value={name}>{name}</option>)}
               </select>
             </label>
           </div>
@@ -221,7 +229,7 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
             {total === 0 && !filtering
               ? <>Your want list is empty. Search a Pokémon below and tap <b>Want</b> on the cards you&apos;re after.</>
               : illustrator && illustratorCards?.name === illustrator && illustratorCards.ids === null
-              ? `${illustrator}'s cards aren't saved on this device yet.`
+              ? `None of your wanted cards are by ${illustrator}, as far as this device knows.`
               : "Nothing on your want list matches these filters."}
           </div>
         ) : (
