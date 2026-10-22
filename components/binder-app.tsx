@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import NextImage from "next/image"
 import { createPortal } from "react-dom"
-import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2, Palette } from "lucide-react"
+import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, ArrowUpDown, ShoppingBag, Tag, Languages, Copy, Link2, Palette, Share2 } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import type { CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
@@ -73,6 +73,7 @@ import {
   type WantedDashboardPriceBandId,
   type WantedDashboardSort,
 } from "@/lib/wanted-dashboard"
+import { buildWantedListText } from "@/lib/wanted-share"
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
@@ -712,6 +713,7 @@ export default function BinderApp({
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>("all")
   const [wantedSort, setWantedSort] = useState<WantedDashboardSort>("highest")
   const [wantedExplorerFilter, setWantedExplorerFilter] = useState<WantedExplorerFilter>({ kind: "all", label: "All wanted" })
+  const [wantedShareMessage, setWantedShareMessage] = useState<string | null>(null)
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false)
   const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
@@ -4963,6 +4965,27 @@ export default function BinderApp({
     )
   }
 
+  const handleShareWantedList = async () => {
+    const text = buildWantedListText(wantedDashboard.cards, (card) => priceFormat.amount(card.effectiveGbpAmount, card.price))
+    // Phones get the share sheet (Messages, WhatsApp, Notes); everywhere else the list is copied.
+    const isTouch = window.matchMedia?.("(pointer: coarse)").matches
+    if (isTouch && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "Want list", text })
+        setWantedShareMessage(null)
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text)
+      setWantedShareMessage("Want list copied.")
+    } catch {
+      setWantedShareMessage("Could not copy the want list.")
+    }
+  }
+
   const renderWantedCardsView = () => {
     const totalWantedCount = wantedDashboard.totalCards
     const marketTotalLabel = priceFormat.amount(wantedDashboard.marketTotalGbp)
@@ -5024,14 +5047,25 @@ export default function BinderApp({
                 <h2 className="mt-0.5 text-lg font-semibold tracking-tight">Buying dashboard</h2>
                 <p className="mt-1 hidden max-w-xl text-xs leading-relaxed text-muted-foreground sm:block">Prioritise what to buy, spot unpriced cards, and keep the want list tied back to binder slots.</p>
               </div>
-              <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-amber-500/18 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
-                <ShoppingBag className="h-4 w-4" />
-                <div className="text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75">Market total</p>
-                  <p className="truncate text-sm font-bold tabular-nums">{marketTotalLabel ?? (isLoadingPrices ? "Loading" : "No prices")}</p>
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+                <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-amber-500/18 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
+                  <ShoppingBag className="h-4 w-4" />
+                  <div className="text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75">Market total</p>
+                    <p className="truncate text-sm font-bold tabular-nums">{marketTotalLabel ?? (isLoadingPrices ? "Loading" : "No prices")}</p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void handleShareWantedList()}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-2xl border border-border/60 bg-background/70 px-3 text-xs font-semibold transition hover:border-primary/35 hover:bg-primary/5 dark:border-white/10"
+                >
+                  <Share2 className="h-4 w-4" aria-hidden="true" />
+                  Share list
+                </button>
               </div>
             </div>
+            {wantedShareMessage && <p role="status" className="mt-2 text-xs text-muted-foreground">{wantedShareMessage}</p>}
 
             <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 xl:grid-cols-4">
               <button
