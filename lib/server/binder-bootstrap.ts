@@ -14,10 +14,13 @@ export interface BinderBootstrap {
   hasStoredSettings: boolean
 }
 
-/** Loads the owner's collection and binder settings in parallel for the initial page render. */
-export async function loadBinderBootstrap(client: AnySupabaseClient, ownerUserId: string): Promise<BinderBootstrap> {
+/**
+ * Loads one binder's collection and the owner's binder settings in parallel for the initial page render.
+ * No binder id: every row of the owner (single-binder layout, before migration 039).
+ */
+export async function loadBinderBootstrap(client: AnySupabaseClient, ownerUserId: string, binderId: string | null = null): Promise<BinderBootstrap> {
   const [collectionResult, settingsResult] = await Promise.all([
-    loadCollectionRows(client, ownerUserId),
+    loadCollectionRows(client, ownerUserId, binderId),
     client
       .from("user_settings")
       .select("*")

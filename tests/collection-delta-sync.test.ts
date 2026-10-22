@@ -143,3 +143,29 @@ test("migration 035 is idempotent, server-owned and live-safe", () => {
   assert.match(sql, /CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_pokemon_collection_user_updated_at\s+ON public\.pokemon_collection\(user_id, updated_at\)/)
   assert.doesNotMatch(sql, /\bBEGIN;|\bCOMMIT\b/i)
 })
+
+test("delta baselines are per binder: another binder needs a full read", () => {
+  const baseline = createCollectionBaseline("owner", [row(1, "2026-10-22T11:00:00.000Z")], "binder-a")
+  assert.ok(collectionDeltaSince(baseline, "owner", "binder-a"))
+  assert.equal(collectionDeltaSince(baseline, "owner", "binder-b"), null)
+  assert.equal(collectionDeltaSince(baseline, "owner"), null)
+  assert.equal(mergeCollectionDelta(baseline, [row(2, "2026-10-22T12:00:00Z")], 2)?.binderId, "binder-a")
+})
+
+test("syncCollectionRows scopes every query to the owner and the binder", async () => {
+  const start = createCollectionBaseline("owner", [row(1, "2026-10-22T10:00:00Z")], "binder-a")
+  const { client, requests } = fakeClient((ops) => (isHead(ops) ? { count: 1 } : { data: [] }))
+  const baseline = await syncCollectionRows(client, "owner", start, "binder-a")
+  assert.equal(requests.length, 2)
+  for (const ops of requests) {
+    const filters = ops.filter(([method]) => method === "eq").map(([, args]) => args)
+    assert.deepEqual(filters, [["user_id", "owner"], ["binder_id", "binder-a"]])
+  }
+  assert.equal(baseline.binderId, "binder-a")
+
+  const full = fakeClient(() => ({ data: [row(1, "2026-10-22T10:00:00Z")] }))
+  await syncCollectionRows(full.client, "owner", start, "binder-b")
+  assert.equal(full.requests.length, 1)
+  assert.ok(!isDelta(full.requests[0]))
+  assert.deepEqual(full.requests[0].filter(([method]) => method === "eq").map(([, args]) => args), [["user_id", "owner"], ["binder_id", "binder-b"]])
+})

@@ -8,7 +8,7 @@ import { loadCollectionRecord, saveCollectionRecord, type CollectionRecord } fro
 const MIRROR_DELAY_MS = 400
 const MAX_MIGRATION_WAIT_MS = 5000
 
-let pendingCollection: { collection: CollectedPokemon[]; ownerUserId: string | null; savedAt: string } | null = null
+let pendingCollection: { collection: CollectedPokemon[]; ownerUserId: string | null; savedAt: string; binderId: string | null } | null = null
 let pendingOperations: unknown[] | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 let flushing: Promise<void> = Promise.resolve()
@@ -27,6 +27,7 @@ async function writeMirror(store: OfflineKeyValueStore, collectionUpdate: typeof
   const existing = await loadCollectionRecord(store)
   const next: CollectionRecord = {
     ownerUserId: collectionUpdate ? collectionUpdate.ownerUserId : existing?.ownerUserId ?? null,
+    binderId: collectionUpdate ? collectionUpdate.binderId : existing?.binderId ?? null,
     savedAt: collectionUpdate ? collectionUpdate.savedAt : existing?.savedAt ?? new Date().toISOString(),
     collection: collectionUpdate ? collectionUpdate.collection : existing?.collection ?? [],
     pendingOperations: operationsUpdate ?? existing?.pendingOperations ?? [],
@@ -59,8 +60,14 @@ function schedule(store: OfflineKeyValueStore | null) {
   }, MIRROR_DELAY_MS)
 }
 
-export function mirrorCollectionSnapshot(collection: CollectedPokemon[], ownerUserId: string | null, savedAt: string, store = getOfflineStore()) {
-  pendingCollection = { collection, ownerUserId, savedAt }
+export function mirrorCollectionSnapshot(
+  collection: CollectedPokemon[],
+  ownerUserId: string | null,
+  savedAt: string,
+  store = getOfflineStore(),
+  binderId: string | null = null,
+) {
+  pendingCollection = { collection, ownerUserId, savedAt, binderId }
   schedule(store)
 }
 
