@@ -1,7 +1,11 @@
+import { connection } from "next/server"
 import { BINDER_ARTWORK_BUCKET, binderArtworkPath, isBinderUploadId } from "@/lib/binder-appearance"
 import { AppearanceError, appearanceError, requireAppearanceOwner } from "@/lib/server/binder-appearance"
 
 export async function GET(request: Request) {
+  // Per-user and per-request: don't let the build try to prerender it. Otherwise cookies() rejects
+  // once the prerender ends and the catch below logs a spurious "Appearance request failed".
+  await connection()
   try {
     const { admin, ownerId } = await requireAppearanceOwner(request)
     const id = new URL(request.url).searchParams.get("id")
