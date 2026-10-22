@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { getSessionUser } from "@/lib/supabase/session-user"
 import { loadBinderBootstrap } from "@/lib/server/binder-bootstrap"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { getDefaultBinderSettings } from "@/lib/settings"
@@ -9,7 +10,7 @@ export const instant = false
 export const metadata = { title: "Binder Studio · BinderDex" }
 export default async function StudioPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return <BinderDesigner key="guest-demo" owner={null} cards={[]} placed={0} wanted={0} settings={getDefaultBinderSettings()} />
   const owner = await resolveCollectionOwnerUserId(supabase,user.id,{fallbackOnError:true})
   const bootstrap = await loadBinderBootstrap(supabase,owner)

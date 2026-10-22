@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import BinderApp from "@/components/binder-app"
 import { loadBinderBootstrap } from "@/lib/server/binder-bootstrap"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
+import { getSessionUser } from "@/lib/supabase/session-user"
 
 const THEME_COOKIE = "binderdex_theme"
 
@@ -13,7 +14,7 @@ export default async function Page() {
   const supabase = await createClient()
   const cookieStore = await cookies()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
 
   if (!user) {
     redirect("/home")
