@@ -30,7 +30,7 @@ export default function UndoSnackbar({ message, onUndo, onDismiss, durationMs = 
         <button
           type="button"
           onClick={onUndo}
-          className="h-9 min-w-14 shrink-0 rounded-xl px-3 text-xs font-bold uppercase tracking-wide text-sky-300 hover:bg-background/10 dark:text-sky-700"
+          className="h-11 min-w-14 shrink-0 rounded-xl px-3 text-xs font-bold uppercase tracking-wide text-sky-300 hover:bg-background/10 dark:text-sky-700"
         >
           Undo
         </button>
@@ -38,7 +38,7 @@ export default function UndoSnackbar({ message, onUndo, onDismiss, durationMs = 
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss undo"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl opacity-70 hover:bg-background/10 hover:opacity-100"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl opacity-70 hover:bg-background/10 hover:opacity-100"
         >
           <X className="h-3.5 w-3.5" />
         </button>

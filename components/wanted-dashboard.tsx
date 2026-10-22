@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { toCardImageSrc } from "@/lib/card-image-url"
-import { Check, ChevronDown, Heart, Search, Share2, SlidersHorizontal, WifiOff, X } from "lucide-react"
+import { Check, ChevronDown, Heart, MoreHorizontal, Search, Share2, SlidersHorizontal, WifiOff, X } from "lucide-react"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/hooks/use-collection"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
@@ -24,6 +24,7 @@ import {
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
 
 const WantedFiltersSheet = dynamic(() => import("@/components/wanted-filters-sheet"), { loading: () => null })
+const WantedRowActionsSheet = dynamic(() => import("@/components/wanted-row-actions-sheet"), { loading: () => null })
 
 type WantedDashboardSummary = ReturnType<typeof buildWantedDashboardSummary>
 type WantedDashboardEntry = WantedDashboardSummary["cards"][number]
@@ -119,9 +120,11 @@ export default function WantedDashboard({
   handleGotWantedCard,
   handleClearWantedCard,
   handlePokemonSelect,
+  jumpToWantedPokemonPage,
 }: WantedDashboardProps) {
   const [query, setQuery] = useState("")
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [actionsFor, setActionsFor] = useState<WantedDashboardEntry | null>(null)
   const { sort, setSort, filters, setFilters } = useRememberedWantedView()
   const sortedCards = useMemo(
     () => sortWantedDashboardEntries(applyWantedFilters(wantedDashboard.cards, filters), sort),
@@ -285,7 +288,7 @@ export default function WantedDashboard({
                 readOnlyMode={readOnlyMode}
                 onOpen={handlePokemonSelect}
                 onGot={handleGotWantedCard}
-                onRemove={handleClearWantedCard}
+                onMore={setActionsFor}
               />
             ))}
           </ul>
@@ -295,6 +298,18 @@ export default function WantedDashboard({
         ) : null}
 
         <WantedInsights wantedDashboard={wantedDashboard} priceFormat={priceFormat} />
+
+        {actionsFor ? (
+          <WantedRowActionsSheet
+            cardName={actionsFor.card.card_name}
+            detail={[actionsFor.card.card_set, cardNumberLabel(actionsFor.card), formatCardFinishLabel(actionsFor.card.card_finish)].filter(Boolean).join(" · ")}
+            readOnlyMode={readOnlyMode}
+            onGot={() => handleGotWantedCard(actionsFor.pokemonId, actionsFor.pokemonName, actionsFor.card)}
+            onShowInBinder={getPokemonSummary(actionsFor.pokemonId) ? () => jumpToWantedPokemonPage(getPokemonSummary(actionsFor.pokemonId)) : null}
+            onRemove={() => handleClearWantedCard(actionsFor.pokemonId, actionsFor.card)}
+            onClose={() => setActionsFor(null)}
+          />
+        ) : null}
 
         {isSheetOpen ? (
           <WantedFiltersSheet
@@ -327,7 +342,7 @@ function WantedRow({
   readOnlyMode,
   onOpen,
   onGot,
-  onRemove,
+  onMore,
 }: {
   wantedCard: WantedDashboardEntry
   priceFormat: PriceFormat
@@ -335,7 +350,7 @@ function WantedRow({
   readOnlyMode: boolean
   onOpen: (pokemon: PokemonSummary) => void
   onGot: WantedDashboardProps["handleGotWantedCard"]
-  onRemove: WantedDashboardProps["handleClearWantedCard"]
+  onMore: (entry: WantedDashboardEntry) => void
 }) {
   const { pokemonId, pokemonName, card, price } = wantedCard
   const pokemon = getPokemonSummary(pokemonId)
@@ -374,8 +389,8 @@ function WantedRow({
           <PriceRisingBadge price={price} />
         </span>
       </button>
-      {readOnlyMode ? null : (
-        <span className="flex shrink-0 items-center">
+      <span className="flex shrink-0 items-center">
+        {readOnlyMode ? null : (
           <button
             type="button"
             onClick={() => onGot(pokemonId, pokemonName, card)}
@@ -385,17 +400,18 @@ function WantedRow({
           >
             <Check className="h-5 w-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => onRemove(pokemonId, card)}
-            aria-label={`Remove ${card.card_name} from want list`}
-            title="Remove"
-            className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </span>
-      )}
+        )}
+        <button
+          type="button"
+          onClick={() => onMore(wantedCard)}
+          aria-label={`More actions for ${card.card_name}`}
+          aria-haspopup="dialog"
+          title="More"
+          className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </span>
     </li>
   )
 }
