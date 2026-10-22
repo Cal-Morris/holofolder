@@ -5,14 +5,14 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
 
-import { useState, useMemo, useEffect, useEffectEvent, useRef, useCallback, type CSSProperties, type SyntheticEvent, type TouchEvent as ReactTouchEvent } from "react"
+import { useState, useMemo, useEffect, useEffectEvent, useRef, useCallback, type CSSProperties, type SyntheticEvent, type TouchEvent as ReactTouchEvent, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react"
 import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import NextImage from "next/image"
 import { createPortal } from "react-dom"
-import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, Copy, Link2, Palette } from "lucide-react"
+import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, Copy, Link2, Palette, Zap } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import type { CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
@@ -78,6 +78,7 @@ import type { User } from "@supabase/supabase-js"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
+import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
@@ -99,6 +100,7 @@ const SetPopulationView = dynamic(() => import("@/components/set-population-view
 const WantedDashboard = dynamic(() => import("@/components/wanted-dashboard"), { loading: () => null })
 // The camera scanner only mounts while it is open, so its capture code loads on first use.
 const PageScanner = dynamic(() => import("@/components/page-scanner"), { ssr: false })
+const QuickMode = dynamic(() => import("@/components/quick-mode"), { ssr: false })
 const PokemonBrowseView = dynamic(() => import("@/components/pokemon-browse-view"), { loading: () => null })
 
 const GENERATIONS = [
@@ -487,6 +489,9 @@ export default function BinderApp({
   const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false)
   const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isQuickModeOpen, setIsQuickModeOpen] = useState(false)
+  const quickPressTimerRef = useRef<number | null>(null)
+  const quickPressFiredRef = useRef(false)
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
   const [activeMainView, setActiveMainView] = useState<ActiveMainView>("binder")
   const lastBrowseViewRef = useRef<"pokemon" | "sets">("sets")
@@ -3337,6 +3342,69 @@ export default function BinderApp({
     })
   }, [openExclusively])
 
+  /** Quick mode: the one-handed launcher (long-press Search, the Search sheet's button, or Ctrl/Cmd+K). */
+  const openQuickMode = useCallback(() => {
+    openExclusively(() => {
+      setSelectedPokemon(null)
+      setIsSearchOpen(false)
+      setIsQuickModeOpen(true)
+    })
+  }, [openExclusively])
+  const closeQuickMode = useCallback(() => setIsQuickModeOpen(false), [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "k" || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
+      event.preventDefault()
+      openQuickMode()
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [openQuickMode])
+
+  const cancelQuickPress = useCallback(() => {
+    if (quickPressTimerRef.current !== null) window.clearTimeout(quickPressTimerRef.current)
+    quickPressTimerRef.current = null
+  }, [])
+  const quickPressHandlers = useMemo(() => ({
+    onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return
+      quickPressFiredRef.current = false
+      cancelQuickPress()
+      quickPressTimerRef.current = window.setTimeout(() => {
+        quickPressTimerRef.current = null
+        quickPressFiredRef.current = true
+        navigator.vibrate?.(20)
+        openQuickMode()
+      }, QUICK_LONG_PRESS_MS)
+    },
+    onPointerUp: cancelQuickPress,
+    onPointerLeave: cancelQuickPress,
+    onPointerCancel: cancelQuickPress,
+    onContextMenu: (event: ReactMouseEvent<HTMLButtonElement>) => event.preventDefault(),
+  }), [cancelQuickPress, openQuickMode])
+  useEffect(() => cancelQuickPress, [cancelQuickPress])
+
+  const getQuickPokemonState = useCallback((pokemonId: number) => {
+    const meta = getSearchResultMeta({ id: pokemonId, name: "" })
+    return meta.stateLabel ? { label: meta.stateLabel, toneClass: meta.stateToneClass ?? "" } : { label: "Missing", toneClass: "bg-muted text-muted-foreground" }
+  }, [getSearchResultMeta])
+
+  const handleQuickNavigate = (destination: QuickDestinationId) => {
+    if (destination === "settings") {
+      openExclusively(() => setIsSettingsOpen(true))
+      return
+    }
+    if (destination === "scan") {
+      closeAllOverlays()
+      setIsQuickModeOpen(false)
+      if (activeMainView !== "binder") void switchMainView("binder")
+      handlePhotoButtonClick()
+      return
+    }
+    void switchMainView(destination)
+  }
+
   // Full-screen dialogs replace the card detail instead of stacking on top of it.
   useEffect(() => {
     if (isSettingsOpen || isAuthOpen || isPartnerOpen || isMobileNavExpanded || isMobileFilterSheetOpen) {
@@ -5085,6 +5153,26 @@ export default function BinderApp({
       {renderSelectedPokemonQuickPanel()}
       {renderMobileSlotActionBar()}
 
+      {isQuickModeOpen && (
+        <QuickMode
+          onClose={closeQuickMode}
+          onNavigate={handleQuickNavigate}
+          onSelectPokemon={(pokemon) => {
+            closeAllOverlays()
+            setIsQuickModeOpen(false)
+            handlePokemonSelect(pokemon)
+          }}
+          onSelectCard={(card, pokemon) => openCardBrowser(pokemon, { highlightCardId: card.id })}
+          onBrowseIllustrator={(name) => openIllustratorBrowser(name)}
+          getOfflineCards={getOfflineSearchCards}
+          getPokemonState={getQuickPokemonState}
+          formatPrice={priceFormat.label}
+          pricingRegion={pricingPreferences.region}
+          isOnline={isOnline}
+          hiddenDestinations={readOnlyMode ? ["scan", "analytics", "settings"] : []}
+        />
+      )}
+
       {isSearchOpen && (
         <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
           <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pb-[calc(var(--dock-clearance)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
@@ -5096,11 +5184,15 @@ export default function BinderApp({
               onClick={(event) => event.stopPropagation()}
               className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.75rem] border border-border/65 bg-card/96 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl">
               <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-semibold">Search Pokemon</p>
                   <p className="text-xs text-muted-foreground">Find a mon and jump straight to its binder slot.</p>
                 </div>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={closeSearch} aria-label="Close search">
+                <Button variant="outline" className="ml-auto mr-1 h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs font-semibold" onClick={openQuickMode}>
+                  <Zap className="h-3.5 w-3.5" aria-hidden />
+                  Quick mode
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full" onClick={closeSearch} aria-label="Close search">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -5383,11 +5475,19 @@ export default function BinderApp({
         <div className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-[1.25rem] border border-border/70 bg-card/96 p-1 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
           <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl bg-muted/42 dark:bg-muted/35">
             <button
-              onClick={openSearch}
+              onClick={() => {
+                if (quickPressFiredRef.current) {
+                  quickPressFiredRef.current = false
+                  return
+                }
+                openSearch()
+              }}
+              {...quickPressHandlers}
               aria-label="Search"
-              title="Search"
-              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
-                isSearchOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              aria-description="Press and hold for Quick mode"
+              title="Search (hold for Quick mode)"
+              className={`flex h-10 min-w-0 touch-manipulation select-none items-center justify-center rounded-[0.9rem] px-1 transition-all [-webkit-touch-callout:none] ${
+                isSearchOpen || isQuickModeOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
               <SearchIcon className="h-4 w-4" />
