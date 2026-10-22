@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getSessionUser } from "@/lib/supabase/session-user"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
@@ -19,13 +20,18 @@ async function requireUser() {
   return user
 }
 
+// Read-only: verify the session token locally (no Auth round trip). Writes keep getUser().
+async function requireSessionUser() {
+  return getSessionUser(await createClient())
+}
+
 async function resolveSettingsOwnerUserId(userId: string) {
   return resolveCollectionOwnerUserId(createAdminClient(), userId)
 }
 
 export async function GET() {
   try {
-    const user = await requireUser()
+    const user = await requireSessionUser()
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }

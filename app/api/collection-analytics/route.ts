@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getSessionUser } from "@/lib/supabase/session-user"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { parseAnalyticsQuery } from "@/lib/collection-analytics"
 
@@ -9,7 +10,8 @@ const missingHistory = (error: { code?: string } | null) => error?.code === "42P
 export async function GET(request: Request) {
   try {
     const client = await createClient()
-    const { data: { user } } = await client.auth.getUser()
+    // Read-only: verify the session token locally (no Auth round trip).
+    const user = await getSessionUser(client)
     if (!user) return json({ error: "Not authenticated" }, 401)
     let query
     try { query = parseAnalyticsQuery(new URL(request.url).searchParams) }

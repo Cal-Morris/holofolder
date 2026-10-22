@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { getSessionUser } from "@/lib/supabase/session-user"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { normalizeBinderDesign, type BinderDesign } from "@/lib/binder-design"
@@ -27,10 +28,12 @@ export function checkAppearanceDatabaseError(error: { code?: string } | null) {
 export function requireExpectedAppearanceOwner(request: Request, ownerId: string) {
   if (request.headers.get("X-Binder-Owner") !== ownerId) throw new AppearanceError("Your collection changed. Reopen the binder before syncing.", 403)
 }
-export async function requireAppearanceOwner(request: Request) {
+// readOnly requests verify the session token locally (getClaims, no Auth round trip); writes call
+// getUser() so a session revoked on the server is rejected straight away.
+export async function requireAppearanceOwner(request: Request, { readOnly = false }: { readOnly?: boolean } = {}) {
   const client = await createClient()
-  const { data: { user }, error } = await client.auth.getUser()
-  if (error || !user) throw new AppearanceError("Not authenticated", 401)
+  const user = readOnly ? await getSessionUser(client) : (await client.auth.getUser()).data.user
+  if (!user) throw new AppearanceError("Not authenticated", 401)
   const admin = createAdminClient()
   const ownerId = await resolveCollectionOwnerUserId(admin, user.id)
   requireExpectedAppearanceOwner(request, ownerId)
