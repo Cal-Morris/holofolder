@@ -17,7 +17,7 @@ function fakeClient(results: Record<string, Result>) {
       calls.push(call)
       const result = results[table] ?? { data: null, error: null }
       const builder: Record<string, unknown> = {}
-      for (const method of ["select", "or", "eq", "order", "limit"]) {
+      for (const method of ["select", "or", "eq", "order", "limit", "range"]) {
         builder[method] = (...args: unknown[]) => {
           call.ops.push([method, args])
           return builder
@@ -71,7 +71,9 @@ test("loadBinderBootstrap loads the owner's collection and maps stored settings"
   assert.equal(bootstrap.settings.darkMode, false)
   for (const call of calls) {
     assert.deepEqual(call.ops.find(([method]) => method === "eq")?.[1], ["user_id", "owner"])
-  }
+  }  // Paged so owners with more than 1000 slots get every row.
+  const collectionCall = calls.find((call) => call.table === "pokemon_collection")
+  assert.deepEqual(collectionCall?.ops.find(([method]) => method === "range")?.[1], [0, 999])
 })
 
 test("loadBinderBootstrap defaults when nothing is stored and surfaces collection errors", async () => {

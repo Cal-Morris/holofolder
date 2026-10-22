@@ -76,6 +76,7 @@ import {
 } from "@/lib/collection/remote"
 import { isOwnedCollectionItem, planOwnedRemoval, type OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { resolveWantedCardsAfterOwnedAdd } from "@/lib/collection/owned-add"
+import { loadCollectionRows } from "@/lib/collection/load"
 
 /** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
 export type CollectionSyncStatus = "idle" | "syncing" | "waiting"
@@ -313,11 +314,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
       if (refreshPlan) {
         const ownerUserId = refreshPlan.knownOwnerUserId ?? await resolveCollectionOwnerUserId(refreshPlan.user)
-        const { data, error } = await supabase
-          .from("pokemon_collection")
-          .select("*")
-          .eq("user_id", ownerUserId)
-          .order("pokemon_id", { ascending: true })
+        const { data, error } = await loadCollectionRows(supabase, ownerUserId)
 
         if (error) throw error
         // Queued edits stay visible until they are synced.
@@ -381,11 +378,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           void (async () => {
             const ownerUserId = await resolveCollectionOwnerUserId(sessionUser)
             if (authenticatedUserId.current !== sessionUser.id) return
-            const { data } = await supabase
-              .from("pokemon_collection")
-              .select("*")
-              .eq("user_id", ownerUserId)
-              .order("pokemon_id", { ascending: true })
+            const { data } = await loadCollectionRows(supabase, ownerUserId)
 
             if (authenticatedUserId.current === sessionUser.id) setCollection(applyPendingEdits(normalizeCollectionItems(data), readPendingCollectionOperations()))
           })().catch(error => console.error("[binderdex] Error refreshing signed-in collection:", error))
