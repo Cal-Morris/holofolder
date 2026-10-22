@@ -156,19 +156,23 @@ test.describe("card picker price sort (UK)", () => {
       return detail
     }
     const selector = page.getByRole("dialog", { name: /card selector/i })
-    const sortTrigger = selector.getByRole("combobox", { name: "Sort cards" })
+    const filtersButton = selector.getByRole("button", { name: /filters · sort/i })
+    const sheet = page.getByRole("dialog", { name: "Filters and sort" })
+    const sortSelect = sheet.getByRole("combobox", { name: "Sort cards" })
     const order = () => selector.getByRole("button", { name: /^Add card Squirtle from / })
       .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")!.replace("Add card Squirtle from ", "")))
     const chooseSort = async (label: string) => {
-      await sortTrigger.click()
-      await page.getByRole("option", { name: label, exact: true }).click()
-      await expect(sortTrigger).toContainText(label)
+      await filtersButton.click()
+      await sortSelect.selectOption({ label })
+      await sheet.getByRole("button", { name: /^Show \d+ cards?$/ }).click()
+      await expect(sheet).toHaveCount(0)
+      await expect(selector.getByRole("button", { name: `Remove filter ${label}` })).toBeVisible()
     }
 
     await (await openSquirtle()).getByRole("button", { name: "Add card", exact: true }).click()
     await expect(selector.getByText("M £12.00", { exact: true }).filter({ visible: true })).toBeVisible()
-    await expect(sortTrigger).toContainText("Default order")
-    expect((await sortTrigger.boundingBox())!.height).toBeGreaterThanOrEqual(36)
+    await expect(selector.getByRole("list", { name: "Active filters" })).toHaveCount(0)
+    expect((await filtersButton.boundingBox())!.height).toBeGreaterThanOrEqual(36)
 
     await chooseSort("Price: high to low")
     await expect.poll(order).toEqual(["30th Celebration", "151", "30th Classic Collection"])
@@ -177,7 +181,7 @@ test.describe("card picker price sort (UK)", () => {
     await harness.expectNoHorizontalOverflow()
 
     // Wanted mode keeps the same sort.
-    await selector.getByRole("button", { name: /wanted/i }).filter({ hasText: "Wanted" }).first().click()
+    await selector.getByRole("group", { name: "Picker mode" }).getByRole("button", { name: "Wanted" }).click()
     await expect.poll(order).toEqual(["151", "30th Celebration", "30th Classic Collection"])
     await chooseSort("Price: high to low")
     await expect.poll(order).toEqual(["30th Celebration", "151", "30th Classic Collection"])
@@ -191,7 +195,7 @@ test.describe("card picker price sort (UK)", () => {
     await page.context().setOffline(true)
     await (await openSquirtle()).getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
     await expect(selector).toBeVisible()
-    await expect(sortTrigger).toContainText("Price: high to low")
+    await expect(selector.getByRole("button", { name: "Remove filter Price: high to low" })).toBeVisible()
     await expect.poll(order).toEqual(["30th Celebration", "151", "30th Classic Collection"])
     await page.context().setOffline(false)
   })
