@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   // once the prerender ends and the catch below logs a spurious "Appearance request failed".
   await connection()
   try {
-    const { admin, ownerId } = await requireAppearanceOwner(request)
+    const { admin, ownerId } = await requireAppearanceOwner(request, { readOnly: true })
     const id = new URL(request.url).searchParams.get("id")
     if (!isBinderUploadId(id)) throw new AppearanceError("Invalid artwork id", 400)
     const { data, error } = await admin.storage.from(BINDER_ARTWORK_BUCKET).createSignedUrl(binderArtworkPath(ownerId, id), 300)

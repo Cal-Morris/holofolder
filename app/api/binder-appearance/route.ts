@@ -3,7 +3,7 @@ import { AppearanceError, appearanceError, appearanceJson, loadBinderArtwork, re
 
 export async function GET(request: Request) {
   try {
-    const { admin, ownerId } = await requireAppearanceOwner(request)
+    const { admin, ownerId } = await requireAppearanceOwner(request, { readOnly: true })
     return appearanceJson(await readAppearance(admin, ownerId))
   } catch (error) { return appearanceError(error) }
 }
