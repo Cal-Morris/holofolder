@@ -243,3 +243,49 @@ function compareNewest(left: WantedDashboardCard, right: WantedDashboardCard) {
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100
 }
+
+/** Lowercase, strip accents (Flabébé, Kouki Saitō) and collapse spaces so search is forgiving. */
+export function normalizeWantedSearchText(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+function wantedSearchHaystack(entry: WantedDashboardEntry) {
+  const { card } = entry
+  const localId = card.local_id?.trim()
+  const numberParts = localId
+    ? [localId, `#${localId}`, localId.replace(/^0+(?=\d)/, ""), card.set_total ? `${localId}/${card.set_total}` : ""]
+    : []
+  return normalizeWantedSearchText([
+    card.card_name,
+    entry.pokemonName,
+    card.card_set ?? "",
+    card.rarity ?? "",
+    card.illustrator ?? "",
+    card.card_finish ?? "",
+    ...numberParts,
+  ].join(" "))
+}
+
+/**
+ * Want-list search: every word must match the card name, Pokémon, set, number (007, #7, 7/165),
+ * rarity, finish or illustrator. An empty query matches everything.
+ */
+export function matchesWantedSearch(entry: WantedDashboardEntry, query: string) {
+  const words = normalizeWantedSearchText(query).split(" ").filter(Boolean)
+  if (words.length === 0) return true
+  const haystack = wantedSearchHaystack(entry)
+  const tokens = haystack.split(" ")
+  return words.every((word) => {
+    const bare = word.replace(/^#/, "").replace(/^0+(?=\d)/, "")
+    if (/^\d+$/.test(bare)) {
+      // Numbers match a card number exactly (7 finds #007, not #070 or #171).
+      return tokens.some((token) => token.replace(/^#/, "").replace(/^0+(?=\d)/, "") === bare || token === word)
+    }
+    return haystack.includes(word)
+  })
+}
+
+export function filterWantedDashboardEntries<T extends WantedDashboardEntry>(cards: T[], query: string): T[] {
+  if (!normalizeWantedSearchText(query)) return cards
+  return cards.filter((card) => matchesWantedSearch(card, query))
+}
