@@ -113,6 +113,13 @@ Admin API routes are `POST` only. Authenticate with `Authorization: Bearer <secr
 - Say in the PR that the migration must be applied, and make the app tolerate it not being applied yet.
 - **Apply migrations as part of shipping database changes.** Cal authorizes applying the task's numbered migrations to the existing hosted Supabase project without a separate confirmation. Inspect the target schema, apply only the required unapplied migrations in numeric order, and verify the resulting schema and data changes. Choose the migration/deployment order to keep the running app compatible. Record what was applied in the PR; don't leave migration application as a follow-up or call the release complete until it is verified. If access is unavailable or a migration fails, report the concrete blocker.
 - Don't move or rename `004_create_tcg_mirror_tables.sql`: the sync reads it at runtime.
+- **Performance rules:**
+  - Write RLS with `(select auth.uid())`.
+  - Page reads that can pass PostgREST's 1000-row cap.
+  - Run `CONCURRENTLY` index changes one statement at a time.
+  - Verify with `EXPLAIN ANALYZE` inside a rolled-back `begin`.
+
+  Details are in the skill's "Performance conventions".
 
 See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKILL.md).
 
