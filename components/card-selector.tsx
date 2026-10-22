@@ -1,6 +1,7 @@
 "use client"
 
 import { toCardImageSrc } from "@/lib/card-image-url"
+import { cropCanvasToCardGuide, delay, drawVideoCoverFrame } from "@/lib/camera-frame"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
@@ -81,10 +82,6 @@ const CARD_FINISHES: Array<{ id: CardFinish; label: string }> = [
   { id: "shiny_rare", label: "Shiny" },
 ]
 
-function delay(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
 function formatGbpAmount(amount: number | null | undefined) {
   return typeof amount === "number" && Number.isFinite(amount)
     ? new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 2 }).format(amount)
@@ -115,61 +112,6 @@ async function canvasToFile(canvas: HTMLCanvasElement, index: number) {
   return new File([blob], `card-scan-${index}.jpg`, { type: "image/jpeg" })
 }
 
-function drawVideoCoverFrame(
-  video: HTMLVideoElement,
-  context: CanvasRenderingContext2D,
-  targetWidth: number,
-  targetHeight: number,
-) {
-  const videoWidth = video.videoWidth || 1280
-  const videoHeight = video.videoHeight || 720
-  const scale = Math.max(targetWidth / videoWidth, targetHeight / videoHeight)
-  const drawWidth = videoWidth * scale
-  const drawHeight = videoHeight * scale
-  const offsetX = (targetWidth - drawWidth) / 2
-  const offsetY = (targetHeight - drawHeight) / 2
-
-  context.clearRect(0, 0, targetWidth, targetHeight)
-  context.drawImage(video, offsetX, offsetY, drawWidth, drawHeight)
-}
-
-function cropCanvasToCardGuide(sourceCanvas: HTMLCanvasElement) {
-  const availableWidth = sourceCanvas.width * (1 - CARD_GUIDE_INSET_X * 2)
-  const availableHeight = sourceCanvas.height * (1 - CARD_GUIDE_INSET_Y * 2)
-  let cropWidth = availableWidth
-  let cropHeight = cropWidth / CARD_ASPECT_RATIO
-
-  if (cropHeight > availableHeight) {
-    cropHeight = availableHeight
-    cropWidth = cropHeight * CARD_ASPECT_RATIO
-  }
-
-  const cropX = Math.round((sourceCanvas.width - cropWidth) / 2)
-  const cropY = Math.round((sourceCanvas.height - cropHeight) / 2)
-  const canvas = document.createElement("canvas")
-  canvas.width = Math.max(220, Math.round(cropWidth))
-  canvas.height = Math.max(300, Math.round(cropHeight))
-  const context = canvas.getContext("2d")
-
-  if (!context) {
-    throw new Error("Could not crop the card guide frame.")
-  }
-
-  context.drawImage(
-    sourceCanvas,
-    cropX,
-    cropY,
-    cropWidth,
-    cropHeight,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
-  )
-
-  return canvas
-}
-
 async function captureGuidedCardFrameFile(video: HTMLVideoElement, canvas: HTMLCanvasElement, index: number) {
   const previewWidth = Math.max(480, Math.round((video.clientWidth || 360) * 2))
   const previewHeight = Math.max(820, Math.round((video.clientHeight || 640) * 2))
@@ -182,7 +124,7 @@ async function captureGuidedCardFrameFile(video: HTMLVideoElement, canvas: HTMLC
   }
 
   drawVideoCoverFrame(video, context, previewWidth, previewHeight)
-  const guidedCanvas = cropCanvasToCardGuide(canvas)
+  const guidedCanvas = cropCanvasToCardGuide(canvas, { insetX: CARD_GUIDE_INSET_X, insetY: CARD_GUIDE_INSET_Y, aspectRatio: CARD_ASPECT_RATIO, minWidth: 220, minHeight: 300, errorMessage: "Could not crop the card guide frame." })
 
   return {
     file: await canvasToFile(guidedCanvas, index),

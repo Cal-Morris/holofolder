@@ -8,7 +8,7 @@ import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
-import { formatPokemonDisplayName, getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
+import { formatPokemonDisplayName, getOfficialArtworkUrl, formatDexNumber } from "@/lib/pokemon-catalog"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { CardHighlights } from "@/components/card-highlights"
 import {
@@ -42,10 +42,6 @@ const FILTERS: Array<{ id: BrowseCardFilter; label: string }> = [
 function thumbnailUrl(image?: string) {
   if (!image) return null
   return image.endsWith("/high.webp") ? image.replace(/\/high\.webp$/, "/low.webp") : image
-}
-
-function formatDexNumber(id: number) {
-  return `#${String(id).padStart(4, "0")}`
 }
 
 export default function PokemonCardsBrowser({

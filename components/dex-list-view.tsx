@@ -1,6 +1,7 @@
 "use client"
 
 import { toCardImageSrc } from "@/lib/card-image-url"
+import { formatDexNumber } from "@/lib/pokemon-catalog"
 import { useCallback, useMemo, useState, type UIEvent } from "react"
 import { Check, Heart, Star, X, Search, Plus, BadgeCheck, Layers3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -43,10 +44,6 @@ const DEX_LIST_FILTERS: Array<{ id: DexListFilter; label: string }> = [
   { id: "perfect", label: "Perfect" },
   { id: "upgrade", label: "Upgrade" },
 ]
-
-function formatDexNumber(id: number) {
-  return `#${String(id).padStart(4, "0")}`
-}
 
 function getSlotState(item?: CollectedPokemon) {
   if (!item) {

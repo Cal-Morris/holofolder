@@ -1,6 +1,7 @@
 "use client"
 
 import { toCardImageSrc } from "@/lib/card-image-url"
+import { cropCanvasToCardGuide, delay, drawVideoCoverFrame } from "@/lib/camera-frame"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
 
@@ -49,7 +50,7 @@ import { aggregateBinderPageScanResults, buildAggregatedBinderPageScanPreview } 
 import { aggregateBinderSlotSweep, getNextSweepSlotIndex, type BinderSlotSweepFrame } from "@/lib/binder-slot-sweep"
 import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
 import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib/card-scan-evidence"
-import { POKEMON_CATALOG, formatPokemonDisplayName, ARTWORK_DETAIL_WIDTH, getOfficialArtworkUrl, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
+import { POKEMON_CATALOG, formatPokemonDisplayName, ARTWORK_DETAIL_WIDTH, getOfficialArtworkUrl, getPokemonSummary, type PokemonSummary, formatDexNumber } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { buildBinderShareUrl } from "@/lib/binder-share"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
@@ -592,10 +593,6 @@ function BinderSlotGlare({
   )
 }
 
-function delay(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
 async function canvasToFile(canvas: HTMLCanvasElement, index: number, prefix = "binder-scan") {
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9))
   if (!blob) {
@@ -603,24 +600,6 @@ async function canvasToFile(canvas: HTMLCanvasElement, index: number, prefix = "
   }
 
   return new File([blob], `${prefix}-${index}.jpg`, { type: "image/jpeg" })
-}
-
-function drawVideoCoverFrame(
-  video: HTMLVideoElement,
-  context: CanvasRenderingContext2D,
-  targetWidth: number,
-  targetHeight: number,
-) {
-  const videoWidth = video.videoWidth || 1280
-  const videoHeight = video.videoHeight || 720
-  const scale = Math.max(targetWidth / videoWidth, targetHeight / videoHeight)
-  const drawWidth = videoWidth * scale
-  const drawHeight = videoHeight * scale
-  const offsetX = (targetWidth - drawWidth) / 2
-  const offsetY = (targetHeight - drawHeight) / 2
-
-  context.clearRect(0, 0, targetWidth, targetHeight)
-  context.drawImage(video, offsetX, offsetY, drawWidth, drawHeight)
 }
 
 function cropCanvasByRatios(
@@ -673,43 +652,6 @@ async function captureGuidedFrameFile(video: HTMLVideoElement, canvas: HTMLCanva
   return canvasToFile(guidedCanvas, index, "binder-page-sweep")
 }
 
-function cropCanvasToCardGuide(sourceCanvas: HTMLCanvasElement) {
-  const availableWidth = sourceCanvas.width * (1 - SLOT_SWEEP_GUIDE_INSET_X * 2)
-  const availableHeight = sourceCanvas.height * (1 - SLOT_SWEEP_GUIDE_INSET_Y * 2)
-  let cropWidth = availableWidth
-  let cropHeight = cropWidth / TRADING_CARD_ASPECT_RATIO
-
-  if (cropHeight > availableHeight) {
-    cropHeight = availableHeight
-    cropWidth = cropHeight * TRADING_CARD_ASPECT_RATIO
-  }
-
-  const cropX = Math.round((sourceCanvas.width - cropWidth) / 2)
-  const cropY = Math.round((sourceCanvas.height - cropHeight) / 2)
-  const canvas = document.createElement("canvas")
-  canvas.width = Math.max(260, Math.round(cropWidth))
-  canvas.height = Math.max(360, Math.round(cropHeight))
-  const context = canvas.getContext("2d")
-
-  if (!context) {
-    throw new Error("Could not crop the slot scanner frame.")
-  }
-
-  context.drawImage(
-    sourceCanvas,
-    cropX,
-    cropY,
-    cropWidth,
-    cropHeight,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
-  )
-
-  return canvas
-}
-
 async function captureGuidedSlotFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement, index: number) {
   const previewWidth = Math.max(480, Math.round((video.clientWidth || 360) * 2))
   const previewHeight = Math.max(820, Math.round((video.clientHeight || 640) * 2))
@@ -722,7 +664,7 @@ async function captureGuidedSlotFrame(video: HTMLVideoElement, canvas: HTMLCanva
   }
 
   drawVideoCoverFrame(video, context, previewWidth, previewHeight)
-  const guidedCanvas = cropCanvasToCardGuide(canvas)
+  const guidedCanvas = cropCanvasToCardGuide(canvas, { insetX: SLOT_SWEEP_GUIDE_INSET_X, insetY: SLOT_SWEEP_GUIDE_INSET_Y, aspectRatio: TRADING_CARD_ASPECT_RATIO, minWidth: 260, minHeight: 360, errorMessage: "Could not crop the slot scanner frame." })
 
   return {
     file: await canvasToFile(guidedCanvas, index, "binder-slot-sweep"),
@@ -4152,7 +4094,7 @@ export default function BinderApp({
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">#{String(selectedPokemon.id).padStart(4, "0")}</p>
+                    <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">{formatDexNumber(selectedPokemon.id)}</p>
                     <h3 className="break-words text-[1.05rem] font-bold leading-tight tracking-tight">{selectedPokemonDisplayName}</h3>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
@@ -5438,7 +5380,7 @@ export default function BinderApp({
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${bandStyle.chip}`}>
                           {WANTED_PRICE_BAND_LABELS[wantedCard.priceBandId]}
                         </span>
-                        <span className="text-[11px] font-semibold text-muted-foreground">#{String(pokemonId).padStart(4, "0")}</span>
+                        <span className="text-[11px] font-semibold text-muted-foreground">{formatDexNumber(pokemonId)}</span>
                       </div>
                       <button
                         type="button"
@@ -6470,7 +6412,7 @@ export default function BinderApp({
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-muted-foreground">#{String(selectedPokemon.id).padStart(4, "0")}</p>
+                        <p className="text-xs font-semibold text-muted-foreground">{formatDexNumber(selectedPokemon.id)}</p>
                         <h2 className="truncate text-lg font-bold">{selectedPokemonDisplayName}</h2>
                         {selectedHasWantedCard && selectedPrimaryCardPreview?.cardName ? (
                           <p className="truncate text-xs text-amber-500">Wanted: {selectedPrimaryCardPreview.cardName}</p>
@@ -7034,8 +6976,8 @@ function PokemonSlot({
       : "grayscale"
   const titleLabel = isWishlisted && cardName ? cardName : pokemon.name
   const subtitleLabel = isWishlisted && cardName
-    ? `Wanted for #${String(pokemon.id).padStart(4, "0")}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
-    : `#${String(pokemon.id).padStart(4, "0")}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
+    ? `Wanted for ${formatDexNumber(pokemon.id)}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
+    : `${formatDexNumber(pokemon.id)}${showPriceMode && priceLabel ? ` • ${priceLabel}` : ""}`
   const hasCardPreviewSource = Boolean(cardImageSource)
   const hasCardPreview = hasCardPreviewSource && !didFallbackPreviewImage
   const statusChip = isWishlisted
@@ -7110,7 +7052,7 @@ function PokemonSlot({
       <button
         ref={buttonRef}
         data-dex-id={pokemon.id}
-        aria-label={`${slotLabel} ${formatPokemonDisplayName(pokemon.name)} #${String(pokemon.id).padStart(4, "0")}`}
+        aria-label={`${slotLabel} ${formatPokemonDisplayName(pokemon.name)} ${formatDexNumber(pokemon.id)}`}
         onClick={(event) => {
           if (event.detail !== 0 && isLongPressTriggered.current) {
             event.preventDefault()

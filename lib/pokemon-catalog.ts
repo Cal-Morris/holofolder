@@ -68,6 +68,11 @@ function titleCasePokemonName(name: string) {
     .join(" ")
 }
 
+/** National Dex number as shown in the app, e.g. #0025. */
+export function formatDexNumber(id: number) {
+  return `#${String(id).padStart(4, "0")}`
+}
+
 export function formatPokemonDisplayName(name: string) {
   const lowerName = name.toLowerCase()
   const override = DISPLAY_NAME_OVERRIDES[lowerName]
