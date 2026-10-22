@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { PricingPreferencesSettings } from "@/components/pricing-preferences-settings"
 import { useOverlay } from "@/hooks/use-overlay"
-import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone } from "lucide-react"
+import { useShowMode } from "@/hooks/use-show-mode"
+import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone, Ticket } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { BinderSettings } from "@/hooks/use-settings"
@@ -117,6 +118,7 @@ export default function SettingsModal({
   motionGlintMessage,
   onRequestMotionGlint,
 }: SettingsModalProps) {
+  const { isShowModeOn, setShowMode } = useShowMode()
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
@@ -274,6 +276,19 @@ export default function SettingsModal({
 
           {effectiveActiveTab === "display" && (
           <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold">Card show mode</h3>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Show mode</p>
+                <p className="text-xs text-muted-foreground">
+                  For card shows: Search opens Quick mode, the screen stays on, and a banner shows it&apos;s on. Saved on this device.
+                </p>
+              </div>
+              <Switch checked={isShowModeOn} onCheckedChange={setShowMode} aria-label="Show mode" />
+            </div>
             <div className="flex items-center gap-2">
               {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
               <h3 className="font-semibold">Appearance</h3>

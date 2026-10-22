@@ -2,7 +2,7 @@
 // on-device recent searches); the overlay itself is components/quick-mode.tsx.
 import { normalizePokemonSearchText } from "@/lib/pokemon-search-state"
 
-export const QUICK_DESTINATION_IDS = ["binder", "list", "wanted", "sets", "pokemon", "analytics", "settings", "scan"] as const
+export const QUICK_DESTINATION_IDS = ["binder", "list", "wanted", "sets", "pokemon", "analytics", "settings", "scan", "show-mode"] as const
 export type QuickDestinationId = (typeof QUICK_DESTINATION_IDS)[number]
 
 export interface QuickDestination {
@@ -21,6 +21,7 @@ export const QUICK_DESTINATIONS: readonly QuickDestination[] = [
   { id: "analytics", label: "Analytics", hint: "Value, spend and stats", keywords: ["analytics", "stats", "value", "worth", "export", "csv"] },
   { id: "settings", label: "Settings", hint: "Region, currency, binder", keywords: ["settings", "preferences", "region", "currency", "account", "options"] },
   { id: "scan", label: "Scan a page", hint: "Photograph a binder page", keywords: ["scan", "camera", "photo", "page scan"] },
+  { id: "show-mode", label: "Show mode", hint: "At a card show: fast search, screen stays on", keywords: ["show mode", "card show", "show", "event", "convention", "fair", "market", "stall", "trade"] },
 ]
 
 /** Destinations whose label or keywords start with (or contain, for longer queries) the query. */

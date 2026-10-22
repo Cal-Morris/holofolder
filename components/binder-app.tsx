@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import NextImage from "next/image"
 import { createPortal } from "react-dom"
-import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, Copy, Link2, Palette, Zap } from "lucide-react"
+import { Moon, Sun, Settings, LogIn, LogOut, Grid3X3, Search as SearchIcon, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Users, Sparkles, Check, X, Star, Camera, Loader2, SlidersHorizontal, WifiOff, BookOpen, Heart, ListChecks, Layers3, MoreHorizontal, Copy, Link2, Palette, Ticket, Zap } from "lucide-react"
 import PokemonSearch, { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import type { CardSelectorMode } from "@/components/card-selector"
 import CardFinishShader from "@/components/card-finish-shader"
@@ -80,6 +80,8 @@ import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
+import { SHOW_MODE_PROMPT_KEY, parsePromptSnooze, shouldOfferShowMode } from "@/lib/show-mode"
+import { useShowMode } from "@/hooks/use-show-mode"
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
@@ -495,6 +497,9 @@ export default function BinderApp({
   const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false)
+  const { isShowModeOn, setShowMode } = useShowMode()
+  // "Not now" on the binder's Show mode card. Read after mount so server and client renders agree.
+  const [showModePromptSnoozedAt, setShowModePromptSnoozedAt] = useState<number | null | undefined>(undefined)
   const quickPressTimerRef = useRef<number | null>(null)
   const quickPressFiredRef = useRef(false)
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
@@ -3414,7 +3419,39 @@ export default function BinderApp({
     return meta.stateLabel ? { label: meta.stateLabel, toneClass: meta.stateToneClass ?? "" } : { label: "Missing", toneClass: "bg-muted text-muted-foreground" }
   }, [getSearchResultMeta])
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        setShowModePromptSnoozedAt(parsePromptSnooze(window.localStorage.getItem(SHOW_MODE_PROMPT_KEY)))
+      } catch {
+        setShowModePromptSnoozedAt(null)
+      }
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+  const snoozeShowModePrompt = useCallback(() => {
+    const now = Date.now()
+    try {
+      window.localStorage.setItem(SHOW_MODE_PROMPT_KEY, String(now))
+    } catch {
+      // Storage unavailable: hide it for this page view only.
+    }
+    setShowModePromptSnoozedAt(now)
+  }, [])
+  const isShowModeOfferVisible =
+    !readOnlyMode &&
+    activeMainView === "binder" &&
+    binderDimension === "2d" &&
+    showModePromptSnoozedAt !== undefined &&
+    shouldOfferShowMode({ showModeOn: isShowModeOn, isOnline, snoozedAt: showModePromptSnoozedAt })
+
   const handleQuickNavigate = (destination: QuickDestinationId) => {
+    if (destination === "show-mode") {
+      // Turning it on keeps Quick mode open (that's where Show mode lives); exiting closes it.
+      setShowMode(!isShowModeOn)
+      if (isShowModeOn) setIsQuickModeOpen(false)
+      return
+    }
     if (destination === "settings") {
       openExclusively(() => setIsSettingsOpen(true))
       return
@@ -4480,7 +4517,7 @@ export default function BinderApp({
         className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-[env(safe-area-inset-bottom)] bg-background md:hidden"
       />
 
-      {!isOnline && (
+      {!isOnline && !isShowModeOn && (
         <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.45rem)] z-50 flex justify-center px-3">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300">
             <WifiOff className="h-3.5 w-3.5" />
@@ -4539,6 +4576,38 @@ export default function BinderApp({
       {/* Glass Navigation */}
       <nav ref={shellNavRef} className="sticky top-0 z-40 mb-1 shrink-0 px-2.5 pt-[max(env(safe-area-inset-top),0.35rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+0.45rem)]">
         <div className="mx-auto w-full max-w-7xl md:max-w-none">
+          {isShowModeOn && (
+            <section
+              aria-label="Show mode"
+              className="mb-1.5 flex items-center gap-2 rounded-2xl bg-amber-400 py-0.5 pl-3 pr-0.5 text-black shadow-[0_12px_32px_-18px_rgba(217,119,6,0.9)]"
+            >
+              <Ticket className="h-5 w-5 shrink-0" aria-hidden />
+              <p className="min-w-0 flex-1 leading-tight">
+                <span className="block text-sm font-bold">Show mode on</span>
+                <span role="status" className="block truncate text-[11px] font-medium text-black/70">
+                  {isOnline
+                    ? "Screen stays on"
+                    : `Offline${user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} to sync` : " · using saved cards and prices"}`}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={openQuickMode}
+                className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-black/85 px-3 text-sm font-semibold text-amber-300"
+              >
+                <SearchIcon className="h-4 w-4" aria-hidden />
+                Search
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMode(false)}
+                aria-label="Exit show mode"
+                className="flex h-11 shrink-0 items-center rounded-xl border border-black/25 px-3 text-sm font-semibold"
+              >
+                Exit
+              </button>
+            </section>
+          )}
           <div className="rounded-2xl border border-border/70 bg-card/96 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.24)] md:bg-card/86 md:backdrop-blur-xl dark:border-border/50 dark:bg-background dark:shadow-black/5 dark:md:bg-background/88">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1 md:px-2.5 md:py-1.5">
             {activeBinder && !readOnlyMode ? (
@@ -4777,12 +4846,32 @@ export default function BinderApp({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full md:hidden"
+                // On a narrow binder page the labelled Show mode button takes its place (theme stays in Settings › Display).
+                className={`h-9 w-9 rounded-full md:hidden ${activeMainView === "binder" && binderDimension === "2d" ? "max-[399px]:hidden" : ""}`}
                 onClick={toggleDarkMode}
                 aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
               >
                 {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
+              {/* Always-visible Show mode switch, on every main view. */}
+              <button
+                type="button"
+                onClick={() => setShowMode(!isShowModeOn)}
+                aria-pressed={isShowModeOn}
+                aria-label="Show mode"
+                title={isShowModeOn ? "Show mode is on: tap to exit" : "Card show mode"}
+                data-testid="header-show-mode"
+                className={`flex h-9 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors md:h-7 md:text-[11px] ${
+                  isShowModeOn
+                    ? "border-amber-400 bg-amber-400 text-black"
+                    : "border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
+                }`}
+              >
+                <Ticket className="h-4 w-4 md:h-3.5 md:w-3.5" aria-hidden />
+                {/* Signed out, a narrow 2D binder header also holds Sign in and the pager, so the pill drops its
+                    text there; the "At a card show?" card below spells it out. */}
+                <span className={!user && activeMainView === "binder" && binderDimension === "2d" ? "max-[399px]:sr-only" : ""}>Show</span>
+              </button>
             </div>
           </div>
 
@@ -4973,6 +5062,24 @@ export default function BinderApp({
             setPageScanError={setPageScanError}
             onClose={closeBurstScanner}
           />
+        )}
+
+        {isShowModeOfferVisible && (
+          <section aria-label="At a card show?" className="mb-2 flex shrink-0 items-center gap-3 rounded-2xl border border-amber-400/45 bg-amber-400/12 py-2 pl-3 pr-1.5">
+            <Ticket className="h-6 w-6 shrink-0 text-amber-500" aria-hidden />
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="text-sm font-bold">At a card show?</p>
+              <p className="text-xs text-muted-foreground">
+                {isOnline ? "Show mode: quick search, screen on" : "Offline: Show mode uses saved cards"}
+              </p>
+            </div>
+            <Button className="h-11 shrink-0 gap-1.5 rounded-xl px-3.5 text-sm font-semibold" onClick={() => setShowMode(true)} aria-label="Turn on Show mode">
+              Turn on
+            </Button>
+            <button type="button" onClick={snoozeShowModePrompt} aria-label="Not now" className="flex h-11 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </section>
         )}
 
         {activeMainView === "binder" && binderAppearance.message && (
@@ -5219,6 +5326,7 @@ export default function BinderApp({
           pricingRegion={pricingPreferences.region}
           isOnline={isOnline}
           hiddenDestinations={readOnlyMode ? ["scan", "analytics", "settings"] : []}
+          showModeOn={isShowModeOn}
         />
       )}
 
@@ -5529,7 +5637,8 @@ export default function BinderApp({
                   quickPressFiredRef.current = false
                   return
                 }
-                openSearch()
+                if (isShowModeOn) openQuickMode()
+                else openSearch()
               }}
               {...quickPressHandlers}
               aria-label="Search"
