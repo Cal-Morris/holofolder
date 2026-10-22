@@ -19,6 +19,7 @@ import CardShowPrep from "@/components/card-show-prep"
 import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { readOfflineSets, searchOfflineSets } from "@/lib/offline-card-index"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
+import { getSetCompletion } from "@/lib/set-completion"
 import { getSetSlotState, getSetCardState, hasWantedSetCard, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter, type SetSlotFilter } from "@/lib/set-checklist"
 import { POKEMON_CATALOG, formatPokemonDisplayName, formatDexNumber } from "@/lib/pokemon-catalog"
 import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-browse"
@@ -234,6 +235,11 @@ export default function SetPopulationView({
     })
   }, [slots])
 
+  const setCompletions = useMemo(
+    () => selectedSets.flatMap(set => payloadsBySetId[set.id] ? [{ set, ...getSetCompletion(payloadsBySetId[set.id], collectionByPokemonId.values()) }] : []),
+    [collectionByPokemonId, payloadsBySetId, selectedSets],
+  )
+
   const matchedSlots = useMemo(() => matchedPokemonIds.length ? slots.filter(slot => matchedPokemonIds.includes(slot.dexId)) : slots, [matchedPokemonIds, slots])
 
   const summary = useMemo(() => {
@@ -418,6 +424,34 @@ export default function SetPopulationView({
               {selectedSets.map(set => <button key={set.id} type="button" aria-label={`Remove ${set.name}`} onClick={() => { setIsLoading(selectedSets.some(selected => selected.id !== set.id && !payloadsBySetId[selected.id])); setError(null); setSelectedSets(current => current.filter(selected => selected.id !== set.id)) }} className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-3 text-xs font-semibold"><span className="truncate">{set.name}</span><X className="h-3.5 w-3.5 shrink-0" /></button>)}
               <button type="button" aria-label="Clear all matches" onClick={() => { setIsLoading(false); setError(null); setSelectedSets([]); setMatchedPokemonIds([]); setPokemonQuery(""); setSlotSearch(""); setSlotFilter("all"); setQuery("") }} className="min-h-9 px-2 text-xs text-muted-foreground">Clear all</button>
             </div>
+            {setCompletions.length > 0 ? (
+              <ul aria-label="Set completion" className="space-y-1.5">
+                {setCompletions.map(({ set, owned, total, percent, complete, hasFullCardList }) => (
+                  <li key={set.id} className="rounded-2xl border border-border/45 bg-background/45 px-3 py-2 dark:border-white/10">
+                    <div className="flex items-baseline justify-between gap-2 text-xs">
+                      <span className="min-w-0 truncate font-semibold">{set.name}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {owned}/{total} {hasFullCardList ? "cards" : "Pokémon cards"} · {percent}%
+                      </span>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-label={`${set.name} completion`}
+                      aria-valuemin={0}
+                      aria-valuemax={total}
+                      aria-valuenow={owned}
+                      aria-valuetext={`${owned} of ${total} cards owned`}
+                      className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-white/10"
+                    >
+                      <div
+                        className={`h-full rounded-full transition-[width] duration-300 ${complete ? "bg-emerald-500" : "bg-primary"}`}
+                        style={{ width: `${total > 0 ? (owned / total) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <label className="flex items-center gap-2 rounded-2xl border border-border/55 bg-background/45 px-3">
               <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
               <span className="sr-only">Add Pokémon to match</span>
