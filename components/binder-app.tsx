@@ -1,5 +1,6 @@
 "use client"
 
+import type { Binder } from "@/lib/binders/model"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
@@ -211,6 +212,9 @@ interface BinderAppProps {
   initialPriceMode?: boolean
   readOnlyMode?: boolean
   shareViewToken?: string | null
+  /** The owner's binders and the one this page shows (null before migration 039). */
+  initialBinders?: Binder[]
+  initialBinderId?: string | null
 }
 
 function getPokemonArtwork(pokemon: PokemonSummary) {
@@ -466,6 +470,8 @@ export default function BinderApp({
   initialPriceMode = false,
   readOnlyMode = false,
   shareViewToken = null,
+  initialBinders = [],
+  initialBinderId = null,
 }: BinderAppProps) {
   const router = useRouter()
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonSummary | null>(null)
@@ -578,7 +584,14 @@ export default function BinderApp({
     syncNotice,
     dismissSyncNotice,
     resolvedCollectionOwnerUserId,
-  } = useCollection({ initialUser, initialCollection, initialCollectionOwnerUserId, readOnly: readOnlyMode })
+  } = useCollection({
+    initialUser,
+    initialCollection,
+    initialCollectionOwnerUserId,
+    binderId: initialBinderId,
+    isDefaultBinder: !initialBinderId || initialBinders.find((binder) => binder.id === initialBinderId)?.isDefault !== false,
+    readOnly: readOnlyMode,
+  })
   useOfflineStoreSync(!readOnlyMode)
   const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
     isSignedIn: Boolean(user),

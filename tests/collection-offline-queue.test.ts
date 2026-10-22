@@ -160,3 +160,28 @@ test("persistLocalCollectionState writes the snapshot and the collected ids (exc
     assert.deepEqual(JSON.parse(storage.getItem("pokemon_collected") ?? "[]"), [25])
   })
 })
+
+test("queued edits are per binder slot and keep their binder", () => {
+  withStorage(() => {
+    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: pikachu, base: null, binderId: "binder-a" })
+    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: { ...pikachu, status: "considering" }, base: null, binderId: "binder-b" })
+    queuePendingCollectionOperation({ type: "delete", pokemonId: 25, base: pikachu })
+    const operations = readPendingCollectionOperations()
+    assert.equal(operations.length, 3)
+    assert.deepEqual(operations.map((operation) => operation.binderId ?? null), ["binder-a", "binder-b", null])
+    // A newer edit of the same binder slot replaces the older one.
+    queuePendingCollectionOperation({ type: "delete", pokemonId: 25, base: pikachu, binderId: "binder-a" })
+    const next = readPendingCollectionOperations()
+    assert.equal(next.length, 3)
+    assert.equal(next.find((operation) => operation.binderId === "binder-a")?.type, "delete")
+  })
+})
+
+test("snapshots remember their binder", () => {
+  withStorage(() => {
+    persistLocalCollectionState([pikachu], "owner-1", "binder-b")
+    assert.equal(readLocalCollectionSnapshot()?.binderId, "binder-b")
+    persistLocalCollectionState([pikachu], "owner-1")
+    assert.equal(readLocalCollectionSnapshot()?.binderId, undefined)
+  })
+})

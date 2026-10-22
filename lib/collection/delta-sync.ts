@@ -12,6 +12,8 @@ export const COLLECTION_DELTA_OVERLAP_MS = 60_000
 
 export interface CollectionSyncBaseline {
   ownerUserId: string
+  /** The binder the rows belong to; null for the single-binder layout (before migration 039). */
+  binderId: string | null
   /** Server rows by pokemon_id, as last read (no local pending edits). */
   rows: Map<number, CollectionRow>
   /** Newest updated_at seen, or null when delta sync can't be used (rows without updated_at, or none). */
@@ -42,7 +44,11 @@ function newestUpdatedAt(rows: Iterable<CollectionRow>) {
   return newest
 }
 
-export function createCollectionBaseline(ownerUserId: string, rows: readonly CollectionRow[]): CollectionSyncBaseline {
+export function createCollectionBaseline(
+  ownerUserId: string,
+  rows: readonly CollectionRow[],
+  binderId: string | null = null,
+): CollectionSyncBaseline {
   const byPokemonId = new Map<number, CollectionRow>()
   let complete = true
   for (const row of rows) {
@@ -54,12 +60,12 @@ export function createCollectionBaseline(ownerUserId: string, rows: readonly Col
     byPokemonId.set(pokemonId, row)
   }
 
-  return { ownerUserId, rows: byPokemonId, cursor: complete ? newestUpdatedAt(byPokemonId.values()) : null }
+  return { ownerUserId, binderId, rows: byPokemonId, cursor: complete ? newestUpdatedAt(byPokemonId.values()) : null }
 }
 
 /** Lower bound for the next delta query, or null when the baseline can't do a delta. */
-export function collectionDeltaSince(baseline: CollectionSyncBaseline | null, ownerUserId: string) {
-  if (!baseline || baseline.ownerUserId !== ownerUserId || !baseline.cursor) return null
+export function collectionDeltaSince(baseline: CollectionSyncBaseline | null, ownerUserId: string, binderId: string | null = null) {
+  if (!baseline || baseline.ownerUserId !== ownerUserId || baseline.binderId !== binderId || !baseline.cursor) return null
   return new Date(Date.parse(baseline.cursor) - COLLECTION_DELTA_OVERLAP_MS).toISOString()
 }
 
@@ -86,7 +92,7 @@ export function mergeCollectionDelta(
     ? changedCursor
     : baseline.cursor
 
-  return { ownerUserId: baseline.ownerUserId, rows, cursor }
+  return { ownerUserId: baseline.ownerUserId, binderId: baseline.binderId, rows, cursor }
 }
 
 /** Baseline rows in pokemon_id order, the same order a full fetch returns. */

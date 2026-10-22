@@ -7,6 +7,8 @@ import { mirrorCollectionSnapshot, mirrorPendingOperations } from "@/lib/offline
 
 export interface LocalCollectionSnapshot {
   ownerUserId: string | null
+  /** The binder the snapshot is of; null for the single-binder layout and snapshots saved before binders. */
+  binderId?: string | null
   savedAt: string
   collection: CollectedPokemon[]
 }
@@ -21,6 +23,7 @@ export type PendingCollectionOperation =
       item: CollectedPokemon
       queuedAt: string
       base?: CollectedPokemon | null
+      binderId?: string | null
     }
   | {
       id: string
@@ -28,6 +31,7 @@ export type PendingCollectionOperation =
       pokemonId: number
       queuedAt: string
       base?: CollectedPokemon | null
+      binderId?: string | null
     }
 
 export type PendingCollectionOperationInput =
@@ -36,12 +40,28 @@ export type PendingCollectionOperationInput =
       pokemonId: number
       item: CollectedPokemon
       base?: CollectedPokemon | null
+      binderId?: string | null
     }
   | {
       type: "delete"
       pokemonId: number
       base?: CollectedPokemon | null
+      binderId?: string | null
     }
+
+/** The binder a queued edit targets; null (edits queued before binders) means the owner's default binder. */
+export function pendingOperationBinderId(operation: { binderId?: string | null }) {
+  return typeof operation.binderId === "string" && operation.binderId ? operation.binderId : null
+}
+
+function sameSlot(operation: { pokemonId: number; binderId?: string | null }, pokemonId: number, binderId: string | null) {
+  return operation.pokemonId === pokemonId && pendingOperationBinderId(operation) === binderId
+}
+
+function parseBinderId(operation: object): { binderId?: string } {
+  const binderId = pendingOperationBinderId(operation as { binderId?: string | null })
+  return binderId ? { binderId } : {}
+}
 
 function parseBase(operation: object): { base?: CollectedPokemon | null } {
   if (!("base" in operation)) return {}
@@ -67,6 +87,7 @@ export function readLocalCollectionSnapshot() {
 
     return {
       ownerUserId: typeof parsed.ownerUserId === "string" ? parsed.ownerUserId : null,
+      ...(typeof parsed.binderId === "string" ? { binderId: parsed.binderId } : {}),
       savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : new Date(0).toISOString(),
       collection: normalizeCollectionItems(parsed.collection),
     }
@@ -79,7 +100,7 @@ export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot) 
   if (typeof window === "undefined") return
 
   // Durable copy in IndexedDB, written even if localStorage is full.
-  mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt)
+  mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt, undefined, snapshot.binderId ?? null)
 
   try {
     window.localStorage.setItem(LOCAL_COLLECTION_SNAPSHOT_KEY, JSON.stringify(snapshot))
@@ -111,6 +132,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           pokemonId: item.pokemonId,
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
           ...parseBase(item),
+          ...parseBinderId(item),
         }]
       }
 
@@ -122,6 +144,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           item: normalizeCollectionItem(item.item),
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
           ...parseBase(item),
+          ...parseBinderId(item),
         }]
       }
 
@@ -154,7 +177,8 @@ export function createPendingOperationId() {
 
 export function queuePendingCollectionOperation(operation: PendingCollectionOperationInput) {
   const existing = readPendingCollectionOperations()
-  const replaced = existing.find((queuedOperation) => queuedOperation.pokemonId === operation.pokemonId)
+  const binderId = pendingOperationBinderId(operation)
+  const replaced = existing.find((queuedOperation) => sameSlot(queuedOperation, operation.pokemonId, binderId))
   // One edit per Pokémon: the newest wins, but it keeps the base of the first unsynced edit, because that
   // is the server state all of them were made against.
   const base = replaced ? replaced.base : operation.base
@@ -165,14 +189,15 @@ export function queuePendingCollectionOperation(operation: PendingCollectionOper
     queuedAt: new Date().toISOString(),
   } as PendingCollectionOperation
   if (base === undefined) delete nextOperation.base
-  const operations = existing.filter((queuedOperation) => queuedOperation.pokemonId !== operation.pokemonId)
+  if (!binderId) delete nextOperation.binderId
+  const operations = existing.filter((queuedOperation) => !sameSlot(queuedOperation, operation.pokemonId, binderId))
 
   writePendingCollectionOperations([...operations, nextOperation])
   return nextOperation
 }
 
-export function hasPendingCollectionOperation(pokemonId: number) {
-  return readPendingCollectionOperations().some((operation) => operation.pokemonId === pokemonId)
+export function hasPendingCollectionOperation(pokemonId: number, binderId: string | null = null) {
+  return readPendingCollectionOperations().some((operation) => sameSlot(operation, pokemonId, binderId))
 }
 
 /** Replace a queued edit in place (after a conflict merge), keeping its position. */
@@ -183,11 +208,11 @@ export function replacePendingCollectionOperation(operationId: string, next: Pen
 }
 
 /** A newer edit for the same Pokémon is now based on what the server just stored. */
-export function rebasePendingCollectionOperation(pokemonId: number, base: CollectedPokemon | null) {
+export function rebasePendingCollectionOperation(pokemonId: number, base: CollectedPokemon | null, binderId: string | null = null) {
   const operations = readPendingCollectionOperations()
-  if (!operations.some((operation) => operation.pokemonId === pokemonId)) return
+  if (!operations.some((operation) => sameSlot(operation, pokemonId, binderId))) return
   writePendingCollectionOperations(
-    operations.map((operation) => (operation.pokemonId === pokemonId ? { ...operation, base } : operation)),
+    operations.map((operation) => (sameSlot(operation, pokemonId, binderId) ? { ...operation, base } : operation)),
   )
 }
 
@@ -197,9 +222,10 @@ export function removePendingCollectionOperation(operationId: string) {
   )
 }
 
-export function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null) {
+export function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null, binderId: string | null = null) {
   writeLocalCollectionSnapshot({
     ownerUserId,
+    ...(binderId ? { binderId } : {}),
     savedAt: new Date().toISOString(),
     collection,
   })

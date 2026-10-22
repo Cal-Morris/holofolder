@@ -30,8 +30,9 @@ export async function readJsonResponse(response: Response) {
   return response.json().catch(() => null)
 }
 
-export function getCollectionRequestBody(item: CollectedPokemon) {
+export function getCollectionRequestBody(item: CollectedPokemon, binderId: string | null = null) {
   return {
+    ...(binderId ? { binderId } : {}),
     pokemonId: item.pokemon_id,
     pokemonName: item.pokemon_name,
     cardId: item.card_id,
@@ -61,6 +62,8 @@ export class CollectionWriteError extends Error {
 export interface RemoteWriteOptions {
   /** Fingerprint of the row this edit was based on; the server rejects the write with 409 if it changed. */
   baseFingerprint?: string
+  /** The binder the edit belongs to; omitted means the owner's default binder. */
+  binderId?: string | null
 }
 
 async function sendCollectionWrite(input: string, init: RequestInit) {
@@ -93,7 +96,7 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      ...getCollectionRequestBody(item),
+      ...getCollectionRequestBody(item, options.binderId ?? null),
       ...(options.baseFingerprint !== undefined ? { baseFingerprint: options.baseFingerprint } : {}),
     }),
   })
@@ -108,6 +111,7 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
 
 export async function deleteRemoteCollectionItem(pokemonId: number, options: RemoteWriteOptions = {}) {
   const params = new URLSearchParams({ pokemonId: String(pokemonId) })
+  if (options.binderId) params.set("binderId", options.binderId)
   if (options.baseFingerprint !== undefined) params.set("baseFingerprint", options.baseFingerprint)
   const response = await sendCollectionWrite(`/api/collection?${params.toString()}`, {
     method: "DELETE",

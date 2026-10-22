@@ -5,6 +5,8 @@ import { isSlotStatus, normalizeCardFinish, normalizeCardLanguage } from "@/lib/
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
 import { collectionFingerprint } from "@/lib/collection/sync"
+import { scopeCollectionQuery } from "@/lib/collection/load"
+import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
 
 function normalizeWantedCards(value: unknown) {
   if (!Array.isArray(value)) return []
@@ -40,15 +42,13 @@ async function resolveOwnerUserId(userId: string) {
 async function checkBaseFingerprint(
   admin: ReturnType<typeof createAdminClient>,
   ownerUserId: string,
+  binderId: string | null,
   pokemonId: number,
   baseFingerprint: unknown,
 ) {
   if (typeof baseFingerprint !== "string" || baseFingerprint.length === 0) return null
 
-  const { data, error } = await admin
-    .from("pokemon_collection")
-    .select("*")
-    .eq("user_id", ownerUserId)
+  const { data, error } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId)
     .eq("pokemon_id", pokemonId)
     .maybeSingle()
 
@@ -57,6 +57,18 @@ async function checkBaseFingerprint(
   if (collectionFingerprint(current) === baseFingerprint) return null
 
   return NextResponse.json({ error: "Collection item changed on the server", item: data ?? null }, { status: 409 })
+}
+
+/** The binder this request writes to (the owner's default when none is named); a 404 response for someone else's. */
+async function resolveBinder(admin: ReturnType<typeof createAdminClient>, ownerUserId: string, requested: unknown) {
+  try {
+    return { binderId: await resolveWriteBinderId(admin, ownerUserId, requested) }
+  } catch (error) {
+    if (error instanceof BinderAccessError) {
+      return { response: NextResponse.json({ error: "Binder not found" }, { status: 404 }) }
+    }
+    throw error
+  }
 }
 
 async function requireUser() {
@@ -92,7 +104,10 @@ export async function POST(request: NextRequest) {
 
     const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
-    const conflict = await checkBaseFingerprint(admin, ownerUserId, pokemonId, body?.baseFingerprint)
+    const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
+    if (binder.response) return binder.response
+    const { binderId } = binder
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, binderId, pokemonId, body?.baseFingerprint)
     if (conflict) return conflict
 
     const { data, error } = await admin
@@ -100,6 +115,7 @@ export async function POST(request: NextRequest) {
       .upsert(
         {
           user_id: ownerUserId,
+          ...(binderId ? { binder_id: binderId } : {}),
           pokemon_id: pokemonId,
           pokemon_name: pokemonName,
           card_id: typeof body?.cardId === "string" ? body.cardId : null,
@@ -111,7 +127,7 @@ export async function POST(request: NextRequest) {
           wanted_cards: normalizeWantedCards(body?.wantedCards),
           status,
         },
-        { onConflict: "user_id,pokemon_id" },
+        { onConflict: binderId ? "binder_id,pokemon_id" : "user_id,pokemon_id" },
       )
       .select("*")
       .single()
@@ -152,10 +168,9 @@ export async function PATCH(request: NextRequest) {
 
     const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
-    const { data, error } = await admin
-      .from("pokemon_collection")
-      .update({ status })
-      .eq("user_id", ownerUserId)
+    const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
+    if (binder.response) return binder.response
+    const { data, error } = await scopeCollectionQuery(admin.from("pokemon_collection").update({ status }), ownerUserId, binder.binderId)
       .eq("pokemon_id", pokemonId)
       .select("*")
       .single()
@@ -189,13 +204,12 @@ export async function DELETE(request: NextRequest) {
 
     const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
-    const conflict = await checkBaseFingerprint(admin, ownerUserId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"))
+    const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"))
+    if (binder.response) return binder.response
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"))
     if (conflict) return conflict
 
-    const { error } = await admin
-      .from("pokemon_collection")
-      .delete()
-      .eq("user_id", ownerUserId)
+    const { error } = await scopeCollectionQuery(admin.from("pokemon_collection").delete(), ownerUserId, binder.binderId)
       .eq("pokemon_id", pokemonId)
 
     if (error) {

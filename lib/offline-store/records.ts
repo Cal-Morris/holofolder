@@ -20,6 +20,8 @@ export const MAX_STORED_SET_QUERIES = 40
 /** The saved collection plus the edits not yet synced. The wantlist is derived from the same rows. */
 export interface CollectionRecord {
   ownerUserId: string | null
+  /** The binder the collection is of; null for the single-binder layout. */
+  binderId?: string | null
   savedAt: string
   collection: CollectedPokemon[]
   pendingOperations: unknown[]
@@ -53,6 +55,7 @@ export async function loadCollectionRecord(store: OfflineKeyValueStore): Promise
   if (!value || !Array.isArray(value.collection)) return null
   return {
     ownerUserId: typeof value.ownerUserId === "string" ? value.ownerUserId : null,
+    binderId: typeof value.binderId === "string" ? value.binderId : null,
     savedAt: typeof value.savedAt === "string" ? value.savedAt : new Date(0).toISOString(),
     collection: normalizeCollectionItems(value.collection),
     pendingOperations: Array.isArray(value.pendingOperations) ? value.pendingOperations : [],
