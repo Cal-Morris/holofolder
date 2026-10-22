@@ -3502,7 +3502,7 @@ export default function BinderApp({
       : undefined),
     [fxRates, getQuickCardState, handleQuickCardAction, isShowModeOn, pricingPreferences.currency, readOnlyMode],
   )
-  const showTally = useMemo(() => summarizeShowSession(showSession.session, pricingPreferences.currency), [pricingPreferences.currency, showSession.session])
+  const showTally = useMemo(() => summarizeShowSession(showSession.session), [showSession.session])
 
   const isShowModeOfferVisible =
     !readOnlyMode &&
@@ -4614,8 +4614,9 @@ export default function BinderApp({
       ) : null}
 
       {/* Pending-sync indicator and rollback notice (minimal markup; reuses the offline pill's look). */}
-      {isOnline && user && !readOnlyMode && (localPendingSyncCount > 0 || syncNotice) && (
-        <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.45rem)] z-50 flex justify-center px-3">
+      {/* In Show mode the banner carries the pending count, so only a rollback notice floats (below the banner). */}
+      {isOnline && user && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) && (
+        <div className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 ${isShowModeOn ? "top-[calc(env(safe-area-inset-top)+3.75rem)]" : "top-[calc(env(safe-area-inset-top)+0.45rem)]"}`}>
           <div
             role="status"
             data-sync-status={syncNotice ? "rolled-back" : syncStatus}
@@ -4652,9 +4653,9 @@ export default function BinderApp({
                 <span className="block text-sm font-bold">Show mode on</span>
                 <span role="status" className="block truncate text-[11px] font-medium text-black/70">
                   {showTally.count > 0 && showTally.currency
-                    ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}${isOnline ? "" : " · offline"}`
+                    ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}${isOnline ? (user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} syncing` : "") : " · offline"}`
                     : isOnline
-                    ? "Screen stays on"
+                    ? user && localPendingSyncCount > 0 ? `${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} syncing` : "Screen stays on"
                     : `Offline${user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} to sync` : " · using saved cards and prices"}`}
                 </span>
               </p>

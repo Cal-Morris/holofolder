@@ -79,8 +79,11 @@ export interface ShowSessionSummary {
 
 const round = (value: number) => Math.round(value * 100) / 100
 
-/** Totals in `currency` (purchases logged in another currency are left out). */
-export function summarizeShowSession(session: ShowSession, currency: string): ShowSessionSummary {
+/**
+ * Totals in `currency` (purchases logged in another currency are left out). Without one, the
+ * latest purchase's currency is used, so the tally follows whatever the checks were priced in.
+ */
+export function summarizeShowSession(session: ShowSession, currency = session.purchases.at(-1)?.currency ?? ""): ShowSessionSummary {
   const entries = session.purchases.filter((entry) => entry.currency === currency)
   const priced = entries.filter((entry) => entry.marketPrice !== null)
   const marketValue = priced.reduce((sum, entry) => sum + (entry.marketPrice ?? 0), 0)
