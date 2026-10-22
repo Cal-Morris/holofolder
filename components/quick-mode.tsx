@@ -17,6 +17,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  Ticket,
   WifiOff,
   X,
   type LucideIcon,
@@ -49,6 +50,7 @@ const DESTINATION_ICONS: Record<QuickDestinationId, LucideIcon> = {
   analytics: BarChart3,
   settings: Settings,
   scan: Camera,
+  "show-mode": Ticket,
 }
 
 export interface QuickModePokemonState {
@@ -63,6 +65,8 @@ export interface QuickModeProps {
   onSelectCard: (card: SearchCardResult, pokemon: { id: number; name: string }) => void
   onBrowseIllustrator: (name: string) => void
   getOfflineCards: () => Promise<SearchCardResult[]>
+  /** Show mode's destination reads "Exit Show mode" while it's on. */
+  showModeOn?: boolean
   getPokemonState?: (pokemonId: number) => QuickModePokemonState | null
   formatPrice?: (price: CardPriceSnapshot | undefined) => string | null
   pricingRegion?: PricingRegion
@@ -91,6 +95,7 @@ export default function QuickMode({
   pricingRegion = DEFAULT_PRICING_REGION,
   isOnline,
   hiddenDestinations = [],
+  showModeOn = false,
 }: QuickModeProps) {
   const [query, setQuery] = useState("")
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentQuickSearches(typeof window === "undefined" ? undefined : window.localStorage))
@@ -105,9 +110,12 @@ export default function QuickMode({
 
   const trimmed = query.trim()
   const destinations = useMemo(() => {
-    const visible = (list: readonly QuickDestination[]) => list.filter((entry) => !hiddenDestinations.includes(entry.id))
+    const visible = (list: readonly QuickDestination[]) =>
+      list
+        .filter((entry) => !hiddenDestinations.includes(entry.id))
+        .map((entry) => (entry.id === "show-mode" && showModeOn ? { ...entry, label: "Exit Show mode", hint: "Show mode is on" } : entry))
     return trimmed ? visible(matchQuickDestinations(trimmed)).slice(0, 3) : visible(matchQuickDestinations(""))
-  }, [hiddenDestinations, trimmed])
+  }, [hiddenDestinations, showModeOn, trimmed])
   const pokemonResults = useMemo(() => (trimmed ? searchPokemonItems(trimmed, POKEMON_CATALOG, 5) : []), [trimmed])
   const cardSearch = useCardSearch(query, true, getOfflineCards)
   const cardResults = useMemo(
