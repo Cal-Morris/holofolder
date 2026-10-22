@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getSessionUser } from "@/lib/supabase/session-user"
 import { buildBinderSharePath } from "@/lib/binder-share"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -10,6 +11,12 @@ async function requireUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   return { supabase, user }
+}
+
+// Read-only: verify the session token locally (no Auth round trip). Writes keep getUser().
+async function requireSessionUser() {
+  const supabase = await createClient()
+  return { supabase, user: await getSessionUser(supabase) }
 }
 
 /**
@@ -40,7 +47,7 @@ function generateShareToken() {
 
 export async function GET(request: Request) {
   try {
-    const { supabase, user } = await requireUser()
+    const { supabase, user } = await requireSessionUser()
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
