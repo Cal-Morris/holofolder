@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { readLocalCollectedIds, writeLocalCollectedIds } from "@/lib/local-collection"
 import { getOfflineStore } from "@/lib/offline-store/kv"
 import { loadCollectionRecord } from "@/lib/offline-store/records"
+import { collectionRecordKey, hasOwnOfflineKeys } from "@/lib/binders/offline"
 import {
   COLLECTION_CHANGED_EVENT,
   createCollectionChangedPayload,
@@ -217,9 +218,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   const applyLocalCollection = useCallback((nextCollection: CollectedPokemon[]) => {
     setCollection(nextCollection)
-    persistLocalCollectionState(nextCollection, collectionOwnerUserId, binderId)
+    persistLocalCollectionState(nextCollection, collectionOwnerUserId, binderId, isDefaultBinder)
     refreshLocalCollectedCount()
-  }, [binderId, collectionOwnerUserId, refreshLocalCollectedCount])
+  }, [binderId, collectionOwnerUserId, isDefaultBinder, refreshLocalCollectedCount])
 
   const cancelSyncRetry = useCallback(() => {
     if (syncRetryTimerRef.current) {
@@ -280,14 +281,15 @@ export function useCollection(options: UseCollectionOptions = {}) {
       .sort((a, b) => a - b)
     const localIds = readLocalCollectedIds()
 
-    if (!numberArraysEqual(localIds, cloudCollectedIds)) {
+    // The signed-out "collected ids" list mirrors the default binder only.
+    if (isDefaultBinder && !numberArraysEqual(localIds, cloudCollectedIds)) {
       writeLocalCollectedIds(cloudCollectedIds)
     }
 
     if (localCollectedCount !== cloudCollectedIds.length) {
       setLocalCollectedCount(cloudCollectedIds.length)
     }
-  }, [collection, localCollectedCount, readOnly, user])
+  }, [collection, isDefaultBinder, localCollectedCount, readOnly, user])
 
   useEffect(() => {
     if (readOnly) return
@@ -311,7 +313,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       }
     }
 
-    const snapshot = readLocalCollectionSnapshot()
+    const snapshot = readLocalCollectionSnapshot(binderId, isDefaultBinder)
     if (snapshot && snapshot.collection.length > 0) {
       applySnapshot(snapshot)
       return
@@ -322,13 +324,16 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (!store) return
 
     let cancelled = false
-    void loadCollectionRecord(store)
-      .then((record) => {
-        if (cancelled || !record) return
-        if (restorePendingCollectionOperations(record.pendingOperations) > 0) {
+    const ownKey = hasOwnOfflineKeys(binderId, isDefaultBinder) ? collectionRecordKey(binderId, isDefaultBinder) : null
+    void Promise.all([loadCollectionRecord(store), ownKey ? loadCollectionRecord(store, ownKey) : Promise.resolve(null)])
+      .then(([defaultRecord, ownRecord]) => {
+        if (cancelled) return
+        // Pending edits for every binder live in the default record.
+        if (defaultRecord && restorePendingCollectionOperations(defaultRecord.pendingOperations) > 0) {
           refreshLocalPendingSyncCount()
         }
-        if (record.collection.length > 0) {
+        const record = ownKey ? ownRecord : defaultRecord
+        if (record && record.collection.length > 0) {
           applySnapshot(record)
         }
       })
@@ -337,7 +342,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return () => {
       cancelled = true
     }
-  }, [collectionOwnerUserId, isEditForThisBinder, readOnly, refreshLocalPendingSyncCount])
+  }, [binderId, collectionOwnerUserId, isDefaultBinder, isEditForThisBinder, readOnly, refreshLocalPendingSyncCount])
 
   const reloadRemoteCollection = useCallback(async () => {
     if (readOnly) return
@@ -481,8 +486,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (readOnly) return
     if (!collectionOwnerUserId && collection.length === 0) return
 
-    persistLocalCollectionState(collection, collectionOwnerUserId, binderId)
-  }, [binderId, collection, collectionOwnerUserId, readOnly])
+    persistLocalCollectionState(collection, collectionOwnerUserId, binderId, isDefaultBinder)
+  }, [binderId, collection, collectionOwnerUserId, isDefaultBinder, readOnly])
 
   /**
    * Show the outcome of a write unless a newer local edit of the same slot is still queued. Edits for another

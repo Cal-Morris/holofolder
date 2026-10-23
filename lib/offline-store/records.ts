@@ -46,12 +46,13 @@ export function selectWantlist(collection: CollectedPokemon[]): WantlistEntry[] 
   return entries
 }
 
-export async function saveCollectionRecord(store: OfflineKeyValueStore, record: CollectionRecord) {
-  await store.set(COLLECTION_RECORD_KEY, record)
+/** `key`: the default binder's record unless given (other binders: `collection:<binderId>`, lib/binders/offline.ts). */
+export async function saveCollectionRecord(store: OfflineKeyValueStore, record: CollectionRecord, key = COLLECTION_RECORD_KEY) {
+  await store.set(key, record)
 }
 
-export async function loadCollectionRecord(store: OfflineKeyValueStore): Promise<CollectionRecord | null> {
-  const value = await store.get<Partial<CollectionRecord>>(COLLECTION_RECORD_KEY)
+export async function loadCollectionRecord(store: OfflineKeyValueStore, key = COLLECTION_RECORD_KEY): Promise<CollectionRecord | null> {
+  const value = await store.get<Partial<CollectionRecord>>(key)
   if (!value || !Array.isArray(value.collection)) return null
   return {
     ownerUserId: typeof value.ownerUserId === "string" ? value.ownerUserId : null,

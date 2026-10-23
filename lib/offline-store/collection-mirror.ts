@@ -4,11 +4,14 @@
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { getOfflineStore, type OfflineKeyValueStore } from "@/lib/offline-store/kv"
 import { loadCollectionRecord, saveCollectionRecord, type CollectionRecord } from "@/lib/offline-store/records"
+import { collectionRecordKey, LEGACY_COLLECTION_RECORD_KEY } from "@/lib/binders/offline"
 
 const MIRROR_DELAY_MS = 400
 const MAX_MIGRATION_WAIT_MS = 5000
 
-let pendingCollection: { collection: CollectedPokemon[]; ownerUserId: string | null; savedAt: string; binderId: string | null } | null = null
+type CollectionUpdate = { collection: CollectedPokemon[]; ownerUserId: string | null; savedAt: string; binderId: string | null }
+// One pending copy per record: the default binder's "collection", and "collection:<binderId>" for the others.
+let pendingCollections = new Map<string, CollectionUpdate>()
 let pendingOperations: unknown[] | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 let flushing: Promise<void> = Promise.resolve()
@@ -23,16 +26,26 @@ export function holdCollectionMirrorUntil(ready: Promise<unknown>, maxWaitMs = M
   flushing = flushing.then(() => Promise.race([ready, timeout])).then(() => undefined, () => undefined)
 }
 
-async function writeMirror(store: OfflineKeyValueStore, collectionUpdate: typeof pendingCollection, operationsUpdate: unknown[] | null) {
-  const existing = await loadCollectionRecord(store)
+async function writeRecord(store: OfflineKeyValueStore, key: string, collectionUpdate: CollectionUpdate | null, operationsUpdate: unknown[] | null) {
+  const existing = await loadCollectionRecord(store, key)
+  // Pending edits are one queue for every binder, kept in the default record only.
+  const isQueueRecord = key === LEGACY_COLLECTION_RECORD_KEY
   const next: CollectionRecord = {
     ownerUserId: collectionUpdate ? collectionUpdate.ownerUserId : existing?.ownerUserId ?? null,
     binderId: collectionUpdate ? collectionUpdate.binderId : existing?.binderId ?? null,
     savedAt: collectionUpdate ? collectionUpdate.savedAt : existing?.savedAt ?? new Date().toISOString(),
     collection: collectionUpdate ? collectionUpdate.collection : existing?.collection ?? [],
-    pendingOperations: operationsUpdate ?? existing?.pendingOperations ?? [],
+    pendingOperations: isQueueRecord ? operationsUpdate ?? existing?.pendingOperations ?? [] : [],
   }
-  await saveCollectionRecord(store, next)
+  await saveCollectionRecord(store, next, key)
+}
+
+async function writeMirror(store: OfflineKeyValueStore, collectionUpdates: Map<string, CollectionUpdate>, operationsUpdate: unknown[] | null) {
+  const keys = new Set(collectionUpdates.keys())
+  if (operationsUpdate) keys.add(LEGACY_COLLECTION_RECORD_KEY)
+  for (const key of keys) {
+    await writeRecord(store, key, collectionUpdates.get(key) ?? null, key === LEGACY_COLLECTION_RECORD_KEY ? operationsUpdate : null)
+  }
 }
 
 /** Write whatever is queued now (also used on page hide). */
@@ -41,13 +54,13 @@ export function flushCollectionMirror(store: OfflineKeyValueStore | null = getOf
     clearTimeout(timer)
     timer = null
   }
-  if (!store || (!pendingCollection && !pendingOperations)) return flushing
-  const collectionUpdate = pendingCollection
+  if (!store || (pendingCollections.size === 0 && !pendingOperations)) return flushing
+  const collectionUpdates = pendingCollections
   const operationsUpdate = pendingOperations
-  pendingCollection = null
+  pendingCollections = new Map()
   pendingOperations = null
   flushing = flushing
-    .then(() => writeMirror(store, collectionUpdate, operationsUpdate))
+    .then(() => writeMirror(store, collectionUpdates, operationsUpdate))
     .catch((error) => console.error("[binderdex] Failed to save collection to IndexedDB:", error))
   return flushing
 }
@@ -66,8 +79,9 @@ export function mirrorCollectionSnapshot(
   savedAt: string,
   store = getOfflineStore(),
   binderId: string | null = null,
+  isDefault = true,
 ) {
-  pendingCollection = { collection, ownerUserId, savedAt, binderId }
+  pendingCollections.set(collectionRecordKey(binderId, isDefault), { collection, ownerUserId, savedAt, binderId })
   schedule(store)
 }
 
