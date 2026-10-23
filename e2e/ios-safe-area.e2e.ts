@@ -32,6 +32,7 @@ test("header controls sit below the status bar and are easy to tap", async ({ ha
     const box = (await control.boundingBox())!
     const name = (await control.getAttribute("aria-label")) ?? (await control.innerText())
     expect(Math.round(box.height), `${name} height`).toBeGreaterThanOrEqual(MIN_TARGET)
+    expect(Math.round(box.width), `${name} width`).toBeGreaterThanOrEqual(MIN_TARGET)
     expect(box.x).toBeGreaterThanOrEqual(-0.5)
     expect(box.x + box.width).toBeLessThanOrEqual(harness.viewport.width + 0.5)
     if (await control.isEnabled()) await harness.expectHittable(control)
@@ -61,10 +62,46 @@ test("dock controls are 44px tall and clear the home indicator", async ({ harnes
 
 test("full-screen panels keep their top controls below the status bar", async ({ harness }, testInfo) => {
   test.skip(!testInfo.project.metadata?.standalone, "installed-app layout only")
-  await harness.page.getByRole("button", { name: "Open settings" }).click()
+  await harness.page.getByRole("button", { name: "More", exact: true }).click()
+  await harness.page.getByRole("menuitem", { name: "Settings" }).click()
   const settings = harness.page.getByRole("dialog", { name: /settings/i })
   await expect(settings).toBeVisible()
   await expectBelowTopInset(harness, settings)
   await harness.page.keyboard.press("Escape")
   await expect(settings).toHaveCount(0)
+})
+
+test("the More menu holds the extra header actions as full-size rows", async ({ harness }, testInfo) => {
+  test.skip(!testInfo.project.metadata?.standalone, "installed-app layout only")
+  const header = harness.page.getByTestId("app-header")
+  await header.getByRole("button", { name: "More", exact: true }).click()
+  const menu = harness.page.getByRole("menu", { name: "More" })
+  await expect(menu).toBeVisible()
+  await harness.expectWithinSafeViewport(menu)
+  for (const label of [/^Previous /, /^Binder controls$/, /^Settings$/, /mode$/]) {
+    const item = menu.getByRole("menuitem", { name: label })
+    await expect(item).toBeVisible()
+    await harness.expectMinTapTarget(item, MIN_TARGET)
+    await harness.expectHittable(item)
+  }
+  await harness.page.keyboard.press("Escape")
+  await expect(menu).toHaveCount(0)
+  await header.getByRole("button", { name: "More", exact: true }).click()
+  await menu.getByRole("menuitem", { name: "Binder controls" }).click()
+  await expect(menu).toHaveCount(0)
+  await expect(harness.dock().getByRole("button", { name: "Close controls", exact: true })).toBeVisible()
+})
+
+test("the show offer is a single slim strip", async ({ harness }, testInfo) => {
+  test.skip(!testInfo.project.metadata?.standalone, "installed-app layout only")
+  const offer = harness.page.getByRole("region", { name: "At a card show?" })
+  await expect(offer).toBeVisible()
+  expect((await offer.boundingBox())!.height, "one row").toBeLessThanOrEqual(52)
+  await harness.expectMinTapTarget(offer.getByRole("button", { name: "Not now" }), MIN_TARGET)
+  await offer.getByRole("button", { name: "Not now" }).click()
+  await expect(offer).toHaveCount(0)
+  await harness.page.reload()
+  await expect(harness.dock()).toBeVisible()
+  await expect(harness.page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+  await expect(offer, "dismissal is remembered").toHaveCount(0)
 })

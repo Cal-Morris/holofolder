@@ -62,8 +62,9 @@ const overlays: OverlaySpec[] = [
   {
     name: "settings",
     open: async (harness) => {
-      const opener = header(harness.page).getByRole("button", { name: /open settings/i })
+      const opener = header(harness.page).getByRole("button", { name: "More", exact: true })
       await opener.click()
+      await harness.page.getByRole("menuitem", { name: "Settings" }).click()
       return { dialog: harness.page.getByRole("dialog", { name: /settings/i }), opener }
     },
     bottomSheet: false,
@@ -219,7 +220,8 @@ test.describe("bottom navigation", () => {
     await harness.openCardDetail()
     // On phones the card detail is modal, so the header sits under its backdrop; trigger the
     // header control directly to make sure overlays never stack when opened programmatically.
-    await header(harness.page).getByRole("button", { name: /open settings/i }).dispatchEvent("click")
+    await header(harness.page).getByRole("button", { name: "More", exact: true }).dispatchEvent("click")
+    await harness.page.getByRole("menuitem", { name: "Settings" }).dispatchEvent("click")
     await expect(harness.page.getByRole("dialog", { name: /settings/i })).toBeVisible()
     await expect(harness.dialogs()).toHaveCount(1)
   })

@@ -102,7 +102,8 @@ test.describe("deal checker", () => {
   test("custom thresholds from Settings change the verdict", async ({ harness }) => {
     const { page } = harness
     await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
-    await page.getByRole("button", { name: "Open settings" }).click()
+    await page.getByRole("button", { name: "More", exact: true }).click()
+    await page.getByRole("menuitem", { name: "Settings" }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
     await settings.getByRole("button", { name: "Display", exact: true }).click()
     const deal = settings.getByRole("group", { name: "Deal checker" })
@@ -180,7 +181,8 @@ test.describe("deal checker", () => {
     await expect(banner(harness)).toContainText("1 bought · £8.00")
 
     // Settings shows the tally and can clear it.
-    await page.getByRole("button", { name: "Open settings" }).click()
+    await page.getByRole("button", { name: "More", exact: true }).click()
+    await page.getByRole("menuitem", { name: "Settings" }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
     await settings.getByRole("button", { name: "Display", exact: true }).click()
     await expect(settings.getByTestId("show-tally-settings")).toContainText("£8.00")

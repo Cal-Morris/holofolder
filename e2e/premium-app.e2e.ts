@@ -1,7 +1,8 @@
 import { test, expect } from "./fixtures"
 
 test("binder settings retain page colours and expose the 3D studio", async ({ harness }) => {
-  await harness.page.locator("nav").first().getByRole("button", { name: /open settings/i }).click()
+  await harness.page.locator("nav").first().getByRole("button", { name: "More", exact: true }).click()
+  await harness.page.getByRole("menuitem", { name: "Settings" }).click()
   const settings = harness.page.getByRole("dialog", { name: /settings/i })
   const studio = settings.getByRole("link", { name: /customise binder/i })
   await expect(studio).toHaveAttribute("href", "/studio")
