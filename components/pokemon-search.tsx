@@ -41,6 +41,8 @@ export interface PokemonSearchResultMeta {
   isFavorite?: boolean
   isSelected?: boolean
   slotState?: PokemonSearchSlotState
+  /** "Owned in <binder>" when another binder holds this Pokémon. */
+  elsewhereLabel?: string | null
 }
 
 interface PokemonSearchProps {
@@ -441,6 +443,7 @@ export default function PokemonSearch({
                               {meta.locationLabel}
                             </span>
                           ) : null}
+                          {meta?.elsewhereLabel ? <span className="line-clamp-2 min-w-0 break-words font-medium text-primary" title={meta.elsewhereLabel} data-testid="owned-elsewhere">{meta.elsewhereLabel}</span> : null}
                         </div>
                       </div>
 

@@ -9,6 +9,7 @@ import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import { formatPokemonDisplayName, getOfficialArtworkUrl, formatDexNumber } from "@/lib/pokemon-catalog"
+import { formatOwnedIn, type BinderRef } from "@/lib/binders/all-binders"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { CardHighlights } from "@/components/card-highlights"
 import {
@@ -20,6 +21,8 @@ import {
 export interface PokemonCardsBrowserProps {
   pokemon: { id: number; name: string }
   collectionItem?: BrowseCollectionState | null
+  /** Printings other binders hold, by card id ("In <binder>" badge). */
+  ownedElsewhereByCard?: ReadonlyMap<string, readonly BinderRef[]>
   /** Card to scroll to and highlight (e.g. the hit picked in global search). */
   highlightCardId?: string | null
   isDesktop: boolean
@@ -47,6 +50,7 @@ function thumbnailUrl(image?: string) {
 export default function PokemonCardsBrowser({
   pokemon,
   collectionItem,
+  ownedElsewhereByCard,
   highlightCardId,
   isDesktop,
   readOnly = false,
@@ -264,6 +268,11 @@ export default function PokemonCardsBrowser({
                         {entry.owned ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white shadow">
                             <Check className="h-3 w-3" /> Owned
+                          </span>
+                        ) : null}
+                        {!entry.owned && formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], "In") ? (
+                          <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-sky-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow" data-testid="card-owned-elsewhere">
+                            {formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], "In")}
                           </span>
                         ) : null}
                         {entry.wanted ? (

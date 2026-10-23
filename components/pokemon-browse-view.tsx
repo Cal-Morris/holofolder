@@ -8,12 +8,14 @@ import { useVirtualRows } from "@/hooks/use-virtual-rows"
 
 interface PokemonBrowseViewProps {
   collectionByPokemonId: Map<number, CollectedPokemon>
+  /** "Owned in <binder>" for Pokémon another binder holds (two or more binders only). */
+  ownedElsewhere?: (pokemonId: number) => string | null
   onBrowsePokemon: (pokemon: PokemonSummary) => void
 }
 
 type SpeciesFilter = "all" | "owned" | "missing" | "wanted"
 
-export default function PokemonBrowseView({ collectionByPokemonId, onBrowsePokemon }: PokemonBrowseViewProps) {
+export default function PokemonBrowseView({ collectionByPokemonId, ownedElsewhere, onBrowsePokemon }: PokemonBrowseViewProps) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<SpeciesFilter>("all")
   const scrollerRef = useRef<HTMLDivElement | null>(null)
@@ -55,6 +57,7 @@ export default function PokemonBrowseView({ collectionByPokemonId, onBrowsePokem
             <p className="text-[11px] tabular-nums text-muted-foreground">{formatDexNumber(pokemon.id)}</p>
             <p className="truncate text-sm font-semibold">{formatPokemonDisplayName(pokemon.name)}</p>
             <p className="text-xs text-muted-foreground">{owned ? "Owned species" : "Missing species"}{wanted ? " · Wanted printing" : ""}</p>
+            {ownedElsewhere?.(pokemon.id) ? <p className="truncate text-xs font-medium text-primary" data-testid="owned-elsewhere">{ownedElsewhere(pokemon.id)}</p> : null}
           </div>
           <button type="button" onClick={() => { const summary = getPokemonSummary(pokemon.id); if (summary) onBrowsePokemon(summary) }} aria-label={`Browse ${formatPokemonDisplayName(pokemon.name)} cards`} className="min-h-9 shrink-0 rounded-full border border-border/55 px-3 text-xs font-semibold">Cards</button>
         </li>)}

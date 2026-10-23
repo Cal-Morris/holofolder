@@ -10,9 +10,13 @@ import { ChartContainer } from "@/components/ui/chart"
 import { buildCollectionAnalytics, normalizeAnalyticsHistory, activityDescription, type AnalyticsMover } from "@/lib/collection-analytics"
 import type { CardPriceSnapshot } from "@/lib/card-pricing"
 import type { CollectedPokemon } from "@/lib/domain/cards"
+import { readBinderScope, rememberBinderScope, type BinderScope } from "@/lib/binders/all-binders"
+import { BinderScopeToggle } from "@/components/binder-scope-toggle"
 
 interface Props {
   collection: CollectedPokemon[]
+  /** Every binder's slots (two or more binders only); enables the This binder / All binders toggle. */
+  allBindersCollection?: CollectedPokemon[] | null
   pricesByKey: Record<string, CardPriceSnapshot>
   ownerId: string | null
   readOnly: boolean
@@ -51,8 +55,11 @@ export default function CollectionAnalyticsView(props: Props) {
   return <AnalyticsContent key={props.ownerId ?? "local"} {...props} />
 }
 
-function AnalyticsContent({ collection, pricesByKey, ownerId, readOnly, isOnline, onBrowsePokemon }: Props) {
-  const summary = useMemo(() => buildCollectionAnalytics(collection, pricesByKey), [collection, pricesByKey])
+function AnalyticsContent({ collection: binderCollection, allBindersCollection = null, pricesByKey, ownerId, readOnly, isOnline, onBrowsePokemon }: Props) {
+  const [scope, setScope] = useState<BinderScope>(() => readBinderScope("analytics"))
+  const isAllBinders = scope === "all" && allBindersCollection !== null
+  const collection = isAllBinders ? allBindersCollection : binderCollection
+  const summary = useMemo(() => buildCollectionAnalytics(collection, pricesByKey, undefined, { countCopies: isAllBinders }), [collection, isAllBinders, pricesByKey])
   const [selectedKey, setSelectedKey] = useState("")
   const selected = summary.cards.find(card => card.key === selectedKey) ?? summary.cards[0]
   const [history, setHistory] = useState(emptyHistory)
@@ -112,7 +119,8 @@ function AnalyticsContent({ collection, pricesByKey, ownerId, readOnly, isOnline
     </li>)}</ul>}
   </section>
   return <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4" aria-label="Collection analytics">
-    <header className="flex flex-wrap items-end justify-between gap-3 py-4"><div className="min-w-0"><p className="text-xs uppercase tracking-widest text-muted-foreground">Your collection</p><h1 className="mt-1 text-2xl font-semibold">Analytics</h1><p className="mt-1 text-sm text-muted-foreground">Completion, card values and changes over time.</p></div>
+    {allBindersCollection ? <div className="pt-3"><BinderScopeToggle scope={isAllBinders ? "all" : "binder"} onChange={next => { setScope(next); rememberBinderScope("analytics", next) }} /></div> : null}
+    <header className="flex flex-wrap items-end justify-between gap-3 py-4"><div className="min-w-0"><p className="text-xs uppercase tracking-widest text-muted-foreground">{isAllBinders ? "All binders" : allBindersCollection ? "This binder" : "Your collection"}</p><h1 className="mt-1 text-2xl font-semibold">Analytics</h1><p className="mt-1 text-sm text-muted-foreground">Completion, card values and changes over time.</p></div>
       {collection.length > 0 && <button type="button" className={`${button} inline-flex shrink-0 items-center gap-2`} onClick={() => void exportCollectionCsv(collection, pricesByKey)}><Download className="h-4 w-4" aria-hidden="true" />Export CSV</button>}
     </header>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -136,7 +144,7 @@ function AnalyticsContent({ collection, pricesByKey, ownerId, readOnly, isOnline
       {history.activity.length === 0 && <p className="mt-3 text-sm text-muted-foreground">{!ownerId ? "Sign in to record collection activity." : "No committed activity recorded yet."}</p>}
       {ownerId && isOnline && !readOnly && <button className={`${button} mt-3`} disabled={loading} onClick={() => { setCursor(null); setRetry(value => value + 1) }}>{error ? "Retry history" : "Refresh history"}</button>}
       {history.nextCursor && !error && isOnline && <button className={`${button} mt-3`} disabled={loading} onClick={() => setCursor(history.nextCursor)}>Load older activity</button>}
-      <details className="mt-3 text-sm"><summary className="min-h-9 cursor-pointer py-2">Legacy saved dates</summary><ul className="max-h-52 overflow-y-auto text-xs">{collection.filter(item => Number.isFinite(Date.parse(item.collected_at))).map(item => <li key={item.pokemon_id} className="py-2">{item.pokemon_name} · Legacy saved {new Date(item.collected_at).toLocaleDateString("en-GB")}</li>)}</ul></details>
+      <details className="mt-3 text-sm"><summary className="min-h-9 cursor-pointer py-2">Legacy saved dates</summary><ul className="max-h-52 overflow-y-auto text-xs">{collection.filter(item => Number.isFinite(Date.parse(item.collected_at))).map(item => <li key={item.id} className="py-2">{item.pokemon_name} · Legacy saved {new Date(item.collected_at).toLocaleDateString("en-GB")}</li>)}</ul></details>
     </section>
   </div>
 }

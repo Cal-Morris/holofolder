@@ -22,6 +22,8 @@ import {
   type WantedFilters,
 } from "@/lib/wanted-dashboard"
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
+import { readBinderScope, rememberBinderScope, type BinderScope } from "@/lib/binders/all-binders"
+import { BinderScopeToggle } from "@/components/binder-scope-toggle"
 
 const WantedFiltersSheet = dynamic(() => import("@/components/wanted-filters-sheet"), { loading: () => null })
 const WantedRowActionsSheet = dynamic(() => import("@/components/wanted-row-actions-sheet"), { loading: () => null })
@@ -37,6 +39,9 @@ type PriceFormat = {
 
 export type WantedDashboardProps = {
   wantedDashboard: WantedDashboardSummary
+  /** Every binder's wanted cards (two or more binders only); enables the This binder / All binders toggle. */
+  allBindersDashboard?: WantedDashboardSummary | null
+  currentBinderId?: string | null
   priceFormat: PriceFormat
   isLoadingPrices: boolean
   isOnline?: boolean
@@ -110,7 +115,9 @@ function cardNumberLabel(card: WantedCard) {
 }
 
 export default function WantedDashboard({
-  wantedDashboard,
+  wantedDashboard: binderDashboard,
+  allBindersDashboard = null,
+  currentBinderId = null,
   priceFormat,
   isLoadingPrices,
   isOnline = true,
@@ -122,6 +129,14 @@ export default function WantedDashboard({
   handlePokemonSelect,
   jumpToWantedPokemonPage,
 }: WantedDashboardProps) {
+  const [scope, setScope] = useState<BinderScope>(() => readBinderScope("wanted"))
+  const changeScope = (next: BinderScope) => {
+    setScope(next)
+    rememberBinderScope("wanted", next)
+  }
+  const isAllBinders = scope === "all" && allBindersDashboard !== null
+  const wantedDashboard = isAllBinders ? allBindersDashboard : binderDashboard
+  const scopeToggle = allBindersDashboard ? <BinderScopeToggle scope={isAllBinders ? "all" : "binder"} onChange={changeScope} /> : null
   const [query, setQuery] = useState("")
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [actionsFor, setActionsFor] = useState<WantedDashboardEntry | null>(null)
@@ -151,8 +166,9 @@ export default function WantedDashboard({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300">
             <Heart className="h-5 w-5" />
           </div>
-          <p className="mt-3 text-sm font-semibold">No wanted cards yet</p>
+          <p className="mt-3 text-sm font-semibold">{isAllBinders ? "No wanted cards in any binder" : "No wanted cards yet"}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Open a slot and choose Want card. Wanted cards show up here with their UK prices.</p>
+          {scopeToggle ? <div className="mt-4 flex justify-center">{scopeToggle}</div> : null}
         </div>
       </div>
     )
@@ -166,6 +182,12 @@ export default function WantedDashboard({
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(var(--dock-clearance)+1rem)] md:pb-3" data-testid="wanted-list">
       <div className="mx-auto max-w-3xl space-y-2">
         <div className="sticky top-0 z-10 -mx-1 space-y-2 bg-background/92 px-1 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+          {scopeToggle ? (
+            <div className="flex items-center justify-between gap-2">
+              {scopeToggle}
+              {isAllBinders ? <p className="min-w-0 truncate text-[11px] text-muted-foreground">Other binders are view only here</p> : null}
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             <label className="relative block min-w-0 flex-1">
               <span className="sr-only">Search want list</span>
@@ -286,6 +308,7 @@ export default function WantedDashboard({
                 priceFormat={priceFormat}
                 isLoadingPrices={isLoadingPrices}
                 readOnlyMode={readOnlyMode}
+                otherBinderName={isAllBinders && wantedCard.binderId && wantedCard.binderId !== currentBinderId ? wantedCard.binderName ?? "another binder" : null}
                 onOpen={handlePokemonSelect}
                 onGot={handleGotWantedCard}
                 onMore={setActionsFor}
@@ -340,6 +363,7 @@ function WantedRow({
   priceFormat,
   isLoadingPrices,
   readOnlyMode,
+  otherBinderName,
   onOpen,
   onGot,
   onMore,
@@ -348,6 +372,8 @@ function WantedRow({
   priceFormat: PriceFormat
   isLoadingPrices: boolean
   readOnlyMode: boolean
+  /** Set when the row belongs to another binder (All binders view): shown, but changed from that binder. */
+  otherBinderName: string | null
   onOpen: (pokemon: PokemonSummary) => void
   onGot: WantedDashboardProps["handleGotWantedCard"]
   onMore: (entry: WantedDashboardEntry) => void
@@ -381,6 +407,7 @@ function WantedRow({
           </span>
           <span className="block truncate text-xs text-muted-foreground">{setLine || "Unknown set"}</span>
           <span className="block truncate text-[11px] text-muted-foreground/90">{variantLine}</span>
+          {otherBinderName ? <span className="block truncate text-[11px] font-semibold text-primary" data-testid="wanted-row-binder">In {otherBinderName}</span> : null}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">
           <span className="text-sm font-bold tabular-nums" data-testid="wanted-row-price">
@@ -389,7 +416,7 @@ function WantedRow({
           <PriceRisingBadge price={price} />
         </span>
       </button>
-      <span className="flex shrink-0 items-center">
+      {otherBinderName ? null : <span className="flex shrink-0 items-center">
         {readOnlyMode ? null : (
           <button
             type="button"
@@ -411,7 +438,7 @@ function WantedRow({
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
-      </span>
+      </span>}
     </li>
   )
 }
