@@ -83,7 +83,7 @@ test.describe("Dashboard binder appearance", () => {
 
   test("explicit 3D navigation survives switching back with a generation filter", async ({ harness }) => {
     const { page } = harness
-    await page.getByRole("button", { name: "Expand controls", exact: true }).click()
+    await page.getByRole("button", { name: "Open controls", exact: true }).click()
     const controls = page.getByRole("dialog", { name: "Controls", exact: true })
     await controls.getByRole("combobox").selectOption("2")
     await controls.getByRole("button", { name: "Close controls", exact: true }).click()
@@ -100,7 +100,7 @@ test.describe("Dashboard binder appearance", () => {
 
   test("collection refresh keeps the shared page with a status filter", async ({ harness }) => {
     const { page } = harness
-    await page.getByRole("button", { name: "Expand controls", exact: true }).click()
+    await page.getByRole("button", { name: "Open controls", exact: true }).click()
     await page.getByRole("dialog", { name: "Controls", exact: true }).getByRole("button", { name: "Upgrades", exact: true }).click()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const preview = page.getByRole("region", { name: "Your 3D National Dex binder" })

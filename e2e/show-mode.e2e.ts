@@ -98,7 +98,8 @@ test.describe("show mode", () => {
     await expect(banner(harness)).toBeVisible()
     await banner(harness).getByRole("button", { name: "Exit show mode" }).click()
 
-    await page.getByRole("button", { name: "Open settings" }).click()
+    await page.getByRole("button", { name: "More", exact: true }).click()
+    await page.getByRole("menuitem", { name: "Settings" }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
     await settings.getByRole("button", { name: "Display", exact: true }).click()
     const toggle = settings.getByRole("switch", { name: "Show mode" })

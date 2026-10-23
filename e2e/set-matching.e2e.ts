@@ -82,7 +82,8 @@ test.describe("multi-set matching", () => {
   test("quick filters follow binder state even when wants are in other sets", async ({ harness }) => {
     await setup(harness)
     const page = harness.page
-    await page.getByRole("button", { name: "Switch to light mode", exact: true }).click()
+    await page.getByRole("button", { name: "More", exact: true }).click()
+    await page.getByRole("menuitem", { name: "Light mode" }).click()
     const filters = page.getByRole("group", { name: "Filter by BinderDex state" })
     await filters.getByRole("button", { name: /^Missing from binder/ }).click()
     await expect(page.getByRole("button", { name: "Select mareep", exact: true })).toHaveCount(0)

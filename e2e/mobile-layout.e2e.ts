@@ -37,7 +37,7 @@ for (const signedIn of [false, true]) {
       expect(pagerBox.height).toBeLessThanOrEqual(46)
       // Header controls stay on a single row (no wrapping) and inside the safe area.
       await harness.expectWithinSafeViewport(pager(harness))
-      await harness.expectWithinSafeViewport(header(harness).getByRole("button", { name: /open settings/i }))
+      await harness.expectWithinSafeViewport(header(harness).getByRole("button", { name: "More", exact: true }))
       await harness.expectNoHorizontalOverflow()
 
       const pageInput = harness.page.getByRole("spinbutton", { name: "Binder page number" })
