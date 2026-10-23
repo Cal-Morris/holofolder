@@ -589,7 +589,7 @@ export default function PageScanner({
     <>
       <canvas ref={burstCanvasRef} className="hidden" />
       <div ref={burstScannerRef} role="dialog" aria-modal="true" aria-label="Page scanner" className="fixed inset-0 z-50 bg-black outline-none">
-        <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+        <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(var(--top-inset)+0.25rem)]">
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
               <div>

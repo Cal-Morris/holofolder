@@ -4590,7 +4590,7 @@ export default function BinderApp({
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-background md:hidden"
+        className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--top-inset)] bg-background md:hidden"
       />
       <div
         aria-hidden="true"
@@ -4598,7 +4598,7 @@ export default function BinderApp({
       />
 
       {!isOnline && !isShowModeOn && (
-        <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.45rem)] z-50 flex justify-center px-3">
+        <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--top-inset)+0.25rem)] z-50 flex justify-center px-3">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300">
             <WifiOff className="h-3.5 w-3.5" />
             <span>Offline mode</span>
@@ -4630,7 +4630,7 @@ export default function BinderApp({
       {/* Pending-sync indicator and rollback notice (minimal markup; reuses the offline pill's look). */}
       {/* In Show mode the banner carries the pending count, so only a rollback notice floats (below the banner). */}
       {isOnline && user && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) && (
-        <div className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 ${isShowModeOn ? "top-[calc(env(safe-area-inset-top)+3.75rem)]" : "top-[calc(env(safe-area-inset-top)+0.45rem)]"}`}>
+        <div className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 ${isShowModeOn ? "top-[calc(var(--top-inset)+3.5rem)]" : "top-[calc(var(--top-inset)+0.25rem)]"}`}>
           <div
             role="status"
             data-sync-status={syncNotice ? "rolled-back" : syncStatus}
@@ -4655,7 +4655,7 @@ export default function BinderApp({
       )}
 
       {/* Glass Navigation */}
-      <nav ref={shellNavRef} className="sticky top-0 z-40 mb-1 shrink-0 px-2.5 pt-[max(env(safe-area-inset-top),0.35rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+0.45rem)]">
+      <nav ref={shellNavRef} data-testid="app-header" className="sticky top-0 z-40 mb-1 shrink-0 pl-[var(--left-inset)] pr-[var(--right-inset)] pt-[var(--top-inset)] sm:px-4">
         <div className="mx-auto w-full max-w-7xl md:max-w-none">
           {isShowModeOn && (
             <section
@@ -4729,8 +4729,8 @@ export default function BinderApp({
             )}
 
             {activeMainView === "binder" && binderDimension === "2d" && (
-              <div data-testid="mobile-header-pager" className="flex min-w-0 items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 p-0.5 md:hidden dark:border-border/30 dark:bg-muted/35">
-                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
+              <div data-testid="mobile-header-pager" className="flex min-w-0 items-center gap-0.5 rounded-xl border border-border/50 bg-card/72 md:hidden dark:border-border/30 dark:bg-muted/35">
+                <Button variant="ghost" size="icon" className="h-11 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <input
@@ -4753,16 +4753,16 @@ export default function BinderApp({
                   }}
                   inputMode="numeric"
                   aria-label="Binder page number"
-                  className="h-8 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-sm font-semibold tabular-nums"
+                  className="h-11 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-base font-semibold tabular-nums"
                 />
-                <span className="hidden whitespace-nowrap pr-0.5 text-xs text-muted-foreground tabular-nums min-[360px]:inline">/ {totalBinderPages}</span>
-                <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
+                <span className="hidden whitespace-nowrap pr-0.5 text-xs text-muted-foreground tabular-nums min-[390px]:inline">/ {totalBinderPages}</span>
+                <Button variant="ghost" size="icon" className="h-11 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden h-9 w-9 border-l border-border/40 disabled:pointer-events-none disabled:opacity-35 min-[420px]:inline-flex dark:border-white/10"
+                  className="hidden h-11 w-9 border-l border-border/40 disabled:pointer-events-none disabled:opacity-35 min-[420px]:inline-flex dark:border-white/10"
                   onClick={handleJumpToPreviousNeeded}
                   disabled={activeJumpPokemonList.length === 0}
                   aria-label={`Previous ${activeJumpLabel.toLowerCase()}`}
@@ -4791,7 +4791,7 @@ export default function BinderApp({
                   Shared View
                 </div>
               ) : !user ? (
-                <Button size="sm" onClick={() => openExclusively(() => setIsAuthOpen(true))} className="h-9 gap-1 rounded-full px-3 md:h-7 md:px-2.5" aria-label="Sign in">
+                <Button size="sm" onClick={() => openExclusively(() => setIsAuthOpen(true))} className="h-11 gap-1 rounded-full px-3 md:h-7 md:px-2.5" aria-label="Sign in">
                   <LogIn className="h-3.5 w-3.5" />
                   <span className="hidden md:inline text-[11px]">Sign In</span>
                 </Button>
@@ -4800,7 +4800,7 @@ export default function BinderApp({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full md:hidden"
+                className="h-11 w-10 rounded-full md:hidden"
                 onClick={() => {
                   if (isMobileNavExpanded) {
                     closeControlsSheet()
@@ -4923,14 +4923,14 @@ export default function BinderApp({
                 )}
               </div>
 
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full md:hidden" onClick={() => openExclusively(() => setIsSettingsOpen(true))} aria-label="Open settings">
+              <Button variant="ghost" size="icon" className="h-11 w-10 rounded-full md:hidden" onClick={() => openExclusively(() => setIsSettingsOpen(true))} aria-label="Open settings">
                 <Settings className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 // On a phone's 2D binder page the labelled Show mode button takes its place (theme stays in Settings › Display).
-                className={`h-9 w-9 rounded-full md:hidden ${activeMainView === "binder" && binderDimension === "2d" ? "max-md:hidden" : ""}`}
+                className={`h-11 w-10 rounded-full md:hidden ${activeMainView === "binder" && binderDimension === "2d" ? "max-md:hidden" : ""}`}
                 onClick={toggleDarkMode}
                 aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
               >
@@ -4944,7 +4944,7 @@ export default function BinderApp({
                 aria-label="Show mode"
                 title={isShowModeOn ? "Show mode is on: tap to exit" : "Card show mode"}
                 data-testid="header-show-mode"
-                className={`flex h-9 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors md:h-7 md:text-[11px] ${
+                className={`flex h-11 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors md:h-7 md:text-[11px] ${
                   isShowModeOn
                     ? "border-amber-400 bg-amber-400 text-black"
                     : "border-primary/35 bg-primary/10 text-primary hover:bg-primary/15"
@@ -5412,7 +5412,7 @@ export default function BinderApp({
 
       {isSearchOpen && (
         <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
-          <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pb-[calc(var(--dock-clearance)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pb-[calc(var(--dock-clearance)+0.75rem)] pt-[calc(var(--top-inset)+0.25rem)] sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
             <div
               ref={searchDialogRef}
               role="dialog"
@@ -5498,7 +5498,7 @@ export default function BinderApp({
             className={`${dashboardStyles.viewOptions} absolute inset-x-0 bottom-0 flex flex-col overflow-hidden outline-none rounded-t-[1.75rem] border-t border-border/65 bg-card px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background dark:shadow-2xl md:inset-x-auto md:bottom-auto md:right-4 md:top-24 md:w-80 md:rounded-2xl md:border md:pb-3`}
             onClick={(event) => event.stopPropagation()}
             style={{
-              maxHeight: isDesktopViewport ? "calc(100dvh - 7rem)" : "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
+              maxHeight: isDesktopViewport ? "calc(100dvh - 7rem)" : "calc(100dvh - var(--top-inset) - 0.25rem)",
               WebkitOverflowScrolling: "touch",
               touchAction: "pan-y",
             }}
@@ -5647,7 +5647,7 @@ export default function BinderApp({
             className="absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain rounded-t-[1.75rem] border-t border-border/65 bg-card/96 px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-4 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             style={{
-              maxHeight: "calc(100dvh - env(safe-area-inset-top) - 0.75rem)",
+              maxHeight: "calc(100dvh - var(--top-inset) - 0.25rem)",
               WebkitOverflowScrolling: "touch",
               touchAction: "pan-y",
             }}
@@ -5724,7 +5724,7 @@ export default function BinderApp({
               aria-label="Search"
               aria-description="Press and hold for Quick mode"
               title="Search (hold for Quick mode)"
-              className={`flex h-10 min-w-0 touch-manipulation select-none items-center justify-center rounded-[0.9rem] px-1 transition-all [-webkit-touch-callout:none] ${
+              className={`flex h-11 min-w-0 touch-manipulation select-none items-center justify-center rounded-[0.9rem] px-1 transition-all [-webkit-touch-callout:none] ${
                 isSearchOpen || isQuickModeOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -5736,7 +5736,7 @@ export default function BinderApp({
               }}
               aria-label="Binder"
               title="Binder"
-              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+              className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && activeMainView === "binder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -5748,7 +5748,7 @@ export default function BinderApp({
               }}
               aria-label="List"
               title="List"
-              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+              className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && activeMainView === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -5760,7 +5760,7 @@ export default function BinderApp({
               }}
               aria-label="Wanted"
               title="Wanted"
-              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+              className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && activeMainView === "wanted" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -5772,7 +5772,7 @@ export default function BinderApp({
               }}
               aria-label="Sets"
               title="Sets"
-              className={`flex h-10 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+              className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
                 !isSearchOpen && (activeMainView === "sets" || activeMainView === "pokemon") ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -5786,7 +5786,7 @@ export default function BinderApp({
                 <Button
                   variant={isPriceMode ? "default" : "outline"}
                   size="icon"
-                  className="h-10 w-9 shrink-0 rounded-2xl px-0"
+                  className="h-11 w-9 shrink-0 rounded-2xl px-0"
                   onClick={() => setIsPriceMode((current) => !current)}
                   aria-label={isPriceMode ? "Hide prices" : "Show prices"}
                 >
@@ -5796,7 +5796,7 @@ export default function BinderApp({
               <Button
                 variant="default"
                 size="icon"
-                className="h-10 w-9 shrink-0 rounded-2xl px-0"
+                className="h-11 w-9 shrink-0 rounded-2xl px-0"
                 onClick={handleJumpToNextNeeded}
                 disabled={activeJumpPokemonList.length === 0}
                 aria-label={`Next ${activeJumpLabel.toLowerCase()}`}
@@ -5806,7 +5806,7 @@ export default function BinderApp({
                 <Button
                   variant={collectionViewFilter === "all" && !isMobileFilterSheetOpen ? "outline" : "default"}
                   size="icon"
-                className="h-10 w-9 shrink-0 rounded-2xl px-0"
+                className="h-11 w-9 shrink-0 rounded-2xl px-0"
                 onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileFilterSheetOpen(true) })}
                 disabled={!canFilterCollection}
                 aria-label={`Filter: ${activeCollectionFilterOption.mobileLabel}`}
@@ -5816,7 +5816,7 @@ export default function BinderApp({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-10 w-9 shrink-0 rounded-2xl px-0"
+                className="h-11 w-9 shrink-0 rounded-2xl px-0"
                 onClick={() => {
                   if (isMobileNavExpanded) {
                     closeControlsSheet()

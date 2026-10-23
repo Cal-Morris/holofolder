@@ -4,11 +4,16 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Top edge: an installed iPhone app draws under the status bar (viewport-fit=cover), so anything
+     pinned to the top sits 8px below the safe area to keep it clear of the clock and the notch. */
+  --top-inset: calc(env(safe-area-inset-top) + 8px);
+  --left-inset: max(env(safe-area-inset-left), 0.625rem);
+  --right-inset: max(env(safe-area-inset-right), 0.625rem);
   /* Mobile bottom dock: the safe-area inset is applied once (min 0.5rem in a browser tab),
-     the bar is 50px (40px tap targets + 4px padding + border). Anything that must clear the
+     the bar is 54px (44px tap targets + 4px padding + border). Anything that must clear the
      dock positions itself from --dock-clearance. */
   --dock-inset: max(env(safe-area-inset-bottom), 0.5rem);
-  --dock-bar: 3.125rem;
+  --dock-bar: 3.375rem;
   --dock-clearance: calc(var(--dock-inset) + var(--dock-bar));
   /* Paper and charcoal leave the colour to the cards and chosen pocket pages. */
   --background: oklch(0.974 0.004 90);
@@ -110,7 +115,7 @@
   }
   /* Safe areas for mobile */
   .safe-area-top {
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--top-inset);
   }
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);

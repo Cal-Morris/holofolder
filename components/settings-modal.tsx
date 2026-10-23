@@ -195,7 +195,7 @@ export default function SettingsModal({
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
+        className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0">
