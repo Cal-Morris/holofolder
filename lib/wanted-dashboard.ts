@@ -9,6 +9,9 @@ export interface WantedDashboardEntry {
   pokemonId: number
   pokemonName: string
   card: WantedCard
+  /** Set in the All binders want list: the binder this printing is wanted in. */
+  binderId?: string
+  binderName?: string
 }
 
 export interface WantedDashboardCard extends WantedDashboardEntry {
@@ -86,6 +89,7 @@ export function buildWantedDashboardSummary(
         language,
         entry.card.card_finish ?? "normal",
         entry.card.added_at,
+        ...(entry.binderId ? [entry.binderId] : []),
       ].join("::"),
       price,
       marketGbpAmount,

@@ -29,11 +29,15 @@ function exactQuote(card: AnalyticsCard["card"], snapshot: CardPriceSnapshot | u
   return verifiedFinish === finish ? snapshot : null
 }
 
-export function buildCollectionAnalytics(collection: CollectedPokemon[], prices: Record<string, CardPriceSnapshot>, now = Date.now()) {
+/**
+ * `countCopies`: the All binders view, where a Pokémon can sit in several binders. Each binder's copy of an owned
+ * card counts (and is valued) separately; species still count once.
+ */
+export function buildCollectionAnalytics(collection: CollectedPokemon[], prices: Record<string, CardPriceSnapshot>, now = Date.now(), { countCopies = false }: { countCopies?: boolean } = {}) {
   const cards: AnalyticsCard[] = []
   const seen = new Set<string>()
   const add = (item: CollectedPokemon, card: AnalyticsCard["card"], scope: AnalyticsCard["scope"]) => {
-    const key = `${item.pokemon_id}:${scope}:${getCardPriceKey(card.card_id, card.card_language)}:${card.card_finish ?? "normal"}`
+    const key = `${countCopies && scope === "owned" ? `${item.id}:` : ""}${item.pokemon_id}:${scope}:${getCardPriceKey(card.card_id, card.card_language)}:${card.card_finish ?? "normal"}`
     if (seen.has(key)) return
     seen.add(key)
     const price = exactQuote(card, prices[getCardPriceKey(card.card_id, card.card_language)])
@@ -64,7 +68,7 @@ export function buildCollectionAnalytics(collection: CollectedPokemon[], prices:
   falling.sort((a, b) => a.momentum.change - b.momentum.change || a.key.localeCompare(b.key))
   const owned = cards.filter(card => card.scope === "owned")
   return {
-    ownedSpecies: collection.filter(item => item.status !== "wishlisted").length,
+    ownedSpecies: new Set(collection.filter(item => item.status !== "wishlisted").map(item => item.pokemon_id)).size,
     assignedCards: owned.length,
     wantedCards: cards.filter(card => card.scope === "wanted").length,
     pricedCards: owned.filter(card => card.amount !== null).length,

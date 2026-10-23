@@ -3,6 +3,8 @@
 import type { Binder } from "@/lib/binders/model"
 import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
+import { allBindersCollection, allBindersWantedEntries, cardsOwnedElsewhere, formatOwnedIn, speciesOwnedElsewhere } from "@/lib/binders/all-binders"
+import { useAllBinders } from "@/hooks/use-all-binders"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
@@ -636,6 +638,20 @@ export default function BinderApp({
     if (readOnlyMode || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return
     rememberDeviceBinders(window.localStorage, resolvedCollectionOwnerUserId, binders)
   }, [binders, readOnlyMode, resolvedCollectionOwnerUserId, user])
+  // Read-only lookup across every binder: All binders analytics and want list, "Owned in <binder>" hints.
+  const allBinders = useAllBinders({
+    ownerUserId: user && !readOnlyMode ? resolvedCollectionOwnerUserId : null,
+    binders,
+    currentBinderId: initialBinderId,
+    currentCollection: collection,
+    isOnline,
+  })
+  const allBindersOwned = useMemo(() => allBinders ? allBindersCollection(allBinders) : null, [allBinders])
+  const ownedElsewhereByCard = useMemo(() => cardsOwnedElsewhere(allBinders, initialBinderId), [allBinders, initialBinderId])
+  const ownedElsewhereLabel = useCallback(
+    (pokemonId: number) => formatOwnedIn(speciesOwnedElsewhere(allBinders, pokemonId, initialBinderId)),
+    [allBinders, initialBinderId],
+  )
 
   const [pendingBinderSwitch, setPendingBinderSwitch] = useState<string | null>(null)
   const switchBinder = useCallback((binderId: string) => {
@@ -1408,6 +1424,15 @@ export default function BinderApp({
     })),
     [selectedTrackedCardItem],
   )
+  // All binders views price the other binders' cards too (only while one of those views is open).
+  const otherBindersPriceLookups = useMemo<CardPriceLookup[]>(() => {
+    if (!allBinders || (activeMainView !== "analytics" && activeMainView !== "wanted")) return []
+    return allBinders.binders.filter((binder) => binder.id !== initialBinderId).flatMap((binder) =>
+      (allBinders.collections.get(binder.id) ?? []).flatMap((item) => [
+        ...(item.card_id && item.status !== "wishlisted" ? [{ cardId: item.card_id, language: item.card_language ?? "en" }] : []),
+        ...(item.wanted_cards ?? []).map((card) => ({ cardId: card.card_id, language: card.card_language ?? "en" })),
+      ]))
+  }, [activeMainView, allBinders, initialBinderId])
   const shouldLoadCollectionPriceLookups = isPriceMode || collectionViewFilter === "wanted" || activeMainView === "list" || activeMainView === "wanted" || activeMainView === "sets" || activeMainView === "analytics"
   const priceLookupCards = useMemo(
     () => {
@@ -1441,9 +1466,13 @@ export default function BinderApp({
         byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
       }
 
+      for (const lookup of otherBindersPriceLookups) {
+        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
+      }
+
       return [...byKey.values()]
     },
-    [collectionViewFilter, ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
+    [otherBindersPriceLookups, collectionViewFilter, ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
   const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
@@ -1507,6 +1536,10 @@ export default function BinderApp({
   const wantedDashboard = useMemo(
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),
     [pricesByCardId, wantedCardEntries],
+  )
+  const allBindersWantedDashboard = useMemo(
+    () => allBinders ? buildWantedDashboardSummary(allBindersWantedEntries(allBinders), pricesByCardId) : null,
+    [allBinders, pricesByCardId],
   )
   useEffect(() => {
     if (!hasTrackedCards && isPriceMode) {
@@ -2396,8 +2429,9 @@ export default function BinderApp({
       isFavorite: item?.status === "finalized",
       isSelected: selectedPokemon?.id === pokemon.id,
       slotState,
+      elsewhereLabel: ownedElsewhereLabel(pokemon.id),
     }
-  }, [getCollectionItem, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage])
+  }, [getCollectionItem, ownedElsewhereLabel, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage])
 
   const handleJumpBetweenTargets = useCallback((direction: "next" | "prev") => {
     if (activeJumpPokemonList.length === 0 || generationFilteredPokemonList.length === 0) return
@@ -5175,9 +5209,9 @@ export default function BinderApp({
             </div>
           ) : null}
           {activeMainView === "pokemon" ? (
-            <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
+            <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} ownedElsewhere={allBinders ? ownedElsewhereLabel : undefined} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
           ) : activeMainView === "analytics" ? (
-            <CollectionAnalyticsView collection={collection} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} onBrowsePokemon={openCardBrowser} />
+            <CollectionAnalyticsView collection={collection} allBindersCollection={allBindersOwned} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} onBrowsePokemon={openCardBrowser} />
           ) : activeMainView === "list" ? (
             <DexListView
               pokemonList={filteredPokemonSummaryList}
@@ -5197,6 +5231,8 @@ export default function BinderApp({
           ) : activeMainView === "wanted" ? (
             <WantedDashboard
               wantedDashboard={wantedDashboard}
+              allBindersDashboard={allBindersWantedDashboard}
+              currentBinderId={initialBinderId}
               priceFormat={priceFormat}
               isLoadingPrices={isLoadingPrices}
               isOnline={isOnline}
@@ -5897,6 +5933,7 @@ export default function BinderApp({
           pokemon={cardBrowser.pokemon}
           highlightCardId={cardBrowser.highlightCardId}
           collectionItem={getCollectionItem(cardBrowser.pokemon.id) ?? null}
+          ownedElsewhereByCard={allBinders ? ownedElsewhereByCard : undefined}
           isDesktop={isDesktopViewport}
           readOnly={readOnlyMode}
           onClose={closeCardBrowser}
