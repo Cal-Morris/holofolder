@@ -45,7 +45,7 @@ import {
 } from "@/lib/regional-price"
 import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
 import { getTouchGestureIntent, useTouchGestures } from "@/hooks/use-touch-gestures"
-import { loadCardsForPokemon, useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
+import { loadCardsForPokemon, peekCardsForPokemon, useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { Button } from "@/components/ui/button"
 import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
 import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
@@ -119,6 +119,18 @@ const GENERATIONS = [
   { id: 8, name: "Generation VIII", start: 810, end: 905, region: "Galar" },
   { id: 9, name: "Generation IX", start: 906, end: 1025, region: "Paldea" },
 ]
+
+/**
+ * A card's illustrator without a request: saved on a wanted card, or from the Pokémon's card list when it is
+ * already loaded. "" means the card has no credit; null means it is not known yet.
+ */
+function getKnownCardIllustrator(pokemonId: number, cardId: string, wantedCards: WantedCard[] | undefined): string | null {
+  const saved = wantedCards?.find((card) => card.card_id === cardId)?.illustrator?.trim()
+  if (saved) return saved
+  const loaded = peekCardsForPokemon(pokemonId, "en")
+  if (!loaded) return null
+  return loaded.find((card) => matchesCatalogCardId(card, cardId))?.illustrator?.trim() || ""
+}
 
 const TRADING_CARD_CORNER_RADIUS = "4.76% / 3.41%"
 const TRADING_CARD_INNER_CORNER_RADIUS = "4% / 2.86%"
@@ -3082,14 +3094,18 @@ export default function BinderApp({
   const selectedPokemonDisplayName = selectedPokemon ? formatPokemonDisplayName(selectedPokemon.name) : ""
   const selectedSlotCardDisplay = getSelectedSlotCardDisplay(collectionItem, binderCardDisplay)
   const selectedPrimaryCardPreview = selectedSlotCardDisplay.primaryCard
-  // The illustrator of the card shown in the detail sheet, looked up from the Pokémon's card list (the same
-  // list the card selector uses, so it is usually cached and also works offline once that list was loaded).
-  const [selectedCardIllustrator, setSelectedCardIllustrator] = useState<{ key: string; name: string } | null>(null)
+  // The illustrator of the card shown in the detail sheet. A wanted card saves it; otherwise it comes from the
+  // Pokémon's card list (the same list the card selector uses, prefetched when the slot is pressed, so it is
+  // usually already loaded and also works offline). The row keeps a fixed height while it loads so nothing shifts.
+  const [selectedCardIllustrator, setSelectedCardIllustrator] = useState<{ key: string; name: string | null } | null>(null)
   const selectedIllustratorLookupKey = selectedPokemon && selectedPrimaryCardPreview?.cardId
     ? `${selectedPokemon.id}:${selectedPrimaryCardPreview.cardId}`
     : null
+  const selectedKnownIllustrator = selectedPokemon && selectedPrimaryCardPreview?.cardId
+    ? getKnownCardIllustrator(selectedPokemon.id, selectedPrimaryCardPreview.cardId, collectionItem?.wanted_cards)
+    : null
   useEffect(() => {
-    if (!selectedIllustratorLookupKey) return
+    if (!selectedIllustratorLookupKey || selectedKnownIllustrator !== null) return
     const [pokemonId, ...cardIdParts] = selectedIllustratorLookupKey.split(":")
     const cardId = cardIdParts.join(":")
     let cancelled = false
@@ -3097,14 +3113,20 @@ export default function BinderApp({
       .then((cards) => {
         if (cancelled) return
         const name = cards.find((card) => matchesCatalogCardId(card, cardId))?.illustrator?.trim()
-        setSelectedCardIllustrator(name ? { key: selectedIllustratorLookupKey, name } : null)
+        setSelectedCardIllustrator({ key: selectedIllustratorLookupKey, name: name || null })
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (!cancelled) setSelectedCardIllustrator({ key: selectedIllustratorLookupKey, name: null })
+      })
     return () => {
       cancelled = true
     }
-  }, [selectedIllustratorLookupKey])
-  const selectedIllustratorName = selectedCardIllustrator?.key === selectedIllustratorLookupKey ? selectedCardIllustrator?.name ?? null : null
+  }, [selectedIllustratorLookupKey, selectedKnownIllustrator])
+  const selectedFetchedIllustrator = selectedCardIllustrator?.key === selectedIllustratorLookupKey ? selectedCardIllustrator : null
+  // A name; "" when the card has none; null while it is still loading (or when no card is assigned).
+  const selectedIllustratorState: string | null = selectedKnownIllustrator ?? (selectedFetchedIllustrator ? selectedFetchedIllustrator.name ?? "" : null)
+  const selectedIllustratorName = selectedIllustratorState || null
+  const selectedIllustratorArrivedLate = selectedKnownIllustrator === null
   const selectedCurrentCardPreview = selectedSlotCardDisplay.currentCard
   const selectedPokemonDisplayImage = selectedPokemon ? getDetailArtwork(selectedPokemon, selectedPrimaryCardPreview?.cardImage) : null
   const selectedPokemonDisplayFit = "object-contain"
@@ -3719,21 +3741,40 @@ export default function BinderApp({
                 </details>
               </div>
             ) : null}
-            {selectedIllustratorName ? (
-              <div className="max-sm:order-[-1]">
-                <button
-                  type="button"
-                  onClick={() => openIllustratorBrowser(selectedIllustratorName, { fromDetail: true })}
-                  aria-label={`Illustrator ${selectedIllustratorName}: show all their cards`}
-                  className="flex min-h-10 w-full items-center gap-2.5 rounded-2xl border border-border/60 bg-background/25 px-3 py-2 text-left transition-colors hover:border-primary/30 hover:bg-primary/10 dark:border-white/10 dark:bg-white/[0.03]"
-                >
-                  <Palette className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Illustrator</span>
-                    <span className="block truncate text-sm font-semibold text-primary underline-offset-2 hover:underline">{selectedIllustratorName}</span>
-                  </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </button>
+            {selectedIllustratorLookupKey ? (
+              // Fixed height in every state (loading, named, not listed) so the sheet never shifts when it arrives.
+              <div className="max-sm:order-[-1]" data-testid="detail-illustrator">
+                {selectedIllustratorName ? (
+                  <button
+                    type="button"
+                    onClick={() => openIllustratorBrowser(selectedIllustratorName, { fromDetail: true })}
+                    aria-label={`Illustrator ${selectedIllustratorName}: show all their cards`}
+                    className="flex h-12 w-full items-center gap-2.5 rounded-2xl border border-border/60 bg-background/25 px-3 text-left transition-colors hover:border-primary/30 hover:bg-primary/10 dark:border-white/10 dark:bg-white/[0.03]"
+                  >
+                    <Palette className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className={`min-w-0 flex-1 ${selectedIllustratorArrivedLate ? "animate-in fade-in duration-200 motion-reduce:animate-none" : ""}`}>
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Illustrator</span>
+                      <span className="block truncate text-sm font-semibold text-primary underline-offset-2 hover:underline">{selectedIllustratorName}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                ) : (
+                  <div
+                    role={selectedIllustratorState === null ? "status" : undefined}
+                    aria-label={selectedIllustratorState === null ? "Loading illustrator" : undefined}
+                    className="flex h-12 w-full items-center gap-2.5 rounded-2xl border border-border/60 bg-background/25 px-3 dark:border-white/10 dark:bg-white/[0.03]"
+                  >
+                    <Palette className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Illustrator</span>
+                      {selectedIllustratorState === null ? (
+                        <span aria-hidden="true" className="mt-1 block h-3.5 w-28 animate-pulse rounded bg-muted-foreground/25 motion-reduce:animate-none" />
+                      ) : (
+                        <span className="block truncate text-sm text-muted-foreground">Not listed</span>
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
             ) : null}
             {/* On phones the actions come first so they are reachable without scrolling past prices. */}
@@ -6093,6 +6134,8 @@ function PokemonSlot({
         }}
         onPointerDown={() => {
           isLongPressTriggered.current = false
+          // Start loading the card's details (illustrator) as the finger goes down, before the sheet opens.
+          if (hasAssignedCard) void loadCardsForPokemon(pokemon.id, "en").catch(() => undefined)
         }}
         onDoubleClick={onDoubleClick}
         onTouchStart={handleTouchStart}

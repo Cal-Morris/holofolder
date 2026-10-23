@@ -17,7 +17,7 @@ export interface CardFilters {
 const CARDS_CACHE_TTL_MS = 5 * 60 * 1000
 const CARDS_CACHE_MAX_ENTRIES = 300
 
-type CardsCacheEntry = { promise: Promise<TCGCard[]>; settledAt: number | null }
+type CardsCacheEntry = { promise: Promise<TCGCard[]>; settledAt: number | null; cards?: TCGCard[] }
 
 // Shared across hook instances: the binder slot previews, card selector and all-cards browser ask for
 // the same Pokémon lists, and an effect re-run used to drop an in-flight batch and fetch it again.
@@ -36,6 +36,11 @@ async function requestCardsForPokemon(dexId: number, language: CardLanguage): Pr
     : []
 }
 
+/** A Pokémon's card list if it is already loaded (no request), so a view can render it on the first paint. */
+export function peekCardsForPokemon(dexId: number, language: CardLanguage = "en"): TCGCard[] | null {
+  return cardsCache.get(`${dexId}:${language}`)?.cards ?? null
+}
+
 /** Fetch a Pokémon's card list, sharing in-flight requests and reusing results for a few minutes. Failures are not cached. */
 export function loadCardsForPokemon(dexId: number, language: CardLanguage = "en", now = Date.now()): Promise<TCGCard[]> {
   const key = `${dexId}:${language}`
@@ -51,6 +56,7 @@ export function loadCardsForPokemon(dexId: number, language: CardLanguage = "en"
   entry.promise = requestCardsForPokemon(dexId, language).then(
     (cards) => {
       entry.settledAt = Date.now()
+      entry.cards = cards
       return cards
     },
     (error) => {
