@@ -14,6 +14,8 @@ interface BinderSwitcherSheetProps {
   /** False for read-only views (share links): the list switches nothing and nothing can be edited. */
   canManage: boolean
   isOnline: boolean
+  /** Offline: binders saved on this device, which still open. Others need a connection. */
+  offlineBinderIds?: ReadonlySet<string>
   onSwitch: (binderId: string) => void
   onBindersChange: (binders: Binder[]) => void
   onClose: () => void
@@ -34,6 +36,7 @@ export default function BinderSwitcherSheet({
   activeBinderId,
   canManage,
   isOnline,
+  offlineBinderIds,
   onSwitch,
   onBindersChange,
   onClose,
@@ -190,7 +193,9 @@ export default function BinderSwitcherSheet({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--dock-clearance)+0.75rem)] sm:pb-4">
           {!isOnline && canManage && (
             <p className="mb-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
-              You&apos;re offline. Reconnect to switch or edit binders.
+              {offlineBinderIds && offlineBinderIds.size > 0
+                ? "You're offline. Binders saved on this device still open; the others need a connection."
+                : "You're offline. Reconnect to switch or edit binders."}
             </p>
           )}
           <ul className="flex flex-col gap-1.5" aria-label="Your binders">
@@ -199,6 +204,8 @@ export default function BinderSwitcherSheet({
               const isRenaming = managing && renamingId === binder.id
               const isConfirmingDelete = managing && confirmDeleteId === binder.id
               const hasSlots = (binder.slotCount ?? 0) > 0
+              const openableOffline = isActive || Boolean(offlineBinderIds?.has(binder.id))
+              const switchDisabled = managing || (canManage && !isOnline && !openableOffline)
               return (
                 <li key={binder.id} className="rounded-2xl border border-border/60 bg-background/60 dark:border-border/40">
                   {isRenaming ? (
@@ -222,10 +229,11 @@ export default function BinderSwitcherSheet({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        disabled={managing || (canManage && !isOnline)}
+                        disabled={switchDisabled}
                         onClick={() => (isActive ? onClose() : onSwitch(binder.id))}
                         aria-current={isActive ? "true" : undefined}
-                        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 text-left disabled:cursor-default"
+                        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 text-left disabled:cursor-default data-[unavailable=true]:opacity-50"
+                        data-unavailable={canManage && !isOnline && !openableOffline ? "true" : undefined}
                       >
                         <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isActive ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>
                           {isActive && <Check className="h-3 w-3" />}
@@ -233,7 +241,11 @@ export default function BinderSwitcherSheet({
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold">{binder.name}</span>
                           <span className="block text-[11px] text-muted-foreground">
-                            {[binder.isDefault ? "Default" : null, slotLabel(binder.slotCount)].filter(Boolean).join(" · ") || "\u00a0"}
+                            {[
+                              binder.isDefault ? "Default" : null,
+                              slotLabel(binder.slotCount),
+                              canManage && !isOnline ? (openableOffline ? "Saved on this device" : "Needs a connection") : null,
+                            ].filter(Boolean).join(" · ") || "\u00a0"}
                           </span>
                         </span>
                       </button>

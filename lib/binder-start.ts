@@ -1,6 +1,6 @@
 // Local-first binder start: which device data `/` may paint before the server's collection arrives.
 import type { Binder } from "@/lib/binders/model"
-import { LOCAL_COLLECTION_SNAPSHOT_KEY } from "@/lib/collection/offline-queue"
+import { collectionSnapshotKey, LEGACY_COLLECTION_SNAPSHOT_KEY } from "@/lib/binders/offline"
 import { readOfflineShellState, type OfflineShellState } from "@/lib/offline-shell"
 
 /** The account, collection owner and binder the server last opened on this device. */
@@ -41,9 +41,9 @@ export function writeBinderStartMarker(storage: WritableStorage, marker: BinderS
   }
 }
 
-function readSnapshotKey(storage: StorageLike): { ownerUserId: string | null; binderId: string | null } | null {
+function readSnapshotKey(storage: StorageLike, key: string): { ownerUserId: string | null; binderId: string | null } | null {
   try {
-    const snapshot = JSON.parse(storage.getItem(LOCAL_COLLECTION_SNAPSHOT_KEY) ?? "null") as { ownerUserId?: unknown; binderId?: unknown; collection?: unknown } | null
+    const snapshot = JSON.parse(storage.getItem(key) ?? "null") as { ownerUserId?: unknown; binderId?: unknown; collection?: unknown } | null
     if (!snapshot || !Array.isArray(snapshot.collection)) return null
     return {
       ownerUserId: typeof snapshot.ownerUserId === "string" ? snapshot.ownerUserId : null,
@@ -64,9 +64,17 @@ export function readLocalBinderStart(storage: StorageLike, cookie: string, userI
   const marker = readMarker(storage)
   if (!marker || marker.userId !== userId) return null
   if (requestedBinderId && requestedBinderId !== marker.binderId) return null
-  const snapshot = readSnapshotKey(storage)
+  // Each binder has its own saved copy; the default binder's is under the original key.
+  const isDefault = !marker.binderId || marker.binders.find((binder) => binder.id === marker.binderId)?.isDefault !== false
+  let key = collectionSnapshotKey(marker.binderId, isDefault)
+  let snapshot = readSnapshotKey(storage, key)
+  if (!snapshot && key !== LEGACY_COLLECTION_SNAPSHOT_KEY) {
+    // Saved under the original key before binders had their own.
+    key = LEGACY_COLLECTION_SNAPSHOT_KEY
+    snapshot = readSnapshotKey(storage, key)
+  }
   if (!snapshot || snapshot.ownerUserId !== marker.ownerUserId || snapshot.binderId !== marker.binderId) return null
-  const state = readOfflineShellState(storage, cookie, userId)
+  const state = readOfflineShellState(storage, cookie, userId, key)
   if (state.collectionOwnerUserId !== marker.ownerUserId) return null
   return { ...state, binderId: marker.binderId, binders: marker.binders }
 }

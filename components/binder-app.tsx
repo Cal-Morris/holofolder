@@ -2,6 +2,7 @@
 
 import type { Binder } from "@/lib/binders/model"
 import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
+import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
@@ -629,6 +630,11 @@ export default function BinderApp({
   useEffect(() => {
     if (!readOnlyMode) rememberLastOpenedBinder(initialBinderId)
   }, [initialBinderId, readOnlyMode])
+  // The binder list stays on this device, so the switcher still works offline (lib/binders/offline.ts).
+  useEffect(() => {
+    if (readOnlyMode || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return
+    rememberDeviceBinders(window.localStorage, resolvedCollectionOwnerUserId, binders)
+  }, [binders, readOnlyMode, resolvedCollectionOwnerUserId, user])
 
   const [pendingBinderSwitch, setPendingBinderSwitch] = useState<string | null>(null)
   const switchBinder = useCallback((binderId: string) => {
@@ -640,7 +646,12 @@ export default function BinderApp({
   // Navigate after the sheet has closed and its history entry is popped (BinderApp remounts per binder).
   useEffect(() => {
     if (!pendingBinderSwitch || isBinderSwitcherOpen) return
-    runAfterOverlayHistory(() => router.push(binderHref(pendingBinderSwitch, window.location.href)))
+    runAfterOverlayHistory(() => {
+      const href = binderHref(pendingBinderSwitch, window.location.href)
+      // Offline, a full load lets the service worker open that binder's saved copy from the app shell.
+      if (typeof navigator !== "undefined" && navigator.onLine === false) window.location.assign(href)
+      else router.push(href)
+    })
   }, [isBinderSwitcherOpen, pendingBinderSwitch, router])
   const closeBinderSwitcher = useCallback(() => setIsBinderSwitcherOpen(false), [])
   const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
@@ -4599,7 +4610,7 @@ export default function BinderApp({
 
       {!isOnline && !isShowModeOn && (
         <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--top-inset)+0.25rem)] z-50 flex justify-center px-3">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300">
+          <div className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300">
             <WifiOff className="h-3.5 w-3.5" />
             <span>Offline mode</span>
             <span className="text-[11px] text-amber-500/80 dark:text-amber-200/75">
@@ -5887,6 +5898,7 @@ export default function BinderApp({
           activeBinderId={activeBinder.id}
           canManage={!readOnlyMode && Boolean(user)}
           isOnline={isOnline}
+          offlineBinderIds={isOnline ? undefined : offlineAvailableBinderIds(window.localStorage, resolvedCollectionOwnerUserId, binders)}
           onSwitch={switchBinder}
           onBindersChange={setBinders}
           onClose={closeBinderSwitcher}

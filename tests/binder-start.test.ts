@@ -34,6 +34,17 @@ test("keeps the open binder and the binder list for the switcher", () => {
   assert.equal(readLocalBinderStart(storage, "", "u1", "b2")?.binderId, "b2")
 })
 
+test("a non-default binder starts from its own saved copy", () => {
+  const storage = memoryStorage({
+    pokemon_collection_snapshot_v1: { ownerUserId: "u1", binderId: "b1", savedAt: "x", collection: [row, { ...row, id: "r2", pokemon_id: 2 }] },
+    "pokemon_collection_snapshot_v1:b2": { ownerUserId: "u1", binderId: "b2", savedAt: "x", collection: [row] },
+  })
+  writeBinderStartMarker(storage, marker("u1", "u1", "b2", [binder("b1"), binder("b2")]))
+  assert.equal(readLocalBinderStart(storage, "", "u1")?.collection.length, 1)
+  writeBinderStartMarker(storage, marker("u1", "u1", "b1", [binder("b1"), binder("b2")]))
+  assert.equal(readLocalBinderStart(storage, "", "u1")?.collection.length, 2)
+})
+
 test("waits for the server when the URL asks for another binder or the snapshot is of another binder", () => {
   const storage = memoryStorage(snapshot("u1", "b2"))
   writeBinderStartMarker(storage, marker("u1", "u1", "b2"))

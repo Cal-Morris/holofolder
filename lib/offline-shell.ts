@@ -1,6 +1,8 @@
 // Boot data for the offline app shell (/app-shell): everything comes from this device, nothing from the network.
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { LOCAL_COLLECTION_SNAPSHOT_KEY } from "@/lib/collection/offline-queue"
+import type { Binder } from "@/lib/binders/model"
+import { collectionSnapshotKey, offlineAvailableBinderIds, pickOfflineBinder, readDeviceBinders, storedSnapshotIsOf } from "@/lib/binders/offline"
 import { normalizeCollectionItems } from "@/lib/collection/normalize"
 import { getDefaultBinderSettings, normalizeBinderSettings, type BinderSettings, type StoredBinderSettings } from "@/lib/settings"
 
@@ -31,9 +33,10 @@ function readThemeCookie(cookie: string) {
 
 /**
  * Builds BinderApp's initial props from the local collection snapshot, stored settings and theme cookie.
+ * `snapshotKey` picks the binder (lib/binders/offline.ts); the default binder's key otherwise.
  */
-export function readOfflineShellState(storage: StorageLike, cookie: string, userId: string | null): OfflineShellState {
-  const snapshot = readJson(storage, LOCAL_COLLECTION_SNAPSHOT_KEY) as { ownerUserId?: unknown; collection?: unknown } | null
+export function readOfflineShellState(storage: StorageLike, cookie: string, userId: string | null, snapshotKey = LOCAL_COLLECTION_SNAPSHOT_KEY): OfflineShellState {
+  const snapshot = readJson(storage, snapshotKey) as { ownerUserId?: unknown; collection?: unknown } | null
   const snapshotOwner = typeof snapshot?.ownerUserId === "string" ? snapshot.ownerUserId : null
   // Same rule useCollection applies offline: the device's last saved collection is used even when its owner
   // differs from the signed-in user, because in partner mode the binder belongs to the partner.
@@ -57,4 +60,45 @@ export function readOfflineShellState(storage: StorageLike, cookie: string, user
 
   const darkMode = readThemeCookie(cookie) ?? settings.darkMode
   return { collection, collectionOwnerUserId, settings, darkMode }
+}
+
+export type OfflineBinderBoot = OfflineShellState & {
+  binders: Binder[]
+  binderId: string | null
+  /** A binder the URL asked for that isn't saved on this device (the default or last opened one opens instead). */
+  unavailableBinderName: string | null
+}
+
+/**
+ * The offline shell with multiple binders: opens the requested binder (`?binder=`) when this device has a saved
+ * copy of it, else the last opened saved one, else the default. The binder list is the one this device last saw.
+ */
+export function readOfflineBinderBoot(
+  storage: StorageLike,
+  cookie: string,
+  userId: string | null,
+  requestedBinderId: string | null,
+  lastOpenedBinderId: string | null,
+): OfflineBinderBoot {
+  const base = readOfflineShellState(storage, cookie, userId)
+  const device = userId ? readDeviceBinders(storage) : null
+  // Only the binders of the collection this account opens (its own, or its partner's).
+  const binders = device && (device.ownerUserId === base.collectionOwnerUserId || device.ownerUserId === userId) ? device.binders : []
+  if (binders.length === 0) return { ...base, binders: [], binderId: null, unavailableBinderName: null }
+
+  const available = offlineAvailableBinderIds(storage, device!.ownerUserId, binders)
+  const { binder, unavailable } = pickOfflineBinder(binders, available, requestedBinderId, lastOpenedBinderId)
+  const state = binder && !binder.isDefault
+    ? readOfflineShellState(storage, cookie, userId, collectionSnapshotKey(binder.id, binder.isDefault))
+    : base
+  const snapshotMatches = binder ? storedSnapshotIsOf(storage, binder) : false
+  return {
+    ...state,
+    // Never show another binder's slots: a binder without a usable copy opens empty.
+    collection: snapshotMatches ? state.collection : [],
+    collectionOwnerUserId: state.collectionOwnerUserId ?? device!.ownerUserId,
+    binders,
+    binderId: binder?.id ?? null,
+    unavailableBinderName: unavailable?.name ?? null,
+  }
 }

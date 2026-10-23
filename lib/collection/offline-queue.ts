@@ -4,6 +4,7 @@ import { writeLocalCollectedIds } from "@/lib/local-collection"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItem, normalizeCollectionItems } from "@/lib/collection/normalize"
 import { mirrorCollectionSnapshot, mirrorPendingOperations } from "@/lib/offline-store/collection-mirror"
+import { collectionSnapshotKey, hasOwnOfflineKeys, LEGACY_COLLECTION_SNAPSHOT_KEY, markBinderSavedOnDevice } from "@/lib/binders/offline"
 
 export interface LocalCollectionSnapshot {
   ownerUserId: string | null
@@ -71,16 +72,29 @@ function parseBase(operation: object): { base?: CollectedPokemon | null } {
   return {}
 }
 
-export const LOCAL_COLLECTION_SNAPSHOT_KEY = "pokemon_collection_snapshot_v1"
+/** The default binder's snapshot (and the only one before binders). Other binders use `…:<binderId>`. */
+export const LOCAL_COLLECTION_SNAPSHOT_KEY = LEGACY_COLLECTION_SNAPSHOT_KEY
 export const LOCAL_COLLECTION_PENDING_OPS_KEY = "pokemon_collection_pending_ops_v1"
-export function readLocalCollectionSnapshot() {
+
+function parseSnapshot(stored: string | null): Partial<LocalCollectionSnapshot> | null {
+  if (!stored) return null
+  const parsed = JSON.parse(stored) as Partial<LocalCollectionSnapshot> | null
+  return parsed && Array.isArray(parsed.collection) ? parsed : null
+}
+
+/**
+ * The saved collection of one binder (default: the original key). A non-default binder with no copy of its own
+ * yet falls back to the original key when that still holds this binder (saved there before per-binder keys).
+ */
+export function readLocalCollectionSnapshot(binderId: string | null = null, isDefault = true) {
   if (typeof window === "undefined") return null
 
   try {
-    const stored = window.localStorage.getItem(LOCAL_COLLECTION_SNAPSHOT_KEY)
-    if (!stored) return null
-
-    const parsed = JSON.parse(stored) as Partial<LocalCollectionSnapshot> | null
+    let parsed = parseSnapshot(window.localStorage.getItem(collectionSnapshotKey(binderId, isDefault)))
+    if (!parsed && hasOwnOfflineKeys(binderId, isDefault)) {
+      const legacy = parseSnapshot(window.localStorage.getItem(LOCAL_COLLECTION_SNAPSHOT_KEY))
+      parsed = legacy?.binderId === binderId ? legacy : null
+    }
     if (!parsed || !Array.isArray(parsed.collection)) {
       return null
     }
@@ -96,17 +110,20 @@ export function readLocalCollectionSnapshot() {
   }
 }
 
-export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot) {
+export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot, isDefault = true) {
   if (typeof window === "undefined") return
+  const binderId = snapshot.binderId ?? null
 
   // Durable copy in IndexedDB, written even if localStorage is full.
-  mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt, undefined, snapshot.binderId ?? null)
+  mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt, undefined, binderId, isDefault)
 
   try {
-    window.localStorage.setItem(LOCAL_COLLECTION_SNAPSHOT_KEY, JSON.stringify(snapshot))
+    window.localStorage.setItem(collectionSnapshotKey(binderId, isDefault), JSON.stringify(snapshot))
   } catch {
     // ignore quota failures
   }
+  // This binder now opens offline on this device.
+  markBinderSavedOnDevice(window.localStorage, snapshot.ownerUserId, binderId)
 }
 
 export function readPendingCollectionOperations(): PendingCollectionOperation[] {
@@ -222,13 +239,15 @@ export function removePendingCollectionOperation(operationId: string) {
   )
 }
 
-export function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null, binderId: string | null = null) {
+export function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null, binderId: string | null = null, isDefault = true) {
   writeLocalCollectionSnapshot({
     ownerUserId,
     ...(binderId ? { binderId } : {}),
     savedAt: new Date().toISOString(),
     collection,
-  })
+  }, isDefault)
+  // The signed-out "collected ids" list predates binders and stays the default binder's.
+  if (!isDefault) return
   writeLocalCollectedIds(
     collection
       .filter((item) => item.status !== "wishlisted")

@@ -35,9 +35,14 @@ Verification: row count, owned and wanted counts, and an md5 over (pokemon_id, c
   then the default. It passes `binderId` and the binder list to the client. Switching binders navigates and remounts the app (`key=binderId`).
 - Delta-sync baselines are keyed by owner + binder. Queued edits carry `binderId` and the API writes to that binder;
   edits for another binder still flush, but only update the screen when that binder is open.
-- The localStorage and IndexedDB snapshot carries `binderId` and is only applied to the same binder (shipped). Switching binders
-  needs a connection for now. Follow-up: keep one snapshot per binder (`…:<binderId>` keys) so any binder opened before also
-  opens offline.
+- Each binder has its own offline copy. The default binder keeps the original keys (`pokemon_collection_snapshot_v1` in
+  localStorage, the `collection` record in IndexedDB), so data saved before multiple binders still opens. Other binders use
+  `pokemon_collection_snapshot_v1:<binderId>` and `collection:<binderId>`. A snapshot carries `binderId` and is only applied to
+  that binder. The pending-edit queue stays one list (each edit carries its `binderId`) and lives with the default record.
+- The binder list is remembered on the device (`binderdex_device_binders_v1`: owner, binders, which ones have a saved copy).
+  Offline, the switcher opens binders saved on this device and greys out the rest ("Needs a connection"). An offline switch
+  is a full page load, so the cached app shell boots the chosen binder from its own copy. If a binder that isn't saved is
+  requested offline, the shell shows the last opened saved binder with a short notice. A partner sees the owner's list.
 - Realtime stays per owner, so any binder change triggers a (cheap) delta refresh.
 
 ## Share links
