@@ -251,7 +251,7 @@ export default function QuickMode({
         aria-modal="true"
         aria-label="Quick mode"
         onClick={(event) => event.stopPropagation()}
-        className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col bg-background pt-[env(safe-area-inset-top)] sm:border-x sm:border-border/60"
+        className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60"
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
           <div className="min-w-0 flex-1">

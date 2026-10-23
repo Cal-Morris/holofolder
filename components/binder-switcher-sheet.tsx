@@ -147,7 +147,7 @@ export default function BinderSwitcherSheet({
         aria-modal="true"
         aria-label="Binders"
         data-testid="binder-switcher"
-        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[min(36rem,calc(100dvh-env(safe-area-inset-top)-1rem))] w-full max-w-md flex-col rounded-t-[1.6rem] border-t border-border/65 bg-card/97 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] sm:bottom-4 sm:rounded-[1.6rem] sm:border dark:border-border/50 dark:bg-background/97"
+        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[min(36rem,calc(100dvh-var(--top-inset)-0.5rem))] w-full max-w-md flex-col rounded-t-[1.6rem] border-t border-border/65 bg-card/97 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] sm:bottom-4 sm:rounded-[1.6rem] sm:border dark:border-border/50 dark:bg-background/97"
         onClick={(event) => event.stopPropagation()}
       >
         <div data-sheet-grabber className="shrink-0 px-4 pt-3" {...swipe}>

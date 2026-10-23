@@ -3,7 +3,7 @@
 export function BinderSkeleton() {
   return (
     <main
-      className="flex min-h-dvh flex-col bg-background px-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(var(--dock-clearance)+0.75rem)]"
+      className="flex min-h-dvh flex-col bg-background px-3 pt-[var(--top-inset)] pb-[calc(var(--dock-clearance)+0.75rem)]"
       aria-busy="true"
       data-testid="binder-skeleton"
     >

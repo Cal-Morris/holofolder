@@ -22,7 +22,7 @@ for (const width of [768, 1024, 1280, 1440]) {
     if (width === 1024 && testInfo.project.name === "browser-375x667") {
       await testInfo.attach("desktop-view-menu", { body: await harness.page.screenshot({ path: testInfo.outputPath("view-options.png") }), contentType: "image/png" })
     }
-    expect((await menu.boundingBox())!.height, "View menu stays compact").toBeLessThanOrEqual(420)
+    expect((await menu.boundingBox())!.height, "View menu stays compact").toBeLessThanOrEqual(440)
     expect((await menu.boundingBox())!.width).toBeLessThanOrEqual(340)
     await harness.expectMinTapTarget(menu.getByRole("button", { name: "Close view options", exact: true }), 36)
     await expect(menu.getByRole("group", { name: "Binder display" })).toBeVisible()

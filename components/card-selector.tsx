@@ -712,7 +712,7 @@ export default function CardSelector({
       {isCardScannerOpen && (
         <div ref={cardScannerRef} role="dialog" aria-modal="true" aria-label="Single card scanner" className="fixed inset-0 z-[60] bg-black outline-none">
           <canvas ref={cardCanvasRef} className="hidden" />
-          <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+          <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(var(--top-inset)+0.25rem)]">
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
                 <div>
@@ -834,7 +834,7 @@ export default function CardSelector({
         className="fixed inset-x-0 z-50 flex flex-col outline-none overflow-hidden rounded-t-[2.25rem] border border-border bg-card shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] sm:inset-x-3 sm:rounded-[2.25rem] lg:inset-x-8 xl:left-1/2 xl:right-auto xl:w-[min(calc(100vw-4rem),92rem)] xl:-translate-x-1/2"
         onClick={(e) => e.stopPropagation()}
         style={{
-          top: "calc(env(safe-area-inset-top) + 1rem)",
+          top: "calc(var(--top-inset) + 0.5rem)",
           bottom: "calc(env(safe-area-inset-bottom) + 0.25rem)",
           overscrollBehaviorY: "contain",
           touchAction: "pan-y",

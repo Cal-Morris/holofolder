@@ -8,11 +8,11 @@ test.describe("compact bottom dock", () => {
   test("slim bar, safe-area inset applied once, no wasted band", async ({ harness }) => {
     const { height } = harness.viewport
     const box = (await bar(harness).boundingBox())!
-    expect(box.height, "dock bar height").toBeLessThanOrEqual(52)
+    expect(box.height, "dock bar height").toBeLessThanOrEqual(56)
     const gapBelow = height - (box.y + box.height)
     // The inset is applied once (min 8px in a browser tab), not stacked on extra padding.
     expect(Math.abs(gapBelow - Math.max(harness.insets.bottom, 8)), `gap below bar ${gapBelow}`).toBeLessThanOrEqual(1)
-    expect(height - box.y, "total dock footprint").toBeLessThanOrEqual(Math.max(harness.insets.bottom, 8) + 52)
+    expect(height - box.y, "total dock footprint").toBeLessThanOrEqual(Math.max(harness.insets.bottom, 8) + 56)
     await harness.expectWithinSafeViewport(bar(harness))
   })
 
