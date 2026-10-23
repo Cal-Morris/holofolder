@@ -3471,9 +3471,9 @@ export default function BinderApp({
   }, [addToCollection, addWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
   const quickCardCheck = useMemo(
     () => (isShowModeOn
-      ? { currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, getCardState: getQuickCardState, onAction: handleQuickCardAction }
+      ? { currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }
       : undefined),
-    [fxRates, getQuickCardState, handleQuickCardAction, isShowModeOn, pricingPreferences.currency, readOnlyMode],
+    [collection, fxRates, getQuickCardState, handleQuickCardAction, isShowModeOn, pricingPreferences.currency, readOnlyMode],
   )
   const showTally = useMemo(() => summarizeShowSession(showSession.session), [showSession.session])
 

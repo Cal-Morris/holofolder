@@ -50,6 +50,8 @@ export interface QuickCardCheckProps {
   pricingRegion: PricingRegion
   isOnline: boolean
   readOnly?: boolean
+  /** Start on this printing (e.g. the finish on the want list) when the card has it. */
+  initialFinish?: CardFinish | null
   onBack: () => void
   onOpenDetails: () => void
   /** Runs the action; resolves to an undo function, or null when nothing changed. */
@@ -81,6 +83,7 @@ export default function QuickCardCheck({
   pricingRegion,
   isOnline,
   readOnly = false,
+  initialFinish,
   onBack,
   onOpenDetails,
   onAction,
@@ -98,7 +101,8 @@ export default function QuickCardCheck({
 
   const inferred = inferCardFinish(card.rarity, card.variants)
   const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any"), [card.variants, inferred])
-  const [finish, setFinish] = useState<CardFinish>(finishChoices[0]?.finish ?? inferred)
+  const [finish, setFinish] = useState<CardFinish>(() =>
+    initialFinish && finishChoices.some((choice) => choice.finish === initialFinish) ? initialFinish : finishChoices[0]?.finish ?? inferred)
   const finishPrices = useMemo(() => getRegionalFinishPrices(snapshot, pricingRegion), [pricingRegion, snapshot])
   // A variant with its own quote uses it; otherwise the headline price stands for the card's main printing.
   const price = finishPrices[finish as PricedCardFinish] ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
