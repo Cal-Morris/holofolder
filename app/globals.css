@@ -610,3 +610,26 @@ html[data-scroll-locked],
 html[data-scroll-locked] body {
   overscroll-behavior: none;
 }
+
+/* Edge swipe-back affordance: a chevron that follows the finger in from the left edge. */
+html[data-edge-back] body::after {
+  content: "‹";
+  position: fixed;
+  left: 0;
+  top: 50%;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 1.5rem;
+  line-height: 1;
+  box-shadow: 0 10px 30px -16px rgba(15, 23, 42, 0.55);
+  pointer-events: none;
+  opacity: var(--edge-back-progress, 0);
+  transform: translate(calc(-100% + var(--edge-back-progress, 0) * 3.5rem), -50%);
+}

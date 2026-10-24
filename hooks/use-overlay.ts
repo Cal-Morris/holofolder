@@ -99,6 +99,11 @@ export function runAfterOverlayHistory(navigate: () => void) {
   requestHistoryPush(navigate)
 }
 
+/** Whether any overlay (sheet, dialog, menu) is currently open. */
+export function hasOpenOverlays() {
+  return stack.size > 0
+}
+
 /** Close every open overlay (used when switching main views/tabs). */
 /** Number of overlays currently open (re-renders when it changes). */
 export function useOpenOverlayCount() {
