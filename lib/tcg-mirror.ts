@@ -427,6 +427,7 @@ const CARD_SEARCH_SELECT = `
   image_languages_json,
   external_ids_json,
   variants_json,
+  illustrator,
   tcg_sets!inner(
     id,
     name_json,
@@ -468,6 +469,7 @@ function toSearchCardResult(card: any, language: MirrorLanguage): SearchCardResu
     },
     rarity: typeof card.rarity === "string" ? card.rarity : undefined,
     variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json as Record<string, boolean> : undefined,
+    illustrator: typeof card.illustrator === "string" && card.illustrator.trim() ? card.illustrator.trim() : undefined,
     dexIds,
   }
 }
@@ -483,7 +485,7 @@ function localIdCandidates(number: string) {
 
 /**
  * Card search across the mirror: card name, card number ("bulbasaur 44/102"), set name/id
- * ("pitch black", "me05 12") or a TCGdex card id ("base1-44"). Only cards that feature a Pokémon.
+ * ("pitch black", "me05 12"), illustrator ("arita") or a TCGdex card id ("base1-44"). Only cards that feature a Pokémon.
  */
 export async function searchMirroredCards(query: string, language: MirrorLanguage = "en", limit = 60): Promise<SearchCardResult[]> {
   "use cache: remote"
@@ -508,6 +510,13 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
     let byName = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("name_en", `%${parsed.text}%`)
     if (numberCandidates) byName = byName.in("local_id", numberCandidates)
     requests.push(byName.limit(limit))
+
+    // Illustrator ("arita", "5ban"): newest first, so a dealer's recent cards show up.
+    if (parsed.text.length >= 3) {
+      let byIllustrator = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("illustrator", `%${parsed.text}%`)
+      if (numberCandidates) byIllustrator = byIllustrator.in("local_id", numberCandidates)
+      requests.push(byIllustrator.limit(limit))
+    }
 
     // The set lookup and the card query that depends on it run alongside the name query
     // instead of before it.

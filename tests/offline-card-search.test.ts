@@ -201,3 +201,13 @@ test("card show preparation includes Trainer and Energy highlight thumbnails", (
     "/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F99%2Flow.webp",
   ])
 })
+
+test("offline search also finds cards by illustrator once the query is 3+ characters", () => {
+  const cards = [
+    { ...card("sv03.5-166", "Bulbasaur", "166"), dexIds: [1], illustrator: "Mitsuhiro Arita" },
+    { ...card("sv03.5-004", "Charmander", "4"), dexIds: [4], illustrator: "5ban Graphics" },
+  ]
+  assert.deepEqual(searchOfflineCards(cards, "arita").map((c) => c.id), ["sv03.5-166"])
+  assert.deepEqual(searchOfflineCards(cards, "5ban").map((c) => c.id), ["sv03.5-004"])
+  assert.deepEqual(searchOfflineCards(cards, "ar").map((c) => c.id).includes("sv03.5-166"), false)
+})

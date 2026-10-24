@@ -30,6 +30,7 @@ function toSearchCard(value: unknown, dexIds: number[]): SearchCardResult | null
     },
     rarity: typeof value.rarity === "string" ? value.rarity : undefined,
     variants: isRecord(value.variants) ? (value.variants as SearchCardResult["variants"]) : undefined,
+    illustrator: typeof value.illustrator === "string" && value.illustrator ? value.illustrator : undefined,
     dexIds,
   }
 }
@@ -90,7 +91,7 @@ export function collectionToSearchCards(collection: CollectedPokemon[]): SearchC
       ...(item.card_id && item.status !== "wishlisted"
         ? [{ id: item.card_id, name: item.card_name, image: item.card_image, setName: item.card_set, language: item.card_language }]
         : []),
-      ...item.wanted_cards.map((card) => ({ id: card.card_id, name: card.card_name, image: card.card_image, setName: card.card_set, language: card.card_language, localId: card.local_id, total: card.set_total, rarity: card.rarity })),
+      ...item.wanted_cards.map((card) => ({ id: card.card_id, name: card.card_name, image: card.card_image, setName: card.card_set, language: card.card_language, localId: card.local_id, total: card.set_total, rarity: card.rarity, illustrator: card.illustrator })),
     ]
     for (const printing of printings) {
       const separator = printing.id.lastIndexOf("-")
@@ -103,6 +104,7 @@ export function collectionToSearchCards(collection: CollectedPokemon[]): SearchC
         language: printing.language,
         set: { id: setId, name: printing.setName || setId, officialCardCount: "total" in printing ? printing.total : undefined },
         rarity: "rarity" in printing ? printing.rarity : undefined,
+        ...("illustrator" in printing && printing.illustrator ? { illustrator: printing.illustrator } : {}),
         dexIds: [item.pokemon_id],
       })
     }
@@ -146,7 +148,8 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
       const matchesText =
         card.name.toLowerCase().includes(text) ||
         card.set.name.toLowerCase().includes(text) ||
-        card.set.id.toLowerCase() === text
+        card.set.id.toLowerCase() === text ||
+        (text.length >= 3 && Boolean(card.illustrator?.toLowerCase().includes(text)))
       if (!matchesText) continue
     }
     if (number && normalizeLocalId(card.localId) !== number) continue

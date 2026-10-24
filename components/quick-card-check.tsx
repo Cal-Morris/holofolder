@@ -160,7 +160,7 @@ export default function QuickCardCheck({
   const key = bundleKey(card, finish)
   const inBundle = isInBundle(key)
   const thumb = card.image ? toCardImageSrc(card.image.replace(/\/high\.webp$/, "/low.webp")) : null
-  const statusLabel = state.owned ? "Owned" : state.wanted ? "Wanted" : "Missing"
+  const statusLabel = state.owned ? "Owned" : state.wanted ? "Wanted" : "Not in binder"
   const statusTone = state.owned
     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
     : state.wanted ? "bg-rose-500/15 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"
@@ -219,7 +219,7 @@ export default function QuickCardCheck({
               Market{finishChoices.length > 0 ? ` · ${formatCardFinishLabel(finish)}` : ""}
             </span>
             <span className="text-2xl font-black tabular-nums" data-testid="quick-card-market-price">
-              {market ? money(market.amount) : isLoading ? "…" : "No price"}
+              {market ? money(market.amount) : isLoading && isOnline ? "…" : isOnline ? "No price" : "Not available offline"}
             </span>
           </div>
           {(low || high) && (
@@ -238,7 +238,11 @@ export default function QuickCardCheck({
         <DealVerdictPanel
           deal={deal}
           money={money}
-          emptyText={market ? `Type the asking price. Pay up to ${money(market.amount * (1 + thresholds.fairPct / 100))}.` : "No market price for this card yet, so no verdict."}
+          emptyText={market
+            ? `Type the asking price. Pay up to ${money(market.amount * (1 + thresholds.fairPct / 100))}.`
+            : isOnline
+            ? "No market price for this card yet, so no verdict."
+            : "This card's price isn't saved on this device, and prices can't be fetched offline. Check again when you have signal."}
         />
       </div>
 
