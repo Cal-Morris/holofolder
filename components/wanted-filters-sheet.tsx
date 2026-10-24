@@ -24,6 +24,7 @@ interface WantedFiltersSheetProps {
   finishes: WantedDashboardBreakdown[]
   languages: WantedDashboardBreakdown[]
   risingCount: number
+  dropCount: number
   resultCount: number
   onReset: () => void
   onClose: () => void
@@ -110,10 +111,19 @@ export default function WantedFiltersSheet(props: WantedFiltersSheetProps) {
             </button>
           )))}
 
-          {props.risingCount > 0 ? group("Trend", (
-            <button type="button" aria-pressed={filters.risingOnly} onClick={() => onFiltersChange({ ...filters, risingOnly: !filters.risingOnly })} className={chipClass(filters.risingOnly)}>
-              Rising only <span className="tabular-nums opacity-70">{props.risingCount}</span>
-            </button>
+          {props.risingCount > 0 || props.dropCount > 0 || filters.risingOnly || filters.dropsOnly ? group("Trend", (
+            <>
+              {props.dropCount > 0 || filters.dropsOnly ? (
+                <button type="button" aria-pressed={filters.dropsOnly} onClick={() => onFiltersChange({ ...filters, dropsOnly: !filters.dropsOnly })} className={chipClass(filters.dropsOnly)}>
+                  Price drops <span className="tabular-nums opacity-70">{props.dropCount}</span>
+                </button>
+              ) : null}
+              {props.risingCount > 0 || filters.risingOnly ? (
+                <button type="button" aria-pressed={filters.risingOnly} onClick={() => onFiltersChange({ ...filters, risingOnly: !filters.risingOnly })} className={chipClass(filters.risingOnly)}>
+                  Rising only <span className="tabular-nums opacity-70">{props.risingCount}</span>
+                </button>
+              ) : null}
+            </>
           )) : null}
 
           {group("Set", props.sets.map((set) => (

@@ -4,6 +4,7 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 import { Check, ChevronDown, Heart, MoreHorizontal, Search, Share2, SlidersHorizontal, WifiOff, X } from "lucide-react"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/hooks/use-collection"
+import { PriceDropBadge } from "@/components/price-drop-badge"
 import { PriceRisingBadge } from "@/components/price-rising-badge"
 import { getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getRisingMomentum } from "@/lib/price-momentum"
@@ -12,7 +13,9 @@ import {
   WANTED_SORTS,
   applyWantedFilters,
   countWantedFilters,
+  countWantedPriceDrops,
   filterWantedDashboardEntries,
+  hasWantedPriceDrop,
   normalizeWantedFilters,
   normalizeWantedSort,
   sortWantedDashboardEntries,
@@ -100,10 +103,11 @@ function useRememberedWantedView() {
 type ActiveChip = { key: string; label: string; remove: (filters: WantedFilters) => WantedFilters }
 
 function getActiveFilterChips(filters: WantedFilters, bandLabels: Map<string, string>): ActiveChip[] {
-  const without = <K extends Exclude<keyof WantedFilters, "risingOnly">>(key: K, value: string) =>
+  const without = <K extends Exclude<keyof WantedFilters, "risingOnly" | "dropsOnly">>(key: K, value: string) =>
     (current: WantedFilters) => ({ ...current, [key]: (current[key] as string[]).filter((item) => item !== value) })
   return [
     ...filters.bands.map((band) => ({ key: `band:${band}`, label: bandLabels.get(band) ?? band, remove: without("bands", band) })),
+    ...(filters.dropsOnly ? [{ key: "drops", label: "Price drops", remove: (current: WantedFilters) => ({ ...current, dropsOnly: false }) }] : []),
     ...(filters.risingOnly ? [{ key: "rising", label: "Rising only", remove: (current: WantedFilters) => ({ ...current, risingOnly: false }) }] : []),
     ...filters.sets.map((set) => ({ key: `set:${set}`, label: set, remove: without("sets", set) })),
     ...filters.finishes.map((finish) => ({ key: `finish:${finish}`, label: formatCardFinishLabel(finish), remove: without("finishes", finish) })),
@@ -153,6 +157,7 @@ export default function WantedDashboard({
     () => wantedDashboard.cards.filter((card) => getRisingMomentum(card.price) != null).length,
     [wantedDashboard.cards],
   )
+  const dropCount = useMemo(() => countWantedPriceDrops(wantedDashboard.cards), [wantedDashboard.cards])
   const activeChips = getActiveFilterChips(filters, new Map(wantedDashboard.priceBands.map((band) => [band.id, band.label])))
   const filterCount = countWantedFilters(filters)
   const sortLabel = WANTED_SORTS.find((option) => option.id === sort)?.short ?? "Sort"
@@ -236,6 +241,9 @@ export default function WantedDashboard({
               <span className="tabular-nums">{summaryPrice}</span>
               {hasAnyPrice && wantedDashboard.unpricedCount > 0 ? (
                 <span className="text-muted-foreground"> · {wantedDashboard.unpricedCount} unpriced</span>
+              ) : null}
+              {dropCount > 0 ? (
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300" data-testid="wanted-drop-count"> · {dropCount} price {dropCount === 1 ? "drop" : "drops"}</span>
               ) : null}
             </p>
             <button
@@ -368,6 +376,7 @@ export default function WantedDashboard({
             finishes={wantedDashboard.finishBreakdown}
             languages={wantedDashboard.languageBreakdown}
             risingCount={risingCount}
+            dropCount={dropCount}
             resultCount={visibleCards.length}
             onReset={() => {
               setSort("highest")
@@ -408,6 +417,7 @@ function WantedRow({
   const setLine = [card.card_set, cardNumberLabel(card)].filter(Boolean).join(" · ")
   const variantLine = [formatCardFinishLabel(card.card_finish), language].filter(Boolean).join(" · ")
   const showPokemon = pokemonName && !card.card_name.toLowerCase().includes(pokemonName.toLowerCase())
+  const priceDropped = hasWantedPriceDrop(wantedCard)
 
   return (
     <li className="flex items-center gap-2 py-2 pl-2 pr-1.5" data-testid="wanted-row" data-card-id={card.card_id}>
@@ -415,7 +425,7 @@ function WantedRow({
         type="button"
         onClick={() => pokemon && onOpen(pokemon)}
         disabled={!pokemon}
-        aria-label={`Open ${card.card_name}${card.card_set ? ` from ${card.card_set}` : ""}`}
+        aria-label={`Open ${card.card_name}${card.card_set ? ` from ${card.card_set}` : ""}${priceDropped ? ", price dropped" : ""}`}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl text-left transition active:bg-primary/5"
       >
         <span className="trading-card relative w-11 shrink-0 border border-border/55 bg-muted dark:border-white/10">
@@ -437,6 +447,7 @@ function WantedRow({
             {priceLabel ?? (isLoadingPrices ? "…" : "No price")}
           </span>
           <PriceRisingBadge price={price} />
+          {priceDropped ? <PriceDropBadge price={price} /> : null}
         </span>
       </button>
       {otherBinderName ? null : <span className="flex shrink-0 items-center">

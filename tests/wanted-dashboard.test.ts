@@ -7,6 +7,8 @@ import {
   sortWantedDashboardEntries,
   applyWantedFilters,
   countWantedFilters,
+  countWantedPriceDrops,
+  hasWantedPriceDrop,
   normalizeWantedFilters,
   normalizeWantedSort,
   toggleWantedFilter,
@@ -186,6 +188,41 @@ function risingPrice(cardId: string, amount: number): CardPriceSnapshot {
     ],
   }
 }
+
+function droppedPrice(cardId: string, amount: number): CardPriceSnapshot {
+  return {
+    ...price(cardId, amount),
+    updatedAt: "2026-10-20T00:00:00.000Z",
+    trendPoints: [
+      { label: "30d", source: "cardmarket", gbpAmount: amount * 1.3, originalAmount: 0, originalCurrency: "GBP" },
+      { label: "7d", source: "cardmarket", gbpAmount: amount * 1.25, originalAmount: 0, originalCurrency: "GBP" },
+      { label: "Trend", source: "cardmarket", gbpAmount: amount, originalAmount: 0, originalCurrency: "GBP" },
+    ],
+  }
+}
+
+test("price drops are flagged, counted and filtered on the want list", () => {
+  const now = Date.parse("2026-10-21T00:00:00.000Z")
+  const summary = buildWantedDashboardSummary(
+    [
+      wantedEntry(1, "d1", { card_set: "Alpha" }),
+      wantedEntry(2, "r1", { card_set: "Alpha" }),
+      wantedEntry(3, "f1", { card_set: "Beta" }),
+      wantedEntry(4, "u1", { card_set: "Beta" }),
+    ],
+    { "d1::en": droppedPrice("d1", 20), "r1::en": risingPrice("r1", 30), "f1::en": price("f1", 8), "u1::en": price("u1", null) },
+  )
+  assert.deepEqual(summary.cards.map((card) => hasWantedPriceDrop(card, now)), [true, false, false, false])
+  assert.equal(countWantedPriceDrops(summary.cards, now), 1)
+  const dropsOnly = { ...EMPTY_WANTED_FILTERS, dropsOnly: true }
+  assert.deepEqual(applyWantedFilters(summary.cards, dropsOnly, now).map((card) => card.card.card_id), ["d1"])
+  assert.equal(countWantedFilters(dropsOnly), 1)
+  assert.deepEqual(applyWantedFilters(summary.cards, { ...dropsOnly, risingOnly: true }, now), [])
+  assert.deepEqual(normalizeWantedFilters({ dropsOnly: true }), dropsOnly)
+  assert.deepEqual(normalizeWantedFilters({ dropsOnly: "yes" }), EMPTY_WANTED_FILTERS)
+  // Stale data never raises an alert.
+  assert.equal(countWantedPriceDrops(summary.cards, Date.parse("2026-11-20T00:00:00.000Z")), 0)
+})
 
 test("sortWantedDashboardEntries orders sets by cost to complete, by name and by rising", () => {
   const now = Date.parse("2026-10-21T00:00:00.000Z")
