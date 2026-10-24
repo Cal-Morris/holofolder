@@ -211,6 +211,7 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`
     await context.addCookies([{ name: storageKey, value: fakeSessionCookieValue(), url: baseURL ?? "http://localhost:3210" }])
   }
+  const showPurchases = new Map<string, unknown>()
   // Mock the Supabase API: auth returns the e2e user, the collection returns the seeded rows,
   // every other table read is empty and writes succeed.
   await target.route(`${SUPABASE_URL}/**`, async (route) => {
@@ -224,6 +225,19 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     }
     if (url.pathname === "/rest/v1/pokemon_collection" && request.method() === "GET") {
       return route.fulfill({ json: SEEDED_COLLECTION })
+    }
+    // Show purchases behave like the real table (what's written reads back), so synced tallies stay put.
+    if (url.pathname === "/rest/v1/show_purchases") {
+      if (request.method() === "POST") {
+        const body = request.postDataJSON() as Array<{ client_id: string }> | { client_id: string }
+        for (const row of Array.isArray(body) ? body : [body]) if (!showPurchases.has(row.client_id)) showPurchases.set(row.client_id, row)
+        return route.fulfill({ status: 201, body: "" })
+      }
+      if (request.method() === "DELETE") {
+        for (const id of (url.searchParams.get("client_id") ?? "").replace(/^in\.\(|\)$/g, "").split(",")) showPurchases.delete(id.replace(/"/g, ""))
+        return route.fulfill({ status: 204, body: "" })
+      }
+      return route.fulfill({ json: [...showPurchases.values()] })
     }
     if (request.method() === "GET" || request.method() === "HEAD") {
       return route.fulfill({ json: [] })

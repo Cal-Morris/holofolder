@@ -25,6 +25,11 @@ export interface ShowPurchase {
 export interface ShowSession {
   startedAt: number
   purchases: ShowPurchase[]
+  /**
+   * When the tally was last cleared (by hand, or when the last show's session ran out). Purchases synced from
+   * the account from before this are left out, so a cleared tally stays cleared on every device.
+   */
+  clearedAt?: number
 }
 
 const isPurchase = (value: unknown): value is ShowPurchase => {
@@ -44,22 +49,35 @@ export function parseShowSession(raw: string | null | undefined, now: number): S
   try {
     const value = JSON.parse(raw) as Partial<ShowSession>
     const startedAt = typeof value.startedAt === "number" && Number.isFinite(value.startedAt) ? value.startedAt : now
-    if (now - startedAt > SHOW_SESSION_MAX_AGE_MS) return emptyShowSession(now)
+    if (now - startedAt > SHOW_SESSION_MAX_AGE_MS) return { ...emptyShowSession(now), clearedAt: startedAt + SHOW_SESSION_MAX_AGE_MS }
+    const clearedAt = typeof value.clearedAt === "number" && Number.isFinite(value.clearedAt) ? value.clearedAt : undefined
     const purchases = Array.isArray(value.purchases) ? value.purchases.filter(isPurchase).map((entry) => ({
       ...entry,
       language: typeof entry.language === "string" ? entry.language : "en",
       finish: typeof entry.finish === "string" ? entry.finish : "normal",
       marketPrice: typeof entry.marketPrice === "number" && Number.isFinite(entry.marketPrice) ? entry.marketPrice : null,
     })) : []
-    return { startedAt, purchases }
+    return clearedAt === undefined ? { startedAt, purchases } : { startedAt, purchases, clearedAt }
   } catch {
     return emptyShowSession(now)
   }
 }
 
 export function addShowPurchase(session: ShowSession, purchase: ShowPurchase, now: number): ShowSession {
-  const base = session.purchases.length === 0 || now - session.startedAt > SHOW_SESSION_MAX_AGE_MS ? emptyShowSession(now) : session
+  const expired = now - session.startedAt > SHOW_SESSION_MAX_AGE_MS
+  const base = session.purchases.length === 0 || expired
+    ? withClearedAt(emptyShowSession(now), expired ? session.startedAt + SHOW_SESSION_MAX_AGE_MS : session.clearedAt)
+    : session
   return { ...base, purchases: [...base.purchases, purchase] }
+}
+
+/** An empty tally that ignores account purchases from before `now` (Settings → Clear). */
+export function clearedShowSession(now: number): ShowSession {
+  return { ...emptyShowSession(now), clearedAt: now }
+}
+
+function withClearedAt(session: ShowSession, clearedAt: number | undefined): ShowSession {
+  return clearedAt === undefined ? session : { ...session, clearedAt }
 }
 
 export function removeShowPurchases(session: ShowSession, ids: readonly string[]): ShowSession {
