@@ -118,7 +118,7 @@ interface UseCollectionOptions {
   readOnly?: boolean
 }
 
-interface SaveCollectionOptions {
+export interface SaveCollectionOptions {
   cardFinish?: CardFinish
   wantedCards?: WantedCard[]
   /** Other ids the added card is known by (catalog canonical id and aliases), so a wanted alias is fulfilled too. */

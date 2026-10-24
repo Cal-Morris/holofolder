@@ -1,0 +1,172 @@
+"use client"
+
+import { Button } from "@/components/ui/button"
+import { ChevronDown, ChevronUp, Grid3X3, Heart, Layers3, ListChecks, Loader2, Search as SearchIcon, SlidersHorizontal, Sparkles } from "lucide-react"
+import type { ResolvedPricingPreferences } from "@/lib/pricing-region"
+import type { Dispatch, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from "react"
+import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
+import type { ActiveMainView, CollectionViewFilter } from "@/components/binder/binder-app-model"
+
+export interface BottomNavContext {
+  activeCollectionFilterOption: { id: CollectionViewFilter; label: string; mobileLabel: string; description: string; }
+  activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
+  activeJumpPokemonList: PokemonEntry[]
+  activeMainView: ActiveMainView
+  canFilterCollection: boolean
+  closeControlsSheet: () => void
+  collectionViewFilter: CollectionViewFilter
+  handleJumpToNextNeeded: () => void
+  hasTrackedCards: boolean
+  isLoadingPrices: boolean
+  isMobileFilterSheetOpen: boolean
+  isMobileNavExpanded: boolean
+  isPriceMode: boolean
+  isQuickModeOpen: boolean
+  isSearchOpen: boolean
+  isShowModeOn: boolean
+  lastBrowseViewRef: RefObject<"sets" | "pokemon">
+  openExclusively: (open: () => void) => void
+  openQuickMode: () => void
+  openSearch: () => void
+  pricingPreferences: ResolvedPricingPreferences
+  quickPressFiredRef: RefObject<boolean>
+  quickPressHandlers: { onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void; onPointerUp: () => void; onPointerLeave: () => void; onPointerCancel: () => void; onContextMenu: (event: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void; }
+  setIsMobileFilterSheetOpen: Dispatch<SetStateAction<boolean>>
+  setIsMobileNavExpanded: Dispatch<SetStateAction<boolean>>
+  setIsPriceMode: Dispatch<SetStateAction<boolean>>
+  setSelectedPokemon: Dispatch<SetStateAction<PokemonSummary | null>>
+  switchMainView: (view: ActiveMainView) => Promise<void>
+}
+
+export function renderBottomNavView(ctx: BottomNavContext) {
+  const { activeCollectionFilterOption, activeJumpLabel, activeJumpPokemonList, activeMainView, canFilterCollection, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, hasTrackedCards, isLoadingPrices, isMobileFilterSheetOpen, isMobileNavExpanded, isPriceMode, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, pricingPreferences, quickPressFiredRef, quickPressHandlers, setIsMobileFilterSheetOpen, setIsMobileNavExpanded, setIsPriceMode, setSelectedPokemon, switchMainView } = ctx
+  return (
+    <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden px-2 pb-[var(--dock-inset)] md:hidden">
+      <div className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-[1.25rem] border border-border/70 bg-card/96 p-1 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
+        <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl bg-muted/42 dark:bg-muted/35">
+          <button
+            onClick={() => {
+              if (quickPressFiredRef.current) {
+                quickPressFiredRef.current = false
+                return
+              }
+              if (isShowModeOn) openQuickMode()
+              else openSearch()
+            }}
+            {...quickPressHandlers}
+            aria-label="Search"
+            aria-description="Press and hold for Quick mode"
+            title="Search (hold for Quick mode)"
+            className={`flex h-11 min-w-0 touch-manipulation select-none items-center justify-center rounded-[0.9rem] px-1 transition-all [-webkit-touch-callout:none] ${
+                isSearchOpen || isQuickModeOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+          >
+            <SearchIcon className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              switchMainView("binder")
+            }}
+            aria-label="Binder"
+            title="Binder"
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+                !isSearchOpen && activeMainView === "binder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              switchMainView("list")
+            }}
+            aria-label="List"
+            title="List"
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+                !isSearchOpen && activeMainView === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+          >
+            <ListChecks className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              switchMainView("wanted")
+            }}
+            aria-label="Wanted"
+            title="Wanted"
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+                !isSearchOpen && activeMainView === "wanted" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+          >
+            <Heart className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              switchMainView(lastBrowseViewRef.current)
+            }}
+            aria-label="Sets"
+            title="Sets"
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+                !isSearchOpen && (activeMainView === "sets" || activeMainView === "pokemon") ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+          >
+            <Layers3 className="h-4 w-4" />
+          </button>
+        </div>
+
+          {!isSearchOpen && activeMainView === "binder" && (
+            <div className="flex shrink-0 items-center gap-1">
+            {hasTrackedCards && (
+              <Button
+                variant={isPriceMode ? "default" : "outline"}
+                size="icon"
+                className="h-11 w-9 shrink-0 rounded-2xl px-0"
+                onClick={() => setIsPriceMode((current) => !current)}
+                aria-label={isPriceMode ? "Hide prices" : "Show prices"}
+              >
+                {isLoadingPrices && isPriceMode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-bold">{{ GBP: "£", USD: "$", EUR: "€", JPY: "¥" }[pricingPreferences.currency]}</span>}
+              </Button>
+            )}
+            <Button
+              variant="default"
+              size="icon"
+              className="h-11 w-9 shrink-0 rounded-2xl px-0"
+              onClick={handleJumpToNextNeeded}
+              disabled={activeJumpPokemonList.length === 0}
+              aria-label={`Next ${activeJumpLabel.toLowerCase()}`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+            </Button>
+              <Button
+                variant={collectionViewFilter === "all" && !isMobileFilterSheetOpen ? "outline" : "default"}
+                size="icon"
+              className="h-11 w-9 shrink-0 rounded-2xl px-0"
+              onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileFilterSheetOpen(true) })}
+              disabled={!canFilterCollection}
+              aria-label={`Filter: ${activeCollectionFilterOption.mobileLabel}`}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11 w-9 shrink-0 rounded-2xl px-0"
+              onClick={() => {
+                if (isMobileNavExpanded) {
+                  closeControlsSheet()
+                  return
+                }
+                openExclusively(() => {
+                  setSelectedPokemon(null)
+                  setIsMobileNavExpanded(true)
+                })
+              }}
+              aria-label={isMobileNavExpanded ? "Close controls" : "Open controls"}
+            >
+              {isMobileNavExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+        )}
+      </div>
+    </nav>
+)
+}
