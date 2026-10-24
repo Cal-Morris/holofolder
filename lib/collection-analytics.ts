@@ -1,6 +1,6 @@
 import { getCardPriceKey, isStandardFinishVariantKey, type CardPriceSnapshot } from "@/lib/card-pricing"
 import { isCardFinish, isCardLanguage, type CollectedPokemon, type WantedCard } from "@/lib/domain/cards"
-import { getRisingMomentum, measurePriceMomentum, type PriceMomentum } from "@/lib/price-momentum"
+import { getFallingMomentum, getRisingMomentum, type PriceMomentum } from "@/lib/price-momentum"
 import { getPriceDataAgeDays } from "@/lib/price-freshness"
 
 export interface AnalyticsCard {
@@ -59,10 +59,8 @@ export function buildCollectionAnalytics(collection: CollectedPokemon[], prices:
     if (!Number.isFinite(timestamp) || timestamp > now || entry.amount === null) continue
     const momentum = getRisingMomentum(entry.price, now)
     if (momentum) rising.push({ ...entry, momentum })
-    const measurements = measurePriceMomentum(entry.price, now)
-    const declines = measurements.filter(point => point.timeframe === "7d" ? point.change <= -0.1
-      : point.change <= -0.15 && !measurements.some(other => other.source === point.source && other.timeframe === "7d" && other.change > 0))
-    if (declines.length) falling.push({ ...entry, momentum: declines.reduce((best, point) => point.change < best.change ? point : best) })
+    const decline = getFallingMomentum(entry.price, now)
+    if (decline) falling.push({ ...entry, momentum: decline })
   }
   rising.sort((a, b) => b.momentum.change - a.momentum.change || a.key.localeCompare(b.key))
   falling.sort((a, b) => a.momentum.change - b.momentum.change || a.key.localeCompare(b.key))

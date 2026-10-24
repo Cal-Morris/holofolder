@@ -1,6 +1,6 @@
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/hooks/use-collection"
-import { getRisingMomentum } from "@/lib/price-momentum"
+import { getFallingMomentum, getRisingMomentum } from "@/lib/price-momentum"
 
 export type WantedDashboardSort = "highest" | "lowest" | "cheapest-set" | "name" | "set" | "newest" | "rising" | "dex" | "unpriced"
 export type WantedDashboardPriceBandId = "under-5" | "five-to-15" | "fifteen-to-50" | "over-50" | "unpriced"
@@ -250,9 +250,11 @@ export interface WantedFilters {
   finishes: string[]
   languages: string[]
   risingOnly: boolean
+  /** Only cards whose UK price has dropped (see getFallingMomentum). */
+  dropsOnly: boolean
 }
 
-export const EMPTY_WANTED_FILTERS: WantedFilters = { bands: [], sets: [], finishes: [], languages: [], risingOnly: false }
+export const EMPTY_WANTED_FILTERS: WantedFilters = { bands: [], sets: [], finishes: [], languages: [], risingOnly: false, dropsOnly: false }
 
 const PRICE_BAND_IDS = new Set<string>(["under-5", "five-to-15", "fifteen-to-50", "over-50", "unpriced"])
 
@@ -269,11 +271,12 @@ export function normalizeWantedFilters(value: unknown): WantedFilters {
     finishes: stringList(raw.finishes),
     languages: stringList(raw.languages),
     risingOnly: raw.risingOnly === true,
+    dropsOnly: raw.dropsOnly === true,
   }
 }
 
 export function countWantedFilters(filters: WantedFilters) {
-  return filters.bands.length + filters.sets.length + filters.finishes.length + filters.languages.length + Number(filters.risingOnly)
+  return filters.bands.length + filters.sets.length + filters.finishes.length + filters.languages.length + Number(filters.risingOnly) + Number(filters.dropsOnly)
 }
 
 export function applyWantedFilters<T extends WantedDashboardCard>(cards: T[], filters: WantedFilters, now = Date.now()): T[] {
@@ -283,10 +286,24 @@ export function applyWantedFilters<T extends WantedDashboardCard>(cards: T[], fi
     (filters.sets.length === 0 || filters.sets.includes(card.card.card_set || "Unknown set")) &&
     (filters.finishes.length === 0 || filters.finishes.includes(card.card.card_finish ?? "normal")) &&
     (filters.languages.length === 0 || filters.languages.includes(card.card.card_language ?? "en")) &&
-    (!filters.risingOnly || getRisingMomentum(card.price, now) != null))
+    (!filters.risingOnly || getRisingMomentum(card.price, now) != null) &&
+    (!filters.dropsOnly || hasWantedPriceDrop(card, now)))
 }
 
-export function toggleWantedFilter<K extends Exclude<keyof WantedFilters, "risingOnly">>(filters: WantedFilters, key: K, value: WantedFilters[K][number]): WantedFilters {
+/**
+ * Price-drop alert for a wanted card: its UK price has fallen meaningfully against its own recent
+ * average (same rules and data gates as the Rising badge, mirrored). Computed on the device from the
+ * price data already loaded for the list, so there is no server job.
+ */
+export function hasWantedPriceDrop(card: Pick<WantedDashboardCard, "price" | "isPriced">, now = Date.now()) {
+  return card.isPriced && getFallingMomentum(card.price, now) != null
+}
+
+export function countWantedPriceDrops(cards: Array<Pick<WantedDashboardCard, "price" | "isPriced">>, now = Date.now()) {
+  return cards.reduce((count, card) => count + Number(hasWantedPriceDrop(card, now)), 0)
+}
+
+export function toggleWantedFilter<K extends Exclude<keyof WantedFilters, "risingOnly" | "dropsOnly">>(filters: WantedFilters, key: K, value: WantedFilters[K][number]): WantedFilters {
   const list = filters[key] as string[]
   const next = list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
   return { ...filters, [key]: next }

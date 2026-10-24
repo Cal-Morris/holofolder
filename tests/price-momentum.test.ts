@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import { buildBuySignal } from "../lib/price-intelligence"
 import {
   formatMomentumChange,
+  getFallingMomentum,
   getRisingMomentum,
   measurePriceMomentum,
   type MomentumPriceInput,
@@ -108,4 +109,22 @@ test("buildBuySignal never calls Rising on low confidence", () => {
   assert.notEqual(buildBuySignal({ ...input, confidence: "low" })?.status, "rising")
   assert.notEqual(buildBuySignal({ ...input, confidence: "unknown" })?.status, "rising")
   assert.notEqual(buildBuySignal(input)?.status, "rising")
+})
+
+test("price drops mirror the rising rules: 7d at -10% or more, 30d at -15% or more", () => {
+  const sevenDay = getFallingMomentum(fixturePrice({ "30d": 10, "7d": 10, Trend: 9 }), now)
+  assert.equal(sevenDay?.timeframe, "7d")
+  assert.equal(formatMomentumChange(sevenDay!.change), "-10%")
+  const thirtyDay = getFallingMomentum(fixturePrice({ "30d": 20, "7d": 16.5, Trend: 16 }), now)
+  assert.equal(thirtyDay?.timeframe, "30d")
+  assert.equal(formatMomentumChange(thirtyDay!.change), "-20%")
+  assert.equal(getFallingMomentum(fixturePrice({ "30d": 10, "7d": 9.5, Trend: 9.1 }), now), null)
+})
+
+test("price drops are suppressed when the 7d move already reversed, the data is thin, stale or pennies", () => {
+  assert.equal(getFallingMomentum(fixturePrice({ "30d": 20, "7d": 15, Trend: 16 }), now), null)
+  assert.equal(getFallingMomentum(fixturePrice({ "7d": 20, Trend: 10 }, { confidence: "low" }), now), null)
+  assert.equal(getFallingMomentum(fixturePrice({ "7d": 20, Trend: 10 }, { updatedAt: new Date(now - 10 * 86_400_000).toISOString() }), now), null)
+  assert.equal(getFallingMomentum(fixturePrice({ "7d": 1.5, Trend: 0.6 }), now), null)
+  assert.equal(getRisingMomentum(fixturePrice({ "7d": 20, Trend: 10 }), now), null)
 })

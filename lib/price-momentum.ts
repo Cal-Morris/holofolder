@@ -17,9 +17,15 @@
  *   - provider data older than MAX_MOMENTUM_DATA_AGE_DAYS (by snapshot updatedAt) is
  *     too stale to call a trend.
  * When both windows qualify, the larger % change is reported with its timeframe.
+ *
+ * "Price dropped" mirrors it downwards, on the same gates: current vs 7d average <= -10%
+ * (FALLING_7D_THRESHOLD) or vs 30d average <= -15% (FALLING_30D_THRESHOLD), a 30d drop being
+ * ignored when the same source's 7d change is already back up. The biggest drop is reported.
  */
 export const RISING_7D_THRESHOLD = 0.1
 export const RISING_30D_THRESHOLD = 0.15
+export const FALLING_7D_THRESHOLD = -0.1
+export const FALLING_30D_THRESHOLD = -0.15
 export const MIN_MOMENTUM_PRICE_GBP = 1
 export const MAX_PLAUSIBLE_CHANGE = 3
 export const MAX_MOMENTUM_DATA_AGE_DAYS = 7
@@ -101,6 +107,20 @@ export function getRisingMomentum(price: MomentumPriceInput | null | undefined, 
 
   if (qualifying.length === 0) return null
   return qualifying.reduce((best, candidate) => (candidate.change > best.change ? candidate : best))
+}
+
+export function getFallingMomentum(price: MomentumPriceInput | null | undefined, now = Date.now()): PriceMomentum | null {
+  const measurements = measurePriceMomentum(price, now)
+  const qualifying = measurements.filter((measurement) => {
+    if (measurement.timeframe === "7d") return measurement.change <= FALLING_7D_THRESHOLD
+
+    const sameSource7d = measurements.find((other) => other.source === measurement.source && other.timeframe === "7d")
+    if (sameSource7d && sameSource7d.change > 0) return false
+    return measurement.change <= FALLING_30D_THRESHOLD
+  })
+
+  if (qualifying.length === 0) return null
+  return qualifying.reduce((best, candidate) => (candidate.change < best.change ? candidate : best))
 }
 
 export function formatMomentumChange(change: number) {
