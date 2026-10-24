@@ -166,7 +166,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={success ? successTitle : "Welcome, sign in"} className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] mx-auto flex w-auto max-w-sm flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85vh,44rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={success ? successTitle : "Welcome, sign in"} className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-sm flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85vh,44rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div className="relative shrink-0 px-6 pt-6 pb-4 sm:px-6 sm:pt-6 sm:pb-4">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
           <button

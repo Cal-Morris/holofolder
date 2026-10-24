@@ -1,5 +1,6 @@
 import { test, expect, emulateStandalone, type Harness } from "./fixtures"
 import type { Page } from "@playwright/test"
+import { seedWantList } from "./wanted-fixtures"
 
 // iOS 26 installed apps can get a web view that is short at the bottom by the status-bar height
 // (lib/ios-viewport-gap.ts). Then the dock drops its duplicate home-indicator padding and sits near
@@ -66,6 +67,49 @@ test.describe("installed app", () => {
     expect(bar.y + bar.height).toBeLessThanOrEqual(793 - 34 + 0.5)
   })
 })
+
+// Sheets and dialogs pad from --safe-bottom: the home-indicator inset minus the dead band.
+for (const [label, height, gap] of [["short iOS 26 view", 793, 59], ["full-height view", 852, 0]] as const) {
+  test.describe(`installed app, ${label}: sheets and dialogs`, () => {
+    test.use({ signedIn: true })
+    test.beforeEach(({}, testInfo) => {
+      test.skip(!testInfo.project.metadata?.standalone || !testInfo.project.name.includes("390"), "one installed-app run")
+    })
+
+    test("a bottom sheet pads once for the home indicator", async ({ harness }) => {
+      const { page } = harness
+      await seedWantList(page)
+      await fakeScreen(page, 393, 852)
+      await reloadAt(harness, 393, height)
+      await expect(page.locator("html")).toHaveAttribute("data-ios-viewport-gap", String(gap))
+      await harness.dock().getByRole("button", { name: "Wanted", exact: true }).click()
+      await expect(page.getByTestId("wanted-row")).toHaveCount(6)
+      await page.getByTestId("wanted-sort-filter").click()
+      const sheet = page.getByRole("dialog", { name: "Sort and filter want list" })
+      await expect(sheet).toBeVisible()
+      await page.waitForTimeout(400)
+      const padding = await sheet.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))
+      expect(padding).toBeCloseTo(12 + (gap ? 0 : harness.insets.bottom), 0)
+      const box = (await sheet.boundingBox())!
+      expect(box.y + box.height).toBeLessThanOrEqual(height + 0.5)
+      await harness.expectHittable(sheet.getByRole("button", { name: /^Show \d+ cards?$/ }))
+    })
+
+    test("a dialog stops above the home indicator", async ({ harness }) => {
+      const { page } = harness
+      await fakeScreen(page, 393, 852)
+      await reloadAt(harness, 393, height)
+      await expect(page.locator("html")).toHaveAttribute("data-ios-viewport-gap", String(gap))
+      await page.getByRole("button", { name: "More", exact: true }).click()
+      await page.getByRole("menuitem", { name: "Settings" }).click()
+      const settings = page.getByRole("dialog", { name: /settings/i })
+      await expect(settings).toBeVisible()
+      await page.waitForTimeout(400)
+      const box = (await settings.boundingBox())!
+      expect(box.y + box.height).toBeCloseTo(height - 16 - (gap ? 0 : harness.insets.bottom), 0)
+    })
+  })
+}
 
 test.describe("browser tab", () => {
   test.beforeEach(({}, testInfo) => {

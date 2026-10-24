@@ -16,7 +16,9 @@
      dock positions itself from --dock-clearance.
      --ios-viewport-gap (lib/ios-viewport-gap.ts) is the dead band iOS 26 can leave under an installed
      app's page; that band already clears the home indicator, so it comes off the inset (0 elsewhere). */
-  --dock-inset: max(calc(env(safe-area-inset-bottom) - var(--ios-viewport-gap, 0px)), 0.5rem);
+  /* Bottom safe area for sheets and dialogs: the home-indicator inset minus any iOS 26 dead band. */
+  --safe-bottom: max(calc(env(safe-area-inset-bottom) - var(--ios-viewport-gap, 0px)), 0px);
+  --dock-inset: max(var(--safe-bottom), 0.5rem);
   --dock-bar: 3.375rem;
   --dock-clearance: calc(var(--dock-inset) + var(--dock-bar));
   /* Paper and charcoal leave the colour to the cards and chosen pocket pages. */
