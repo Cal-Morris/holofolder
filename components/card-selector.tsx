@@ -1,7 +1,8 @@
 "use client"
 
 import { toCardImageSrc } from "@/lib/card-image-url"
-import { cropCanvasToCardGuide, delay, drawVideoCoverFrame } from "@/lib/camera-frame"
+import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from "@/lib/camera-frame"
+import { useCameraStream } from "@/hooks/use-camera-stream"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
@@ -67,9 +68,9 @@ const CARD_SCAN_FRAME_DELAY_MS = 450
 const CARD_SCAN_MIN_USABLE_FRAMES = 3
 const CARD_SCAN_OCR_FRAME_LIMIT = 4
 const CARD_SCAN_CANDIDATE_ASSET_OCR_LIMIT = 18
-const CARD_GUIDE_INSET_X = 0.18
-const CARD_GUIDE_INSET_Y = 0.1
-const CARD_ASPECT_RATIO = 2.5 / 3.5
+const CARD_GUIDE_INSET_X = SINGLE_CARD_GUIDE.insetX
+const CARD_GUIDE_INSET_Y = SINGLE_CARD_GUIDE.insetY
+const CARD_ASPECT_RATIO = SINGLE_CARD_GUIDE.aspectRatio
 
 function formatGbpAmount(amount: number | null | undefined) {
   return typeof amount === "number" && Number.isFinite(amount)
@@ -89,35 +90,6 @@ function getCardSelectorPriceLabels(price: CardPriceSnapshot | undefined, format
     market: formatAmount(price?.marketGbpAmount ?? price?.gbpAmount, price),
     range: low && high ? (low === high ? low : `${low}-${high}`) : low || high,
     confidence,
-  }
-}
-
-async function canvasToFile(canvas: HTMLCanvasElement, index: number) {
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92))
-  if (!blob) {
-    throw new Error("Could not encode the card scan frame.")
-  }
-
-  return new File([blob], `card-scan-${index}.jpg`, { type: "image/jpeg" })
-}
-
-async function captureGuidedCardFrameFile(video: HTMLVideoElement, canvas: HTMLCanvasElement, index: number) {
-  const previewWidth = Math.max(480, Math.round((video.clientWidth || 360) * 2))
-  const previewHeight = Math.max(820, Math.round((video.clientHeight || 640) * 2))
-  canvas.width = previewWidth
-  canvas.height = previewHeight
-  const context = canvas.getContext("2d")
-
-  if (!context) {
-    throw new Error("Could not capture the card scanner frame.")
-  }
-
-  drawVideoCoverFrame(video, context, previewWidth, previewHeight)
-  const guidedCanvas = cropCanvasToCardGuide(canvas, { insetX: CARD_GUIDE_INSET_X, insetY: CARD_GUIDE_INSET_Y, aspectRatio: CARD_ASPECT_RATIO, minWidth: 220, minHeight: 300, errorMessage: "Could not crop the card guide frame." })
-
-  return {
-    file: await canvasToFile(guidedCanvas, index),
-    previewUrl: guidedCanvas.toDataURL("image/jpeg", 0.82),
   }
 }
 
@@ -215,8 +187,7 @@ export default function CardSelector({
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null)
   const [scanMatches, setScanMatches] = useState<CardScanMatch[]>([])
   const [isCardScannerOpen, setIsCardScannerOpen] = useState(false)
-  const [cameraError, setCameraError] = useState<string | null>(null)
-  const [isCameraReady, setIsCameraReady] = useState(false)
+  const [scanCameraError, setCameraError] = useState<string | null>(null)
   const [isCapturingCardScan, setIsCapturingCardScan] = useState(false)
   const [isApplyingCardResults, setIsApplyingCardResults] = useState(false)
   const [cardFramesProcessed, setCardFramesProcessed] = useState(0)
@@ -224,7 +195,6 @@ export default function CardSelector({
   const [lastFramePreviewUrl, setLastFramePreviewUrl] = useState<string | null>(null)
   const descriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
   const cardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map())
-  const cameraStreamRef = useRef<MediaStream | null>(null)
   const cardVideoRef = useRef<HTMLVideoElement | null>(null)
   const cardCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const isWishlistMode = selectionMode === "wishlist"
@@ -340,55 +310,9 @@ export default function CardSelector({
     }
   }, [scanPreviewUrl])
 
-  useEffect(() => {
-    if (!isCardScannerOpen) {
-      return
-    }
-
-    let cancelled = false
-    const videoElement = cardVideoRef.current
-
-    const startCamera = async () => {
-      setCameraError(null)
-      setIsCameraReady(false)
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-          audio: false,
-        })
-
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop())
-          return
-        }
-
-        cameraStreamRef.current = stream
-        if (cardVideoRef.current) {
-          cardVideoRef.current.srcObject = stream
-          await cardVideoRef.current.play()
-        }
-        setIsCameraReady(true)
-      } catch (cameraError) {
-        setCameraError(cameraError instanceof Error ? cameraError.message : "Could not access the camera.")
-      }
-    }
-
-    startCamera()
-
-    return () => {
-      cancelled = true
-      cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
-      cameraStreamRef.current = null
-      if (videoElement) {
-        videoElement.srcObject = null
-      }
-    }
-  }, [isCardScannerOpen])
+  const camera = useCameraStream(isCardScannerOpen, cardVideoRef)
+  const cameraError = scanCameraError ?? camera.error
+  const isCameraReady = camera.ready
 
   const variantFilter = getVariantFilter(variantChoice)
   const filteredCards = useMemo(
@@ -563,7 +487,6 @@ export default function CardSelector({
   const closeCardScanner = useCallback(() => {
     setIsCardScannerOpen(false)
     setCameraError(null)
-    setIsCameraReady(false)
     setIsCapturingCardScan(false)
     setIsApplyingCardResults(false)
     setCardFramesProcessed(0)
@@ -627,7 +550,7 @@ export default function CardSelector({
 
       for (let index = 0; index < CARD_SCAN_FRAME_COUNT; index += 1) {
         setCardFramesProcessed(index + 1)
-        const frame = await captureGuidedCardFrameFile(video, canvas, index)
+        const frame = await captureSingleCardFrame(video, canvas, index)
         setLastFramePreviewUrl(frame.previewUrl)
 
         try {

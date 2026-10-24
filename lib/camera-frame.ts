@@ -1,4 +1,4 @@
-// Shared camera-frame helpers for the binder page scanner and the card selector's scanner.
+// Shared camera-frame helpers for the binder page scanner, the card selector's scanner and Show mode's Scan.
 
 export function delay(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms))
@@ -60,4 +60,37 @@ export function cropCanvasToCardGuide(sourceCanvas: HTMLCanvasElement, guide: Ca
   context.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height)
 
   return canvas
+}
+
+/** The on-screen guide for scanning one card (shared by the card selector's scanner and Show mode's Scan). */
+export const SINGLE_CARD_GUIDE = { insetX: 0.18, insetY: 0.1, aspectRatio: 2.5 / 3.5 } as const
+
+async function canvasToJpegFile(canvas: HTMLCanvasElement, index: number) {
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92))
+  if (!blob) {
+    throw new Error("Could not encode the card scan frame.")
+  }
+
+  return new File([blob], `card-scan-${index}.jpg`, { type: "image/jpeg" })
+}
+
+/** Grabs the camera frame, cropped to the single-card guide, as a JPEG file and a data URL preview. */
+export async function captureSingleCardFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement, index: number) {
+  const previewWidth = Math.max(480, Math.round((video.clientWidth || 360) * 2))
+  const previewHeight = Math.max(820, Math.round((video.clientHeight || 640) * 2))
+  canvas.width = previewWidth
+  canvas.height = previewHeight
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Could not capture the card scanner frame.")
+  }
+
+  drawVideoCoverFrame(video, context, previewWidth, previewHeight)
+  const guidedCanvas = cropCanvasToCardGuide(canvas, { ...SINGLE_CARD_GUIDE, minWidth: 220, minHeight: 300, errorMessage: "Could not crop the card guide frame." })
+
+  return {
+    file: await canvasToJpegFile(guidedCanvas, index),
+    previewUrl: guidedCanvas.toDataURL("image/jpeg", 0.82),
+  }
 }

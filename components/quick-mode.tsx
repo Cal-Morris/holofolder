@@ -51,9 +51,30 @@ import { searchOfflineCards } from "@/lib/offline-card-index"
 // Bundled with Quick mode (not split) so the finder never needs a network round trip at a show.
 import ShowHunt, { PokemonSprite } from "@/components/show-hunt"
 import ShowPokemonCards from "@/components/show-pokemon-cards"
+// Also bundled, so Scan opens offline at a show without fetching its code.
+import QuickCardScanner, { type CardScanResult } from "@/components/quick-card-scanner"
 
 const QuickCardCheck = dynamic(() => import("@/components/quick-card-check"), { ssr: false })
 const QuickBundle = dynamic(() => import("@/components/quick-bundle"), { ssr: false })
+
+/** What to tell him when a scan lands in the search field instead of a deal check. */
+export function scanNoticeFor(result: CardScanResult): string | null {
+  const { outcome } = result
+  if (outcome.kind === "match") return null
+  if (outcome.kind === "choose") {
+    return result.offline
+      ? `Read “${outcome.query}”. Offline, only cards saved on this device can be matched. Pick it below or edit the search.`
+      : `Read “${outcome.query}”. Pick the right printing below.`
+  }
+  if (!outcome.query) {
+    return result.readerUnavailable && result.offline
+      ? "Couldn’t read the card offline. Type its name or number."
+      : result.readerUnavailable
+      ? "Couldn’t read the card. Type its name or number."
+      : null
+  }
+  return `Only read “${outcome.query}”. Add the name or number to find it.`
+}
 
 const BUNDLE_KEY = "binderdex:show-bundle:v1"
 
@@ -163,6 +184,8 @@ export default function QuickMode({
     }
   }, [])
   const [query, setQuery] = useState(initialQuery)
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
+  const [scanNotice, setScanNotice] = useState<string | null>(null)
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentQuickSearches(typeof window === "undefined" ? undefined : window.localStorage))
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -242,6 +265,31 @@ export default function QuickMode({
     if (cardCheck) setChecking({ card, pokemon, finish })
     else onSelectCard(card, pokemon)
   }, [cardCheck, onSelectCard, remember])
+
+  // A sure match opens its deal check (Back shows the search it read); anything else is typed in for him.
+  const focusSearchAfterScanRef = useRef(false)
+  const handleScan = useCallback((result: CardScanResult) => {
+    setIsScannerOpen(false)
+    setBrowsing(null)
+    setIsBundleOpen(false)
+    const { outcome } = result
+    if (outcome.query) setQuery(outcome.query)
+    setScanNotice(scanNoticeFor(result))
+    if (outcome.kind === "match") {
+      writeRecentCards(window.localStorage, addRecentCard(readRecentCards(window.localStorage), toRecentCard(outcome.card, outcome.pokemon)))
+      setChecking({ card: outcome.card, pokemon: outcome.pokemon })
+      return
+    }
+    focusSearchAfterScanRef.current = true
+  }, [])
+
+  // Focus the search once the scanner has unmounted, after its overlay has handed focus back.
+  useEffect(() => {
+    if (isScannerOpen || !focusSearchAfterScanRef.current) return
+    focusSearchAfterScanRef.current = false
+    const frame = window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
+    return () => window.cancelAnimationFrame(frame)
+  }, [isScannerOpen])
 
   const go = useCallback((destination: QuickDestinationId) => {
     remember()
@@ -542,7 +590,13 @@ export default function QuickMode({
               <span className="shrink-0">Check bundle</span>
             </button>
           )}
-          <label className="relative block">
+          {scanNotice && (
+            <p role="status" data-testid="scan-notice" className="mb-2 rounded-xl bg-amber-500/12 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+              {scanNotice}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+          <label className="relative block min-w-0 flex-1">
             <span className="sr-only">Search cards, Pokémon, sets and pages</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <input
@@ -558,14 +612,38 @@ export default function QuickMode({
               onChange={(event) => {
                 setQuery(event.target.value)
                 setBrowsing(null)
+                setScanNotice(null)
               }}
               onKeyDown={handleKeyDown}
               placeholder={cardCheck ? "Search a Pokémon, card or “44/102”…" : "Card, Pokémon, “44/102”, artist or page…"}
               className="h-14 w-full rounded-2xl border border-border/70 bg-background pl-12 pr-4 text-base font-medium outline-none placeholder:text-muted-foreground/80 focus:border-primary focus:ring-2 focus:ring-primary/30"
             />
           </label>
+          {cardCheck && (
+            <button
+              type="button"
+              onClick={() => {
+                setScanNotice(null)
+                setIsScannerOpen(true)
+              }}
+              aria-label="Scan a card"
+              className="flex h-14 shrink-0 items-center gap-1.5 rounded-2xl bg-amber-400 px-3.5 text-sm font-bold text-black"
+            >
+              <Camera className="h-5 w-5" aria-hidden />
+              Scan
+            </button>
+          )}
+          </div>
         </div>
         </>
+        )}
+        {isScannerOpen && (
+          <QuickCardScanner
+            onClose={() => setIsScannerOpen(false)}
+            onResult={handleScan}
+            isOnline={isOnline}
+            getOfflineCards={getOfflineCards}
+          />
         )}
       </div>
     </div>
