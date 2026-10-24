@@ -25,7 +25,7 @@ let tesseractWorkerPromise: Promise<TesseractWorker> | null = null
 let tesseractRecognitionQueue: Promise<unknown> = Promise.resolve()
 
 export interface CardOcrRegion {
-  key: "full" | "bottom" | "number-left" | "number-right"
+  key: "full" | "bottom" | "number-left" | "number-right" | "name"
   x: number
   y: number
   width: number
@@ -34,7 +34,13 @@ export interface CardOcrRegion {
 
 export interface RecognizeCardTextSignalsOptions {
   exhaustive?: boolean
+  /** Which parts of the card to read, in order (default: full card, bottom strip, both number corners). */
+  regions?: readonly CardOcrRegion["key"][]
+  /** Stop reading more regions once this is true (instead of "has a collector number"). */
+  isEnough?: (signals: CardTextSignals) => boolean
 }
+
+const DEFAULT_OCR_REGIONS: readonly CardOcrRegion["key"][] = ["full", "bottom", "number-left", "number-right"]
 
 interface PreparedOcrImage {
   region: CardOcrRegion
@@ -83,18 +89,21 @@ function region(
   }
 }
 
-export function getCardOcrRegions(imageWidth: number, imageHeight: number): CardOcrRegion[] {
+export function getCardOcrRegions(imageWidth: number, imageHeight: number, keys: readonly CardOcrRegion["key"][] = DEFAULT_OCR_REGIONS): CardOcrRegion[] {
   const width = Math.max(1, Math.round(imageWidth))
   const height = Math.max(1, Math.round(imageHeight))
   const bottomY = Math.round(height * OCR_BOTTOM_REGION_TOP)
   const bottomHeight = height - bottomY
 
-  return [
-    region("full", width, height, 0, 0, width, height),
-    region("bottom", width, height, width * 0.03, bottomY, width * 0.94, bottomHeight),
-    region("number-left", width, height, width * 0.02, height * 0.72, width * 0.48, height * 0.25),
-    region("number-right", width, height, width * 0.42, height * 0.72, width * 0.56, height * 0.25),
-  ]
+  const regions: Record<CardOcrRegion["key"], () => CardOcrRegion> = {
+    full: () => region("full", width, height, 0, 0, width, height),
+    bottom: () => region("bottom", width, height, width * 0.03, bottomY, width * 0.94, bottomHeight),
+    "number-left": () => region("number-left", width, height, width * 0.02, height * 0.72, width * 0.48, height * 0.25),
+    "number-right": () => region("number-right", width, height, width * 0.42, height * 0.72, width * 0.56, height * 0.25),
+    // The name line across the top, left of the HP.
+    name: () => region("name", width, height, width * 0.04, height * 0.02, width * 0.74, height * 0.12),
+  }
+  return keys.map((key) => regions[key]())
 }
 
 async function loadImageElement(source: string | Blob) {
@@ -136,7 +145,7 @@ function enhanceOcrPixels(context: CanvasRenderingContext2D, width: number, heig
   context.putImageData(imageData, 0, 0)
 }
 
-async function prepareImagesForOcr(source: OcrImageSource): Promise<PreparedOcrImage[]> {
+async function prepareImagesForOcr(source: OcrImageSource, keys: readonly CardOcrRegion["key"][] = DEFAULT_OCR_REGIONS): Promise<PreparedOcrImage[]> {
   let image: CanvasImageSource
   let sourceWidth: number
   let sourceHeight: number
@@ -155,7 +164,7 @@ async function prepareImagesForOcr(source: OcrImageSource): Promise<PreparedOcrI
   }
 
   try {
-    return getCardOcrRegions(sourceWidth, sourceHeight).map((ocrRegion) => {
+    return getCardOcrRegions(sourceWidth, sourceHeight, keys).map((ocrRegion) => {
       const scale = Math.min(
         OCR_MAX_WIDTH / Math.max(ocrRegion.width, 1),
         Math.max(1, OCR_MIN_WIDTH / Math.max(ocrRegion.width, 1)),
@@ -254,7 +263,8 @@ export async function recognizeCardTextSignalsFromImage(
 ): Promise<CardTextSignals | null> {
   if (typeof window === "undefined") return null
 
-  const ocrImages = await prepareImagesForOcr(source)
+  const ocrImages = await prepareImagesForOcr(source, options.regions)
+  const isEnough = options.isEnough ?? ((signals: CardTextSignals) => signals.collectorNumbers.length > 0)
   const textDetector = await getNativeTextDetector()
   const nativeSignals: Array<CardTextSignals | null> = []
 
@@ -272,30 +282,39 @@ export async function recognizeCardTextSignalsFromImage(
     }
 
     const mergedNativeSignals = mergeCardTextSignals(nativeSignals)
-    if (!options.exhaustive && mergedNativeSignals?.collectorNumbers.length) return mergedNativeSignals
+    if (!options.exhaustive && mergedNativeSignals && isEnough(mergedNativeSignals)) return mergedNativeSignals
   }
 
   const tesseractSignals: Array<CardTextSignals | null> = []
-  const tesseractImages = [...ocrImages].sort((left, right) => {
+  const tesseractImages = options.regions ? ocrImages : [...ocrImages].sort((left, right) => {
     const order: Record<CardOcrRegion["key"], number> = {
       "number-left": 0,
       "number-right": 1,
       bottom: 2,
       full: 3,
+      name: 4,
     }
 
     return order[left.region.key] - order[right.region.key]
   })
 
   for (const ocrImage of tesseractImages) {
-    const result = await recognizeWithQueuedTesseract(ocrImage.canvas)
+    let result: Awaited<ReturnType<typeof recognizeWithQueuedTesseract>>
+    try {
+      result = await recognizeWithQueuedTesseract(ocrImage.canvas)
+    } catch (error) {
+      // Tesseract downloads its engine on first use, so it can fail offline: keep what the device read.
+      const partial = mergeCardTextSignals([...nativeSignals, ...tesseractSignals])
+      if (partial && hasUsefulSignals(partial)) return partial
+      throw error
+    }
     const signals = extractCardTextSignals(result.data.text ?? "")
     if (hasUsefulSignals(signals)) {
       tesseractSignals.push(signals)
     }
 
     const mergedSignals = mergeCardTextSignals([...nativeSignals, ...tesseractSignals])
-    if (!options.exhaustive && mergedSignals?.collectorNumbers.length) {
+    if (!options.exhaustive && mergedSignals && isEnough(mergedSignals)) {
       return mergedSignals
     }
   }
@@ -303,4 +322,20 @@ export async function recognizeCardTextSignalsFromImage(
   const signals = mergeCardTextSignals([...nativeSignals, ...tesseractSignals])
 
   return signals && hasUsefulSignals(signals) ? signals : null
+}
+
+/**
+ * Starts the text reader early (Show mode's Scan calls this when the scanner opens online), so Tesseract's
+ * engine and English data are downloaded and cached before the first card is read — and so it can still
+ * read offline later on devices without a system text reader (iOS). Never throws.
+ */
+export async function warmCardTextReader() {
+  if (typeof window === "undefined") return false
+  if (await getNativeTextDetector()) return true
+  try {
+    await getTesseractWorker()
+    return true
+  } catch {
+    return false
+  }
 }

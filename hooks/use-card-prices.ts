@@ -134,12 +134,16 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
   const [isLoading, setIsLoading] = useState(false)
   const [fxRates, setFxRates] = useState<DisplayFxRates | null>(null)
 
+  // Keyed by content, not array identity: callers often rebuild the same lookups each render (e.g. while
+  // a search is loading), and a new array per render would re-run the effect below in a loop.
+  const requestKey = normalizeCardPriceLookups(cardLookups).map((lookup) => getCardPriceKey(lookup.cardId, lookup.language)).join(",")
   const stableLookups = useMemo(
-    () => normalizeCardPriceLookups(cardLookups),
-    [cardLookups],
+    () => (requestKey ? requestKey.split(",").map((key) => {
+      const separator = key.lastIndexOf("::")
+      return { cardId: key.slice(0, separator), language: key.slice(separator + 2) } as CardPriceLookup
+    }) : []),
+    [requestKey],
   )
-
-  const requestKey = stableLookups.map((lookup) => getCardPriceKey(lookup.cardId, lookup.language)).join(",")
 
   useEffect(() => {
     if (!enabled || stableLookups.length === 0) {
@@ -228,7 +232,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
     return () => {
       cancelled = true
     }
-  }, [enabled, requestKey, stableLookups])
+  }, [enabled, stableLookups])
 
   return {
     pricesByCardId,
