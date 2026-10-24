@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
 import { OverlayStack, shouldDismissSwipe } from "@/lib/overlay-stack"
 
 const stack = new OverlayStack()
@@ -96,6 +96,15 @@ export function runAfterOverlayHistory(navigate: () => void) {
 }
 
 /** Close every open overlay (used when switching main views/tabs). */
+/** Number of overlays currently open (re-renders when it changes). */
+export function useOpenOverlayCount() {
+  return useSyncExternalStore(
+    (listener) => stack.subscribe(listener),
+    () => stack.size,
+    () => 0,
+  )
+}
+
 export function closeAllOverlays() {
   stack.closeAll()
 }
