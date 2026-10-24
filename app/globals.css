@@ -595,3 +595,18 @@ html[data-binder-motion]::view-transition-new(binder-content) {
   html[data-binder-motion]::view-transition-old(*),
   html[data-binder-motion]::view-transition-new(*) { animation: none; }
 }
+
+/*
+ * Sheets and dialogs never rubber-band or hand their scroll to the page behind them,
+ * including scrollers that only opted into `overscroll-contain`.
+ */
+[role="dialog"],
+[role="dialog"] *,
+[data-overlay-backdrop] {
+  overscroll-behavior: none;
+}
+/* While a sheet is open the page behind it stays put. */
+html[data-scroll-locked],
+html[data-scroll-locked] body {
+  overscroll-behavior: none;
+}

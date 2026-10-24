@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type RefObject } from "react"
 import { OverlayStack } from "@/lib/overlay-stack"
 import { useSheetDrag } from "@/hooks/use-sheet-drag"
+import { installTouchScrollGuard, removeTouchScrollGuard } from "@/lib/touch-scroll-guard"
 
 const stack = new OverlayStack()
 const OVERLAY_HISTORY_KEY = "__binderdexOverlay"
@@ -74,6 +75,7 @@ function lockScroll() {
     savedHtmlOverflow = document.documentElement.style.overflow
     document.body.style.overflow = "hidden"
     document.documentElement.style.overflow = "hidden"
+    installTouchScrollGuard()
   }
   scrollLockCount += 1
 }
@@ -83,6 +85,7 @@ function unlockScroll() {
   if (scrollLockCount === 0) {
     document.body.style.overflow = savedBodyOverflow
     document.documentElement.style.overflow = savedHtmlOverflow
+    removeTouchScrollGuard()
   }
 }
 
