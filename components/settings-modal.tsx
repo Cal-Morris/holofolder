@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { PricingPreferencesSettings } from "@/components/pricing-preferences-settings"
-import { useOverlay } from "@/hooks/use-overlay"
+import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useShowMode } from "@/hooks/use-show-mode"
 import { DealThresholdSettings, ShowTallySettings } from "@/components/deal-settings"
 import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone, Ticket } from "lucide-react"
@@ -140,6 +140,7 @@ export default function SettingsModal({
   }, [currentBinderPage, currentPageBinderColorId, isOpen])
 
   useOverlay(isOpen, onClose, { containerRef: dialogRef })
+  const swipe = useSwipeToDismiss(dialogRef, onClose, isOpen)
 
   if (!isOpen) return null
 
@@ -198,7 +199,7 @@ export default function SettingsModal({
         className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0">
+        <div data-sheet-grabber className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0" {...swipe}>
           <h2 className="text-lg font-bold">Settings</h2>
           <button onClick={onClose} aria-label="Close settings" className="mr-0.5 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/70 transition-colors">
             <X className="w-4 h-4" />

@@ -67,7 +67,7 @@ const overlays: OverlaySpec[] = [
       await harness.page.getByRole("menuitem", { name: "Settings" }).click()
       return { dialog: harness.page.getByRole("dialog", { name: /settings/i }), opener }
     },
-    bottomSheet: false,
+    bottomSheet: true,
     backdrop: true,
   },
   {
