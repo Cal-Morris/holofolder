@@ -13,8 +13,10 @@
   --right-inset: max(env(safe-area-inset-right), 0.625rem);
   /* Mobile bottom dock: the safe-area inset is applied once (min 0.5rem in a browser tab),
      the bar is 54px (44px tap targets + 4px padding + border). Anything that must clear the
-     dock positions itself from --dock-clearance. */
-  --dock-inset: max(env(safe-area-inset-bottom), 0.5rem);
+     dock positions itself from --dock-clearance.
+     --ios-viewport-gap (lib/ios-viewport-gap.ts) is the dead band iOS 26 can leave under an installed
+     app's page; that band already clears the home indicator, so it comes off the inset (0 elsewhere). */
+  --dock-inset: max(calc(env(safe-area-inset-bottom) - var(--ios-viewport-gap, 0px)), 0.5rem);
   --dock-bar: 3.375rem;
   --dock-clearance: calc(var(--dock-inset) + var(--dock-bar));
   /* Paper and charcoal leave the colour to the cards and chosen pocket pages. */
