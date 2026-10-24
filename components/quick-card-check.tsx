@@ -246,7 +246,7 @@ export default function QuickCardCheck({
         />
       </div>
 
-      <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2">
+      <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         <DealKeypad value={input} onChange={setInput} />
         <div className="flex gap-2">
           {!readOnly && (

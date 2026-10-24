@@ -1,4 +1,4 @@
-import { test, expect, type Harness } from "./fixtures"
+import { test, expect, E2E_USER, SUPABASE_URL, type Harness } from "./fixtures"
 
 const SCREENS = process.env.E2E_SCREENSHOT_DIR
 
@@ -148,6 +148,29 @@ test.describe("show mode", () => {
     await expect(offer(harness)).toHaveCount(0)
     await headerButton(harness).click()
     await expect(banner(harness)).toContainText("Offline")
+    await page.context().setOffline(false)
+  })
+
+  test("the banner's tally fits on a narrow phone, offline too", async ({ harness }) => {
+    const { page } = harness
+    const boughtAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    await page.route(`${SUPABASE_URL}/rest/v1/show_purchases**`, (route) => route.request().method() === "GET"
+      ? route.fulfill({ json: [{ owner_user_id: E2E_USER.id, client_id: "p-1", card_id: "sv03.5-006", card_name: "Charizard ex", language: "en", finish: "holo", price: 1234.5, market_price: 1500, currency: "GBP", bought_at: boughtAt, bundle_id: null }] })
+      : route.fulfill({ status: 201, body: "" }))
+    await page.reload()
+    await headerButton(harness).click()
+    const on = banner(harness)
+    await expect(on).toContainText("1 bought · £1,235")
+    await page.context().setOffline(true)
+    await expect(on).toContainText("1 bought · £1,235 · offline")
+    const text = on.getByTestId("show-mode-banner-text")
+    for (const part of [text.locator("span").first(), on.getByRole("status")]) {
+      const clipped = await part.evaluate((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)
+      expect(clipped, await part.textContent() ?? "").toBe(false)
+    }
+    for (const name of ["Search", "Exit show mode"]) await harness.expectMinTapTarget(on.getByRole("button", { name, exact: true }), 44)
+    await harness.expectNoHorizontalOverflow()
+    await screenshot(harness, "show-mode-banner-tally")
     await page.context().setOffline(false)
   })
 })

@@ -122,7 +122,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
         />
       </div>
 
-      <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2">
+      <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         <DealKeypad value={input} onChange={setInput} label="Bundle price" />
         {!readOnly && (
           <button

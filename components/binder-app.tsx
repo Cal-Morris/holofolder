@@ -4709,10 +4709,10 @@ export default function BinderApp({
               className="mb-1.5 flex items-center gap-2 rounded-2xl bg-amber-400 py-0.5 pl-3 pr-0.5 text-black shadow-[0_12px_32px_-18px_rgba(217,119,6,0.9)]"
             >
               <Ticket className="h-5 w-5 shrink-0" aria-hidden />
-              <p className="min-w-0 flex-1 truncate text-sm leading-tight">
-                <span className="font-bold">Show mode on</span>{" "}
-                <span aria-hidden className="text-xs text-black/50">· </span>
-                <span role="status" className="text-xs font-medium text-black/70">
+              {/* Two lines so the tally isn't cut off next to Search and Exit on a 375–390px phone. */}
+              <p className="flex min-w-0 flex-1 flex-col py-1 text-sm leading-tight" data-testid="show-mode-banner-text">
+                <span className="truncate font-bold">Show mode on</span>
+                <span role="status" className="line-clamp-2 text-xs font-medium leading-snug text-black/70">
                   {showTally.count > 0 && showTally.currency
                     ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}${isOnline ? (user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} syncing` : "") : " · offline"}`
                     : isOnline
