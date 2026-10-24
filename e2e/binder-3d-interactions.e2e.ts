@@ -26,6 +26,10 @@ test.describe("3D binder gestures", () => {
       const x = box.x + box.width / 2, y = box.y + box.height / 2
       await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] })
       await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + dx, y: y + dy, id: 1 }] })
+      // Hold still before lifting. A lift straight after an instant move starts a fling in Chromium,
+      // and Chromium drops the next tap because it only cancels that fling.
+      await new Promise(resolve => setTimeout(resolve, 120))
+      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + dx, y: y + dy, id: 1 }] })
       await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
     }
     await swipe(-70)
