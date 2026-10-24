@@ -83,6 +83,7 @@ import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
 import { shouldOfferShowMode } from "@/lib/show-mode"
 import { dismissShowModeOffer, useShowMode, useShowModeOfferDismissedAt } from "@/hooks/use-show-mode"
 import { useShowSession } from "@/hooks/use-show-session"
+import { useShowPurchaseSync } from "@/hooks/use-show-purchase-sync"
 import { summarizeShowSession } from "@/lib/show-session"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { QuickCardAction } from "@/components/quick-card-check"
@@ -640,6 +641,8 @@ export default function BinderApp({
     if (readOnlyMode || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return
     rememberDeviceBinders(window.localStorage, resolvedCollectionOwnerUserId, binders)
   }, [binders, readOnlyMode, resolvedCollectionOwnerUserId, user])
+  // Show purchases go to the collection owner's account (queued while offline), so a partner sees them too.
+  useShowPurchaseSync({ ownerUserId: user && !readOnlyMode ? resolvedCollectionOwnerUserId ?? null : null, isOnline, isShowModeOn })
   // Read-only lookup across every binder: All binders analytics and want list, "Owned in <binder>" hints.
   const allBinders = useAllBinders({
     ownerUserId: user && !readOnlyMode ? resolvedCollectionOwnerUserId : null,
@@ -3474,8 +3477,10 @@ export default function BinderApp({
 
   const getQuickPokemonState = useCallback((pokemonId: number) => {
     const meta = getSearchResultMeta({ id: pokemonId, name: "" })
-    return meta.stateLabel ? { label: meta.stateLabel, toneClass: meta.stateToneClass ?? "" } : { label: "Missing", toneClass: "bg-muted text-muted-foreground" }
-  }, [getSearchResultMeta])
+    // Show mode and the price lookup say "Not in binder", like their card results.
+    const missingLabel = isShowModeOn || quickLookup ? "Not in binder" : "Missing"
+    return meta.stateLabel ? { label: meta.stateLabel, toneClass: meta.stateToneClass ?? "" } : { label: missingLabel, toneClass: "bg-muted text-muted-foreground" }
+  }, [getSearchResultMeta, isShowModeOn, quickLookup])
 
   const snoozeShowModePrompt = dismissShowModeOffer
   // Show mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.

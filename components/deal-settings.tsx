@@ -94,7 +94,7 @@ export function ShowTallySettings() {
         <p className="text-sm font-medium">This show</p>
         <p className="text-xs text-muted-foreground">
           {summary.count} bought · {formatMoney(summary.spent, currency)} spent
-          {summary.marketValue > 0 ? ` · market ${formatMoney(summary.marketValue, currency)}` : ""}. Starts again after a day.
+          {summary.marketValue > 0 ? ` · market ${formatMoney(summary.marketValue, currency)}` : ""}. Starts again after a day; saved to your account. Clear resets it on this device.
         </p>
       </div>
       <button type="button" onClick={clear} className="h-10 shrink-0 rounded-full border border-border/70 px-3 text-xs font-semibold">Clear</button>
