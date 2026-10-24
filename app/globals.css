@@ -633,3 +633,44 @@ html[data-edge-back] body::after {
   opacity: var(--edge-back-progress, 0);
   transform: translate(calc(-100% + var(--edge-back-progress, 0) * 3.5rem), -50%);
 }
+
+/*
+ * Shared pressed state: a quick (<100ms) scale + dim while a control is held.
+ * Runs as an animation so it never touches each control's own `transition`, and lives in
+ * the base layer so components with their own `animate-*` utility keep it. The dim is
+ * composited onto any existing filter (grayscale, drop shadows) instead of replacing it.
+ */
+@keyframes press-scale {
+  to { scale: var(--press-scale, 0.96); }
+}
+@keyframes press-dim {
+  to { filter: brightness(var(--press-dim, 0.9)); }
+}
+@layer base {
+  :where(button, [role="button"], a[href], summary, label[for]):not(:disabled, [aria-disabled="true"], [data-no-press]):active {
+    animation: press-scale 70ms ease-out forwards, press-dim 70ms ease-out forwards;
+    animation-composition: replace, add;
+  }
+  /* Full-width rows and wide buttons barely shrink, so their edges do not visibly jump. */
+  :where(button.w-full, a.w-full, [role="button"].w-full, [role="option"], [role="menuitem"]) {
+    --press-scale: 0.985;
+    --press-dim: 0.94;
+  }
+  /* Binder slots keep the slot's own subtle press scale. */
+  :where(button[data-dex-id]) {
+    --press-scale: 0.98;
+  }
+  :where([role="option"], [role="menuitem"]):not([aria-disabled="true"]):active {
+    animation: press-scale 70ms ease-out forwards, press-dim 70ms ease-out forwards;
+    animation-composition: replace, add;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No movement; keep the dim so presses still read. */
+  :root {
+    --press-scale: 1;
+  }
+  :where(button.w-full, a.w-full, [role="button"].w-full, [role="option"], [role="menuitem"], button[data-dex-id]) {
+    --press-scale: 1;
+  }
+}
