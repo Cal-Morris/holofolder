@@ -145,7 +145,7 @@ export const BinderSlotGlare = memo(function BinderSlotGlare({
         }}
       />
       <div
-        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[40%] -top-[30%] z-[3] h-[92%] rounded-[999px] blur-[1px] shadow-[0_0_12px_rgba(255,255,255,0.12)] transition-[transform,opacity] duration-150 ease-out will-change-transform dark:shadow-[0_0_12px_rgba(255,255,255,0.08)]"
+        className="animate-slot-glare-sweep pointer-events-none absolute -inset-x-[40%] -top-[30%] z-[3] h-[92%] rounded-[999px] transition-[transform,opacity] duration-150 ease-out"
         style={{
           ...glareStyle,
           "--glare-transform": glareStyle.transform,
@@ -154,7 +154,7 @@ export const BinderSlotGlare = memo(function BinderSlotGlare({
         } as CSSProperties}
       />
       <div
-        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[3] w-[10%] rounded-[999px] blur-[1px]"
+        className="pointer-events-none absolute inset-y-[8%] left-[8%] z-[3] w-[10%] rounded-[999px]"
         style={{
           background: "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.1) 34%, rgba(255,255,255,0) 100%)",
           opacity: 0.34,
@@ -369,7 +369,7 @@ export const PokemonSlot = memo(function PokemonSlot({
           if (readOnly) return
           onLongPress()
         }}
-        className={`relative isolate h-full w-full overflow-hidden transition-all duration-150 group ${
+        className={`relative isolate h-full w-full overflow-hidden transition-[transform,box-shadow] duration-150 group ${
           isSelected
             ? "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.03] z-10"
             : isWishlisted
@@ -408,7 +408,7 @@ export const PokemonSlot = memo(function PokemonSlot({
           }`} />
         )}
 
-        <div className="absolute top-0.5 left-0.5 z-10 rounded bg-white/74 px-1 py-0.5 text-[7px] font-bold tabular-nums text-slate-600 backdrop-blur-sm sm:top-1 sm:left-1 sm:text-[8px] dark:bg-black/50 dark:text-white/70">
+        <div className="absolute top-0.5 left-0.5 z-10 rounded bg-white/74 px-1 py-0.5 text-[7px] font-bold tabular-nums text-slate-600 sm:top-1 sm:left-1 sm:text-[8px] dark:bg-black/50 dark:text-white/70">
           {slotLabel}
         </div>
 
