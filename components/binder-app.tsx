@@ -116,6 +116,7 @@ export default function BinderApp({
   const [binders, setBinders] = useState<Binder[]>(initialBinders)
   const activeBinder = binders.find((binder) => binder.id === initialBinderId) ?? null
   const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false)
+  const [themeCookieChoice, setThemeCookieChoice] = useState<"dark" | "light" | null>(null)
   const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false)
@@ -1547,7 +1548,6 @@ export default function BinderApp({
     setIsBurstScannerOpen(true)
   }
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- unchanged; the compiler lint started reporting this once the JSX moved out
   const openCardSelectorForPokemon = useCallback((pokemon: PokemonSummary, mode: CardSelectorMode) => {
     if (readOnlyMode) return
 
@@ -1559,7 +1559,7 @@ export default function BinderApp({
     setSelectedPokemon(pokemon)
     setCardSelectorMode(mode)
     setIsCardSelectorOpen(true)
-  }, [readOnlyMode, user])
+  }, [readOnlyMode, setIsCardSelectorOpen, user])
 
   const handleQuickCollectSelectedPokemon = async () => {
     if (!selectedPokemon) return
@@ -2449,10 +2449,15 @@ export default function BinderApp({
       void updateSettings({ darkMode: next })
     }
     document.documentElement.classList.toggle("dark", next)
-    const maxAge = 60 * 60 * 24 * 365
-    // eslint-disable-next-line react-hooks/immutability -- unchanged; the compiler lint started reporting this once the JSX moved out
-    document.cookie = `binderdex_theme=${next ? "dark" : "light"}; path=/; max-age=${maxAge}; samesite=lax`
+    setThemeCookieChoice(next ? "dark" : "light")
   }
+
+  // Only a theme the user picked here is saved to the cookie, not one synced from settings.
+  useEffect(() => {
+    if (!themeCookieChoice) return
+    const maxAge = 60 * 60 * 24 * 365
+    document.cookie = `binderdex_theme=${themeCookieChoice}; path=/; max-age=${maxAge}; samesite=lax`
+  }, [themeCookieChoice])
 
   useEffect(() => {
     setIsDarkMode(settings.darkMode)
