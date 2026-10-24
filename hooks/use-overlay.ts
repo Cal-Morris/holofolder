@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
-import { OverlayStack, shouldDismissSwipe } from "@/lib/overlay-stack"
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type RefObject } from "react"
+import { OverlayStack } from "@/lib/overlay-stack"
+import { useSheetDrag } from "@/hooks/use-sheet-drag"
 
 const stack = new OverlayStack()
 const OVERLAY_HISTORY_KEY = "__binderdexOverlay"
@@ -280,62 +281,7 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
  * Swipe-down-to-dismiss for bottom sheets. Spread the returned handlers on the grabber/header.
  * The sheet element follows the finger and closes once dragged far/fast enough.
  */
+/** Drag-to-dismiss for bottom sheets; see useSheetDrag for the gesture details. */
 export function useSwipeToDismiss(sheetRef: RefObject<HTMLElement | null>, onDismiss: () => void, enabled = true) {
-  const startRef = useRef<{ y: number; time: number; pointerId: number } | null>(null)
-  const deltaRef = useRef(0)
-
-  const reset = useCallback(() => {
-    const sheet = sheetRef.current
-    if (sheet) {
-      sheet.style.transition = "transform 180ms ease-out"
-      sheet.style.translate = ""
-      window.setTimeout(() => {
-        if (sheetRef.current) sheetRef.current.style.transition = ""
-      }, 200)
-    }
-    startRef.current = null
-    deltaRef.current = 0
-  }, [sheetRef])
-
-  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-    if (!enabled || event.button !== 0) return
-    const target = event.target as HTMLElement
-    if (target.closest("button, a, input, select, textarea, [data-no-swipe]")) return
-    startRef.current = { y: event.clientY, time: performance.now(), pointerId: event.pointerId }
-    deltaRef.current = 0
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-  }, [enabled])
-
-  const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-    const start = startRef.current
-    if (!start || start.pointerId !== event.pointerId) return
-    const delta = Math.max(0, event.clientY - start.y)
-    deltaRef.current = delta
-    const sheet = sheetRef.current
-    if (sheet) {
-      sheet.style.transition = "none"
-      sheet.style.translate = `0 ${delta}px`
-    }
-  }, [sheetRef])
-
-  const onPointerEnd = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-    const start = startRef.current
-    if (!start || start.pointerId !== event.pointerId) return
-    const shouldDismiss = shouldDismissSwipe(deltaRef.current, performance.now() - start.time)
-    if (shouldDismiss) {
-      startRef.current = null
-      deltaRef.current = 0
-      onDismiss()
-      return
-    }
-    reset()
-  }, [onDismiss, reset])
-
-  return {
-    onPointerDown,
-    onPointerMove,
-    onPointerUp: onPointerEnd,
-    onPointerCancel: reset,
-    style: { touchAction: "none" as const },
-  }
+  return useSheetDrag(sheetRef, onDismiss, enabled)
 }
