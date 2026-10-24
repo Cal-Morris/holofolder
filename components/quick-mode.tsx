@@ -525,7 +525,7 @@ export default function QuickMode({
         </div>
         )}
 
-        <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
+        <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-3">
           {cardCheck && bundle.length > 0 && (
             <button
               type="button"

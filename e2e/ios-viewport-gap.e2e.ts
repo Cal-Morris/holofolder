@@ -95,6 +95,45 @@ for (const [label, height, gap] of [["short iOS 26 view", 793, 59], ["full-heigh
       await harness.expectHittable(sheet.getByRole("button", { name: /^Show \d+ cards?$/ }))
     })
 
+    test("Show mode's search, deal check and bundle footers pad once for the home indicator", async ({ harness }) => {
+      const { page } = harness
+      await fakeScreen(page, 393, 852)
+      await reloadAt(harness, 393, height)
+      await expect(page.locator("html")).toHaveAttribute("data-ios-viewport-gap", String(gap))
+      await page.getByRole("button", { name: "Show mode", exact: true }).click()
+      await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+      const dialog = page.getByRole("dialog", { name: "Quick mode" })
+      const expected = 12 + (gap ? 0 : harness.insets.bottom)
+      const footerPadding = (scope: ReturnType<Page["getByTestId"]>) =>
+        scope.evaluate((element) => parseFloat(getComputedStyle(element.querySelector(".border-t.bg-card\\/95") ?? element).paddingBottom))
+      const footerBottom = (scope: ReturnType<Page["getByTestId"]>) =>
+        scope.evaluate((element) => (element.querySelector(".border-t.bg-card\\/95") ?? element).getBoundingClientRect().bottom)
+
+      const search = dialog.getByRole("searchbox")
+      await expect(search).toBeVisible()
+      const searchFooter = await search.evaluate((element) => {
+        const footer = element.closest(".border-t") as HTMLElement
+        return { padding: parseFloat(getComputedStyle(footer).paddingBottom), bottom: footer.getBoundingClientRect().bottom }
+      })
+      expect(searchFooter.padding).toBeCloseTo(expected, 0)
+      expect(searchFooter.bottom).toBeLessThanOrEqual(height + 0.5)
+
+      await search.fill("charizard")
+      await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
+      const check = dialog.getByTestId("quick-card-check")
+      await expect(check).toBeVisible()
+      expect(await footerPadding(check)).toBeCloseTo(expected, 0)
+      expect(await footerBottom(check)).toBeLessThanOrEqual(height + 0.5)
+
+      await check.getByRole("button", { name: "Add to bundle" }).click()
+      await check.getByRole("button", { name: "Back to results" }).click()
+      await dialog.getByRole("button", { name: /^Bundle · 1 card/ }).click()
+      const bundle = dialog.getByTestId("quick-bundle")
+      await expect(bundle).toBeVisible()
+      expect(await footerPadding(bundle)).toBeCloseTo(expected, 0)
+      expect(await footerBottom(bundle)).toBeLessThanOrEqual(height + 0.5)
+    })
+
     test("a dialog stops above the home indicator", async ({ harness }) => {
       const { page } = harness
       await fakeScreen(page, 393, 852)
