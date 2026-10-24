@@ -32,6 +32,8 @@ export interface BrowseCard extends CardCatalogIdentity {
 
 export interface SearchCardResult extends BrowseCard {
   dexIds: number[]
+  /** Credited artist, when the catalog has one (card search matches it too). */
+  illustrator?: string
 }
 
 export interface BrowseCollectionState {

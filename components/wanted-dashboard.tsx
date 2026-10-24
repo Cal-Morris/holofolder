@@ -52,6 +52,8 @@ export type WantedDashboardProps = {
   handleClearWantedCard: (pokemonId: number, wantedCard: WantedCard) => void
   handlePokemonSelect: (pokemon: PokemonSummary) => void
   jumpToWantedPokemonPage: (pokemon: PokemonSummary | null) => void
+  /** Look up any card's price (not just wanted ones), starting from this search. */
+  onCheckAnyCardPrice?: (query: string) => void
 }
 
 const BAND_DOT: Record<WantedDashboardPriceBandId, string> = {
@@ -128,6 +130,7 @@ export default function WantedDashboard({
   handleClearWantedCard,
   handlePokemonSelect,
   jumpToWantedPokemonPage,
+  onCheckAnyCardPrice,
 }: WantedDashboardProps) {
   const [scope, setScope] = useState<BinderScope>(() => readBinderScope("wanted"))
   const changeScope = (next: BinderScope) => {
@@ -298,6 +301,16 @@ export default function WantedDashboard({
             >
               Show all wanted cards
             </button>
+            {isSearching && onCheckAnyCardPrice ? (
+              <button
+                type="button"
+                onClick={() => onCheckAnyCardPrice(query.trim())}
+                className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
+              >
+                <Search className="h-4 w-4" aria-hidden="true" />
+                Check price of any card
+              </button>
+            ) : null}
           </div>
         ) : (
           <ul className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-card/85 dark:divide-white/10 dark:border-white/10 dark:bg-card/70" aria-label="Wanted cards">
@@ -318,6 +331,16 @@ export default function WantedDashboard({
         )}
         {(isSearching || isFiltered) && visibleCards.length > 0 ? (
           <p className="px-1 text-xs text-muted-foreground" data-testid="wanted-match-count">Showing {visibleCards.length} of {totalWantedCount}</p>
+        ) : null}
+        {isSearching && visibleCards.length > 0 && onCheckAnyCardPrice ? (
+          <button
+            type="button"
+            onClick={() => onCheckAnyCardPrice(query.trim())}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border/60 text-sm font-semibold text-primary dark:border-white/10"
+          >
+            <Search className="h-4 w-4" aria-hidden="true" />
+            Not here? Check price of any card
+          </button>
         ) : null}
 
         <WantedInsights wantedDashboard={wantedDashboard} priceFormat={priceFormat} />

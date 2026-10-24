@@ -186,7 +186,7 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     const query = (new URL(route.request().url()).searchParams.get("q") ?? "").toLowerCase().trim()
     const [first, second] = query.split(/\s+/)
     const cards = MOCK_CARDS.filter((card) => {
-      const haystack = `${card.name} ${card.set.name} ${card.set.id} ${card.id}`.toLowerCase()
+      const haystack = `${card.name} ${card.set.name} ${card.set.id} ${card.id} ${card.illustrator ?? ""}`.toLowerCase()
       if (!haystack.includes(first)) return false
       return !second || card.localId.replace(/^0+/, "") === second.replace(/^#/, "").split("/")[0].replace(/^0+/, "")
     })

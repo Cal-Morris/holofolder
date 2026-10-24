@@ -513,6 +513,8 @@ export default function BinderApp({
   const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false)
+  // The want list's "Check price of any card": Quick mode as a price lookup (deal checker) outside Show mode.
+  const [quickLookup, setQuickLookup] = useState<{ query: string } | null>(null)
   const { isShowModeOn, setShowMode } = useShowMode()
   const showSession = useShowSession()
   // "Not now" on the binder's Show mode card, or Show mode was used: the offer stays hidden after that.
@@ -3423,6 +3425,15 @@ export default function BinderApp({
     openExclusively(() => {
       setSelectedPokemon(null)
       setIsSearchOpen(false)
+      setQuickLookup(null)
+      setIsQuickModeOpen(true)
+    })
+  }, [openExclusively])
+  const openPriceLookup = useCallback((query: string) => {
+    openExclusively(() => {
+      setSelectedPokemon(null)
+      setIsSearchOpen(false)
+      setQuickLookup({ query })
       setIsQuickModeOpen(true)
     })
   }, [openExclusively])
@@ -3506,6 +3517,7 @@ export default function BinderApp({
         rarity: card.rarity,
         local_id: card.localId,
         set_total: card.set.officialCardCount,
+        illustrator: card.illustrator,
         added_at: new Date().toISOString(),
       })
       return undo
@@ -3520,10 +3532,10 @@ export default function BinderApp({
     return undo
   }, [addToCollection, addWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
   const quickCardCheck = useMemo(
-    () => (isShowModeOn
+    () => (isShowModeOn || quickLookup
       ? { currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }
       : undefined),
-    [collection, fxRates, getQuickCardState, handleQuickCardAction, isShowModeOn, pricingPreferences.currency, readOnlyMode],
+    [collection, fxRates, getQuickCardState, handleQuickCardAction, isShowModeOn, pricingPreferences.currency, quickLookup, readOnlyMode],
   )
   const showTally = useMemo(() => summarizeShowSession(showSession.session), [showSession.session])
 
@@ -5227,6 +5239,7 @@ export default function BinderApp({
               handleClearWantedCard={handleClearWantedCard}
               handlePokemonSelect={handlePokemonSelect}
               jumpToWantedPokemonPage={jumpToWantedPokemonPage}
+              onCheckAnyCardPrice={openPriceLookup}
             />
           ) : activeMainView === "sets" ? (
             <SetPopulationView
@@ -5421,6 +5434,8 @@ export default function BinderApp({
           hiddenDestinations={readOnlyMode ? ["scan", "analytics", "settings"] : []}
           showModeOn={isShowModeOn}
           cardCheck={quickCardCheck}
+          initialQuery={quickLookup?.query}
+          lookupOnly={!isShowModeOn && Boolean(quickLookup)}
         />
       )}
 
