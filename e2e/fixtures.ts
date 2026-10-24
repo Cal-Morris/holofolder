@@ -301,15 +301,20 @@ export class Harness {
     expect(box!.y + box!.height, "bottom edge should be above the home indicator").toBeLessThanOrEqual(height - this.insets.bottom + 0.5)
   }
 
-  /** The element at the centre of `locator` must be the locator itself (i.e. not covered). */
+  /**
+   * The element at the centre of `locator` must be the locator itself (i.e. not covered).
+   * Polled briefly: while a dock tab's view transition runs, its snapshot layer sits above the
+   * whole page for a frame or two, so a single sample straight after a tap can hit `<html>`.
+   */
   async expectHittable(locator: Locator) {
-    const box = await locator.boundingBox()
-    expect(box).not.toBeNull()
-    const hit = await locator.evaluate((element, point) => {
-      const top = document.elementFromPoint(point.x, point.y)
-      return Boolean(top && (top === element || element.contains(top)))
-    }, { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 })
-    expect(hit, "element should not be covered by another layer").toBe(true)
+    await expect.poll(async () => {
+      const box = await locator.boundingBox()
+      if (!box) return false
+      return locator.evaluate((element, point) => {
+        const top = document.elementFromPoint(point.x, point.y)
+        return Boolean(top && (top === element || element.contains(top)))
+      }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
+    }, { message: "element should not be covered by another layer", timeout: 2_000 }).toBe(true)
   }
 
   async expectMinTapTarget(locator: Locator, min = 36) {
