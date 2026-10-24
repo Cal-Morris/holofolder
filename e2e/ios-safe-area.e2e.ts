@@ -5,7 +5,7 @@ import type { Locator } from "@playwright/test"
 // the safe area and every control in it has to be a comfortable 44px tap target.
 test.use({ signedIn: true })
 
-const TOP_GAP = 8
+const TOP_GAP = 12
 const MIN_TARGET = 44
 
 async function visibleButtons(container: Locator) {
@@ -18,7 +18,7 @@ async function visibleButtons(container: Locator) {
 async function expectBelowTopInset(harness: Harness, locator: Locator) {
   const box = await locator.boundingBox()
   expect(box).not.toBeNull()
-  expect(box!.y, "control should sit at least 8px below the status bar").toBeGreaterThanOrEqual(harness.insets.top + TOP_GAP - 0.5)
+  expect(box!.y, "control should sit at least 12px below the status bar").toBeGreaterThanOrEqual(harness.insets.top + TOP_GAP - 0.5)
 }
 
 test("header controls sit below the status bar and are easy to tap", async ({ harness }, testInfo) => {

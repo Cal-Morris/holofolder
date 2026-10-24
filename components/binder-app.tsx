@@ -80,8 +80,8 @@ import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, PAGE_TURN_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
-import { SHOW_MODE_PROMPT_KEY, parsePromptSnooze, shouldOfferShowMode } from "@/lib/show-mode"
-import { useShowMode } from "@/hooks/use-show-mode"
+import { shouldOfferShowMode } from "@/lib/show-mode"
+import { dismissShowModeOffer, useShowMode, useShowModeOfferDismissedAt } from "@/hooks/use-show-mode"
 import { useShowSession } from "@/hooks/use-show-session"
 import { summarizeShowSession } from "@/lib/show-session"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
@@ -515,8 +515,8 @@ export default function BinderApp({
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false)
   const { isShowModeOn, setShowMode } = useShowMode()
   const showSession = useShowSession()
-  // "Not now" on the binder's Show mode card. Read after mount so server and client renders agree.
-  const [showModePromptSnoozedAt, setShowModePromptSnoozedAt] = useState<number | null | undefined>(undefined)
+  // "Not now" on the binder's Show mode card, or Show mode was used: the offer stays hidden after that.
+  const showModePromptSnoozedAt = useShowModeOfferDismissedAt()
   const quickPressTimerRef = useRef<number | null>(null)
   const quickPressFiredRef = useRef(false)
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
@@ -3466,25 +3466,7 @@ export default function BinderApp({
     return meta.stateLabel ? { label: meta.stateLabel, toneClass: meta.stateToneClass ?? "" } : { label: "Missing", toneClass: "bg-muted text-muted-foreground" }
   }, [getSearchResultMeta])
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      try {
-        setShowModePromptSnoozedAt(parsePromptSnooze(window.localStorage.getItem(SHOW_MODE_PROMPT_KEY)))
-      } catch {
-        setShowModePromptSnoozedAt(null)
-      }
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [])
-  const snoozeShowModePrompt = useCallback(() => {
-    const now = Date.now()
-    try {
-      window.localStorage.setItem(SHOW_MODE_PROMPT_KEY, String(now))
-    } catch {
-      // Storage unavailable: hide it for this page view only.
-    }
-    setShowModePromptSnoozedAt(now)
-  }, [])
+  const snoozeShowModePrompt = dismissShowModeOffer
   // Show mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
   const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }) => {
     const item = getCollectionItem(pokemon.id)
@@ -3550,7 +3532,7 @@ export default function BinderApp({
     activeMainView === "binder" &&
     binderDimension === "2d" &&
     showModePromptSnoozedAt !== undefined &&
-    shouldOfferShowMode({ showModeOn: isShowModeOn, isOnline, snoozedAt: showModePromptSnoozedAt })
+    shouldOfferShowMode({ showModeOn: isShowModeOn, dismissedAt: showModePromptSnoozedAt })
 
   const handleQuickNavigate = (destination: QuickDestinationId) => {
     if (destination === "show-mode") {
@@ -4636,6 +4618,7 @@ export default function BinderApp({
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"
+        data-testid="status-bar-cover"
         className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--top-inset)] bg-background md:hidden"
       />
       <div
@@ -4709,9 +4692,10 @@ export default function BinderApp({
               className="mb-1.5 flex items-center gap-2 rounded-2xl bg-amber-400 py-0.5 pl-3 pr-0.5 text-black shadow-[0_12px_32px_-18px_rgba(217,119,6,0.9)]"
             >
               <Ticket className="h-5 w-5 shrink-0" aria-hidden />
-              <p className="min-w-0 flex-1 leading-tight">
-                <span className="block text-sm font-bold">Show mode on</span>
-                <span role="status" className="block truncate text-[11px] font-medium text-black/70">
+              <p className="min-w-0 flex-1 truncate text-sm leading-tight">
+                <span className="font-bold">Show mode on</span>{" "}
+                <span aria-hidden className="text-xs text-black/50">· </span>
+                <span role="status" className="text-xs font-medium text-black/70">
                   {showTally.count > 0 && showTally.currency
                     ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}${isOnline ? (user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} syncing` : "") : " · offline"}`
                     : isOnline

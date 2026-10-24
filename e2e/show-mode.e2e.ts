@@ -49,6 +49,31 @@ test.describe("show mode", () => {
     await banner(harness).getByRole("button", { name: "Exit show mode" }).click()
     await expect(banner(harness)).toHaveCount(0)
     await expect(headerButton(harness)).toHaveAttribute("aria-pressed", "false")
+    // Used once, the binder stops offering it; the header button is how to turn it back on.
+    await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    await expect(offer(harness)).toHaveCount(0)
+    await page.reload()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    await expect(offer(harness)).toHaveCount(0)
+    await expect(headerButton(harness)).toBeVisible()
+  })
+
+  test("Show mode left on lapses when the app is reopened hours later", async ({ harness }) => {
+    const { page } = harness
+    const seed = (hoursAgo: number) => page.evaluate((hours) => {
+      const at = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+      window.localStorage.setItem("binderdex:show-mode:v1", JSON.stringify({ on: true, since: at, seenAt: at }))
+    }, hoursAgo)
+    await seed(1)
+    await page.reload()
+    await expect(banner(harness)).toBeVisible()
+    await seed(5)
+    await page.reload()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    await expect(banner(harness)).toHaveCount(0)
+    await expect(headerButton(harness)).toHaveAttribute("aria-pressed", "false")
+    expect(await page.evaluate(() => window.localStorage.getItem("binderdex:show-mode:v1"))).toContain('"on":false')
   })
 
   test("the header button is on every main view, and with Show mode on a Search tap opens Quick mode", async ({ harness }) => {
@@ -110,7 +135,7 @@ test.describe("show mode", () => {
     await expect(banner(harness)).toBeVisible()
   })
 
-  test("Not now hides the offer, but it comes back when the app is offline", async ({ harness }) => {
+  test("Not now hides the offer for good, offline too", async ({ harness }) => {
     const { page } = harness
     await offer(harness).getByRole("button", { name: "Not now" }).click()
     await expect(offer(harness)).toHaveCount(0)
@@ -119,9 +144,9 @@ test.describe("show mode", () => {
     await expect(offer(harness)).toHaveCount(0)
 
     await page.context().setOffline(true)
-    const card = offer(harness)
-    await expect(card).toContainText("Offline: Show mode uses saved cards")
-    await card.getByRole("button", { name: "Turn on Show mode" }).click()
+    await page.waitForTimeout(300)
+    await expect(offer(harness)).toHaveCount(0)
+    await headerButton(harness).click()
     await expect(banner(harness)).toContainText("Offline")
     await page.context().setOffline(false)
   })
