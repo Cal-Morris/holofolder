@@ -351,8 +351,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
       const refreshPlan = getRemoteCollectionRefreshPlan(user, collectionOwnerUserId)
 
       if (refreshPlan) {
+        // A refresh can still be in flight when the account changes (sign-out, account switch): drop its rows
+        // so the previous account's cards never show under the new one.
+        const isStale = () => authenticatedUserId.current !== refreshPlan.user.id
         const ownerUserId = refreshPlan.knownOwnerUserId ?? await resolveCollectionOwnerUserId(refreshPlan.user)
+        if (isStale()) return
         const baseline = await syncCollectionRows(supabase, ownerUserId, collectionBaselineRef.current, binderId)
+        if (isStale()) return
         collectionBaselineRef.current = baseline
         // Queued edits stay visible until they are synced.
         setCollection(applyPendingEdits(normalizeCollectionItems(collectionBaselineRows(baseline)), readBinderPendingOperations()))

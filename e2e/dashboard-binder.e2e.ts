@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test"
 import { test, expect, E2E_USER, SEEDED_COLLECTION, SUPABASE_URL } from "./fixtures"
 import { defaultBinderDesign } from "../lib/binder-design"
 
@@ -165,19 +166,7 @@ test.describe("Dashboard binder appearance", () => {
       return route.fulfill({ json: SEEDED_COLLECTION.map(item => ({ ...item, user_id: partnerOwner, card_image: `https://assets.tcgdex.net/en/base/base1/${item.pokemon_id === 1 ? "44" : "46"}/high.webp` })) })
     })
     await page.route(`${SUPABASE_URL}/auth/v1/user**`, route => route.fulfill({ json: partner }))
-    const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`
-    await page.evaluate(({ storageKey, partner }) => {
-      const encode = (value: unknown) => btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-      const expiresAt = Math.floor(Date.now() / 1000) + 3600
-      const session = {
-        access_token: `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: partner.id, aud: "authenticated", role: "authenticated", exp: expiresAt, email: partner.email })}.synthetic`,
-        token_type: "bearer", expires_in: 3600, expires_at: expiresAt, refresh_token: "synthetic-partner-refresh", user: partner,
-      }
-      document.cookie = `${storageKey}=base64-${encode(session)}; path=/; SameSite=Lax`
-      const channel = new BroadcastChannel(storageKey)
-      channel.postMessage({ event: "SIGNED_IN", session })
-      channel.close()
-    }, { storageKey, partner })
+    await switchAccount(page, partner)
     try {
       await expect.poll(() => ownerLookupStarted).toBe(true)
       await expect(preview).not.toHaveAttribute("data-binder-name", original.name)
@@ -191,4 +180,71 @@ test.describe("Dashboard binder appearance", () => {
     expect(requestedOwners).not.toContain(E2E_USER.id)
     expect(requestedOwners).not.toContain(partner.id)
   })
+
+  test("a collection refresh in flight during an account change never shows the previous account's cards", async ({ harness }) => {
+    const { page } = harness
+    const partner = { ...E2E_USER, id: "00000000-0000-4000-8000-0000000000b3", email: "partner2@binderdex.test" }
+    const partnerOwner = "00000000-0000-4000-8000-0000000000c3"
+    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: route.request().headers()["x-binder-owner"], design: defaultBinderDesign(), revision: 1 } }))
+    await page.reload()
+    await page.getByRole("button", { name: "3D", exact: true }).click()
+    const preview = page.getByRole("region", { name: "Your 3D National Dex binder" })
+    const spread = preview.getByRole("list", { name: "Cards on this spread" }).getByRole("listitem")
+    await expect(spread).toHaveCount(2)
+
+    // Hold the next refresh of the signed-in account's collection (the periodic tick) until after the switch.
+    let releaseRefresh!: () => void
+    const refreshReleased = new Promise<void>(resolve => { releaseRefresh = resolve })
+    let refreshHeld = false
+    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, async route => {
+      const owner = new URL(route.request().url()).searchParams.get("user_id")
+      if (owner === `eq.${E2E_USER.id}`) {
+        refreshHeld = true
+        await refreshReleased
+        return route.fulfill({ json: SEEDED_COLLECTION })
+      }
+      return route.fulfill({ json: [] })
+    })
+    await expect.poll(() => refreshHeld, { timeout: 15_000 }).toBe(true)
+
+    let releaseOwner!: () => void
+    const ownerReleased = new Promise<void>(resolve => { releaseOwner = resolve })
+    let ownerLookupStarted = false
+    await page.route(`${SUPABASE_URL}/rest/v1/partnerships**`, async route => {
+      if (!route.request().url().includes(partner.id)) return route.fulfill({ json: [] })
+      ownerLookupStarted = true
+      await ownerReleased
+      return route.fulfill({ json: [{ owner_user_id: partnerOwner }] })
+    })
+    await page.route(`${SUPABASE_URL}/auth/v1/user**`, route => route.fulfill({ json: partner }))
+    await switchAccount(page, partner)
+    try {
+      await expect.poll(() => ownerLookupStarted).toBe(true)
+      await expect(spread).toHaveCount(0)
+      // The old refresh now answers with the previous account's cards; they must not appear.
+      releaseRefresh()
+      await page.evaluate(() => new Promise<void>(resolve => setTimeout(() => requestAnimationFrame(() => resolve()), 500)))
+      await expect(spread).toHaveCount(0)
+    } finally { releaseRefresh(); releaseOwner() }
+    // The new owner's (empty) collection loads; still none of the previous account's cards.
+    await page.evaluate(() => new Promise<void>(resolve => setTimeout(resolve, 500)))
+    await expect(spread).toHaveCount(0)
+  })
 })
+
+/** Sign in as another account in this tab, the way Supabase announces a session change. */
+async function switchAccount(page: Page, partner: typeof E2E_USER) {
+  const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`
+  await page.evaluate(({ storageKey, partner }) => {
+    const encode = (value: unknown) => btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+    const expiresAt = Math.floor(Date.now() / 1000) + 3600
+    const session = {
+      access_token: `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: partner.id, aud: "authenticated", role: "authenticated", exp: expiresAt, email: partner.email })}.synthetic`,
+      token_type: "bearer", expires_in: 3600, expires_at: expiresAt, refresh_token: "synthetic-partner-refresh", user: partner,
+    }
+    document.cookie = `${storageKey}=base64-${encode(session)}; path=/; SameSite=Lax`
+    const channel = new BroadcastChannel(storageKey)
+    channel.postMessage({ event: "SIGNED_IN", session })
+    channel.close()
+  }, { storageKey, partner })
+}
