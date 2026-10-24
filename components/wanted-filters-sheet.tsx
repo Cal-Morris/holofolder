@@ -63,7 +63,7 @@ export default function WantedFiltersSheet(props: WantedFiltersSheetProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Sort and filter want list"
-        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-[1.6rem] border-t border-border/65 bg-card pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pl-[calc(env(safe-area-inset-left)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)] pt-3 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] sm:bottom-4 sm:rounded-[1.6rem] sm:border"
+        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-[1.6rem] border-t border-border/65 bg-card pb-[calc(var(--safe-bottom)+0.75rem)] pl-[calc(env(safe-area-inset-left)+1rem)] pr-[calc(env(safe-area-inset-right)+1rem)] pt-3 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] sm:bottom-4 sm:rounded-[1.6rem] sm:border"
         onClick={(event) => event.stopPropagation()}
       >
         <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3" {...swipe}>

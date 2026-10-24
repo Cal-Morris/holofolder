@@ -712,7 +712,7 @@ export default function CardSelector({
       {isCardScannerOpen && (
         <div ref={cardScannerRef} role="dialog" aria-modal="true" aria-label="Single card scanner" className="fixed inset-0 z-[60] bg-black outline-none">
           <canvas ref={cardCanvasRef} className="hidden" />
-          <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(var(--top-inset)+0.25rem)]">
+          <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-[calc(var(--top-inset)+0.25rem)]">
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
                 <div>
@@ -835,7 +835,7 @@ export default function CardSelector({
         onClick={(e) => e.stopPropagation()}
         style={{
           top: "calc(var(--top-inset) + 0.5rem)",
-          bottom: "calc(env(safe-area-inset-bottom) + 0.25rem)",
+          bottom: "calc(var(--safe-bottom) + 0.25rem)",
           overscrollBehaviorY: "contain",
           touchAction: "pan-y",
         }}
@@ -1111,7 +1111,7 @@ export default function CardSelector({
               </div>
             )}
 
-            <div className="px-5 py-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] sm:px-5 sm:py-4">
+            <div className="px-5 py-4 pb-[calc(var(--safe-bottom)+1.25rem)] sm:px-5 sm:py-4">
             {!isOnline && cards.length > 0 && (
               <p role="status" className="mb-3 flex items-center gap-2 rounded-2xl border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 <WifiOff className="h-3.5 w-3.5 shrink-0" />
