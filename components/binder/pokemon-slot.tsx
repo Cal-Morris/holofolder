@@ -1,7 +1,7 @@
 "use client"
 
 import { Check, Heart, Star, X } from "lucide-react"
-import { type CSSProperties, type TouchEvent as ReactTouchEvent, type SyntheticEvent, useEffect, useRef, useState } from "react"
+import { type CSSProperties, type TouchEvent as ReactTouchEvent, type SyntheticEvent, memo, useEffect, useRef, useState } from "react"
 import CardFinishShader from "@/components/card-finish-shader"
 import type { CardFinish, SlotStatus } from "@/hooks/use-collection"
 import { loadCardsForPokemon } from "@/hooks/use-tcgdex"
@@ -110,7 +110,7 @@ export function getCardFinishEffectClass(finish: CardFinish) {
   }
 }
 
-export function BinderSlotGlare({
+export const BinderSlotGlare = memo(function BinderSlotGlare({
   glareStyle,
   innerRadius,
 }: {
@@ -162,9 +162,9 @@ export function BinderSlotGlare({
       />
     </>
   )
-}
+})
 
-export function PokemonSlot({
+export const PokemonSlot = memo(function PokemonSlot({
   pokemon,
   isCollected,
   isWishlisted,
@@ -588,4 +588,4 @@ export function PokemonSlot({
       )}
     </div>
   )
-}
+})

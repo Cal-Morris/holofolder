@@ -11,7 +11,7 @@ import type { CardPriceSnapshot, SupportedCurrency } from "@/hooks/use-card-pric
 import type { CardSelectorMode } from "@/components/card-selector"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 import type { CollectedPokemon } from "@/hooks/use-collection"
-import type { CSSProperties, Dispatch, SetStateAction } from "react"
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, type ComponentProps, type CSSProperties, type Dispatch, type SetStateAction } from "react"
 import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import type { BinderColorTheme } from "@/lib/binder-colors"
 
@@ -24,30 +24,131 @@ export interface BinderGridPageContext {
   getCollectionItem: (pokemonId: number) => CollectedPokemon | undefined
   getPageSlots: (pageNumber: number) => (PokemonEntry | null)[]
   getSlotCardImage: (pokemonId: number) => string | null | undefined
-  handleLongPress: (pokemon: { id: number; name: string; }) => void
-  handleQuickCollect: (pokemon: { id: number; name: string; }) => Promise<void>
-  handleSlotClick: (pokemon: { id: number; name: string; }) => void
-  handleToggleFavorite: (pokemonId: number) => Promise<void>
   isCollected: (pokemonId: number) => boolean
   isDesktopViewport: boolean
   isPriceMode: boolean
   isSpreadLayout: boolean
   longPressedPokemon: { id: number; name: string; } | null
-  openCardSelectorForPokemon: (pokemon: PokemonSummary, mode: CardSelectorMode) => void
   priceFormat: { label: (price: CardPriceSnapshot | undefined) => string | null; amount: (amount: number | null | undefined, price?: CardPriceSnapshot | undefined) => string | null; range: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot | undefined) => string | null; totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>) => string; }
   pricesByCardId: Record<string, RegionalCardPriceSnapshot<CardPriceSnapshot>>
   readOnlyMode: boolean
-  registerSlotButtonRef: (pokemonId: number, node: HTMLButtonElement | null) => void
   selectedPokemon: PokemonSummary | null
-  setCurrentBinderPage: Dispatch<SetStateAction<number>>
-  setLongPressedPokemon: Dispatch<SetStateAction<{ id: number; name: string; } | null>>
   settings: BinderSettings
+  slotActions: BinderSlotActions
   slotGlareOverlayStyle: CSSProperties
   user: User | null
 }
 
+type SlotPokemon = { id: number; name: string; }
+
+/** What a binder slot needs to do when tapped, pressed or acted on. */
+export interface BinderSlotActionHandlers {
+  currentBinderPage: number
+  handleLongPress: (pokemon: SlotPokemon) => void
+  handleQuickCollect: (pokemon: SlotPokemon) => Promise<void>
+  handleSlotClick: (pokemon: SlotPokemon) => void
+  handleToggleFavorite: (pokemonId: number) => Promise<void>
+  openCardSelectorForPokemon: (pokemon: PokemonSummary, mode: CardSelectorMode) => void
+  registerSlotButtonRef: (pokemonId: number, node: HTMLButtonElement | null) => void
+  setCurrentBinderPage: Dispatch<SetStateAction<number>>
+  setLongPressedPokemon: Dispatch<SetStateAction<{ id: number; name: string; } | null>>
+}
+
+/** Slot handlers keyed by Pokémon and page, with an identity that never changes. */
+export interface BinderSlotActions {
+  click: (pokemon: SlotPokemon, pageNumber: number) => void
+  doubleClick: (pokemon: SlotPokemon, pageNumber: number) => void
+  longPress: (pokemon: SlotPokemon, pageNumber: number) => void
+  addCard: (pokemon: SlotPokemon) => void
+  addWanted: (pokemon: SlotPokemon) => void
+  quickCollect: (pokemon: SlotPokemon) => Promise<void>
+  toggleFavorite: (pokemonId: number) => Promise<void>
+  registerButton: (pokemonId: number, node: HTMLButtonElement | null) => void
+}
+
+/**
+ * Stable slot handlers that always call the latest app handlers. Slots are memoized, so
+ * handler identity must not change when unrelated app state does (selection, long press,
+ * swipe state), otherwise every slot on the page re-renders on each tap.
+ */
+export function useBinderSlotActions(handlers: BinderSlotActionHandlers): BinderSlotActions {
+  const latest = useRef(handlers)
+  useLayoutEffect(() => {
+    latest.current = handlers
+  })
+
+  return useMemo<BinderSlotActions>(() => {
+    const focusPage = (pageNumber: number) => {
+      const { currentBinderPage, setCurrentBinderPage } = latest.current
+      if (pageNumber !== currentBinderPage) {
+        setCurrentBinderPage(pageNumber)
+      }
+    }
+    const openCardSelector = (pokemon: SlotPokemon, mode: CardSelectorMode) => {
+      latest.current.setLongPressedPokemon(null)
+      const pokemonSummary = getPokemonSummary(pokemon.id)
+      if (pokemonSummary) {
+        latest.current.openCardSelectorForPokemon(pokemonSummary, mode)
+      }
+    }
+
+    return {
+      click: (pokemon, pageNumber) => {
+        focusPage(pageNumber)
+        latest.current.handleSlotClick(pokemon)
+      },
+      doubleClick: (pokemon, pageNumber) => {
+        focusPage(pageNumber)
+        openCardSelector(pokemon, "collect")
+      },
+      longPress: (pokemon, pageNumber) => {
+        focusPage(pageNumber)
+        latest.current.handleLongPress(pokemon)
+      },
+      addCard: (pokemon) => openCardSelector(pokemon, "collect"),
+      addWanted: (pokemon) => openCardSelector(pokemon, "wishlist"),
+      quickCollect: (pokemon) => latest.current.handleQuickCollect(pokemon),
+      toggleFavorite: (pokemonId) => latest.current.handleToggleFavorite(pokemonId),
+      registerButton: (pokemonId, node) => latest.current.registerSlotButtonRef(pokemonId, node),
+    }
+  }, [])
+}
+
+type PokemonSlotProps = ComponentProps<typeof PokemonSlot>
+type BinderGridSlotProps = Omit<PokemonSlotProps, "onClick" | "onDoubleClick" | "onLongPress" | "onAddCard" | "onAddWanted" | "onQuickCollect" | "onToggleFavorite" | "buttonRef"> & {
+  pageNumber: number
+  actions: BinderSlotActions
+}
+
+/** One binder slot; re-renders only when its own props change. */
+const BinderGridSlot = memo(function BinderGridSlot({ pageNumber, actions, ...slotProps }: BinderGridSlotProps) {
+  const { pokemon } = slotProps
+  const onClick = useCallback(() => actions.click(pokemon, pageNumber), [actions, pageNumber, pokemon])
+  const onDoubleClick = useCallback(() => actions.doubleClick(pokemon, pageNumber), [actions, pageNumber, pokemon])
+  const onLongPress = useCallback(() => actions.longPress(pokemon, pageNumber), [actions, pageNumber, pokemon])
+  const onAddCard = useCallback(() => actions.addCard(pokemon), [actions, pokemon])
+  const onAddWanted = useCallback(() => actions.addWanted(pokemon), [actions, pokemon])
+  const onQuickCollect = useCallback(() => { void actions.quickCollect(pokemon) }, [actions, pokemon])
+  const onToggleFavorite = useCallback(() => { void actions.toggleFavorite(pokemon.id) }, [actions, pokemon.id])
+  const buttonRef = useCallback((node: HTMLButtonElement | null) => actions.registerButton(pokemon.id, node), [actions, pokemon.id])
+
+  return (
+    <PokemonSlot
+      {...slotProps}
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onLongPress={onLongPress}
+      onAddCard={onAddCard}
+      onAddWanted={onAddWanted}
+      onQuickCollect={onQuickCollect}
+      onToggleFavorite={onToggleFavorite}
+      buttonRef={buttonRef}
+    />
+  )
+})
+
 export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber: number, side: "left" | "right") {
-  const { binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, openCardSelectorForPokemon, priceFormat, pricesByCardId, readOnlyMode, registerSlotButtonRef, selectedPokemon, setCurrentBinderPage, setLongPressedPokemon, settings, slotGlareOverlayStyle, user } = ctx
+  const { binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings, slotActions, slotGlareOverlayStyle, user } = ctx
   const pageTheme = getBinderThemeForPage(pageNumber)
   const pageSlots = getPageSlots(pageNumber)
   const isActivePage = pageNumber === currentBinderPage
@@ -125,7 +226,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
           const itemPriceKey = getCollectionItemPriceKey(displayCard)
 
           return (
-            <PokemonSlot
+            <BinderGridSlot
               key={`${pageNumber}-${pokemon.id}`}
               pokemon={pokemon}
               isCollected={binderCardDisplay !== "wanted" && isCurrentCollected}
@@ -146,47 +247,10 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
               binderSlotGlareStyle={slotGlareOverlayStyle}
               cardFinishEffectStyle={cardFinishEffectStyle}
               cardFinishGlint={cardFinishGlint}
-              onClick={() => {
-                if (pageNumber !== currentBinderPage) {
-                  setCurrentBinderPage(pageNumber)
-                }
-                handleSlotClick(pokemon)
-              }}
-              onDoubleClick={() => {
-                if (pageNumber !== currentBinderPage) {
-                  setCurrentBinderPage(pageNumber)
-                }
-                setLongPressedPokemon(null)
-                const pokemonSummary = getPokemonSummary(pokemon.id)
-                if (pokemonSummary) {
-                  openCardSelectorForPokemon(pokemonSummary, "collect")
-                }
-              }}
-              onLongPress={() => {
-                if (pageNumber !== currentBinderPage) {
-                  setCurrentBinderPage(pageNumber)
-                }
-                handleLongPress(pokemon)
-              }}
-              onAddCard={() => {
-                setLongPressedPokemon(null)
-                const pokemonSummary = getPokemonSummary(pokemon.id)
-                if (pokemonSummary) {
-                  openCardSelectorForPokemon(pokemonSummary, "collect")
-                }
-              }}
-              onAddWanted={() => {
-                setLongPressedPokemon(null)
-                const pokemonSummary = getPokemonSummary(pokemon.id)
-                if (pokemonSummary) {
-                  openCardSelectorForPokemon(pokemonSummary, "wishlist")
-                }
-              }}
-              onQuickCollect={() => handleQuickCollect(pokemon)}
-              onToggleFavorite={() => handleToggleFavorite(pokemon.id)}
+              pageNumber={pageNumber}
+              actions={slotActions}
               user={user}
               priority={pageNumber === 1}
-              buttonRef={(node) => registerSlotButtonRef(pokemon.id, node)}
             />
           )
         })}
