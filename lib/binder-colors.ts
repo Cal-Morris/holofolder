@@ -9,7 +9,7 @@ export type BinderColorId =
   | "white"
   | "transparent"
 
-type BinderColorTheme = {
+export type BinderColorTheme = {
   background: string
   border: string
   activeOutline: string
