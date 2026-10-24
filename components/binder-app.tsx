@@ -69,7 +69,7 @@ import { renderSelectedPokemonQuickPanelView } from "@/components/binder/selecte
 import { renderMobileSlotActionBarView } from "@/components/binder/mobile-slot-action-bar"
 import { renderSpreadInfoPageView } from "@/components/binder/spread-info-page"
 import { renderSpreadBlankPageView } from "@/components/binder/spread-blank-page"
-import { renderBinderGridPageView } from "@/components/binder/binder-grid-page"
+import { renderBinderGridPageView, useBinderSlotActions } from "@/components/binder/binder-grid-page"
 import { AuthModal, BinderSwitcherSheet, CardSelector, IllustratorCardsBrowser, PartnerModal, PokemonCardsBrowser, QuickMode, SettingsModal } from "@/components/binder/lazy-views"
 import { renderAppHeaderView } from "@/components/binder/app-header"
 import { renderMainContentView } from "@/components/binder/main-content"
@@ -3261,7 +3261,8 @@ export default function BinderApp({
 
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
-  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, openCardSelectorForPokemon, priceFormat, pricesByCardId, readOnlyMode, registerSlotButtonRef, selectedPokemon, setCurrentBinderPage, setLongPressedPokemon, settings, slotGlareOverlayStyle, user }, pageNumber, side)
+  const slotActions = useBinderSlotActions({ currentBinderPage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, openCardSelectorForPokemon, registerSlotButtonRef, setCurrentBinderPage, setLongPressedPokemon })
+  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
   const handleShareWantedList = async () => {
     const text = buildWantedListText(wantedDashboard.cards, (card) => priceFormat.amount(card.effectiveGbpAmount, card.price))
