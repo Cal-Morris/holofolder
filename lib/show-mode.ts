@@ -6,46 +6,62 @@ export const SHOW_MODE_KEY = "binderdex:show-mode:v1"
 export const SHOW_MODE_PROMPT_KEY = "binderdex:show-mode-prompt:v1"
 /** Fired on window when this tab changes Show mode (the storage event covers other tabs). */
 export const SHOW_MODE_EVENT = "binderdex:show-mode"
-/** "Not now" on the binder's Show mode card hides it for this long (it still shows when offline). */
-export const SHOW_MODE_PROMPT_SNOOZE_MS = 14 * 24 * 60 * 60 * 1000
+/**
+ * Show mode is for one day at a show, not forever: if the app hasn't been open for this long, the
+ * next launch starts with it off again.
+ */
+export const SHOW_MODE_IDLE_MS = 4 * 60 * 60 * 1000
 
 export interface ShowModeState {
   on: boolean
   since: string | null
+  /** Last time the app was open with Show mode on. */
+  seenAt?: string | null
 }
 
 export const SHOW_MODE_OFF: ShowModeState = { on: false, since: null }
 
-export function parseShowMode(raw: string | null | undefined): ShowModeState {
+/** Reads the stored switch; an "on" that hasn't been seen for SHOW_MODE_IDLE_MS reads as off. */
+export function parseShowMode(raw: string | null | undefined, now = Date.now()): ShowModeState {
   if (!raw) return SHOW_MODE_OFF
   try {
     const parsed = JSON.parse(raw) as Partial<ShowModeState> | null
     if (!parsed || parsed.on !== true) return SHOW_MODE_OFF
-    return { on: true, since: typeof parsed.since === "string" ? parsed.since : null }
+    const since = typeof parsed.since === "string" ? parsed.since : null
+    const seenAt = typeof parsed.seenAt === "string" ? parsed.seenAt : since
+    const seen = seenAt ? Date.parse(seenAt) : Number.NaN
+    if (!Number.isFinite(seen) || now - seen >= SHOW_MODE_IDLE_MS) return SHOW_MODE_OFF
+    return { on: true, since, seenAt }
   } catch {
     return SHOW_MODE_OFF
   }
 }
 
-export function serializeShowMode(on: boolean, now = new Date()): string {
-  return JSON.stringify(on ? { on: true, since: now.toISOString() } : SHOW_MODE_OFF)
+/** Whether the stored value says "on", ignoring how long ago (to tidy up an expired switch). */
+export function isStoredOn(raw: string | null | undefined) {
+  try {
+    return Boolean(raw && (JSON.parse(raw) as Partial<ShowModeState> | null)?.on === true)
+  } catch {
+    return false
+  }
 }
 
-/** Whether the binder should offer Show mode: never while it's on; always when offline; else unless snoozed. */
+export function serializeShowMode(on: boolean, now = new Date(), since?: string | null): string {
+  return JSON.stringify(on ? { on: true, since: since ?? now.toISOString(), seenAt: now.toISOString() } : SHOW_MODE_OFF)
+}
+
+/**
+ * Whether the binder should offer Show mode: never while it's on, and never again once it has been
+ * dismissed or used (`dismissedAt` is set by "Not now" and by turning Show mode on).
+ */
 export function shouldOfferShowMode({
   showModeOn,
-  isOnline,
-  snoozedAt,
-  now = Date.now(),
+  dismissedAt,
 }: {
   showModeOn: boolean
-  isOnline: boolean
-  snoozedAt: number | null
-  now?: number
+  dismissedAt: number | null
 }) {
-  if (showModeOn) return false
-  if (!isOnline) return true
-  return snoozedAt === null || now - snoozedAt >= SHOW_MODE_PROMPT_SNOOZE_MS
+  return !showModeOn && dismissedAt === null
 }
 
 export function parsePromptSnooze(raw: string | null | undefined): number | null {

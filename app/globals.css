@@ -4,9 +4,11 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Top edge: an installed iPhone app draws under the status bar (viewport-fit=cover), so anything
-     pinned to the top sits 8px below the safe area to keep it clear of the clock and the notch. */
-  --top-inset: calc(env(safe-area-inset-top) + 8px);
+  /* Top edge: an installed iPhone app draws under the status bar (black-translucent + viewport-fit=cover),
+     so the top-most control sits 14px below the safe area there, well clear of the clock and the
+     Dynamic Island. With no inset (a browser tab) it is a plain 8px. The binder also paints a solid
+     cover this tall at the top so nothing that scrolls is ever drawn behind the clock. */
+  --top-inset: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 6px) + 8px);
   --left-inset: max(env(safe-area-inset-left), 0.625rem);
   --right-inset: max(env(safe-area-inset-right), 0.625rem);
   /* Mobile bottom dock: the safe-area inset is applied once (min 0.5rem in a browser tab),
