@@ -56,6 +56,7 @@ import { TopBannerSlot } from "@/components/top-banner-slot"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
+import { useViewScrollRestoration } from "@/hooks/use-view-scroll-restoration"
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
 import { shouldOfferShowMode } from "@/lib/show-mode"
 import { dismissShowModeOffer, useShowMode, useShowModeOfferDismissedAt } from "@/hooks/use-show-mode"
@@ -150,6 +151,7 @@ export default function BinderApp({
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const transitionContent = useNavigationTransition(prefersReducedMotion)
   const mainViewRef = useRef<HTMLDivElement>(null)
+  useViewScrollRestoration(mainViewRef, activeMainView)
   const viewRequestRef = useRef(0)
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
