@@ -57,6 +57,7 @@ import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 import { useViewScrollRestoration } from "@/hooks/use-view-scroll-restoration"
+import { useEdgeSwipeBack } from "@/hooks/use-edge-swipe-back"
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
 import { shouldOfferShowMode } from "@/lib/show-mode"
 import { dismissShowModeOffer, useShowMode, useShowModeOfferDismissedAt } from "@/hooks/use-show-mode"
@@ -2997,6 +2998,7 @@ export default function BinderApp({
       if (request === viewRequestRef.current) setActiveMainView(view)
     })
   }, [activeMainView, transitionContent])
+  useEdgeSwipeBack(activeMainView, switchMainView, "binder")
 
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
   // Offline card search: own cards plus card data the service worker has cached (read lazily, per search session).
