@@ -372,7 +372,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <button
                 onClick={openSearch}
                 aria-label="Search"
-                className={`flex min-h-9 min-w-9 items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+                className={`flex min-h-9 min-w-9 items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,box-shadow] ${
                     isSearchOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
               >
@@ -383,7 +383,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 onClick={() => {
                   switchMainView("binder")
                 }}
-                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,box-shadow] ${
                     !isSearchOpen && activeMainView === "binder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
               >
@@ -394,7 +394,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 onClick={() => {
                   switchMainView("list")
                 }}
-                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,box-shadow] ${
                     !isSearchOpen && activeMainView === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
               >
@@ -405,7 +405,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 onClick={() => {
                   switchMainView("wanted")
                 }}
-                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,box-shadow] ${
                     !isSearchOpen && activeMainView === "wanted" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
               >
@@ -415,7 +415,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <button
                 onClick={() => switchMainView("pokemon")}
                 aria-pressed={!isSearchOpen && activeMainView === "pokemon"}
-                className={`flex min-h-9 items-center gap-1 rounded-lg px-2 text-[11px] font-medium transition-all ${!isSearchOpen && activeMainView === "pokemon" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                className={`flex min-h-9 items-center gap-1 rounded-lg px-2 text-[11px] font-medium transition-[background-color,color,box-shadow] ${!isSearchOpen && activeMainView === "pokemon" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <BookOpen className="h-3 w-3" />
                 <span>Pokémon</span>
@@ -424,7 +424,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 onClick={() => {
                   switchMainView("sets")
                 }}
-                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,box-shadow] ${
                     !isSearchOpen && activeMainView === "sets" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
               >

@@ -119,7 +119,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
               <button
                 onClick={() => setIsMobileSpreadPreview((current) => !current)}
                 aria-pressed={isMobileSpreadPreview}
-                className={`flex h-11 w-full items-center justify-between rounded-2xl border px-4 text-sm font-semibold transition-all ${
+                className={`flex h-11 w-full items-center justify-between rounded-2xl border px-4 text-sm font-semibold transition-[background-color,border-color,color] ${
                     isMobileSpreadPreview
                       ? "border-primary/30 bg-primary/12 text-primary"
                       : "border-border/60 bg-background/62 text-foreground dark:border-border/40 dark:bg-muted/35"
@@ -148,7 +148,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
                         setIsMobileNavExpanded(false)
                       }}
                       aria-pressed={isActive}
-                      className={`h-11 rounded-2xl border md:h-9 md:flex-[1_0_28%] md:rounded-lg md:px-2.5 md:text-xs px-3 text-sm font-semibold transition-all ${
+                      className={`h-11 rounded-2xl border md:h-9 md:flex-[1_0_28%] md:rounded-lg md:px-2.5 md:text-xs px-3 text-sm font-semibold transition-[background-color,border-color,color] ${
                           isActive
                             ? "border-primary/35 bg-primary/12 text-primary"
                             : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
@@ -167,7 +167,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
                 <button
                   onClick={() => setIsPriceMode((current) => !current)}
                   aria-pressed={isPriceMode}
-                  className={`h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent px-3 text-sm font-semibold transition-all ${
+                  className={`h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent px-3 text-sm font-semibold transition-[background-color,border-color,color] ${
                       isPriceMode
                         ? "border-primary/35 bg-primary/12 text-primary"
                         : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
@@ -180,7 +180,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
               <button
                 onClick={() => { closeControlsSheet(); handlePhotoButtonClick() }}
                 disabled={isScanningPage || isFilteredBinderLayout || currentPagePokemon.length === 0}
-                className="h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
+                className="h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-[background-color,border-color,color,opacity] disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
               >
                 <span>{isScanningPage ? "Scanning" : "Scan page"}</span>
                 <Camera aria-hidden="true" className="hidden h-3.5 w-3.5 md:block" />
