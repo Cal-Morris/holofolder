@@ -58,7 +58,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             aria-label="Search"
             aria-description="Press and hold for Quick mode"
             title="Search (hold for Quick mode)"
-            className={`flex h-11 min-w-0 touch-manipulation select-none items-center justify-center rounded-[0.9rem] px-1 transition-all [-webkit-touch-callout:none] ${
+            className={`flex h-11 min-w-0 touch-manipulation select-none items-center justify-center rounded-[0.9rem] px-1 transition-[background-color,color,box-shadow] [-webkit-touch-callout:none] ${
                 isSearchOpen || isQuickModeOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
           >
@@ -70,7 +70,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             }}
             aria-label="Binder"
             title="Binder"
-            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-[background-color,color,box-shadow] ${
                 !isSearchOpen && activeMainView === "binder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
           >
@@ -85,7 +85,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             }}
             aria-label="List"
             title="List"
-            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-[background-color,color,box-shadow] ${
                 !isSearchOpen && activeMainView === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
           >
@@ -99,7 +99,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             }}
             aria-label="Wanted"
             title="Wanted"
-            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-[background-color,color,box-shadow] ${
                 !isSearchOpen && activeMainView === "wanted" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
           >
@@ -113,7 +113,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             }}
             aria-label="Sets"
             title="Sets"
-            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-all ${
+            className={`flex h-11 min-w-0 items-center justify-center rounded-[0.9rem] px-1 transition-[background-color,color,box-shadow] ${
                 !isSearchOpen && (activeMainView === "sets" || activeMainView === "pokemon") ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
           >
