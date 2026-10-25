@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 import { IOS_VIEWPORT_GAP_SCRIPT } from "@/lib/ios-viewport-gap"
+import { KEYBOARD_INSET_SCRIPT } from "@/lib/keyboard-inset"
 
 // next/font must be assigned at module scope. The classNames are not applied: the
 // generated @font-face rules ("Geist", "Geist Mono") are used via --font-sans/--font-mono in globals.css.
@@ -62,6 +63,8 @@ export default async function RootLayout({
       <head>
         {/* Measures the iOS 26 installed-app dead band under the page before first paint (lib/ios-viewport-gap.ts). */}
         <script dangerouslySetInnerHTML={{ __html: IOS_VIEWPORT_GAP_SCRIPT }} />
+        {/* Keeps bottom chrome above the on-screen keyboard (lib/keyboard-inset.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: KEYBOARD_INSET_SCRIPT }} />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
         {children}
