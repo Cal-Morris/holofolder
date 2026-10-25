@@ -188,7 +188,7 @@ export default function DexListView({
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search name, card, set, or dex #"
-            className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground/70"
+            className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-base md:text-sm outline-none placeholder:text-muted-foreground/70"
           />
           {searchQuery ? (
             <button

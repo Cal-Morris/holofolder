@@ -210,7 +210,7 @@ export default function PokemonCardsBrowser({
                 onChange={(event) => setTextFilter(event.target.value)}
                 data-overlay-escape="clear"
                 placeholder="Set, number…"
-                className="h-9 w-full min-w-0 rounded-full border border-border/60 bg-background/70 pl-8 pr-3 text-sm outline-none focus:border-primary/50"
+                className="h-9 w-full min-w-0 rounded-full border border-border/60 bg-background/70 pl-8 pr-3 text-base md:text-sm outline-none focus:border-primary/50"
               />
             </label>
           </div>

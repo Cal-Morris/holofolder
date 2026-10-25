@@ -851,7 +851,7 @@ export default function CardSelector({
                   placeholder={intentCopy.searchPlaceholder}
                   value={filters.searchQuery || ""}
                   onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
-                  className="h-11 w-full rounded-2xl border border-border/60 bg-background/85 pl-9 pr-11 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 [&::-webkit-search-cancel-button]:hidden"
+                  className="h-11 w-full rounded-2xl border border-border/60 bg-background/85 pl-9 pr-11 text-base md:text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 [&::-webkit-search-cancel-button]:hidden"
                 />
                 <button
                   type="button"
