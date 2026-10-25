@@ -57,6 +57,13 @@ export interface CardPriceSnapshot extends ServerCardPriceSnapshot {
 const CARD_PRICE_CACHE_KEY = "binderdex_card_price_cache_v7"
 export const CARD_PRICE_CACHE_STALE_MS = 2 * 60 * 60 * 1000
 const CARD_PRICE_REQUEST_BATCH_SIZE = 25
+/**
+ * Most quotes kept in the localStorage quick cache. Full evidence for every card lives in IndexedDB, so an
+ * evicted quote is still readable there; this cap only stops the quick cache from eating the shared quota.
+ */
+export const CARD_PRICE_CACHE_MAX_ENTRIES = 500
+/** Times a write is retried, halving the kept quotes each time, after the browser reports a full quota. */
+export const CARD_PRICE_CACHE_QUOTA_RETRIES = 4
 
 export interface CardPriceFetchBatch {
   force: boolean
@@ -274,7 +281,7 @@ function normalizeFetchedCardPrice(value: unknown): CardPriceSnapshot | null {
   return snapshot
 }
 
-/** Unlike background cache writes, a card-show download must report storage failure. */
+/** A card-show download must report IndexedDB failure; the localStorage quick cache is trimmed to fit instead. */
 export async function saveCardPricesForOffline(prices: unknown[], store = getOfflineStore()) {
   const cache = readPriceCache()
   const updates: CardPriceSnapshot[] = []
@@ -285,8 +292,9 @@ export async function saveCardPricesForOffline(prices: unknown[], store = getOff
       updates.push(price)
     }
   }
+  // IndexedDB holds the full evidence offline; the localStorage copy below is a best-effort quick cache.
   await persistPriceEvidence(updates, store)
-  localStorage.setItem(CARD_PRICE_CACHE_KEY, compactPriceCache(cache))
+  writePriceCache(cache)
 }
 
 async function persistPriceEvidence(prices: CardPriceSnapshot[], store = getOfflineStore()) {
@@ -365,10 +373,46 @@ function chunkCardPriceLookups(lookups: CardPriceLookup[], batchSize: number) {
   return chunks
 }
 
-function writePriceCache(cache: Record<string, CardPriceSnapshot>) {
-  try {
-    localStorage.setItem(CARD_PRICE_CACHE_KEY, compactPriceCache(cache))
-  } catch {
-    // ignore cache writes
+/** Keeps the `max` most recently fetched quotes (newest `fetchedAt` wins; ties keep the later-inserted entry). */
+export function capPriceCacheEntries(cache: Record<string, CardPriceSnapshot>, max = CARD_PRICE_CACHE_MAX_ENTRIES) {
+  const entries = Object.entries(cache)
+  if (entries.length <= max) return cache
+  const ranked = entries
+    .map(([key, price], index) => ({ key, price, index, fetchedAt: Number.isFinite(price.fetchedAt) ? price.fetchedAt : 0 }))
+    .sort((left, right) => right.fetchedAt - left.fetchedAt || right.index - left.index)
+    .slice(0, Math.max(0, max))
+  const kept = new Set(ranked.map(entry => entry.key))
+  return Object.fromEntries(entries.filter(([key]) => kept.has(key)))
+}
+
+function isQuotaExceededError(error: unknown) {
+  if (!error || typeof error !== "object") return false
+  const { name, code } = error as { name?: unknown; code?: unknown }
+  return name === "QuotaExceededError" || name === "NS_ERROR_DOM_QUOTA_REACHED" || code === 22 || code === 1014
+}
+
+/**
+ * Writes the quick cache capped to CARD_PRICE_CACHE_MAX_ENTRIES. When the quota is full it halves the kept
+ * quotes (oldest out first) and retries; if that still fails it drops the key so other prefs can save.
+ * Returns how many quotes were stored (0 when the cache could not be written).
+ */
+export function writePriceCache(cache: Record<string, CardPriceSnapshot>, storage: Storage = localStorage) {
+  let limit = CARD_PRICE_CACHE_MAX_ENTRIES
+  for (let attempt = 0; attempt <= CARD_PRICE_CACHE_QUOTA_RETRIES; attempt++) {
+    const capped = capPriceCacheEntries(cache, limit)
+    try {
+      storage.setItem(CARD_PRICE_CACHE_KEY, compactPriceCache(capped))
+      return Object.keys(capped).length
+    } catch (error) {
+      if (!isQuotaExceededError(error)) break
+      limit = Math.floor(Math.min(limit, Object.keys(capped).length) / 2)
+      if (limit < 1) break
+    }
   }
+  try {
+    storage.removeItem(CARD_PRICE_CACHE_KEY)
+  } catch {
+    // Nothing more to free.
+  }
+  return 0
 }
