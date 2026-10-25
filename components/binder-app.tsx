@@ -58,6 +58,7 @@ import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from "@/lib/binder
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 import { useViewScrollRestoration } from "@/hooks/use-view-scroll-restoration"
 import { useEdgeSwipeBack } from "@/hooks/use-edge-swipe-back"
+import { usePressFeedback } from "@/hooks/use-press-feedback"
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
 import { shouldOfferShowMode } from "@/lib/show-mode"
 import { dismissShowModeOffer, useShowMode, useShowModeOfferDismissedAt } from "@/hooks/use-show-mode"
@@ -151,6 +152,7 @@ export default function BinderApp({
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const transitionContent = useNavigationTransition(prefersReducedMotion)
+  usePressFeedback()
   const mainViewRef = useRef<HTMLDivElement>(null)
   useViewScrollRestoration(mainViewRef, activeMainView)
   const viewRequestRef = useRef(0)
