@@ -46,4 +46,22 @@ test.describe("nav chrome transitions", () => {
       expect(property, label).not.toMatch(/\ball\b/)
     }
   })
+
+  test("binder mode chips do not transition `all`", async ({ harness }) => {
+    await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Open controls" }).click()
+    for (const group of ["Binder cards", "Binder display"]) {
+      const chips = harness.page.getByRole("group", { name: group }).filter({ visible: true }).getByRole("button")
+      await expect(chips.first()).toBeVisible()
+      const styles = await chips.evaluateAll((buttons) => buttons.map((button) => {
+        const style = getComputedStyle(button)
+        return { property: style.transitionProperty, duration: style.transitionDuration }
+      }))
+      expect(styles.length).toBeGreaterThanOrEqual(2)
+      for (const { property, duration } of styles) {
+        expect(property, group).not.toMatch(/\ball\b/)
+        expect(duration.split(",").every((value) => Number.parseFloat(value) === 0), group).toBe(true)
+      }
+    }
+  })
 })

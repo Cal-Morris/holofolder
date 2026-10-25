@@ -164,7 +164,7 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
                 aria-label="Sort cards"
                 value={sort}
                 onChange={(event) => setSort(event.target.value as IllustratorCardSort)}
-                className="h-9 rounded-full border border-border/60 bg-background/70 px-3 text-xs font-semibold outline-none focus:border-primary/50"
+                className="h-9 rounded-full border border-border/60 bg-background/70 px-3 text-base md:text-xs font-semibold outline-none focus:border-primary/50"
               >
                 {ILLUSTRATOR_CARD_SORTS.map((option) => (
                   <option key={option.id} value={option.id}>{option.label}</option>

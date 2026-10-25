@@ -430,7 +430,7 @@ export default function SettingsModal({
                     disabled={isReadOnlyView}
                     onChange={(event) => setPageRangeInput(event.target.value)}
                     onBlur={() => setPageRangeInput(String(safePageRangeEnd))}
-                    className="h-10 w-20 rounded-xl border border-border/50 bg-background/80 px-3 text-sm font-medium tabular-nums"
+                    className="h-10 w-20 rounded-xl border border-border/50 bg-background/80 px-3 text-base md:text-sm font-medium tabular-nums"
                   />
                   <Button
                     type="button"

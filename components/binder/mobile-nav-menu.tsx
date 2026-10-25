@@ -100,7 +100,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
                 id="binder-generation"
                 value={selectedGen}
                 onChange={(e) => setSelectedGen(Number(e.target.value))}
-                className="h-9 min-w-0 bg-transparent text-center text-sm md:text-xs font-semibold cursor-pointer focus:outline-none"
+                className="h-9 min-w-0 bg-transparent text-center text-base md:text-xs font-semibold cursor-pointer focus:outline-none"
               >
                 {GENERATIONS.map((gen) => (
                   <option key={gen.id} value={gen.id}>
