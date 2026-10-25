@@ -644,6 +644,19 @@ html[data-keyboard-open] [data-dock] {
   visibility: hidden;
   pointer-events: none;
 }
+/*
+ * Full-height overlays (Show mode) fit the part of the page still visible above the keyboard, so the
+ * middle shrinks instead of iOS sliding the whole overlay up and the card off the top. Their bottom edge
+ * is already the keyboard's top, so footers inside pad by nothing extra.
+ */
+html[data-keyboard-open] [data-keyboard-fit] {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--keyboard-viewport-top, 0px);
+  height: var(--keyboard-viewport-height, 100dvh);
+  max-height: none;
+  --safe-bottom: 0px;
+}
 
 /* Edge swipe-back affordance: a chevron that follows the finger in from the left edge. */
 html[data-edge-back] body::after {

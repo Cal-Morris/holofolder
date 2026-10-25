@@ -60,8 +60,8 @@ test.describe("on-screen keyboard", () => {
     await expect(html(page)).toHaveAttribute("data-keyboard-open", "")
     expect(await html(page).evaluate((element) => getComputedStyle(element).getPropertyValue("--keyboard-inset").trim())).toBe(`${KEYBOARD}px`)
     await expectAboveKeyboard(harness, search, "Show mode search")
-    // The footer's fill runs on behind the keyboard; its content pads to the keyboard's top edge.
-    expect(await footer.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))).toBeCloseTo(KEYBOARD + 12, 0)
+    // The dialog itself now ends at the keyboard's top edge, so the footer adds no keyboard padding.
+    expect(await footer.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))).toBeCloseTo(12, 0)
     await search.fill("bulba")
     await expect(search).toBeFocused()
 
@@ -163,6 +163,49 @@ test.describe("on-screen keyboard", () => {
     await expect(check.getByRole("group", { name: "Keypad" })).toBeVisible()
     await setKeyboard(page, 0)
   })
+
+  for (const panned of [0, 120, KEYBOARD]) {
+    test(`Show mode deal check: the card stays in view and the middle shrinks (iOS pan ${panned}px)`, async ({ harness }) => {
+      // Callum's iPhone: with the asking field focused, iOS slid the whole full-height dialog up with the
+      // keyboard, card off the top. The dialog must instead fit the visible part of the page.
+      const { page } = harness
+      await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
+      await page.getByRole("button", { name: "Show mode", exact: true }).click()
+      await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+      const dialog = page.getByRole("dialog", { name: "Quick mode" })
+      await dialog.getByRole("searchbox").fill("charizard")
+      await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
+      const check = dialog.getByTestId("quick-card-check")
+      const input = check.getByRole("textbox", { name: "Asking price" })
+      await expect(input).toBeFocused()
+      await setKeyboard(page, KEYBOARD, panned)
+      await expect(html(page)).toHaveAttribute("data-keyboard-open", "")
+
+      // The visible strip of the page, in layout-viewport coordinates.
+      const top = panned
+      const bottom = panned + harness.viewport.height - KEYBOARD
+      await expect.poll(async () => (await dialog.boundingBox())!.y).toBeCloseTo(top, 0)
+      const box = (await dialog.boundingBox())!
+      expect(box.y + box.height, "dialog ends at the keyboard").toBeCloseTo(bottom, 0)
+      const inView = async (locator: Locator, name: string) => {
+        const rect = (await locator.boundingBox())!
+        expect(rect.y, `${name} below the top of the visible page`).toBeGreaterThanOrEqual(top - 0.5)
+        expect(rect.y + rect.height, `${name} above the keyboard`).toBeLessThanOrEqual(bottom + 0.5)
+      }
+      await inView(check.getByRole("heading", { name: "Charizard ex" }), "Card name")
+      await inView(check.getByRole("button", { name: "Back to results" }), "Back button")
+      await inView(check.getByTestId("deal-verdict-pinned"), "Pinned verdict")
+      await inView(input, "Asking price")
+      // The footer sits on the keyboard's top edge, with no extra keyboard-sized padding below the field.
+      const footer = input.locator("xpath=ancestor::div[contains(@class,'border-t')][1]")
+      expect(await footer.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))).toBeCloseTo(12, 0)
+
+      await input.blur()
+      await setKeyboard(page, 0)
+      await expect(html(page)).not.toHaveAttribute("data-keyboard-open")
+      await expect.poll(async () => (await dialog.boundingBox())!.height).toBeCloseTo(harness.viewport.height, 0)
+    })
+  }
 
   test("Show mode bundle check: the verdict pins above the bundle price while typing", async ({ harness }) => {
     const { page } = harness
