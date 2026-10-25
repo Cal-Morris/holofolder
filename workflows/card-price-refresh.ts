@@ -4,7 +4,6 @@ import {
   normalizeCardLanguage,
   refreshCardPriceLookups,
   type CardPriceLookup,
-  type CardPriceRefreshResult,
 } from "@/lib/card-pricing"
 import { DEFAULT_REFRESH_INTERVAL, normalizeRefreshInterval, type RefreshInterval } from "@/lib/price-refresh-interval"
 import { fetchAllRows } from "@/lib/supabase/fetch-all-rows"
@@ -23,13 +22,20 @@ interface CardPriceWorkflowResult {
   passes: number
 }
 
+/** Counts only: a step's return value is persisted as workflow data, so prices[] must never leave the step. */
+interface CardPriceBatchCounts {
+  refreshed: number
+  cached: number
+  unpriced: number
+}
+
 interface CardPriceWorkflowInput {
   ownerUserId?: string | null
   repeatCount?: number | null
   interval?: string | null
 }
 
-const PRICE_REFRESH_BATCH_SIZE = 25
+const PRICE_REFRESH_BATCH_SIZE = 100
 const MAX_REFRESH_PASSES = 12
 
 export async function refreshCardPricesWorkflow(input: string | null | CardPriceWorkflowInput = null): Promise<CardPriceWorkflowResult> {
@@ -164,15 +170,15 @@ async function loadTrackedCardPriceLookups(ownerUserId: string | null): Promise<
   return [...byKey.values()]
 }
 
-async function refreshCardPriceBatch(lookups: CardPriceLookup[]): Promise<CardPriceRefreshResult> {
+async function refreshCardPriceBatch(lookups: CardPriceLookup[]): Promise<CardPriceBatchCounts> {
   "use step"
 
   console.log(`[binderdex] Refreshing card price batch with ${lookups.length} lookups`)
-  const result = await refreshCardPriceLookups(lookups, { force: true })
+  const { refreshed, cached, unpriced } = await refreshCardPriceLookups(lookups, { force: true })
   console.log(
-    `[binderdex] Finished card price batch: ${result.refreshed} refreshed, ${result.cached} cached, ${result.unpriced} unpriced`,
+    `[binderdex] Finished card price batch: ${refreshed} refreshed, ${cached} cached, ${unpriced} unpriced`,
   )
-  return result
+  return { refreshed, cached, unpriced }
 }
 
 function chunkCardPriceLookups(lookups: CardPriceLookup[], batchSize: number) {

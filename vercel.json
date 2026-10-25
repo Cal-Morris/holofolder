@@ -3,6 +3,34 @@
     {
       "path": "/api/card-prices/refresh",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/card-prices/refresh",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/card-prices/refresh",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/card-prices/refresh",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/card-prices/refresh",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/card-prices/refresh",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/card-prices/refresh",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/card-prices/refresh",
+      "schedule": "0 21 * * *"
     }
   ]
 }
