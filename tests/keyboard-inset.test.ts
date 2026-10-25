@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { KEYBOARD_INSET_SCRIPT, KEYBOARD_MIN_INSET, keyboardInset } from "@/lib/keyboard-inset"
+import { KEYBOARD_INSET_SCRIPT, KEYBOARD_MIN_INSET, keyboardInset, keyboardOpen } from "@/lib/keyboard-inset"
 
 // iPhone 15 in Safari with the keyboard up: 844pt layout viewport, 336pt keyboard + accessory bar.
 const open = { innerHeight: 844, viewportHeight: 508, offsetTop: 0, scale: 1, editableFocused: true }
@@ -28,6 +28,28 @@ describe("keyboardInset", () => {
   })
   test("never goes negative when the visual viewport is taller (overscroll)", () => {
     assert.equal(keyboardInset({ ...open, viewportHeight: 900, offsetTop: -20 }), 0)
+  })
+  test("is 0 once iOS has panned the page up by the whole keyboard to reveal a low field", () => {
+    assert.equal(keyboardInset({ ...open, offsetTop: 336 }), 0)
+  })
+})
+
+describe("keyboardOpen", () => {
+  test("is true while the keyboard is up, however far iOS panned the page", () => {
+    assert.equal(keyboardOpen(open), true)
+    assert.equal(keyboardOpen({ ...open, offsetTop: 120 }), true)
+    // Installed iPhone app, deal check: the asking field is at the bottom, so iOS pans by the full keyboard.
+    assert.equal(keyboardOpen({ ...open, offsetTop: 336 }), true)
+  })
+  test("is true when the browser shrinks the layout viewport with the keyboard too", () => {
+    assert.equal(keyboardOpen({ ...open, innerHeight: 508, restingHeight: 844 }), true)
+    assert.equal(keyboardInset({ ...open, innerHeight: 508, restingHeight: 844 }), 0)
+  })
+  test("is false with nothing focused, small changes, pinch zoom, or the keyboard closed", () => {
+    assert.equal(keyboardOpen({ ...open, editableFocused: false }), false)
+    assert.equal(keyboardOpen({ ...open, viewportHeight: 844 - 70 }), false)
+    assert.equal(keyboardOpen({ ...open, viewportHeight: 422, scale: 2 }), false)
+    assert.equal(keyboardOpen({ ...open, viewportHeight: 844 }), false)
   })
   test("the inline script is self-contained", () => {
     assert.match(KEYBOARD_INSET_SCRIPT, /^\(function|^\(\(/)
