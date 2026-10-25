@@ -90,6 +90,10 @@ test("analytics API rejects anonymous access without caching private data", asyn
 
 test("an unavailable analytics chunk preserves the current view and dock", async ({ harness }) => {
   const page = harness.page
+  // Idle preload could already have fetched Analytics; turn it off so the chunk is still
+  // missing when the route is blocked.
+  await page.addInitScript(() => { window.requestIdleCallback = () => 0 })
+  await harness.open()
   await page.route("**/_next/static/chunks/*.js", route => route.abort())
   await page.getByRole("button", { name: "Open controls", exact: true }).click()
   await page.getByRole("button", { name: "Analytics", exact: true }).click()

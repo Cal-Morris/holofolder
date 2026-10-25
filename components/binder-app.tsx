@@ -74,7 +74,7 @@ import { renderMobileSlotActionBarView } from "@/components/binder/mobile-slot-a
 import { renderSpreadInfoPageView } from "@/components/binder/spread-info-page"
 import { renderSpreadBlankPageView } from "@/components/binder/spread-blank-page"
 import { renderBinderGridPageView, useBinderSlotActions } from "@/components/binder/binder-grid-page"
-import { AuthModal, BinderSwitcherSheet, CardSelector, IllustratorCardsBrowser, PartnerModal, PokemonCardsBrowser, QuickMode, SettingsModal } from "@/components/binder/lazy-views"
+import { AuthModal, BinderSwitcherSheet, CardSelector, IllustratorCardsBrowser, PartnerModal, PokemonCardsBrowser, QuickMode, scheduleIdleViewPreload, SettingsModal } from "@/components/binder/lazy-views"
 import { renderAppHeaderView } from "@/components/binder/app-header"
 import { renderMainContentView } from "@/components/binder/main-content"
 import { renderSearchOverlayView } from "@/components/binder/search-overlay"
@@ -163,6 +163,16 @@ export default function BinderApp({
     update()
     query.addEventListener?.("change", update)
     return () => query.removeEventListener?.("change", update)
+  }, [])
+  // Once the binder has painted, fetch the other tabs' code in idle time so the first switch
+  // doesn't wait on a download. The frame callback pushes the idle wait past that first paint.
+  useEffect(() => {
+    let cancelPreload: (() => void) | null = null
+    const frame = window.requestAnimationFrame(() => { cancelPreload = scheduleIdleViewPreload() })
+    return () => {
+      window.cancelAnimationFrame(frame)
+      cancelPreload?.()
+    }
   }, [])
   const [isScanningPage, setIsScanningPage] = useState(false)
   const [pageScanSummary, setPageScanSummary] = useState<PageScanSummary | null>(null)
