@@ -42,7 +42,7 @@ export interface BottomNavContext {
 export function renderBottomNavView(ctx: BottomNavContext) {
   const { activeCollectionFilterOption, activeJumpLabel, activeJumpPokemonList, activeMainView, canFilterCollection, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, hasTrackedCards, isLoadingPrices, isMobileFilterSheetOpen, isMobileNavExpanded, isPriceMode, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, pricingPreferences, quickPressFiredRef, quickPressHandlers, setIsMobileFilterSheetOpen, setIsMobileNavExpanded, setIsPriceMode, setSelectedPokemon, switchMainView } = ctx
   return (
-    <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden px-2 pb-[var(--dock-inset)] md:hidden">
+    <nav aria-label="Main navigation" data-dock className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden px-2 pb-[var(--dock-inset)] md:hidden">
       <div data-scroll-blur="card" className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-[1.25rem] border border-border/70 bg-card/96 p-1 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
         <div className="grid min-w-0 grid-cols-5 items-center rounded-2xl bg-muted/42 dark:bg-muted/35">
           <button

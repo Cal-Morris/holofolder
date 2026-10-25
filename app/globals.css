@@ -631,6 +631,20 @@ html[data-scrolling] [data-scroll-blur="background"] {
   background-color: var(--background);
 }
 
+/*
+ * On-screen keyboard open (lib/keyboard-inset.ts): the keyboard covers the home indicator, so
+ * sheets, dialogs and footers pad from the keyboard's top edge instead, and the dock steps aside
+ * (as native tab bars do) so it neither floats over the keyboard nor hides the field being typed in.
+ */
+html[data-keyboard-open] {
+  --safe-bottom: var(--keyboard-inset, 0px);
+  --dock-clearance: var(--keyboard-inset, 0px);
+}
+html[data-keyboard-open] [data-dock] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Edge swipe-back affordance: a chevron that follows the finger in from the left edge. */
 html[data-edge-back] body::after {
   content: "‹";
