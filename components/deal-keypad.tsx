@@ -1,6 +1,6 @@
 "use client"
 
-// The asking-price keypad and verdict panel shared by Show mode's card check and bundle check.
+// The asking-price field, keypad and verdict panel shared by Show mode's card check and bundle check.
 import { useEffect, useRef } from "react"
 import type { DealCheck, DealVerdict } from "@/lib/deal-check"
 
@@ -63,17 +63,23 @@ export function DealKeypad({ value, onChange, label = "Asking price", autoFocus 
         <input
           ref={inputRef}
           aria-label={label}
-          // The keypad below is the keyboard: focus without raising the phone's own (typing still works).
-          inputMode="none"
+          // Tapping the field raises the phone's decimal keyboard; the keypad below is the fallback.
+          inputMode="decimal"
           enterKeyHint="done"
           autoComplete="off"
           value={value}
           onChange={(event) => onChange(event.target.value.replace(/[^\d.,]/g, "").slice(0, 9))}
+          onKeyDown={(event) => {
+            // "Done" closes the keyboard so the verdict and the keypad come back into view.
+            if (event.key === "Enter") event.currentTarget.blur()
+          }}
           placeholder="0.00"
           className="min-w-0 flex-1 bg-transparent text-right text-2xl font-black tabular-nums outline-none"
         />
       </label>
-      <div className="mb-2 grid grid-cols-6 gap-1.5" role="group" aria-label="Keypad">
+      {/* While the phone's keyboard is up it does the keypad's job, so the keypad steps aside and the
+          verdict above keeps its room (html[data-keyboard-open], lib/keyboard-inset.ts). */}
+      <div className="mb-2 grid grid-cols-6 gap-1.5 [html[data-keyboard-open]_&]:hidden" role="group" aria-label="Keypad">
         {KEYS.map((key) => (
           <button
             key={key}
