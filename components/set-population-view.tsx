@@ -368,7 +368,7 @@ export default function SetPopulationView({
             placeholder="Add sets by name or code"
             aria-label="Search sets by name or code"
             enterKeyHint="search"
-            className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground/70"
+            className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-base md:text-sm outline-none placeholder:text-muted-foreground/70"
           />
           {query ? (
             <button
@@ -455,7 +455,7 @@ export default function SetPopulationView({
             <label className="flex items-center gap-2 rounded-2xl border border-border/55 bg-background/45 px-3">
               <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
               <span className="sr-only">Add Pokémon to match</span>
-              <input value={pokemonQuery} onChange={event => setPokemonQuery(event.target.value)} placeholder="Add Pokémon, e.g. Mareep" className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none" />
+              <input value={pokemonQuery} onChange={event => setPokemonQuery(event.target.value)} placeholder="Add Pokémon, e.g. Mareep" className="min-w-0 flex-1 bg-transparent py-2 text-base md:text-sm outline-none" />
             </label>
             {pokemonQuery.trim() ? <div className="flex flex-wrap gap-1.5">
               {pokemonSuggestions.map(pokemon => <button key={pokemon.id} type="button" aria-label={`Match ${formatPokemonDisplayName(pokemon.name)}`} onClick={() => { setMatchedPokemonIds(current => [...current, pokemon.id]); setPokemonQuery("") }} className="min-h-9 rounded-full border border-border/55 px-3 text-xs">{formatPokemonDisplayName(pokemon.name)}</button>)}
@@ -509,7 +509,7 @@ export default function SetPopulationView({
                 onChange={(event) => setSlotSearch(event.target.value)}
                 aria-label="Filter set checklist"
                 placeholder="Filter names, numbers, rarities..."
-                className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground/70"
+                className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-base md:text-sm outline-none placeholder:text-muted-foreground/70"
               />
               {slotSearch ? (
                 <button

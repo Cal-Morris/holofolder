@@ -42,7 +42,7 @@ export default function PokemonBrowseView({ collectionByPokemonId, ownedElsewher
       <label className="flex items-center gap-2 rounded-2xl border border-border/55 bg-background/45 px-3">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="sr-only">Search Pokémon by name or dex number</span>
-        <input type="search" value={query} onChange={event => { scrollerRef.current?.scrollTo(0, 0); setQuery(event.target.value) }} placeholder="Name or dex number" className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none" />
+        <input type="search" value={query} onChange={event => { scrollerRef.current?.scrollTo(0, 0); setQuery(event.target.value) }} placeholder="Name or dex number" className="min-w-0 flex-1 bg-transparent py-2 text-base md:text-sm outline-none" />
       </label>
       <div role="group" aria-label="Filter Pokémon species" className="flex flex-wrap gap-1.5">
         {(["all", "owned", "missing", "wanted"] as const).map(option => <button key={option} type="button" aria-pressed={filter === option} onClick={() => { scrollerRef.current?.scrollTo(0, 0); setFilter(option) }} className={`min-h-9 rounded-full border px-3 text-xs font-semibold capitalize ${filter === option ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-background/45"}`}>{option} <span className="tabular-nums opacity-75">{counts[option]}</span></button>)}
