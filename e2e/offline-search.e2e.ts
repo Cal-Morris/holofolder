@@ -127,6 +127,19 @@ test.describe("offline search and card show prep", () => {
     expect(network.proxyImages.every((url) => url.endsWith("/low.webp")), "thumbnails go through the proxy at low res").toBe(true)
     expect(new Set(network.proxyImages).size, "each thumbnail downloaded once").toBe(3)
 
+    // The prepared thumbnails are also kept apart from the everyday image cache. Simulate that cache
+    // evicting them (it drops its oldest entries past its cap): they still have to show offline.
+    await expect.poll(() => page.evaluate(async () => {
+      const keys = await (await caches.open("binderdex-v1-show-images")).keys()
+      return keys.filter((request) => request.url.includes("show1")).length
+    })).toBe(3)
+    expect(await page.evaluate(async () => {
+      const images = await caches.open("binderdex-v3-images")
+      const prepared = (await images.keys()).filter((request) => request.url.includes("show1"))
+      await Promise.all(prepared.map((request) => images.delete(request)))
+      return prepared.length
+    }), "the everyday image cache had them too").toBe(3)
+
     await goOffline(page, network)
 
     // Sets view offline: find the saved set by name and open it with its card thumbnails.

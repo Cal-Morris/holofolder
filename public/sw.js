@@ -3,7 +3,17 @@ const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`
 const DATA_CACHE = `${CACHE_VERSION}-data`
 // Images keep their v3 name so the cards people already cached survive this upgrade.
 const IMAGE_CACHE = "binderdex-v3-images"
-const KEEP_CACHES = [APP_SHELL_CACHE, DATA_CACHE, IMAGE_CACHE]
+// Thumbnails saved by "Prepare for card show". They live apart from IMAGE_CACHE so everyday browsing
+// can't evict them: that cache drops its oldest entries past MAX_IMAGE_CACHE_ENTRIES, and prepared
+// thumbnails are often the oldest (or were already cached long before, so a prep hit didn't refresh them).
+const SHOW_IMAGE_CACHE = "binderdex-v1-show-images"
+const KEEP_CACHES = [APP_SHELL_CACHE, DATA_CACHE, IMAGE_CACHE, SHOW_IMAGE_CACHE]
+// Requests from the card show prep carry this header (see lib/card-show-prep.ts).
+const SAVE_FOR_SHOW_HEADER = "x-binderdex-save"
+const SAVE_FOR_SHOW_VALUE = "show"
+// Low-res thumbnails are ~20-40 KB, so this is roughly 60-120 MB at most. The least recently
+// prepared entries go first.
+const MAX_SHOW_IMAGE_ENTRIES = 3000
 const WARM_CACHE_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
 const MAX_WARM_CACHE_URLS = 500
 const WARM_CACHE_CONCURRENCY = 4
@@ -71,6 +81,24 @@ async function trimCache(cacheName, maxEntries) {
 }
 
 let imagePutsSinceTrim = 0
+let showImagePutsSinceTrim = 0
+
+function isSaveForShowRequest(request) {
+  return request.headers.get(SAVE_FOR_SHOW_HEADER) === SAVE_FOR_SHOW_VALUE
+}
+
+// Keep a prepared thumbnail in SHOW_IMAGE_CACHE, keyed by URL alone. Re-preparing moves it to the
+// newest end, so trimming drops thumbnails from the oldest shows first.
+async function saveForShow(url, response) {
+  const cache = await caches.open(SHOW_IMAGE_CACHE)
+  await cache.delete(url)
+  await cache.put(url, response)
+  showImagePutsSinceTrim += 1
+  if (showImagePutsSinceTrim >= 25) {
+    showImagePutsSinceTrim = 0
+    await trimCache(SHOW_IMAGE_CACHE, MAX_SHOW_IMAGE_ENTRIES)
+  }
+}
 
 async function putInCache(cache, cacheName, request, response) {
   await cache.put(request, response)
@@ -85,14 +113,21 @@ async function putInCache(cache, cacheName, request, response) {
 
 async function cacheFirst(request, cacheName, event) {
   const cache = await caches.open(cacheName)
-  const cached = await cache.match(request)
+  const keepForShow = cacheName === IMAGE_CACHE && isSaveForShowRequest(request)
+  const cached = (await cache.match(request)) ?? (cacheName === IMAGE_CACHE ? await caches.open(SHOW_IMAGE_CACHE).then((show) => show.match(request.url)) : undefined)
   if (cached) {
+    if (keepForShow) {
+      const write = saveForShow(request.url, cached.clone()).catch(() => undefined)
+      if (event) event.waitUntil(write)
+    }
     return cached
   }
 
   const response = await fetch(request)
   if (isCacheableResponse(response)) {
-    const write = putInCache(cache, cacheName, request, response.clone()).catch(() => undefined)
+    const writes = [putInCache(cache, cacheName, request, response.clone())]
+    if (keepForShow) writes.push(saveForShow(request.url, response.clone()))
+    const write = Promise.all(writes).catch(() => undefined)
     if (event) event.waitUntil(write)
   }
   return response

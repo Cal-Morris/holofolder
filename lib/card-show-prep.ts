@@ -8,6 +8,11 @@ import { getCardPriceKey, normalizeCardPriceLookups, type CardPriceLookup } from
 export const FALLBACK_THUMBNAIL_BYTES = 32 * 1024
 export const ESTIMATE_SAMPLE_SIZE = 3
 export const PREP_CONCURRENCY = 4
+/**
+ * Marks thumbnail downloads as card show prep. The service worker then keeps them in its own image
+ * cache (`binderdex-v1-show-images`), which everyday browsing can't evict.
+ */
+export const SAVE_FOR_SHOW_HEADERS = { "X-Binderdex-Save": "show" } as const
 
 /** Exactly the URL the Sets view requests when a set is picked (query = set name, then setId). */
 export function getSetSlotsUrl(set: Pick<TCGSetSummary, "id" | "name">) {
@@ -91,7 +96,7 @@ export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher
   const imageUrls = [...new Set(planned.flatMap((entry) => entry.imageUrls))]
   const sampledImageBytes: number[] = []
   for (const url of imageUrls.slice(0, ESTIMATE_SAMPLE_SIZE)) {
-    const response = await fetcher(url, { signal: options.signal }).catch(() => null)
+    const response = await fetcher(url, { signal: options.signal, headers: SAVE_FOR_SHOW_HEADERS }).catch(() => null)
     if (response?.ok) sampledImageBytes.push(await responseBytes(response))
   }
   const dataBytes = planned.reduce((sum, entry) => sum + entry.dataBytes, 0)
@@ -158,7 +163,7 @@ export async function downloadCardShowImages(
       const url = urls[next]
       next += 1
       try {
-        const response = await fetcher(url, { signal: options.signal })
+        const response = await fetcher(url, { signal: options.signal, headers: SAVE_FOR_SHOW_HEADERS })
         if (!response.ok) progress.failed += 1
         await response.arrayBuffer().catch(() => undefined)
       } catch {
