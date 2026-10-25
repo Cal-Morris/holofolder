@@ -15,7 +15,15 @@ function subscribe(onChange: () => void) {
   }
 }
 
+/**
+ * The switch as set in this page when saving it failed (a full or blocked localStorage: an installed
+ * app's offline caches can fill it). Without this a tap on Show would write nothing, read the old
+ * value back and look dead. Null once a save succeeds, so storage is the source of truth again.
+ */
+let unsavedOn: boolean | null = null
+
 function readOn() {
+  if (unsavedOn !== null) return unsavedOn
   try {
     return parseShowMode(window.localStorage.getItem(SHOW_MODE_KEY)).on
   } catch {
@@ -81,10 +89,16 @@ export function useShowMode() {
   const setShowMode = useCallback((on: boolean) => {
     try {
       window.localStorage.setItem(SHOW_MODE_KEY, serializeShowMode(on))
+      unsavedOn = null
+    } catch {
+      // Private mode or full storage: the switch still works for this page view.
+      unsavedOn = on
+    }
+    try {
       // Once it has been used, the binder stops offering it; the header's Show button stays.
       if (on && window.localStorage.getItem(SHOW_MODE_PROMPT_KEY) === null) window.localStorage.setItem(SHOW_MODE_PROMPT_KEY, String(Date.now()))
     } catch {
-      // Private mode or full storage: the switch still works for this page view.
+      // Storage full: the offer is hidden while Show mode is on anyway.
     }
     window.dispatchEvent(new Event(SHOW_MODE_EVENT))
     navigator.vibrate?.(on ? [15, 40, 15] : 15)

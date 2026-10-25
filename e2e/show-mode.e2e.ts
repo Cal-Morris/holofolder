@@ -173,4 +173,31 @@ test.describe("show mode", () => {
     await screenshot(harness, "show-mode-banner-tally")
     await page.context().setOffline(false)
   })
+  test("the header Show button still toggles when the device's storage is full", async ({ harness }) => {
+    const { page } = harness
+    // An installed app's offline caches can fill localStorage; saving the switch then fails.
+    await page.evaluate(() => {
+      let n = 0
+      let size = 256 * 1024
+      while (size >= 1) {
+        try {
+          window.localStorage.setItem(`e2e-fill-${n}`, "x".repeat(size))
+          n++
+        } catch {
+          size = Math.floor(size / 2)
+        }
+      }
+    })
+    const button = headerButton(harness)
+    await harness.expectHittable(button)
+    await button.tap()
+    await expect(button).toHaveAttribute("aria-pressed", "true")
+    await expect(banner(harness)).toContainText("Show mode on")
+    await banner(harness).getByRole("button", { name: "Exit show mode" }).click()
+    await expect(banner(harness)).toHaveCount(0)
+    await expect(button).toHaveAttribute("aria-pressed", "false")
+    await page.evaluate(() => {
+      for (const key of Object.keys(window.localStorage)) if (key.startsWith("e2e-fill-")) window.localStorage.removeItem(key)
+    })
+  })
 })
