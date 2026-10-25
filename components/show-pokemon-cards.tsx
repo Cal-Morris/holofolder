@@ -81,7 +81,7 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
   return (
     <section aria-label={`${name} cards`} className="flex min-h-0 flex-1 flex-col" data-testid="show-pokemon-cards">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
-        <div className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
+        <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
           <div className="flex items-center gap-3">
             <button type="button" onClick={onBack} aria-label="Back to hunting" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/70">
               <ArrowLeft className="h-5 w-5" />

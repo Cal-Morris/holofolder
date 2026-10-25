@@ -189,7 +189,7 @@ export default function WantedDashboard({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(var(--dock-clearance)+1rem)] md:pb-3" data-testid="wanted-list">
       <div className="mx-auto max-w-3xl space-y-2">
-        <div className="sticky top-0 z-10 -mx-1 space-y-2 bg-background/92 px-1 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+        <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-1 space-y-2 bg-background/92 px-1 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/75">
           {scopeToggle ? (
             <div className="flex items-center justify-between gap-2">
               {scopeToggle}

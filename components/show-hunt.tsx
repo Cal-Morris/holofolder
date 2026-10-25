@@ -179,7 +179,7 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
   return (
     <section aria-label="Hunting" className="flex min-h-0 flex-1 flex-col" data-testid="show-hunt">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
-        <div className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
+        <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
           <div className="flex items-center gap-2">
             <Target className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />
             <h3 className="min-w-0 flex-1 truncate text-base font-bold">
