@@ -31,7 +31,7 @@ export function keyboardInset(m: KeyboardMetrics): number {
   return covered >= 120 ? covered : 0
 }
 
-/** Elements that raise the keyboard (inputmode="none" fields, like the deal keypad, don't). */
+/** Elements that raise the keyboard (fields marked inputmode="none" don't). */
 export function isKeyboardTarget(element: Element | null): boolean {
   if (!element || !(element instanceof HTMLElement)) return false
   if (element.isContentEditable) return true
