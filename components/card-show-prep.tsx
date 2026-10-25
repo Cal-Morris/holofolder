@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { saveCardPricesForOffline } from "@/hooks/use-card-prices"
+import { warmCardTextReader } from "@/lib/card-scan-ocr"
 import {
   downloadCardShowImages,
   downloadCardShowPrices,
@@ -80,6 +81,9 @@ export default function CardShowPrep({ candidateSets }: { candidateSets: TCGSetS
     abortRef.current = controller
     const total = plan.imageUrls.length
     setPhase({ kind: "downloading", plan, progress: { done: 0, total, failed: 0 } })
+    // Also fetch card scanning's text reader now (a few MB, once), so Scan still reads cards at the show
+    // without signal even if it was never opened online. Best effort: never holds up or fails the prep.
+    void warmCardTextReader()
     try {
       const progress = await downloadCardShowImages(plan, {
         signal: controller.signal,

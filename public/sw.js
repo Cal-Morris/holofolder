@@ -7,7 +7,11 @@ const IMAGE_CACHE = "binderdex-v3-images"
 // can't evict them: that cache drops its oldest entries past MAX_IMAGE_CACHE_ENTRIES, and prepared
 // thumbnails are often the oldest (or were already cached long before, so a prep hit didn't refresh them).
 const SHOW_IMAGE_CACHE = "binderdex-v1-show-images"
-const KEEP_CACHES = [APP_SHELL_CACHE, DATA_CACHE, IMAGE_CACHE, SHOW_IMAGE_CACHE]
+// Card scanning's text reader (tesseract.js): its worker script, engine and English data come from
+// jsDelivr on first use. Keeping them here lets Scan read cards offline at a show once they were
+// downloaded online (by opening Scan or by "Prepare for card show"). The URLs are versioned, so cache-first.
+const OCR_CACHE = "binderdex-v1-ocr"
+const KEEP_CACHES = [APP_SHELL_CACHE, DATA_CACHE, IMAGE_CACHE, SHOW_IMAGE_CACHE, OCR_CACHE]
 // Requests from the card show prep carry this header (see lib/card-show-prep.ts).
 const SAVE_FOR_SHOW_HEADER = "x-binderdex-save"
 const SAVE_FOR_SHOW_VALUE = "show"
@@ -40,6 +44,13 @@ const APP_SHELL_ASSETS = [
   "/pwa-192x192.png",
   "/pwa-512x512.png",
 ]
+
+function isOcrAssetUrl(url) {
+  return (
+    url.origin === "https://cdn.jsdelivr.net" &&
+    /^\/npm\/(?:tesseract\.js@|tesseract\.js-core@|@tesseract\.js-data\/)/.test(url.pathname)
+  )
+}
 
 function isCacheableResponse(response) {
   return Boolean(response) && (response.ok || response.type === "opaque")
@@ -489,6 +500,11 @@ self.addEventListener("fetch", (event) => {
     )
   ) {
     event.respondWith(networkFirst(request, DATA_CACHE, event))
+    return
+  }
+
+  if (isOcrAssetUrl(url)) {
+    event.respondWith(cacheFirst(request, OCR_CACHE, event))
     return
   }
 
