@@ -3,8 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 const VERCEL_WORKFLOW_WORLDS = new Set(["vercel", "@workflow/world-vercel"])
-const SCHEDULED_REFRESH_PASSES = 8
-const SCHEDULED_REFRESH_INTERVAL = "3h"
 
 function preferManagedVercelWorkflowWorld() {
   if (process.env.VERCEL !== "1") return
@@ -71,11 +69,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Not authorized" }, { status: 401 })
     }
 
-    return await startCardPriceRefresh({
-      ownerUserId: null,
-      repeatCount: SCHEDULED_REFRESH_PASSES,
-      interval: SCHEDULED_REFRESH_INTERVAL,
-    })
+    // One pass per cron invocation (vercel.json schedules it every 3 hours). A long multi-pass run with
+    // sleeps between passes stored far more workflow data than several short runs.
+    return await startCardPriceRefresh({ ownerUserId: null, repeatCount: 1 })
   } catch (error) {
     console.error("[binderdex] Failed to start scheduled card price refresh workflow:", error)
     return NextResponse.json(
