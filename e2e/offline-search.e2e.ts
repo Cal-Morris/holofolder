@@ -103,6 +103,15 @@ test.describe("offline search and card show prep", () => {
     await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
     await expect(harness.dock()).toBeVisible()
 
+    // Card scanning's text reader comes from jsDelivr. Stub it (never real network) and hide any system
+    // text reader so prep has to fetch it, as on an iPhone.
+    const ocrRequests: string[] = []
+    await context.route(/^https:\/\/cdn\.jsdelivr\.net\/npm\/(tesseract\.js|@tesseract\.js-data)/, (route) => {
+      ocrRequests.push(route.request().url())
+      return route.fulfill({ contentType: "application/javascript", headers: { "Access-Control-Allow-Origin": "*" }, body: "/* stub tesseract worker */" })
+    })
+    await page.evaluate(() => { delete (window as { TextDetector?: unknown }).TextDetector })
+
     await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
     const prep = page.getByRole("region", { name: "Prepare for card show" })
     await prep.getByRole("button", { name: "Prepare for card show" }).click()
@@ -124,6 +133,12 @@ test.describe("offline search and card show prep", () => {
         keys.onerror = () => { reject(keys.error); db.close() }
       }
     }))).toBeGreaterThanOrEqual(3)
+    // Prep also downloads the scan text reader, and the service worker keeps it for Scan offline.
+    await expect.poll(() => ocrRequests.some((url) => url.includes("/npm/tesseract.js@")), { timeout: 15_000 }).toBe(true)
+    await expect.poll(() => page.evaluate(async () => {
+      const keys = await (await caches.open("binderdex-v1-ocr")).keys()
+      return keys.some((request) => request.url.includes("/npm/tesseract.js@") && request.url.endsWith("/worker.min.js"))
+    }), { timeout: 15_000 }).toBe(true)
     expect(network.proxyImages.every((url) => url.endsWith("/low.webp")), "thumbnails go through the proxy at low res").toBe(true)
     expect(new Set(network.proxyImages).size, "each thumbnail downloaded once").toBe(3)
 
