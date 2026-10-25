@@ -481,7 +481,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                       }
                     }}
                     aria-label="Binder page number"
-                    className="h-8 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-[11px] font-semibold tabular-nums"
+                    className="h-8 w-10 rounded-lg border border-border/30 bg-background/70 text-center text-[11px] pointer-coarse:text-base font-semibold tabular-nums"
                   />
                   <span className="pr-1 text-[11px] text-muted-foreground">/ {totalBinderPages}</span>
                   <Button variant="ghost" size="icon" className="h-9 w-9 disabled:pointer-events-none disabled:opacity-35" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}>

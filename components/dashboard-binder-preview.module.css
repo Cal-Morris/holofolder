@@ -6,6 +6,8 @@
 /* Touch screens get full 44px targets (an installed iPhone app is the tightest case). */
 @media (pointer: coarse) { .toggle button { min-height: 44px; min-width: 44px; } }
 .toggle button[aria-pressed=true] { background: var(--foreground); color: var(--background); }
+/* The pressed state swaps instantly; say so explicitly instead of inheriting the `all` initial value. */
+.toggle button { transition: none; }
 .toggle button:focus-visible, .toolbar button:focus-visible, .pages button:focus-visible, .heading a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .preview { width: 100%; max-width: 1100px; min-width: 0; margin: 0 auto; overflow: hidden; border: 1px solid #42434a; border-radius: 10px; background: #25262c; color: #f1f1f3; }
 .heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid #44454d; }

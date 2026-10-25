@@ -216,7 +216,7 @@ export default function BinderSwitcherSheet({
                         maxLength={BINDER_NAME_MAX_LENGTH}
                         onChange={(event) => setRenameDraft(event.target.value)}
                         aria-label={`New name for ${binder.name}`}
-                        className="h-10 min-w-0 flex-1 rounded-xl border border-border/60 bg-background px-3 text-sm"
+                        className="h-10 min-w-0 flex-1 rounded-xl border border-border/60 bg-background px-3 text-base md:text-sm"
                       />
                       <button type="submit" aria-label="Save name" disabled={busy !== null || !renameDraft.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40">
                         {busy === `rename:${binder.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -320,7 +320,7 @@ export default function BinderSwitcherSheet({
                 placeholder={atLimit ? `Up to ${MAX_BINDERS_PER_OWNER} binders` : "New binder name"}
                 aria-label="New binder name"
                 disabled={atLimit || !isOnline}
-                className="h-11 min-w-0 flex-1 rounded-xl border border-border/60 bg-background px-3 text-sm disabled:opacity-50"
+                className="h-11 min-w-0 flex-1 rounded-xl border border-border/60 bg-background px-3 text-base md:text-sm disabled:opacity-50"
               />
               <button
                 type="submit"

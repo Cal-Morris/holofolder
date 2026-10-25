@@ -70,4 +70,56 @@ test.describe("search fields do not trigger iOS focus zoom", () => {
     const dialog = page.getByRole("dialog", { name: /cards illustrated by mitsuhiro arita/i })
     await expectNoFocusZoom(dialog.getByRole("searchbox", { name: "Filter by card, set or number" }), "Illustrator card filter")
   })
+
+  test("illustrator sort", async ({ harness }) => {
+    const page = harness.page
+    await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
+    const search = page.getByRole("dialog", { name: /search pokemon/i })
+    await search.getByRole("textbox").fill("arita")
+    await search.getByRole("region", { name: /illustrator results/i }).getByRole("button", { name: /^illustrator mitsuhiro arita/i }).click()
+    const dialog = page.getByRole("dialog", { name: /cards illustrated by mitsuhiro arita/i })
+    await expectNoFocusZoom(dialog.getByRole("combobox", { name: "Sort cards" }), "Illustrator sort")
+  })
+
+  test("generation picker in the controls sheet", async ({ harness }) => {
+    await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Open controls" }).click()
+    await expectNoFocusZoom(harness.page.getByLabel("Generation", { exact: true }), "Generation picker")
+  })
+
+  test("settings page-range end", async ({ harness }) => {
+    const page = harness.page
+    await page.getByRole("button", { name: "More", exact: true }).click()
+    await page.getByRole("menuitem", { name: "Settings" }).click()
+    const settings = page.getByRole("dialog", { name: /settings/i })
+    await settings.getByRole("button", { name: "Display", exact: true }).click()
+    await expectNoFocusZoom(settings.getByRole("spinbutton"), "Page-range end")
+  })
+
+  test("binder switcher new-name and rename fields", async ({ harness }) => {
+    const page = harness.page
+    const owner = "00000000-0000-4000-8000-0000000000e2"
+    const binder = (id: string, name: string, sortOrder: number) => ({ id, name, sortOrder, isDefault: sortOrder === 0, slotCount: 0, ownerUserId: owner, color: null, rows: null, cols: null, createdAt: null, updatedAt: null })
+    const binders = [binder("e2e00000-0000-4000-8000-000000000001", "My binder", 0), binder("e2e00000-0000-4000-8000-000000000002", "Trades", 1)]
+    await page.route("**/api/binders**", route => route.fulfill({ json: { binders } }))
+    await page.goto("/e2e-harness?signedIn=1&binders=1")
+    await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
+    await page.getByTestId("binder-switcher-trigger").click()
+    const sheet = page.getByRole("dialog", { name: "Binders" })
+    await expectNoFocusZoom(sheet.getByRole("textbox", { name: "New binder name" }), "New binder name")
+    await sheet.getByRole("button", { name: "Edit" }).click()
+    await sheet.getByRole("button", { name: "Rename Trades" }).click()
+    await expectNoFocusZoom(sheet.getByRole("textbox", { name: "New name for Trades" }), "Rename binder")
+  })
+})
+
+test.describe("tablet header page field does not trigger iOS focus zoom", () => {
+  test.use({ signedIn: true })
+
+  test("desktop-layout header page number on a touch screen", async ({ harness }) => {
+    // The harness opens on the phone layout; widen to an iPad-sized touch screen to get the desktop header.
+    await harness.page.setViewportSize({ width: 820, height: 1180 })
+    const field = harness.page.getByRole("spinbutton", { name: "Binder page number" }).filter({ visible: true })
+    await expectNoFocusZoom(field, "Header page number")
+  })
 })
