@@ -34,6 +34,10 @@ test.describe("Pokémon perspective", () => {
 
   test("a missing offline browse chunk leaves the current view usable", async ({ harness }) => {
     const page = harness.page
+    // Idle preload would already have fetched the Pokémon view; turn it off so the chunk is
+    // still missing when the route is blocked.
+    await page.addInitScript(() => { window.requestIdleCallback = () => 0 })
+    await harness.open()
     await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
     await expect(page.getByRole("heading", { name: "Find matches across sets" })).toBeVisible()
     await page.route("**/_next/static/chunks/*.js", route => route.abort())

@@ -6,6 +6,7 @@ import type { ResolvedPricingPreferences } from "@/lib/pricing-region"
 import type { Dispatch, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from "react"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 import type { ActiveMainView, CollectionViewFilter } from "@/components/binder/binder-app-model"
+import { preloadTabView } from "@/components/binder/lazy-views"
 
 export interface BottomNavContext {
   activeCollectionFilterOption: { id: CollectionViewFilter; label: string; mobileLabel: string; description: string; }
@@ -76,6 +77,9 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <Grid3X3 className="h-4 w-4" />
           </button>
           <button
+            // Start fetching the tab's code on press, ahead of the click, in case idle preload hasn't run yet.
+            onPointerDown={() => preloadTabView("list")}
+            onTouchStart={() => preloadTabView("list")}
             onClick={() => {
               switchMainView("list")
             }}
@@ -88,6 +92,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <ListChecks className="h-4 w-4" />
           </button>
           <button
+            onPointerDown={() => preloadTabView("wanted")}
+            onTouchStart={() => preloadTabView("wanted")}
             onClick={() => {
               switchMainView("wanted")
             }}
@@ -100,6 +106,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <Heart className="h-4 w-4" />
           </button>
           <button
+            onPointerDown={() => preloadTabView(lastBrowseViewRef.current)}
+            onTouchStart={() => preloadTabView(lastBrowseViewRef.current)}
             onClick={() => {
               switchMainView(lastBrowseViewRef.current)
             }}
