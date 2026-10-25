@@ -12,6 +12,12 @@
 // pans the visual viewport up (offsetTop) to reveal it; the keyboard then covers little or nothing of
 // the layout viewport's bottom edge, so the inset is small or 0, but the keyboard is still up and
 // html[data-keyboard-open] must still be set (Show mode's deal check hides its keypad on it).
+//
+// That pan is why a full-height overlay can't rely on the inset alone: nothing shrinks, and the whole
+// overlay slides up with its top (the card being checked) off screen. So while the keyboard is up this
+// also publishes the visible part of the page as --keyboard-viewport-top / --keyboard-viewport-height,
+// and overlays marked [data-keyboard-fit] (app/globals.css) size themselves to it: their scrolling middle
+// shrinks and the header and footer both stay in view, pan or no pan.
 
 export interface KeyboardMetrics {
   /** window.innerHeight: the layout viewport, which the keyboard doesn't resize. */
@@ -73,6 +79,7 @@ function install(
     const root = document.documentElement
     let current = 0
     let isOpen = false
+    let visible = ""
     let resting = window.innerHeight
     let frame = 0
     const apply = () => {
@@ -90,15 +97,23 @@ function install(
       }
       const open = openFor(metrics)
       const inset = open ? insetFor(metrics) : 0
-      if (open === isOpen && inset === current) return
+      const top = Math.max(0, Math.round(vv.offsetTop))
+      const height = Math.round(vv.height)
+      const box = open ? `${top},${height}` : ""
+      if (open === isOpen && inset === current && box === visible) return
       const opening = !isOpen && open
       isOpen = open
       current = inset
+      visible = box
       if (open) {
         root.style.setProperty("--keyboard-inset", `${inset}px`)
+        root.style.setProperty("--keyboard-viewport-top", `${top}px`)
+        root.style.setProperty("--keyboard-viewport-height", `${height}px`)
         root.dataset.keyboardOpen = ""
       } else {
         root.style.removeProperty("--keyboard-inset")
+        root.style.removeProperty("--keyboard-viewport-top")
+        root.style.removeProperty("--keyboard-viewport-height")
         delete root.dataset.keyboardOpen
       }
       // Once the layout has made room, bring a field the keyboard still covers back into view.
