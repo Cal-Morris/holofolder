@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { setItemMakingRoom } from "@/lib/storage/make-room"
 import { createClient } from "@/lib/supabase/client"
 import {
   getDefaultBinderSettings,
@@ -58,7 +59,7 @@ function writeStoredSettings(nextSettings: BinderSettings, userId?: string | nul
     return
   }
 
-  localStorage.setItem(getLocalSettingsKey(userId), JSON.stringify(nextSettings))
+  setItemMakingRoom(localStorage, getLocalSettingsKey(userId), JSON.stringify(nextSettings))
 }
 
 async function fetchRemoteSettings() {

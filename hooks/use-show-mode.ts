@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useSyncExternalStore } from "react"
+import { setItemMakingRoom } from "@/lib/storage/make-room"
 import { SHOW_MODE_EVENT, SHOW_MODE_KEY, SHOW_MODE_PROMPT_KEY, isStoredOn, parsePromptSnooze, parseShowMode, serializeShowMode } from "@/lib/show-mode"
 
 function subscribe(onChange: () => void) {
@@ -88,7 +89,8 @@ export function useShowMode() {
 
   const setShowMode = useCallback((on: boolean) => {
     try {
-      window.localStorage.setItem(SHOW_MODE_KEY, serializeShowMode(on))
+      // A full storage gives up other binders' offline copies first, so the switch survives a reload.
+      setItemMakingRoom(window.localStorage, SHOW_MODE_KEY, serializeShowMode(on))
       unsavedOn = null
     } catch {
       // Private mode or full storage: the switch still works for this page view.

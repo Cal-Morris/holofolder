@@ -4,6 +4,7 @@ import { writeLocalCollectedIds } from "@/lib/local-collection"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItem, normalizeCollectionItems } from "@/lib/collection/normalize"
 import { mirrorCollectionSnapshot, mirrorPendingOperations } from "@/lib/offline-store/collection-mirror"
+import { capBinderSnapshots, setItemMakingRoom } from "@/lib/storage/make-room"
 import { collectionSnapshotKey, hasOwnOfflineKeys, LEGACY_COLLECTION_SNAPSHOT_KEY, markBinderSavedOnDevice } from "@/lib/binders/offline"
 
 export interface LocalCollectionSnapshot {
@@ -117,10 +118,13 @@ export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot, 
   // Durable copy in IndexedDB, written even if localStorage is full.
   mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt, undefined, binderId, isDefault)
 
+  const key = collectionSnapshotKey(binderId, isDefault)
+  // Bounded: only the few most recently saved other binders keep a localStorage copy (the rest are in IndexedDB).
+  capBinderSnapshots(window.localStorage, key)
   try {
-    window.localStorage.setItem(collectionSnapshotKey(binderId, isDefault), JSON.stringify(snapshot))
+    setItemMakingRoom(window.localStorage, key, JSON.stringify(snapshot))
   } catch {
-    // ignore quota failures
+    // Still full: the IndexedDB copy above is the durable one.
   }
   // This binder now opens offline on this device.
   markBinderSavedOnDevice(window.localStorage, snapshot.ownerUserId, binderId)
@@ -178,9 +182,9 @@ export function writePendingCollectionOperations(operations: PendingCollectionOp
   mirrorPendingOperations(operations)
 
   try {
-    window.localStorage.setItem(LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(operations))
+    setItemMakingRoom(window.localStorage, LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(operations))
   } catch {
-    // ignore quota failures
+    // Still full: the IndexedDB mirror above keeps the queue.
   }
 }
 
