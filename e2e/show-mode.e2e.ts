@@ -200,4 +200,49 @@ test.describe("show mode", () => {
       for (const key of Object.keys(window.localStorage)) if (key.startsWith("e2e-fill-")) window.localStorage.removeItem(key)
     })
   })
+  test("with storage full of other binders' offline copies, Show mode survives a reload", async ({ harness }) => {
+    const { page } = harness
+    // Other binders' saved copies (they also live in IndexedDB), then filler until nothing more fits.
+    const snapshotKeys = await page.evaluate(() => {
+      const keys: string[] = []
+      for (let n = 0; n < 3; n++) {
+        const key = `pokemon_collection_snapshot_v1:e2e-binder-${n}`
+        try {
+          window.localStorage.setItem(key, JSON.stringify({ savedAt: new Date(Date.UTC(2026, 0, 1 + n)).toISOString(), binderId: `e2e-binder-${n}`, collection: [], pad: "x".repeat(400 * 1024) }))
+          keys.push(key)
+        } catch {
+          break
+        }
+      }
+      let n = 0
+      let size = 256 * 1024
+      while (size >= 1) {
+        try {
+          window.localStorage.setItem(`e2e-fill-${n}`, "x".repeat(size))
+          n++
+        } catch {
+          size = Math.floor(size / 2)
+        }
+      }
+      return keys
+    })
+    expect(snapshotKeys.length).toBeGreaterThan(0)
+    const button = headerButton(harness)
+    await harness.expectHittable(button)
+    await button.tap()
+    await expect(button).toHaveAttribute("aria-pressed", "true")
+
+    // Saved for real (not just this page view): the oldest binder copy made room.
+    const remaining = await page.evaluate((keys) => keys.filter((key) => window.localStorage.getItem(key) !== null), snapshotKeys)
+    expect(remaining).not.toContain(snapshotKeys[0])
+    await page.reload()
+    await expect(headerButton(harness)).toHaveAttribute("aria-pressed", "true")
+    await expect(banner(harness)).toContainText("Show mode on")
+
+    await page.evaluate(() => {
+      for (const key of Object.keys(window.localStorage)) {
+        if (key.startsWith("e2e-fill-") || key.startsWith("pokemon_collection_snapshot_v1:e2e-binder-")) window.localStorage.removeItem(key)
+      }
+    })
+  })
 })

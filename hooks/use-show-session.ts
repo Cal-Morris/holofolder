@@ -2,6 +2,7 @@
 
 // Show mode's purchase tally (lib/show-session.ts), shared by every component and tab on this device.
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react"
+import { setItemMakingRoom } from "@/lib/storage/make-room"
 import {
   SHOW_SESSION_EVENT,
   SHOW_SESSION_KEY,
@@ -43,7 +44,7 @@ function readRaw() {
 
 function write(next: ShowSession) {
   try {
-    window.localStorage.setItem(SHOW_SESSION_KEY, JSON.stringify(next))
+    setItemMakingRoom(window.localStorage, SHOW_SESSION_KEY, JSON.stringify(next))
   } catch {
     // Full or blocked storage: the purchase still went into the binder.
   }
@@ -60,7 +61,7 @@ function readQueueRaw() {
 
 function writeQueue(queue: ShowPurchaseOp[]) {
   try {
-    window.localStorage.setItem(SHOW_PURCHASE_QUEUE_KEY, JSON.stringify(queue))
+    setItemMakingRoom(window.localStorage, SHOW_PURCHASE_QUEUE_KEY, JSON.stringify(queue))
   } catch {
     // Blocked storage: the purchase is still in the tally; it syncs from the next one that is queued.
   }
