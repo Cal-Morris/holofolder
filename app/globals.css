@@ -611,6 +611,26 @@ html[data-scroll-locked] body {
   overscroll-behavior: none;
 }
 
+/*
+ * While anything scrolls (hooks/use-freeze-blur-on-scroll.ts), sticky glass stops re-blurring the
+ * content moving behind it every frame, which is what stutters on iOS. It holds an opaque fill in
+ * the same tone instead (so rows never show through sharply) and the blur returns once scrolling
+ * settles.
+ */
+html[data-scrolling] [data-scroll-blur] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-scrolling] [data-scroll-blur="card"] {
+  background-color: var(--card);
+}
+html[data-scrolling].dark [data-scroll-blur="card"] {
+  background-color: var(--background);
+}
+html[data-scrolling] [data-scroll-blur="background"] {
+  background-color: var(--background);
+}
+
 /* Edge swipe-back affordance: a chevron that follows the finger in from the left edge. */
 html[data-edge-back] body::after {
   content: "‹";
