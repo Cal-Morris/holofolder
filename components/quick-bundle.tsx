@@ -12,7 +12,7 @@ import { formatCardNumber } from "@/lib/pokemon-card-browse"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { DisplayCurrency } from "@/lib/pricing-region"
 import UndoSnackbar from "@/components/undo-snackbar"
-import { DealKeypad, DealVerdictPanel } from "@/components/deal-keypad"
+import { DEAL_HIDE_WHILE_TYPING, DealKeypad, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 import type { QuickBundleEntry, QuickCardAction } from "@/components/quick-card-check"
 
 export interface QuickBundleProps {
@@ -76,6 +76,10 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
     }
   }
 
+  const verdictEmptyText = result.marketTotal > 0
+    ? `Type the asking total. Pay up to ${money(result.marketTotal * (1 + thresholds.fairPct / 100))}.`
+    : "No market prices for these cards yet."
+
   return (
     <section aria-label="Bundle" className="flex min-h-0 flex-1 flex-col" data-testid="quick-bundle">
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
@@ -114,22 +118,18 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
           {entries.length === 0 && <li className="px-1 py-4 text-center text-sm text-muted-foreground">Add cards with Bundle on each card&apos;s check.</li>}
         </ul>
 
-        <DealVerdictPanel
-          deal={result.deal}
-          money={money}
-          testId="bundle-verdict"
-          emptyText={result.marketTotal > 0 ? `Type the asking total. Pay up to ${money(result.marketTotal * (1 + thresholds.fairPct / 100))}.` : "No market prices for these cards yet."}
-        />
+        <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
       </div>
 
       <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
+        <PinnedDealVerdict deal={result.deal} money={money} testId="bundle-verdict-pinned" emptyText={verdictEmptyText} />
         <DealKeypad value={input} onChange={setInput} label="Bundle price" />
         {!readOnly && (
           <button
             type="button"
             disabled={busy || entries.length === 0}
             onClick={() => void buyAll()}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-bold text-primary-foreground disabled:opacity-45"
+            className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-bold text-primary-foreground disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
           >
             <ShoppingBag className="h-5 w-5" aria-hidden />Bought bundle
           </button>

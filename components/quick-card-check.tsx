@@ -20,7 +20,7 @@ import { getRisingMomentum } from "@/lib/price-momentum"
 import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import UndoSnackbar from "@/components/undo-snackbar"
-import { DealKeypad, DealVerdictPanel } from "@/components/deal-keypad"
+import { DEAL_HIDE_WHILE_TYPING, DealKeypad, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 
 export type QuickCardAction = "bought" | "add-owned" | "want" | "got"
 
@@ -158,6 +158,11 @@ export default function QuickCardCheck({
   }
 
   const key = bundleKey(card, finish)
+  const verdictEmptyText = market
+    ? `Type the asking price. Pay up to ${money(market.amount * (1 + thresholds.fairPct / 100))}.`
+    : isOnline
+    ? "No market price for this card yet, so no verdict."
+    : "This card's price isn't saved on this device, and prices can't be fetched offline. Check again when you have signal."
   const inBundle = isInBundle(key)
   const thumb = card.image ? toCardImageSrc(card.image.replace(/\/high\.webp$/, "/low.webp")) : null
   const statusLabel = state.owned ? "Owned" : state.wanted ? "Wanted" : "Not in binder"
@@ -235,20 +240,13 @@ export default function QuickCardCheck({
           )}
         </div>
 
-        <DealVerdictPanel
-          deal={deal}
-          money={money}
-          emptyText={market
-            ? `Type the asking price. Pay up to ${money(market.amount * (1 + thresholds.fairPct / 100))}.`
-            : isOnline
-            ? "No market price for this card yet, so no verdict."
-            : "This card's price isn't saved on this device, and prices can't be fetched offline. Check again when you have signal."}
-        />
+        <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>
 
       <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
+        <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
         <DealKeypad value={input} onChange={setInput} />
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {!readOnly && (
             <button type="button" disabled={busy} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
               <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought

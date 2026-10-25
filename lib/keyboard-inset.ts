@@ -7,6 +7,11 @@
 //
 // Browser toolbars collapsing and a hardware keyboard's shortcut bar also shorten the visual
 // viewport, so a small change or one with nothing to type into is ignored.
+//
+// "Open" and "inset" are decided separately. When the focused field sits low on the page, iOS also
+// pans the visual viewport up (offsetTop) to reveal it; the keyboard then covers little or nothing of
+// the layout viewport's bottom edge, so the inset is small or 0, but the keyboard is still up and
+// html[data-keyboard-open] must still be set (Show mode's deal check hides its keypad on it).
 
 export interface KeyboardMetrics {
   /** window.innerHeight: the layout viewport, which the keyboard doesn't resize. */
@@ -18,17 +23,29 @@ export interface KeyboardMetrics {
   scale: number
   /** A text field (or other editable element) has focus. */
   editableFocused: boolean
+  /** Tallest innerHeight seen with no field focused, in case the browser shrinks the layout viewport too. */
+  restingHeight?: number
 }
 
 /** Smallest covered height treated as a software keyboard (a toolbar or shortcut bar is shorter). */
 export const KEYBOARD_MIN_INSET = 120
 
-/** Height in CSS px of the page hidden under the on-screen keyboard, or 0 when it is closed. */
-export function keyboardInset(m: KeyboardMetrics): number {
-  if (!m.editableFocused || Math.abs(m.scale - 1) > 0.01) return 0
-  const covered = Math.round(m.innerHeight - m.viewportHeight - Math.max(m.offsetTop, 0))
+/** Whether the on-screen keyboard is up: a field is focused and the visible page is a keyboard shorter. */
+export function keyboardOpen(m: KeyboardMetrics): boolean {
+  if (!m.editableFocused || Math.abs(m.scale - 1) > 0.01) return false
   // 120 = KEYBOARD_MIN_INSET, written out because this function is also serialised into the page.
-  return covered >= 120 ? covered : 0
+  return Math.round(Math.max(m.innerHeight, m.restingHeight ?? 0) - m.viewportHeight) >= 120
+}
+
+/**
+ * Height in CSS px of the layout viewport's bottom edge hidden under the on-screen keyboard: 0 when it
+ * is closed, and also 0 (or less than the keyboard) when iOS has panned the page up to reveal the field.
+ */
+export function keyboardInset(m: KeyboardMetrics): number {
+  // Same test as keyboardOpen, repeated because each function is serialised into the page on its own.
+  if (!m.editableFocused || Math.abs(m.scale - 1) > 0.01) return 0
+  if (Math.round(Math.max(m.innerHeight, m.restingHeight ?? 0) - m.viewportHeight) < 120) return 0
+  return Math.max(0, Math.round(m.innerHeight - m.viewportHeight - Math.max(m.offsetTop, 0)))
 }
 
 /** Elements that raise the keyboard (fields marked inputmode="none" don't). */
@@ -45,27 +62,39 @@ export function isKeyboardTarget(element: Element | null): boolean {
 }
 
 /** Runs in the page (inline, before first paint) with the helpers passed in. */
-function install(insetFor: (m: KeyboardMetrics) => number, isTarget: (element: Element | null) => boolean) {
+function install(
+  openFor: (m: KeyboardMetrics) => boolean,
+  insetFor: (m: KeyboardMetrics) => number,
+  isTarget: (element: Element | null) => boolean,
+) {
   try {
     const vv = window.visualViewport
     if (!vv) return
     const root = document.documentElement
     let current = 0
+    let isOpen = false
+    let resting = window.innerHeight
     let frame = 0
     const apply = () => {
       frame = 0
       const focused = document.activeElement
-      const inset = insetFor({
+      const editableFocused = isTarget(focused)
+      if (!editableFocused) resting = window.innerHeight
+      const metrics = {
         innerHeight: window.innerHeight,
         viewportHeight: vv.height,
         offsetTop: vv.offsetTop,
         scale: vv.scale,
-        editableFocused: isTarget(focused),
-      })
-      if (inset === current) return
-      const opening = current === 0
+        editableFocused,
+        restingHeight: resting,
+      }
+      const open = openFor(metrics)
+      const inset = open ? insetFor(metrics) : 0
+      if (open === isOpen && inset === current) return
+      const opening = !isOpen && open
+      isOpen = open
       current = inset
-      if (inset > 0) {
+      if (open) {
         root.style.setProperty("--keyboard-inset", `${inset}px`)
         root.dataset.keyboardOpen = ""
       } else {
@@ -73,10 +102,10 @@ function install(insetFor: (m: KeyboardMetrics) => number, isTarget: (element: E
         delete root.dataset.keyboardOpen
       }
       // Once the layout has made room, bring a field the keyboard still covers back into view.
-      if (inset > 0 && opening && focused instanceof HTMLElement) {
+      if (open && opening && focused instanceof HTMLElement) {
         requestAnimationFrame(() => {
           if (document.activeElement !== focused) return
-          if (focused.getBoundingClientRect().bottom > window.innerHeight - inset) focused.scrollIntoView({ block: "nearest" })
+          if (focused.getBoundingClientRect().bottom > vv.offsetTop + vv.height) focused.scrollIntoView({ block: "nearest" })
         })
       }
     }
@@ -89,9 +118,10 @@ function install(insetFor: (m: KeyboardMetrics) => number, isTarget: (element: E
     document.addEventListener("focusin", schedule)
     document.addEventListener("focusout", schedule)
     window.addEventListener("pageshow", schedule)
+    window.addEventListener("resize", schedule)
   } catch {
     // Never let layout tuning break the page.
   }
 }
 
-export const KEYBOARD_INSET_SCRIPT = `(${install.toString()})(${keyboardInset.toString()}, ${isKeyboardTarget.toString()})`
+export const KEYBOARD_INSET_SCRIPT = `(${install.toString()})(${keyboardOpen.toString()}, ${keyboardInset.toString()}, ${isKeyboardTarget.toString()})`
