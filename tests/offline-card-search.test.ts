@@ -149,8 +149,10 @@ test("the size estimate uses measured samples, or a fallback per image", () => {
 test("planning downloads only set data and a few samples; downloading fetches the rest once", async () => {
   const many = { ...setSlots, slots: Array.from({ length: 10 }, (_, index) => ({ dexId: index + 1, pokemonName: `P${index}`, cards: [card(`base1-${index}`, `P${index}`, String(index))] })) }
   const requested: string[] = []
-  const fetcher = async (url: string) => {
+  const unmarkedImageRequests: string[] = []
+  const fetcher = async (url: string, init?: RequestInit) => {
     requested.push(url)
+    if (url.startsWith("/api/card-image-proxy") && new Headers(init?.headers).get("x-binderdex-save") !== "show") unmarkedImageRequests.push(url)
     if (url.startsWith("/api/tcg-set-slots")) return new Response(JSON.stringify(many))
     return new Response(new Uint8Array(20_000))
   }
@@ -168,6 +170,7 @@ test("planning downloads only set data and a few samples; downloading fetches th
   assert.equal(imageRequests.length, 10)
   assert.equal(new Set(imageRequests).size, 10, "each image fetched exactly once")
   assert.equal(updates.at(-1), 10)
+  assert.deepEqual(unmarkedImageRequests, [], "every thumbnail is marked so the service worker keeps it for the show")
 })
 
 test("card show prep saves price batches and reports unknown cards without inventing prices", async () => {
