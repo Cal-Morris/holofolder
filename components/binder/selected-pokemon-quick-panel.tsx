@@ -1,6 +1,7 @@
 "use client"
 
 import { CARD_FINISH_OPTIONS, formatCollectedDate, getDetailArtwork, getWantedCardKey } from "@/components/binder/binder-app-model"
+import { EbayListingIndicator } from "@/components/ebay-listing-indicator"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import { Button } from "@/components/ui/button"
 import { getCardPriceKey } from "@/hooks/use-card-prices"
@@ -245,7 +246,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
           </div>
           </div>
           <div className="-mx-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 [&>*]:shrink-0" style={{ WebkitOverflowScrolling: "touch" }}>
-          {(selectedMarketPriceLabel || selectedGoodPriceLabel || (isLoadingPrices && (collectionItem?.card_id || selectedWantedCardPreview?.card_id))) ? (
+          {(selectedPrimaryCardPreview?.cardId || selectedMarketPriceLabel || selectedGoodPriceLabel || (isLoadingPrices && (collectionItem?.card_id || selectedWantedCardPreview?.card_id))) ? (
             <div className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-border/50 bg-background/45 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
@@ -284,6 +285,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                 </summary>
                 <CardPriceEvidence price={selectedDetailPriceSnapshot} />
+                {selectedPrimaryCardPreview ? <EbayListingIndicator key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} /> : null}
               </details>
             </div>
           ) : null}

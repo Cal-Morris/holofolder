@@ -49,6 +49,7 @@ const MULTI_CARD_PATTERNS = [
 ]
 
 const LOT_PATTERNS = [
+  /\b(?:[2-9]\d*\s*x|1\d+\s*x|x\s*(?:[2-9]\d*|1\d+)|playset|pair)\b/i,
   /\blot\b/i,
   /\bbundle\b/i,
   /\b\d+\s+cards?\b/i,
@@ -76,6 +77,7 @@ const OVERSIZED_PATTERNS = [
 ]
 
 const REVERSE_HOLO_PATTERNS = [
+  /\breverse\b/i,
   /\breverse[\s-]*holo(?:foil)?\b/i,
   /\brev[\s-]*holo\b/i,
   /\br\/h\b/i,
@@ -240,7 +242,8 @@ export function buildBuySignal(input: {
 function hardRejectReasons(title: string) {
   const reasons: string[] = []
   if (MULTI_CARD_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("multi-card selection listing")
-  if (LOT_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("lot or bundle listing")
+  const lotTitle = title.replace(/\blv\.\s*x\b/gi, "LVX")
+  if (LOT_PATTERNS.some((pattern) => pattern.test(lotTitle))) reasons.push("lot or bundle listing")
   if (GRADED_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("graded slab listing")
   if (BAD_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("proxy or custom listing")
   if (OVERSIZED_PATTERNS.some((pattern) => pattern.test(title))) reasons.push("jumbo or oversized card listing")
