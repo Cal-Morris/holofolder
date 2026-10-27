@@ -59,3 +59,11 @@ test("guide limits are inclusive and missing sales cannot inflate its sample", (
   assert.equal(buildSoldPriceGuide(check(Array(9).fill(100)), 100, "normal", undefined, now)?.eligible, false)
   assert.equal(buildSoldPriceGuide({ ...check(), sales: check().sales!.map(sale => ({ ...sale, soldAt: "2026-10-25" })) }, 100, "normal", undefined, now)?.eligible, false)
 })
+
+test("chart range and candle whiskers come from daily sales, with real gaps", () => {
+  const chart = buildSoldPriceChart({ ...check(), sales: [{ amount: 10, soldAt: "2026-10-23" }, { amount: 20, soldAt: "2026-10-23" }, { amount: 30, soldAt: "2026-10-25" }] }, now)
+  assert.deepEqual(chart.daily[0].range, [12.5, 17.5])
+  assert.deepEqual(chart.daily[0].whisker, [5, 5])
+  assert.equal(chart.daily[1].range, null)
+  assert.deepEqual(chart.daily[2].range, [30, 30])
+})

@@ -253,3 +253,62 @@ test.describe("deal checker", () => {
     await page.context().setOffline(false)
   })
 })
+
+test.describe("manual bundle price checks", () => {
+  test.use({ signedIn: true })
+  test("checks every card independently, updates the range and offer dot, and retains catalogue fallback", async ({ harness }) => {
+    await mockCardPrices(harness.page, { "sv03.5-006": { market: 10, confidence: "high" }, "sv03.5-007": { market: 4, confidence: "high" } })
+    let calls = 0
+    let release: (() => void) | undefined
+    const gate = new Promise<void>(resolve => { release = resolve })
+    await harness.page.route("**/api/card-price-checks?**", async route => {
+      calls++
+      const query = new URL(route.request().url()).searchParams
+      expect(route.request().method()).toBe("POST")
+      if (query.get("cardId") === "sv03.5-007" && query.get("source") === "soldcomps") {
+        await gate
+        await route.fulfill({ status: 503, json: { error: "Sold provider unavailable" } }).catch(() => undefined)
+      } else {
+        const sold = query.get("source") === "soldcomps"
+        const amount = query.get("cardId") === "sv03.5-006" ? 9.8 : 4
+        // Synthetic concentrated sales across three dates.
+        const check = { checkedAt: new Date().toISOString(), summary: { kind: sold ? "sold" : "asking", currency: "GBP", count: 12, low: amount, median: amount, high: amount }, ...(sold ? { sales: Array.from({ length: 12 }, (_, i) => ({ amount, soldAt: new Date(Date.now() - (i % 3 + 1) * 86400_000).toISOString().slice(0, 10) })) } : {}) }
+        await route.fulfill({ json: { ebay: sold ? null : check, soldcomps: sold ? check : null, errors: {} } })
+      }
+    })
+    const dialog = await openQuickInShowMode(harness)
+    let card = await checkCard(harness, "charizard", /^Charizard ex, 151 /)
+    await card.getByRole("button", { name: "Add to bundle" }).click()
+    await card.getByRole("button", { name: "Back to results" }).click()
+    card = await checkCard(harness, "squirtle", /^Squirtle, 151 /)
+    await card.getByRole("button", { name: "Add to bundle" }).click()
+    await card.getByRole("button", { name: "Back to results" }).click()
+    await dialog.getByRole("button", { name: /^Bundle · 2 cards/ }).click()
+    const bundle = dialog.getByTestId("quick-bundle")
+    expect(calls).toBe(0)
+    const button = bundle.getByRole("button", { name: "Check bundle prices", exact: true })
+    await harness.expectMinTapTarget(button)
+    await button.click()
+    try {
+      await expect(bundle.getByText("Sold reference", { exact: true })).toHaveCount(1)
+      await expect(bundle.getByTestId("bundle-market-total")).toContainText("£13.80")
+      await expect(bundle.getByText("Sold: checking…", { exact: true })).toBeVisible()
+      await expect(bundle.getByText("eBay: 12 matches", { exact: true })).toHaveCount(2)
+      await typePrice(bundle, "11")
+      await expect(bundle.getByTestId("offer-price-dot")).toHaveAttribute("data-price", "11")
+      await harness.expectWithinSafeViewport(bundle.getByRole("figure", { name: "Buying range" }))
+      await harness.expectNoHorizontalOverflow()
+    } finally { release?.() }
+    await expect(bundle.getByText(/Sold: Sold provider unavailable/)).toBeVisible()
+    await expect(bundle.getByText("Catalogue reference", { exact: true })).toHaveCount(1)
+    await expect(button).toBeEnabled()
+    expect(calls).toBe(4)
+    await expect(bundle.getByText("1 of 2 use qualified sold evidence.", { exact: false })).toBeVisible()
+    // Reopen: the qualified saved evidence survives, without any automatic refresh.
+    await bundle.getByRole("button", { name: "Back to results" }).click()
+    await dialog.getByRole("button", { name: /^Bundle · 2 cards/ }).click()
+    await expect(bundle.getByTestId("bundle-market-total")).toContainText("£13.80")
+    expect(calls).toBe(4)
+    if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) await harness.page.screenshot({ path: "/tmp/binderdex-readable-bundle.png" })
+  })
+})
