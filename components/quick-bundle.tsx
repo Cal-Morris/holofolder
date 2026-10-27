@@ -17,7 +17,7 @@ import { formatCardNumber } from "@/lib/pokemon-card-browse"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { DisplayCurrency } from "@/lib/pricing-region"
 import UndoSnackbar from "@/components/undo-snackbar"
-import { DEAL_HIDE_WHILE_TYPING, DealKeypad, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
+import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 import type { QuickBundleEntry, QuickCardAction } from "@/components/quick-card-check"
 
 export interface QuickBundleProps {
@@ -179,9 +179,9 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
       </div>
 
       <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
-        <PinnedDealVerdict deal={result.deal} money={money} testId="bundle-verdict-pinned" emptyText={verdictEmptyText} />
         {guide.marketTotal > 0 ? <DealPriceScale market={guide.marketTotal} offer={askingTotal} overlap={guide.overlap} thresholds={thresholds} money={money} partial={!guide.complete} /> : null}
-        <DealKeypad value={input} onChange={setInput} label="Bundle price" />
+        <PinnedDealVerdict deal={result.deal} money={money} testId="bundle-verdict-pinned" emptyText={verdictEmptyText} />
+        <DealPriceInput value={input} onChange={setInput} label="Bundle price" />
         {!readOnly && (
           <button
             type="button"

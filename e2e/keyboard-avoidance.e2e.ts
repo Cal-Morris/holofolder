@@ -17,12 +17,12 @@ async function setKeyboard(page: Page, height: number, panned = 0) {
   }, [height, panned] as const)
 }
 
-/** While typing a price: verdict pinned right on top of the field, keypad and actions out of the way. */
+/** While typing a price: verdict pinned right on top of the field, actions out of the way. */
 async function expectTypingLayout(harness: Harness, scope: Locator, input: Locator, pinnedId: string, fullId: string, actions: string[]) {
   const pinned = scope.getByTestId(pinnedId)
   await expect(pinned).toBeVisible()
   await expect(scope.getByTestId(fullId)).toBeHidden()
-  await expect(scope.getByRole("group", { name: "Keypad" })).toBeHidden()
+  await expect(scope.getByRole("group", { name: "Keypad" })).toHaveCount(0)
   for (const name of actions) await expect(scope.getByRole("button", { name, exact: true })).toBeHidden()
   const pinnedBox = (await pinned.boundingBox())!
   const fieldBox = (await input.locator("xpath=ancestor::label[1]").boundingBox())!
@@ -102,18 +102,16 @@ test.describe("on-screen keyboard", () => {
     await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
     const check = dialog.getByTestId("quick-card-check")
     const input = check.getByRole("textbox", { name: "Asking price" })
-    const keypad = check.getByRole("group", { name: "Keypad" })
     await expect(input).toBeFocused()
-    // The phone's own decimal keyboard, not just the on-screen keypad; big enough text that iOS doesn't zoom.
+    // The phone's own decimal keyboard, not just custom buttons; big enough text that iOS doesn't zoom.
     await expect(input).toHaveAttribute("inputmode", "decimal")
     expect(await input.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16)
-    await expect(keypad).toBeVisible()
+    await expect(check.getByRole("group", { name: "Keypad" })).toHaveCount(0)
 
     await setKeyboard(page, KEYBOARD)
     await expect(html(page)).toHaveAttribute("data-keyboard-open", "")
     await expect(harness.dock()).toBeHidden()
-    // The keyboard stands in for the keypad, and the actions wait for Done: only the verdict, pinned on
-    // top of the field, and the field itself sit above the keyboard.
+    // The native keyboard handles entry; actions wait for Done.
     await expectTypingLayout(harness, check, input, "deal-verdict-pinned", "deal-verdict", ["Bought", "Add owned", "Want", "Add to bundle"])
 
     // Typing filters to digits, comma and dot, as before, and the pinned verdict follows it.
@@ -125,18 +123,29 @@ test.describe("on-screen keyboard", () => {
     await expect(check.getByTestId("deal-verdict-pinned")).toContainText("25% under")
     await expect(input).toBeFocused()
 
-    // Done closes the keyboard and brings the keypad back.
-    await input.press("Enter")
+    // Done closes the keyboard and restores the actions.
+    const done = check.getByRole("button", { name: "Done editing price" })
+    await harness.expectMinTapTarget(done, 36)
+    await expectAboveKeyboard(harness, done, "Done button")
+    await done.click()
     await expect(input).not.toBeFocused()
     await setKeyboard(page, 0)
     await expect(html(page)).not.toHaveAttribute("data-keyboard-open")
-    await expect(keypad).toBeVisible()
+    await expect(check.getByRole("group", { name: "Keypad" })).toHaveCount(0)
     await expect(check.getByTestId("deal-verdict")).toBeVisible()
     await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", "great")
     await expect(check.getByTestId("deal-verdict-pinned")).toBeHidden()
     for (const name of ["Bought", "Add owned", "Want", "Add to bundle"]) await expect(check.getByRole("button", { name, exact: true })).toBeVisible()
-    await keypad.getByRole("button", { name: "Delete digit" }).click()
+    await input.focus()
+    await input.press("Backspace")
     await expect(input).toHaveValue("7.")
+    await input.blur()
+    if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) {
+      await page.screenshot({ path: "/tmp/binderdex-native-input-dark.png" })
+      await page.evaluate(() => document.documentElement.classList.remove("dark"))
+      await page.screenshot({ path: "/tmp/binderdex-native-input-light.png" })
+      await page.evaluate(() => document.documentElement.classList.add("dark"))
+    }
   })
 
   test("Show mode deal check: counts as typing when iOS pans the page up by the whole keyboard", async ({ harness }) => {
@@ -155,12 +164,12 @@ test.describe("on-screen keyboard", () => {
     await setKeyboard(page, KEYBOARD, KEYBOARD)
     await expect(html(page)).toHaveAttribute("data-keyboard-open", "")
     expect(await html(page).evaluate((element) => getComputedStyle(element).getPropertyValue("--keyboard-inset").trim())).toBe("0px")
-    await expect(check.getByRole("group", { name: "Keypad" })).toBeHidden()
+    await expect(check.getByRole("group", { name: "Keypad" })).toHaveCount(0)
     await expect(check.getByTestId("deal-verdict-pinned")).toBeVisible()
     await expect(check.getByRole("button", { name: "Bought", exact: true })).toBeHidden()
     await input.blur()
     await expect(html(page)).not.toHaveAttribute("data-keyboard-open")
-    await expect(check.getByRole("group", { name: "Keypad" })).toBeVisible()
+    await expect(check.getByRole("group", { name: "Keypad" })).toHaveCount(0)
     await setKeyboard(page, 0)
   })
 
@@ -233,12 +242,13 @@ test.describe("on-screen keyboard", () => {
     await expectTypingLayout(harness, bundle, input, "bundle-verdict-pinned", "bundle-verdict", ["Bought bundle"])
     await expect(bundle.getByTestId("bundle-verdict-pinned")).toHaveAttribute("data-verdict", "great")
 
-    await input.blur()
+    await bundle.getByRole("button", { name: "Done editing price" }).click()
+    await expect(input).not.toBeFocused()
     await setKeyboard(page, 0)
     await expect(html(page)).not.toHaveAttribute("data-keyboard-open")
     await expect(bundle.getByTestId("bundle-verdict")).toBeVisible()
     await expect(bundle.getByTestId("bundle-verdict-pinned")).toBeHidden()
-    await expect(bundle.getByRole("group", { name: "Keypad" })).toBeVisible()
+    await expect(bundle.getByRole("group", { name: "Keypad" })).toHaveCount(0)
     await expect(bundle.getByRole("button", { name: "Bought bundle" })).toBeVisible()
   })
 

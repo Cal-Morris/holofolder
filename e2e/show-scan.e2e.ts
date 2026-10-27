@@ -110,10 +110,9 @@ test.describe("Show mode: scan a card into the deal checker", () => {
     await expect(check.getByTestId("quick-card-status")).toHaveText("Wanted")
     await expect(check.getByTestId("quick-card-market-price")).toHaveText("£50.00")
 
-    const keypad = check.getByRole("group", { name: "Keypad" })
     const input = check.getByRole("textbox", { name: /price/i })
-    while ((await input.inputValue()).length > 0) await keypad.getByRole("button", { name: "Delete digit" }).click()
-    for (const digit of ["4", "0"]) await keypad.getByRole("button", { name: digit, exact: true }).click()
+    await input.fill("40")
+    await input.press("Enter")
     await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", /.+/)
     await harness.expectNoHorizontalOverflow()
     await screenshot(harness, "scan-check")

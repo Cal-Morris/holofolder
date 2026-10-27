@@ -30,12 +30,11 @@ async function checkCard(harness: Harness, query: string, cardName: RegExp) {
   return check
 }
 
-/** Clear the asking price and type a new one on the on-screen keypad. */
+/** Clear the asking price and type a new one using the price field. */
 async function typePrice(scope: Locator, price: string) {
-  const keypad = scope.getByRole("group", { name: "Keypad" })
   const input = scope.getByRole("textbox", { name: /price/i })
-  while ((await input.inputValue()).length > 0) await keypad.getByRole("button", { name: "Delete digit" }).click()
-  for (const key of price) await keypad.getByRole("button", { name: key === "." ? "Decimal point" : key, exact: true }).click()
+  await input.fill(price)
+  await input.press("Enter")
   await expect(input).toHaveValue(price)
 }
 
@@ -76,8 +75,8 @@ test.describe("deal checker", () => {
       await harness.expectHittable(button)
       await harness.expectMinTapTarget(button, 48)
     }
-    const seven = check.getByRole("group", { name: "Keypad" }).getByRole("button", { name: "7", exact: true })
-    await harness.expectMinTapTarget(seven, 48)
+    await expect(check.getByRole("group", { name: "Keypad" })).toHaveCount(0)
+    await expect(input).toHaveAttribute("inputmode", "decimal")
     await harness.expectNoHorizontalOverflow()
     await screenshot(harness, "deal-verdict")
   })

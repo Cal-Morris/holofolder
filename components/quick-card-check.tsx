@@ -1,7 +1,7 @@
 "use client"
 
 // Show mode's card check: what you need at a stall, one-handed. Ownership state, the market price for the
-// chosen variant, an asking-price keypad with a verdict (lib/deal-check.ts), and big Bought / Add owned /
+// chosen variant, an asking-price input with a verdict (lib/deal-check.ts), and big Bought / Add owned /
 // Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Check, ExternalLink, Heart, Layers, Plus, ShoppingBag, TrendingUp, WifiOff } from "lucide-react"
@@ -24,7 +24,7 @@ import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import { DealPriceScale } from "@/components/deal-price-scale"
 import UndoSnackbar from "@/components/undo-snackbar"
-import { DEAL_HIDE_WHILE_TYPING, DealKeypad, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
+import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 
 export type QuickCardAction = "bought" | "add-owned" | "want" | "got"
 
@@ -259,9 +259,9 @@ export default function QuickCardCheck({
       </div>
 
       <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
-        <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
         {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.fairOverlap ? { low: toDisplay(soldGuide.fairOverlap.low)!.amount, high: toDisplay(soldGuide.fairOverlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
-        <DealKeypad value={input} onChange={setInput} />
+        <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
+        <DealPriceInput value={input} onChange={setInput} />
         <div className={`flex gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {!readOnly && (
             <button type="button" disabled={busy} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
