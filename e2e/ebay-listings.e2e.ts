@@ -64,7 +64,7 @@ test("eBay lookup failure and an empty sample do not invent a price", async ({ h
   await detail.getByText("Price details", { exact: true }).click()
   const indicator = detail.getByRole("region", { name: "Price comparisons" })
   await indicator.getByRole("button", { name: "Check prices" }).click()
-  await expect(indicator.getByRole("status")).toContainText("temporarily unavailable")
+  await expect(indicator.getByRole("status").first()).toContainText("temporarily unavailable")
   failed = false
   await indicator.getByRole("button", { name: "Check prices" }).click()
   await expect(indicator.getByText("No matching listings in the search sample.")).toBeVisible()
@@ -115,7 +115,7 @@ test("Show mode checks both sources on tap and resets comparisons when the finis
   await finish.click()
   await expect(finish).toHaveAttribute("aria-checked", "true")
   await expect(check.getByText(/median sold price/)).toHaveCount(0)
-  expect(requests).toBe(1)
+  expect(requests).toBe(2)
 })
 
 test("price check writes and saved reads require authentication", async ({ request }) => {
@@ -124,4 +124,131 @@ test("price check writes and saved reads require authentication", async ({ reque
     expect(response.status()).toBe(401)
     expect(response.headers()["cache-control"]).toBe("no-store")
   }
+})
+
+
+for (const fast of ["ebay", "soldcomps"] as const) {
+  test(`${fast} appears independently while the other source is pending`, async ({ harness }) => {
+    const slow = fast === "ebay" ? "soldcomps" : "ebay"
+    let release: (() => void) | undefined
+    const gate = new Promise<void>(resolve => { release = resolve })
+    await harness.page.route("**/api/card-price-checks?**", async route => {
+      const source = new URL(route.request().url()).searchParams.get("source")
+      if (source === slow) await gate
+      await route.fulfill({ json: comparisonFixture })
+    })
+    const detail = await harness.openCardDetail()
+    await detail.getByText("Price details", { exact: true }).click()
+    const comparison = detail.getByRole("region", { name: "Price comparisons" })
+    await comparison.getByRole("button", { name: "Check prices", exact: true }).click()
+    try {
+      await expect(comparison.getByText(fast === "ebay" ? /£12.00.*median asking price/ : /£9.00.*median sold price/)).toBeVisible()
+      await expect(comparison.getByText(slow === "ebay" ? "Checking eBay…" : "Checking sold comps…", { exact: true })).toBeVisible()
+    } finally { release?.() }
+    await expect(comparison.getByText(/£12.00.*median asking price/)).toBeVisible()
+    await expect(comparison.getByText(/£9.00.*median sold price/)).toBeVisible()
+    await harness.expectNoHorizontalOverflow()
+  })
+}
+
+// Synthetic fresh, concentrated sales which qualify for a buying guide.
+const qualifyingFixture = () => ({ ...comparisonFixture, soldcomps: {
+  summary: { kind: "sold", currency: "GBP", count: 10, median: 9.8, low: 9.6, high: 10 },
+  checkedAt: new Date().toISOString(),
+  sales: Array.from({ length: 10 }, (_, i) => ({ amount: [9.6, 9.7, 9.8, 9.9, 10][i % 5], soldAt: new Date(Date.now() - (i % 3 + 1) * 86400_000).toISOString().slice(0, 10) })),
+} })
+
+test("qualified sold guide changes Show mode verdict, plots an overlay and resets on finish change", async ({ harness }) => {
+  await mockCardPrices(harness.page, { "sv03.5-005": { market: 10, confidence: "high", finishes: [{ finish: "normal", market: 10 }, { finish: "reverse_holo", market: 20 }] } })
+  let requests = 0
+  await harness.page.route("**/api/card-price-checks?**", async route => { requests++; await route.fulfill({ json: qualifyingFixture() }) })
+  await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
+  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
+  await dialog.getByRole("searchbox").fill("charmeleon")
+  await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
+  const check = dialog.getByTestId("quick-card-check")
+  await expect(check.getByTestId("quick-card-market-price")).toHaveText("£10.00")
+  const keypad = check.getByRole("group", { name: "Keypad" })
+  for (const name of ["1", "0", "Decimal point", "9"]) await keypad.getByRole("button", { name, exact: true }).click()
+  await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", "fair")
+  expect(requests).toBe(0)
+  await check.getByRole("button", { name: "Check prices", exact: true }).click()
+  await expect(check.getByTestId("quick-card-market-price")).toHaveText("£9.80")
+  await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", "overpriced")
+  await expect(check.getByRole("figure", { name: "Good-price overlap", exact: true })).toBeVisible()
+  const chart = check.getByRole("figure", { name: "Sold prices and current eBay asking range" })
+  const overlay = chart.getByRole("button", { name: "Hide current asking overlay" })
+  await expect(overlay).toBeVisible()
+  await harness.expectMinTapTarget(overlay)
+  await overlay.click()
+  await expect(chart.getByRole("button", { name: "Show current asking overlay" })).toHaveAttribute("aria-pressed", "false")
+  await harness.expectNoHorizontalOverflow()
+  if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) await harness.page.screenshot({ path: "/tmp/binderdex-price-comparison-chart.png" })
+  await check.getByRole("radiogroup", { name: "Variant" }).getByRole("radio", { name: /reverse/i }).click()
+  await expect(check.getByTestId("quick-card-market-price")).toHaveText("£20.00")
+  await expect(check.getByText(/median sold price/)).toHaveCount(0)
+  expect(requests).toBe(2)
+})
+
+test("card details updates its good-price band only after a user checks qualifying sold evidence", async ({ harness }) => {
+  await mockCardPrices(harness.page, { "base1-44": { market: 10, confidence: "high" } })
+  await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
+  await harness.page.route("**/api/card-price-checks?**", route => route.fulfill({ json: qualifyingFixture() }))
+  await harness.page.reload()
+  const detail = await harness.openCardDetail()
+  await expect(detail.getByText("Good price · sold", { exact: true })).toHaveCount(0)
+  await detail.getByText("Price details", { exact: true }).click()
+  await detail.getByRole("button", { name: "Check prices", exact: true }).click()
+  await expect(detail.getByText("Good price · sold", { exact: true })).toBeVisible()
+  await expect(detail.getByRole("figure", { name: "Good-price overlap", exact: true })).toBeVisible()
+  await harness.expectNoHorizontalOverflow()
+})
+
+
+test("card details compares sold evidence with the tracked finish quote", async ({ harness }) => {
+  await mockCardPrices(harness.page, { "base1-44": { market: 10, confidence: "high", finishes: [{ finish: "normal", market: 10 }, { finish: "reverse_holo", market: 20 }] } })
+  await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
+  await harness.page.route("**/api/card-price-checks?**", route => route.fulfill({ json: qualifyingFixture() }))
+  await harness.page.reload()
+  const detail = await harness.openCardDetail()
+  await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
+  await detail.getByRole("button", { name: /^Reverse/ }).click()
+  await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£20.00")
+  await detail.getByText("Price details", { exact: true }).click()
+  await detail.getByRole("button", { name: "Check prices", exact: true }).click()
+  await expect(detail.getByText(/sold and catalogue buying ranges do not overlap/)).toBeVisible()
+  await expect(detail.getByText("Good price · sold", { exact: true })).toHaveCount(0)
+})
+
+test("switching finishes cancels the old check before it can overwrite new evidence", async ({ harness }) => {
+  await mockCardPrices(harness.page, { "sv03.5-005": { market: 10, confidence: "high", finishes: [{ finish: "normal", market: 10 }, { finish: "reverse_holo", market: 20 }] } })
+  let release: (() => void) | undefined
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await harness.page.route("**/api/card-price-checks?**", async route => {
+    const params = new URL(route.request().url()).searchParams
+    if (params.get("source") === "soldcomps" && params.get("finish") === "normal") await gate
+    const fixture = qualifyingFixture()
+    if (params.get("finish") === "reverse_holo") {
+      fixture.soldcomps.summary = { ...fixture.soldcomps.summary, median: 19.6, low: 19.2, high: 20 }
+      fixture.soldcomps.sales = fixture.soldcomps.sales.map(sale => ({ ...sale, amount: sale.amount * 2 }))
+    }
+    await route.fulfill({ json: fixture }).catch(() => undefined)
+  })
+  await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
+  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
+  await dialog.getByRole("searchbox").fill("charmeleon")
+  await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
+  const check = dialog.getByTestId("quick-card-check")
+  try {
+    await check.getByRole("button", { name: "Check prices", exact: true }).click()
+    await expect(check.getByText(/£12.00.*median asking price/)).toBeVisible()
+    const cancelled = harness.page.waitForEvent("requestfailed", { predicate: request => request.url().includes("source=soldcomps") && request.url().includes("finish=normal") })
+    await check.getByRole("radiogroup", { name: "Variant" }).getByRole("radio", { name: /reverse/i }).click()
+    await cancelled
+    await check.getByRole("button", { name: "Check prices", exact: true }).click()
+    await expect(check.getByTestId("quick-card-market-price")).toHaveText("£19.60")
+    await expect(check.getByRole("figure", { name: "Good-price overlap", exact: true })).toBeVisible()
+  } finally { release?.() }
 })

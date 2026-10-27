@@ -34,6 +34,10 @@ async function run() {
   }) as typeof fetch
   try {
     assert.deepEqual(await loadCardPriceChecks("base1-44", "normal", false), { ebay: null, soldcomps: null, errors: {} })
+    const onlyEbay = await loadCardPriceChecks("base1-44", "normal", true, "ebay")
+    assert.equal(onlyEbay?.ebay?.summary.median, 12)
+    assert.equal(onlyEbay?.soldcomps, null)
+    assert.equal(soldCalls, 0, "an eBay-only check cannot start a sold lookup")
     const first = await loadCardPriceChecks("base1-44", "normal", true)
     assert.equal(first?.ebay?.summary.median, 12)
     assert.equal(first?.soldcomps?.summary.median, 9)

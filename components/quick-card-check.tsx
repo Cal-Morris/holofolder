@@ -19,6 +19,8 @@ import { getPriceDataAgeDays } from "@/lib/price-freshness"
 import { getRisingMomentum } from "@/lib/price-momentum"
 import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
 import { formatCardFinishLabel } from "@/lib/card-labels"
+import type { CardPriceCheck } from "@/lib/card-price-checks"
+import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import UndoSnackbar from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealKeypad, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
@@ -104,14 +106,19 @@ export default function QuickCardCheck({
   const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any"), [card.variants, inferred])
   const [finish, setFinish] = useState<CardFinish>(() =>
     initialFinish && finishChoices.some((choice) => choice.finish === initialFinish) ? initialFinish : finishChoices[0]?.finish ?? inferred)
+  const [soldEvidence, setSoldEvidence] = useState<{ key: string; check: CardPriceCheck } | null>(null)
   const finishPrices = useMemo(() => getRegionalFinishPrices(snapshot, pricingRegion), [pricingRegion, snapshot])
   // A variant with its own quote uses it; otherwise the headline price stands for the card's main printing.
   const price = finishPrices[finish as PricedCardFinish] ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
 
+  const comparisonKey = bundleKey(card, finish)
+  const soldGuide = buildSoldPriceGuide(soldEvidence?.key === comparisonKey ? soldEvidence.check : null, price?.gbpAmount, finish, thresholds)
+  const usesSoldGuide = soldGuide?.referenceGbp != null
+
   const toDisplay = useCallback((gbp: number | null | undefined) => (typeof gbp === "number" && gbp > 0 ? convertGbpForDisplay(gbp, context, snapshot) : null), [context, snapshot])
-  const market = toDisplay(price?.gbpAmount)
-  const low = toDisplay(price?.lowGbpAmount)
-  const high = toDisplay(price?.highGbpAmount)
+  const market = toDisplay(soldGuide?.referenceGbp ?? price?.gbpAmount)
+  const low = toDisplay(usesSoldGuide ? soldGuide.q1 : price?.lowGbpAmount)
+  const high = toDisplay(usesSoldGuide ? soldGuide.q3 : price?.highGbpAmount)
   const moneyCurrency = market?.currency ?? currency
   const money = (amount: number) => formatMoney(amount, moneyCurrency)
 
@@ -120,14 +127,14 @@ export default function QuickCardCheck({
     const timer = window.setInterval(() => setNow(Date.now()), 60_000)
     return () => window.clearInterval(timer)
   }, [])
-  const dataAgeDays = getPriceDataAgeDays(price?.updatedAt ?? snapshot?.updatedAt, now)
-  const isRising = Boolean(getRisingMomentum(snapshot, now))
+  const dataAgeDays = getPriceDataAgeDays(usesSoldGuide ? soldEvidence?.check.checkedAt : price?.updatedAt ?? snapshot?.updatedAt, now)
+  const isRising = !usesSoldGuide && Boolean(getRisingMomentum(snapshot, now))
   const cacheAge = formatPriceAge(snapshot?.fetchedAt, now)
 
   const [input, setInput] = useState("")
   const askingPrice = parseAskingPrice(input)
   const deal = askingPrice && market
-    ? checkDeal({ askingPrice, marketPrice: market.amount, thresholds, confidence: price?.confidence, dataAgeDays, isRising })
+    ? checkDeal({ askingPrice, marketPrice: market.amount, thresholds, confidence: usesSoldGuide ? "medium" : price?.confidence, dataAgeDays, isRising })
     : null
 
   const [busy, setBusy] = useState(false)
@@ -222,12 +229,13 @@ export default function QuickCardCheck({
         <div className="rounded-2xl border border-border/60 bg-card px-3 py-2" data-testid="quick-card-market">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Market{finishChoices.length > 0 ? ` · ${formatCardFinishLabel(finish)}` : ""}
+              {usesSoldGuide ? "Sold reference" : "Market"}{finishChoices.length > 0 ? ` · ${formatCardFinishLabel(finish)}` : ""}
             </span>
             <span className="text-2xl font-black tabular-nums" data-testid="quick-card-market-price">
               {market ? money(market.amount) : isLoading && isOnline ? "…" : isOnline ? "No price" : "Not available offline"}
             </span>
           </div>
+          {usesSoldGuide ? <p className="text-xs text-muted-foreground">Recent sold median · {soldGuide.count} sales. Catalogue: {toDisplay(price?.gbpAmount) ? money(toDisplay(price?.gbpAmount)!.amount) : "unavailable"}.</p> : null}
           {(low || high) && (
             <p className="text-right text-xs tabular-nums text-muted-foreground">
               {low ? `Low ${money(low.amount)}` : ""}{low && high ? " · " : ""}{high ? `High ${money(high.amount)}` : ""}
@@ -241,7 +249,7 @@ export default function QuickCardCheck({
           )}
         </div>
 
-        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} language={language} finish={finish} />
+        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>

@@ -136,3 +136,28 @@ test.describe("collection export", () => {
     await harness.expectNoHorizontalOverflow()
   })
 })
+
+
+test.describe("manual analytics comparisons", () => {
+  test.use({ signedIn: true })
+  test("price evidence offers the shared comparison without automatic source requests", async ({ harness }) => {
+    let requests = 0
+    await mockCardPrices(harness.page, { "base1-44": { confidence: "medium", market: 10 } })
+    await harness.page.route("**/api/card-price-checks?**", async route => {
+      requests++
+      // Synthetic empty source samples, not market data.
+      const source = new URL(route.request().url()).searchParams.get("source")
+      const check = { summary: { kind: source === "ebay" ? "asking" : "sold", currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: new Date().toISOString() }
+      await route.fulfill({ json: { ebay: source === "ebay" ? check : null, soldcomps: source === "soldcomps" ? check : null, errors: {} } })
+    })
+    await openAnalytics(harness.page)
+    await harness.page.getByText("Current price evidence", { exact: true }).click()
+    const comparison = harness.page.getByRole("region", { name: "Price comparisons" })
+    await expect(comparison.getByRole("button", { name: "Check prices", exact: true })).toBeVisible()
+    expect(requests).toBe(0)
+    await comparison.getByRole("button", { name: "Check prices", exact: true }).click()
+    await expect(comparison.getByText("No matching sales in the search sample.")).toBeVisible()
+    expect(requests).toBe(2)
+    await harness.expectNoHorizontalOverflow()
+  })
+})
