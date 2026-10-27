@@ -70,6 +70,10 @@ import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { QuickCardAction } from "@/components/quick-card-check"
 import { clampGlareValue, getPokemonOfficialArtworkUrl, resolveSlotImageUrl } from "@/components/binder/pokemon-slot"
 import { type ActiveMainView, BINDER_PAGE_QUERY_PARAM, type BeforeInstallPromptEvent, COLLECTION_VIEW_FILTERS, type CollectionViewFilter, DEFAULT_SLOT_GLARE_STATE, type DeviceMotionWithPermission, type DeviceOrientationPermissionState, type DeviceOrientationWithPermission, type DisplaySpreadPage, GENERATIONS, type InitialCollectionRow, type MotionGlintStatus, PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT, PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT, PAGE_SCAN_OCR_BASE_CROP_LIMIT, type QuickPanelPosition, type SlotGlareState, THEME_COLOR_DARK, THEME_COLOR_LIGHT, binderShareUrl, combinePriceSummaries, formatCollectedDate, getCollectionItemPriceKey, getDetailArtwork, getDisplayArtworkTone, getKnownCardIllustrator, getPokemonArtwork, getSlotGlareState, getWantedCardKey, sumPriceSnapshots } from "@/components/binder/binder-app-model"
+import type { PricedCardFinish } from "@/lib/card-pricing"
+import type { CardPriceCheck } from "@/lib/card-price-checks"
+import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
+import { readDealThresholds } from "@/lib/deal-check"
 import { renderSelectedPokemonQuickPanelView } from "@/components/binder/selected-pokemon-quick-panel"
 import { renderMobileSlotActionBarView } from "@/components/binder/mobile-slot-action-bar"
 import { renderSpreadInfoPageView } from "@/components/binder/spread-info-page"
@@ -2829,9 +2833,20 @@ export default function BinderApp({
   const selectedDetailPriceLabel = selectedPrimaryCardPreview
     ? priceFormat.label(selectedDetailPriceSnapshot) ?? (isLoadingPrices ? "Loading price..." : "No price yet")
     : null
-  const selectedMarketPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.marketGbpAmount ?? selectedDetailPriceSnapshot?.gbpAmount, selectedDetailPriceSnapshot)
-  const selectedGoodPriceLabel = priceFormat.amount(selectedDetailPriceSnapshot?.goodGbpAmount, selectedDetailPriceSnapshot)
-  const selectedRangePriceLabel = priceFormat.range(selectedDetailPriceSnapshot?.lowGbpAmount, selectedDetailPriceSnapshot?.highGbpAmount, selectedDetailPriceSnapshot)
+  const selectedComparisonFinishPrices = getRegionalFinishPrices(selectedDetailPriceSnapshot, pricingPreferences.region)
+  const selectedComparisonPrice = selectedPrimaryCardPreview
+    ? selectedComparisonFinishPrices[selectedPrimaryCardPreview.cardFinish as PricedCardFinish] ?? (selectedPrimaryCardPreview.cardFinish === "reverse_holo" ? undefined : selectedDetailPriceSnapshot)
+    : undefined
+  const [selectedSoldEvidence, setSelectedSoldEvidence] = useState<{ key: string; check: CardPriceCheck } | null>(null)
+  const selectedComparisonKey = `${selectedPrimaryCardPreview?.cardId}:${selectedPrimaryCardPreview?.cardLanguage ?? "en"}:${selectedPrimaryCardPreview?.cardFinish}`
+  const onSelectedSoldCheck = (check: CardPriceCheck) => setSelectedSoldEvidence({ key: selectedComparisonKey, check })
+  const selectedSoldGuide = buildSoldPriceGuide(selectedSoldEvidence?.key === selectedComparisonKey ? selectedSoldEvidence.check : null, selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount, selectedPrimaryCardPreview?.cardFinish, readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
+  const selectedUsesSoldGuide = selectedSoldGuide?.referenceGbp != null
+  const selectedMarketPriceLabel = priceFormat.amount(selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount, selectedDetailPriceSnapshot)
+  const selectedGoodPriceLabel = selectedUsesSoldGuide
+    ? priceFormat.range(selectedSoldGuide.soldBand.low, selectedSoldGuide.soldBand.high, selectedDetailPriceSnapshot)
+    : priceFormat.amount(selectedComparisonPrice?.goodGbpAmount, selectedDetailPriceSnapshot)
+  const selectedRangePriceLabel = priceFormat.range(selectedComparisonPrice?.lowGbpAmount, selectedComparisonPrice?.highGbpAmount, selectedDetailPriceSnapshot)
   const selectedConfidenceLabel = formatPriceConfidenceLabel(selectedDetailPriceSnapshot)
   const selectedPriceSourceLabel = formatPriceSourceLabel(selectedDetailPriceSnapshot)
   const selectedCollectedDateLabel = collectionItem?.status !== "wishlisted" ? formatCollectedDate(collectionItem?.collected_at) : null
@@ -3211,7 +3226,7 @@ export default function BinderApp({
     }
   }, [isAuthOpen, isMobileFilterSheetOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen])
 
-  const renderSelectedPokemonQuickPanel = () => renderSelectedPokemonQuickPanelView({ activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleRemoveSelectedPokemon, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards, wishlisted })
+  const renderSelectedPokemonQuickPanel = () => renderSelectedPokemonQuickPanelView({ selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleRemoveSelectedPokemon, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards, wishlisted })
 
   const renderMobileSlotActionBar = () => renderMobileSlotActionBarView({ closeMobileActions, getCollectionItem, handleQuickCollect, handleToggleFavorite, isCollected, longPressedPokemon, mobileActionsRef, mobileActionsSwipe, openCardBrowser, openCardSelectorForPokemon, readOnlyMode, requestOwnedRemoval, setLongPressedPokemon, setSelectedPokemon })
 

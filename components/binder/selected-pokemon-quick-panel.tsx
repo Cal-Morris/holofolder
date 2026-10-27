@@ -1,6 +1,7 @@
 "use client"
 
 import { CARD_FINISH_OPTIONS, formatCollectedDate, getDetailArtwork, getWantedCardKey } from "@/components/binder/binder-app-model"
+import type { CardPriceCheck } from "@/lib/card-price-checks"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import { Button } from "@/components/ui/button"
@@ -22,6 +23,9 @@ import type { BinderCardDisplay, SelectedSlotDisplayCard } from "@/lib/selected-
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 
 export interface SelectedPokemonQuickPanelContext {
+  selectedComparisonMarketGbp: number | null
+  selectedUsesSoldGuide: boolean
+  onSelectedSoldCheck: (check: CardPriceCheck) => void
   activeJumpPokemonList: PokemonEntry[]
   binderCardDisplay: BinderCardDisplay
   closeSelectedPokemon: () => void
@@ -81,7 +85,7 @@ export interface SelectedPokemonQuickPanelContext {
 }
 
 export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPanelContext) {
-  const { activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleRemoveSelectedPokemon, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards, wishlisted } = ctx
+  const { selectedComparisonMarketGbp, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleRemoveSelectedPokemon, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards, wishlisted } = ctx
   if (!selectedPokemon || isSearchOpen || typeof document === "undefined") {
     return null
   }
@@ -250,7 +254,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
             <div className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-border/50 bg-background/45 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Low</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{selectedUsesSoldGuide ? "Good price · sold" : "Low"}</p>
                   <p className="mt-0.5 text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-300">
                     {selectedGoodPriceLabel ?? (isLoadingPrices ? "Loading" : "No price")}
                   </p>
@@ -285,7 +289,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                 </summary>
                 <CardPriceEvidence price={selectedDetailPriceSnapshot} />
-                {selectedPrimaryCardPreview ? <CardPriceComparison key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} /> : null}
+                {selectedPrimaryCardPreview ? <CardPriceComparison key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} catalogMarketGbp={selectedComparisonMarketGbp} onSoldCheck={onSelectedSoldCheck} /> : null}
               </details>
             </div>
           ) : null}
