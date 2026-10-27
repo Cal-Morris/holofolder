@@ -1,5 +1,5 @@
 import { buildSoldPriceGuide, type BuyingBand } from "@/lib/sold-price-guide"
-import { normalizeDealThresholds, type DealThresholds } from "@/lib/deal-check"
+import { buildDealPriceBands, normalizeDealThresholds, type DealThresholds } from "@/lib/deal-check"
 import { isCardPriceCheck, type CardPriceCheck } from "@/lib/card-price-checks"
 import type { CardFinish } from "@/lib/domain/cards"
 
@@ -31,8 +31,9 @@ export function buildBundlePriceGuide(entries: readonly BundlePriceEvidence[], c
   const complete = entries.length > 0 && items.every(item => item.marketPrice != null)
   const band = marketTotal > 0 ? { low: round(marketTotal * (1 - greatPct / 100)), high: round(marketTotal * (1 - fairPct / 100)) } : null
   const catalogTotal = items.every(item => item.catalogPrice != null) ? round(items.reduce((sum, item) => sum + (item.catalogPrice ?? 0), 0)) : null
-  const catalogBand = catalogTotal != null && catalogTotal > 0 ? { low: round(catalogTotal * (1 - greatPct / 100)), high: round(catalogTotal * (1 - fairPct / 100)) } : null
-  const overlap: BuyingBand | null = complete && band && catalogBand && items.some(item => item.source === "sold") && Math.max(band.low, catalogBand.low) <= Math.min(band.high, catalogBand.high)
-    ? { low: Math.max(band.low, catalogBand.low), high: Math.min(band.high, catalogBand.high) } : null
+  const expected = buildDealPriceBands(marketTotal, thresholds)?.fair
+  const catalogExpected = catalogTotal != null ? buildDealPriceBands(catalogTotal, thresholds)?.fair : null
+  const overlap: BuyingBand | null = complete && expected && catalogExpected && items.some(item => item.source === "sold") && Math.max(expected.low, catalogExpected.low) <= Math.min(expected.high, catalogExpected.high)
+    ? { low: Math.max(expected.low, catalogExpected.low), high: Math.min(expected.high, catalogExpected.high) } : null
   return { items, marketTotal, complete, band, overlap }
 }

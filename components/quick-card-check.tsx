@@ -260,7 +260,7 @@ export default function QuickCardCheck({
 
       <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
-        {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.overlap ? { low: toDisplay(soldGuide.overlap.low)!.amount, high: toDisplay(soldGuide.overlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
+        {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.fairOverlap ? { low: toDisplay(soldGuide.fairOverlap.low)!.amount, high: toDisplay(soldGuide.fairOverlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
         <DealKeypad value={input} onChange={setInput} />
         <div className={`flex gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {!readOnly && (

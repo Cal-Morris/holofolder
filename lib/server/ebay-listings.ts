@@ -1,7 +1,7 @@
 import { cacheLife } from "next/cache"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { readCatalogMetadata } from "@/lib/card-catalog"
-import { summarizeEbayListings } from "@/lib/ebay-listings"
+import { summarizeEbayListingEvidence } from "@/lib/ebay-listings"
 import { getEbayAppToken } from "@/lib/server/ebay-auth"
 import type { PriceSubject, PriceSubjectVariant } from "@/lib/price-intelligence"
 
@@ -34,7 +34,7 @@ export async function fetchEbayListingIndicator(subject: PriceSubject, query: st
   if (!response.ok) throw new Error(`eBay listing search unavailable (${response.status})`)
   const data: { itemSummaries?: unknown } = await response.json()
   if (!data || (data.itemSummaries !== undefined && !Array.isArray(data.itemSummaries))) throw new Error("Invalid eBay search response")
-  const summary = summarizeEbayListings(subject, Array.isArray(data.itemSummaries) ? data.itemSummaries : [])
-  // Retain only anonymous aggregates, never listing, seller or account records.
-  return { summary, checkedAt: new Date().toISOString(), searchUrl: `https://www.ebay.co.uk/sch/i.html?${new URLSearchParams({ _nkw: query, LH_BIN: "1", LH_PrefLoc: "1" })}` }
+  const evidence = summarizeEbayListingEvidence(subject, Array.isArray(data.itemSummaries) ? data.itemSummaries : [])
+  // Keep public listing evidence only; never retain seller or account records.
+  return { ...evidence, checkedAt: new Date().toISOString(), searchUrl: `https://www.ebay.co.uk/sch/i.html?${new URLSearchParams({ _nkw: query, LH_BIN: "1", LH_PrefLoc: "1" })}` }
 }

@@ -254,7 +254,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
             <div className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-border/50 bg-background/45 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{selectedUsesSoldGuide ? "Good price · sold" : "Low"}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{selectedUsesSoldGuide ? "Fair range · sold" : "Low"}</p>
                   <p className="mt-0.5 text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-300">
                     {selectedGoodPriceLabel ?? (isLoadingPrices ? "Loading" : "No price")}
                   </p>

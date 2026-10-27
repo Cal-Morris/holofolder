@@ -15,6 +15,8 @@ test("recent concentrated sold evidence provides a buying band and overlap with 
   const guide = buildSoldPriceGuide(check(), 102, "normal", undefined, now)!
   assert.equal(guide.eligible, true)
   assert.equal(guide.referenceGbp, 100)
+  assert.deepEqual(guide.fairBand, { low: 90, high: 110 })
+  assert.deepEqual(guide.fairOverlap, { low: 91.8, high: 110 })
   assert.deepEqual(guide.soldBand, { low: 80, high: 90 })
   assert.deepEqual(guide.overlap, { low: 81.6, high: 90 })
 })

@@ -199,10 +199,10 @@ test("card details updates its good-price band only after a user checks qualifyi
   await harness.page.route("**/api/card-price-checks?**", route => route.fulfill({ json: qualifyingFixture() }))
   await harness.page.reload()
   const detail = await harness.openCardDetail()
-  await expect(detail.getByText("Good price · sold", { exact: true })).toHaveCount(0)
+  await expect(detail.getByText("Fair range · sold", { exact: true })).toHaveCount(0)
   await detail.getByText("Price details", { exact: true }).click()
   await detail.getByRole("button", { name: "Check prices", exact: true }).click()
-  await expect(detail.getByText("Good price · sold", { exact: true })).toBeVisible()
+  await expect(detail.getByText("Fair range · sold", { exact: true })).toBeVisible()
   await expect(detail.getByRole("figure", { name: "Buying range", exact: true })).toBeVisible()
   await harness.expectNoHorizontalOverflow()
 })
@@ -221,7 +221,7 @@ test("card details compares sold evidence with the tracked finish quote", async 
   await detail.getByRole("button", { name: "Check prices", exact: true }).click()
   await detail.getByText("Evidence", { exact: true }).click()
   await expect(detail.getByText(/sold and catalogue buying ranges do not overlap/)).toBeVisible()
-  await expect(detail.getByText("Good price · sold", { exact: true })).toHaveCount(0)
+  await expect(detail.getByText("Fair range · sold", { exact: true })).toHaveCount(0)
 })
 
 test("switching finishes cancels the old check before it can overwrite new evidence", async ({ harness }) => {
@@ -254,4 +254,43 @@ test("switching finishes cancels the old check before it can overwrite new evide
     await expect(check.getByTestId("quick-card-market-price")).toHaveText("£19.60")
     await expect(check.getByRole("figure", { name: "Buying range", exact: true })).toBeVisible()
   } finally { release?.() }
+})
+
+test("fair market bands, quick eBay link and individually verifiable source records", async ({ harness }) => {
+  await mockCardPrices(harness.page, { "sv03.5-005": { market: 10, confidence: "high" } })
+  let calls = 0
+  await harness.page.route("**/api/card-price-checks?**", route => {
+    calls++
+    const fixture = qualifyingFixture()
+    const sold = { ...fixture.soldcomps, sales: fixture.soldcomps.sales.map((sale, index) => ({ ...sale, title: `Synthetic Charmeleon 005/165 151 sale ${index + 1}`, url: `https://www.ebay.co.uk/itm/${123456789010 + index}`, condition: "Used" })) }
+    const ebay = { ...fixture.ebay, listings: [10, 12, 20].map((amount, index) => ({ amount, title: `Synthetic Charmeleon 005/165 151 asking ${index + 1}`, url: `https://www.ebay.co.uk/itm/${123456789099 + index}`, condition: "New" })) }
+    return route.fulfill({ json: { ebay, soldcomps: sold, errors: {} } })
+  })
+  await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
+  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
+  await dialog.getByRole("searchbox").fill("charmeleon")
+  await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
+  const check = dialog.getByTestId("quick-card-check")
+  expect(calls).toBe(0)
+  await check.getByRole("button", { name: "Check prices", exact: true }).click()
+  const scale = check.getByRole("figure", { name: "Buying range" })
+  await expect(scale).toContainText("Fair / expected £8.82 to £10.78")
+  await check.getByRole("textbox", { name: "Asking price" }).fill("9.8")
+  await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", "fair")
+  const quickLink = check.getByRole("link", { name: "View listings on eBay" })
+  await expect(quickLink).toBeVisible()
+  await harness.expectMinTapTarget(quickLink)
+  await expect(check.getByText("Evidence", { exact: true }).locator("..")).not.toHaveAttribute("open", "")
+  await check.getByText("Sold records · 10", { exact: true }).click()
+  await expect(check.getByText(/supplied by SaleHistory/)).toBeVisible()
+  const soldRows = check.getByRole("list", { name: "Matched sold records" })
+  await expect(soldRows.getByRole("listitem")).toHaveCount(10)
+  await expect(soldRows.getByRole("link", { name: "Verify sale on eBay" }).first()).toHaveAttribute("href", /^https:\/\/www\.ebay\.co\.uk\/itm\/\d+$/)
+  await harness.expectMinTapTarget(soldRows.getByRole("link").first())
+  await check.getByText("Asking records · 3", { exact: true }).click()
+  await expect(check.getByText(/supplied by eBay Browse API/)).toBeVisible()
+  await expect(check.getByRole("list", { name: "Matched asking records" }).getByRole("link").first()).toHaveAttribute("href", "https://www.ebay.co.uk/itm/123456789099")
+  expect(calls).toBe(2)
+  await harness.expectNoHorizontalOverflow()
 })

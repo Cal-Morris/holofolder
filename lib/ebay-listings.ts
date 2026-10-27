@@ -1,5 +1,26 @@
 import { scorePriceObservationMatch, type PriceSubject } from "@/lib/price-intelligence"
 
+export interface PriceCheckListing { amount: number; title?: string; url?: string; condition?: string }
+
+export function normalizeEbayItemUrl(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length > 2000) return undefined
+  try {
+    const url = new URL(value)
+    if (url.protocol !== "https:" || url.username || url.password || url.port || !["www.ebay.co.uk", "www.ebay.com", "www.ebay.de"].includes(url.hostname)
+      || !/^\/itm\/(?:[^/]+\/)?\d{9,15}\/?$/.test(url.pathname)) return undefined
+    const variation = url.searchParams.get("var")
+    url.search = ""
+    url.hash = ""
+    if (variation && /^\d{9,15}$/.test(variation)) url.searchParams.set("var", variation)
+    return url.toString()
+  } catch { return undefined }
+}
+
+export function readPublicListingMetadata(title: string, url: unknown, condition: unknown) {
+  const link = normalizeEbayItemUrl(url)
+  return { title: title.slice(0, 500), ...(link ? { url: link } : {}), ...(typeof condition === "string" && condition.trim() ? { condition: condition.trim().slice(0, 100) } : {}) }
+}
+
 export interface EbayListingSummary {
   kind: "asking"
   currency: "GBP"
@@ -9,9 +30,9 @@ export interface EbayListingSummary {
   high: number | null
 }
 
-export function summarizeEbayListings(subject: PriceSubject, items: unknown[]): EbayListingSummary {
-  const prices = new Map<string, number>()
-  for (const item of items) {
+export function summarizeEbayListingEvidence(subject: PriceSubject, items: unknown[]) {
+  const prices = new Map<string, PriceCheckListing>()
+  for (const item of items.slice(0, 200)) {
     if (!item || typeof item !== "object" || subject.language !== "en") continue
     const row = item as Record<string, unknown>
     const price = row.price as { value?: unknown; currency?: unknown } | undefined
@@ -23,15 +44,21 @@ export function summarizeEbayListings(subject: PriceSubject, items: unknown[]): 
     const amount = Number(price.value)
     if (!Number.isFinite(amount) || amount <= 0) continue
     if (!matchesPriceCheckTitle(subject, row.title)) continue
-    prices.set(row.itemId, amount)
+    prices.set(row.itemId, { ...prices.get(row.itemId), amount, ...readPublicListingMetadata(row.title, row.itemWebUrl, row.condition) })
   }
-  const amounts = [...prices.values()].sort((a, b) => a - b)
+  const listings = [...prices.values()]
+  const amounts = listings.map(listing => listing.amount).sort((a, b) => a - b)
   const middle = Math.floor(amounts.length / 2)
-  return {
+  const summary: EbayListingSummary = {
     kind: "asking", currency: "GBP", count: amounts.length,
     median: amounts.length ? Math.round((amounts.length % 2 ? amounts[middle] : (amounts[middle - 1] + amounts[middle]) / 2) * 100) / 100 : null,
     low: amounts[0] ?? null, high: amounts.at(-1) ?? null,
   }
+  return { summary, listings }
+}
+
+export function summarizeEbayListings(subject: PriceSubject, items: unknown[]): EbayListingSummary {
+  return summarizeEbayListingEvidence(subject, items).summary
 }
 
 export function matchesPriceCheckTitle(subject: PriceSubject, title: string) {

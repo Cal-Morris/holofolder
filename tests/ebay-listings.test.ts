@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { summarizeEbayListings } from "../lib/ebay-listings"
+import { summarizeEbayListings, summarizeEbayListingEvidence } from "../lib/ebay-listings"
 import type { PriceSubject } from "../lib/price-intelligence"
 
 // Synthetic card and listings; these are not market data.
@@ -47,4 +47,13 @@ test("LV.X card names are not mistaken for x-count bundles", () => {
   const levelX = { ...subject, name: "Uxie LV.X", setName: "Synthetic Set", setId: "synthetic" }
   assert.equal(summarizeEbayListings(levelX, [listing("lvx", "12", { title: "Uxie LV.X 44/102 Synthetic Set" })]).median, 12)
   assert.equal(summarizeEbayListings(levelX, [listing("lvx-lot", "48", { title: "Uxie LV.X 44/102 Synthetic Set x4" })]).count, 0)
+})
+
+test("asking records and summary use the same deduplicated matched sample", () => {
+  const result = summarizeEbayListingEvidence(subject, [listing("a", "10", { itemWebUrl: "https://www.ebay.co.uk/itm/123456789012?mkcid=1", condition: "Used" }), listing("a", "10"), listing("wrong", "99", { title: "Bulbasaur Jungle" })])
+  assert.equal(result.summary.count, 1)
+  assert.equal(result.listings.length, 1)
+  assert.equal(result.listings[0].amount, 10)
+  assert.equal(result.listings[0].url, "https://www.ebay.co.uk/itm/123456789012")
+  assert.equal(result.listings[0].title, "Pokemon Bulbasaur 44/102 Base Set")
 })

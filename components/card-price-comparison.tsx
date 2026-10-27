@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { requestCardPriceCheck } from "@/lib/card-price-check-client"
+import { PriceCheckRecords } from "@/components/price-check-records"
 import { DealPriceScale } from "@/components/deal-price-scale"
 import { Button } from "@/components/ui/button"
 import { formatGbpAmount } from "@/lib/price-format"
@@ -62,22 +63,22 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
           {result.errors[source] ? <p role="status" className="text-muted-foreground">{result.errors[source]}{result[source] ? " Showing the saved check." : ""}</p> : null}
         </div>)}
       </div> : null}
-      {result && (result.ebay || result.soldcomps) ? <ComparisonChart sold={result.soldcomps} asking={result.ebay} goodBand={guide?.eligible ? guide.soldBand : guide?.catalogBand} offerGbp={offerGbp} /> : null}
-      {showBuyingScale && guide?.eligible ? <DealPriceScale market={guide.referenceGbp!} overlap={guide.overlap} thresholds={givenThresholds ?? savedThresholds} money={value => formatGbpAmount(value) ?? ""} /> : null}
+      {result ? <PriceCheckRecords checks={result} /> : null}
+      {result && (result.ebay || result.soldcomps) ? <ComparisonChart sold={result.soldcomps} asking={result.ebay} marketGbp={guide?.referenceGbp ?? catalogMarketGbp} thresholds={givenThresholds ?? savedThresholds} offerGbp={offerGbp} /> : null}
+      {showBuyingScale && guide?.eligible ? <DealPriceScale market={guide.referenceGbp!} overlap={guide.fairOverlap} thresholds={givenThresholds ?? savedThresholds} money={value => formatGbpAmount(value) ?? ""} /> : null}
       {result ? <details className="mt-1">
         <summary className="flex min-h-9 cursor-pointer items-center font-semibold">Evidence</summary>
         <div className="space-y-2 text-muted-foreground">
           {guide ? <p>{guide.reason} {guide.count} recent sales across {guide.days} dates. Conditions vary.</p> : null}
-          {guide?.overlap ? <p>Catalogue overlap: {formatGbpAmount(guide.overlap.low)} to {formatGbpAmount(guide.overlap.high)}.</p> : null}
+          {guide?.eligible && guide.fairOverlap ? <p>Fair-range agreement with catalogue: {formatGbpAmount(guide.fairOverlap.low)} to {formatGbpAmount(guide.fairOverlap.high)}.</p> : null}
           {(["ebay", "soldcomps"] as const).map(source => {
             const check = result[source]
             return check ? <div key={source}>
               <p>{source === "ebay" ? "eBay UK asking prices" : "SaleHistory UK sold comps"} · Range {formatGbpAmount(check.summary.low)} to {formatGbpAmount(check.summary.high)}. Postage excluded.</p>
               <p>Saved {new Date(check.checkedAt).toLocaleString("en-GB")}. Conditions{exactFinish === "any" ? " and finishes" : ""} vary{source === "soldcomps" ? "; sales from the last 90 days, hidden offers excluded" : "; current asking snapshot, not historical asking prices"}.</p>
-              {check.searchUrl ? <a href={check.searchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center underline">View listings on eBay</a> : null}
             </div> : null
           })}
-          <p>Green uses your Great/Fair discounts. Purple is catalogue overlap. Only qualified sold evidence changes the guide.</p>
+          <p>Fair / expected is centred on the market reference using your Fair tolerance. Green marks bargains; amber and red mark prices above market. Purple outlines agreement with the catalogue fair range. Only qualified sold evidence changes the guide.</p>
         </div>
       </details> : null}
       {error ? <p role="status" className="mt-2 text-muted-foreground">{error}</p> : null}
