@@ -1,6 +1,6 @@
 "use client"
 
-// The asking-price field, keypad and verdict panel shared by Show mode's card check and bundle check.
+// The asking-price field and verdict panel shared by Show mode's card check and bundle check.
 import { useEffect, useRef } from "react"
 import type { DealCheck, DealVerdict } from "@/lib/deal-check"
 
@@ -10,16 +10,6 @@ export const DEAL_VERDICT_TONE: Record<DealVerdict, string> = {
   fair: "bg-sky-500/15 text-sky-800 dark:text-sky-300",
   overpriced: "bg-amber-500/20 text-amber-900 dark:text-amber-300",
   "walk-away": "bg-red-600 text-white",
-}
-
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"] as const
-
-/** Applies a keypad press to the typed amount: one decimal point, two decimals, eight characters. */
-export function pressDealKey(current: string, key: string) {
-  if (key === "⌫") return current.slice(0, -1)
-  if (key === "." && current.includes(".")) return current
-  if (/\.\d{2}$/.test(current) || current.length >= 8) return current
-  return current === "" && key === "." ? "0." : current + key
 }
 
 // While the phone's keyboard is up (html[data-keyboard-open], lib/keyboard-inset.ts) the full verdict in
@@ -84,7 +74,7 @@ export function DealVerdictPanel({ deal, money, emptyText, testId = "deal-verdic
   )
 }
 
-export function DealKeypad({ value, onChange, label = "Asking price", autoFocus = true }: { value: string; onChange: (next: string) => void; label?: string; autoFocus?: boolean }) {
+export function DealPriceInput({ value, onChange, label = "Asking price", autoFocus = true }: { value: string; onChange: (next: string) => void; label?: string; autoFocus?: boolean }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   useEffect(() => {
     if (!autoFocus) return
@@ -98,38 +88,20 @@ export function DealKeypad({ value, onChange, label = "Asking price", autoFocus 
         <input
           ref={inputRef}
           aria-label={label}
-          // Tapping the field raises the phone's decimal keyboard; the keypad below is the fallback.
           inputMode="decimal"
           enterKeyHint="done"
           autoComplete="off"
           value={value}
           onChange={(event) => onChange(event.target.value.replace(/[^\d.,]/g, "").slice(0, 9))}
           onKeyDown={(event) => {
-            // "Done" closes the keyboard so the verdict and the keypad come back into view.
+            // "Done" closes the keyboard so the card actions come back into view.
             if (event.key === "Enter") event.currentTarget.blur()
           }}
           placeholder="0.00"
           className="min-w-0 flex-1 bg-transparent text-right text-2xl font-black tabular-nums outline-none"
         />
+        <button type="button" aria-label="Done editing price" onPointerDown={event => event.preventDefault()} onClick={() => inputRef.current?.blur()} className={`min-h-9 min-w-9 items-center justify-center text-xs font-semibold ${SHOW_WHILE_TYPING}`}>Done</button>
       </label>
-      {/* While the phone's keyboard is up it does the keypad's job, so the keypad steps aside
-          (html[data-keyboard-open], lib/keyboard-inset.ts). */}
-      <div className={`mb-2 grid grid-cols-6 gap-1.5 ${HIDE_WHILE_TYPING}`} role="group" aria-label="Keypad">
-        {KEYS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => {
-              navigator.vibrate?.(8)
-              onChange(pressDealKey(value, key))
-            }}
-            aria-label={key === "⌫" ? "Delete digit" : key === "." ? "Decimal point" : key}
-            className="h-12 rounded-xl bg-muted/70 text-lg font-bold active:bg-muted"
-          >
-            {key}
-          </button>
-        ))}
-      </div>
     </>
   )
 }
