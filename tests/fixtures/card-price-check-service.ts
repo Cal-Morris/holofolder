@@ -22,13 +22,13 @@ async function run() {
     if (url.pathname.includes("/oauth2/token")) return json({ access_token: "synthetic-token", expires_in: 7200 })
     if (url.pathname.includes("/item_summary/search")) {
       browseCalls++
-      return json({ itemSummaries: [{ itemId: "synthetic-a", title: "Bulbasaur 44/102 Base Set", price: { value: "12", currency: "GBP" }, itemLocation: { country: "GB" }, buyingOptions: ["FIXED_PRICE"] }] })
+      return json({ itemSummaries: [{ itemId: "synthetic-a", title: "Bulbasaur 44/102 Base Set", itemWebUrl: "https://www.ebay.co.uk/itm/123456789012?mkcid=1", condition: "Used", price: { value: "12", currency: "GBP" }, itemLocation: { country: "GB" }, buyingOptions: ["FIXED_PRICE"] }] })
     }
     if (url.hostname === "www.soldcomps.io") {
       soldCalls++
       assert.equal(url.searchParams.get("site"), "EBAY_GB")
       if (failSold) return new Response(null, { status: 402 })
-      return json({ items: [{ item_id: "synthetic-s", title: "Bulbasaur 44/102 Base Set", sold_price: { value: 9, currency: "GBP" }, sold_at: new Date().toISOString().slice(0, 10), best_offer_price_known: true, best_offer_accepted: false, flags: [] }] })
+      return json({ items: [{ item_id: "synthetic-s", title: "Bulbasaur 44/102 Base Set", url: "https://www.ebay.co.uk/itm/123456789013?mkcid=1", condition: "Used", sold_price: { value: 9, currency: "GBP" }, sold_at: new Date().toISOString().slice(0, 10), best_offer_price_known: true, best_offer_accepted: false, flags: [] }] })
     }
     throw new Error(`Unexpected synthetic request to ${url.pathname}`)
   }) as typeof fetch
@@ -37,11 +37,15 @@ async function run() {
     const onlyEbay = await loadCardPriceChecks("base1-44", "normal", true, "ebay")
     assert.equal(onlyEbay?.ebay?.summary.median, 12)
     assert.equal(onlyEbay?.soldcomps, null)
+    assert.equal(onlyEbay?.ebay?.listings?.[0].url, "https://www.ebay.co.uk/itm/123456789012")
+    assert.deepEqual(rows.get("ebay"), onlyEbay?.ebay)
     assert.equal(soldCalls, 0, "an eBay-only check cannot start a sold lookup")
     const first = await loadCardPriceChecks("base1-44", "normal", true)
     assert.equal(first?.ebay?.summary.median, 12)
     assert.equal(first?.soldcomps?.summary.median, 9)
     assert.equal(rows.size, 2)
+    assert.equal(first?.soldcomps?.sales?.[0].url, "https://www.ebay.co.uk/itm/123456789013")
+    assert.deepEqual((await loadCardPriceChecks("base1-44", "normal", false))?.soldcomps, first?.soldcomps)
     await loadCardPriceChecks("base1-44", "normal", true)
     assert.deepEqual([browseCalls, soldCalls], [1, 1])
     const stale = { summary: { kind: "sold", currency: "GBP", count: 1, median: 9, low: 9, high: 9 }, checkedAt: new Date(Date.now() - 86400_000).toISOString() }

@@ -19,7 +19,7 @@ test("bundle never combines currencies or guesses FX, and stale sold falls back 
   assert.deepEqual(guide.items.map(item => item.marketPrice), [null, null, 102])
   const converted = buildBundlePriceGuide([{ ...entry, currency: "EUR", gbpPerUnit: 0.8, marketPrice: 127.5 }], "EUR", undefined, now)
   assert.equal(converted.marketTotal, 125)
-  assert.deepEqual(converted.overlap, { low: 102, high: 112.5 })
+  assert.deepEqual(converted.overlap, { low: 114.75, high: 137.5 })
 })
 
 test("legacy bundle values remain usable without claiming catalogue or sold provenance", () => {

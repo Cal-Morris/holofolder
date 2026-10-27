@@ -18,6 +18,14 @@ test("combined checks save both sources, reuse them, and preserve saved sold evi
   execFileSync(process.execPath, [new URL("./fixtures/card-price-check-service.ts", import.meta.url).pathname], { stdio: "pipe" })
 })
 
+test("saved listing evidence rejects unsafe links and oversized public metadata", () => {
+  const record = { amount: 10, soldAt: "2026-10-25", title: "Synthetic card", url: "https://www.ebay.co.uk/itm/123456789012" }
+  assert.equal(isCardPriceCheck({ ...saved, sales: [record] }), true)
+  assert.equal(isCardPriceCheck({ ...saved, sales: [record, record] }), false)
+  for (const url of ["javascript:alert(1)", "https://www.ebay.co.uk.evil.test/itm/123456789012", "https://www.ebay.co.uk/redirect?url=evil", "https://name:password@www.ebay.co.uk/itm/123456789012"]) assert.equal(isCardPriceCheck({ ...saved, sales: [{ ...record, url }] }), false)
+  assert.equal(isCardPriceCheck({ ...saved, listings: [{ ...record, title: "x".repeat(501) }] }), false)
+})
+
 const databaseUrl = process.env.CATALOG_TEST_DATABASE_URL
 test("price-check migration is repeatable, concurrent refreshes claim once and client roles cannot write", { skip: !databaseUrl }, async () => {
   if (!databaseUrl) return

@@ -113,14 +113,12 @@ export const THIN_DATA_NOTE = "Thin price data: treat as a rough guide"
 export const RISING_NOTE = "Rising: this price may be fair soon"
 
 export function checkDeal({ askingPrice, marketPrice, thresholds = DEFAULT_DEAL_THRESHOLDS, confidence, dataAgeDays, isRising }: DealCheckInput): DealCheck | null {
-  if (!(askingPrice > 0) || typeof marketPrice !== "number" || !(marketPrice > 0)) return null
-  const { greatPct, fairPct, walkAwayPct } = normalizeDealThresholds(thresholds)
-  const ratio = (askingPrice - marketPrice) / marketPrice
-  const pct = ratio * 100
-  // Compare on a rounded % so "exactly 20% under" is great even with float noise.
-  const cmp = Math.round(pct * 1000) / 1000
-  const verdict: DealVerdict =
-    cmp <= -greatPct ? "great" : cmp < -fairPct ? "good" : cmp <= fairPct ? "fair" : cmp >= walkAwayPct ? "walk-away" : "overpriced"
+  if (!Number.isFinite(askingPrice) || !(askingPrice > 0) || typeof marketPrice !== "number") return null
+  const bands = buildDealPriceBands(marketPrice, thresholds)
+  if (!bands) return null
+  const pct = (askingPrice - marketPrice) / marketPrice * 100
+  const verdict: DealVerdict = askingPrice < marketPrice && askingPrice <= bands.greatBelow ? "great" : askingPrice < bands.fair.low ? "good"
+    : askingPrice <= bands.fair.high ? "fair" : askingPrice >= bands.walkAwayAbove ? "walk-away" : "overpriced"
 
   const notes: string[] = []
   if (confidence === "low" || confidence === "unknown") notes.push(THIN_DATA_NOTE)
@@ -132,9 +130,9 @@ export function checkDeal({ askingPrice, marketPrice, thresholds = DEFAULT_DEAL_
     label: DEAL_VERDICT_LABELS[verdict],
     diffPct: Math.round(pct),
     diffAmount: roundMoney(askingPrice - marketPrice),
-    payUpTo: roundMoney(marketPrice * (1 + fairPct / 100)),
-    goodBelow: roundMoney(marketPrice * (1 - fairPct / 100)),
-    greatAt: roundMoney(marketPrice * (1 - greatPct / 100)),
+    payUpTo: bands.fair.high,
+    goodBelow: bands.fair.low,
+    greatAt: bands.greatBelow,
     notes,
   }
 }
@@ -155,4 +153,15 @@ export function checkBundle(items: readonly BundleItem[], askingTotal: number | 
   const deal = askingTotal && askingTotal > 0 && priced.length > 0 ? checkDeal({ askingPrice: askingTotal, marketPrice: marketTotal, thresholds }) : null
   if (deal && unpricedCount > 0) deal.notes.unshift(`${unpricedCount} card${unpricedCount === 1 ? " has" : "s have"} no price: judged on the rest`)
   return { marketTotal, unpricedCount, deal }
+}
+
+/** The same thresholds used by checkDeal, expressed as prices for charts and scales. */
+export function buildDealPriceBands(market: number, thresholds?: DealThresholds) {
+  if (!Number.isFinite(market) || market <= 0) return null
+  const { greatPct, fairPct, walkAwayPct } = normalizeDealThresholds(thresholds)
+  return {
+    fair: { low: roundMoney(market * (1 - fairPct / 100)), high: roundMoney(market * (1 + fairPct / 100)) },
+    greatBelow: roundMoney(market * (1 - greatPct / 100)),
+    walkAwayAbove: roundMoney(market * (1 + walkAwayPct / 100)),
+  }
 }

@@ -1,7 +1,7 @@
-import { matchesPriceCheckTitle, type EbayListingSummary } from "@/lib/ebay-listings"
+import { matchesPriceCheckTitle, readPublicListingMetadata, type PriceCheckListing, type EbayListingSummary } from "@/lib/ebay-listings"
 import type { PriceSubject } from "@/lib/price-intelligence"
 
-export interface SoldComp { amount: number; soldAt: string }
+export interface SoldComp extends PriceCheckListing { soldAt: string }
 export type PriceCheckSummary = Omit<EbayListingSummary, "kind"> & { kind: "asking" | "sold" }
 
 export function summarizeSoldComps(subject: PriceSubject, items: unknown[], now = Date.now()) {
@@ -18,7 +18,7 @@ export function summarizeSoldComps(subject: PriceSubject, items: unknown[], now 
     const date = Date.parse(row.sold_at)
     if (!Number.isFinite(date) || new Date(date).toISOString().slice(0, 10) !== row.sold_at
       || date > now || now - date > 90 * 86400_000 || !matchesPriceCheckTitle(subject, row.title)) continue
-    matches.set(row.item_id, { amount: price.value, soldAt: row.sold_at })
+    matches.set(row.item_id, { ...matches.get(row.item_id), amount: price.value, soldAt: row.sold_at, ...readPublicListingMetadata(row.title, row.url, row.condition) })
   }
   const sales = [...matches.values()]
   const amounts = sales.map(sale => sale.amount).sort((a, b) => a - b)

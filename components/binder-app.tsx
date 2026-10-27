@@ -2844,7 +2844,7 @@ export default function BinderApp({
   const selectedUsesSoldGuide = selectedSoldGuide?.referenceGbp != null
   const selectedMarketPriceLabel = priceFormat.amount(selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount, selectedDetailPriceSnapshot)
   const selectedGoodPriceLabel = selectedUsesSoldGuide
-    ? priceFormat.range(selectedSoldGuide.soldBand.low, selectedSoldGuide.soldBand.high, selectedDetailPriceSnapshot)
+    ? priceFormat.range(selectedSoldGuide.fairBand.low, selectedSoldGuide.fairBand.high, selectedDetailPriceSnapshot)
     : priceFormat.amount(selectedComparisonPrice?.goodGbpAmount, selectedDetailPriceSnapshot)
   const selectedRangePriceLabel = priceFormat.range(selectedComparisonPrice?.lowGbpAmount, selectedComparisonPrice?.highGbpAmount, selectedDetailPriceSnapshot)
   const selectedConfidenceLabel = formatPriceConfidenceLabel(selectedDetailPriceSnapshot)

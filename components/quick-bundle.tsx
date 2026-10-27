@@ -9,6 +9,7 @@ import { checkBundle, parseAskingPrice, readDealThresholds } from "@/lib/deal-ch
 import { requestCardPriceCheck } from "@/lib/card-price-check-client"
 import type { CardPriceCheck, CardPriceChecks, PriceCheckSource } from "@/lib/card-price-checks"
 import { buildBundlePriceGuide } from "@/lib/bundle-price-guide"
+import { PriceCheckRecords } from "@/components/price-check-records"
 import { DealPriceScale } from "@/components/deal-price-scale"
 import { splitBundlePrice } from "@/lib/show-session"
 import { formatMoney } from "@/lib/regional-price"
@@ -148,7 +149,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
         <ul className="flex flex-col gap-1" aria-label="Cards in bundle">
           {entries.map((entry, index) => (
             <li key={entry.key} className="flex min-h-12 items-center gap-2 rounded-xl border border-border/50 bg-card pl-3 pr-1">
-              <span className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{entry.card.name}</span>
                 <span className="block text-[10px] text-muted-foreground">{guide.items[index].source === "sold" ? "Sold reference" : guide.items[index].source === "catalogue" ? "Catalogue reference" : guide.items[index].source === "saved" ? "Saved reference" : "No reference"}</span>
                 <span className="block text-[10px] text-muted-foreground" aria-live="polite">{(["ebay", "soldcomps"] as const).map(source => {
@@ -160,7 +161,8 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
                 <span className="block truncate text-[11px] text-muted-foreground">
                   {entry.card.set.name} · {formatCardNumber(entry.card)} · {formatCardFinishLabel(entry.finish)}
                 </span>
-              </span>
+                <PriceCheckRecords checks={checks[entry.key]} />
+              </div>
               <span className="text-sm font-bold tabular-nums">{guide.items[index].marketPrice !== null ? money(guide.items[index].marketPrice!) : "No price"}</span>
               <button type="button" onClick={() => onRemove(entry.key)} aria-label={`Remove ${entry.card.name} from bundle`} className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
                 <X className="h-4 w-4" />

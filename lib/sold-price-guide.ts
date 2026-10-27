@@ -1,4 +1,4 @@
-import { normalizeDealThresholds, type DealThresholds } from "@/lib/deal-check"
+import { buildDealPriceBands, normalizeDealThresholds, type DealThresholds } from "@/lib/deal-check"
 import type { CardPriceCheck } from "@/lib/card-price-checks"
 import type { CardFinish } from "@/lib/domain/cards"
 
@@ -35,6 +35,8 @@ export interface SoldPriceGuide {
   median: number
   q1: number
   q3: number
+  fairBand: BuyingBand
+  fairOverlap: BuyingBand | null
   soldBand: BuyingBand
   catalogBand: BuyingBand | null
   overlap: BuyingBand | null
@@ -51,6 +53,10 @@ export function buildSoldPriceGuide(check: CardPriceCheck | null | undefined, ca
   const catalogBand = typeof catalogMarket === "number" && Number.isFinite(catalogMarket) && catalogMarket > 0 ? band(catalogMarket) : null
   const low = Math.max(soldBand.low, catalogBand?.low ?? soldBand.low), high = Math.min(soldBand.high, catalogBand?.high ?? soldBand.high)
   const overlap = catalogBand && low <= high ? { low, high } : null
+  const fairBand = buildDealPriceBands(median, thresholds)!.fair
+  const catalogFairBand = catalogBand ? buildDealPriceBands(catalogMarket!, thresholds)!.fair : null
+  const fairLow = Math.max(fairBand.low, catalogFairBand?.low ?? fairBand.low), fairHigh = Math.min(fairBand.high, catalogFairBand?.high ?? fairBand.high)
+  const fairOverlap = catalogFairBand && fairLow <= fairHigh ? { low: fairLow, high: fairHigh } : null
   const days = new Set(sales.map(sale => sale.soldAt)).size
   const age = now - Date.parse(check!.checkedAt)
   const newest = Math.max(...sales.map(sale => Date.parse(sale.soldAt)))
@@ -67,7 +73,7 @@ export function buildSoldPriceGuide(check: CardPriceCheck | null | undefined, ca
     : !agrees ? "The sold and catalogue buying ranges do not overlap. Keeping the catalogue guide."
     : !catalogBand ? "Using recent sold evidence because no catalogue price is available."
     : "Recent sold evidence agrees with the catalogue buying range."
-  return { eligible, referenceGbp: eligible ? round(median) : null, reason, count: sales.length, days, median: round(median), q1: round(q1), q3: round(q3), soldBand, catalogBand, overlap }
+  return { eligible, referenceGbp: eligible ? round(median) : null, reason, count: sales.length, days, median: round(median), q1: round(q1), q3: round(q3), soldBand, catalogBand, overlap, fairBand, fairOverlap }
 }
 
 export function buildSoldPriceChart(check: CardPriceCheck | null | undefined, now = Date.now()) {
