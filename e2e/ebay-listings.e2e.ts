@@ -3,29 +3,38 @@ import { mockCardPrices } from "./price-fixtures"
 
 test.use({ signedIn: true })
 
-test("eBay asks load on demand and remain separate from the card valuation", async ({ harness }) => {
+// Synthetic independent asking and sold samples, not market data.
+const comparisonFixture = {
+  ebay: { summary: { kind: "asking", currency: "GBP", count: 3, median: 12, low: 10, high: 20 }, checkedAt: "2026-10-27T12:00:00Z", searchUrl: "https://www.ebay.co.uk/sch/i.html?_nkw=Bulbasaur" },
+  soldcomps: { summary: { kind: "sold", currency: "GBP", count: 2, median: 9, low: 8, high: 10 }, checkedAt: "2026-10-27T12:00:00Z" },
+  errors: {},
+}
+
+test("asking and sold comparisons load on demand and remain separate from the card valuation", async ({ harness }) => {
   // Synthetic market quote and asking-price sample, never real sale data.
   await mockCardPrices(harness.page, { "base1-44": { confidence: "medium", market: 8 } })
   await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
   let lookups = 0
-  await harness.page.route("**/api/ebay/listings?**", async route => {
+  await harness.page.route("**/api/card-price-checks?**", async route => {
     lookups++
+    expect(route.request().method()).toBe("POST")
     expect(new URL(route.request().url()).searchParams.get("cardId")).toBe("base1-44")
-    await route.fulfill({ json: { summary: { kind: "asking", currency: "GBP", count: 3, median: 12, low: 10, high: 20 }, checkedAt: "2026-10-27T12:00:00Z", searchUrl: "https://www.ebay.co.uk/sch/i.html?_nkw=Bulbasaur" } })
+    await route.fulfill({ json: comparisonFixture })
   })
   await harness.page.reload()
   const detail = await harness.openCardDetail()
   const market = detail.getByText("Market", { exact: true }).locator("..")
   await expect(market).toContainText("£8.00")
   await detail.getByText("Price details", { exact: true }).click()
-  const indicator = detail.getByRole("region", { name: "eBay asking prices" })
-  await expect(indicator.getByText(/Active listings, not sold prices/)).toBeVisible()
+  const indicator = detail.getByRole("region", { name: "Price comparisons" })
+  await expect(indicator.getByText(/Asking and sold prices shown separately/)).toBeVisible()
   expect(lookups).toBe(0)
-  const check = indicator.getByRole("button", { name: "Check eBay asking prices" })
+  const check = indicator.getByRole("button", { name: "Check prices" })
   await harness.expectMinTapTarget(check)
   await check.click()
   await expect(indicator.getByText(/£12.00.*median asking price.*3 matched listings/)).toBeVisible()
-  await expect(indicator.getByText(/postage excluded/)).toBeVisible()
+  await expect(indicator.getByText(/Postage excluded/).first()).toBeVisible()
+  await expect(indicator.getByText(/£9.00.*median sold price.*2 matched sales/)).toBeVisible()
   await expect(market).toContainText("£8.00")
   const link = indicator.getByRole("link", { name: "View listings on eBay" })
   await expect(link).toHaveAttribute("href", /^https:\/\/www\.ebay\.co\.uk\//)
@@ -35,29 +44,29 @@ test("eBay asks load on demand and remain separate from the card valuation", asy
 
 test("eBay lookup degrades clearly offline without making a request", async ({ harness, context }) => {
   let lookups = 0
-  await harness.page.route("**/api/ebay/listings?**", async route => { lookups++; await route.abort() })
+  await harness.page.route("**/api/card-price-checks?**", async route => { lookups++; await route.abort() })
   const detail = await harness.openCardDetail()
   await detail.getByText("Price details", { exact: true }).click()
   await context.setOffline(true)
-  await detail.getByRole("button", { name: "Check eBay asking prices" }).click()
-  await expect(detail.getByRole("status")).toHaveText("Connect to the internet to check eBay listings.")
+  await detail.getByRole("button", { name: "Check prices" }).click()
+  await expect(detail.getByRole("status")).toHaveText("Connect to the internet to check prices.")
   expect(lookups).toBe(0)
   await context.setOffline(false)
 })
 
 test("eBay lookup failure and an empty sample do not invent a price", async ({ harness }) => {
   let failed = true
-  await harness.page.route("**/api/ebay/listings?**", async route => {
+  await harness.page.route("**/api/card-price-checks?**", async route => {
     if (failed) await route.fulfill({ status: 503, json: { error: "eBay listings are temporarily unavailable. Try again later." } })
-    else await route.fulfill({ json: { summary: { kind: "asking", currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: "2026-10-27T12:00:00Z", searchUrl: "https://www.ebay.co.uk/sch/i.html?_nkw=Bulbasaur" } })
+    else await route.fulfill({ json: { ebay: { summary: { kind: "asking", currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: "2026-10-27T12:00:00Z" }, soldcomps: null, errors: { soldcomps: "Monthly allowance used up." } } })
   })
   const detail = await harness.openCardDetail()
   await detail.getByText("Price details", { exact: true }).click()
-  const indicator = detail.getByRole("region", { name: "eBay asking prices" })
-  await indicator.getByRole("button", { name: "Check eBay asking prices" }).click()
+  const indicator = detail.getByRole("region", { name: "Price comparisons" })
+  await indicator.getByRole("button", { name: "Check prices" }).click()
   await expect(indicator.getByRole("status")).toContainText("temporarily unavailable")
   failed = false
-  await indicator.getByRole("button", { name: "Check eBay asking prices" }).click()
+  await indicator.getByRole("button", { name: "Check prices" }).click()
   await expect(indicator.getByText("No matching listings in the search sample.")).toBeVisible()
   await expect(indicator.getByText(/median asking price/)).toHaveCount(0)
   await harness.expectNoHorizontalOverflow()
@@ -69,12 +78,50 @@ test("eBay lookup is available when the card has no market quote", async ({ harn
   await harness.page.reload()
   const detail = await harness.openCardDetail()
   await detail.getByText("Price details", { exact: true }).click()
-  await expect(detail.getByRole("button", { name: "Check eBay asking prices" })).toBeVisible()
-  await expect(detail.getByRole("region", { name: "eBay asking prices" })).toContainText("Active listings, not sold prices")
+  await expect(detail.getByRole("button", { name: "Check prices" })).toBeVisible()
+  await expect(detail.getByRole("region", { name: "Price comparisons" })).toContainText("Asking and sold prices shown separately")
 })
 
 test("eBay listings API requires a signed-in session", async ({ request }) => {
   const response = await request.get("/api/ebay/listings?cardId=base1-44")
   expect(response.status()).toBe(401)
   expect(response.headers()["cache-control"]).toBe("no-store")
+})
+
+
+test("Show mode checks both sources on tap and resets comparisons when the finish changes", async ({ harness }) => {
+  let requests = 0
+  await harness.page.route("**/api/card-price-checks?**", async route => {
+    requests++
+    expect(route.request().method()).toBe("POST")
+    expect(new URL(route.request().url()).searchParams.get("cardId")).toBe("sv03.5-005")
+    await route.fulfill({ json: comparisonFixture })
+  })
+  await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
+  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
+  await dialog.getByRole("searchbox").fill("charmeleon")
+  await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
+  const check = dialog.getByTestId("quick-card-check")
+  const button = check.getByRole("button", { name: "Check prices", exact: true })
+  await expect(button).toBeVisible()
+  expect(requests).toBe(0)
+  await harness.expectMinTapTarget(button)
+  await button.click()
+  await expect(check.getByText(/£9.00.*median sold price/)).toBeVisible()
+  await expect(check.getByText(/£12.00.*median asking price/)).toBeVisible()
+  await harness.expectNoHorizontalOverflow()
+  const finish = check.getByRole("radiogroup", { name: "Variant" }).getByRole("radio", { name: /reverse/i })
+  await finish.click()
+  await expect(finish).toHaveAttribute("aria-checked", "true")
+  await expect(check.getByText(/median sold price/)).toHaveCount(0)
+  expect(requests).toBe(1)
+})
+
+test("price check writes and saved reads require authentication", async ({ request }) => {
+  for (const method of ["GET", "POST"]) {
+    const response = await request.fetch("/api/card-price-checks?cardId=base1-44&finish=normal", { method })
+    expect(response.status()).toBe(401)
+    expect(response.headers()["cache-control"]).toBe("no-store")
+  }
 })

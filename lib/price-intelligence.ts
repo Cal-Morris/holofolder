@@ -10,6 +10,7 @@ export interface PriceSubject {
   name: string
   setId: string | null
   setName: string | null
+  officialCardCount?: number | null
   localId: string | null
   language: string
   /** Printing being priced. When set, listings for a different printing are rejected. */
@@ -110,6 +111,7 @@ export function scorePriceObservationMatch(subject: PriceSubject, observation: P
 
   const normalizedTitle = normalizeComparableText(title)
   const normalizedName = normalizeComparableText(subject.name)
+  if (normalizeComparableText(subject.setName ?? "") === "base set" && /\b(?:base set (?:2|ii)|celebrations?|classic collection|legendary collection|evolutions|anniversary|25th|reprint|world championship|tcg classic|pokemon classic)\b/.test(normalizedTitle)) return rejectedMatch(["set mismatch"])
   const reasons: string[] = []
   let score = 0
 
