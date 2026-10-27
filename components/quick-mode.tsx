@@ -175,13 +175,12 @@ export default function QuickMode({
   const huntItems = cardCheck?.huntItems
   const [isBundleOpen, setIsBundleOpen] = useState(false)
   const [bundle, setBundle] = useState<QuickBundleEntry[]>(() => (typeof window === "undefined" ? [] : readBundle()))
-  const updateBundle = useCallback((next: QuickBundleEntry[]) => {
+  const bundleRef = useRef(bundle)
+  const updateBundle = useCallback((update: QuickBundleEntry[] | ((current: QuickBundleEntry[]) => QuickBundleEntry[])) => {
+    const next = typeof update === "function" ? update(bundleRef.current) : update
+    bundleRef.current = next
     setBundle(next)
-    try {
-      window.sessionStorage.setItem(BUNDLE_KEY, JSON.stringify(next))
-    } catch {
-      // The bundle still works for this visit.
-    }
+    try { window.sessionStorage.setItem(BUNDLE_KEY, JSON.stringify(next)) } catch { /* The bundle still works for this visit. */ }
   }, [])
   const [query, setQuery] = useState(initialQuery)
   const [isScannerOpen, setIsScannerOpen] = useState(false)
@@ -384,6 +383,7 @@ export default function QuickMode({
             onBack={() => setIsBundleOpen(false)}
             onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
             onClear={() => updateBundle([])}
+            onSoldCheck={(key, soldCheck) => updateBundle(current => current.map(entry => entry.key === key ? { ...entry, soldCheck } : entry))}
             onAction={(action, entry) => cardCheck.onAction(action, entry.card, entry.pokemon, entry.finish)}
           />
         ) : (

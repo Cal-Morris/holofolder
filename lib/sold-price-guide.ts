@@ -74,10 +74,11 @@ export function buildSoldPriceChart(check: CardPriceCheck | null | undefined, no
   const sales = validSales(check, now, 90).map(sale => ({ ...sale, time: Date.parse(sale.soldAt) })).sort((a, b) => a.time - b.time)
   const groups = new Map<number, number[]>()
   for (const sale of sales) groups.set(sale.time, [...(groups.get(sale.time) ?? []), sale.amount])
-  const daily: { time: number; median: number | null; count: number }[] = []
+  const daily: { time: number; median: number | null; count: number; range: [number, number] | null; whisker: [number, number] | null }[] = []
   if (sales.length) for (let time = sales[0].time; time <= sales.at(-1)!.time; time += DAY) {
     const values = groups.get(time)?.sort((a, b) => a - b)
-    daily.push({ time, median: values?.length ? round(quantile(values, 0.5)) : null, count: values?.length ?? 0 })
+    const median = values?.length ? round(quantile(values, 0.5)) : null
+    daily.push({ time, median, count: values?.length ?? 0, range: values?.length ? [round(quantile(values, 0.25)), round(quantile(values, 0.75))] : null, whisker: values?.length && median != null ? [median - values[0], values.at(-1)! - median] : null })
   }
   return { sales, daily }
 }

@@ -11,7 +11,7 @@ import { useShowSession } from "@/hooks/use-show-session"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatCardNumber, inferCardFinish, type SearchCardResult } from "@/lib/pokemon-card-browse"
 import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
-import { convertGbpForDisplay, formatMoney, getRegionalFinishPrices, type DisplayFxRates } from "@/lib/regional-price"
+import { convertGbpForDisplay, formatMoney, getGbpPerUnit, getRegionalFinishPrices, type DisplayFxRates } from "@/lib/regional-price"
 import type { DisplayCurrency, PricingRegion } from "@/lib/pricing-region"
 import type { PricedCardFinish } from "@/lib/card-pricing"
 import type { CardFinish } from "@/lib/domain/cards"
@@ -22,6 +22,7 @@ import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { CardPriceCheck } from "@/lib/card-price-checks"
 import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
 import { CardPriceComparison } from "@/components/card-price-comparison"
+import { DealPriceScale } from "@/components/deal-price-scale"
 import UndoSnackbar from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealKeypad, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 
@@ -40,6 +41,9 @@ export interface QuickBundleEntry {
   finish: CardFinish
   marketPrice: number | null
   currency: MoneyCurrency
+  catalogMarketGbp?: number | null
+  gbpPerUnit?: number | null
+  soldCheck?: CardPriceCheck
 }
 
 export type MoneyCurrency = Parameters<typeof formatMoney>[1]
@@ -249,13 +253,14 @@ export default function QuickCardCheck({
           )}
         </div>
 
-        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
+        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>
 
       <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
+        {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.overlap ? { low: toDisplay(soldGuide.overlap.low)!.amount, high: toDisplay(soldGuide.overlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
         <DealKeypad value={input} onChange={setInput} />
         <div className={`flex gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {!readOnly && (
@@ -282,7 +287,7 @@ export default function QuickCardCheck({
             disabled={inBundle}
             onClick={() => {
               navigator.vibrate?.(10)
-              onAddToBundle({ key, card, pokemon, finish, marketPrice: market?.amount ?? null, currency: moneyCurrency })
+              onAddToBundle({ key, card, pokemon, finish, marketPrice: market?.amount ?? null, currency: moneyCurrency, catalogMarketGbp: price?.gbpAmount ?? null, gbpPerUnit: getGbpPerUnit(moneyCurrency, fxRates, snapshot), soldCheck: soldEvidence?.key === comparisonKey ? soldEvidence.check : undefined })
             }}
             aria-label={inBundle ? "In bundle" : "Add to bundle"}
             className={`${bigButton} border border-border/70 bg-card`}
