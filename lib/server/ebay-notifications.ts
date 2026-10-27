@@ -15,7 +15,7 @@ async function loadAppToken() {
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),
   })
-  if (!response.ok) throw new Error("eBay authentication unavailable")
+  if (!response.ok) throw new Error(`eBay authentication unavailable (${response.status})`)
   const token: { access_token?: unknown; expires_in?: unknown } = await response.json()
   if (typeof token?.access_token !== "string" || !token.access_token
     || typeof token.expires_in !== "number" || !Number.isFinite(token.expires_in) || token.expires_in <= 60) {
@@ -34,7 +34,7 @@ async function loadPublicKey(keyId: string): Promise<EbayPublicKey> {
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),
   })
-  if (!response.ok) throw new Error("eBay public key unavailable")
+  if (!response.ok) throw new Error(`eBay public key unavailable (${response.status})`)
   const key: { key?: unknown; algorithm?: unknown; digest?: unknown } = await response.json()
   if (key?.algorithm !== "ECDSA" || typeof key.key !== "string" || (key.digest !== "SHA256" && key.digest !== "SHA1")) {
     throw new Error("Invalid eBay public key")

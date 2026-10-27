@@ -36,7 +36,8 @@ export async function POST(request: Request) {
     if (!await verifyEbayNotification(payload, request.headers.get("x-ebay-signature") ?? "")) {
       return Response.json({ error: "Invalid eBay signature" }, { status: 412, headers })
     }
-  } catch {
+  } catch (error) {
+    console.warn("[binderdex] eBay notification verification unavailable:", error instanceof Error ? error.message : "Unknown error")
     return Response.json({ error: "eBay signature verification unavailable" }, { status: 503, headers })
   }
   // shortcut: no eBay account data is stored, add verified data deletion before introducing eBay persistence.
