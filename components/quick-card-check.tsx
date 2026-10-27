@@ -19,6 +19,7 @@ import { getPriceDataAgeDays } from "@/lib/price-freshness"
 import { getRisingMomentum } from "@/lib/price-momentum"
 import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
 import { formatCardFinishLabel } from "@/lib/card-labels"
+import { CardPriceComparison } from "@/components/card-price-comparison"
 import UndoSnackbar from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealKeypad, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 
@@ -239,6 +240,8 @@ export default function QuickCardCheck({
             </p>
           )}
         </div>
+
+        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} language={language} finish={finish} />
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>

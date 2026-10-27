@@ -1,7 +1,7 @@
 "use client"
 
 import { CARD_FINISH_OPTIONS, formatCollectedDate, getDetailArtwork, getWantedCardKey } from "@/components/binder/binder-app-model"
-import { EbayListingIndicator } from "@/components/ebay-listing-indicator"
+import { CardPriceComparison } from "@/components/card-price-comparison"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import { Button } from "@/components/ui/button"
 import { getCardPriceKey } from "@/hooks/use-card-prices"
@@ -285,7 +285,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                 </summary>
                 <CardPriceEvidence price={selectedDetailPriceSnapshot} />
-                {selectedPrimaryCardPreview ? <EbayListingIndicator key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} /> : null}
+                {selectedPrimaryCardPreview ? <CardPriceComparison key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} /> : null}
               </details>
             </div>
           ) : null}
