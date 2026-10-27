@@ -92,6 +92,7 @@ export function DealPriceInput({ value, onChange, label = "Asking price", autoFo
           enterKeyHint="done"
           autoComplete="off"
           value={value}
+          onClick={(event) => event.currentTarget.setSelectionRange(value.length, value.length)}
           onChange={(event) => onChange(event.target.value.replace(/[^\d.,]/g, "").slice(0, 9))}
           onKeyDown={(event) => {
             // "Done" closes the keyboard so the card actions come back into view.
