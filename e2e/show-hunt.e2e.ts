@@ -38,8 +38,12 @@ test.describe("Show mode finder", () => {
     await seedHuntList(harness)
     const dialog = await openShowMode(harness)
     await expect(dialog.getByRole("heading", { name: "Show mode" })).toBeVisible()
+    await harness.expectMinTapTarget(dialog.getByRole("button", { name: "Close quick mode" }), 48)
+    for (const name of ["Search", "Exit show mode"]) await harness.expectMinTapTarget(banner(harness).getByRole("button", { name, exact: true }), 48)
     const hunt = dialog.getByTestId("show-hunt")
     await expect(hunt).toBeVisible()
+    for (const name of ["Most wanted", "Top value"]) await harness.expectMinTapTarget(hunt.getByRole("radio", { name, exact: true }), 48)
+    for (const name of ["Set", "Illustrator"]) await harness.expectMinTapTarget(hunt.getByRole("combobox", { name }), 48)
     // The keyboard stays down so the list can be read against a dealer's binder.
     await expect(dialog.getByRole("searchbox")).not.toBeFocused()
     await expect(hunt.getByRole("heading", { name: /Hunting · 4 cards/ })).toBeVisible()

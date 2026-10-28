@@ -73,7 +73,8 @@ test.describe("deal checker", () => {
       const button = check.getByRole("button", { name, exact: true })
       await harness.expectWithinSafeViewport(button)
       await harness.expectHittable(button)
-      await harness.expectMinTapTarget(button, 48)
+      await harness.expectMinTapTarget(button, 56)
+      expect((await button.boundingBox())!.width).toBeGreaterThanOrEqual(140)
     }
     await expect(check.getByRole("group", { name: "Keypad" })).toHaveCount(0)
     await expect(input).toHaveAttribute("inputmode", "decimal")

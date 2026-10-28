@@ -181,13 +181,13 @@ export default function QuickCardCheck({
   const statusTone = state.owned
     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
     : state.wanted ? "bg-rose-500/15 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"
-  const bigButton = "flex h-14 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 text-[15px] font-bold disabled:opacity-45"
+  const bigButton = "flex h-14 min-w-0 items-center justify-center gap-2 rounded-2xl px-3 text-base font-bold disabled:opacity-45"
 
   return (
     <section aria-label={`Check ${card.name}`} className="flex min-h-0 flex-1 flex-col" data-testid="quick-card-check">
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
         <div className="flex items-start gap-3">
-          <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/70">
+          <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <span className="trading-card relative w-14 shrink-0 overflow-hidden bg-muted/50">
@@ -206,7 +206,7 @@ export default function QuickCardCheck({
                   <TrendingUp className="h-3 w-3" aria-hidden />Rising
                 </span>
               )}
-              <button type="button" onClick={onOpenDetails} className="flex h-7 items-center gap-1 rounded-full px-1.5 text-[11px] font-semibold text-primary">
+              <button type="button" onClick={onOpenDetails} className="flex min-h-12 items-center gap-2 rounded-xl bg-primary/10 px-3 text-sm font-semibold text-primary">
                 More details<ExternalLink className="h-3 w-3" aria-hidden />
               </button>
             </div>
@@ -222,7 +222,7 @@ export default function QuickCardCheck({
                 role="radio"
                 aria-checked={finish === choice.finish}
                 onClick={() => setFinish(choice.finish)}
-                className={`h-11 flex-1 rounded-xl border text-sm font-semibold ${finish === choice.finish ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`}
+                className={`min-h-12 min-w-0 flex-1 rounded-xl border px-2 text-sm font-semibold ${finish === choice.finish ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`}
               >
                 {choice.label}
               </button>
@@ -262,7 +262,7 @@ export default function QuickCardCheck({
         {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.fairOverlap ? { low: toDisplay(soldGuide.fairOverlap.low)!.amount, high: toDisplay(soldGuide.fairOverlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
         <DealPriceInput value={input} onChange={setInput} />
-        <div className={`flex gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
+        <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {!readOnly && (
             <button type="button" disabled={busy} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
               <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought

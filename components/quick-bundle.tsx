@@ -130,7 +130,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
     <section aria-label="Bundle" className="flex min-h-0 flex-1 flex-col" data-testid="quick-bundle">
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
         <div className="flex items-center gap-3">
-          <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/70">
+          <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
@@ -140,7 +140,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
             </p>
           </div>
           {entries.length > 0 && (
-            <button type="button" onClick={onClear} aria-label="Clear bundle" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
+            <button type="button" onClick={onClear} aria-label="Clear bundle" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
               <Trash2 className="h-5 w-5" />
             </button>
           )}
@@ -164,7 +164,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
                 <PriceCheckRecords checks={checks[entry.key]} />
               </div>
               <span className="text-sm font-bold tabular-nums">{guide.items[index].marketPrice !== null ? money(guide.items[index].marketPrice!) : "No price"}</span>
-              <button type="button" onClick={() => onRemove(entry.key)} aria-label={`Remove ${entry.card.name} from bundle`} className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
+              <button type="button" onClick={() => onRemove(entry.key)} aria-label={`Remove ${entry.card.name} from bundle`} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
                 <X className="h-4 w-4" />
               </button>
             </li>
@@ -172,7 +172,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
           {entries.length === 0 && <li className="px-1 py-4 text-center text-sm text-muted-foreground">Add cards with Bundle on each card&apos;s check.</li>}
         </ul>
 
-        <button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50">{checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
+        <button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
         <p className="text-[11px] text-muted-foreground">Checks each English card and finish, reuses saved results for 12 hours. {guide.items.filter(item => item.source === "sold").length} of {entries.length} use qualified sold evidence.</p>
         {error ? <p role="status" className="text-xs text-muted-foreground">{error}</p> : null}
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
@@ -187,7 +187,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
             type="button"
             disabled={busy || entries.length === 0}
             onClick={() => void buyAll()}
-            className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-bold text-primary-foreground disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
+            className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
           >
             <ShoppingBag className="h-5 w-5" aria-hidden />Bought bundle
           </button>

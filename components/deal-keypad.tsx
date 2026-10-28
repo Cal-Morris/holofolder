@@ -83,7 +83,7 @@ export function DealPriceInput({ value, onChange, label = "Asking price", autoFo
   }, [autoFocus])
   return (
     <>
-      <label className="mb-2 flex h-12 items-center gap-2 rounded-2xl border border-border/70 bg-background px-4 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+      <label className="mb-2 flex h-14 items-center gap-2 rounded-2xl border border-border/70 bg-background px-4 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
         <span className="text-sm font-semibold text-muted-foreground">{label.replace(" price", "")}</span>
         <input
           ref={inputRef}
@@ -101,7 +101,7 @@ export function DealPriceInput({ value, onChange, label = "Asking price", autoFo
           placeholder="0.00"
           className="min-w-0 flex-1 bg-transparent text-right text-2xl font-black tabular-nums outline-none"
         />
-        <button type="button" aria-label="Done editing price" onPointerDown={event => event.preventDefault()} onClick={() => inputRef.current?.blur()} className={`min-h-9 min-w-9 items-center justify-center text-xs font-semibold ${SHOW_WHILE_TYPING}`}>Done</button>
+        <button type="button" aria-label="Done editing price" onPointerDown={event => event.preventDefault()} onClick={() => inputRef.current?.blur()} className={`min-h-12 min-w-12 items-center justify-center rounded-xl bg-muted px-2 text-sm font-semibold ${SHOW_WHILE_TYPING}`}>Done</button>
       </label>
     </>
   )

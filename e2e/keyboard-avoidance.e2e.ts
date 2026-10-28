@@ -125,7 +125,7 @@ test.describe("on-screen keyboard", () => {
 
     // Done closes the keyboard and restores the actions.
     const done = check.getByRole("button", { name: "Done editing price" })
-    await harness.expectMinTapTarget(done, 36)
+    await harness.expectMinTapTarget(done, 48)
     await expectAboveKeyboard(harness, done, "Done button")
     await done.click()
     await expect(input).not.toBeFocused()

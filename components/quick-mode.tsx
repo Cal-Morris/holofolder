@@ -348,7 +348,7 @@ export default function QuickMode({
             type="button"
             onClick={onClose}
             aria-label="Close quick mode"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/70 text-foreground hover:bg-muted"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70 text-foreground hover:bg-muted"
           >
             <X className="h-5 w-5" />
           </button>
@@ -428,7 +428,7 @@ export default function QuickMode({
                         setQuery(entry)
                         inputRef.current?.focus({ preventScroll: true })
                       }}
-                      className="flex h-11 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 text-sm font-medium"
+                      className="flex h-12 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 text-sm font-medium"
                     >
                       <History className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                       {entry}
@@ -445,7 +445,7 @@ export default function QuickMode({
                   <button
                     key={illustrator.name}
                     type="button"
-                    className={rowClass}
+                    className={cardCheck ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
                     onClick={() => {
                       remember()
                       // Show mode stays in the lookup: list the illustrator's cards here, ready to price.
@@ -477,7 +477,7 @@ export default function QuickMode({
                     <button
                       key={`${card.id}:${card.language ?? "en"}`}
                       type="button"
-                      className={rowClass}
+                      className={cardCheck ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
                       data-standing={standing ?? undefined}
                       aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${standing ? `, ${STANDING_BADGES[standing].label}` : ""}${priceLabel ? `, ${priceLabel}` : ""}`}
                       onClick={() => pickCard(card, pokemon)}
@@ -580,7 +580,7 @@ export default function QuickMode({
             <button
               type="button"
               onClick={() => setIsBundleOpen(true)}
-              className="mb-2 flex h-12 w-full items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-left text-sm font-semibold text-primary"
+              className="mb-2 flex h-14 w-full items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-left text-sm font-semibold text-primary"
             >
               <Layers className="h-4 w-4 shrink-0" aria-hidden />
               <span className="min-w-0 flex-1 truncate">
