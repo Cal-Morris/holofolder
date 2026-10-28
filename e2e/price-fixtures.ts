@@ -40,7 +40,6 @@ export async function clearCardPriceCache(page: Page) {
 }
 
 export async function mockCardPrices(page: Page, byCardId: Record<string, FixturePrice>) {
-  await clearCardPriceCache(page)
   await page.route("**/api/card-prices**", async (route) => {
     const body = route.request().postDataJSON?.() ?? {}
     const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : []
@@ -87,4 +86,5 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
       },
     })
   })
+  await clearCardPriceCache(page)
 }
