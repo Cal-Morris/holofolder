@@ -1,3 +1,4 @@
+import { clearCardPriceCache } from "./price-fixtures"
 import { test, expect, SUPABASE_URL, SEEDED_COLLECTION } from "./fixtures"
 
 test.describe("binder printing display", () => {
@@ -16,7 +17,7 @@ test.describe("binder printing display", () => {
         marketGbpAmount: card.cardId === wanted.card_id ? 20 : 3, confidence: "medium", updatedAt: new Date().toISOString(),
       })) } })
     })
-    await page.evaluate(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
+    await clearCardPriceCache(page)
     await page.reload()
     const slot = page.locator('button[data-dex-id="1"]')
     const modes = page.getByRole("group", { name: "Binder cards" })

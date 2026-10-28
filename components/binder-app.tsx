@@ -1079,12 +1079,6 @@ export default function BinderApp({
         byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
       }
 
-      if (shouldLoadCollectionPriceLookups && collectionViewFilter === "wanted") {
-        for (const lookup of ownedPriceLookups) {
-          byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
-        }
-      }
-
       if (shouldLoadCollectionPriceLookups) {
         for (const lookup of trackedPriceLookups) {
           byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
@@ -1105,7 +1099,7 @@ export default function BinderApp({
 
       return [...byKey.values()]
     },
-    [otherBindersPriceLookups, collectionViewFilter, ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
+    [otherBindersPriceLookups, ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
   const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
