@@ -51,14 +51,25 @@ test.describe("dock tab view transitions", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
-  test("tab switches are instant with prefers-reduced-motion", async ({ harness }) => {
-    const page = harness.page
-    await page.emulateMedia({ reducedMotion: "reduce" })
-    for (const name of ["List", "Wanted", "Sets", "Binder"]) {
-      const result = await clickAndWatch(harness.dock().getByRole("button", { name, exact: true }))
-      expect(result, `${name} should not animate`).toMatchObject({ faded: false })
-      expect(result.motion).toBeUndefined()
-    }
-    await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toBeVisible()
+  test("a newly enabled reduced-motion preference applies to the next tab switch", async ({ harness }) => {
+    await harness.page.emulateMedia({ reducedMotion: "reduce" })
+    const result = await clickAndWatch(harness.dock().getByRole("button", { name: "List", exact: true }))
+    expect(result).toMatchObject({ faded: false })
+    expect(result.motion).toBeUndefined()
+    await expect(harness.page.getByRole("heading", { name: "Manage the dex quickly" })).toBeVisible()
+  })
+
+  test.describe("reduced motion", () => {
+    test.use({ reducedMotion: "reduce" })
+
+    test("tab switches are instant with prefers-reduced-motion", async ({ harness }) => {
+      const page = harness.page
+      for (const name of ["List", "Wanted", "Sets", "Binder"]) {
+        const result = await clickAndWatch(harness.dock().getByRole("button", { name, exact: true }))
+        expect(result, `${name} should not animate`).toMatchObject({ faded: false })
+        expect(result.motion).toBeUndefined()
+      }
+      await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toBeVisible()
+    })
   })
 })

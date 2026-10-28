@@ -93,7 +93,10 @@ test("featured cards shuffle without replacing scans and gather within the hero"
   await page.emulateMedia({ reducedMotion: "no-preference" })
   const fan = page.getByRole("region", { name: "Featured Pokémon cards" })
   const stage = page.getByTestId("featured-card-stage")
+  const deck = stage.locator(":scope > div")
   await stage.scrollIntoViewIfNeeded()
+  // Motion starts disabled until the browser preference and stage visibility are applied.
+  await expect.poll(() => deck.evaluate((element) => (element as HTMLElement).style.transform)).not.toBe("")
   const scans = fan.locator("[data-card-id]")
   await expect(scans).toHaveCount(6)
   await scans.evaluateAll((elements) => elements.forEach((element) => element.setAttribute("data-stable-node", "yes")))
@@ -105,7 +108,6 @@ test("featured cards shuffle without replacing scans and gather within the hero"
   await expect(page.getByTestId("featured-card-name")).toHaveText("Charmander")
   await expect.poll(() => stage.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === "running"))).toBe(false)
   await expect(fan.locator("[data-stable-node=yes]")).toHaveCount(6)
-  const deck = stage.locator(":scope > div")
   const before = await deck.evaluate((element) => getComputedStyle(element).transform)
   await stage.evaluate(element => window.scrollBy(0, Math.max(100, element.getBoundingClientRect().top - innerHeight * .2)))
   await expect.poll(() => deck.evaluate((element) => getComputedStyle(element).transform)).not.toBe(before)

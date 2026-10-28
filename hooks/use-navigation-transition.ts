@@ -11,7 +11,8 @@ export function useNavigationTransition(reducedMotion: boolean) {
   return useCallback((element: HTMLElement | null, update: () => void, direction?: "left" | "right") => {
     active.current?.cancel()
     active.current = null
-    if (!element || reducedMotion) {
+    // React's preference update may still be pending on the first click.
+    if (!element || reducedMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       update()
       return
     }
