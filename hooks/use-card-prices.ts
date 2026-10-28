@@ -140,6 +140,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
   const [pricesByCardId, setPricesByCardId] = useState<Record<string, CardPriceSnapshot>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [fxRates, setFxRates] = useState<DisplayFxRates | null>(null)
+  const [onlineVersion, setOnlineVersion] = useState(0)
 
   // Keyed by content, not array identity: callers often rebuild the same lookups each render (e.g. while
   // a search is loading), and a new array per render would re-run the effect below in a loop.
@@ -153,55 +154,58 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
   )
 
   useEffect(() => {
+    if (!enabled) return
+    const handleOnline = () => setOnlineVersion(version => version + 1)
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [enabled])
+
+  useEffect(() => {
     if (!enabled || stableLookups.length === 0) {
+      setIsLoading(false)
       return
     }
 
     const cache = readPriceCache()
-    const plan = buildCardPriceFetchPlan(stableLookups, cache, {
-      isOnline: typeof navigator === "undefined" ? true : navigator.onLine,
-    })
-
+    const quickPrices = buildCardPriceFetchPlan(stableLookups, cache, { isOnline: false }).cachedPrices
     let cancelled = false
-    setPricesByCardId((current) => ({ ...current, ...plan.cachedPrices }))
-    void loadPriceEvidence(stableLookups).then(evidence => {
-      if (cancelled) return
-      setPricesByCardId(current => {
-        const merged = { ...current }
-        for (const price of evidence) {
-          const key = getCardPriceKey(price.cardId, price.language)
-          if (!merged[key] || price.fetchedAt >= merged[key].fetchedAt) merged[key] = price
-        }
-        return merged
-      })
-    }).catch(() => undefined)
-
-    if (plan.fetchBatches.length === 0) {
-      return () => { cancelled = true }
-    }
-
+    setPricesByCardId(current => ({ ...current, ...quickPrices }))
     setIsLoading(true)
 
-    void mapWithConcurrency(plan.fetchBatches, 2, (batch) => cancelled ? Promise.resolve([]) : fetch("/api/card-prices", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ cards: batch.lookups, force: batch.force }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Price API returned ${response.status}`)
-        }
+    void loadPriceEvidence(stableLookups).catch(() => []).then(evidence => {
+      if (cancelled) return []
+      for (const price of evidence) {
+        const key = getCardPriceKey(price.cardId, price.language)
+        if (!cache[key] || price.fetchedAt >= cache[key].fetchedAt) cache[key] = price
+      }
+      const plan = buildCardPriceFetchPlan(stableLookups, cache, { isOnline: navigator.onLine })
+      setPricesByCardId(current => ({ ...current, ...plan.cachedPrices }))
 
-        const payload = await response.json()
-        const fx = normalizeDisplayFxRates(payload?.fx)
-        if (fx && !cancelled) {
-          setFxRates((current) => (current?.date === fx.date && current.jpyToGbp === fx.jpyToGbp ? current : fx))
-        }
-        return Array.isArray(payload?.prices) ? payload.prices : []
-      }))
+      return mapWithConcurrency(plan.fetchBatches, 2, (batch) => cancelled ? Promise.resolve([]) : fetch("/api/card-prices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cards: batch.lookups, force: batch.force }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Price API returned ${response.status}`)
+          }
+
+          const payload = await response.json()
+          const fx = normalizeDisplayFxRates(payload?.fx)
+          if (fx && !cancelled) {
+            setFxRates((current) => (current?.date === fx.date && current.jpyToGbp === fx.jpyToGbp ? current : fx))
+          }
+          return Array.isArray(payload?.prices) ? payload.prices : []
+        }).catch(error => {
+          console.error("[binderdex] Failed to fetch card price batch:", error)
+          return []
+        }))
+    })
       .then((priceBatches) => {
+        if (cancelled) return
         const mergedCache = readPriceCache()
         const updates: Record<string, CardPriceSnapshot> = {}
 
@@ -223,9 +227,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         writePriceCache(mergedCache)
         void persistPriceEvidence(Object.values(updates)).catch(() => undefined)
 
-        if (!cancelled) {
-          setPricesByCardId((current) => ({ ...current, ...updates }))
-        }
+        setPricesByCardId((current) => ({ ...current, ...updates }))
       })
       .catch((error) => {
         console.error("[binderdex] Failed to fetch card prices:", error)
@@ -239,7 +241,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
     return () => {
       cancelled = true
     }
-  }, [enabled, stableLookups])
+  }, [enabled, stableLookups, onlineVersion])
 
   return {
     pricesByCardId,
@@ -304,11 +306,14 @@ async function persistPriceEvidence(prices: CardPriceSnapshot[], store = getOffl
 
 async function loadPriceEvidence(lookups: CardPriceLookup[], store: OfflineKeyValueStore | null = getOfflineStore()) {
   if (!store) return []
-  const results = await mapWithConcurrency(lookups, 8, async lookup => {
+  const results = await mapWithConcurrency(lookups, 8, async (lookup): Promise<CardPriceSnapshot | null> => {
     const saved = await store.get<CardPriceSnapshot>(`price-evidence:${getCardPriceKey(lookup.cardId, lookup.language)}`)
     if (!saved || saved.cardId !== lookup.cardId || saved.language !== lookup.language || !Number.isFinite(saved.fetchedAt)) return null
     const price = normalizeFetchedCardPrice(saved)
-    return price ? { ...price, fetchedAt: saved.fetchedAt } : null
+    return price ? { ...price, fetchedAt: saved.fetchedAt,
+      finishPrices: saved.finishPrices === undefined ? undefined : price.finishPrices,
+      historyPoints: saved.historyPoints === undefined ? undefined : price.historyPoints,
+    } : null
   })
   return results.filter((price): price is CardPriceSnapshot => price !== null)
 }

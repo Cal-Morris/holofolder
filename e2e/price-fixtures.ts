@@ -15,6 +15,30 @@ export interface FixturePrice {
   finishes?: Array<{ finish: PricedCardFinish; market: number; trend?: Record<string, number>; confidence?: FixturePrice["confidence"] }>
 }
 
+/** Reset both price stores when a test replaces the catalogue fixture on an already open page. */
+export async function clearCardPriceCache(page: Page) {
+  await page.evaluate(() => {
+    if (location.protocol !== "http:" && location.protocol !== "https:") return
+    localStorage.removeItem("binderdex_card_price_cache_v7")
+    return new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open("binderdex-offline", 1)
+      open.onupgradeneeded = () => open.result.createObjectStore("records")
+      open.onerror = () => reject(open.error)
+      open.onsuccess = () => {
+        const db = open.result
+        const transaction = db.transaction("records", "readwrite")
+        const records = transaction.objectStore("records")
+        const keys = records.getAllKeys()
+        keys.onsuccess = () => {
+          for (const key of keys.result) if (String(key).startsWith("price-evidence:")) records.delete(key)
+        }
+        transaction.oncomplete = () => { db.close(); resolve() }
+        transaction.onerror = () => reject(transaction.error)
+      }
+    })
+  })
+}
+
 export async function mockCardPrices(page: Page, byCardId: Record<string, FixturePrice>) {
   await page.route("**/api/card-prices**", async (route) => {
     const body = route.request().postDataJSON?.() ?? {}
@@ -62,4 +86,5 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
       },
     })
   })
+  await clearCardPriceCache(page)
 }
