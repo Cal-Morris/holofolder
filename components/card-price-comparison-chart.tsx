@@ -49,7 +49,7 @@ export default function CardPriceComparisonChart({ sold, asking, marketGbp, thre
         </ComposedChart>
       </ChartContainer>
       <div className="flex flex-wrap items-center gap-x-3 text-[10px] text-muted-foreground"><span><span className="text-slate-500">●</span> Sales · middle 50% + median</span>{bands ? <><span className="text-emerald-700 dark:text-emerald-400">● Bargain</span><span className="text-sky-700 dark:text-sky-400">● Fair / expected</span><span className="text-amber-700 dark:text-amber-400">● Above market</span><span className="text-red-700 dark:text-red-400">● Walk away</span></> : null}{ask?.median != null ? <span><span className="text-violet-600">●</span> Current ask {formatGbpAmount(ask.median)}</span> : null}{offerGbp != null && offerGbp > 0 ? <span>● Your offer {formatGbpAmount(offerGbp)}{offerGbp < Math.max(0, min - padding) || offerGbp > max + padding ? " (off scale)" : ""}</span> : null}</div>
-      <button type="button" aria-pressed={fullRange} className="min-h-9 text-[11px] underline" onClick={() => setFullRange(value => !value)}>{fullRange ? "Hide" : "Show"} full sale range</button>
+      <button type="button" aria-pressed={fullRange} className="min-h-12 text-[11px] underline" onClick={() => setFullRange(value => !value)}>{fullRange ? "Hide" : "Show"} full sale range</button>
     </> : <p className="my-2 text-muted-foreground">No dated sales to plot yet.{ask?.median != null ? ` Current asking median ${formatGbpAmount(ask.median)}.` : ""}</p>}
   </figure>
 }

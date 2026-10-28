@@ -83,7 +83,7 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={onBack} aria-label="Back to hunting" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/70">
+            <button type="button" onClick={onBack} aria-label="Back to hunting" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
               <ArrowLeft className="h-5 w-5" />
             </button>
             <PokemonSprite id={pokemon.id} />
@@ -99,10 +99,10 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
           {eras.length > 1 && (
             <div role="radiogroup" aria-label="Era" className="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]">
               <button type="button" role="radio" aria-checked={!era} onClick={() => setEra(null)}
-                className={`flex h-11 shrink-0 items-center rounded-full border px-4 text-sm font-semibold ${!era ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`}>All</button>
+                className={`flex h-12 shrink-0 items-center rounded-full border px-4 text-sm font-semibold ${!era ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`}>All</button>
               {eras.map((entry) => (
                 <button key={entry.id} type="button" role="radio" aria-checked={era === entry.id} onClick={() => setEra(era === entry.id ? null : entry.id)}
-                  className={`flex h-11 shrink-0 items-center rounded-full border px-4 text-sm font-semibold ${era === entry.id ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`}>
+                  className={`flex h-12 shrink-0 items-center rounded-full border px-4 text-sm font-semibold ${era === entry.id ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`}>
                   {entry.label}
                 </button>
               ))}

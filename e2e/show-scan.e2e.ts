@@ -75,7 +75,7 @@ async function openScanner(harness: Harness) {
   await expect(dialog).toBeVisible()
   const scan = dialog.getByRole("button", { name: "Scan a card" })
   await expect(scan).toHaveText("Scan")
-  await harness.expectMinTapTarget(scan, 44)
+  await harness.expectMinTapTarget(scan, 56)
   await harness.expectWithinSafeViewport(scan)
   await harness.expectHittable(scan)
   await scan.click()

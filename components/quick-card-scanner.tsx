@@ -141,7 +141,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
             onClick={closeSafely}
             disabled={busy}
             aria-label="Close scanner"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
           >
             <X className="h-5 w-5" aria-hidden />
           </button>

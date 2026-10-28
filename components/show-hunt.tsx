@@ -109,8 +109,8 @@ export function HuntCardRow({
 }
 
 const chip = (active: boolean) =>
-  `flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`
-const selectClass = "h-12 w-full min-w-0 rounded-2xl border border-border/70 bg-card px-3 text-sm font-medium"
+  `flex h-12 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`
+const selectClass = "h-12 w-full min-w-0 rounded-2xl border border-border/70 bg-card px-3 text-base font-medium"
 
 export interface ShowHuntProps {
   items: readonly HuntSourceItem[]
@@ -180,15 +180,15 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
     <section aria-label="Hunting" className="flex min-h-0 flex-1 flex-col" data-testid="show-hunt">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Target className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />
             <h3 className="min-w-0 flex-1 truncate text-base font-bold">
               Hunting <span className="font-medium text-muted-foreground">· {total} card{total === 1 ? "" : "s"}{isOnline ? "" : " · offline"}</span>
             </h3>
-            <div role="radiogroup" aria-label="Sort" className="flex shrink-0 rounded-full bg-muted/70 p-0.5">
+            <div role="radiogroup" aria-label="Sort" className="flex w-full rounded-2xl bg-muted/70 p-1">
               {([["wanted", "Most wanted"], ["value", "Top value"]] as const).map(([id, label]) => (
                 <button key={id} type="button" role="radio" aria-checked={sort === id} onClick={() => setSort(id)}
-                  className={`h-10 rounded-full px-3 text-xs font-semibold ${sort === id ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+                  className={`h-12 flex-1 rounded-xl px-3 text-sm font-semibold ${sort === id ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
                   {label}
                 </button>
               ))}

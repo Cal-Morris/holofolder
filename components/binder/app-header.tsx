@@ -100,7 +100,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             <button
               type="button"
               onClick={openQuickMode}
-              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-black/85 px-3 text-sm font-semibold text-amber-300"
+              className="flex h-12 shrink-0 items-center gap-1.5 rounded-xl bg-black/85 px-3 text-sm font-semibold text-amber-300"
             >
               <SearchIcon className="h-4 w-4" aria-hidden />
               Search
@@ -109,7 +109,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               type="button"
               onClick={() => setShowMode(false)}
               aria-label="Exit show mode"
-              className="flex h-11 shrink-0 items-center rounded-xl border border-black/25 px-3 text-sm font-semibold"
+              className="flex h-12 shrink-0 items-center rounded-xl border border-black/25 px-3 text-sm font-semibold"
             >
               Exit
             </button>

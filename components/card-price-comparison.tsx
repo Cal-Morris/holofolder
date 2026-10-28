@@ -67,7 +67,7 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
       {result && (result.ebay || result.soldcomps) ? <ComparisonChart sold={result.soldcomps} asking={result.ebay} marketGbp={guide?.referenceGbp ?? catalogMarketGbp} thresholds={givenThresholds ?? savedThresholds} offerGbp={offerGbp} /> : null}
       {showBuyingScale && guide?.eligible ? <DealPriceScale market={guide.referenceGbp!} overlap={guide.fairOverlap} thresholds={givenThresholds ?? savedThresholds} money={value => formatGbpAmount(value) ?? ""} /> : null}
       {result ? <details className="mt-1">
-        <summary className="flex min-h-9 cursor-pointer items-center font-semibold">Evidence</summary>
+        <summary className="flex min-h-12 cursor-pointer items-center font-semibold">Evidence</summary>
         <div className="space-y-2 text-muted-foreground">
           {guide ? <p>{guide.reason} {guide.count} recent sales across {guide.days} dates. Conditions vary.</p> : null}
           {guide?.eligible && guide.fairOverlap ? <p>Fair-range agreement with catalogue: {formatGbpAmount(guide.fairOverlap.low)} to {formatGbpAmount(guide.fairOverlap.high)}.</p> : null}
@@ -82,7 +82,7 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
         </div>
       </details> : null}
       {error ? <p role="status" className="mt-2 text-muted-foreground">{error}</p> : null}
-      <Button type="button" variant="outline" size="sm" className="mt-2 min-h-9" onClick={() => void checkPrices()} disabled={loading}>{loading ? "Checking prices…" : "Check prices"}</Button>
+      <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices()} disabled={loading}>{loading ? "Checking prices…" : "Check prices"}</Button>
     </section>
   )
 }
