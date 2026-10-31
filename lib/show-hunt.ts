@@ -183,6 +183,18 @@ export function wantedToSearchCard(wanted: WantedCard, pokemonId: number): Searc
 
 export type PokemonCardStanding = "wanted" | "missing" | "owned"
 
+/** A printing's standing from its binder state: owned beats wanted (a got-it card leaves the want list). */
+export function getCardStanding(state: { owned: boolean; wanted: boolean }): PokemonCardStanding {
+  return state.owned ? "owned" : state.wanted ? "wanted" : "missing"
+}
+
+/** The Owned / Wanted / Not in binder pills Show mode stamps on each printing, reused by Search and Quick. */
+export const CARD_STANDING_BADGES: Record<PokemonCardStanding, { label: string; toneClass: string }> = {
+  wanted: { label: "Wanted", toneClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
+  owned: { label: "Owned", toneClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
+  missing: { label: "Not in binder", toneClass: "bg-muted text-muted-foreground" },
+}
+
 /** Wanted first, then the ones still missing, owned (dimmed) last; dearest first within each. */
 export function orderPokemonCards<T extends { standing: PokemonCardStanding; price: number | null }>(cards: readonly T[]): T[] {
   const rank: Record<PokemonCardStanding, number> = { wanted: 0, missing: 1, owned: 2 }
