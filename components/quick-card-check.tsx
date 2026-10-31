@@ -264,7 +264,9 @@ export default function QuickCardCheck({
       <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.fairOverlap ? { low: toDisplay(soldGuide.fairOverlap.low)!.amount, high: toDisplay(soldGuide.fairOverlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
-        <DealPriceInput value={input} onChange={setInput} />
+        {/* Show mode (and the Wanted price lookup) is about the asking price, so it opens the keyboard;
+            plain Quick shows the price, verdict and Own / Want first, and Asking opens the keyboard on tap. */}
+        <DealPriceInput value={input} onChange={setInput} autoFocus={showTools} />
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {showTools && !readOnly && (

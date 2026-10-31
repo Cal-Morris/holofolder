@@ -349,6 +349,9 @@ test.describe("deal checker outside Show mode", () => {
     await expect(check).toBeVisible()
     await expect(check.getByTestId("quick-card-market-price")).toHaveText("£10.00")
     await expect(check.getByText("Rising", { exact: true })).toBeVisible()
+    // No Show mode: the keyboard doesn't jump up; Asking waits for a tap.
+    await expect(check.getByRole("textbox", { name: "Asking price" })).not.toBeFocused()
+    await expect(check.getByRole("button", { name: "Want", exact: true })).toBeVisible()
     for (const [price, verdict] of [["7", "great"], ["8.5", "good"], ["10", "fair"], ["12", "overpriced"], ["14", "walk-away"]] as const) {
       await typePrice(check, price)
       await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", verdict)
