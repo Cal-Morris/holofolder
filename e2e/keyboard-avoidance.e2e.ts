@@ -165,6 +165,10 @@ test.describe("on-screen keyboard", () => {
     await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
     const check = dialog.getByTestId("quick-card-check")
     const input = check.getByRole("textbox", { name: "Asking price" })
+    // Outside Show mode the keyboard stays down: price, verdict and Own / Want come first.
+    await expect(input).not.toBeFocused()
+    for (const name of ["Add owned", "Want"]) await expect(check.getByRole("button", { name, exact: true })).toBeVisible()
+    await input.click()
     await expect(input).toBeFocused()
 
     await setKeyboard(page, KEYBOARD)
