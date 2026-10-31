@@ -97,7 +97,17 @@ test.describe("want list on mobile", () => {
     // 151 is fully priced, the 30th Celebration set has an unpriced card, so 151 comes first, cheapest card first.
     await pickSort("Cheapest set to finish first")
     await expect.poll(ids).toEqual(["sv03.5-005", "sv03.5-007", "sv03.5-006", "sv03.5-166", "sv03.5-168", "30th-007"])
+    // Grouped like Show mode's Hunting list: Squirtle (two wanted) first, then by each Pokémon's dearest card.
+    await pickSort("Group by Pokémon")
+    await expect.poll(ids).toEqual(["sv03.5-007", "30th-007", "sv03.5-168", "sv03.5-166", "sv03.5-006", "sv03.5-005"])
+    const groups = page.getByTestId("wanted-group")
+    await expect(groups).toHaveCount(5)
+    await expect(groups.first()).toHaveAttribute("data-pokemon-id", "7")
+    await expect(groups.first().getByRole("heading")).toContainText("2 wanted")
+    await expect(page.getByTestId("wanted-sort-filter")).toContainText("By Pokémon")
+    await harness.expectNoHorizontalOverflow()
     await pickSort("Recently added")
+    await expect(page.getByTestId("wanted-group")).toHaveCount(0)
     await expect.poll(async () => (await ids())[0]).toBe("30th-007")
     await expect(page.getByTestId("wanted-sort-filter")).toContainText("Newest")
 
