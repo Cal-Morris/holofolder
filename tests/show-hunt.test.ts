@@ -2,6 +2,7 @@ import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import {
   buildHuntGroups,
+  getCardStanding,
   collectHuntCards,
   getHuntFilterOptions,
   getSetEra,
@@ -67,5 +68,13 @@ describe("show hunt", () => {
       { id: "d", standing: "missing" as const, price: 5 },
     ])
     assert.deepEqual(ordered.map((card) => card.id), ["c", "d", "b", "a"])
+  })
+})
+
+describe("getCardStanding", () => {
+  it("owned beats wanted, and neither is missing", () => {
+    assert.equal(getCardStanding({ owned: true, wanted: true }), "owned")
+    assert.equal(getCardStanding({ owned: false, wanted: true }), "wanted")
+    assert.equal(getCardStanding({ owned: false, wanted: false }), "missing")
   })
 })

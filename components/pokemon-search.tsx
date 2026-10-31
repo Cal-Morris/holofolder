@@ -24,6 +24,7 @@ import { useCardSearch, useIllustratorSearch } from "@/hooks/use-card-search"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
+import { CARD_STANDING_BADGES, getCardStanding } from "@/lib/show-hunt"
 
 type SearchStateFilter = PokemonSearchStateFilter
 
@@ -62,6 +63,8 @@ interface PokemonSearchProps {
   formatPrice?: (price: CardPriceSnapshot | undefined) => string | null
   /** The user's pricing region, used to weight card hit prices. */
   pricingRegion?: PricingRegion
+  /** Whether a printing is in the binder or on the want list: card hits get Show mode's Owned / Wanted badge. */
+  getCardState?: (card: SearchCardResult, pokemon: { id: number; name: string }) => { owned: boolean; wanted: boolean }
 }
 
 function cardThumbnail(image?: string) {
@@ -95,6 +98,7 @@ export default function PokemonSearch({
   onBrowseIllustrator,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
+  getCardState,
 }: PokemonSearchProps) {
   const [query, setQuery] = useState("")
   // Read after mount so the server render and first client render agree.
@@ -535,6 +539,8 @@ export default function PokemonSearch({
                         {group.cards.map((card) => {
                           const thumb = cardThumbnail(card.image)
                           const price = formatPrice?.(cardPrices[getCardPriceKey(card.id, card.language ?? "en")])?.split(" (")[0] ?? null
+                          const standing = getCardState ? getCardStanding(getCardState(card, { id: group.dexId, name: group.name })) : null
+                          const badge = standing && standing !== "missing" ? CARD_STANDING_BADGES[standing] : null
                           return (
                             <button
                               key={card.id}
@@ -543,13 +549,19 @@ export default function PokemonSearch({
                                 rememberCard(toRecentCard(card, { id: group.dexId, name: group.name }))
                                 onBrowseCards?.({ id: group.dexId, name: group.name }, card.id)
                               }}
-                              aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}`}
+                              aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${badge ? `, ${badge.label}` : ""}`}
+                              data-standing={standing ?? undefined}
                               className="w-[4.6rem] shrink-0 text-left"
                             >
-                              <div className="trading-card w-full border border-border/50 bg-muted/40">
+                              <div className={`trading-card relative w-full border bg-muted/40 ${standing === "owned" ? "border-emerald-500/60" : standing === "wanted" ? "border-rose-500/60" : "border-border/50"}`}>
                                 {thumb ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                ) : null}
+                                {badge ? (
+                                  <span aria-hidden className={`absolute inset-x-1 bottom-1 truncate rounded-full px-1 py-0.5 text-center text-[9px] font-bold leading-none text-white shadow-sm ${standing === "owned" ? "bg-emerald-600" : "bg-rose-600"}`}>
+                                    {badge.label}
+                                  </span>
                                 ) : null}
                               </div>
                               <p className="mt-1 truncate text-[10px] font-semibold">{card.set.name}</p>

@@ -46,7 +46,7 @@ import { formatMoney, type DisplayFxRates } from "@/lib/regional-price"
 import type { DisplayCurrency } from "@/lib/pricing-region"
 import type { CardFinish } from "@/lib/domain/cards"
 import type { QuickBundleEntry, QuickCardAction, QuickCardState } from "@/components/quick-card-check"
-import { wantedToSearchCard, type HuntSourceItem, type PokemonCardStanding } from "@/lib/show-hunt"
+import { CARD_STANDING_BADGES, getCardStanding, wantedToSearchCard, type HuntSourceItem, type PokemonCardStanding } from "@/lib/show-hunt"
 import { searchOfflineCards } from "@/lib/offline-card-index"
 // Bundled with Quick mode (not split) so the finder never needs a network round trip at a show.
 import ShowHunt, { PokemonSprite } from "@/components/show-hunt"
@@ -136,6 +136,12 @@ export interface QuickModeProps {
   initialQuery?: string
   /** Price lookup outside Show mode: "Price check" header, no Show mode framing. */
   lookupOnly?: boolean
+  /** Outside Show mode too: each card result gets its Owned / Wanted badge, wanted printings first. */
+  cardStanding?: {
+    getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }) => QuickCardState
+    /** The collection on this device: its wanted printings always match, even offline. */
+    items?: readonly HuntSourceItem[]
+  }
 }
 
 function cardThumbnail(image?: string) {
@@ -143,11 +149,7 @@ function cardThumbnail(image?: string) {
   return toCardImageSrc(image.replace(/\/high\.webp$/, "/low.webp"))
 }
 
-const STANDING_BADGES: Record<PokemonCardStanding, QuickModePokemonState> = {
-  wanted: { label: "Wanted", toneClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
-  owned: { label: "Owned", toneClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
-  missing: { label: "Not in binder", toneClass: "bg-muted text-muted-foreground" },
-}
+const STANDING_BADGES: Record<PokemonCardStanding, QuickModePokemonState> = CARD_STANDING_BADGES
 
 const sectionTitle = "px-1 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
 const rowClass = "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none active:bg-muted"
@@ -168,6 +170,7 @@ export default function QuickMode({
   cardCheck,
   initialQuery = "",
   lookupOnly = false,
+  cardStanding,
 }: QuickModeProps) {
   const [checking, setChecking] = useState<{ card: SearchCardResult; pokemon: { id: number; name: string }; finish?: CardFinish | null } | null>(null)
   // Show mode: the Pokémon whose cards are listed (opened from a Pokémon result or a Hunting group).
@@ -209,15 +212,17 @@ export default function QuickMode({
   const pokemonResults = useMemo(() => (trimmed ? searchPokemonItems(trimmed, POKEMON_CATALOG, cardCheck ? 6 : 5) : []), [cardCheck, trimmed])
   const cardSearch = useCardSearch(query, true, getOfflineCards)
   // Wanted cards that match, from the want list on this device: always found, even offline or uncached.
+  const getCardState = cardCheck?.getCardState ?? cardStanding?.getCardState
+  const standingItems = cardCheck ? huntItems : cardStanding?.items
   const wantedMatches = useMemo(() => {
-    if (!cardCheck || !trimmed || !huntItems) return []
-    const wanted = huntItems.flatMap((item) => (item.wanted_cards ?? []).map((card) => ({
+    if (!getCardState || !trimmed || !standingItems) return []
+    const wanted = standingItems.flatMap((item) => (item.wanted_cards ?? []).map((card) => ({
       card: { ...wantedToSearchCard(card, item.pokemon_id), illustrator: card.illustrator },
       pokemon: { id: item.pokemon_id, name: item.pokemon_name },
     })))
     const matched = new Set(searchOfflineCards(wanted.map((entry) => entry.card), trimmed).map((card) => card.id))
     return wanted.filter((entry) => matched.has(entry.card.id))
-  }, [cardCheck, huntItems, trimmed])
+  }, [getCardState, standingItems, trimmed])
   const cardResults = useMemo(
     () => {
       const seen = new Set<string>()
@@ -228,19 +233,15 @@ export default function QuickMode({
         seen.add(key)
         return true
       })
-      if (!cardCheck) return unique.slice(0, 10).map((entry) => ({ ...entry, standing: null }))
-      // Show mode looks up any card; wanted ones lead, the rest keep the search's order.
+      if (!getCardState) return unique.slice(0, 10).map((entry) => ({ ...entry, standing: null }))
+      // Wanted printings lead, the rest keep the search's order (Show mode looks up more at once).
       const rank = { wanted: 0, missing: 1, owned: 1 } as const
       return unique
-        .map((entry, index) => {
-          const state = cardCheck.getCardState(entry.card, entry.pokemon)
-          const standing: PokemonCardStanding = state.owned ? "owned" : state.wanted ? "wanted" : "missing"
-          return { ...entry, standing, index }
-        })
+        .map((entry, index) => ({ ...entry, standing: getCardStanding(getCardState(entry.card, entry.pokemon)), index }))
         .sort((a, b) => rank[a.standing] - rank[b.standing] || a.index - b.index)
-        .slice(0, 40)
+        .slice(0, cardCheck ? 40 : 10)
     },
-    [cardCheck, cardSearch.groups, wantedMatches],
+    [cardCheck, cardSearch.groups, getCardState, wantedMatches],
   )
   const priceLookups = useMemo(
     () => (formatPrice ? cardResults.map(({ card }) => ({ cardId: card.id, language: card.language ?? "en" })) : []),
@@ -472,14 +473,16 @@ export default function QuickMode({
                 {cardResults.map(({ card, pokemon, standing }) => {
                   const thumb = cardThumbnail(card.image)
                   const priceLabel = formatPrice?.(pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]) ?? null
-                  const state = standing ? STANDING_BADGES[standing] : getPokemonState?.(pokemon.id) ?? null
+                  // Outside Show mode only Owned / Wanted are stamped; "Not in binder" on every other row is noise.
+                  const shownStanding = standing && (cardCheck || standing !== "missing") ? standing : null
+                  const state = shownStanding ? STANDING_BADGES[shownStanding] : standing ? null : getPokemonState?.(pokemon.id) ?? null
                   return (
                     <button
                       key={`${card.id}:${card.language ?? "en"}`}
                       type="button"
                       className={cardCheck ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
                       data-standing={standing ?? undefined}
-                      aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${standing ? `, ${STANDING_BADGES[standing].label}` : ""}${priceLabel ? `, ${priceLabel}` : ""}`}
+                      aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${shownStanding ? `, ${STANDING_BADGES[shownStanding].label}` : ""}${priceLabel ? `, ${priceLabel}` : ""}`}
                       onClick={() => pickCard(card, pokemon)}
                     >
                       <span className="trading-card relative w-10 shrink-0 overflow-hidden bg-muted/50">

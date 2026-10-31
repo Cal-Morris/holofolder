@@ -21,6 +21,7 @@ export interface SearchOverlayContext {
   currentPagePokemon: PokemonSummary[]
   filteredPokemonList: PokemonEntry[]
   getOfflineSearchCards: () => Promise<SearchCardResult[]>
+  getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }) => { owned: boolean; wanted: boolean }
   getSearchResultMeta: (pokemon: { id: number; name: string; }) => PokemonSearchResultMeta
   handlePokemonSelect: (pokemon: PokemonSummary) => void
   handleSearchJumpToPage: (page: number) => void
@@ -44,7 +45,7 @@ export interface SearchOverlayContext {
 }
 
 export function renderSearchOverlayView(ctx: SearchOverlayContext) {
-  const { binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
+  const { binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
   return (
     isSearchOpen && (
       <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
@@ -85,6 +86,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
                 onBrowseIllustrator={(name) => openIllustratorBrowser(name)}
                 formatPrice={priceFormat.label}
                 pricingRegion={pricingPreferences.region}
+                getCardState={getCardState}
               />
               {selectedPokemon && (
                 <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
