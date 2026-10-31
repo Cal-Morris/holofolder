@@ -219,7 +219,6 @@ export function renderMainContentView(ctx: MainContentContext) {
             currentBinderId={initialBinderId}
             priceFormat={priceFormat}
             isLoadingPrices={isLoadingPrices}
-            isOnline={isOnline}
             readOnlyMode={readOnlyMode}
             wantedShareMessage={wantedShareMessage}
             handleShareWantedList={handleShareWantedList}

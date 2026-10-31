@@ -34,7 +34,7 @@ test.describe("offline writes", () => {
 
     const charmanderTiles = await page.locator('button[data-dex-id="4"]').count()
     await setNetwork(page, true)
-    await expect(page.getByText("Offline mode")).toBeVisible()
+    await expect(page.getByText(/^Offline · /)).toBeVisible()
 
     // Edit 1: Charmander becomes a holo. Edit 2: Bulbasaur is cleared.
     let detail = await openDetail(page, 4)
@@ -44,14 +44,14 @@ test.describe("offline writes", () => {
     detail = await openDetail(page, 1)
     await detail.getByRole("button", { name: "Remove", exact: true }).click()
     await page.getByRole("dialog", { name: /^remove bulbasaur$/i }).getByRole("button", { name: /remove completely/i }).click()
-    await expect(page.getByText(/2 changes will sync when you're back online/)).toBeVisible()
+    await expect(page.getByText("Offline · 2 changes to sync")).toBeVisible()
     if (await page.getByRole("dialog", { name: /details$/i }).count()) await closeDetail(page)
     expect(server.writes, "nothing is sent while offline").toEqual([])
 
     // Reload while offline: the page comes from the service worker and the queued edits are still applied.
     await page.reload()
     await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByText(/2 changes will sync when you're back online/)).toBeVisible()
+    await expect(page.getByText("Offline · 2 changes to sync")).toBeVisible()
     detail = await openDetail(page, 4)
     await expect(detail.getByRole("button", { name: "Holo", exact: true })).toHaveAttribute("aria-pressed", "true")
     await closeDetail(page)
@@ -92,7 +92,7 @@ test.describe("offline writes", () => {
     const detail = await openDetail(page, 4)
     await detail.getByRole("button", { name: "Holo", exact: true }).click()
     await expect(syncStatus(page)).toHaveAttribute("data-sync-status", "waiting")
-    await expect(syncStatus(page)).toHaveText(/1 change waiting to sync, retrying/)
+    await expect(syncStatus(page)).toHaveText("1 change syncing · retrying")
     await expect.poll(() => server.rows.get(4)?.card_finish, { timeout: 20_000 }).toBe("holo")
     await expect(syncStatus(page)).toHaveCount(0, { timeout: 15_000 })
     expect(server.writes.map((write) => write.status)).toEqual([503, 502, 200])

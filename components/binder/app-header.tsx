@@ -3,6 +3,7 @@
 import { HeaderMoreMenu } from "@/components/header-more-menu"
 import { Button } from "@/components/ui/button"
 import { formatMoney } from "@/lib/regional-price"
+import { offlineChipLabel, syncingChipLabel } from "@/lib/connection-chip"
 import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Copy, Grid3X3, Heart, Layers3, Link2, ListChecks, Loader2, LogIn, LogOut, Moon, MoreHorizontal, Search as SearchIcon, Settings, SlidersHorizontal, Sparkles, Sun, Ticket, Users } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
 import type { ShowSessionSummary } from "@/lib/show-session"
@@ -93,8 +94,8 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 {showTally.count > 0 && showTally.currency
                   ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}${isOnline ? (user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} syncing` : "") : " · offline"}`
                   : isOnline
-                  ? user && localPendingSyncCount > 0 ? `${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} syncing` : "Screen stays on"
-                  : `Offline${user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} to sync` : " · using saved cards and prices"}`}
+                  ? user && localPendingSyncCount > 0 ? syncingChipLabel(localPendingSyncCount) : "Screen stays on"
+                  : offlineChipLabel(user ? localPendingSyncCount : 0)}
               </span>
             </p>
             <button
@@ -191,12 +192,6 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <div className="hidden items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary sm:flex">
                 <span className="text-xs font-bold tabular-nums">{collectionCount}</span>
                 <span className="text-[10px] text-primary/60 tabular-nums">/ {collectionStats.total}</span>
-              </div>
-            )}
-
-            {!isOnline && (
-              <div className="hidden md:flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-500">
-                Offline
               </div>
             )}
 
