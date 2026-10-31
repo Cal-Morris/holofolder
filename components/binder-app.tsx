@@ -3124,7 +3124,7 @@ export default function BinderApp({
   }, [getSearchResultMeta, isShowModeOn, quickLookup])
 
   const snoozeShowModePrompt = dismissShowModeOffer
-  // Show mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
+  // Quick mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
   const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }) => {
     const item = getCollectionItem(pokemon.id)
     return {
@@ -3177,11 +3177,10 @@ export default function BinderApp({
     })
     return undo
   }, [addToCollection, addWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
+  // The deal check is part of every Quick mode; Show mode (and the price lookup) add the hunt list, bundle and tally.
   const quickCardCheck = useMemo(
-    () => (isShowModeOn || quickLookup
-      ? { currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }
-      : undefined),
-    [collection, fxRates, getQuickCardState, handleQuickCardAction, isShowModeOn, pricingPreferences.currency, quickLookup, readOnlyMode],
+    () => ({ currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }),
+    [collection, fxRates, getQuickCardState, handleQuickCardAction, pricingPreferences.currency, readOnlyMode],
   )
   // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.
   const quickCardStanding = useMemo(() => ({ getCardState: getQuickCardState, items: collection }), [collection, getQuickCardState])
@@ -3452,6 +3451,7 @@ export default function BinderApp({
           hiddenDestinations={readOnlyMode ? ["scan", "analytics", "settings"] : []}
           showModeOn={isShowModeOn}
           cardCheck={quickCardCheck}
+          showTools={isShowModeOn || Boolean(quickLookup)}
           cardStanding={quickCardStanding}
           initialQuery={quickLookup?.query}
           lookupOnly={!isShowModeOn && Boolean(quickLookup)}

@@ -150,6 +150,36 @@ test.describe("on-screen keyboard", () => {
     }
   })
 
+  test("Quick mode deal check (no Show mode): the verdict pins above the asking price and the actions step aside", async ({ harness }) => {
+    const { page } = harness
+    await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
+    const search = harness.dock().getByRole("button", { name: "Search", exact: true })
+    const box = (await search.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    const dialog = page.getByRole("dialog", { name: "Quick mode" })
+    await expect(dialog).toBeVisible()
+    await page.mouse.up()
+    await expect(dialog.getByRole("heading", { name: "Quick mode" })).toBeVisible()
+    await dialog.getByRole("searchbox").fill("charizard")
+    await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
+    const check = dialog.getByTestId("quick-card-check")
+    const input = check.getByRole("textbox", { name: "Asking price" })
+    await expect(input).toBeFocused()
+
+    await setKeyboard(page, KEYBOARD)
+    await expect(html(page)).toHaveAttribute("data-keyboard-open", "")
+    await input.fill("7")
+    await expectTypingLayout(harness, check, input, "deal-verdict-pinned", "deal-verdict", ["Add owned", "Want"])
+    await expect(check.getByTestId("deal-verdict-pinned")).toHaveAttribute("data-verdict", "great")
+
+    await check.getByRole("button", { name: "Done editing price" }).click()
+    await setKeyboard(page, 0)
+    await expect(html(page)).not.toHaveAttribute("data-keyboard-open")
+    await expect(check.getByTestId("deal-verdict")).toBeVisible()
+    for (const name of ["Add owned", "Want"]) await expect(check.getByRole("button", { name, exact: true })).toBeVisible()
+  })
+
   test("Show mode deal check: counts as typing when iOS pans the page up by the whole keyboard", async ({ harness }) => {
     // The installed iPhone app: the asking field is at the bottom, so iOS scrolls the visual viewport up
     // by the keyboard's height. Nothing at the layout viewport's bottom is covered, but the keyboard is up.

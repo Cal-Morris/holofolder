@@ -1,6 +1,6 @@
 "use client"
 
-// Show mode's card check: what you need at a stall, one-handed. Ownership state, the market price for the
+// The card check (Show mode and plain Quick mode): what you need at a stall, one-handed. Ownership state, the market price for the
 // chosen variant, an asking-price input with a verdict (lib/deal-check.ts), and big Bought / Add owned /
 // Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -65,6 +65,8 @@ export interface QuickCardCheckProps {
   onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
   isInBundle: (key: string) => boolean
   onAddToBundle: (entry: QuickBundleEntry) => void
+  /** Show mode's extras: Bought (logged to the show tally) and Bundle. Plain Quick mode keeps Own / Want / Got. */
+  showTools?: boolean
 }
 
 export function bundleKey(card: SearchCardResult, finish: string) {
@@ -96,6 +98,7 @@ export default function QuickCardCheck({
   onAction,
   isInBundle,
   onAddToBundle,
+  showTools = true,
 }: QuickCardCheckProps) {
   const language = card.language ?? "en"
   const lookups = useMemo(() => [{ cardId: card.id, language }], [card.id, language])
@@ -262,8 +265,9 @@ export default function QuickCardCheck({
         {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.fairOverlap ? { low: toDisplay(soldGuide.fairOverlap.low)!.amount, high: toDisplay(soldGuide.fairOverlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
         <DealPriceInput value={input} onChange={setInput} />
+        {(showTools || !readOnly) && (
         <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
-          {!readOnly && (
+          {showTools && !readOnly && (
             <button type="button" disabled={busy} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
               <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought
             </button>
@@ -282,6 +286,7 @@ export default function QuickCardCheck({
               <Heart className="h-5 w-5 shrink-0" aria-hidden />Want
             </button>
           )}
+          {showTools && (
           <button
             type="button"
             disabled={inBundle}
@@ -294,7 +299,9 @@ export default function QuickCardCheck({
           >
             <Layers className="h-5 w-5 shrink-0" aria-hidden />{inBundle ? "Added" : "Bundle"}
           </button>
+          )}
         </div>
+        )}
       </div>
 
       {undo && (

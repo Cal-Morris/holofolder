@@ -75,6 +75,10 @@ test.describe("quick mode", () => {
 
     await field.fill("charm")
     await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmander, 151 /i }).first().click()
+    // A picked card opens its deal check first; More details goes on to the card itself.
+    const check = dialog.getByTestId("quick-card-check")
+    await expect(check).toBeVisible()
+    await check.getByRole("button", { name: "More details" }).click()
     await expect(dialog).toBeHidden()
     await expect(harness.page.getByRole("dialog", { name: /charmander/i })).toBeVisible()
 

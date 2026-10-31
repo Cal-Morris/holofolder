@@ -319,3 +319,53 @@ test.describe("manual bundle price checks", () => {
     if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) await harness.page.screenshot({ path: "/tmp/binderdex-readable-bundle.png" })
   })
 })
+
+test.describe("deal checker outside Show mode", () => {
+  test.use({ signedIn: true })
+
+  /** Press and hold the dock's Search button: plain Quick mode, Show mode off. */
+  async function openPlainQuick(harness: Harness) {
+    const search = harness.dock().getByRole("button", { name: "Search", exact: true })
+    const box = (await search.boundingBox())!
+    await harness.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await harness.page.mouse.down()
+    await expect(quickDialog(harness)).toBeVisible()
+    await harness.page.mouse.up()
+    await expect(quickDialog(harness).getByRole("heading", { name: "Quick mode" })).toBeVisible()
+    await expect(banner(harness)).toHaveCount(0)
+    return quickDialog(harness)
+  }
+
+  test("Quick mode checks a card's asking price without Show mode, and flags a rising price", async ({ harness }) => {
+    await mockCardPrices(harness.page, { "sv03.5-006": { market: 10, confidence: "high", trend: { "7d": 8, Trend: 10 } } })
+    const dialog = await openPlainQuick(harness)
+    await dialog.getByRole("searchbox").fill("charizard")
+    const row = dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first()
+    // Rising shows on the result next to its market price, Show mode or not.
+    await expect(row.getByTestId("price-rising-badge")).toBeVisible()
+    await row.click()
+
+    const check = dialog.getByTestId("quick-card-check")
+    await expect(check).toBeVisible()
+    await expect(check.getByTestId("quick-card-market-price")).toHaveText("£10.00")
+    await expect(check.getByText("Rising", { exact: true })).toBeVisible()
+    for (const [price, verdict] of [["7", "great"], ["8.5", "good"], ["10", "fair"], ["12", "overpriced"], ["14", "walk-away"]] as const) {
+      await typePrice(check, price)
+      await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", verdict)
+    }
+    await typePrice(check, "12")
+    await expect(check.getByTestId("deal-verdict")).toContainText("Rising: this price may be fair soon")
+
+    // Own / Want stay; Show's Bought (tally) and Bundle don't come along.
+    await expect(check.getByRole("button", { name: "Add owned", exact: true })).toBeVisible()
+    await expect(check.getByRole("button", { name: "Want", exact: true })).toBeVisible()
+    await expect(check.getByRole("button", { name: "Bought", exact: true })).toHaveCount(0)
+    await expect(check.getByRole("button", { name: "Add to bundle", exact: true })).toHaveCount(0)
+    await harness.expectNoHorizontalOverflow()
+
+    // Back returns to plain Quick mode's results, not Show mode's Hunting list.
+    await check.getByRole("button", { name: "Back to results" }).click()
+    await expect(dialog.getByRole("heading", { name: "Quick mode" })).toBeVisible()
+    await expect(dialog.getByRole("region", { name: "Cards" })).toBeVisible()
+  })
+})
