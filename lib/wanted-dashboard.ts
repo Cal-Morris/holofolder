@@ -1,8 +1,9 @@
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/hooks/use-collection"
 import { getFallingMomentum, getRisingMomentum } from "@/lib/price-momentum"
+import { buildHuntGroups, getSetEra, getSetIdFromCardId, type HuntCard, type HuntSourceItem } from "@/lib/show-hunt"
 
-export type WantedDashboardSort = "highest" | "lowest" | "cheapest-set" | "name" | "set" | "newest" | "rising" | "dex" | "unpriced"
+export type WantedDashboardSort = "highest" | "lowest" | "cheapest-set" | "name" | "set" | "newest" | "rising" | "dex" | "unpriced" | "pokemon"
 export type WantedDashboardPriceBandId = "under-5" | "five-to-15" | "fifteen-to-50" | "over-50" | "unpriced"
 
 export interface WantedDashboardEntry {
@@ -156,6 +157,7 @@ export const WANTED_SORTS: Array<{ id: WantedDashboardSort; label: string; short
   { id: "rising", label: "Rising prices first", short: "Rising" },
   { id: "dex", label: "Pokédex number", short: "Dex no." },
   { id: "unpriced", label: "Unpriced first", short: "Unpriced" },
+  { id: "pokemon", label: "Group by Pokémon", short: "By Pokémon" },
 ]
 
 export function normalizeWantedSort(value: unknown): WantedDashboardSort {
@@ -189,6 +191,10 @@ export function sortWantedDashboardEntries<T extends WantedDashboardCard>(
         comparePriceAscending(left, right) ||
         compareDex(left, right)
     })
+  }
+
+  if (sort === "pokemon") {
+    return groupWantedByPokemon(cards).flatMap((group) => group.cards)
   }
 
   if (sort === "rising") {
@@ -241,6 +247,44 @@ function compareLocalId(left: WantedDashboardCard, right: WantedDashboardCard) {
   const a = Number.parseInt(left.card.local_id ?? "", 10)
   const b = Number.parseInt(right.card.local_id ?? "", 10)
   return compareMaybePrice(Number.isFinite(a) ? a : null, Number.isFinite(b) ? b : null)
+}
+
+export interface WantedPokemonGroup<T extends WantedDashboardCard = WantedDashboardCard> {
+  pokemonId: number
+  pokemonName: string
+  cards: T[]
+  /** Dearest card in the group (GBP), or null when none is priced. */
+  topGbpAmount: number | null
+}
+
+/**
+ * The want list grouped by Pokémon, the same way Show mode's Hunting list does it (buildHuntGroups): the
+ * Pokémon with the most wanted cards first (ties: the dearest card), dearest card first within a group.
+ */
+export function groupWantedByPokemon<T extends WantedDashboardCard>(cards: T[]): WantedPokemonGroup<T>[] {
+  const byKey = new Map(cards.map((card) => [card.key, card]))
+  const items = new Map<number, HuntSourceItem>()
+  const huntCards: HuntCard[] = cards.map((card) => {
+    if (!items.has(card.pokemonId)) items.set(card.pokemonId, { pokemon_id: card.pokemonId, pokemon_name: card.pokemonName })
+    const setId = getSetIdFromCardId(card.card.card_id, card.card.local_id)
+    return {
+      // The dashboard key, not huntCardKey: the All binders list can hold the same printing twice.
+      key: card.key,
+      pokemonId: card.pokemonId,
+      pokemonName: card.pokemonName,
+      wanted: card.card,
+      setId,
+      setName: card.card.card_set || setId,
+      era: getSetEra(setId),
+      price: card.effectiveGbpAmount,
+    }
+  })
+  return buildHuntGroups([...items.values()], huntCards, "wanted").map((group) => ({
+    pokemonId: group.pokemonId,
+    pokemonName: group.pokemonName,
+    cards: group.cards.map((card) => byKey.get(card.key)!),
+    topGbpAmount: group.topPrice,
+  }))
 }
 
 /** The want list's filters. Empty lists mean "any". */

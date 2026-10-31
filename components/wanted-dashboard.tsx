@@ -15,6 +15,7 @@ import {
   countWantedFilters,
   countWantedPriceDrops,
   filterWantedDashboardEntries,
+  groupWantedByPokemon,
   hasWantedPriceDrop,
   normalizeWantedFilters,
   normalizeWantedSort,
@@ -153,6 +154,8 @@ export default function WantedDashboard({
     [filters, sort, wantedDashboard.cards],
   )
   const visibleCards = useMemo(() => filterWantedDashboardEntries(sortedCards, query), [query, sortedCards])
+  // Regrouped after search so a group's order follows what is left in it.
+  const pokemonGroups = useMemo(() => (sort === "pokemon" ? groupWantedByPokemon(visibleCards) : null), [sort, visibleCards])
   const risingCount = useMemo(
     () => wantedDashboard.cards.filter((card) => getRisingMomentum(card.price) != null).length,
     [wantedDashboard.cards],
@@ -181,6 +184,20 @@ export default function WantedDashboard({
       </div>
     )
   }
+
+  const renderRow = (wantedCard: WantedDashboardEntry) => (
+    <WantedRow
+      key={wantedCard.key}
+      wantedCard={wantedCard}
+      priceFormat={priceFormat}
+      isLoadingPrices={isLoadingPrices}
+      readOnlyMode={readOnlyMode}
+      otherBinderName={isAllBinders && wantedCard.binderId && wantedCard.binderId !== currentBinderId ? wantedCard.binderName ?? "another binder" : null}
+      onOpen={handlePokemonSelect}
+      onGot={handleGotWantedCard}
+      onMore={setActionsFor}
+    />
+  )
 
   const summaryPrice = hasAnyPrice
     ? `~${marketTotalLabel} to complete`
@@ -320,21 +337,27 @@ export default function WantedDashboard({
               </button>
             ) : null}
           </div>
+        ) : pokemonGroups ? (
+          <div className="space-y-2" data-testid="wanted-groups">
+            {pokemonGroups.map((group) => {
+              const topLabel = priceFormat.amount(group.topGbpAmount)
+              const countLabel = `${group.cards.length} wanted`
+              return (
+                <section key={group.pokemonId} aria-label={`${group.pokemonName} · ${countLabel}`} data-testid="wanted-group" data-pokemon-id={group.pokemonId}>
+                  <h3 className="flex items-baseline justify-between gap-2 px-1 pb-1 text-xs">
+                    <span className="min-w-0 truncate font-semibold capitalize">{group.pokemonName}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">{topLabel ? `${countLabel} · top ${topLabel}` : countLabel}</span>
+                  </h3>
+                  <ul className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-card/85 dark:divide-white/10 dark:border-white/10 dark:bg-card/70" aria-label={`Wanted ${group.pokemonName} cards`}>
+                    {group.cards.map(renderRow)}
+                  </ul>
+                </section>
+              )
+            })}
+          </div>
         ) : (
           <ul className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-card/85 dark:divide-white/10 dark:border-white/10 dark:bg-card/70" aria-label="Wanted cards">
-            {visibleCards.map((wantedCard) => (
-              <WantedRow
-                key={wantedCard.key}
-                wantedCard={wantedCard}
-                priceFormat={priceFormat}
-                isLoadingPrices={isLoadingPrices}
-                readOnlyMode={readOnlyMode}
-                otherBinderName={isAllBinders && wantedCard.binderId && wantedCard.binderId !== currentBinderId ? wantedCard.binderName ?? "another binder" : null}
-                onOpen={handlePokemonSelect}
-                onGot={handleGotWantedCard}
-                onMore={setActionsFor}
-              />
-            ))}
+            {visibleCards.map(renderRow)}
           </ul>
         )}
         {(isSearching || isFiltered) && visibleCards.length > 0 ? (

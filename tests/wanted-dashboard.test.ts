@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import {
   buildWantedDashboardSummary,
   filterWantedDashboardEntries,
+  groupWantedByPokemon,
   matchesWantedSearch,
   sortWantedDashboardEntries,
   applyWantedFilters,
@@ -280,4 +281,47 @@ test("wanted filters combine across groups, toggle, and survive bad stored data"
   assert.deepEqual(normalizeWantedFilters(null), EMPTY_WANTED_FILTERS)
   assert.equal(normalizeWantedSort("rising"), "rising")
   assert.equal(normalizeWantedSort("bogus"), "highest")
+})
+
+test("Group by Pokémon puts the Pokémon with most wanted cards first, dearest card first within a group", () => {
+  const summary = buildWantedDashboardSummary(
+    [
+      wantedEntry(4, "char-a"),
+      wantedEntry(7, "squirt-a"),
+      wantedEntry(7, "squirt-b"),
+      wantedEntry(1, "bulba-a"),
+      wantedEntry(7, "squirt-c"),
+    ],
+    {
+      "char-a::en": price("char-a", 90),
+      "squirt-a::en": price("squirt-a", 2),
+      "squirt-b::en": price("squirt-b", 12),
+      "bulba-a::en": price("bulba-a", 30),
+    },
+  )
+
+  const groups = groupWantedByPokemon(summary.cards)
+  assert.deepEqual(
+    groups.map((group) => [group.pokemonId, group.cards.map((card) => card.card.card_id), group.topGbpAmount]),
+    [
+      [7, ["squirt-b", "squirt-a", "squirt-c"], 12],
+      [4, ["char-a"], 90],
+      [1, ["bulba-a"], 30],
+    ],
+  )
+  assert.deepEqual(
+    sortWantedDashboardEntries(summary.cards, "pokemon").map((card) => card.card.card_id),
+    ["squirt-b", "squirt-a", "squirt-c", "char-a", "bulba-a"],
+  )
+  assert.equal(normalizeWantedSort("pokemon"), "pokemon")
+})
+
+test("Group by Pokémon keeps the same printing wanted in two binders as two rows", () => {
+  const entry = wantedEntry(25, "pika")
+  const summary = buildWantedDashboardSummary(
+    [{ ...entry, binderId: "a", binderName: "A" }, { ...entry, binderId: "b", binderName: "B" }],
+    { "pika::en": price("pika", 5) },
+  )
+  const [group] = groupWantedByPokemon(summary.cards)
+  assert.deepEqual(group?.cards.map((card) => card.binderId), ["a", "b"])
 })
