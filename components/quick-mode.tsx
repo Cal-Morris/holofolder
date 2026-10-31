@@ -54,6 +54,7 @@ import ShowPokemonCards from "@/components/show-pokemon-cards"
 // Also bundled, so Scan opens offline at a show without fetching its code.
 import QuickCardScanner, { type CardScanResult } from "@/components/quick-card-scanner"
 
+import { PriceRisingBadge } from "@/components/price-rising-badge"
 const QuickCardCheck = dynamic(() => import("@/components/quick-card-check"), { ssr: false })
 const QuickBundle = dynamic(() => import("@/components/quick-bundle"), { ssr: false })
 
@@ -87,7 +88,7 @@ function readBundle(): QuickBundleEntry[] {
   }
 }
 
-/** Show mode's deal checker: tapping a card opens its check instead of the card browser. */
+/** The deal checker: tapping a card opens its price check (asking price → verdict) instead of the card browser. */
 export interface QuickCardCheckOptions {
   currency: DisplayCurrency
   fxRates?: DisplayFxRates | null
@@ -130,8 +131,11 @@ export interface QuickModeProps {
   isOnline: boolean
   /** Destinations hidden in this context (e.g. scan while read-only). */
   hiddenDestinations?: readonly QuickDestinationId[]
-  /** Set (in Show mode) to check prices: a picked card opens its deal check. */
+  /** Set to check prices: a picked card opens its deal check (Show mode or not). */
   cardCheck?: QuickCardCheckOptions
+  /** Show mode's extras on top of the deal check: Hunting list, Pokémon card lists, bundle, card scan and
+   *  the purchase tally. Off in plain Quick mode, which keeps its own search and navigation. */
+  showTools?: boolean
   /** Opens with this search typed (e.g. the want list's "Check price of any card"). */
   initialQuery?: string
   /** Price lookup outside Show mode: "Price check" header, no Show mode framing. */
@@ -168,6 +172,7 @@ export default function QuickMode({
   hiddenDestinations = [],
   showModeOn = false,
   cardCheck,
+  showTools = true,
   initialQuery = "",
   lookupOnly = false,
   cardStanding,
@@ -175,7 +180,9 @@ export default function QuickMode({
   const [checking, setChecking] = useState<{ card: SearchCardResult; pokemon: { id: number; name: string }; finish?: CardFinish | null } | null>(null)
   // Show mode: the Pokémon whose cards are listed (opened from a Pokémon result or a Hunting group).
   const [browsing, setBrowsing] = useState<{ id: number; name: string } | null>(null)
-  const huntItems = cardCheck?.huntItems
+  // `show` is the deal check plus Show mode's extras; plain Quick mode gets only the check itself.
+  const show = showTools ? cardCheck : undefined
+  const huntItems = show?.huntItems
   const [isBundleOpen, setIsBundleOpen] = useState(false)
   const [bundle, setBundle] = useState<QuickBundleEntry[]>(() => (typeof window === "undefined" ? [] : readBundle()))
   const bundleRef = useRef(bundle)
@@ -194,7 +201,7 @@ export default function QuickMode({
   useOverlay(true, onClose, { containerRef: dialogRef, autoFocus: false })
 
   // In Show mode the Hunting list opens unobscured; the keyboard comes up when the search field is tapped.
-  const focusOnOpen = !cardCheck || Boolean(initialQuery)
+  const focusOnOpen = !show || Boolean(initialQuery)
   useEffect(() => {
     if (!focusOnOpen) return
     const frame = window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
@@ -209,11 +216,11 @@ export default function QuickMode({
         .map((entry) => (entry.id === "show-mode" && showModeOn ? { ...entry, label: "Exit Show mode", hint: "Show mode is on" } : entry))
     return trimmed ? visible(matchQuickDestinations(trimmed)).slice(0, 3) : visible(matchQuickDestinations(""))
   }, [hiddenDestinations, showModeOn, trimmed])
-  const pokemonResults = useMemo(() => (trimmed ? searchPokemonItems(trimmed, POKEMON_CATALOG, cardCheck ? 6 : 5) : []), [cardCheck, trimmed])
+  const pokemonResults = useMemo(() => (trimmed ? searchPokemonItems(trimmed, POKEMON_CATALOG, show ? 6 : 5) : []), [show, trimmed])
   const cardSearch = useCardSearch(query, true, getOfflineCards)
   // Wanted cards that match, from the want list on this device: always found, even offline or uncached.
   const getCardState = cardCheck?.getCardState ?? cardStanding?.getCardState
-  const standingItems = cardCheck ? huntItems : cardStanding?.items
+  const standingItems = show ? huntItems : cardStanding?.items
   const wantedMatches = useMemo(() => {
     if (!getCardState || !trimmed || !standingItems) return []
     const wanted = standingItems.flatMap((item) => (item.wanted_cards ?? []).map((card) => ({
@@ -239,9 +246,9 @@ export default function QuickMode({
       return unique
         .map((entry, index) => ({ ...entry, standing: getCardStanding(getCardState(entry.card, entry.pokemon)), index }))
         .sort((a, b) => rank[a.standing] - rank[b.standing] || a.index - b.index)
-        .slice(0, cardCheck ? 40 : 10)
+        .slice(0, show ? 40 : 10)
     },
-    [cardCheck, cardSearch.groups, getCardState, wantedMatches],
+    [show, cardSearch.groups, getCardState, wantedMatches],
   )
   const priceLookups = useMemo(
     () => (formatPrice ? cardResults.map(({ card }) => ({ cardId: card.id, language: card.language ?? "en" })) : []),
@@ -300,13 +307,13 @@ export default function QuickMode({
     const summary = getPokemonSummary(pokemon.id)
     if (!summary) return
     remember()
-    if (cardCheck) {
+    if (show) {
       // Show mode stays in the finder: list this Pokémon's cards, wanted first.
       setBrowsing({ id: summary.id, name: summary.name })
       setQuery("")
       inputRef.current?.blur()
     } else onSelectPokemon(summary)
-  }, [cardCheck, onSelectPokemon, remember])
+  }, [show, onSelectPokemon, remember])
   const wantedCount = useCallback(
     (pokemonId: number) => huntItems?.find((item) => item.pokemon_id === pokemonId)?.wanted_cards?.length ?? 0,
     [huntItems],
@@ -337,8 +344,8 @@ export default function QuickMode({
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold leading-tight">{lookupOnly ? "Price check" : cardCheck ? "Show mode" : "Quick mode"}</h2>
-            <p className="truncate text-xs text-muted-foreground">{lookupOnly ? "Look up any card for its UK price and what to pay." : cardCheck ? "Find the cards you’re hunting, or check any card’s price." : "Search anything, or jump straight there."}</p>
+            <h2 className="text-base font-bold leading-tight">{lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
+            <p className="truncate text-xs text-muted-foreground">{lookupOnly ? "Look up any card for its UK price and what to pay." : show ? "Find the cards you’re hunting, or check any card’s price." : "Search anything, or jump straight there."}</p>
           </div>
           {!isOnline && (
             <span role="status" className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
@@ -366,6 +373,7 @@ export default function QuickMode({
             pricingRegion={pricingRegion}
             isOnline={isOnline}
             readOnly={cardCheck.readOnly}
+            showTools={Boolean(show)}
             initialFinish={checking.finish}
             onBack={() => {
               setChecking(null)
@@ -376,38 +384,38 @@ export default function QuickMode({
             isInBundle={(key) => bundle.some((entry) => entry.key === key)}
             onAddToBundle={(entry) => updateBundle([...bundle.filter((item) => item.key !== entry.key), entry])}
           />
-        ) : cardCheck && isBundleOpen ? (
+        ) : show && isBundleOpen ? (
           <QuickBundle
             entries={bundle}
-            currency={cardCheck.currency}
-            readOnly={cardCheck.readOnly}
+            currency={show.currency}
+            readOnly={show.readOnly}
             onBack={() => setIsBundleOpen(false)}
             onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
             onClear={() => updateBundle([])}
             onSoldCheck={(key, soldCheck) => updateBundle(current => current.map(entry => entry.key === key ? { ...entry, soldCheck } : entry))}
-            onAction={(action, entry) => cardCheck.onAction(action, entry.card, entry.pokemon, entry.finish)}
+            onAction={(action, entry) => show.onAction(action, entry.card, entry.pokemon, entry.finish)}
           />
         ) : (
         <>
-        {cardCheck && !trimmed && browsing ? (
+        {show && !trimmed && browsing ? (
           <ShowPokemonCards
             key={browsing.id}
             pokemon={browsing}
             wantedCards={huntItems?.find((item) => item.pokemon_id === browsing.id)?.wanted_cards ?? []}
-            getCardState={cardCheck.getCardState}
+            getCardState={show.getCardState}
             getOfflineCards={getOfflineCards}
-            currency={cardCheck.currency}
-            fxRates={cardCheck.fxRates}
+            currency={show.currency}
+            fxRates={show.fxRates}
             pricingRegion={pricingRegion}
             isOnline={isOnline}
             onBack={() => setBrowsing(null)}
             onPickCard={(card, finish) => pickCard(card, browsing, finish)}
           />
-        ) : cardCheck && !trimmed ? (
+        ) : show && !trimmed ? (
           <ShowHunt
             items={huntItems ?? []}
-            currency={cardCheck.currency}
-            fxRates={cardCheck.fxRates}
+            currency={show.currency}
+            fxRates={show.fxRates}
             pricingRegion={pricingRegion}
             isOnline={isOnline}
             onPickCard={(card, pokemon, finish) => pickCard(card, pokemon, finish)}
@@ -446,11 +454,11 @@ export default function QuickMode({
                   <button
                     key={illustrator.name}
                     type="button"
-                    className={cardCheck ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
+                    className={show ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
                     onClick={() => {
                       remember()
                       // Show mode stays in the lookup: list the illustrator's cards here, ready to price.
-                      if (cardCheck) setQuery(illustrator.name)
+                      if (show) setQuery(illustrator.name)
                       else onBrowseIllustrator(illustrator.name)
                     }}
                   >
@@ -467,20 +475,21 @@ export default function QuickMode({
             {(cardResults.length > 0 || (trimmed.length >= 2 && cardSearch.loading)) && (
               <section aria-label="Cards">
                 <h3 className={sectionTitle}>
-                  {cardCheck ? "Any card · tap to check the price" : "Cards"}{cardSearch.offline ? " · on this device" : ""}
+                  {show ? "Any card · tap to check the price" : "Cards"}{cardSearch.offline ? " · on this device" : ""}
                   {cardSearch.loading && <Loader2 className="ml-1.5 inline h-3 w-3 animate-spin" aria-label="Searching cards" />}
                 </h3>
                 {cardResults.map(({ card, pokemon, standing }) => {
                   const thumb = cardThumbnail(card.image)
-                  const priceLabel = formatPrice?.(pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]) ?? null
+                  const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]
+                  const priceLabel = formatPrice?.(priceSnapshot) ?? null
                   // Outside Show mode only Owned / Wanted are stamped; "Not in binder" on every other row is noise.
-                  const shownStanding = standing && (cardCheck || standing !== "missing") ? standing : null
+                  const shownStanding = standing && (show || standing !== "missing") ? standing : null
                   const state = shownStanding ? STANDING_BADGES[shownStanding] : standing ? null : getPokemonState?.(pokemon.id) ?? null
                   return (
                     <button
                       key={`${card.id}:${card.language ?? "en"}`}
                       type="button"
-                      className={cardCheck ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
+                      className={show ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
                       data-standing={standing ?? undefined}
                       aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${shownStanding ? `, ${STANDING_BADGES[shownStanding].label}` : ""}${priceLabel ? `, ${priceLabel}` : ""}`}
                       onClick={() => pickCard(card, pokemon)}
@@ -491,11 +500,12 @@ export default function QuickMode({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[15px] font-semibold">{card.name}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{card.set.name} · {formatCardNumber(card)}{cardCheck && card.illustrator ? ` · ${card.illustrator}` : ""}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{card.set.name} · {formatCardNumber(card)}{show && card.illustrator ? ` · ${card.illustrator}` : ""}</span>
                       </span>
                       <span className="flex shrink-0 flex-col items-end gap-0.5">
                         {priceLabel ? <span className="text-sm font-bold tabular-nums">{priceLabel}</span>
-                          : cardCheck && !isOnline ? <span className="text-[11px] text-muted-foreground">No price offline</span> : null}
+                          : show && !isOnline ? <span className="text-[11px] text-muted-foreground">No price offline</span> : null}
+                        {priceLabel && <PriceRisingBadge price={priceSnapshot} />}
                         {state && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${state.toneClass}`}>{state.label}</span>}
                       </span>
                     </button>
@@ -504,7 +514,7 @@ export default function QuickMode({
               </section>
             )}
 
-            {!cardCheck && pokemonResults.length > 0 && (
+            {!show && pokemonResults.length > 0 && (
               <section aria-label="Pokémon">
                 <h3 className={sectionTitle}>Pokémon</h3>
                 {pokemonResults.map((pokemon) => {
@@ -545,7 +555,7 @@ export default function QuickMode({
               </section>
             )}
 
-            {cardCheck && pokemonResults.length > 0 && (
+            {show && pokemonResults.length > 0 && (
               <section aria-label="Pokémon">
                 <h3 className={sectionTitle}>Pokémon · tap to see their cards</h3>
                 {pokemonResults.map((pokemon) => {
@@ -579,7 +589,7 @@ export default function QuickMode({
         )}
 
         <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-3">
-          {cardCheck && bundle.length > 0 && (
+          {show && bundle.length > 0 && (
             <button
               type="button"
               onClick={() => setIsBundleOpen(true)}
@@ -620,11 +630,11 @@ export default function QuickMode({
                 setScanNotice(null)
               }}
               onKeyDown={handleKeyDown}
-              placeholder={cardCheck ? "Search a Pokémon, card or “44/102”…" : "Card, Pokémon, “44/102”, artist or page…"}
+              placeholder={show ? "Search a Pokémon, card or “44/102”…" : "Card, Pokémon, “44/102”, artist or page…"}
               className="h-14 w-full rounded-2xl border border-border/70 bg-background pl-12 pr-4 text-base font-medium outline-none placeholder:text-muted-foreground/80 focus:border-primary focus:ring-2 focus:ring-primary/30"
             />
           </label>
-          {cardCheck && (
+          {show && (
             <button
               type="button"
               onClick={() => {

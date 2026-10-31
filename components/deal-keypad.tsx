@@ -1,6 +1,6 @@
 "use client"
 
-// The asking-price field and verdict panel shared by Show mode's card check and bundle check.
+// The asking-price field and verdict panel shared by the card check (Quick and Show mode) and the bundle check.
 import { useEffect, useRef } from "react"
 import type { DealCheck, DealVerdict } from "@/lib/deal-check"
 
