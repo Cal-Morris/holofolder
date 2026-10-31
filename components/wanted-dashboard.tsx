@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { toCardImageSrc } from "@/lib/card-image-url"
-import { Check, ChevronDown, Heart, MoreHorizontal, Search, Share2, SlidersHorizontal, WifiOff, X } from "lucide-react"
+import { Check, ChevronDown, Heart, MoreHorizontal, Search, Share2, SlidersHorizontal, X } from "lucide-react"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/hooks/use-collection"
 import { PriceDropBadge } from "@/components/price-drop-badge"
@@ -48,7 +48,6 @@ export type WantedDashboardProps = {
   currentBinderId?: string | null
   priceFormat: PriceFormat
   isLoadingPrices: boolean
-  isOnline?: boolean
   readOnlyMode: boolean
   wantedShareMessage: string | null
   handleShareWantedList: () => void
@@ -127,7 +126,6 @@ export default function WantedDashboard({
   currentBinderId = null,
   priceFormat,
   isLoadingPrices,
-  isOnline = true,
   readOnlyMode,
   wantedShareMessage,
   handleShareWantedList,
@@ -305,12 +303,6 @@ export default function WantedDashboard({
             </div>
           ) : null}
           {wantedShareMessage ? <p role="status" className="text-xs text-muted-foreground">{wantedShareMessage}</p> : null}
-          {!isOnline ? (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="wanted-offline">
-              <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
-              Offline · prices may be out of date, changes sync when you reconnect
-            </p>
-          ) : null}
         </div>
 
         {visibleCards.length === 0 ? (

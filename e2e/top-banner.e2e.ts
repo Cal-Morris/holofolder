@@ -8,7 +8,7 @@ async function goOffline(harness: Harness) {
     Object.defineProperty(window.navigator, "onLine", { configurable: true, get: () => false })
     window.dispatchEvent(new Event("offline"))
   })
-  await expect(harness.page.getByText("Offline mode")).toBeVisible()
+  await expect(harness.page.getByText(/^Offline · /)).toBeVisible()
 }
 
 function intersects(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) {

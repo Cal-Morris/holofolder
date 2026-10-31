@@ -48,7 +48,7 @@ async function expectBinderFromLocalData(harness: Harness) {
   const { page } = harness
   await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
   await expect(page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
-  await expect(page.getByText("Offline mode").first()).toBeVisible()
+  await expect(page.getByText(/^Offline · /).first()).toBeVisible()
   const detail = await harness.openCardDetail()
   await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
   // The owned printing comes from the saved collection, not the server.
@@ -134,7 +134,7 @@ test.describe("offline, signed out", () => {
 
     await goOffline(page)
     await page.reload()
-    await expect(page.getByText("Offline mode").first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText(/^Offline · /).first()).toBeVisible({ timeout: 30_000 })
     await expect(page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
     await expect(page.getByRole("heading", { name: /this page couldn.t load/i })).toHaveCount(0)
   })

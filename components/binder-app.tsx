@@ -53,6 +53,7 @@ import { formatPriceConfidenceLabel, formatPriceSourceLabel } from "@/lib/card-l
 import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
 import { TopBannerSlot } from "@/components/top-banner-slot"
+import { offlineChipLabel, syncingChipLabel } from "@/lib/connection-chip"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
@@ -3365,20 +3366,6 @@ export default function BinderApp({
         className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-[env(safe-area-inset-bottom)] bg-background md:hidden"
       />
 
-      {!isOnline && !isShowModeOn && (
-        <TopBannerSlot>
-          <div className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300">
-            <WifiOff className="h-3.5 w-3.5" />
-            <span>Offline mode</span>
-            <span className="text-[11px] text-amber-500/80 dark:text-amber-200/75">
-              {user && localPendingSyncCount > 0
-                ? `${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} will sync when you're back online`
-                : "Using cached data where available"}
-            </span>
-          </div>
-        </TopBannerSlot>
-      )}
-
       {ownedRemoveTarget && !readOnlyMode ? (
         <OwnedRemoveSheet
           pokemonName={formatPokemonDisplayName(ownedRemoveTarget.name)}
@@ -3395,12 +3382,28 @@ export default function BinderApp({
         />
       ) : null}
 
-      {/* Pending-sync indicator and rollback notice (minimal markup; reuses the offline pill's look). */}
-      {/* In Show mode the banner carries the pending count, so only a rollback notice floats (below the banner). */}
-      {isOnline && user && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) && (
+      {/* One compact connection chip (Show-style copy): offline (+ queued edits), queued edits syncing, or a rollback notice. */}
+      {/* In Show mode the amber banner carries offline/sync state, so only a rollback notice floats (below the banner). */}
+      {!isOnline ? (
+        !isShowModeOn && (
+          <TopBannerSlot>
+            <div
+              role="status"
+              data-testid="connection-chip"
+              data-connection="offline"
+              className="flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300"
+            >
+              <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{offlineChipLabel(user && !readOnlyMode ? localPendingSyncCount : 0)}</span>
+            </div>
+          </TopBannerSlot>
+        )
+      ) : user && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) ? (
         <TopBannerSlot topClassName={isShowModeOn ? "top-[calc(var(--top-inset)+3.5rem)]" : undefined}>
           <div
             role="status"
+            data-testid="connection-chip"
+            data-connection="online"
             data-sync-status={syncNotice ? "rolled-back" : syncStatus}
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300"
           >
@@ -3412,15 +3415,11 @@ export default function BinderApp({
                 </button>
               </>
             ) : (
-              <span>
-                {syncStatus === "waiting"
-                  ? `${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"} waiting to sync, retrying…`
-                  : `Syncing ${localPendingSyncCount} change${localPendingSyncCount === 1 ? "" : "s"}…`}
-              </span>
+              <span>{syncingChipLabel(localPendingSyncCount, syncStatus)}</span>
             )}
           </div>
         </TopBannerSlot>
-      )}
+      ) : null}
 
       {/* Glass Navigation */}
       {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
