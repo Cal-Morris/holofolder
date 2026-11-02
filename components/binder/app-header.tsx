@@ -12,6 +12,10 @@ import type { ActiveMainView, BeforeInstallPromptEvent } from "@/components/bind
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 import type { Binder } from "@/lib/binders/model"
 
+// Mouse-and-keyboard screens (no touch as the main pointer) vs phones and tablets.
+const FINE_POINTER_HIDDEN = "[@media(hover:hover)_and_(pointer:fine)]:hidden"
+const FINE_POINTER_ONLY = "hidden [@media(hover:hover)_and_(pointer:fine)]:inline"
+
 export interface AppHeaderContext {
   activeBinder: Binder | null
   activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
@@ -94,14 +98,21 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 {showTally.count > 0 && showTally.currency
                   ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}${isOnline ? (user && localPendingSyncCount > 0 ? ` · ${localPendingSyncCount} syncing` : "") : " · offline"}`
                   : isOnline
-                  ? user && localPendingSyncCount > 0 ? syncingChipLabel(localPendingSyncCount) : "Screen stays on"
+                  ? user && localPendingSyncCount > 0 ? syncingChipLabel(localPendingSyncCount) : (
+                    <>
+                      {/* Keeping the screen on is for a phone at a show; with a mouse and keyboard the shortcut helps more. */}
+                      <span className={FINE_POINTER_HIDDEN}>Screen stays on</span>
+                      <span className={FINE_POINTER_ONLY}>Ctrl / ⌘ K to search</span>
+                    </>
+                  )
                   : offlineChipLabel(user ? localPendingSyncCount : 0)}
               </span>
             </p>
             <button
               type="button"
               onClick={openQuickMode}
-              className="flex h-12 shrink-0 items-center gap-1.5 rounded-xl bg-black/85 px-3 text-sm font-semibold text-amber-300"
+              title="Search cards (Ctrl / ⌘ K)"
+              className="flex h-12 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-black/85 px-3 text-sm font-semibold text-amber-300 transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-amber-400"
             >
               <SearchIcon className="h-4 w-4" aria-hidden />
               Search
@@ -110,7 +121,8 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               type="button"
               onClick={() => setShowMode(false)}
               aria-label="Exit show mode"
-              className="flex h-12 shrink-0 items-center rounded-xl border border-black/25 px-3 text-sm font-semibold"
+              title="Exit show mode"
+              className="flex h-12 shrink-0 cursor-pointer items-center rounded-xl border border-black/25 px-3 text-sm font-semibold transition-colors hover:border-black/45 hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
             >
               Exit
             </button>
@@ -365,7 +377,8 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap">
               <div className="flex shrink-0 items-center gap-0.5">
               <button
-                onClick={openSearch}
+                // Like the dock's Search: in Show mode it opens Quick mode's finder and deal check.
+                onClick={isShowModeOn ? openQuickMode : openSearch}
                 aria-label="Search"
                 className={`flex min-h-9 min-w-9 items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,box-shadow] ${
                     isSearchOpen ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"

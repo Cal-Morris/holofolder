@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { useOverlay } from "@/hooks/use-overlay"
+import { useMediaQuery } from "@/hooks/use-media-query"
 import { useCardSearch, useIllustratorSearch } from "@/hooks/use-card-search"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -199,6 +200,7 @@ export default function QuickMode({
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   useOverlay(true, onClose, { containerRef: dialogRef, autoFocus: false })
+  const isWide = useMediaQuery("(min-width: 768px)")
 
   // In Show mode the Hunting list opens unobscured; the keyboard comes up when the search field is tapped.
   const focusOnOpen = !show || Boolean(initialQuery)
@@ -328,6 +330,45 @@ export default function QuickMode({
     else if (destinations[0]) go(destinations[0].id)
   }
 
+  // A deal check or bundle is open. On wide screens in Show mode it sits beside the results instead of replacing them.
+  const checkView = cardCheck && checking ? (
+    <QuickCardCheck
+      key={`${checking.card.id}:${checking.card.language ?? "en"}`}
+      card={checking.card}
+      pokemon={checking.pokemon}
+      state={cardCheck.getCardState(checking.card, checking.pokemon)}
+      currency={cardCheck.currency}
+      fxRates={cardCheck.fxRates}
+      pricingRegion={pricingRegion}
+      isOnline={isOnline}
+      readOnly={cardCheck.readOnly}
+      showTools={Boolean(show)}
+      initialFinish={checking.finish}
+      onBack={() => {
+        setChecking(null)
+        if (!browsing && trimmed) window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
+      }}
+      onOpenDetails={() => onSelectCard(checking.card, checking.pokemon)}
+      onAction={(action, finish) => cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
+      isInBundle={(key) => bundle.some((entry) => entry.key === key)}
+      onAddToBundle={(entry) => updateBundle([...bundle.filter((item) => item.key !== entry.key), entry])}
+    />
+  ) : null
+  const bundleView = show && isBundleOpen ? (
+    <QuickBundle
+      entries={bundle}
+      currency={show.currency}
+      readOnly={show.readOnly}
+      onBack={() => setIsBundleOpen(false)}
+      onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
+      onClear={() => updateBundle([])}
+      onSoldCheck={(key, soldCheck) => updateBundle(current => current.map(entry => entry.key === key ? { ...entry, soldCheck } : entry))}
+      onAction={(action, entry) => show.onAction(action, entry.card, entry.pokemon, entry.finish)}
+    />
+  ) : null
+  const detailOpen = Boolean(checkView ?? bundleView)
+  const twoPane = Boolean(show) && isWide
+
   const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0
 
   return (
@@ -340,7 +381,7 @@ export default function QuickMode({
         onClick={(event) => event.stopPropagation()}
         // While the phone's keyboard is up the dialog fits the visible part of the page (app/globals.css).
         data-keyboard-fit
-        className="mx-auto flex h-[100dvh] w-full max-w-xl flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60"
+        className={`mx-auto flex h-[100dvh] w-full ${twoPane ? "max-w-5xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
           <div className="min-w-0 flex-1">
@@ -362,41 +403,11 @@ export default function QuickMode({
           </button>
         </header>
 
-        {cardCheck && checking ? (
-          <QuickCardCheck
-            key={`${checking.card.id}:${checking.card.language ?? "en"}`}
-            card={checking.card}
-            pokemon={checking.pokemon}
-            state={cardCheck.getCardState(checking.card, checking.pokemon)}
-            currency={cardCheck.currency}
-            fxRates={cardCheck.fxRates}
-            pricingRegion={pricingRegion}
-            isOnline={isOnline}
-            readOnly={cardCheck.readOnly}
-            showTools={Boolean(show)}
-            initialFinish={checking.finish}
-            onBack={() => {
-              setChecking(null)
-              if (!browsing && trimmed) window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
-            }}
-            onOpenDetails={() => onSelectCard(checking.card, checking.pokemon)}
-            onAction={(action, finish) => cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
-            isInBundle={(key) => bundle.some((entry) => entry.key === key)}
-            onAddToBundle={(entry) => updateBundle([...bundle.filter((item) => item.key !== entry.key), entry])}
-          />
-        ) : show && isBundleOpen ? (
-          <QuickBundle
-            entries={bundle}
-            currency={show.currency}
-            readOnly={show.readOnly}
-            onBack={() => setIsBundleOpen(false)}
-            onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
-            onClear={() => updateBundle([])}
-            onSoldCheck={(key, soldCheck) => updateBundle(current => current.map(entry => entry.key === key ? { ...entry, soldCheck } : entry))}
-            onAction={(action, entry) => show.onAction(action, entry.card, entry.pokemon, entry.finish)}
-          />
-        ) : (
-        <>
+        {detailOpen && !twoPane ? (checkView ?? bundleView) : (
+        // Wide screens (Show mode): the finder and results stay on the left and the deal check or bundle opens
+        // on the right. Phones keep one pane at a time; "contents" leaves their layout as it was.
+        <div className={twoPane ? "grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)]" : "contents"}>
+        <div className={twoPane ? "flex min-h-0 flex-col border-r border-border/50" : "contents"}>
         {show && !trimmed && browsing ? (
           <ShowPokemonCards
             key={browsing.id}
@@ -650,7 +661,19 @@ export default function QuickMode({
           )}
           </div>
         </div>
-        </>
+        </div>
+        {twoPane && (
+          <div className="flex min-h-0 flex-col" data-testid="show-detail-pane">
+            {checkView ?? bundleView ?? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center text-muted-foreground">
+                <Ticket className="h-8 w-8 opacity-60" aria-hidden />
+                <p className="text-sm font-semibold text-foreground">Pick a card to check its price</p>
+                <p className="text-xs">Its market price, verdict and Bought / Want / Bundle open here, beside your search.</p>
+              </div>
+            )}
+          </div>
+        )}
+        </div>
         )}
         {isScannerOpen && (
           <QuickCardScanner
