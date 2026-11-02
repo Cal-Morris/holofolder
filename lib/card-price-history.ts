@@ -23,8 +23,12 @@ const validDate = (date: unknown): date is string => typeof date === "string" &&
   && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date && Date.parse(date) <= Date.now()
 
 export function normalizePriceCardName(name: string, number: string) {
-  const repeatedNumber = name.match(/\s+(?:-\s+([a-z]*\d+[a-z]?)|\(([a-z]*\d+[a-z]?)\))$/i)
-  if (repeatedNumber && (repeatedNumber[1] ?? repeatedNumber[2]).toLowerCase() === number.split("/")[0].toLowerCase()) name = name.slice(0, repeatedNumber.index)
+  const collector = (value: string) => value.split("/")[0].toLowerCase().replace(/(?<!\d)0+(?=\d)/g, "")
+  // Split cards (HGSS LEGEND, Mega Evolution "Legendary" stadium halves) carry the half as a suffix; the number already tells them apart.
+  name = name.replace(/\s+\((?:Left|Right|Top|Bottom)\)$/i, "")
+  // TCGplayer repeats the collector number when a set reprints a name: "Masquerain - 003/103", "Arceus - DP50", "Articuno (22)".
+  const repeatedNumber = name.match(/\s+(?:-\s+([a-z]*\d+[a-z]?)(?:\/[a-z]*\d+)?|\(([a-z]*\d+[a-z]?)\))$/i)
+  if (repeatedNumber && collector(repeatedNumber[1] ?? repeatedNumber[2]) === collector(number)) name = name.slice(0, repeatedNumber.index)
   const qualifier = name.match(/\s+\((?:([a-z]*\d+[a-z]?)\s+)?(?:Full Art|Secret|Prime)\)$/i)
   if (qualifier && (!qualifier[1] || qualifier[1].toLowerCase() === number.split("/")[0].toLowerCase())) name = name.slice(0, qualifier.index)
   return normalizeCatalogName(name.replaceAll("♀", " F").replaceAll("♂", " M"))

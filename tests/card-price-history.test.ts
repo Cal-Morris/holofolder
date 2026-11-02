@@ -36,6 +36,20 @@ test("reviewed source spelling preserves gender, numbered full arts and Celebrat
   assert.equal(matchPriceProduct(reprint, source, "HS—Unleashed"), false)
 })
 
+test("numbered TCGplayer names and split-card halves match the catalog name without losing the number check", () => {
+  // Synthetic fixtures shaped like Mega Evolution groups (e.g. ME06: Delta Reign), not market observations.
+  const numbered = { name: "Masquerain - 003/103", extendedData: [{ name: "Number", value: "003/103" }] }
+  assert.equal(matchPriceProduct({ name: "Masquerain", number: "003", setName: "Delta Reign" }, numbered, "ME06: Delta Reign"), true)
+  assert.equal(matchPriceProduct({ name: "Masquerain", number: "3", setName: "Delta Reign" }, numbered, "ME06: Delta Reign"), true)
+  assert.equal(matchPriceProduct({ name: "Masquerain", number: "104", setName: "Delta Reign" }, numbered, "ME06: Delta Reign"), false)
+  assert.equal(matchPriceProduct({ name: "Masquerain", number: "003", setName: "Delta Reign" }, { ...numbered, name: "Masquerain - 104/103" }, "ME06: Delta Reign"), false)
+  assert.equal(matchPriceProduct({ name: "Masquerain", number: "003", setName: "Pitch Black" }, numbered, "ME06: Delta Reign"), false)
+  const left = { name: "Legendary Pyroduct - 094/103 (Left)", extendedData: [{ name: "Number", value: "094/103" }] }
+  assert.equal(matchPriceProduct({ name: "Legendary Pyroduct", number: "094", setName: "Delta Reign" }, left, "ME06: Delta Reign"), true)
+  assert.equal(matchPriceProduct({ name: "Legendary Pyroduct", number: "095", setName: "Delta Reign" }, left, "ME06: Delta Reign"), false)
+  assert.equal(matchPriceProduct({ name: "Lugia LEGEND", number: "113", setName: "HeartGold SoulSilver" }, { name: "Lugia Legend (Top)", extendedData: [{ name: "Number", value: "113/123" }] }, "HeartGold SoulSilver"), true)
+})
+
 test("archive imports retain dated native prices and reject other products and ambiguous subtypes", () => {
   const points = priceHistoryFromRows([
     { productId: 123, subTypeName: "Holofoil", marketPrice: 4, lowPrice: 2 },
