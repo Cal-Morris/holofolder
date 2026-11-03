@@ -127,3 +127,91 @@ export function formatMomentumChange(change: number) {
   const percent = Math.round(change * 100)
   return `${percent >= 0 ? "+" : ""}${percent}%`
 }
+
+/*
+ * List helpers for "% up" / "% down" sorts and the Show "Good pickups" strip. They only ever
+ * rank by getRisingMomentum / getFallingMomentum, so every threshold and gate above still
+ * applies; cards that do not qualify (or have no price) keep their original relative order
+ * after the ranked ones. Generic over the row type: pass a getter that returns the row's
+ * momentum price input (or null), so callers are not coupled to collection/Wanted types.
+ */
+export type MomentumPriceGetter<T> = (item: T) => MomentumPriceInput | null | undefined
+
+export interface RankedMomentumItem<T> {
+  item: T
+  momentum: PriceMomentum
+}
+
+/** Biggest rise first; nulls last. Usable directly with Array.prototype.sort on momenta. */
+export function compareByRisingMomentum(a: PriceMomentum | null | undefined, b: PriceMomentum | null | undefined) {
+  if (!a && !b) return 0
+  if (!a) return 1
+  if (!b) return -1
+  return b.change - a.change
+}
+
+/** Biggest drop (most negative change) first; nulls last. */
+export function compareByFallingMomentum(a: PriceMomentum | null | undefined, b: PriceMomentum | null | undefined) {
+  if (!a && !b) return 0
+  if (!a) return 1
+  if (!b) return -1
+  return a.change - b.change
+}
+
+function sortByMomentum<T>(
+  items: readonly T[],
+  getPrice: MomentumPriceGetter<T>,
+  measure: (price: MomentumPriceInput | null | undefined, now: number) => PriceMomentum | null,
+  compare: (a: PriceMomentum | null, b: PriceMomentum | null) => number,
+  now: number,
+): T[] {
+  // Decorate once so momentum is computed per item, not per comparison; index keeps it stable.
+  return items
+    .map((item, index) => ({ item, index, momentum: measure(getPrice(item), now) }))
+    .sort((a, b) => compare(a.momentum, b.momentum) || a.index - b.index)
+    .map(({ item }) => item)
+}
+
+/** New array: qualifying risers by biggest % up, then everything else in original order. */
+export function sortByRisingMomentum<T>(items: readonly T[], getPrice: MomentumPriceGetter<T>, now = Date.now()): T[] {
+  return sortByMomentum(items, getPrice, getRisingMomentum, compareByRisingMomentum, now)
+}
+
+/** New array: qualifying fallers by biggest % down, then everything else in original order. */
+export function sortByFallingMomentum<T>(items: readonly T[], getPrice: MomentumPriceGetter<T>, now = Date.now()): T[] {
+  return sortByMomentum(items, getPrice, getFallingMomentum, compareByFallingMomentum, now)
+}
+
+function rankByMomentum<T>(
+  items: readonly T[],
+  getPrice: MomentumPriceGetter<T>,
+  measure: (price: MomentumPriceInput | null | undefined, now: number) => PriceMomentum | null,
+  compare: (a: PriceMomentum, b: PriceMomentum) => number,
+  now: number,
+  limit?: number,
+): RankedMomentumItem<T>[] {
+  const ranked = items
+    .map((item, index) => ({ item, index, momentum: measure(getPrice(item), now) }))
+    .filter((entry): entry is { item: T; index: number; momentum: PriceMomentum } => entry.momentum !== null)
+    .sort((a, b) => compare(a.momentum, b.momentum) || a.index - b.index)
+    .map(({ item, momentum }) => ({ item, momentum }))
+  return limit != null && limit >= 0 ? ranked.slice(0, limit) : ranked
+}
+
+/** Only items that qualify as "Price dropped", biggest drop first (Show "Good pickups"). */
+export function rankFallingPickups<T>(
+  items: readonly T[],
+  getPrice: MomentumPriceGetter<T>,
+  options: { now?: number; limit?: number } = {},
+): RankedMomentumItem<T>[] {
+  return rankByMomentum(items, getPrice, getFallingMomentum, compareByFallingMomentum, options.now ?? Date.now(), options.limit)
+}
+
+/** Only items that qualify as "Rising", biggest rise first ("Trending up"). */
+export function rankRisingMomentum<T>(
+  items: readonly T[],
+  getPrice: MomentumPriceGetter<T>,
+  options: { now?: number; limit?: number } = {},
+): RankedMomentumItem<T>[] {
+  return rankByMomentum(items, getPrice, getRisingMomentum, compareByRisingMomentum, options.now ?? Date.now(), options.limit)
+}

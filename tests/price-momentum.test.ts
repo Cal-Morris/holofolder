@@ -2,7 +2,13 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { buildBuySignal } from "../lib/price-intelligence"
 import {
+  compareByFallingMomentum,
+  compareByRisingMomentum,
   formatMomentumChange,
+  rankFallingPickups,
+  rankRisingMomentum,
+  sortByFallingMomentum,
+  sortByRisingMomentum,
   getFallingMomentum,
   getRisingMomentum,
   measurePriceMomentum,
@@ -127,4 +133,64 @@ test("price drops are suppressed when the 7d move already reversed, the data is 
   assert.equal(getFallingMomentum(fixturePrice({ "7d": 20, Trend: 10 }, { updatedAt: new Date(now - 10 * 86_400_000).toISOString() }), now), null)
   assert.equal(getFallingMomentum(fixturePrice({ "7d": 1.5, Trend: 0.6 }), now), null)
   assert.equal(getRisingMomentum(fixturePrice({ "7d": 20, Trend: 10 }), now), null)
+})
+
+// List helpers. Fixture rows only; ids and prices are made up.
+interface FixtureRow {
+  id: string
+  price: MomentumPriceInput | null
+}
+
+const listRows: FixtureRow[] = [
+  { id: "flat", price: fixturePrice({ "7d": 10, Trend: 10 }) },
+  { id: "down20", price: fixturePrice({ "7d": 10, Trend: 8 }) },
+  { id: "up30", price: fixturePrice({ "7d": 10, Trend: 13 }) },
+  { id: "noprice", price: null },
+  { id: "down40", price: fixturePrice({ "7d": 10, Trend: 6 }) },
+  { id: "up12", price: fixturePrice({ "7d": 10, Trend: 11.2 }) },
+  { id: "down5", price: fixturePrice({ "7d": 10, Trend: 9.5 }) },
+  { id: "lowConfDown", price: fixturePrice({ "7d": 10, Trend: 5 }, { confidence: "low" }) },
+]
+const getRowPrice = (row: FixtureRow) => row.price
+
+test("compare helpers rank biggest move first and put nulls last", () => {
+  const up = getRisingMomentum(fixturePrice({ "7d": 10, Trend: 13 }), now)
+  const smallUp = getRisingMomentum(fixturePrice({ "7d": 10, Trend: 11.2 }), now)
+  const down = getFallingMomentum(fixturePrice({ "7d": 10, Trend: 6 }), now)
+  const smallDown = getFallingMomentum(fixturePrice({ "7d": 10, Trend: 8 }), now)
+  assert.deepEqual([smallUp, null, up].sort(compareByRisingMomentum), [up, smallUp, null])
+  assert.deepEqual([null, smallDown, down].sort(compareByFallingMomentum), [down, smallDown, null])
+  assert.equal(compareByRisingMomentum(null, undefined), 0)
+})
+
+test("sortByFallingMomentum puts qualifying drops first, rest in original order", () => {
+  const sorted = sortByFallingMomentum(listRows, getRowPrice, now).map((row) => row.id)
+  assert.deepEqual(sorted, ["down40", "down20", "flat", "up30", "noprice", "up12", "down5", "lowConfDown"])
+  // Input is not mutated.
+  assert.equal(listRows[0].id, "flat")
+})
+
+test("sortByRisingMomentum puts qualifying rises first, rest in original order", () => {
+  const sorted = sortByRisingMomentum(listRows, getRowPrice, now).map((row) => row.id)
+  assert.deepEqual(sorted, ["up30", "up12", "flat", "down20", "noprice", "down40", "down5", "lowConfDown"])
+})
+
+test("rankFallingPickups returns only gated drops, biggest first, with momentum", () => {
+  const pickups = rankFallingPickups(listRows, getRowPrice, { now })
+  assert.deepEqual(
+    pickups.map(({ item, momentum }) => [item.id, formatMomentumChange(momentum.change)]),
+    [
+      ["down40", "-40%"],
+      ["down20", "-20%"],
+    ],
+  )
+  assert.deepEqual(rankFallingPickups(listRows, getRowPrice, { now, limit: 1 }).map(({ item }) => item.id), ["down40"])
+  assert.deepEqual(rankFallingPickups([], getRowPrice, { now }), [])
+})
+
+test("rankRisingMomentum returns only gated rises, biggest first", () => {
+  assert.deepEqual(
+    rankRisingMomentum(listRows, getRowPrice, { now }).map(({ item }) => item.id),
+    ["up30", "up12"],
+  )
 })
