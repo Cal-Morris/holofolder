@@ -19,7 +19,7 @@ import type { CardPriceSnapshot, SupportedCurrency } from "@/hooks/use-card-pric
 import type { CardSelectorMode } from "@/components/card-selector"
 import type { PageScanCardMatchSummary, PageScanSummary } from "@/lib/page-scan"
 import type { BinderPageScanResult } from "@/lib/binder-page-scan"
-import type { TCGSetDexSlot, TCGSetSlotCard } from "@/lib/tcg-set-slots"
+import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSummary } from "@/lib/tcg-set-slots"
 import type { TCGCard } from "@/hooks/use-tcgdex"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 import type { ChangeEvent, Dispatch, JSX, RefObject, SetStateAction } from "react"
@@ -109,6 +109,8 @@ export interface MainContentContext {
   setPageScanError: Dispatch<SetStateAction<string | null>>
   setPageScanSummary: Dispatch<SetStateAction<PageScanSummary | null>>
   setShowMode: (on: boolean) => void
+  /** A set hit tapped in Search or Quick mode: Sets opens on it (the key remounts Sets for a new pick). */
+  setViewRequest: { set: TCGSetSummary; key: number } | null
   settings: BinderSettings
   snoozeShowModePrompt: () => void
   switchMainView: (view: ActiveMainView) => Promise<void>
@@ -126,7 +128,7 @@ export interface MainContentContext {
 }
 
 export function renderMainContentView(ctx: MainContentContext) {
-  const { activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
+  const { activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
       <input
@@ -230,6 +232,8 @@ export function renderMainContentView(ctx: MainContentContext) {
           />
         ) : activeMainView === "sets" ? (
           <SetPopulationView
+            key={setViewRequest?.key ?? "sets"}
+            initialSet={setViewRequest?.set ?? null}
             collectionByPokemonId={collectionByPokemonId}
             formatPrice={priceFormat.label}
             pricingRegion={pricingPreferences.region}

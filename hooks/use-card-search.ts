@@ -2,13 +2,15 @@
 
 // Card and illustrator search shared by the Search sheet and Quick mode: debounced card search against the TCG
 // mirror (grouped by Pokémon), falling back to the cards on this device when offline, plus fuzzy illustrator
-// matches from the directory (saved on the device after the first load).
+// matches from the directory (saved on the device after the first load) and set hits from the set search.
 import { useEffect, useMemo, useRef, useState } from "react"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
 import { groupCardResultsByPokemon, parseCardSearchQuery, type CardSearchGroup, type SearchCardResult } from "@/lib/pokemon-card-browse"
-import { searchOfflineCards } from "@/lib/offline-card-index"
+import { readOfflineSets, searchOfflineCards } from "@/lib/offline-card-index"
 import { loadIllustratorDirectory } from "@/lib/illustrator-client"
 import { normalizeIllustratorText, searchIllustrators, type IllustratorSummary } from "@/lib/illustrators"
+import { isSetSearchQuery, rankSetMatches, SEARCH_SET_RESULT_LIMIT } from "@/lib/set-search"
+import type { TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 
 const CARD_SEARCH_DEBOUNCE_MS = 250
 
@@ -99,3 +101,48 @@ export function useIllustratorSearch(query: string, enabled: boolean) {
   return useMemo(() => (active && directory ? searchIllustrators(directory, query, 5) : []), [active, directory, query])
 }
 
+
+type SetSearchState = { key: string; sets: TCGSetSummary[] }
+
+/**
+ * Mirrored sets whose name or id match the query (the Sets view's search API), best match first. Offline it
+ * matches the set lists saved on this device; nothing saved means no set rows, never a guess.
+ */
+export function useSetSearch(query: string, enabled: boolean, limit = SEARCH_SET_RESULT_LIMIT) {
+  const [state, setState] = useState<SetSearchState>({ key: "", sets: [] })
+  const key = enabled && isSetSearchQuery(query) ? query.trim().replace(/\s+/g, " ").toLowerCase() : ""
+
+  useEffect(() => {
+    if (!key) return
+    const controller = new AbortController()
+    const showSaved = async () => {
+      const saved = await readOfflineSets().catch(() => [] as TCGSetSummary[])
+      if (!controller.signal.aborted) setState({ key, sets: rankSetMatches(saved, key, limit) })
+    }
+    const timer = window.setTimeout(() => {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        void showSaved()
+        return
+      }
+      fetch(`/api/tcg-set-slots?${new URLSearchParams({ query: key }).toString()}`, { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Set search failed (${response.status})`)
+          return response.json() as Promise<Partial<TCGSetSlotsResponse>>
+        })
+        .then((payload) => {
+          const sets = Array.isArray(payload?.sets) ? payload.sets : []
+          if (!controller.signal.aborted) setState({ key, sets: rankSetMatches(sets, key, limit) })
+        })
+        .catch((error: unknown) => {
+          if ((error as { name?: string })?.name === "AbortError" || controller.signal.aborted) return
+          void showSaved()
+        })
+    }, CARD_SEARCH_DEBOUNCE_MS)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [key, limit])
+
+  return useMemo(() => (key && state.key === key ? state.sets : []), [key, state])
+}

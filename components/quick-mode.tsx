@@ -26,13 +26,15 @@ import {
 } from "lucide-react"
 import { useOverlay } from "@/hooks/use-overlay"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { useCardSearch, useIllustratorSearch } from "@/hooks/use-card-search"
+import { useCardSearch, useIllustratorSearch, useSetSearch } from "@/hooks/use-card-search"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { formatCardNumber, type SearchCardResult } from "@/lib/pokemon-card-browse"
 import { searchPokemonItems } from "@/lib/pokemon-search-state"
+import { formatSetHitMeta } from "@/lib/set-search"
+import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { addRecentCard, readRecentCards, toRecentCard, writeRecentCards } from "@/lib/recent-cards"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import {
@@ -123,6 +125,8 @@ export interface QuickModeProps {
   onSelectPokemon: (pokemon: PokemonSummary) => void
   onSelectCard: (card: SearchCardResult, pokemon: { id: number; name: string }) => void
   onBrowseIllustrator: (name: string) => void
+  /** Opens Sets on a set hit. Set hits are plain Quick mode only: Show mode and Price check stay in the lookup. */
+  onBrowseSet?: (set: TCGSetSummary) => void
   getOfflineCards: () => Promise<SearchCardResult[]>
   /** Show mode's destination reads "Exit Show mode" while it's on. */
   showModeOn?: boolean
@@ -165,6 +169,7 @@ export default function QuickMode({
   onSelectPokemon,
   onSelectCard,
   onBrowseIllustrator,
+  onBrowseSet,
   getOfflineCards,
   getPokemonState,
   formatPrice,
@@ -258,6 +263,7 @@ export default function QuickMode({
   )
   const { pricesByCardId } = useRegionalCardPrices(priceLookups, priceLookups.length > 0, pricingRegion)
   const illustrators = useIllustratorSearch(query, true).slice(0, 3)
+  const setHits = useSetSearch(query, Boolean(onBrowseSet) && !show)
 
   // Write storage directly (not inside a state updater): picking a result usually unmounts Quick mode
   // in the same tick, and a queued updater on an unmounting component never runs.
@@ -369,7 +375,7 @@ export default function QuickMode({
   const detailOpen = Boolean(checkView ?? bundleView)
   const twoPane = Boolean(show) && isWide
 
-  const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0
+  const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0 && setHits.length === 0
 
   return (
     <div className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm" data-overlay-backdrop onClick={onClose}>
@@ -455,6 +461,33 @@ export default function QuickMode({
                     </button>
                   ))}
                 </div>
+              </section>
+            )}
+
+            {setHits.length > 0 && (
+              <section aria-label="Sets">
+                <h3 className={sectionTitle}>Sets</h3>
+                {setHits.map((set) => {
+                  const meta = formatSetHitMeta(set)
+                  return (
+                    <button
+                      key={set.id}
+                      type="button"
+                      className={rowClass}
+                      aria-label={`Open set ${set.name}${meta ? `, ${meta}` : ""}`}
+                      onClick={() => {
+                        remember()
+                        onBrowseSet?.(set)
+                      }}
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-500"><Layers3 className="h-5 w-5" aria-hidden /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-semibold">{set.name}</span>
+                        {meta ? <span className="block truncate text-xs text-muted-foreground">{meta}</span> : null}
+                      </span>
+                    </button>
+                  )
+                })}
               </section>
             )}
 

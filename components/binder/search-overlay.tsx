@@ -12,6 +12,7 @@ import type { CardPriceSnapshot, SupportedCurrency } from "@/hooks/use-card-pric
 import type { PokemonSearchResultMeta } from "@/components/pokemon-search"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
+import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import type { BinderCardDisplay, SelectedSlotDisplayCard } from "@/lib/selected-slot-card-display"
 
 export interface SearchOverlayContext {
@@ -29,6 +30,7 @@ export interface SearchOverlayContext {
   openCardBrowser: (pokemon: { id: number; name: string; }, options?: { highlightCardId?: string | null | undefined; fromDetail?: boolean | undefined; }) => void
   openIllustratorBrowser: (name: string, options?: { fromDetail?: boolean | undefined; }) => void
   openQuickMode: () => void
+  openSetFromSearch: (set: TCGSetSummary) => void
   priceFormat: { label: (price: CardPriceSnapshot | undefined) => string | null; amount: (amount: number | null | undefined, price?: CardPriceSnapshot | undefined) => string | null; range: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot | undefined) => string | null; totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>) => string; }
   pricingPreferences: ResolvedPricingPreferences
   readOnlyMode: boolean
@@ -45,7 +47,7 @@ export interface SearchOverlayContext {
 }
 
 export function renderSearchOverlayView(ctx: SearchOverlayContext) {
-  const { binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
+  const { binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
   return (
     isSearchOpen && (
       <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
@@ -84,6 +86,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
                 onBrowseCards={(pokemon, highlightCardId) => openCardBrowser(pokemon, { highlightCardId })}
                 getOfflineCards={getOfflineSearchCards}
                 onBrowseIllustrator={(name) => openIllustratorBrowser(name)}
+                onBrowseSet={openSetFromSearch}
                 formatPrice={priceFormat.label}
                 pricingRegion={pricingPreferences.region}
                 getCardState={getCardState}

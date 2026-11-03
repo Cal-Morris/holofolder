@@ -20,7 +20,9 @@ import {
   type SearchCardResult,
 } from "@/lib/pokemon-card-browse"
 import { addRecentCard, readRecentCards, toRecentCard, writeRecentCards, type RecentCard } from "@/lib/recent-cards"
-import { useCardSearch, useIllustratorSearch } from "@/hooks/use-card-search"
+import { useCardSearch, useIllustratorSearch, useSetSearch } from "@/hooks/use-card-search"
+import { formatSetHitMeta } from "@/lib/set-search"
+import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
@@ -59,6 +61,8 @@ interface PokemonSearchProps {
   getOfflineCards?: () => Promise<SearchCardResult[]>
   /** Open the read-only view of every card by an illustrator. Enables illustrator results. */
   onBrowseIllustrator?: (name: string) => void
+  /** Open Sets on a set whose name or id matches the search. Enables set results. */
+  onBrowseSet?: (set: TCGSetSummary) => void
   /** Formats a card's headline price in the user's display currency; card hits show no price without it. */
   formatPrice?: (price: CardPriceSnapshot | undefined) => string | null
   /** The user's pricing region, used to weight card hit prices. */
@@ -96,6 +100,7 @@ export default function PokemonSearch({
   onBrowseCards,
   getOfflineCards,
   onBrowseIllustrator,
+  onBrowseSet,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
   getCardState,
@@ -184,6 +189,7 @@ export default function PokemonSearch({
   )
   const { pricesByCardId: cardPrices } = useRegionalCardPrices(cardPriceLookups, cardPriceLookups.length > 0, pricingRegion)
   const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator))
+  const setResults = useSetSearch(query, Boolean(onBrowseSet))
 
   const showRecentCards = Boolean(onBrowseCards) && !query.trim() && recentCards.length > 0
 
@@ -329,7 +335,7 @@ export default function PokemonSearch({
       ) : null}
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/70">
-        {showRecentCards || visibleResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
+        {showRecentCards || visibleResults.length > 0 || setResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
           <div className="h-full overflow-y-auto">
             {showRecentCards ? (
               <section aria-label="Recently viewed cards" className="border-b border-border/50 pb-2">
@@ -375,7 +381,7 @@ export default function PokemonSearch({
                 </div>
               </section>
             ) : null}
-            {visibleResults.length > 0 && (showRecentCards || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading) ? (
+            {visibleResults.length > 0 && (showRecentCards || setResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading) ? (
               <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pokémon</p>
             ) : null}
             {visibleResults.map((pokemon, index) => {
@@ -486,6 +492,34 @@ export default function PokemonSearch({
                 </div>
               )
             })}
+            {setResults.length > 0 ? (
+              <section aria-label="Set results" className="border-t border-border/50 px-3 pb-2">
+                <p className="px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Sets</p>
+                <div className="flex flex-col gap-1">
+                  {setResults.map((set) => {
+                    const meta = formatSetHitMeta(set)
+                    return (
+                      <button
+                        key={set.id}
+                        type="button"
+                        onClick={() => onBrowseSet?.(set)}
+                        aria-label={`Open set ${set.name}${meta ? `, ${meta}` : ""}`}
+                        className="flex min-h-11 w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-primary/10"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <Layers3 className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">{set.name}</span>
+                          {meta ? <span className="block truncate text-[11px] text-muted-foreground">{meta}</span> : null}
+                        </span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ) : null}
             {illustratorResults.length > 0 ? (
               <section aria-label="Illustrator results" className="border-t border-border/50 px-3 pb-2">
                 <p className="px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Illustrators</p>

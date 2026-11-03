@@ -36,6 +36,8 @@ interface SetPopulationViewProps {
   onCollectCards?: (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => void | Promise<void>
   onWantCards?: (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => void | Promise<void>
   readOnly: boolean
+  /** Opens with this set already picked (a set hit tapped in the Search sheet or Quick mode). */
+  initialSet?: TCGSetSummary | null
 }
 
 const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
@@ -92,10 +94,11 @@ export default function SetPopulationView({
   onCollectCards,
   onWantCards,
   readOnly,
+  initialSet = null,
 }: SetPopulationViewProps) {
   const [query, setQuery] = useState("")
   const heading = useCollapseOnScroll()
-  const [selectedSets, setSelectedSets] = useState<TCGSetSummary[]>([])
+  const [selectedSets, setSelectedSets] = useState<TCGSetSummary[]>(() => (initialSet ? [initialSet] : []))
   const [payloadsBySetId, setPayloadsBySetId] = useState<Record<string, TCGSetSlotsResponse>>({})
   const [pokemonQuery, setPokemonQuery] = useState("")
   const [matchedPokemonIds, setMatchedPokemonIds] = useState<number[]>([])
@@ -106,7 +109,7 @@ export default function SetPopulationView({
   const selectedSet = selectedSets[0] ?? null
   const setLabel = selectedSets.map(set => set.name).join(" + ")
   const hasFullCardList = payloads.every(payload => Array.isArray(payload.cards))
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(Boolean(initialSet))
   const [error, setError] = useState<string | null>(null)
   const [slotSearch, setSlotSearch] = useState("")
   const [checklistView, setChecklistView] = useState<"pokemon" | "cards">("pokemon")
