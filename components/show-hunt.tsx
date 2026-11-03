@@ -6,8 +6,10 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronRight, Heart, Palette, Target, TrendingDown } from "lucide-react"
 import { PriceDropBadge } from "@/components/price-drop-badge"
+import ShowCheckComps from "@/components/show-check-comps"
 import { useDisplayCardPrices, type DisplayPriceLookup } from "@/hooks/use-display-card-prices"
 import { toCardImageSrc } from "@/lib/card-image-url"
+import type { CheckCompsTarget } from "@/lib/check-comps"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import { readDealThresholds, type DealThresholds } from "@/lib/deal-check"
 import type { CardFinish, WantedCard } from "@/lib/domain/cards"
@@ -23,6 +25,7 @@ import {
   buildHuntGroups,
   collectHuntCards,
   getHuntFilterOptions,
+  matchesHuntFilters,
   wantedToSearchCard,
   type HuntGroup,
   type HuntPickup,
@@ -261,6 +264,14 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
     ({ card }: HuntPickup) => onPickCard(wantedToSearchCard(card.wanted, card.pokemonId), { id: card.pokemonId, name: card.pokemonName }, card.wanted.card_finish ?? null),
     [onPickCard],
   )
+  // Comps follow the Hunting filters, dearest first (the warm engine keeps the order and caps the run).
+  const compsTargets = useMemo<CheckCompsTarget[]>(
+    () => cards
+      .filter((card) => matchesHuntFilters(card, { era, setId, cardIds: illustratorIds }))
+      .sort((a, b) => (b.price ?? -1) - (a.price ?? -1))
+      .map((card) => ({ cardId: card.wanted.card_id, language: card.wanted.card_language ?? "en", finish: card.wanted.card_finish ?? null })),
+    [cards, era, illustratorIds, setId],
+  )
   const total = cards.length
   const filtering = Boolean(era || setId || illustrator)
 
@@ -311,6 +322,12 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
             </label>
           </div>
         </div>
+
+        {total > 0 && (
+          <div className="pt-3">
+            <ShowCheckComps targets={compsTargets} isOnline={isOnline} />
+          </div>
+        )}
 
         {pickups.length > 0 && (
           <GoodPickupsStrip

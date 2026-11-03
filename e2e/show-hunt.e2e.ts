@@ -157,6 +157,45 @@ test.describe("Show mode finder", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
+  test("Check comps bakes sold comps for the Hunting cards, dearest first, with progress", async ({ harness }) => {
+    const { page } = harness
+    // Synthetic sold / asking samples, checked just now; never real sale data.
+    const checkedAt = new Date().toISOString()
+    const requested: string[] = []
+    let release!: () => void
+    const held = new Promise<void>((resolve) => { release = resolve })
+    await page.route("**/api/card-price-checks?**", async (route) => {
+      const params = new URL(route.request().url()).searchParams
+      const source = params.get("source")
+      if (source === "soldcomps") requested.push(params.get("cardId") ?? "")
+      await held
+      await route.fulfill({ json: {
+        ebay: source === "ebay" ? { summary: { kind: "asking", currency: "GBP", count: 2, median: 5, low: 4, high: 6 }, checkedAt } : null,
+        soldcomps: source === "soldcomps" ? { summary: { kind: "sold", currency: "GBP", count: 2, median: 5, low: 4, high: 6 }, checkedAt } : null,
+        errors: {},
+      } })
+    })
+    await seedHuntList(harness)
+    const dialog = await openShowMode(harness)
+    const comps = dialog.getByTestId("show-check-comps")
+    const button = comps.getByRole("button", { name: "Check comps" })
+    await harness.expectMinTapTarget(button, 48)
+    await button.click()
+    await expect(comps.getByRole("status")).toContainText("Checking comps 0/4")
+    await expect(comps.getByRole("progressbar", { name: "Comps checked" })).toHaveAttribute("aria-valuemax", "4")
+    await harness.expectMinTapTarget(comps.getByRole("button", { name: "Stop checking comps" }), 48)
+    // The rest of Show stays usable while it runs.
+    await expect(dialog.getByTestId("show-hunt").getByRole("radio", { name: "Top value" })).toBeEnabled()
+    await harness.expectNoHorizontalOverflow()
+    await screenshot(harness, "show-check-comps")
+    release()
+    await expect(comps.getByRole("status")).toHaveText("Sold comps ready for 4/4 cards.")
+    await expect(comps.getByRole("progressbar")).toHaveCount(0)
+    // Dearest first (Charizard ex £50, then Bulbasaur £40).
+    expect(requested.slice(0, 2).sort()).toEqual(["sv03.5-006", "sv03.5-166"])
+    expect([...requested].sort()).toEqual(["me02-001", "sv03.5-004", "sv03.5-006", "sv03.5-166"])
+  })
+
   test("no Good pickups strip when nothing on the want list has dropped", async ({ harness }) => {
     await seedHuntList(harness)
     const dialog = await openShowMode(harness)
