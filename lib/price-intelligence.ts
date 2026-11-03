@@ -61,8 +61,9 @@ const GRADED_PATTERNS = [
   /\bcgc\s*\d+/i,
   /\bbgs\s*\d+/i,
   /\bbeckett\s*\d+/i,
+  /\b(?:sgc|ags|tag|ace)\s*(?:grade\s*)?\d+(?:\.\d)?\b(?!\s*\/)/i,
   /\bgraded\b/i,
-  /\bslab\b/i,
+  /\bslab(?:bed)?\b/i,
 ]
 
 const BAD_PATTERNS = [
@@ -474,7 +475,8 @@ export function summarizePriceObservations(
   }
 }
 
-function removeOutliers<T extends { gbp: number }>(items: T[]): T[] {
+/** Robust outlier cut (median/MAD with a 2x-median band) shared by observation and sold-comp summaries. */
+export function removeOutliers<T extends { gbp: number }>(items: T[]): T[] {
   if (items.length < 3) return items
 
   const sorted = items.map((item) => item.gbp).sort((left, right) => left - right)
