@@ -159,6 +159,34 @@ export function mergeCardPriceState(current: Record<string, CardPriceSnapshot>, 
   return next ?? current
 }
 
+function getCardPriceLookupsKey(lookups: CardPriceLookup[]) {
+  return lookups.map((lookup) => getCardPriceKey(lookup.cardId, lookup.language)).join(",")
+}
+
+/**
+ * Which lookup set a typing caller should price: keeps `held` (same array) when `next` asks for the same
+ * cards, or, while `holding` (e.g. a search is still loading), for no card `held` lacks. So a keystroke
+ * that briefly empties or narrows the results does not drop and then re-request the same quotes.
+ */
+export function pickStableCardPriceLookups(held: CardPriceLookup[], next: CardPriceLookup[], holding: boolean) {
+  if (held === next) return held
+  if (getCardPriceLookupsKey(held) === getCardPriceLookupsKey(next)) return held
+  if (holding && held.length > 0) {
+    const heldKeys = new Set(held.map((lookup) => getCardPriceKey(lookup.cardId, lookup.language)))
+    if (next.every((lookup) => heldKeys.has(getCardPriceKey(lookup.cardId, lookup.language)))) return held
+  }
+  return next
+}
+
+/** Content-stable lookups for search-as-you-type callers; see pickStableCardPriceLookups. */
+export function useStableCardPriceLookups(lookups: CardPriceLookup[], holding: boolean) {
+  const [held, setHeld] = useState(lookups)
+  const picked = pickStableCardPriceLookups(held, lookups, holding)
+  // Adopt a genuinely new set during render (React's derived-state pattern), so the next keystroke compares against it.
+  if (picked !== held) setHeld(picked)
+  return picked
+}
+
 export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enabled: boolean) {
   const [pricesByCardId, setPricesByCardId] = useState<Record<string, CardPriceSnapshot>>({})
   const [isLoading, setIsLoading] = useState(false)

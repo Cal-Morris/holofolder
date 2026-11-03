@@ -28,7 +28,7 @@ import { useOverlay } from "@/hooks/use-overlay"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { useCardSearch, useIllustratorSearch, useSetSearch } from "@/hooks/use-card-search"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
-import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
+import { getCardPriceKey, useStableCardPriceLookups, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { formatCardNumber, type SearchCardResult } from "@/lib/pokemon-card-browse"
@@ -264,7 +264,9 @@ export default function QuickMode({
     () => (formatPrice ? cardResults.map(({ card }) => ({ cardId: card.id, language: card.language ?? "en" })) : []),
     [cardResults, formatPrice],
   )
-  const { pricesByCardId } = useRegionalCardPrices(priceLookups, priceLookups.length > 0, pricingRegion)
+  // Same array across keystrokes while the priced cards are unchanged (or the search is still loading).
+  const stablePriceLookups = useStableCardPriceLookups(priceLookups, cardSearch.loading)
+  const { pricesByCardId } = useRegionalCardPrices(stablePriceLookups, stablePriceLookups.length > 0, pricingRegion)
   // "% down" / "% up" reorder the found cards by price momentum (per card + language); Default keeps the search's order.
   const sortedCardResults = useMemo(
     () => applyMomentumSort<(typeof cardResults)[number]>(cardResults, moveSort, ({ card }) => pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]),

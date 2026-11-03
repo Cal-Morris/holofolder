@@ -7,6 +7,7 @@ import {
   capPriceCacheEntries,
   getCardPriceKey,
   mergeCardPriceState,
+  pickStableCardPriceLookups,
   normalizeCardPriceLookups,
   saveCardPricesForOffline,
   writePriceCache,
@@ -295,4 +296,28 @@ test("normalizeCardPriceLookups dedupes and orders by card then language", () =>
     { cardId: "sv1-002", language: "ja" },
     { cardId: "sv1-010", language: "en" },
   ])
+})
+
+test("pickStableCardPriceLookups reuses the held array for the same priced cards", () => {
+  const held = [{ cardId: "sv1-001", language: "en" as const }, { cardId: "sv1-002", language: "ja" as const }]
+  // A keystroke rebuilds the same lookups as a new array: keep the held one.
+  assert.equal(pickStableCardPriceLookups(held, held.map((lookup) => ({ ...lookup })), false), held)
+  const changed = [{ cardId: "sv1-003", language: "en" as const }]
+  assert.equal(pickStableCardPriceLookups(held, changed, false), changed)
+  // A narrower settled result set is a real change.
+  const narrowed = [held[0]]
+  assert.equal(pickStableCardPriceLookups(held, narrowed, false), narrowed)
+})
+
+test("pickStableCardPriceLookups holds while a search is loading unless new cards appear", () => {
+  const held = [{ cardId: "sv1-001", language: "en" as const }, { cardId: "sv1-002", language: "en" as const }]
+  assert.equal(pickStableCardPriceLookups(held, [], true), held)
+  assert.equal(pickStableCardPriceLookups(held, [{ cardId: "sv1-002", language: "en" as const }], true), held)
+  const extra = [{ cardId: "sv1-009", language: "en" as const }]
+  assert.equal(pickStableCardPriceLookups(held, extra, true), extra)
+  // Same id, other language is a different priced card.
+  const otherLanguage = [{ cardId: "sv1-001", language: "ja" as const }]
+  assert.equal(pickStableCardPriceLookups(held, otherLanguage, true), otherLanguage)
+  // Nothing held yet: take what is asked for.
+  assert.deepEqual(pickStableCardPriceLookups([], [], true), [])
 })
