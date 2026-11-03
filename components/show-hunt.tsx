@@ -249,7 +249,10 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
       .sort((a, b) => a.localeCompare(b)),
     [cards, directory],
   )
-  const groups = useMemo(() => buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds }), [cards, era, illustratorIds, items, setId, sort])
+  const groups = useMemo(
+    () => buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds }, { priceOf: (card) => snapshotOfWanted(card.wanted) }),
+    [cards, era, illustratorIds, items, setId, snapshotOfWanted, sort],
+  )
   const pickups = useMemo(
     () => buildGoodPickups(cards, (card) => snapshotOfWanted(card.wanted), { era, setId, cardIds: illustratorIds }),
     [cards, era, illustratorIds, setId, snapshotOfWanted],
@@ -271,9 +274,9 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
               Hunting <span className="font-medium text-muted-foreground">· {total} card{total === 1 ? "" : "s"}{isOnline ? "" : " · offline"}</span>
             </h3>
             <div role="radiogroup" aria-label="Sort" className="flex w-full rounded-2xl bg-muted/70 p-1">
-              {([["wanted", "Most wanted"], ["value", "Top value"]] as const).map(([id, label]) => (
-                <button key={id} type="button" role="radio" aria-checked={sort === id} onClick={() => setSort(id)}
-                  className={`h-12 flex-1 rounded-xl px-3 text-sm font-semibold ${sort === id ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+              {([["wanted", "Most wanted", "Most wanted"], ["value", "Top value", "Top value"], ["falling", "% down", "Biggest price drop first"], ["rising", "% up", "Biggest price rise first"]] as const).map(([id, label, name]) => (
+                <button key={id} type="button" role="radio" aria-checked={sort === id} aria-label={name} onClick={() => setSort(id)}
+                  className={`h-12 min-w-0 flex-1 rounded-xl px-1.5 text-sm font-semibold leading-tight ${sort === id ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
                   {label}
                 </button>
               ))}

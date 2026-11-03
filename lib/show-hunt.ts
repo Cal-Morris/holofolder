@@ -2,6 +2,7 @@
 // cards when scanning a dealer's binder. Pure and client-safe; prices come in already converted for display.
 import type { WantedCard } from "@/lib/domain/cards"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
+import { applyMomentumSort } from "@/lib/momentum-sort"
 import { rankFallingPickups, type MomentumPriceInput, type PriceMomentum } from "@/lib/price-momentum"
 
 /** Card eras, by set id prefix (dealers usually sort binders by set, and sets by era). Longest prefix wins. */
@@ -80,7 +81,8 @@ export interface HuntGroup {
   topPrice: number | null
 }
 
-export type HuntSort = "wanted" | "value"
+/** "falling" / "rising": biggest price drop / rise first (price-momentum), the rest by value. */
+export type HuntSort = "wanted" | "value" | "falling" | "rising"
 
 export interface HuntFilters {
   era?: string | null
@@ -137,7 +139,13 @@ const byPriceDesc = (a: { price: number | null }, b: { price: number | null }) =
  * dearest card); "value" puts the dearest card first. Wishlisted Pokémon with no card picked join only when no
  * filter is on (a filter is about printings, and they have none).
  */
-export function buildHuntGroups(items: readonly HuntSourceItem[], cards: readonly HuntCard[], sort: HuntSort, filters: HuntFilters = {}): HuntGroup[] {
+export function buildHuntGroups(
+  items: readonly HuntSourceItem[],
+  cards: readonly HuntCard[],
+  sort: HuntSort,
+  filters: HuntFilters = {},
+  momentum: { priceOf: (card: HuntCard) => MomentumPriceInput | null | undefined; now?: number } | null = null,
+): HuntGroup[] {
   const filtering = Boolean(filters.era || filters.setId || filters.cardIds)
   const groups = new Map<number, HuntGroup>()
   for (const card of cards) {
@@ -156,10 +164,15 @@ export function buildHuntGroups(items: readonly HuntSourceItem[], cards: readonl
   }
   const list = [...groups.values()]
   for (const group of list) group.cards.sort(byPriceDesc)
-  return list.sort((a, b) => {
+  list.sort((a, b) => {
     if (sort === "wanted" && b.cards.length !== a.cards.length) return b.cards.length - a.cards.length
     return (b.topPrice ?? -1) - (a.topPrice ?? -1) || a.pokemonId - b.pokemonId
   })
+  if ((sort !== "falling" && sort !== "rising") || !momentum) return list
+  // Biggest mover first within each Pokémon, then the Pokémon by their biggest mover; the rest stay by value.
+  const now = momentum.now ?? Date.now()
+  for (const group of list) group.cards = applyMomentumSort(group.cards, sort, momentum.priceOf, now)
+  return applyMomentumSort(list, sort, (group) => (group.cards[0] ? momentum.priceOf(group.cards[0]) : null), now)
 }
 
 export function matchesHuntFilters(card: HuntCard, filters: HuntFilters = {}) {
