@@ -6,6 +6,8 @@ import {
   buildCardPriceFetchPlan,
   capPriceCacheEntries,
   getCardPriceKey,
+  mergeCardPriceState,
+  normalizeCardPriceLookups,
   saveCardPricesForOffline,
   writePriceCache,
   type CardPriceSnapshot,
@@ -264,4 +266,33 @@ test("offline download still saves every quote to IndexedDB when localStorage mu
     const saved = JSON.parse(stored.get(QUOTA_KEY)!)
     assert.ok(Object.keys(saved).length > 0 && Object.keys(saved).length <= 70)
   } finally { globalThis.localStorage = original }
+})
+
+test("mergeCardPriceState keeps state identity when only already-shown quotes are re-read", () => {
+  const shown = priceSnapshot("sv1-001", now)
+  const current = { "sv1-001::en": shown }
+  // A fresh parse of the same quote (new object, same fetch) is not a change.
+  assert.equal(mergeCardPriceState(current, { "sv1-001::en": { ...shown } }), current)
+  assert.equal(mergeCardPriceState(current, {}), current)
+})
+
+test("mergeCardPriceState applies newer fetches, fuller history and new cards", () => {
+  const shown = { ...priceSnapshot("sv1-001", now), historyPoints: [] }
+  const current = { "sv1-001::en": shown }
+  const refetched = { ...shown, fetchedAt: now + 1 }
+  assert.equal(mergeCardPriceState(current, { "sv1-001::en": refetched })["sv1-001::en"], refetched)
+  const withHistory = { ...shown, historyPoints: [{ date: "2026-06-01", source: "tcgplayer", currency: "USD", amount: 4 }] } as unknown as CardPriceSnapshot
+  assert.equal(mergeCardPriceState(current, { "sv1-001::en": withHistory })["sv1-001::en"], withHistory)
+  const added = mergeCardPriceState(current, { "sv1-002::en": priceSnapshot("sv1-002", now) })
+  assert.notEqual(added, current)
+  assert.deepEqual(Object.keys(added).sort(), ["sv1-001::en", "sv1-002::en"])
+  assert.deepEqual(Object.keys(current), ["sv1-001::en"])
+})
+
+test("normalizeCardPriceLookups dedupes and orders by card then language", () => {
+  assert.deepEqual(normalizeCardPriceLookups(["sv1-010", { cardId: "sv1-002", language: "ja" }, { cardId: "sv1-002", language: "en" }, "sv1-010"]), [
+    { cardId: "sv1-002", language: "en" },
+    { cardId: "sv1-002", language: "ja" },
+    { cardId: "sv1-010", language: "en" },
+  ])
 })
