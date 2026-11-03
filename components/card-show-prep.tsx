@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { saveCardPricesForOffline } from "@/hooks/use-card-prices"
 import { warmCardTextReader } from "@/lib/card-scan-ocr"
+import { requestPersistentStorage } from "@/lib/service-worker-registration"
 import { warmShowComps, type CheckCompsProgress, type CheckCompsTarget } from "@/lib/check-comps"
 import { getSetIdFromCardId } from "@/lib/show-hunt"
 import {
@@ -91,6 +92,8 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
     // Also fetch card scanning's text reader now (a few MB, once), so Scan still reads cards at the show
     // without signal even if it was never opened online. Best effort: never holds up or fails the prep.
     void warmCardTextReader()
+    // Ask the browser not to evict the saved show data under storage pressure. Best effort, never fails the prep.
+    void requestPersistentStorage()
     try {
       const progress = await downloadCardShowImages(plan, {
         signal: controller.signal,
