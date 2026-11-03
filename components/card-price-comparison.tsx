@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { requestCardPriceCheck } from "@/lib/card-price-check-client"
+import { formatPriceCheckAge, isPriceCheckFresh, readPinnedCardPriceChecks } from "@/lib/card-price-check-cache"
 import { PriceCheckRecords } from "@/components/price-check-records"
 import { DealPriceScale } from "@/components/deal-price-scale"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,20 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
   const [pending, setPending] = useState({ ebay: false, soldcomps: false })
   const [error, setError] = useState<string | null>(null)
   const [savedThresholds] = useState(() => readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
+  const onSoldCheckRef = useRef(onSoldCheck)
+  useEffect(() => { onSoldCheckRef.current = onSoldCheck })
+  // Show the last check saved on this device straight away (works offline, costs no request); "Check prices"
+  // only goes to the network for a source whose saved check is 12 hours old or more.
+  useEffect(() => {
+    if (language !== "en" || finish === "jumbo") return
+    let cancelled = false
+    void readPinnedCardPriceChecks(cardId, finish).then(pinned => {
+      if (cancelled || (!pinned.ebay && !pinned.soldcomps)) return
+      setResult(previous => previous ?? { ...pinned, errors: {} })
+      if (pinned.soldcomps) onSoldCheckRef.current?.(pinned.soldcomps)
+    })
+    return () => { cancelled = true }
+  }, [cardId, language, finish])
   if (language !== "en" || finish === "jumbo") return null
   const exactFinish = finish && ["normal", "holo", "reverse_holo"].includes(finish) ? finish : "any"
   const loading = pending.ebay || pending.soldcomps
@@ -46,10 +61,12 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
     if (!navigator.onLine) { setError("Connect to the internet to check prices."); return }
     setError(null)
     setResult(previous => ({ ebay: null, soldcomps: null, ...previous, errors: {} }))
-    setPending({ ebay: true, soldcomps: true })
+    const stale = (["ebay", "soldcomps"] as const).filter(source => !isPriceCheckFresh(result?.[source]))
+    if (stale.length === 0) { setError("Showing saved checks from the last 12 hours."); return }
+    setPending({ ebay: stale.includes("ebay"), soldcomps: stale.includes("soldcomps") })
     const controller = new AbortController()
     requestController.current = controller
-    await Promise.all([checkSource("ebay", controller.signal), checkSource("soldcomps", controller.signal)])
+    await Promise.all(stale.map(source => checkSource(source, controller.signal)))
   }
 
   return (
@@ -60,6 +77,7 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
         {(["ebay", "soldcomps"] as const).map(source => <div key={source}>
           {pending[source] ? <p role="status">Checking {source === "ebay" ? "eBay" : "sold comps"}…</p> : null}
           {result[source]?.summary.count ? <p><strong>{formatGbpAmount(result[source]!.summary.median)}</strong> median {source === "ebay" ? "asking" : "sold"} price · {result[source]!.summary.count} matched {source === "ebay" ? "listings" : "sales"}</p> : result[source] ? <p>No matching {source === "ebay" ? "listings" : "sales"} in the search sample.</p> : null}
+          {result[source] && !pending[source] ? <p className="text-muted-foreground" data-testid={`price-check-age-${source}`}>Checked {formatPriceCheckAge(result[source]!.checkedAt)}{isPriceCheckFresh(result[source]) ? "" : " · tap Check prices to refresh"}</p> : null}
           {result.errors[source] ? <p role="status" className="text-muted-foreground">{result.errors[source]}{result[source] ? " Showing the saved check." : ""}</p> : null}
         </div>)}
       </div> : null}
