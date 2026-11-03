@@ -136,6 +136,29 @@ export function normalizeCardPriceLookups(cardLookups: Array<string | CardPriceL
   })
 }
 
+/** Same quote for rendering: same fetch, and the same history/finish evidence loaded (IndexedDB adds full history). */
+function isSamePriceSnapshot(left: CardPriceSnapshot | undefined, right: CardPriceSnapshot) {
+  if (left === right) return true
+  if (!left) return false
+  return left.fetchedAt === right.fetchedAt
+    && (left.historyPoints?.length ?? -1) === (right.historyPoints?.length ?? -1)
+    && (left.finishPrices === undefined) === (right.finishPrices === undefined)
+}
+
+/**
+ * Merges quotes into hook state, returning `current` itself when nothing would change, so a lookup change
+ * that only re-reads already-shown cached quotes does not re-render (and re-regionalize) every consumer.
+ */
+export function mergeCardPriceState(current: Record<string, CardPriceSnapshot>, updates: Record<string, CardPriceSnapshot>) {
+  let next: Record<string, CardPriceSnapshot> | null = null
+  for (const [key, price] of Object.entries(updates)) {
+    if (isSamePriceSnapshot(current[key], price)) continue
+    next ??= { ...current }
+    next[key] = price
+  }
+  return next ?? current
+}
+
 export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enabled: boolean) {
   const [pricesByCardId, setPricesByCardId] = useState<Record<string, CardPriceSnapshot>>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -144,7 +167,11 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
 
   // Keyed by content, not array identity: callers often rebuild the same lookups each render (e.g. while
   // a search is loading), and a new array per render would re-run the effect below in a loop.
-  const requestKey = normalizeCardPriceLookups(cardLookups).map((lookup) => getCardPriceKey(lookup.cardId, lookup.language)).join(",")
+  // Memoised on identity too, so a stable (useMemo'd) lookup array is not re-sorted on every render.
+  const requestKey = useMemo(
+    () => normalizeCardPriceLookups(cardLookups).map((lookup) => getCardPriceKey(lookup.cardId, lookup.language)).join(","),
+    [cardLookups],
+  )
   const stableLookups = useMemo(
     () => (requestKey ? requestKey.split(",").map((key) => {
       const separator = key.lastIndexOf("::")
@@ -169,7 +196,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
     const cache = readPriceCache()
     const quickPrices = buildCardPriceFetchPlan(stableLookups, cache, { isOnline: false }).cachedPrices
     let cancelled = false
-    setPricesByCardId(current => ({ ...current, ...quickPrices }))
+    setPricesByCardId(current => mergeCardPriceState(current, quickPrices))
     setIsLoading(true)
 
     void loadPriceEvidence(stableLookups).catch(() => []).then(evidence => {
@@ -179,7 +206,9 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         if (!cache[key] || price.fetchedAt >= cache[key].fetchedAt) cache[key] = price
       }
       const plan = buildCardPriceFetchPlan(stableLookups, cache, { isOnline: navigator.onLine })
-      setPricesByCardId(current => ({ ...current, ...plan.cachedPrices }))
+      setPricesByCardId(current => mergeCardPriceState(current, plan.cachedPrices))
+      // Everything shown is fresh: skip the fetch round and the localStorage rewrite below.
+      if (plan.fetchBatches.length === 0) return []
 
       return mapWithConcurrency(plan.fetchBatches, 2, (batch) => cancelled ? Promise.resolve([]) : fetch("/api/card-prices", {
         method: "POST",
@@ -205,7 +234,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         }))
     })
       .then((priceBatches) => {
-        if (cancelled) return
+        if (cancelled || priceBatches.every((batch) => batch.length === 0)) return
         const mergedCache = readPriceCache()
         const updates: Record<string, CardPriceSnapshot> = {}
 
@@ -227,7 +256,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         writePriceCache(mergedCache)
         void persistPriceEvidence(Object.values(updates)).catch(() => undefined)
 
-        setPricesByCardId((current) => ({ ...current, ...updates }))
+        setPricesByCardId((current) => mergeCardPriceState(current, updates))
       })
       .catch((error) => {
         console.error("[binderdex] Failed to fetch card prices:", error)
@@ -325,11 +354,26 @@ function compactPriceCache(cache: Record<string, CardPriceSnapshot>) {
   }])))
 }
 
+// Last parsed quick cache. Every hook instance re-reads it per lookup change; re-parsing and re-normalising
+// hundreds of quotes each time is main-thread work, so unchanged storage reuses the parse.
+let parsedPriceCache: { raw: string; cache: Record<string, CardPriceSnapshot> } | null = null
+
+/** Callers mutate the returned record, so each gets its own shallow copy of the memoised parse. */
 function readPriceCache(): Record<string, CardPriceSnapshot> {
   try {
     const raw = localStorage.getItem(CARD_PRICE_CACHE_KEY)
     if (!raw) return {}
+    if (parsedPriceCache?.raw === raw) return { ...parsedPriceCache.cache }
+    const cache = parsePriceCache(raw)
+    parsedPriceCache = { raw, cache }
+    return { ...cache }
+  } catch {
+    return {}
+  }
+}
 
+function parsePriceCache(raw: string): Record<string, CardPriceSnapshot> {
+  try {
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== "object") return {}
 
