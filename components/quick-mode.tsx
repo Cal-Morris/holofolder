@@ -3,7 +3,7 @@
 // Quick mode: a full-screen, one-handed launcher. One search field (pinned at the bottom, in thumb reach) finds
 // app destinations, Pokémon, cards (offline: the cards on this device) and illustrators. See
 // lib/quick-mode.ts for the pure helpers and docs in AGENTS.md (Quick mode).
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import dynamic from "next/dynamic"
 import {
   BarChart3,
@@ -165,7 +165,7 @@ const STANDING_BADGES: Record<PokemonCardStanding, QuickModePokemonState> = CARD
 const sectionTitle = "px-1 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
 const rowClass = "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none active:bg-muted"
 
-export default function QuickMode({
+function QuickMode({
   onClose,
   onNavigate,
   onSelectPokemon,
@@ -732,3 +732,7 @@ export default function QuickMode({
     </div>
   )
 }
+
+// Memoised: the Binder app re-renders often (prices, sync status); with stable props Quick mode, its results
+// and the deal check beside them skip those renders.
+export default memo(QuickMode)
