@@ -7,7 +7,10 @@ test.describe("UK locale", () => {
   test.use({ locale: "en-GB", signedIn: true })
 
   test("shows UK prices and the Prices control in GBP only", async ({ harness }) => {
-    await expect(harness.page.getByRole("button", { name: "Show prices", exact: true })).toHaveText("£")
+    // The Prices toggle lives in Controls (the dock no longer repeats it).
+    await harness.dock().getByRole("button", { name: "Open controls" }).click()
+    await expect(harness.page.getByRole("button", { name: "Prices", exact: true })).toBeVisible()
+    await harness.dock().getByRole("button", { name: "Close controls" }).click()
     const detail = await harness.openCardDetail()
     await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£0.05")
     await detail.locator("summary").filter({ hasText: "Price details" }).click()
