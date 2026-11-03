@@ -2,26 +2,19 @@
 
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronUp, Grid3X3, Heart, Layers3, ListChecks, Search as SearchIcon, Sparkles } from "lucide-react"
-import type { ResolvedPricingPreferences } from "@/lib/pricing-region"
 import type { Dispatch, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from "react"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 import type { ActiveMainView, CollectionViewFilter } from "@/components/binder/binder-app-model"
 import { preloadTabView } from "@/components/binder/lazy-views"
 
 export interface BottomNavContext {
-  activeCollectionFilterOption: { id: CollectionViewFilter; label: string; mobileLabel: string; description: string; }
   activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
   activeJumpPokemonList: PokemonEntry[]
   activeMainView: ActiveMainView
-  canFilterCollection: boolean
   closeControlsSheet: () => void
   collectionViewFilter: CollectionViewFilter
   handleJumpToNextNeeded: () => void
-  hasTrackedCards: boolean
-  isLoadingPrices: boolean
-  isMobileFilterSheetOpen: boolean
   isMobileNavExpanded: boolean
-  isPriceMode: boolean
   isQuickModeOpen: boolean
   isSearchOpen: boolean
   isShowModeOn: boolean
@@ -29,12 +22,9 @@ export interface BottomNavContext {
   openExclusively: (open: () => void) => void
   openQuickMode: () => void
   openSearch: () => void
-  pricingPreferences: ResolvedPricingPreferences
   quickPressFiredRef: RefObject<boolean>
   quickPressHandlers: { onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void; onPointerUp: () => void; onPointerLeave: () => void; onPointerCancel: () => void; onContextMenu: (event: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void; }
-  setIsMobileFilterSheetOpen: Dispatch<SetStateAction<boolean>>
   setIsMobileNavExpanded: Dispatch<SetStateAction<boolean>>
-  setIsPriceMode: Dispatch<SetStateAction<boolean>>
   setSelectedPokemon: Dispatch<SetStateAction<PokemonSummary | null>>
   switchMainView: (view: ActiveMainView) => Promise<void>
 }

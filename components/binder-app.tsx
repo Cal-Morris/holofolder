@@ -85,7 +85,6 @@ import { renderAppHeaderView } from "@/components/binder/app-header"
 import { renderMainContentView } from "@/components/binder/main-content"
 import { renderSearchOverlayView } from "@/components/binder/search-overlay"
 import { renderMobileNavMenuView } from "@/components/binder/mobile-nav-menu"
-import { renderMobileFilterSheetView } from "@/components/binder/mobile-filter-sheet"
 import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
 interface BinderAppProps {
@@ -148,7 +147,6 @@ export default function BinderApp({
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>("all")
   const [wantedShareMessage, setWantedShareMessage] = useState<string | null>(null)
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false)
-  const [isMobileFilterSheetOpen, setIsMobileFilterSheetOpen] = useState(false)
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
   const [ownedRemoveTarget, setOwnedRemoveTarget] = useState<{ id: number; name: string } | null>(null)
@@ -951,12 +949,6 @@ export default function BinderApp({
   useEffect(() => {
     setLocalCollectionSyncMessage(null)
   }, [user])
-
-  useEffect(() => {
-    if (isSearchOpen) {
-      setIsMobileFilterSheetOpen(false)
-    }
-  }, [isSearchOpen])
 
   const getPageSlots = useCallback((pageNumber: number) => {
     if (pageNumber < 1) {
@@ -2955,13 +2947,11 @@ export default function BinderApp({
 
   const searchDialogRef = useRef<HTMLDivElement | null>(null)
   const controlsSheetRef = useRef<HTMLDivElement | null>(null)
-  const filterSheetRef = useRef<HTMLDivElement | null>(null)
   const mobileActionsRef = useRef<HTMLDivElement | null>(null)
   const closeMobileActions = useCallback(() => setLongPressedPokemon(null), [])
   const closeSelectedPokemon = useCallback(() => setSelectedPokemon(null), [])
   const closeSearch = useCallback(() => setIsSearchOpen(false), [])
   const closeControlsSheet = useCallback(() => setIsMobileNavExpanded(false), [])
-  const closeFilterSheet = useCallback(() => setIsMobileFilterSheetOpen(false), [])
   const isQuickPanelOpen = Boolean(selectedPokemon) && !isSearchOpen
   const isMobileQuickPanel = isQuickPanelOpen && !isDesktopViewport
   // The card selector and the all-cards view open on top of the card detail, which stays mounted but hidden.
@@ -2978,12 +2968,10 @@ export default function BinderApp({
   const mobileActionsSwipe = useSwipeToDismiss(mobileActionsRef, closeMobileActions, !isDesktopViewport)
   useOverlay(isSearchOpen, closeSearch, { containerRef: searchDialogRef, autoFocus: false })
   useOverlay(isMobileNavExpanded && !isSearchOpen, closeControlsSheet, { containerRef: controlsSheetRef })
-  useOverlay(isMobileFilterSheetOpen && !isSearchOpen, closeFilterSheet, { containerRef: filterSheetRef })
   const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel)
   const closeCardBrowser = useCallback(() => setCardBrowser(null), [])
   const closeIllustratorBrowser = useCallback(() => setIllustratorBrowser(null), [])
   const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet, !isDesktopViewport)
-  const filterSheetSwipe = useSwipeToDismiss(filterSheetRef, closeFilterSheet)
 
   /** Close every open overlay first so sheets/modals never stack on top of each other. */
   const openExclusively = useCallback((open: () => void) => {
@@ -3003,7 +2991,6 @@ export default function BinderApp({
     setLongPressedPokemon(null)
     setIsSearchOpen(false)
     setIsMobileNavExpanded(false)
-    setIsMobileFilterSheetOpen(false)
     if (view !== "sets") setSetViewRequest(null)
     if (view === activeMainView) return
     // Keep the outgoing view visible until a lazy destination is ready.
@@ -3244,11 +3231,11 @@ export default function BinderApp({
 
   // Full-screen dialogs replace the card detail instead of stacking on top of it.
   useEffect(() => {
-    if (isSettingsOpen || isAuthOpen || isPartnerOpen || isMobileNavExpanded || isMobileFilterSheetOpen) {
+    if (isSettingsOpen || isAuthOpen || isPartnerOpen || isMobileNavExpanded) {
       setSelectedPokemon(null)
       setLongPressedPokemon(null)
     }
-  }, [isAuthOpen, isMobileFilterSheetOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen])
+  }, [isAuthOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen])
 
   const renderSelectedPokemonQuickPanel = () => renderSelectedPokemonQuickPanelView({ selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleRemoveSelectedPokemon, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards, wishlisted })
 
@@ -3377,9 +3364,8 @@ export default function BinderApp({
 
   const renderMobileNavMenu = () => renderMobileNavMenuView({ activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
-  const renderMobileFilterSheet = () => renderMobileFilterSheetView({ closeFilterSheet, collectionViewFilter, filteredPokemonList, filterSheetRef, filterSheetSwipe, isMobileFilterSheetOpen, isSearchOpen, setCollectionViewFilter, setIsMobileFilterSheetOpen })
 
-  const renderBottomNav = () => renderBottomNavView({ activeCollectionFilterOption, activeJumpLabel, activeJumpPokemonList, activeMainView, canFilterCollection, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, hasTrackedCards, isLoadingPrices, isMobileFilterSheetOpen, isMobileNavExpanded, isPriceMode, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, pricingPreferences, quickPressFiredRef, quickPressHandlers, setIsMobileFilterSheetOpen, setIsMobileNavExpanded, setIsPriceMode, setSelectedPokemon, switchMainView })
+  const renderBottomNav = () => renderBottomNavView({ activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
 
   return (
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
@@ -3488,9 +3474,6 @@ export default function BinderApp({
 
       {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
       {renderMobileNavMenu()}
-
-      {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
-      {renderMobileFilterSheet()}
 
       {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
       {renderBottomNav()}
