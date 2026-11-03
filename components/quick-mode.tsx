@@ -58,6 +58,8 @@ import ShowPokemonCards from "@/components/show-pokemon-cards"
 import QuickCardScanner, { type CardScanResult } from "@/components/quick-card-scanner"
 
 import { PriceRisingBadge } from "@/components/price-rising-badge"
+import { MomentumSortChips } from "@/components/momentum-sort-chips"
+import { applyMomentumSort, type MomentumSort } from "@/lib/momentum-sort"
 const QuickCardCheck = dynamic(() => import("@/components/quick-card-check"), { ssr: false })
 const QuickBundle = dynamic(() => import("@/components/quick-bundle"), { ssr: false })
 
@@ -183,6 +185,7 @@ export default function QuickMode({
   lookupOnly = false,
   cardStanding,
 }: QuickModeProps) {
+  const [moveSort, setMoveSort] = useState<MomentumSort>("default")
   const [checking, setChecking] = useState<{ card: SearchCardResult; pokemon: { id: number; name: string }; finish?: CardFinish | null } | null>(null)
   // Show mode: the Pokémon whose cards are listed (opened from a Pokémon result or a Hunting group).
   const [browsing, setBrowsing] = useState<{ id: number; name: string } | null>(null)
@@ -262,6 +265,11 @@ export default function QuickMode({
     [cardResults, formatPrice],
   )
   const { pricesByCardId } = useRegionalCardPrices(priceLookups, priceLookups.length > 0, pricingRegion)
+  // "% down" / "% up" reorder the found cards by price momentum (per card + language); Default keeps the search's order.
+  const sortedCardResults = useMemo(
+    () => applyMomentumSort<(typeof cardResults)[number]>(cardResults, moveSort, ({ card }) => pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]),
+    [cardResults, moveSort, pricesByCardId],
+  )
   const illustrators = useIllustratorSearch(query, true).slice(0, 3)
   const setHits = useSetSearch(query, Boolean(onBrowseSet) && !show)
 
@@ -523,7 +531,8 @@ export default function QuickMode({
                   {show ? "Any card · tap to check the price" : "Cards"}{cardSearch.offline ? " · on this device" : ""}
                   {cardSearch.loading && <Loader2 className="ml-1.5 inline h-3 w-3 animate-spin" aria-label="Searching cards" />}
                 </h3>
-                {cardResults.map(({ card, pokemon, standing }) => {
+                {formatPrice && cardResults.length > 1 && <MomentumSortChips value={moveSort} onChange={setMoveSort} className="mb-1.5" />}
+                {sortedCardResults.map(({ card, pokemon, standing }) => {
                   const thumb = cardThumbnail(card.image)
                   const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]
                   const priceLabel = formatPrice?.(priceSnapshot) ?? null

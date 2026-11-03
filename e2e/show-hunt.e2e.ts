@@ -106,6 +106,57 @@ test.describe("Show mode finder", () => {
     await expect(dialog.getByTestId("quick-card-check")).toBeVisible()
   })
 
+  test("% down / % up sort the Hunting list, a Pokémon's cards and the card search by price move", async ({ harness }) => {
+    const { page } = harness
+    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
+      route.request().method() === "GET" ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback())
+    // Synthetic trends: Charmander −50% vs 7d, Charizard −40% vs 30d, Bulbasaur 151 −20%, Phantasmal Bulbasaur +50%.
+    await mockCardPrices(page, {
+      ...HUNT_PRICES,
+      "sv03.5-004": { ...HUNT_PRICES["sv03.5-004"], market: 1, trend: { Trend: 1, "7d": 2 } },
+      "sv03.5-006": { ...HUNT_PRICES["sv03.5-006"], trend: { Trend: 50, "30d": 83.33 } },
+      "sv03.5-166": { ...HUNT_PRICES["sv03.5-166"], trend: { Trend: 40, "7d": 50 } },
+      "me02-001": { ...HUNT_PRICES["me02-001"], trend: { Trend: 4.5, "7d": 3 } },
+    })
+    await page.reload()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    const dialog = await openShowMode(harness)
+    const hunt = dialog.getByTestId("show-hunt")
+    const sort = hunt.getByRole("radiogroup", { name: "Sort" })
+    for (const name of ["Biggest price drop first", "Biggest price rise first"]) await harness.expectMinTapTarget(sort.getByRole("radio", { name }), 48)
+    await harness.expectNoHorizontalOverflow()
+
+    await sort.getByRole("radio", { name: "Biggest price drop first" }).click()
+    await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Charmander", "Hunting Charizard", "Hunting Bulbasaur", "Hunting Squirtle"])
+    await screenshot(harness, "hunt-sort-down")
+    await sort.getByRole("radio", { name: "Biggest price rise first" }).click()
+    await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Bulbasaur", "Hunting Charizard", "Hunting Charmander", "Hunting Squirtle"])
+    await expect(hunt.getByRole("region", { name: "Hunting Bulbasaur" }).locator("button[data-standing]").first()).toHaveAccessibleName(/^Bulbasaur, Phantasmal Flames/)
+
+    // A Pokémon's cards: the rise leads with % up, Default goes back to wanted-first by value.
+    await hunt.getByRole("button", { name: "Bulbasaur: all cards" }).click()
+    const view = dialog.getByTestId("show-pokemon-cards")
+    const rows = view.locator("button[data-standing]")
+    const moves = view.getByRole("radiogroup", { name: "Price move" })
+    await expect(rows.first()).toHaveAccessibleName(/^Bulbasaur, 151 166/)
+    await moves.getByRole("radio", { name: "Biggest price rise first" }).click()
+    await expect(rows.first()).toHaveAccessibleName(/^Bulbasaur, Phantasmal Flames/)
+    await moves.getByRole("radio", { name: "Biggest price drop first" }).click()
+    await expect(rows.first()).toHaveAccessibleName(/^Bulbasaur, 151 166/)
+    await view.getByRole("button", { name: "Back to hunting" }).click()
+
+    // Card search: same chips over the found cards.
+    await dialog.getByRole("searchbox").fill("bulbasaur")
+    const cards = dialog.getByRole("region", { name: "Cards" })
+    const found = cards.locator("button[data-standing]")
+    await expect.poll(() => found.count()).toBeGreaterThan(2)
+    await cards.getByRole("radiogroup", { name: "Price move" }).getByRole("radio", { name: "Biggest price rise first" }).click()
+    await expect(found.first()).toHaveAccessibleName(/^Bulbasaur, Phantasmal Flames/)
+    await cards.getByRole("radiogroup", { name: "Price move" }).getByRole("radio", { name: "Biggest price drop first" }).click()
+    await expect(found.first()).toHaveAccessibleName(/^Bulbasaur, 151 166/)
+    await harness.expectNoHorizontalOverflow()
+  })
+
   test("no Good pickups strip when nothing on the want list has dropped", async ({ harness }) => {
     await seedHuntList(harness)
     const dialog = await openShowMode(harness)

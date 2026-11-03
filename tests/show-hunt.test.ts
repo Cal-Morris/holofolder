@@ -109,3 +109,30 @@ describe("buildGoodPickups", () => {
     assert.equal(buildGoodPickups(cards, priceOf, {}, { now, limit: 1 }).length, 1)
   })
 })
+
+describe("buildHuntGroups by price move", () => {
+  const now = Date.parse("2026-11-03T12:00:00Z")
+  const snapshot = (trend: Record<string, number>): MomentumPriceInput => ({
+    confidence: "high",
+    updatedAt: "2026-11-03T11:00:00Z",
+    trendPoints: Object.entries(trend).map(([label, gbpAmount]) => ({ label, source: "cardmarket", gbpAmount })),
+  })
+  const snapshots: Record<string, MomentumPriceInput> = {
+    "sv03.5-166": snapshot({ Trend: 40, "7d": 50 }), // -20%
+    "me02-001": snapshot({ Trend: 1.5, "7d": 1 }), // +50%
+    "sv03.5-006": snapshot({ Trend: 60, "30d": 100 }), // -40%
+  }
+  const momentum = { priceOf: (card: (typeof cards)[number]) => snapshots[card.wanted.card_id], now }
+
+  it("% down puts the biggest drop first, by card and by Pokémon", () => {
+    const groups = buildHuntGroups(items, cards, "falling", {}, momentum)
+    assert.deepEqual(groups.map((group) => group.pokemonName), ["charizard", "bulbasaur", "pikachu"])
+    assert.deepEqual(groups[1].cards.map((card) => card.wanted.card_id), ["sv03.5-166", "me02-001"])
+  })
+
+  it("% up puts the biggest rise first", () => {
+    const groups = buildHuntGroups(items, cards, "rising", {}, momentum)
+    assert.equal(groups[0].pokemonName, "bulbasaur")
+    assert.deepEqual(groups[0].cards.map((card) => card.wanted.card_id), ["me02-001", "sv03.5-166"])
+  })
+})

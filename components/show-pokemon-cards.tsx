@@ -14,6 +14,8 @@ import type { DisplayFxRates } from "@/lib/regional-price"
 import type { DisplayCurrency, PricingRegion } from "@/lib/pricing-region"
 import { getSetEra, orderPokemonCards, wantedToSearchCard, type PokemonCardStanding } from "@/lib/show-hunt"
 import { HuntCardRow, PokemonSprite, useDealThresholds } from "@/components/show-hunt"
+import { MomentumSortChips } from "@/components/momentum-sort-chips"
+import { applyMomentumSort, type MomentumSort } from "@/lib/momentum-sort"
 import type { QuickCardState } from "@/components/quick-card-check"
 
 const MAX_PRICED = 60
@@ -35,6 +37,7 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
   const thresholds = useDealThresholds()
   const [loaded, setLoaded] = useState<{ cards: SearchCardResult[]; offline: boolean } | null>(null)
   const [era, setEra] = useState<string | null>(null)
+  const [moveSort, setMoveSort] = useState<MomentumSort>("default")
 
   useEffect(() => {
     let cancelled = false
@@ -68,13 +71,17 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
     () => entries.slice(0, MAX_PRICED).map((entry) => ({ cardId: entry.card.id, language: entry.card.language ?? "en", finish: entry.finish ?? inferCardFinish(entry.card.rarity, entry.card.variants) })),
     [entries],
   )
-  const { priceOf } = useDisplayCardPrices(lookups, pricingRegion, currency, fxRates)
+  const { priceOf, snapshotOf } = useDisplayCardPrices(lookups, pricingRegion, currency, fxRates)
   const priced = entries.map((entry) => {
     const market = priceOf({ cardId: entry.card.id, language: entry.card.language ?? "en", finish: entry.finish ?? inferCardFinish(entry.card.rarity, entry.card.variants) })
     return { ...entry, market, price: market?.amount ?? null }
   })
   const eras = [...new Map(priced.map((entry) => [entry.era.id, entry.era])).values()]
-  const visible = orderPokemonCards(era ? priced.filter((entry) => entry.era.id === era) : priced)
+  const visible = applyMomentumSort(
+    orderPokemonCards(era ? priced.filter((entry) => entry.era.id === era) : priced),
+    moveSort,
+    (entry) => snapshotOf({ cardId: entry.card.id, language: entry.card.language ?? "en" }),
+  )
   const counts = { wanted: priced.filter((entry) => entry.standing === "wanted").length, owned: priced.filter((entry) => entry.standing === "owned").length }
   const name = formatPokemonDisplayName(pokemon.name)
 
@@ -108,6 +115,7 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
               ))}
             </div>
           )}
+          <MomentumSortChips value={moveSort} onChange={setMoveSort} className="-mx-3 px-3" />
         </div>
         <div className="space-y-1.5 pt-3">
           {visible.map((entry) => (
