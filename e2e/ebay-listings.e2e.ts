@@ -6,7 +6,7 @@ test.use({ signedIn: true })
 // Synthetic independent asking and sold samples, not market data.
 const comparisonFixture = {
   ebay: { summary: { kind: "asking", currency: "GBP", count: 3, median: 12, low: 10, high: 20 }, checkedAt: "2026-10-27T12:00:00Z", searchUrl: "https://www.ebay.co.uk/sch/i.html?_nkw=Bulbasaur" },
-  soldcomps: { summary: { kind: "sold", currency: "GBP", count: 2, median: 9, low: 8, high: 10 }, checkedAt: "2026-10-27T12:00:00Z" },
+  soldcomps: { summary: { kind: "sold", currency: "GBP", count: 2, median: 9, low: 8, high: 10 }, checkedAt: "2026-10-27T12:00:00Z", searchUrl: "https://www.ebay.co.uk/sch/i.html?_nkw=Bulbasaur&LH_Sold=1&LH_Complete=1" },
   errors: {},
 }
 
@@ -37,9 +37,12 @@ test("asking and sold comparisons load on demand and remain separate from the ca
   await expect(indicator.getByText(/Postage excluded/).first()).toBeVisible()
   await expect(indicator.getByText(/£9.00.*median sold price.*2 matched sales/)).toBeVisible()
   await expect(market).toContainText("£8.00")
-  const link = indicator.getByRole("link", { name: "View listings on eBay" })
+  const link = indicator.getByRole("link", { name: "View open listings" })
   await expect(link).toHaveAttribute("href", /^https:\/\/www\.ebay\.co\.uk\//)
   await harness.expectMinTapTarget(link)
+  const soldLink = indicator.getByRole("link", { name: "View sold listings" })
+  await expect(soldLink).toHaveAttribute("href", /^https:\/\/www\.ebay\.co\.uk\/sch\/.*LH_Sold=1/)
+  await harness.expectMinTapTarget(soldLink)
   await harness.expectNoHorizontalOverflow()
 })
 
@@ -278,7 +281,7 @@ test("fair market bands, quick eBay link and individually verifiable source reco
   await expect(scale).toContainText("Fair / expected £8.82 to £10.78")
   await check.getByRole("textbox", { name: "Asking price" }).fill("9.8")
   await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", "fair")
-  const quickLink = check.getByRole("link", { name: "View listings on eBay" })
+  const quickLink = check.getByRole("link", { name: "View open listings" })
   await expect(quickLink).toBeVisible()
   await harness.expectMinTapTarget(quickLink)
   await expect(check.getByText("Evidence", { exact: true }).locator("..")).not.toHaveAttribute("open", "")

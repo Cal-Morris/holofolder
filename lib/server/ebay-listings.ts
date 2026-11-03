@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { readCatalogMetadata } from "@/lib/card-catalog"
 import { summarizeEbayListingEvidence } from "@/lib/ebay-listings"
 import { getEbayAppToken } from "@/lib/server/ebay-auth"
+import { ebayOpenListingsUrl } from "@/lib/ebay-search-urls"
 import type { PriceSubject, PriceSubjectVariant } from "@/lib/price-intelligence"
 
 export async function loadEbayListingIndicator(cardId: string, variant: PriceSubjectVariant | null) {
@@ -36,5 +37,5 @@ export async function fetchEbayListingIndicator(subject: PriceSubject, query: st
   if (!data || (data.itemSummaries !== undefined && !Array.isArray(data.itemSummaries))) throw new Error("Invalid eBay search response")
   const evidence = summarizeEbayListingEvidence(subject, Array.isArray(data.itemSummaries) ? data.itemSummaries : [])
   // Keep public listing evidence only; never retain seller or account records.
-  return { ...evidence, checkedAt: new Date().toISOString(), searchUrl: `https://www.ebay.co.uk/sch/i.html?${new URLSearchParams({ _nkw: query, LH_BIN: "1", LH_PrefLoc: "1" })}` }
+  return { ...evidence, checkedAt: new Date().toISOString(), searchUrl: ebayOpenListingsUrl(query) }
 }
