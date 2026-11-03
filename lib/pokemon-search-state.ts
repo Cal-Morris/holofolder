@@ -123,9 +123,12 @@ export function getEditDistance(a: string, b: string, max = 3) {
   return dist[a.length][b.length]
 }
 
-/** Typos allowed for a query of this length (none for very short queries). */
+/**
+ * Typos allowed for a query of this length (none for very short queries). Five letters and up get two, so
+ * "ominite" finds Omanyte; four-letter queries stay at one because two edits there match half the Pokédex.
+ */
 function allowedTypos(length: number) {
-  if (length >= 8) return 2
+  if (length >= 5) return 2
   if (length >= 4) return 1
   return 0
 }

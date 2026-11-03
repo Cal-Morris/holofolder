@@ -120,6 +120,14 @@ describe("fuzzy Pokémon search", () => {
     assert.equal(searchPokemonItems("pikachuu", items)[0].id, 25)
     assert.equal(searchPokemonItems("bulbasuar", items)[0].id, 1)
   })
+  test("mid-length names allow two typos, four letters still one", () => {
+    const fossils = [...items, { id: 138, name: "omanyte" }, { id: 95, name: "onix" }, { id: 495, name: "snivy" }]
+    assert.equal(searchPokemonItems("ominite", fossils)[0].id, 138)
+    assert.equal(searchPokemonItems("omanite", fossils)[0].id, 138)
+    assert.equal(searchPokemonItems("pikachu", fossils)[0].id, 25)
+    assert.ok(searchPokemonItems("pikachu", fossils)[0].score > searchPokemonItems("ominite", fossils)[0].score)
+    assert.deepEqual(searchPokemonItems("onix", fossils).map((item) => item.id), [95])
+  })
   test("exact and prefix matches still rank first", () => {
     assert.equal(searchPokemonItems("rai", items)[0].id, 26)
     assert.equal(searchPokemonItems("ho oh", items)[0].id, 250)
