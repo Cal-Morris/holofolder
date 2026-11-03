@@ -8,7 +8,10 @@ import type { CardPriceCheck, CardPriceChecks, PriceCheckSource } from "@/lib/ca
 export function PriceCheckRecords({ checks }: { checks: CardPriceChecks | undefined }) {
   if (!checks) return null
   return <div className="mt-1 text-xs">
-    {checks.ebay?.searchUrl ? <a href={checks.ebay.searchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View listings on eBay ↗</a> : null}
+    {checks.ebay?.searchUrl || checks.soldcomps?.searchUrl ? <div className="flex flex-wrap gap-x-4">
+      {checks.ebay?.searchUrl ? <a href={checks.ebay.searchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View open listings ↗</a> : null}
+      {checks.soldcomps?.searchUrl ? <a href={checks.soldcomps.searchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View sold listings ↗</a> : null}
+    </div> : null}
     {(["soldcomps", "ebay"] as const).map(source => checks[source] ? <SourceRecords key={`${source}:${checks[source]!.checkedAt}`} check={checks[source]!} source={source} /> : null)}
   </div>
 }

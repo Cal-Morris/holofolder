@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { fetchEbayListingIndicator, loadPriceCheckSubject } from "@/lib/server/ebay-listings"
 import { summarizeSoldComps } from "@/lib/sold-comps"
+import { ebayOpenListingsUrl, ebaySoldListingsUrl } from "@/lib/ebay-search-urls"
 import { isCardPriceCheck, PRICE_CHECK_FRESH_MS, type CardPriceChecks, type PriceCheckSource } from "@/lib/card-price-checks"
 import type { PriceSubject } from "@/lib/price-intelligence"
 
@@ -11,7 +12,7 @@ async function fetchSoldComps(subject: PriceSubject, query: string) {
   if (!response.ok) throw new Error(response.status === 402 ? "Sold comps monthly allowance used up." : "Sold comps are temporarily unavailable.")
   const data: unknown = await response.json()
   if (!data || typeof data !== "object" || !Array.isArray((data as { items?: unknown }).items)) throw new Error("Invalid sold comps response.")
-  return { ...summarizeSoldComps(subject, (data as { items: unknown[] }).items), checkedAt: new Date().toISOString() }
+  return { ...summarizeSoldComps(subject, (data as { items: unknown[] }).items), checkedAt: new Date().toISOString(), searchUrl: ebaySoldListingsUrl(query) }
 }
 
 export async function loadCardPriceChecks(cardId: string, finish: string, refresh: boolean, onlySource?: PriceCheckSource): Promise<CardPriceChecks | null> {
@@ -23,7 +24,9 @@ export async function loadCardPriceChecks(cardId: string, finish: string, refres
     const { data, error } = await db.from("card_price_checks").select("result_json").eq("card_id", cardId).eq("finish", finish).eq("source", source).maybeSingle()
     if (error) throw new Error("Saved price checks are unavailable.")
     const value = data?.result_json
-    return isCardPriceCheck(value) && value.summary.kind === (source === "ebay" ? "asking" : "sold") ? value : null
+    if (!isCardPriceCheck(value) || value.summary.kind !== (source === "ebay" ? "asking" : "sold")) return null
+    // Older saved checks predate search links; derive them from the same query (no upstream call).
+    return value.searchUrl ? value : { ...value, searchUrl: source === "ebay" ? ebayOpenListingsUrl(lookup.query) : ebaySoldListingsUrl(lookup.query) }
   }
   const sources: PriceCheckSource[] = onlySource ? [onlySource] : ["ebay", "soldcomps"]
   await Promise.all(sources.map(async source => {
