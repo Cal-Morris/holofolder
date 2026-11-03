@@ -4,7 +4,8 @@
 // era/set and illustrator filters to match how a dealer's binder is sorted. Every card shows what to pay up to;
 // one tap opens the deal check. Built from the collection on this device, so it works offline.
 import { useEffect, useMemo, useState } from "react"
-import { ChevronRight, Heart, Palette, Target } from "lucide-react"
+import { ChevronRight, Heart, Palette, Target, TrendingDown } from "lucide-react"
+import { PriceDropBadge } from "@/components/price-drop-badge"
 import { useDisplayCardPrices, type DisplayPriceLookup } from "@/hooks/use-display-card-prices"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatCardFinishLabel } from "@/lib/card-labels"
@@ -14,13 +15,16 @@ import { loadIllustratorCards, loadIllustratorDirectory } from "@/lib/illustrato
 import type { IllustratorSummary } from "@/lib/illustrators"
 import { formatPokemonDisplayName, getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
 import { formatCardNumber, type SearchCardResult } from "@/lib/pokemon-card-browse"
+import { formatMomentumChange } from "@/lib/price-momentum"
 import { formatMoney, type DisplayFxRates } from "@/lib/regional-price"
 import type { DisplayCurrency, PricingRegion } from "@/lib/pricing-region"
 import {
+  buildGoodPickups,
   buildHuntGroups,
   collectHuntCards,
   getHuntFilterOptions,
   wantedToSearchCard,
+  type HuntPickup,
   type HuntSort,
   type HuntSourceItem,
 } from "@/lib/show-hunt"
@@ -108,6 +112,63 @@ export function HuntCardRow({
   )
 }
 
+/**
+ * "Good pickups": a sideways strip of wanted cards whose catalogue price has dropped (price-momentum's drop
+ * rule), biggest fall first. Each tile shows the drop and what to pay up to; one tap opens the deal check.
+ */
+function GoodPickupsStrip({
+  pickups,
+  thresholds,
+  marketOf,
+  snapshotOf,
+  onPick,
+}: {
+  pickups: readonly HuntPickup[]
+  thresholds: DealThresholds
+  marketOf: (card: WantedCard) => Money | null
+  snapshotOf: (card: WantedCard) => Parameters<typeof PriceDropBadge>[0]["price"]
+  onPick: (pickup: HuntPickup) => void
+}) {
+  return (
+    <section aria-label="Good pickups" data-testid="show-good-pickups" className="space-y-1.5 pt-3">
+      <h4 className="flex items-center gap-1.5 px-1 text-sm font-bold">
+        <TrendingDown className="h-4 w-4 text-emerald-600" aria-hidden />
+        Good pickups <span className="font-medium text-muted-foreground">· price dropped</span>
+      </h4>
+      <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
+        {pickups.map((pickup) => {
+          const { wanted } = pickup.card
+          const market = marketOf(wanted)
+          const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null
+          const thumb = cardThumb(wanted.card_image)
+          const drop = formatMomentumChange(pickup.momentum.change).replace("-", "")
+          return (
+            <button
+              key={pickup.card.key}
+              type="button"
+              onClick={() => onPick(pickup)}
+              data-testid="good-pickup"
+              aria-label={`${wanted.card_name}, ${pickup.card.setName}, price dropped ${drop} over ${pickup.momentum.timeframe}${limit ? `, pay up to ${limit}` : ""}`}
+              className="flex min-h-[5.5rem] w-44 shrink-0 items-center gap-2 rounded-2xl border border-emerald-600/40 bg-emerald-500/[0.06] px-2 py-2 text-left active:bg-muted"
+            >
+              <span className="trading-card relative w-11 shrink-0 overflow-hidden bg-muted/50">
+                {/* eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker */}
+                {thumb && <img src={thumb} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold leading-tight">{wanted.card_name}</span>
+                <span className="block truncate text-[11px] text-muted-foreground">{pickup.card.setName}</span>
+                <PriceDropBadge price={snapshotOf(wanted)} className="mt-1" />
+                {limit && <span className="mt-0.5 block text-xs font-black tabular-nums" data-testid="good-pickup-pay-up-to">≤ {limit}</span>}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 const chip = (active: boolean) =>
   `flex h-12 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`
 const selectClass = "h-12 w-full min-w-0 rounded-2xl border border-border/70 bg-card px-3 text-base font-medium"
@@ -135,8 +196,9 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
     () => items.flatMap((item) => (item.wanted_cards ?? []).map((card) => ({ cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish }))),
     [items],
   )
-  const { priceOf } = useDisplayCardPrices(lookups, pricingRegion, currency, fxRates)
+  const { priceOf, snapshotOf } = useDisplayCardPrices(lookups, pricingRegion, currency, fxRates)
   const priceOfWanted = (card: WantedCard) => priceOf({ cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish })
+  const snapshotOfWanted = (card: WantedCard) => snapshotOf({ cardId: card.card_id, language: card.card_language ?? "en" })
   const cards = collectHuntCards(items, (card) => priceOfWanted(card)?.amount ?? null)
   const options = getHuntFilterOptions(cards)
   const visibleSets = era ? options.sets.filter((entry) => entry.era.id === era) : options.sets
@@ -173,6 +235,7 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
   const illustratorNames = [...new Set([...cards.flatMap((card) => (card.wanted.illustrator ? [card.wanted.illustrator] : [])), ...directory.map((entry) => entry.name)])]
     .sort((a, b) => a.localeCompare(b))
   const groups = buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds })
+  const pickups = buildGoodPickups(cards, (card) => snapshotOfWanted(card.wanted), { era, setId, cardIds: illustratorIds })
   const total = cards.length
   const filtering = Boolean(era || setId || illustrator)
 
@@ -223,6 +286,16 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
             </label>
           </div>
         </div>
+
+        {pickups.length > 0 && (
+          <GoodPickupsStrip
+            pickups={pickups}
+            thresholds={thresholds}
+            marketOf={priceOfWanted}
+            snapshotOf={snapshotOfWanted}
+            onPick={({ card }) => onPickCard(wantedToSearchCard(card.wanted, card.pokemonId), { id: card.pokemonId, name: card.pokemonName }, card.wanted.card_finish ?? null)}
+          />
+        )}
 
         {groups.length === 0 ? (
           <div role="status" className="px-3 py-8 text-center text-sm text-muted-foreground">

@@ -38,5 +38,8 @@ export function useDisplayCardPrices(lookups: readonly DisplayPriceLookup[], reg
     return typeof gbp === "number" && gbp > 0 ? convertGbpForDisplay(gbp, { currency, fxRates }, snapshot) : null
   }, [currency, fxRates, pricesByCardId, region])
 
-  return { priceOf, isLoading }
+  /** The printing's raw price snapshot (trend points for price momentum), or undefined while unpriced. */
+  const snapshotOf = useCallback((lookup: DisplayPriceLookup) => pricesByCardId[getCardPriceKey(lookup.cardId, lookup.language)], [pricesByCardId])
+
+  return { priceOf, snapshotOf, isLoading }
 }
