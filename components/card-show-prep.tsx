@@ -106,7 +106,9 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
       const wanted = wantedCards.filter((card) => setIds.has(getSetIdFromCardId(card.cardId)))
       // Sold comps are a metered provider: warm only wanted cards in these sets, and never fail the prep over them.
       const comps = wanted.length
-        ? await warmShowComps({ wanted }, { signal: controller.signal, onProgress: (next) => setPhase({ kind: "comps", plan, comps: next }) }).catch(() => null)
+        ? await warmShowComps({ wanted }, { signal: controller.signal, onProgress: (next) => setPhase({ kind: "comps", plan, comps: next }) })
+          // Over today's sold comps budget is a silent skip, like any other comps failure.
+          .then((outcome) => (outcome.ok ? outcome.progress : null), () => null)
         : null
       if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress, priced: prices.priced, comps })
     } catch (error) {

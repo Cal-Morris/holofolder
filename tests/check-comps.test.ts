@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { PriceCheckRequestError } from "../lib/card-price-check-client"
-import { CHECK_COMPS_CONCURRENCY, CHECK_COMPS_MAX_CARDS, checkCompsTargets, runCheckComps } from "../lib/check-comps"
+import { CHECK_COMPS_CONCURRENCY, CHECK_COMPS_CONFIRM_AT, CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET, CHECK_COMPS_MAX_CARDS, checkCompsTargets, runCheckComps, soldcompsBudgetKey, type CheckCompsBudgetStorage } from "../lib/check-comps"
 import { formatPriceCheckAge, isPriceCheckFresh, pinCardPriceCheck, priceCheckKey, readPinnedCardPriceCheck } from "../lib/card-price-check-cache"
 import { createMemoryStore } from "../lib/offline-store/kv"
 import type { CardPriceCheck, PriceCheckSource } from "../lib/card-price-checks"
@@ -9,6 +9,11 @@ import type { CardPriceCheck, PriceCheckSource } from "../lib/card-price-checks"
 // Synthetic checks only, never market data.
 const now = Date.parse("2026-11-03T09:00:00Z")
 const hours = (n: number) => new Date(now - n * 3600_000).toISOString()
+const memoryStorage = (entries: Record<string, string> = {}): CheckCompsBudgetStorage & { entries: Record<string, string> } => ({
+  entries,
+  getItem: key => entries[key] ?? null,
+  setItem: (key, value) => { entries[key] = value },
+})
 const check = (source: PriceCheckSource, checkedAt: string): CardPriceCheck => ({ summary: { kind: source === "ebay" ? "asking" : "sold", currency: "GBP", count: 1, low: 5, median: 5, high: 5 }, checkedAt })
 
 test("pins are keyed per card, API finish and source; older answers never replace newer ones", async () => {
@@ -34,8 +39,9 @@ test("fresh pins make no request; stale ones refresh with bounded concurrency", 
   const pins = new Map<string, CardPriceCheck>([["fresh:soldcomps", check("soldcomps", hours(2))], ["fresh:ebay", check("ebay", hours(2))], ["stale:soldcomps", check("soldcomps", hours(30))]])
   const calls: string[] = []
   let active = 0, peak = 0
-  const result = await runCheckComps([{ cardId: "fresh" }, { cardId: "stale" }, { cardId: "new" }], {
-    signal: new AbortController().signal, now: () => now,
+  const budgetStorage = memoryStorage()
+  const outcome = await runCheckComps([{ cardId: "fresh" }, { cardId: "stale" }, { cardId: "new" }], {
+    signal: new AbortController().signal, now: () => now, budgetStorage,
     readPinned: async (cardId, _finish, source) => pins.get(`${cardId}:${source}`) ?? null,
     request: async (cardId, _language, _finish, source) => {
       calls.push(`${cardId}:${source}`)
@@ -45,7 +51,11 @@ test("fresh pins make no request; stale ones refresh with bounded concurrency", 
       return { check: check(source, hours(0)), error: undefined }
     },
   })
+  assert.ok(outcome.ok)
+  const result = outcome.progress
   assert.deepEqual(calls.filter(c => c.startsWith("fresh")), [])
+  // Two sold comps calls (stale + new) count toward today's budget; ebay and fresh skips don't.
+  assert.equal(budgetStorage.getItem(soldcompsBudgetKey(now)), "2")
   assert.ok(peak <= CHECK_COMPS_CONCURRENCY)
   assert.deepEqual({ done: result.done, fresh: result.fresh, checked: result.checked, failed: result.failed }, { done: 3, fresh: 1, checked: 2, failed: 0 })
 })
@@ -54,8 +64,8 @@ test("429 backs the batch off and retries; an exhausted allowance stops that sou
   const sleeps: number[] = []
   let first = true
   const calls: string[] = []
-  const result = await runCheckComps([{ cardId: "a" }, { cardId: "b" }, { cardId: "c" }], {
-    signal: new AbortController().signal, now: () => now,
+  const outcome = await runCheckComps([{ cardId: "a" }, { cardId: "b" }, { cardId: "c" }], {
+    signal: new AbortController().signal, now: () => now, budgetStorage: memoryStorage(),
     sleep: async ms => { sleeps.push(ms) },
     readPinned: async () => null,
     request: async (cardId, _language, _finish, source) => {
@@ -65,6 +75,7 @@ test("429 backs the batch off and retries; an exhausted allowance stops that sou
       return { check: null, error: "Sold comps monthly allowance used up." }
     },
   })
+  const result = outcome.progress
   assert.ok(sleeps.length >= 1)
   assert.equal(result.stopped.soldcomps, "Sold comps monthly allowance used up.")
   // After the stop, later cards are not sent to sold comps again.
@@ -76,4 +87,83 @@ test("show targets put exact-finish wanted cards first, then other wanted, then 
   const { showCompsTargets } = await import("../lib/check-comps")
   const order = showCompsTargets([{ cardId: "w-any", finish: "special_illustration_rare" }, { cardId: "w-holo", finish: "holo" }], [{ cardId: "h-1" }, { cardId: "w-holo", finish: "holo" }])
   assert.deepEqual(order.map(t => t.cardId), ["w-holo", "w-any", "h-1"])
+})
+
+const many = (n: number) => Array.from({ length: n }, (_, i) => ({ cardId: `g-${i}` }))
+const okRequest = (calls: string[]) => async (cardId: string, _language: string, _finish: unknown, source: PriceCheckSource) => {
+  calls.push(`${cardId}:${source}`)
+  return { check: check(source, hours(0)), error: undefined }
+}
+
+test("gate: over today's remaining sold comps budget refuses without any request", async () => {
+  const calls: string[] = []
+  const budgetStorage = memoryStorage({ [soldcompsBudgetKey(now)]: String(CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET - 3) })
+  let confirmed = false
+  const outcome = await runCheckComps(many(4), {
+    signal: new AbortController().signal, now: () => now, budgetStorage,
+    readPinned: async () => null, request: okRequest(calls),
+    confirmSpend: () => { confirmed = true; return true },
+  })
+  assert.deepEqual(outcome.ok ? null : outcome.refused, { reason: "budget", needed: 4, remaining: 3, budget: CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET })
+  assert.equal(confirmed, false)
+  assert.deepEqual(calls, [])
+  assert.equal(outcome.progress.done, 0)
+  assert.equal(budgetStorage.getItem(soldcompsBudgetKey(now)), String(CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET - 3))
+})
+
+test("gate: fresh sold pins don't count toward the estimate", async () => {
+  const calls: string[] = []
+  const budgetStorage = memoryStorage({ [soldcompsBudgetKey(now)]: String(CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET - 1) })
+  const outcome = await runCheckComps(many(3), {
+    signal: new AbortController().signal, now: () => now, budgetStorage,
+    readPinned: async (cardId, _finish, source) => (source === "soldcomps" && cardId !== "g-0" ? check(source, hours(1)) : null),
+    request: okRequest(calls),
+  })
+  assert.ok(outcome.ok)
+  assert.deepEqual(calls.filter(c => c.endsWith("soldcomps")), ["g-0:soldcomps"])
+  assert.equal(budgetStorage.getItem(soldcompsBudgetKey(now)), String(CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET))
+})
+
+test("gate: a big run asks confirmSpend; false refuses as cancelled with no requests", async () => {
+  const calls: string[] = []
+  const asked: unknown[] = []
+  const outcome = await runCheckComps(many(CHECK_COMPS_CONFIRM_AT), {
+    signal: new AbortController().signal, now: () => now, budgetStorage: memoryStorage(),
+    readPinned: async () => null, request: okRequest(calls),
+    confirmSpend: estimate => { asked.push(estimate); return false },
+  })
+  assert.deepEqual(asked, [{ cardsNeedingSoldcomps: CHECK_COMPS_CONFIRM_AT, remainingBudget: CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET, budget: CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET }])
+  assert.deepEqual(outcome.ok ? null : outcome.refused, { reason: "cancelled", needed: CHECK_COMPS_CONFIRM_AT })
+  assert.deepEqual(calls, [])
+})
+
+test("gate: small runs skip confirm; no confirmSpend (Prepare) proceeds under budget", async () => {
+  let asked = false
+  const small = await runCheckComps(many(CHECK_COMPS_CONFIRM_AT - 1), {
+    signal: new AbortController().signal, now: () => now, budgetStorage: memoryStorage(),
+    readPinned: async () => null, request: okRequest([]),
+    confirmSpend: () => { asked = true; return false },
+  })
+  assert.ok(small.ok)
+  assert.equal(asked, false)
+  const calls: string[] = []
+  const budgetStorage = memoryStorage()
+  const prepare = await runCheckComps(many(CHECK_COMPS_CONFIRM_AT + 5), {
+    signal: new AbortController().signal, now: () => now, budgetStorage,
+    readPinned: async () => null, request: okRequest(calls),
+  })
+  assert.ok(prepare.ok)
+  assert.equal(prepare.progress.checked, CHECK_COMPS_CONFIRM_AT + 5)
+  assert.equal(calls.filter(c => c.endsWith("soldcomps")).length, CHECK_COMPS_CONFIRM_AT + 5)
+  assert.equal(budgetStorage.getItem(soldcompsBudgetKey(now)), String(CHECK_COMPS_CONFIRM_AT + 5))
+})
+
+test("gate: storage that throws never breaks a run", async () => {
+  const broken: CheckCompsBudgetStorage = { getItem: () => { throw new Error("denied") }, setItem: () => { throw new Error("quota") } }
+  const outcome = await runCheckComps(many(2), {
+    signal: new AbortController().signal, now: () => now, budgetStorage: broken,
+    readPinned: async () => null, request: okRequest([]),
+  })
+  assert.ok(outcome.ok)
+  assert.equal(outcome.progress.checked, 2)
 })
