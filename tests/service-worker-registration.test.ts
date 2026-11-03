@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { registerServiceWorker, SERVICE_WORKER_URL } from "../lib/service-worker-registration"
+import { registerServiceWorker, requestPersistentStorage, SERVICE_WORKER_URL } from "../lib/service-worker-registration"
 
 function makeEnv(options: { supported?: boolean; saveData?: boolean; readyState?: string } = {}) {
   const registered: string[] = []
@@ -51,4 +51,43 @@ test("whenIdle does nothing on Save-Data, without support, or after cleanup", ()
   registerServiceWorker({ whenIdle: true }, cleaned.env)()
   cleaned.idle.forEach((run) => run())
   assert.deepEqual(cleaned.registered, [])
+})
+
+function storageEnv(persisted: boolean, grant: boolean | Error) {
+  const calls = { persist: 0 }
+  const env = {
+    navigator: {
+      storage: {
+        persisted: async () => persisted,
+        persist: async () => {
+          calls.persist++
+          if (grant instanceof Error) throw grant
+          return grant
+        },
+      },
+    },
+  }
+  return { env, calls }
+}
+
+test("requestPersistentStorage: false when the Storage API is missing", async () => {
+  assert.equal(await requestPersistentStorage({ navigator: {} }), false)
+  assert.equal(await requestPersistentStorage({}), false)
+})
+
+test("requestPersistentStorage: true without asking again when already persisted", async () => {
+  const { env, calls } = storageEnv(true, false)
+  assert.equal(await requestPersistentStorage(env), true)
+  assert.equal(calls.persist, 0)
+})
+
+test("requestPersistentStorage: asks once and returns true when granted", async () => {
+  const { env, calls } = storageEnv(false, true)
+  assert.equal(await requestPersistentStorage(env), true)
+  assert.equal(calls.persist, 1)
+})
+
+test("requestPersistentStorage: false when refused or persist throws", async () => {
+  assert.equal(await requestPersistentStorage(storageEnv(false, false).env), false)
+  assert.equal(await requestPersistentStorage(storageEnv(false, new Error("nope")).env), false)
 })

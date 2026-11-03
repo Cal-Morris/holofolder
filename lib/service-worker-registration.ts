@@ -69,3 +69,24 @@ export function registerServiceWorker(
     if (timeoutHandle !== null) env.clearTimeout(timeoutHandle)
   }
 }
+
+interface StorageEnvironment {
+  navigator?: { storage?: { persisted?: () => Promise<boolean>; persist?: () => Promise<boolean> } }
+}
+
+/**
+ * Asks the browser to keep this site's caches (prepared show thumbnails, OCR, card data) instead of
+ * evicting them under storage pressure. Best effort: resolves false when unsupported or on error.
+ */
+export async function requestPersistentStorage(
+  env: StorageEnvironment = (typeof window === "undefined" ? {} : window) as unknown as StorageEnvironment,
+): Promise<boolean> {
+  const storage = env.navigator?.storage
+  if (!storage || typeof storage.persist !== "function") return false
+  try {
+    if (typeof storage.persisted === "function" && (await storage.persisted())) return true
+    return Boolean(await storage.persist())
+  } catch {
+    return false
+  }
+}
