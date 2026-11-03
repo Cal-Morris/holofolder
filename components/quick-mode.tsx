@@ -435,7 +435,8 @@ export default function QuickMode({
             fxRates={show.fxRates}
             pricingRegion={pricingRegion}
             isOnline={isOnline}
-            onPickCard={(card, pokemon, finish) => pickCard(card, pokemon, finish)}
+            // Stable callbacks so the memoised Hunting list skips re-rendering while Quick mode updates.
+            onPickCard={pickCard}
             onPickPokemon={pickPokemon}
           />
         ) : (
