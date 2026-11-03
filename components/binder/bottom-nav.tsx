@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronUp, Grid3X3, Heart, Layers3, ListChecks, Loader2, Search as SearchIcon, SlidersHorizontal, Sparkles } from "lucide-react"
+import { ChevronDown, ChevronUp, Grid3X3, Heart, Layers3, ListChecks, Search as SearchIcon, Sparkles } from "lucide-react"
 import type { ResolvedPricingPreferences } from "@/lib/pricing-region"
 import type { Dispatch, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from "react"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
@@ -40,7 +40,7 @@ export interface BottomNavContext {
 }
 
 export function renderBottomNavView(ctx: BottomNavContext) {
-  const { activeCollectionFilterOption, activeJumpLabel, activeJumpPokemonList, activeMainView, canFilterCollection, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, hasTrackedCards, isLoadingPrices, isMobileFilterSheetOpen, isMobileNavExpanded, isPriceMode, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, pricingPreferences, quickPressFiredRef, quickPressHandlers, setIsMobileFilterSheetOpen, setIsMobileNavExpanded, setIsPriceMode, setSelectedPokemon, switchMainView } = ctx
+  const { activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView } = ctx
   return (
     <nav aria-label="Main navigation" data-dock className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden px-2 pb-[var(--dock-inset)] md:hidden">
       <div data-scroll-blur="card" className="mx-auto grid w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-[1.25rem] border border-border/70 bg-card/96 p-1 shadow-[0_18px_52px_-30px_rgba(15,23,42,0.36)] backdrop-blur-xl dark:border-border/50 dark:bg-background/96 dark:shadow-black/10">
@@ -123,17 +123,6 @@ export function renderBottomNavView(ctx: BottomNavContext) {
 
           {!isSearchOpen && activeMainView === "binder" && (
             <div className="flex shrink-0 items-center gap-1">
-            {hasTrackedCards && (
-              <Button
-                variant={isPriceMode ? "default" : "outline"}
-                size="icon"
-                className="h-11 w-9 shrink-0 rounded-2xl px-0"
-                onClick={() => setIsPriceMode((current) => !current)}
-                aria-label={isPriceMode ? "Hide prices" : "Show prices"}
-              >
-                {isLoadingPrices && isPriceMode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-bold">{{ GBP: "£", USD: "$", EUR: "€", JPY: "¥" }[pricingPreferences.currency]}</span>}
-              </Button>
-            )}
             <Button
               variant="default"
               size="icon"
@@ -144,18 +133,10 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             >
               <Sparkles className="h-3.5 w-3.5" />
             </Button>
-              <Button
-                variant={collectionViewFilter === "all" && !isMobileFilterSheetOpen ? "outline" : "default"}
-                size="icon"
-              className="h-11 w-9 shrink-0 rounded-2xl px-0"
-              onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileFilterSheetOpen(true) })}
-              disabled={!canFilterCollection}
-              aria-label={`Filter: ${activeCollectionFilterOption.mobileLabel}`}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-            </Button>
+            {/* Prices and slot filters live in Controls (filters are also on the binder toolbar), so the dock keeps one
+                action besides it. Controls fills in while a slot filter is on, standing in for the old Filter button. */}
             <Button
-              variant="outline"
+              variant={collectionViewFilter === "all" ? "outline" : "default"}
               size="icon"
               className="h-11 w-9 shrink-0 rounded-2xl px-0"
               onClick={() => {
