@@ -3,7 +3,7 @@
 // Show mode's home: the "Hunting" list. The want list grouped by Pokémon (most wanted or dearest first), with
 // era/set and illustrator filters to match how a dealer's binder is sorted. Every card shows what to pay up to;
 // one tap opens the deal check. Built from the collection on this device, so it works offline.
-import { useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronRight, Heart, Palette, Target, TrendingDown } from "lucide-react"
 import { PriceDropBadge } from "@/components/price-drop-badge"
 import { useDisplayCardPrices, type DisplayPriceLookup } from "@/hooks/use-display-card-prices"
@@ -24,6 +24,7 @@ import {
   collectHuntCards,
   getHuntFilterOptions,
   wantedToSearchCard,
+  type HuntGroup,
   type HuntPickup,
   type HuntSort,
   type HuntSourceItem,
@@ -116,7 +117,7 @@ export function HuntCardRow({
  * "Good pickups": a sideways strip of wanted cards whose catalogue price has dropped (price-momentum's drop
  * rule), biggest fall first. Each tile shows the drop and what to pay up to; one tap opens the deal check.
  */
-function GoodPickupsStrip({
+const GoodPickupsStrip = memo(function GoodPickupsStrip({
   pickups,
   thresholds,
   marketOf,
@@ -167,7 +168,8 @@ function GoodPickupsStrip({
       </div>
     </section>
   )
-}
+})
+
 
 const chip = (active: boolean) =>
   `flex h-12 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`
@@ -183,7 +185,7 @@ export interface ShowHuntProps {
   onPickPokemon: (pokemon: { id: number; name: string }) => void
 }
 
-export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCard, onPickPokemon }: ShowHuntProps) {
+function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCard, onPickPokemon }: ShowHuntProps) {
   const thresholds = useDealThresholds()
   const [sort, setSort] = useState<HuntSort>("wanted")
   const [era, setEra] = useState<string | null>(null)
@@ -197,11 +199,20 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
     [items],
   )
   const { priceOf, snapshotOf } = useDisplayCardPrices(lookups, pricingRegion, currency, fxRates)
-  const priceOfWanted = (card: WantedCard) => priceOf({ cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish })
-  const snapshotOfWanted = (card: WantedCard) => snapshotOf({ cardId: card.card_id, language: card.card_language ?? "en" })
-  const cards = collectHuntCards(items, (card) => priceOfWanted(card)?.amount ?? null)
-  const options = getHuntFilterOptions(cards)
-  const visibleSets = era ? options.sets.filter((entry) => entry.era.id === era) : options.sets
+  // Everything below is derived from the want list and its prices, so it is memoised: Show mode's parents
+  // re-render often (prices streaming in, sync status, the deal check opening beside it) and rebuilding the
+  // groups, filters, pickups and every row on each of those made the Hunting list feel sluggish on phones.
+  const priceOfWanted = useCallback(
+    (card: WantedCard) => priceOf({ cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish }),
+    [priceOf],
+  )
+  const snapshotOfWanted = useCallback(
+    (card: WantedCard) => snapshotOf({ cardId: card.card_id, language: card.card_language ?? "en" }),
+    [snapshotOf],
+  )
+  const cards = useMemo(() => collectHuntCards(items, (card) => priceOfWanted(card)?.amount ?? null), [items, priceOfWanted])
+  const options = useMemo(() => getHuntFilterOptions(cards), [cards])
+  const visibleSets = useMemo(() => (era ? options.sets.filter((entry) => entry.era.id === era) : options.sets), [era, options.sets])
 
   useEffect(() => {
     let cancelled = false
@@ -226,16 +237,27 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
   }, [illustrator])
 
   // The want list remembers each card's illustrator, so the filter works offline; the directory adds older entries.
-  const illustratorIds = illustrator
+  const illustratorIds = useMemo(() => (illustrator
     ? new Set([
         ...(illustratorCards?.name === illustrator ? illustratorCards.ids ?? [] : []),
         ...cards.filter((card) => card.wanted.illustrator === illustrator).map((card) => card.wanted.card_id),
       ])
-    : null
-  const illustratorNames = [...new Set([...cards.flatMap((card) => (card.wanted.illustrator ? [card.wanted.illustrator] : [])), ...directory.map((entry) => entry.name)])]
-    .sort((a, b) => a.localeCompare(b))
-  const groups = buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds })
-  const pickups = buildGoodPickups(cards, (card) => snapshotOfWanted(card.wanted), { era, setId, cardIds: illustratorIds })
+    : null), [cards, illustrator, illustratorCards])
+  // ~435 directory names: sorted once per want list / directory change, not on every render.
+  const illustratorNames = useMemo(
+    () => [...new Set([...cards.flatMap((card) => (card.wanted.illustrator ? [card.wanted.illustrator] : [])), ...directory.map((entry) => entry.name)])]
+      .sort((a, b) => a.localeCompare(b)),
+    [cards, directory],
+  )
+  const groups = useMemo(() => buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds }), [cards, era, illustratorIds, items, setId, sort])
+  const pickups = useMemo(
+    () => buildGoodPickups(cards, (card) => snapshotOfWanted(card.wanted), { era, setId, cardIds: illustratorIds }),
+    [cards, era, illustratorIds, setId, snapshotOfWanted],
+  )
+  const pickPickup = useCallback(
+    ({ card }: HuntPickup) => onPickCard(wantedToSearchCard(card.wanted, card.pokemonId), { id: card.pokemonId, name: card.pokemonName }, card.wanted.card_finish ?? null),
+    [onPickCard],
+  )
   const total = cards.length
   const filtering = Boolean(era || setId || illustrator)
 
@@ -293,7 +315,7 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
             thresholds={thresholds}
             marketOf={priceOfWanted}
             snapshotOf={snapshotOfWanted}
-            onPick={({ card }) => onPickCard(wantedToSearchCard(card.wanted, card.pokemonId), { id: card.pokemonId, name: card.pokemonName }, card.wanted.card_finish ?? null)}
+            onPick={pickPickup}
           />
         )}
 
@@ -307,38 +329,68 @@ export default function ShowHunt({ items, currency, fxRates, pricingRegion, isOn
           </div>
         ) : (
           <div className="space-y-4 pt-3">
-            {groups.map((group) => {
-              const pokemon = { id: group.pokemonId, name: group.pokemonName }
-              const name = formatPokemonDisplayName(group.pokemonName)
-              return (
-                <section key={group.pokemonId} aria-label={`Hunting ${name}`} className="space-y-1.5">
-                  <button type="button" onClick={() => onPickPokemon(pokemon)} aria-label={`${name}: all cards`} className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-1 text-left active:bg-muted">
-                    <PokemonSprite id={group.pokemonId} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-base font-bold">{name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        #{String(group.pokemonId).padStart(4, "0")} · {group.anyCard ? "any card" : `${group.cards.length} wanted`}
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-primary">All cards<ChevronRight className="h-4 w-4" aria-hidden /></span>
-                  </button>
-                  {group.cards.map((entry) => (
-                    <HuntCardRow
-                      key={entry.key}
-                      card={wantedToSearchCard(entry.wanted, group.pokemonId)}
-                      finish={entry.wanted.card_finish}
-                      market={priceOfWanted(entry.wanted)}
-                      thresholds={thresholds}
-                      standing="wanted"
-                      onPick={() => onPickCard(wantedToSearchCard(entry.wanted, group.pokemonId), pokemon, entry.wanted.card_finish ?? null)}
-                    />
-                  ))}
-                </section>
-              )
-            })}
+            {groups.map((group) => (
+              <HuntGroupSection
+                key={group.pokemonId}
+                group={group}
+                priceOfWanted={priceOfWanted}
+                thresholds={thresholds}
+                onPickCard={onPickCard}
+                onPickPokemon={onPickPokemon}
+              />
+            ))}
           </div>
         )}
       </div>
     </section>
   )
 }
+
+/** One Pokémon's block of the Hunting list. Memoised so a parent re-render with the same want list and
+ *  prices skips its rows (a long want list is hundreds of rows with thumbnails). */
+const HuntGroupSection = memo(function HuntGroupSection({
+  group,
+  priceOfWanted,
+  thresholds,
+  onPickCard,
+  onPickPokemon,
+}: {
+  group: HuntGroup
+  priceOfWanted: (card: WantedCard) => Money | null
+  thresholds: DealThresholds
+  onPickCard: ShowHuntProps["onPickCard"]
+  onPickPokemon: ShowHuntProps["onPickPokemon"]
+}) {
+  const pokemon = { id: group.pokemonId, name: group.pokemonName }
+  const name = formatPokemonDisplayName(group.pokemonName)
+  return (
+    <section aria-label={`Hunting ${name}`} className="space-y-1.5">
+      <button type="button" onClick={() => onPickPokemon(pokemon)} aria-label={`${name}: all cards`} className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-1 text-left active:bg-muted">
+        <PokemonSprite id={group.pokemonId} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-base font-bold">{name}</span>
+          <span className="block text-xs text-muted-foreground">
+            #{String(group.pokemonId).padStart(4, "0")} · {group.anyCard ? "any card" : `${group.cards.length} wanted`}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-primary">All cards<ChevronRight className="h-4 w-4" aria-hidden /></span>
+      </button>
+      {group.cards.map((entry) => {
+        const card = wantedToSearchCard(entry.wanted, group.pokemonId)
+        return (
+          <HuntCardRow
+            key={entry.key}
+            card={card}
+            finish={entry.wanted.card_finish}
+            market={priceOfWanted(entry.wanted)}
+            thresholds={thresholds}
+            standing="wanted"
+            onPick={() => onPickCard(card, pokemon, entry.wanted.card_finish ?? null)}
+          />
+        )
+      })}
+    </section>
+  )
+})
+
+export default memo(ShowHunt)
