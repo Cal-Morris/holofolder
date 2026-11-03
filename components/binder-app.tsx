@@ -8,7 +8,7 @@ import { useAllBinders } from "@/hooks/use-all-binders"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
 
-import { useState, useMemo, useEffect, useEffectEvent, useRef, useCallback, type CSSProperties, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react"
+import { useState, useMemo, useEffect, useEffectEvent, useLayoutEffect, useRef, useCallback, type CSSProperties, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react"
 import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
@@ -3223,6 +3223,24 @@ export default function BinderApp({
     }
     void switchMainView(destination)
   }
+  // Quick mode is memoised, so it gets stable handlers: the navigate handler reads the latest state through a
+  // ref instead of being rebuilt (and re-rendering Quick mode and its deal check) on every Binder app render.
+  const handleQuickNavigateRef = useRef(handleQuickNavigate)
+  useLayoutEffect(() => {
+    handleQuickNavigateRef.current = handleQuickNavigate
+  })
+  const onQuickNavigate = useCallback((destination: QuickDestinationId) => handleQuickNavigateRef.current(destination), [])
+  const onQuickSelectPokemon = useCallback((pokemon: PokemonSummary) => {
+    closeAllOverlays()
+    setIsQuickModeOpen(false)
+    handlePokemonSelect(pokemon)
+  }, [handlePokemonSelect])
+  const onQuickSelectCard = useCallback(
+    (card: SearchCardResult, pokemon: { id: number; name: string }) => openCardBrowser(pokemon, { highlightCardId: card.id }),
+    [openCardBrowser],
+  )
+  const onQuickBrowseIllustrator = useCallback((name: string) => openIllustratorBrowser(name), [openIllustratorBrowser])
+  const quickHiddenDestinations = useMemo<QuickDestinationId[]>(() => (readOnlyMode ? ["scan", "analytics", "settings"] : []), [readOnlyMode])
 
   // Full-screen dialogs replace the card detail instead of stacking on top of it.
   useEffect(() => {
@@ -3445,21 +3463,17 @@ export default function BinderApp({
       {isQuickModeOpen && (
         <QuickMode
           onClose={closeQuickMode}
-          onNavigate={handleQuickNavigate}
-          onSelectPokemon={(pokemon) => {
-            closeAllOverlays()
-            setIsQuickModeOpen(false)
-            handlePokemonSelect(pokemon)
-          }}
-          onSelectCard={(card, pokemon) => openCardBrowser(pokemon, { highlightCardId: card.id })}
-          onBrowseIllustrator={(name) => openIllustratorBrowser(name)}
+          onNavigate={onQuickNavigate}
+          onSelectPokemon={onQuickSelectPokemon}
+          onSelectCard={onQuickSelectCard}
+          onBrowseIllustrator={onQuickBrowseIllustrator}
           onBrowseSet={openSetFromSearch}
           getOfflineCards={getOfflineSearchCards}
           getPokemonState={getQuickPokemonState}
           formatPrice={priceFormat.label}
           pricingRegion={pricingPreferences.region}
           isOnline={isOnline}
-          hiddenDestinations={readOnlyMode ? ["scan", "analytics", "settings"] : []}
+          hiddenDestinations={quickHiddenDestinations}
           showModeOn={isShowModeOn}
           cardCheck={quickCardCheck}
           showTools={isShowModeOn || Boolean(quickLookup)}
