@@ -1,6 +1,7 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import {
+  buildGoodPickups,
   buildHuntGroups,
   getCardStanding,
   collectHuntCards,
@@ -11,6 +12,7 @@ import {
   wantedToSearchCard,
   type HuntSourceItem,
 } from "../lib/show-hunt"
+import type { MomentumPriceInput } from "../lib/price-momentum"
 
 const wanted = (card_id: string, card_name: string, card_set: string, extra: Record<string, unknown> = {}) => ({ card_id, card_name, card_set, added_at: "2026-01-01T00:00:00Z", ...extra })
 
@@ -76,5 +78,34 @@ describe("getCardStanding", () => {
     assert.equal(getCardStanding({ owned: true, wanted: true }), "owned")
     assert.equal(getCardStanding({ owned: false, wanted: true }), "wanted")
     assert.equal(getCardStanding({ owned: false, wanted: false }), "missing")
+  })
+})
+
+describe("buildGoodPickups", () => {
+  const now = Date.parse("2026-11-03T12:00:00Z")
+  const snapshot = (trend: Record<string, number>): MomentumPriceInput => ({
+    confidence: "high",
+    updatedAt: "2026-11-03T11:00:00Z",
+    trendPoints: Object.entries(trend).map(([label, gbpAmount]) => ({ label, source: "cardmarket", gbpAmount })),
+  })
+  const snapshots: Record<string, MomentumPriceInput> = {
+    "sv03.5-166": snapshot({ Trend: 40, "7d": 50 }), // -20% 7d
+    "sv03.5-006": snapshot({ Trend: 60, "30d": 100 }), // -40% 30d
+    "me02-001": snapshot({ Trend: 1, "7d": 1.05 }), // -5%: under the drop rule
+  }
+  const priceOf = (card: (typeof cards)[number]) => snapshots[card.wanted.card_id]
+
+  it("lists wanted cards whose price dropped, biggest fall first", () => {
+    const pickups = buildGoodPickups(cards, priceOf, {}, { now })
+    assert.deepEqual(pickups.map((pickup) => pickup.card.wanted.card_id), ["sv03.5-006", "sv03.5-166"])
+    assert.deepEqual(pickups.map((pickup) => [pickup.momentum.change, pickup.momentum.timeframe]), [[-0.4, "30d"], [-0.2, "7d"]])
+  })
+
+  it("skips unpriced cards and honours the Hunting filters", () => {
+    const unpriced = collectHuntCards(items, (card) => (card.card_id === "sv03.5-006" ? null : prices[card.card_id] ?? null))
+    assert.deepEqual(buildGoodPickups(unpriced, priceOf, {}, { now }).map((pickup) => pickup.card.wanted.card_id), ["sv03.5-166"])
+    assert.deepEqual(buildGoodPickups(cards, priceOf, { cardIds: new Set(["sv03.5-166"]) }, { now }).map((pickup) => pickup.card.wanted.card_id), ["sv03.5-166"])
+    assert.deepEqual(buildGoodPickups(cards, priceOf, { era: "me" }, { now }), [])
+    assert.equal(buildGoodPickups(cards, priceOf, {}, { now, limit: 1 }).length, 1)
   })
 })

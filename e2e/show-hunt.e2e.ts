@@ -73,6 +73,46 @@ test.describe("Show mode finder", () => {
     await expect(dialog.getByTestId("show-hunt")).toBeVisible()
   })
 
+  test("Good pickups: wanted cards whose price dropped, biggest fall first, one tap to the deal check", async ({ harness }) => {
+    const { page } = harness
+    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
+      route.request().method() === "GET" ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback())
+    // Synthetic trends: Charizard −40% vs 30d, Bulbasaur 151 −20% vs 7d, Phantasmal Bulbasaur −5% (under the drop rule).
+    await mockCardPrices(page, {
+      ...HUNT_PRICES,
+      "sv03.5-006": { ...HUNT_PRICES["sv03.5-006"], trend: { Trend: 50, "30d": 83.33 } },
+      "sv03.5-166": { ...HUNT_PRICES["sv03.5-166"], trend: { Trend: 40, "7d": 50 } },
+      "me02-001": { ...HUNT_PRICES["me02-001"], trend: { Trend: 3, "7d": 3.15 } },
+    })
+    await page.reload()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    const dialog = await openShowMode(harness)
+    const pickups = dialog.getByRole("region", { name: "Good pickups" })
+    await expect(pickups).toBeVisible()
+    const tiles = pickups.getByTestId("good-pickup")
+    await expect(tiles).toHaveCount(2)
+    await expect(tiles.nth(0)).toHaveAccessibleName(/^Charizard ex, 151, price dropped 40% over 30d, pay up to £55\.00/)
+    await expect(tiles.nth(1)).toHaveAccessibleName(/^Bulbasaur, 151, price dropped 20% over 7d, pay up to £44\.00/)
+    await expect(tiles.nth(0).getByTestId("price-drop-badge")).toContainText("−40%")
+    await harness.expectMinTapTarget(tiles.nth(0), 48)
+    await screenshot(harness, "good-pickups")
+
+    // Filters apply: Mega Evolution has no qualifying drop, so the strip hides.
+    await dialog.getByTestId("show-hunt").getByRole("radiogroup", { name: "Era" }).getByRole("radio", { name: /^Mega Evolution/ }).click()
+    await expect(pickups).toBeHidden()
+    await dialog.getByTestId("show-hunt").getByRole("radiogroup", { name: "Era" }).getByRole("radio", { name: "All eras" }).click()
+
+    await tiles.nth(0).click()
+    await expect(dialog.getByTestId("quick-card-check")).toBeVisible()
+  })
+
+  test("no Good pickups strip when nothing on the want list has dropped", async ({ harness }) => {
+    await seedHuntList(harness)
+    const dialog = await openShowMode(harness)
+    await expect(dialog.getByTestId("show-hunt")).toBeVisible()
+    await expect(dialog.getByRole("region", { name: "Good pickups" })).toHaveCount(0)
+  })
+
   test("era, set and illustrator filters narrow the Hunting list", async ({ harness }) => {
     await seedHuntList(harness)
     const dialog = await openShowMode(harness)

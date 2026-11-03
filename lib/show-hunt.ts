@@ -2,6 +2,7 @@
 // cards when scanning a dealer's binder. Pure and client-safe; prices come in already converted for display.
 import type { WantedCard } from "@/lib/domain/cards"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
+import { rankFallingPickups, type MomentumPriceInput, type PriceMomentum } from "@/lib/price-momentum"
 
 /** Card eras, by set id prefix (dealers usually sort binders by set, and sets by era). Longest prefix wins. */
 const ERA_PREFIXES: ReadonlyArray<{ prefix: string; id: string; label: string }> = [
@@ -140,9 +141,7 @@ export function buildHuntGroups(items: readonly HuntSourceItem[], cards: readonl
   const filtering = Boolean(filters.era || filters.setId || filters.cardIds)
   const groups = new Map<number, HuntGroup>()
   for (const card of cards) {
-    if (filters.era && card.era.id !== filters.era) continue
-    if (filters.setId && card.setId !== filters.setId) continue
-    if (filters.cardIds && !filters.cardIds.has(card.wanted.card_id)) continue
+    if (!matchesHuntFilters(card, filters)) continue
     const group = groups.get(card.pokemonId) ?? { pokemonId: card.pokemonId, pokemonName: card.pokemonName, anyCard: false, cards: [], topPrice: null }
     group.cards.push(card)
     if (card.price !== null && (group.topPrice === null || card.price > group.topPrice)) group.topPrice = card.price
@@ -161,6 +160,37 @@ export function buildHuntGroups(items: readonly HuntSourceItem[], cards: readonl
     if (sort === "wanted" && b.cards.length !== a.cards.length) return b.cards.length - a.cards.length
     return (b.topPrice ?? -1) - (a.topPrice ?? -1) || a.pokemonId - b.pokemonId
   })
+}
+
+export function matchesHuntFilters(card: HuntCard, filters: HuntFilters = {}) {
+  if (filters.era && card.era.id !== filters.era) return false
+  if (filters.setId && card.setId !== filters.setId) return false
+  if (filters.cardIds && !filters.cardIds.has(card.wanted.card_id)) return false
+  return true
+}
+
+export interface HuntPickup {
+  card: HuntCard
+  momentum: PriceMomentum
+}
+
+/** How many Good pickups Show lists. */
+export const GOOD_PICKUPS_LIMIT = 8
+
+/**
+ * "Good pickups": wanted cards whose catalogue price has dropped, biggest % fall first, via price-momentum's
+ * rankFallingPickups (its drop rule; no thresholds live here). Unpriced cards never qualify, and the Hunting
+ * filters apply as they do to the list below.
+ */
+export function buildGoodPickups(
+  cards: readonly HuntCard[],
+  priceOf: (card: HuntCard) => MomentumPriceInput | null | undefined,
+  filters: HuntFilters = {},
+  options: { now?: number; limit?: number } = {},
+): HuntPickup[] {
+  const candidates = cards.filter((card) => card.price !== null && matchesHuntFilters(card, filters))
+  return rankFallingPickups(candidates, priceOf, { now: options.now, limit: options.limit ?? GOOD_PICKUPS_LIMIT })
+    .map(({ item, momentum }) => ({ card: item, momentum }))
 }
 
 /** The card the deal checker needs, rebuilt from what the want list stored. */
