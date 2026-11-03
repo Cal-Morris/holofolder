@@ -51,3 +51,24 @@ test("sold record evidence retains public listing provenance and strips unsafe/t
   assert.deepEqual(result.sales[0], { amount: 10, soldAt: "2026-10-25", title: "Bulbasaur 44/102 Base Set", url: "https://www.ebay.co.uk/itm/123456789012", condition: "Used" })
   assert.equal(result.sales[1].url, undefined)
 })
+
+test("sold comps drop price outliers from the median, range, count and record list together", () => {
+  // Synthetic amounts shaped like a small holo sample with one premium-priced sale.
+  const amounts = [31.32, 13.05, 80.56, 12.08, 25.06, 14, 15, 13.5]
+  const result = summarizeSoldComps(subject, amounts.map((amount, index) => sale(`s${index}`, amount)), now)
+  assert.equal(result.sales.some(entry => entry.amount === 80.56), false)
+  assert.equal(result.summary.count, result.sales.length)
+  assert.equal(result.summary.high, Math.max(...result.sales.map(entry => entry.amount)))
+  assert.ok(result.summary.median !== null && result.summary.median >= 12 && result.summary.median <= 15)
+})
+
+test("sold comps keep a tight raw sample intact", () => {
+  const result = summarizeSoldComps(subject, [sale("a", 10), sale("b", 11), sale("c", 12), sale("d", 13)], now)
+  assert.equal(result.summary.count, 4)
+})
+
+test("sold comps reject graded wording beyond PSA/CGC/BGS", () => {
+  for (const title of ["Bulbasaur 44/102 Base Set SGC 9", "Bulbasaur 44/102 Base Set TAG 10", "Bulbasaur 44/102 Base Set ACE 9.5", "Bulbasaur 44/102 Base Set Slabbed"]) {
+    assert.equal(summarizeSoldComps(subject, [sale("graded", 50, { title })], now).summary.count, 0, title)
+  }
+})
