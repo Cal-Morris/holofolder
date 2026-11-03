@@ -6,7 +6,7 @@
 import { memo, useCallback, useState } from "react"
 import { Loader2, Receipt, Square } from "lucide-react"
 import { useShowCompsWarm } from "@/hooks/use-show-comps-warm"
-import type { CheckCompsProgress, CheckCompsTarget } from "@/lib/check-comps"
+import type { CheckCompsProgress, CheckCompsRefusal, CheckCompsSpendEstimate, CheckCompsTarget } from "@/lib/check-comps"
 
 export interface ShowCheckCompsProps {
   /** Hunting cards, most valuable first (the engine caps the run and keeps that order). */
@@ -23,13 +23,24 @@ function summary(progress: CheckCompsProgress) {
   return `${parts.join(", ")}.${stopped.length ? ` ${[...new Set(stopped)].join(" ")}` : ""}`
 }
 
+function refusedStatus(refused: CheckCompsRefusal) {
+  return refused.reason === "budget"
+    ? `Sold comps daily limit reached (${refused.remaining} left today). Try again tomorrow.`
+    : "Check comps cancelled."
+}
+
+// Plain confirm for big runs (the engine only asks at CHECK_COMPS_CONFIRM_AT+ sold comps calls).
+function confirmSpend({ cardsNeedingSoldcomps, remainingBudget }: CheckCompsSpendEstimate) {
+  return window.confirm(`${cardsNeedingSoldcomps} card${cardsNeedingSoldcomps === 1 ? "" : "s"} need a sold comps refresh (${remainingBudget} left today). Check them now?`)
+}
+
 function ShowCheckComps({ targets, isOnline }: ShowCheckCompsProps) {
-  const { start, stop, running, progress } = useShowCompsWarm()
+  const { start, stop, running, progress, refused } = useShowCompsWarm()
   const [failed, setFailed] = useState(false)
-  // The single entry point a credit/rate gate can wrap later: nothing else here calls the provider.
+  // The single entry point here; the credit gate itself lives in the engine (runCheckComps) so Prepare shares it.
   const checkComps = useCallback(() => {
     setFailed(false)
-    void start({ wanted: targets }).catch(() => setFailed(true))
+    void start({ wanted: targets }, { confirmSpend }).catch(() => setFailed(true))
   }, [start, targets])
 
   const percent = progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 0
@@ -37,6 +48,8 @@ function ShowCheckComps({ targets, isOnline }: ShowCheckCompsProps) {
     ? `Checking comps ${progress?.done ?? 0}/${progress?.total ?? "…"}`
     : failed
     ? "Couldn't check comps. Try again when you have signal."
+    : refused
+    ? refusedStatus(refused)
     : progress
     ? summary(progress)
     : null

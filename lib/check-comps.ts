@@ -5,6 +5,9 @@
 // cards whose pinned check is under 12 hours old are skipped without a request, the server skips any it
 // already checked in the last 12 hours, only a couple of requests run at once, a 429/503 backs the whole
 // batch off, and an exhausted or unconfigured source stops being asked for the rest of the batch.
+// Credit gate: before any request, a run counts the cards that would need a sold comps call and refuses
+// (without starting) when that's more than this device's daily sold comps budget has left; at
+// CHECK_COMPS_CONFIRM_AT or more it asks confirmSpend first (Show passes one; Prepare doesn't).
 import { requestCardPriceCheck, PriceCheckRequestError } from "@/lib/card-price-check-client"
 import { isPriceCheckFresh, PRICE_CHECK_SOURCES, readPinnedCardPriceCheck } from "@/lib/card-price-check-cache"
 import type { CardPriceCheck, PriceCheckSource } from "@/lib/card-price-checks"
@@ -14,6 +17,11 @@ export const CHECK_COMPS_CONCURRENCY = 2
 /** Most cards one run will check; the list is expected to come most-valuable first. */
 export const CHECK_COMPS_MAX_CARDS = 60
 const BACKOFF_MS = [2_000, 8_000, 20_000]
+/** Sold comps provider calls one device may make per local calendar day through Check comps / Prepare. */
+export const CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET = 80
+/** Runs needing this many sold comps calls or more ask confirmSpend before starting. */
+export const CHECK_COMPS_CONFIRM_AT = 15
+const BUDGET_KEY_PREFIX = "binderdex:check-comps:soldcomps-budget:"
 
 export interface CheckCompsTarget { cardId: string; language?: string | null; finish?: CardFinish | null }
 export interface CheckCompsProgress {
@@ -26,6 +34,36 @@ export interface CheckCompsProgress {
   failed: number
   /** Set when a source stopped for the rest of the run (allowance used up, not configured). */
   stopped: Partial<Record<PriceCheckSource, string>>
+}
+
+export interface CheckCompsSpendEstimate { cardsNeedingSoldcomps: number; remainingBudget: number; budget: number }
+export type CheckCompsRefusal =
+  | { reason: "budget"; needed: number; remaining: number; budget: number }
+  | { reason: "cancelled"; needed: number }
+export type CheckCompsOutcome =
+  | { ok: true; progress: CheckCompsProgress }
+  | { ok: false; refused: CheckCompsRefusal; progress: CheckCompsProgress }
+
+export type CheckCompsBudgetStorage = Pick<Storage, "getItem" | "setItem">
+
+function localDay(ms: number) {
+  const date = new Date(ms)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+export function soldcompsBudgetKey(ms: number) { return `${BUDGET_KEY_PREFIX}${localDay(ms)}` }
+
+function defaultBudgetStorage(): CheckCompsBudgetStorage | null {
+  try { return typeof localStorage === "undefined" ? null : localStorage } catch { return null }
+}
+/** Sold comps calls already spent today on this device (0 when storage is unavailable). */
+export function readSoldcompsSpent(ms: number, storage: CheckCompsBudgetStorage | null = defaultBudgetStorage()) {
+  try {
+    const value = Number(storage?.getItem(soldcompsBudgetKey(ms)) ?? 0)
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
+  } catch { return 0 }
+}
+function addSoldcompsSpent(ms: number, storage: CheckCompsBudgetStorage | null) {
+  try { storage?.setItem(soldcompsBudgetKey(ms), String(readSoldcompsSpent(ms, storage) + 1)) } catch { /* quota / private mode */ }
 }
 
 type Request = typeof requestCardPriceCheck
@@ -51,7 +89,7 @@ export function showCompsTargets(wanted: readonly CheckCompsTarget[], hunt: read
   return checkCompsTargets([...wanted.filter(exact), ...wanted.filter(target => !exact(target)), ...hunt])
 }
 
-export function warmShowComps(input: { wanted: readonly CheckCompsTarget[]; hunt?: readonly CheckCompsTarget[] }, options: Parameters<typeof runCheckComps>[1]) {
+export function warmShowComps(input: { wanted: readonly CheckCompsTarget[]; hunt?: readonly CheckCompsTarget[] }, options: Parameters<typeof runCheckComps>[1]): Promise<CheckCompsOutcome> {
   return runCheckComps(showCompsTargets(input.wanted, input.hunt), options)
 }
 
@@ -62,26 +100,54 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
   readPinned?: ReadPinned
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>
   now?: () => number
-}): Promise<CheckCompsProgress> {
+  /** Asked before a run needing CHECK_COMPS_CONFIRM_AT+ sold comps calls; false refuses as cancelled. */
+  confirmSpend?: (estimate: CheckCompsSpendEstimate) => boolean | Promise<boolean>
+  /** Where today's sold comps spend is counted; defaults to localStorage. */
+  budgetStorage?: CheckCompsBudgetStorage | null
+}): Promise<CheckCompsOutcome> {
   const { signal, onProgress } = options
   const request = options.request ?? requestCardPriceCheck
   const readPinned = options.readPinned ?? readPinnedCardPriceCheck
   const sleep = options.sleep ?? wait
   const now = options.now ?? Date.now
   const queue = checkCompsTargets(targets)
+  const budgetStorage = options.budgetStorage === undefined ? defaultBudgetStorage() : options.budgetStorage
   const progress: CheckCompsProgress = { done: 0, total: queue.length, fresh: 0, checked: 0, failed: 0, stopped: {} }
   const report = () => onProgress?.({ ...progress, stopped: { ...progress.stopped } })
   let cursor = 0
   let pausedUntil = 0
+
+  // Gate: estimate sold comps calls (cards without a fresh pinned sold check) against today's budget.
+  let needed = 0
+  for (const target of queue) {
+    if (signal.aborted) break
+    if (!isPriceCheckFresh(await readPinned(target.cardId, target.finish, "soldcomps"), now())) needed += 1
+  }
+  const budget = CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET
+  const remaining = Math.max(0, budget - readSoldcompsSpent(now(), budgetStorage))
+  if (needed > remaining) return { ok: false, refused: { reason: "budget", needed, remaining, budget }, progress }
+  if (needed >= CHECK_COMPS_CONFIRM_AT && options.confirmSpend
+    && !(await options.confirmSpend({ cardsNeedingSoldcomps: needed, remainingBudget: remaining, budget }))) {
+    return { ok: false, refused: { reason: "cancelled", needed }, progress }
+  }
   report()
 
   async function checkOne(target: CheckCompsTarget, source: PriceCheckSource): Promise<"fresh" | "checked" | "failed"> {
     const pinned = await readPinned(target.cardId, target.finish, source)
     if (isPriceCheckFresh(pinned, now())) return "fresh"
     if (progress.stopped[source]) return "failed"
+    if (source === "soldcomps") {
+      // Another tab or run may have spent today's budget since the estimate.
+      if (readSoldcompsSpent(now(), budgetStorage) >= CHECK_COMPS_DAILY_SOLDCOMPS_BUDGET) {
+        progress.stopped.soldcomps = "Sold comps daily limit reached."
+        return "failed"
+      }
+    }
     for (let attempt = 0; ; attempt++) {
       if (pausedUntil > now()) await sleep(pausedUntil - now(), signal)
       if (signal.aborted) return "failed"
+      // One spend per card, however many 429 retries it takes.
+      if (source === "soldcomps" && attempt === 0) addSoldcompsSpent(now(), budgetStorage)
       try {
         const { check, error } = await request(target.cardId, target.language ?? "en", target.finish ?? undefined, source, signal)
         if (error && STOP_PATTERN.test(error)) progress.stopped[source] = error
@@ -115,7 +181,7 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
   }
 
   await Promise.all(Array.from({ length: Math.min(CHECK_COMPS_CONCURRENCY, queue.length) }, worker))
-  return progress
+  return { ok: true, progress }
 }
 
 function wait(ms: number, signal: AbortSignal) {
