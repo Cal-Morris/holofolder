@@ -1,3 +1,4 @@
+import { createMemoryStore } from "../lib/offline-store/kv"
 import test from "node:test"
 import assert from "node:assert/strict"
 import {
@@ -7,6 +8,7 @@ import {
   capPriceCacheEntries,
   getCardPriceKey,
   mergeCardPriceState,
+  loadPriceEvidence,
   pickStableCardPriceLookups,
   normalizeCardPriceLookups,
   saveCardPricesForOffline,
@@ -19,9 +21,7 @@ const now = new Date("2026-06-28T18:00:00.000Z").getTime()
 test("offline preparation preserves current quotes locally and full validated history in IndexedDB", async () => {
   const original = globalThis.localStorage
   const stored = new Map<string, string>()
-  const evidence = new Map<string, unknown>()
-  const store = { get: async <T,>(key: string) => evidence.get(key) as T | undefined,
-    set: async (key: string, value: unknown) => { evidence.set(key, value) }, delete: async (key: string) => { evidence.delete(key) }, keys: async () => [...evidence.keys()] }
+  const store = createMemoryStore()
   globalThis.localStorage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => { stored.set(key, value) } } as Storage
   try {
     await saveCardPricesForOffline([priceSnapshot("fixture-existing", now)], store)
@@ -32,13 +32,13 @@ test("offline preparation preserves current quotes locally and full validated hi
     const cache = JSON.parse([...stored.values()][0])
     assert.equal(cache["fixture-existing::en"].marketGbpAmount, 12)
     assert.equal(cache["fixture-new::en"].historyPoints.length, 0)
-    const full = evidence.get("price-evidence:fixture-new::en") as CardPriceSnapshot
+    const full = await store.get("price-evidence:fixture-new::en") as CardPriceSnapshot
     assert.equal(full.historyPoints?.length, 1)
     assert.equal(full.historyPoints?.[0].currency, "USD")
     // A broken localStorage no longer fails the download: IndexedDB evidence is what offline reads use.
     globalThis.localStorage.setItem = () => { throw new Error("Storage full") }
     await saveCardPricesForOffline([priceSnapshot("fixture-late", now)], store)
-    assert.ok(evidence.has("price-evidence:fixture-late::en"))
+    assert.ok(await store.get("price-evidence:fixture-late::en"))
     await assert.rejects(saveCardPricesForOffline([priceSnapshot("fixture-late", now)], null), /unavailable/)
   } finally { globalThis.localStorage = original }
 })
@@ -46,9 +46,7 @@ test("offline preparation preserves current quotes locally and full validated hi
 test("a full set's history does not consume localStorage's five-megabyte quota", async () => {
   const original = globalThis.localStorage
   let local = "{}"
-  const evidence = new Map<string, unknown>()
-  const store = { get: async <T,>(key: string) => evidence.get(key) as T | undefined,
-    set: async (key: string, value: unknown) => { evidence.set(key, value) }, delete: async () => {}, keys: async () => [...evidence.keys()] }
+  const store = createMemoryStore()
   globalThis.localStorage = { length: 1, clear: () => { local = "{}" }, key: () => null, removeItem: () => { local = "{}" }, getItem: () => local, setItem: (_key, value) => {
     if (value.length * 2 > 5 * 1024 * 1024) throw new Error("Quota exceeded")
     local = value
@@ -61,8 +59,8 @@ test("a full set's history does not consume localStorage's five-megabyte quota",
       finish: ["normal", "holo", "reverse_holo"][i % 3], productId: "123",
     }))
     await saveCardPricesForOffline(Array.from({ length: 200 }, (_, i) => ({ ...priceSnapshot(`fixture-${i}`, now), historyPoints: history })), store)
-    assert.equal(evidence.size, 200)
-    assert.equal((evidence.get("price-evidence:fixture-0::en") as CardPriceSnapshot).historyPoints?.length, 270)
+    assert.equal((await store.keys()).length, 200)
+    assert.equal((await store.get("price-evidence:fixture-0::en") as CardPriceSnapshot).historyPoints?.length, 270)
     assert.ok(local.length * 2 < 5 * 1024 * 1024)
   } finally { globalThis.localStorage = original }
 })
@@ -255,15 +253,13 @@ test("when even a tiny write fails, the price key is dropped to free space for o
 
 test("offline download still saves every quote to IndexedDB when localStorage must shrink", async () => {
   const original = globalThis.localStorage
-  const evidence = new Map<string, unknown>()
-  const store = { get: async <T,>(key: string) => evidence.get(key) as T | undefined,
-    set: async (key: string, value: unknown) => { evidence.set(key, value) }, delete: async () => {}, keys: async () => [...evidence.keys()] }
+  const store = createMemoryStore()
   const entrySize = JSON.stringify({ "fixture-100::en": { ...priceSnapshot("fixture-100", now), historyPoints: [] } }).length
   const { storage, stored } = quotaStorage(entrySize * 70)
   globalThis.localStorage = storage
   try {
     await saveCardPricesForOffline(Array.from({ length: 300 }, (_, i) => priceSnapshot(`fixture-${i}`, now)), store)
-    assert.equal(evidence.size, 300)
+    assert.equal((await store.keys()).length, 300)
     const saved = JSON.parse(stored.get(QUOTA_KEY)!)
     assert.ok(Object.keys(saved).length > 0 && Object.keys(saved).length <= 70)
   } finally { globalThis.localStorage = original }
@@ -320,4 +316,40 @@ test("pickStableCardPriceLookups holds while a search is loading unless new card
   assert.equal(pickStableCardPriceLookups(held, otherLanguage, true), otherLanguage)
   // Nothing held yet: take what is asked for.
   assert.deepEqual(pickStableCardPriceLookups([], [], true), [])
+})
+
+test("price evidence batches preserve all quotes, validation and missing evidence markers", async () => {
+  const original = globalThis.localStorage
+  globalThis.localStorage = { getItem: () => null, setItem: () => {} } as unknown as Storage
+  const store = createMemoryStore()
+  const writes: number[] = []
+  const reads: number[] = []
+  const batchedStore = { ...store,
+    setMany: async (entries: Array<readonly [string, unknown]>) => { writes.push(entries.length); await store.setMany(entries) },
+    getMany: async <T,>(keys: string[]) => { reads.push(keys.length); return store.getMany<T>(keys) },
+  }
+  try {
+    // Synthetic collection large enough to cross two batch boundaries.
+    const prices = Array.from({ length: 205 }, (_, i) => priceSnapshot(`fixture-${i}`, now))
+    await saveCardPricesForOffline(prices, batchedStore)
+    assert.deepEqual(writes, [100, 100, 5])
+    const evidence = await loadPriceEvidence(prices, batchedStore)
+    assert.deepEqual(reads, [100, 100, 5])
+    assert.deepEqual(evidence.map(price => price.cardId), prices.map(price => price.cardId))
+    assert.ok(evidence.every(price => price.marketGbpAmount === 12 && price.confidence === prices[0].confidence))
+
+    const legacy = { ...prices[0], historyPoints: undefined, finishPrices: undefined }
+    await store.set("price-evidence:fixture-0::en", legacy)
+    await store.set("price-evidence:fixture-1::en", { ...prices[1], language: "ja" })
+    await store.set("price-evidence:fixture-2::en", { ...prices[2], fetchedAt: NaN })
+    await store.set("price-evidence:fixture-3::en", { ...prices[3], cardId: "wrong-card" })
+    const validated = await loadPriceEvidence(prices.slice(0, 4), store)
+    assert.equal(validated.length, 1)
+    assert.equal(validated[0].fetchedAt, now)
+    assert.equal(validated[0].finishPrices, undefined)
+    assert.equal(validated[0].historyPoints, undefined)
+    assert.deepEqual(await loadPriceEvidence([{ cardId: "missing", language: "en" }], store), [])
+    assert.deepEqual(await loadPriceEvidence(prices, null), [])
+    await assert.rejects(saveCardPricesForOffline(prices, { ...store, setMany: async () => { throw new Error("disk full") } }), /disk full/)
+  } finally { globalThis.localStorage = original }
 })

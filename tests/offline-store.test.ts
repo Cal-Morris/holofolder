@@ -208,3 +208,19 @@ test("a stalled migration doesn't block mirror writes forever", async () => {
   await flushCollectionMirror(store)
   assert.deepEqual((await loadCollectionRecord(store))?.collection.map((item) => item.pokemon_id), [25])
 })
+
+test("batched store reads preserve key order and isolate values; failed writes leave no partial batch", async () => {
+  const store = createMemoryStore()
+  const value = { synthetic: true, count: 1 }
+  await store.setMany([["b", value], ["a", { count: 2 }]])
+  value.count = 99
+  const result = await store.getMany<{ count: number }>(["a", "missing", "b", "a"])
+  assert.deepEqual(result.map(item => item?.count), [2, undefined, 1, 2])
+  result[0]!.count = 3
+  assert.equal((await store.get<{ count: number }>("a"))?.count, 2)
+  assert.equal(result[3]?.count, 2)
+  await assert.rejects(store.setMany([["a", 5], ["invalid", () => {}]]))
+  assert.equal((await store.get<{ count: number }>("a"))?.count, 2)
+  assert.deepEqual(await store.getMany([]), [])
+  await store.setMany([])
+})
