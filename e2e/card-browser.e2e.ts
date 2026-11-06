@@ -91,7 +91,7 @@ test.describe("all cards for a Pokémon", () => {
     const detail = await harness.openCardDetail()
     await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
     await expect(browserDialog(harness, /all bulbasaur cards/i)).toBeVisible()
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await expect(harness.dialogs()).toHaveCount(0)
     await harness.expectScrollUnlocked()
   })

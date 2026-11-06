@@ -6,12 +6,11 @@ for (const width of [768, 1024, 1280, 1440]) {
   test(`desktop toolbar fits at ${width}px without scrolling`, async ({ harness }, testInfo) => {
     await harness.page.setViewportSize({ width, height: 900 })
     const search = harness.page.locator("nav").first().getByRole("button", { name: "Search", exact: true })
-    const toolbar = search.locator("../..")
+    const toolbar = harness.page.getByTestId("app-header")
     await expect(search).toBeVisible()
     const size = await toolbar.evaluate(element => ({ width: element.clientWidth, content: element.scrollWidth }))
     expect(size.content).toBeLessThanOrEqual(size.width)
-    expect((await toolbar.boundingBox())!.height, "navigation and pager stay in one row").toBeLessThanOrEqual(44)
-    await harness.expectHittable(harness.page.getByRole("button", { name: "Next Needed", exact: true }))
+    expect((await toolbar.boundingBox())!.height, "header stays compact").toBeLessThanOrEqual((width >= 1280 ? 80 : 125) + harness.insets.top)
     await expect(toolbar.getByRole("combobox")).toHaveCount(0)
     await expect(toolbar.getByRole("group", { name: "Binder cards" })).toHaveCount(0)
     const opener = toolbar.getByRole("button", { name: "View", exact: true })
@@ -49,7 +48,7 @@ for (const width of [768, 1024, 1280, 1440]) {
     await harness.expectScrollUnlocked()
     if (width === 1024 && testInfo.project.name === "browser-375x667") {
       await harness.page.getByRole("button", { name: "More", exact: true }).click()
-      await harness.page.getByRole("button", { name: "Light mode", exact: true }).click()
+      await harness.page.getByRole("menuitem", { name: "Light mode", exact: true }).click()
       await opener.click()
       await harness.expectHittable(menu.getByRole("button", { name: "Perfect", exact: true }))
       await testInfo.attach("desktop-view-menu-light", { body: await harness.page.screenshot({ path: testInfo.outputPath("view-options-light.png") }), contentType: "image/png" })

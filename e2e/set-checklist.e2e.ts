@@ -15,7 +15,7 @@ async function mockSet(page: import("@playwright/test").Page, data: TCGSetSlotsR
 }
 
 async function selectSet(harness: import("./fixtures").Harness) {
-  await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
   await harness.page.getByRole("textbox", { name: "Search sets by name or code" }).fill("fixture")
   await harness.page.getByRole("button", { name: /Fixture Set/ }).first().click()
   await expect(harness.page.getByRole("group", { name: "Set checklist" })).toBeVisible()
@@ -102,7 +102,7 @@ test.describe("set checklists", () => {
     })).toBe(true)
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
     await page.route("**/api/tcg-set-slots**", route => route.abort())
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await page.getByRole("button", { name: "Fixture Set", exact: true }).first().click()
     await expect(page.getByText("Showing saved set data on this device.")).toBeVisible()
     await page.getByRole("group", { name: "Set checklist" }).getByRole("button", { name: "Cards", exact: true }).click()

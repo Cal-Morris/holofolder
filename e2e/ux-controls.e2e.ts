@@ -36,7 +36,7 @@ test("desktop view navigation keeps 36px targets", async ({ harness, page }) => 
   for (const width of [1280, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     const header = page.getByTestId("app-header")
-    for (const name of ["Binder", "List", "Wanted", "Sets"]) {
+    for (const name of ["Binder", "List", "Wanted", "Browse"]) {
       const tab = header.getByRole("button", { name, exact: true })
       await expect(tab).toBeVisible()
       await harness.expectMinTapTarget(tab)

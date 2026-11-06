@@ -96,7 +96,7 @@ test.describe("owned and wanted across binders", () => {
     await expect(search.getByTestId("owned-elsewhere")).toHaveCount(0)
     await closeSearch(harness, search)
 
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await page.getByRole("group", { name: "Browse perspective" }).getByRole("button", { name: "Pokémon", exact: true }).click()
     await page.getByRole("searchbox", { name: "Search Pokémon by name or dex number" }).fill("squirtle")
     const catalogue = page.getByRole("list", { name: "Pokémon catalogue" })

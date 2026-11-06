@@ -36,7 +36,7 @@ test.describe("nav chrome transitions", () => {
 
   test("controls sheet buttons only transition colours", async ({ harness }) => {
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-    await harness.dock().getByRole("button", { name: "Open controls" }).click()
+    await harness.page.getByTestId("app-header").getByRole("button", { name: "View" }).click()
     const filters = harness.page.getByRole("group", { name: "Slot filters" })
     await expect(filters).toBeVisible()
     const sheet = filters.locator("xpath=ancestor::*[.//button[contains(., 'Scan page')]][1]")
@@ -49,7 +49,7 @@ test.describe("nav chrome transitions", () => {
 
   test("binder mode chips do not transition `all`", async ({ harness }) => {
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-    await harness.dock().getByRole("button", { name: "Open controls" }).click()
+    await harness.page.getByTestId("app-header").getByRole("button", { name: "View" }).click()
     for (const group of ["Binder cards", "Binder display"]) {
       const chips = harness.page.getByRole("group", { name: group }).filter({ visible: true }).getByRole("button")
       await expect(chips.first()).toBeVisible()

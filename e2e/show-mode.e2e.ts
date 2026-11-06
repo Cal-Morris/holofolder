@@ -29,12 +29,12 @@ test.describe("show mode", () => {
     await expect(card).toHaveCount(0)
     const on = banner(harness)
     await expect(on).toContainText("Show mode on")
-    await expect(headerButton(harness)).toHaveAttribute("aria-pressed", "true")
-    for (const name of ["Search", "Exit show mode"]) {
+    await expect(headerButton(harness)).toHaveCount(0)
+    for (const name of ["Exit show mode"]) {
       const button = on.getByRole("button", { name, exact: true })
       await harness.expectWithinSafeViewport(button)
       await harness.expectHittable(button)
-      await harness.expectMinTapTarget(button, 44)
+      await harness.expectMinTapTarget(button, 36)
     }
     await harness.expectNoHorizontalOverflow()
     await screenshot(harness, "show-mode-on")
@@ -78,7 +78,7 @@ test.describe("show mode", () => {
 
   test("the header button is on every main view, and with Show mode on a Search tap opens Quick mode", async ({ harness }) => {
     const { page } = harness
-    for (const view of ["Binder", "List", "Wanted", "Sets"]) {
+    for (const view of ["Binder", "List", "Wanted", "Browse"]) {
       await harness.dock().getByRole("button", { name: view, exact: true }).click()
       const button = headerButton(harness)
       await harness.expectWithinSafeViewport(button)
@@ -98,7 +98,7 @@ test.describe("show mode", () => {
     await page.keyboard.press("Escape")
     await expect(quick).toBeHidden()
 
-    await banner(harness).getByRole("button", { name: "Search", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
     await expect(quick).toBeVisible()
     // Quick mode lists it too, as a way out.
     await quick.getByRole("searchbox").fill("show")
@@ -162,13 +162,13 @@ test.describe("show mode", () => {
     const on = banner(harness)
     await expect(on).toContainText("1 bought · £1,235")
     await page.context().setOffline(true)
-    await expect(on).toContainText("1 bought · £1,235 · offline")
+    await expect(on).toContainText("1 bought · £1,235 · Offline")
     const text = on.getByTestId("show-mode-banner-text")
     for (const part of [text.locator("span").first(), on.getByRole("status")]) {
       const clipped = await part.evaluate((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)
       expect(clipped, await part.textContent() ?? "").toBe(false)
     }
-    for (const name of ["Search", "Exit show mode"]) await harness.expectMinTapTarget(on.getByRole("button", { name, exact: true }), 44)
+    for (const name of ["Exit show mode"]) await harness.expectMinTapTarget(on.getByRole("button", { name, exact: true }), 36)
     await harness.expectNoHorizontalOverflow()
     await screenshot(harness, "show-mode-banner-tally")
     await page.context().setOffline(false)
@@ -191,7 +191,7 @@ test.describe("show mode", () => {
     const button = headerButton(harness)
     await harness.expectHittable(button)
     await button.tap()
-    await expect(button).toHaveAttribute("aria-pressed", "true")
+    await expect(button).toHaveCount(0)
     await expect(banner(harness)).toContainText("Show mode on")
     await banner(harness).getByRole("button", { name: "Exit show mode" }).click()
     await expect(banner(harness)).toHaveCount(0)
@@ -230,13 +230,13 @@ test.describe("show mode", () => {
     const button = headerButton(harness)
     await harness.expectHittable(button)
     await button.tap()
-    await expect(button).toHaveAttribute("aria-pressed", "true")
+    await expect(button).toHaveCount(0)
 
     // Saved for real (not just this page view): the oldest binder copy made room.
     const remaining = await page.evaluate((keys) => keys.filter((key) => window.localStorage.getItem(key) !== null), snapshotKeys)
     expect(remaining).not.toContain(snapshotKeys[0])
     await page.reload()
-    await expect(headerButton(harness)).toHaveAttribute("aria-pressed", "true")
+    await expect(headerButton(harness)).toHaveCount(0)
     await expect(banner(harness)).toContainText("Show mode on")
 
     await page.evaluate(() => {

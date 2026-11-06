@@ -8,9 +8,9 @@ test.describe("UK locale", () => {
 
   test("shows UK prices and the Prices control in GBP only", async ({ harness }) => {
     // The Prices toggle lives in Controls (the dock no longer repeats it).
-    await harness.dock().getByRole("button", { name: "Open controls" }).click()
+    await harness.page.getByTestId("app-header").getByRole("button", { name: "View" }).click()
     await expect(harness.page.getByRole("button", { name: "Prices", exact: true })).toBeVisible()
-    await harness.dock().getByRole("button", { name: "Close controls" }).click()
+    await harness.page.getByRole("button", { name: "Close view options" }).click()
     const detail = await harness.openCardDetail()
     await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£0.05")
     await detail.locator("summary").filter({ hasText: "Price details" }).click()
@@ -94,7 +94,7 @@ test.describe("list prices (UK)", () => {
     await harness.page.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: new URL(route.request().url()).searchParams.has("setId")
       ? { sets: [set], selectedSet: set, cards: [card], slots: [{ dexId: 1, pokemonName: "bulbasaur", cards: [card] }] }
       : { sets: [set], selectedSet: null, slots: [] } }))
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await harness.page.getByRole("textbox", { name: "Search sets by name or code" }).fill("fixture")
     await harness.page.getByRole("button", { name: /Fixture Set/ }).first().click()
     await harness.page.getByRole("group", { name: "Set checklist" }).getByRole("button", { name: "Cards", exact: true }).click()

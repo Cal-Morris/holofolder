@@ -13,6 +13,7 @@ test.describe("3D binder gestures", () => {
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: collection.map(item => ({ ...item, card_image: `https://assets.tcgdex.net/en/base/base1/${item.pokemon_id === 18 ? "8" : "44"}/high.webp` })) }))
     const preload = page.waitForRequest(request => request.url().includes("card-image-proxy") && decodeURIComponent(request.url()).includes("/8/high.webp"))
     await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
+    await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), canvas = stage.locator("canvas")
     // Software WebGL can take longer to build the first spread than to turn a page.
@@ -93,7 +94,10 @@ test.describe("3D binder gestures", () => {
     await expect(stage).toHaveAttribute("data-current-page", "1")
     await expect(page.getByRole("dialog")).toHaveCount(0)
     // Return to the fitted view after pinch/pan, then a fresh tap must still select a pocket.
+    await harness.openViewOptions()
     await page.getByRole("button", { name: "2D", exact: true }).click()
+    await page.getByRole("button", { name: "Close view options", exact: true }).click()
+    await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
     const freshBox = (await canvas.boundingBox())!
@@ -111,6 +115,7 @@ test.describe("3D binder gestures", () => {
   test("taps recover when a multi-touch gesture loses capture and ends outside the canvas", async ({ harness }) => {
     const { page } = harness, design = defaultBinderDesign()
     await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
+    await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), canvas = stage.locator("canvas")
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
@@ -159,9 +164,12 @@ test.describe("3D binder gestures", () => {
 
   test("2D swipes survive returning from 3D and ignore multi-touch", async ({ harness }) => {
     const { page } = harness
+    await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     await expect(page.getByTestId("binder-3d-stage").locator("canvas")).toBeVisible()
+    await harness.openViewOptions()
     await page.getByRole("button", { name: "2D", exact: true }).click()
+    await page.getByRole("button", { name: "Close view options", exact: true }).click()
     const grid = page.locator("[data-page-turn-ms]")
     await expect(grid).toBeVisible()
     const touch = await page.context().newCDPSession(page)
@@ -206,6 +214,7 @@ test.describe("3D binder gestures", () => {
     })
     await page.clock.install()
     await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
+    await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), preview = page.getByRole("region", { name: "Your 3D National Dex binder" })
     await expect(stage).toHaveAttribute("data-current-page", "1")

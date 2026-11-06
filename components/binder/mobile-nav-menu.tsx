@@ -41,7 +41,7 @@ export interface MobileNavMenuContext {
 }
 
 export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
-  const { activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView } = ctx
+  const { activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen } = ctx
   return (
     isMobileNavExpanded && !isSearchOpen && (
       <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/45" onClick={closeControlsSheet}>
@@ -49,7 +49,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
           ref={controlsSheetRef}
           role="dialog"
           aria-modal="true"
-          aria-label={isDesktopViewport ? "View options" : "Controls"}
+          aria-label="View options"
           className={`${dashboardStyles.viewOptions} absolute inset-x-0 bottom-0 flex flex-col overflow-hidden outline-none rounded-t-[1.75rem] border-t border-border/65 bg-card px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background dark:shadow-2xl md:inset-x-auto md:bottom-auto md:right-4 md:top-24 md:w-80 md:rounded-2xl md:border md:pb-3`}
           onClick={(event) => event.stopPropagation()}
           style={{
@@ -62,15 +62,14 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
           <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border/60 md:hidden" />
           <div className="mb-3 flex items-center justify-between gap-3 md:mb-2">
             <div>
-              <p className="text-sm font-semibold">{isDesktopViewport ? "View options" : "Controls"}</p>
-              <p className="text-xs text-muted-foreground md:hidden">{collectionStats.percentage}% complete</p>
+              <p className="text-sm font-semibold">View options</p>
             </div>
             <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9 shrink-0 rounded-full"
               onClick={closeControlsSheet}
-              aria-label={isDesktopViewport ? "Close view options" : "Close controls"}
+              aria-label="Close view options"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -78,9 +77,8 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
           </div>
 
           <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain md:space-y-2">
-            {!readOnlyMode && <button className="min-h-10 md:hidden w-full rounded-xl border border-border px-3 py-2 text-left text-sm font-medium" onClick={() => void switchMainView("analytics")}>Analytics</button>}
             {activeMainView !== "pokemon" && activeMainView !== "analytics" && <>
-            {activeMainView === "binder" && <div className="hidden space-y-2 md:block">
+            {activeMainView === "binder" && <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-medium text-muted-foreground">Cards</p>
                 {binderCardControls}
@@ -135,8 +133,8 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
 
             {canFilterCollection && (
               <div>
-              <p className="mb-2 hidden text-xs font-medium text-muted-foreground md:block">Show slots</p>
-              <div role="group" aria-label="Slot filters" className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-1">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Show slots</p>
+              <div role="group" aria-label="Slot filters" className="grid grid-cols-3 gap-1 md:flex md:flex-wrap md:gap-1">
                 {COLLECTION_VIEW_FILTERS.map((filterOption) => {
                   const isActive = collectionViewFilter === filterOption.id
 
@@ -148,10 +146,10 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
                         setIsMobileNavExpanded(false)
                       }}
                       aria-pressed={isActive}
-                      className={`h-11 rounded-2xl border md:h-9 md:flex-[1_0_28%] md:rounded-lg md:px-2.5 md:text-xs px-3 text-sm font-semibold transition-[background-color,border-color,color] ${
+                      className={`h-11 rounded-lg border border-transparent md:h-9 md:flex-[1_0_28%] md:rounded-lg md:px-2.5 md:text-xs px-3 text-sm font-semibold transition-[background-color,border-color,color] ${
                           isActive
-                            ? "border-primary/35 bg-primary/12 text-primary"
-                            : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
+                            ? "border-transparent bg-primary/12 text-primary"
+                            : "border-transparent bg-muted/40 text-muted-foreground"
                         }`}
                     >
                       {filterOption.mobileLabel}
@@ -169,8 +167,8 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
                   aria-pressed={isPriceMode}
                   className={`h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent px-3 text-sm font-semibold transition-[background-color,border-color,color] ${
                       isPriceMode
-                        ? "border-primary/35 bg-primary/12 text-primary"
-                        : "border-border/60 bg-background/62 text-muted-foreground dark:border-border/40 dark:bg-muted/35"
+                        ? "border-transparent bg-primary/12 text-primary"
+                        : "border-transparent bg-muted/40 text-muted-foreground"
                     }`}
                 >
                   <span>{isLoadingPrices && isPriceMode ? "Loading prices" : "Prices"}</span>

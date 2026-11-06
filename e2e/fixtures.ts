@@ -279,6 +279,13 @@ export class Harness {
     await expect(this.page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
   }
 
+  async openViewOptions() {
+    const dialog = this.page.getByRole("dialog", { name: "View options", exact: true })
+    if (!await dialog.isVisible()) await this.page.getByTestId("app-header").getByRole("button", { name: "View", exact: true }).click()
+    await expect(dialog).toBeVisible()
+    return dialog
+  }
+
   async openCardDetail() {
     await this.page.locator("button[data-dex-id=\"1\"]").first().click()
     const dialog = this.page.getByRole("dialog", { name: /bulbasaur details/i })

@@ -145,7 +145,7 @@ test.describe("browse by illustrator", () => {
       dialog = await openFromSearch(harness, "arita")
     }
 
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await expect(harness.dialogs()).toHaveCount(0)
     await harness.expectScrollUnlocked()
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()

@@ -32,7 +32,7 @@ test.describe("dock tab view transitions", () => {
     const steps: Array<{ name: string; target: () => Locator; arrived: () => Promise<void> }> = [
       { name: "List", target: () => dock.getByRole("button", { name: "List", exact: true }), arrived: () => expect(listHeading).toBeVisible() },
       { name: "Wanted", target: () => dock.getByRole("button", { name: "Wanted", exact: true }), arrived: () => expect(listHeading).toHaveCount(0) },
-      { name: "Sets", target: () => dock.getByRole("button", { name: "Sets", exact: true }), arrived: () => expect(perspective("Sets")).toHaveAttribute("aria-pressed", "true") },
+      { name: "Sets", target: () => dock.getByRole("button", { name: "Browse", exact: true }), arrived: () => expect(perspective("Sets")).toHaveAttribute("aria-pressed", "true") },
       { name: "Pokémon", target: () => perspective("Pokémon"), arrived: () => expect(perspective("Pokémon")).toHaveAttribute("aria-pressed", "true") },
       { name: "Binder", target: () => dock.getByRole("button", { name: "Binder", exact: true }), arrived: () => expect(page.getByRole("spinbutton", { name: "Binder page number" })).toBeVisible() },
     ]
@@ -43,8 +43,8 @@ test.describe("dock tab view transitions", () => {
       await step.arrived()
     }
 
-    await page.getByRole("button", { name: "Open controls", exact: true }).click()
-    const analytics = await clickAndWatch(page.getByRole("button", { name: "Analytics", exact: true }))
+    await page.getByRole("button", { name: "More", exact: true }).click()
+    const analytics = await clickAndWatch(page.getByRole("menuitem", { name: "Analytics", exact: true }))
     expect(analytics, "Analytics should crossfade").toMatchObject({ faded: true, motion: "tab", dockNamed: "none" })
     await settle(page)
     await expect(page.getByRole("heading", { name: "Analytics", exact: true })).toBeVisible()
@@ -64,7 +64,7 @@ test.describe("dock tab view transitions", () => {
 
     test("tab switches are instant with prefers-reduced-motion", async ({ harness }) => {
       const page = harness.page
-      for (const name of ["List", "Wanted", "Sets", "Binder"]) {
+      for (const name of ["List", "Wanted", "Browse", "Binder"]) {
         const result = await clickAndWatch(harness.dock().getByRole("button", { name, exact: true }))
         expect(result, `${name} should not animate`).toMatchObject({ faded: false })
         expect(result.motion).toBeUndefined()
