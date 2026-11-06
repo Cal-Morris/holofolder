@@ -129,14 +129,12 @@ export async function downloadCardShowPrices(plan: Pick<CardShowPlan, "priceLook
   for (let offset = 0; offset < lookups.length; offset += 25) {
     options.signal?.throwIfAborted()
     const batch = lookups.slice(offset, offset + 25)
-    const response = await fetcher("/api/card-prices", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cards: batch }), signal: options.signal })
+    const response = await fetcher(`/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`, { signal: options.signal, cache: "no-store" })
     if (!response.ok) throw new Error(`Couldn't download prices (${response.status})`)
     const payload = await response.json()
     if (!Array.isArray(payload?.prices)) throw new Error("The price download was incomplete")
     const requested = new Set(batch.map(card => getCardPriceKey(card.cardId, card.language)))
     const prices = payload.prices.filter((price: { cardId?: unknown; language?: unknown }) => typeof price?.cardId === "string" && requested.has(getCardPriceKey(price.cardId, price.language)))
-    if (new Set(prices.map((price: { cardId: string; language: unknown }) => getCardPriceKey(price.cardId, price.language))).size !== batch.length) throw new Error("The price download was incomplete")
     await options.savePrices(prices)
     progress.done += batch.length
     progress.priced += prices.filter((price: { marketGbpAmount?: unknown }) => typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount) && price.marketGbpAmount > 0).length

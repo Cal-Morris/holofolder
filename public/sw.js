@@ -15,9 +15,6 @@ const KEEP_CACHES = [APP_SHELL_CACHE, DATA_CACHE, IMAGE_CACHE, SHOW_IMAGE_CACHE,
 // Requests from the card show prep carry this header (see lib/card-show-prep.ts).
 const SAVE_FOR_SHOW_HEADER = "x-binderdex-save"
 const SAVE_FOR_SHOW_VALUE = "show"
-// Low-res thumbnails are ~20-40 KB, so this is roughly 60-120 MB at most. The least recently
-// prepared entries go first.
-const MAX_SHOW_IMAGE_ENTRIES = 3000
 const WARM_CACHE_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
 const MAX_WARM_CACHE_URLS = 500
 const WARM_CACHE_CONCURRENCY = 4
@@ -72,8 +69,7 @@ function getCacheNameForUrl(url) {
     url.pathname.startsWith("/api/tcgdex-cache") ||
     url.pathname.startsWith("/api/tcg-set-slots") ||
     url.pathname.startsWith("/api/tcg-card-search") ||
-    url.pathname.startsWith("/api/tcg-illustrators") ||
-    url.pathname.startsWith("/api/card-prices")
+    url.pathname.startsWith("/api/tcg-illustrators")
   ) {
     return DATA_CACHE
   }
@@ -92,23 +88,16 @@ async function trimCache(cacheName, maxEntries) {
 }
 
 let imagePutsSinceTrim = 0
-let showImagePutsSinceTrim = 0
 
 function isSaveForShowRequest(request) {
   return request.headers.get(SAVE_FOR_SHOW_HEADER) === SAVE_FOR_SHOW_VALUE
 }
 
-// Keep a prepared thumbnail in SHOW_IMAGE_CACHE, keyed by URL alone. Re-preparing moves it to the
-// newest end, so trimming drops thumbnails from the oldest shows first.
+// Explicit downloads survive ordinary browsing, with no application eviction cap.
+// Browser storage still limits them; preparation verifies storage writes separately.
 async function saveForShow(url, response) {
   const cache = await caches.open(SHOW_IMAGE_CACHE)
-  await cache.delete(url)
   await cache.put(url, response)
-  showImagePutsSinceTrim += 1
-  if (showImagePutsSinceTrim >= 25) {
-    showImagePutsSinceTrim = 0
-    await trimCache(SHOW_IMAGE_CACHE, MAX_SHOW_IMAGE_ENTRIES)
-  }
 }
 
 async function putInCache(cache, cacheName, request, response) {
@@ -495,8 +484,7 @@ self.addEventListener("fetch", (event) => {
       url.pathname.startsWith("/api/tcgdex-cache") ||
       url.pathname.startsWith("/api/tcg-set-slots") ||
       url.pathname.startsWith("/api/tcg-card-search") ||
-      url.pathname.startsWith("/api/tcg-illustrators") ||
-      url.pathname.startsWith("/api/card-prices")
+      url.pathname.startsWith("/api/tcg-illustrators")
     )
   ) {
     event.respondWith(networkFirst(request, DATA_CACHE, event))

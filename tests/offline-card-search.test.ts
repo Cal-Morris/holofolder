@@ -183,8 +183,9 @@ test("card show prep saves price batches and reports unknown cards without inven
     savePrices: prices => { saved.push(prices) },
     fetcher: async (url, init) => {
       requested.push(url)
-      const body = JSON.parse(String(init?.body))
-      return Response.json({ prices: body.cards.map((card: { cardId: string; language: string }) => ({ ...card, marketGbpAmount: card.cardId === "fixture-0" ? null : 5 })) })
+      assert.notEqual(init?.method, "POST")
+      const cards = JSON.parse(new URL(url, "https://fixture.test").searchParams.get("cards")!)
+      return Response.json({ prices: cards.map((card: { cardId: string; language: string }) => ({ ...card, marketGbpAmount: card.cardId === "fixture-0" ? null : 5 })) })
     },
   })
   assert.equal(requested.length, 2)
@@ -296,4 +297,15 @@ test("saved summary inspects current caches and positive stored prices, includin
   const after = await inspectSavedShowSets(options)
   assert.equal(after[0].images, imageUrls.length - 1)
   assert.equal(after[0].imageTotal, imageUrls.length)
+})
+
+test("offline index keeps separate language printings of the same card", () => {
+  const english = { ...card("base1-44", "Bulbasaur", "44"), dexIds: [1] }
+  const japanese = { ...english, language: "ja", name: "Japanese Bulbasaur" }
+  assert.equal(mergeSearchCards([[english, japanese]]).length, 2)
+})
+
+test("offline search resolves exact stamped identities without parsing away their suffix", () => {
+  const stamped = { ...card("base1-4-stamped", "Synthetic stamped card", "4"), dexIds: [1] }
+  assert.deepEqual(searchOfflineCards([stamped], "base1-4-stamped"), [stamped])
 })

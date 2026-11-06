@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { loadDisplayFxRates, normalizeCardPriceLookups, refreshCardPriceLookups } from "@/lib/card-pricing"
+import { loadSavedCardPrices, loadDisplayFxRates, normalizeCardPriceLookups, refreshCardPriceLookups } from "@/lib/card-pricing"
 
 const MAX_CARD_IDS = 200
 
@@ -30,5 +30,18 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[binderdex] Failed to load card prices:", error)
     return NextResponse.json({ error: "Failed to load card prices." }, { status: 500 })
+  }
+}
+
+/** Download existing full evidence, including finish quotes and history, without provider calls. */
+export async function GET(request: NextRequest) {
+  const headers = { "Cache-Control": "no-store" }
+  try {
+    const cards = JSON.parse(request.nextUrl.searchParams.get("cards") ?? "[]")
+    if (!Array.isArray(cards) || cards.length > 25) return NextResponse.json({ error: "Request at most 25 cards." }, { status: 400, headers })
+    const prices = await loadSavedCardPrices(normalizeCardPriceLookups(cards))
+    return NextResponse.json({ prices }, { headers })
+  } catch {
+    return NextResponse.json({ error: "Saved prices are unavailable." }, { status: 503, headers })
   }
 }

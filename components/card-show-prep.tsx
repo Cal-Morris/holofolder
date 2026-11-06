@@ -7,8 +7,6 @@ import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { saveCardPricesForOffline, loadPriceEvidence } from "@/hooks/use-card-prices"
 import { warmCardTextReader } from "@/lib/card-scan-ocr"
 import { requestPersistentStorage } from "@/lib/service-worker-registration"
-import { warmShowComps, type CheckCompsProgress, type CheckCompsTarget } from "@/lib/check-comps"
-import { getSetIdFromCardId } from "@/lib/show-hunt"
 import {
   inspectSavedShowSets,
   type SavedShowSet,
@@ -26,15 +24,12 @@ type Phase =
   | { kind: "planned"; plan: CardShowPlan }
   | { kind: "downloading"; plan: CardShowPlan; progress: CardShowProgress }
   | { kind: "prices"; plan: CardShowPlan; done: number; total: number }
-  | { kind: "comps"; plan: CardShowPlan; comps: CheckCompsProgress }
-  | { kind: "done"; plan: CardShowPlan; progress: CardShowProgress; priced: number; comps: CheckCompsProgress | null }
+  | { kind: "done"; plan: CardShowPlan; progress: CardShowProgress; priced: number }
   | { kind: "error"; message: string }
 
-export default function CardShowPrep({ candidateSets, wantedCards = [], embedded = false }: {
+export default function CardShowPrep({ candidateSets, embedded = false }: {
   embedded?: boolean
   candidateSets: TCGSetSummary[]
-  /** Want list printings; those in the chosen sets also get sold comps + asking checks saved (skipping any under 12 h old). */
-  wantedCards?: readonly CheckCompsTarget[]
 }) {
   const [open, setOpen] = useState(embedded)
   const [chosen, setChosen] = useState<Set<string>>(() => new Set())
@@ -69,7 +64,7 @@ export default function CardShowPrep({ candidateSets, wantedCards = [], embedded
   }, [])
 
   const chosenSets = candidateSets.filter((set) => chosen.has(set.id))
-  const busy = phase.kind === "planning" || phase.kind === "downloading" || phase.kind === "prices" || phase.kind === "comps"
+  const busy = phase.kind === "planning" || phase.kind === "downloading" || phase.kind === "prices"
 
   const toggle = (setId: string) => {
     setPhase({ kind: "idle" })
@@ -120,18 +115,7 @@ export default function CardShowPrep({ candidateSets, wantedCards = [], embedded
         onProgress: next => { if (!controller.signal.aborted) setPhase({ kind: "prices", plan, done: next.done, total: next.total }) },
       })
       if (controller.signal.aborted) return
-      const setIds = new Set(plan.sets.map((entry) => entry.set.id))
-      const wanted = wantedCards.filter((card) => setIds.has(getSetIdFromCardId(card.cardId)))
-      // Sold comps are a metered provider: warm only wanted cards in these sets, and never fail the prep over them.
-      const comps = wanted.length
-        ? await warmShowComps({ wanted }, { signal: controller.signal, onProgress: (next) => { if (!controller.signal.aborted) setPhase({ kind: "comps", plan, comps: next }) } })
-          // A refused confirm (or other comps failure) is a silent skip — never fails the prep.
-          .then((outcome) => (outcome.ok ? outcome.progress : null), () => null)
-        : null
-      if (!controller.signal.aborted) {
-        setPhase({ kind: "done", plan, progress, priced: prices.priced, comps })
-        if (wanted.length && (!comps || comps.failed || Object.keys(comps.stopped).length)) setNotice("Some wanted-card sold comps weren't saved. Provider limits and retry delays still apply.")
-      }
+      if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress, priced: prices.priced })
       await inspect()
     } catch (error) {
       if (!controller.signal.aborted) setPhase({ kind: "error", message: error instanceof Error ? error.message : "Couldn't save prices on this device." })
@@ -190,9 +174,8 @@ export default function CardShowPrep({ candidateSets, wantedCards = [], embedded
               : null}
             {phase.kind === "downloading" ? `Downloading ${phase.progress.done}/${phase.progress.total} card images…` : null}
             {phase.kind === "prices" ? `Saving prices ${phase.done}/${phase.total}…` : null}
-            {phase.kind === "comps" ? `Saving sold comps for wanted cards ${phase.comps.done}/${phase.comps.total}…` : null}
             {phase.kind === "done"
-              ? `Download finished: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""}, ${phase.priced}/${phase.plan.priceLookups.length} cards priced${phase.comps ? `, sold comps for ${phase.comps.fresh + phase.comps.checked}/${phase.comps.total} wanted cards` : ""})`
+              ? `Download finished: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""}, ${phase.priced}/${phase.plan.priceLookups.length} cards priced)`
               : null}
             {phase.kind === "error" ? phase.message : null}
           </div>
