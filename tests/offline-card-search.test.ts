@@ -12,6 +12,7 @@ import {
   searchOfflineSets,
 } from "../lib/offline-card-index"
 import {
+  inspectSavedShowSets,
   ESTIMATE_SAMPLE_SIZE,
   FALLBACK_THUMBNAIL_BYTES,
   downloadCardShowImages,
@@ -242,4 +243,57 @@ test("offline set search reads only set responses and sees later cache updates",
   responses.set(setUrl, { sets: [{ id: "synthetic-new", name: "Synthetic new set" }] })
   assert.deepEqual(await readOfflineSets(fakeCaches), [{ id: "synthetic-new", name: "Synthetic new set" }])
   assert.deepEqual(reads, [setUrl, setUrl])
+})
+
+test("failed estimate samples are retried and failed bodies never count as saved images", async () => {
+  const attempts = new Map<string, number>()
+  const fetcher = async (url: string) => {
+    if (url.startsWith("/api/tcg-set-slots")) return Response.json(setSlots)
+    const count = (attempts.get(url) ?? 0) + 1
+    attempts.set(url, count)
+    return new Response("image", { status: count === 1 ? 503 : 200 })
+  }
+  const plan = await planCardShowPrep([BASE], { fetcher })
+  assert.deepEqual(plan.sampledImageUrls, [])
+  const result = await downloadCardShowImages(plan, { fetcher })
+  assert.equal(result.failed, 0)
+  assert.equal(result.done, plan.imageUrls.length)
+  assert.ok([...attempts.values()].every(count => count === 2))
+  const failed = await downloadCardShowImages({ imageUrls: ["/broken"] }, {
+    fetcher: async () => new Response(new ReadableStream({ start(controller) { controller.error(new Error("truncated")) } })),
+  })
+  assert.deepEqual(failed, { done: 1, total: 1, failed: 1 })
+})
+
+test("stopping image preparation does not start remaining downloads", async () => {
+  const controller = new AbortController()
+  let calls = 0
+  const result = await downloadCardShowImages({ imageUrls: ["/one", "/two", "/three"] }, {
+    signal: controller.signal, concurrency: 1,
+    fetcher: async () => { calls++; controller.abort(); throw new Error("aborted") },
+  })
+  assert.equal(calls, 1)
+  assert.deepEqual(result, { done: 0, total: 3, failed: 0 })
+})
+
+
+test("saved summary inspects current caches and positive stored prices, including eviction", async () => {
+  const imageUrls = getSetThumbnailUrls(setSlots)
+  const imageKeys = imageUrls.map(url => new Request(new URL(url, "https://fixture.test")))
+  const request = new Request(`https://fixture.test${getSetSlotsUrl(BASE)}`)
+  const storage = {
+    keys: async () => ["binderdex-v4-data", "binderdex-v1-show-images"],
+    open: async (name: string) => ({
+      keys: async () => name.endsWith("-data") ? [request] : imageKeys,
+      match: async () => Response.json({ ...setSlots, selectedSet: BASE }),
+    }),
+  } as unknown as CacheStorage
+  const options = { cacheStorage: storage, loadPrices: async () => [{ marketGbpAmount: 5 }, { marketGbpAmount: 0 }, { marketGbpAmount: -1 }] }
+  const before = await inspectSavedShowSets(options)
+  assert.equal(before[0].images, imageUrls.length)
+  assert.equal(before[0].priced, 1)
+  imageKeys.pop()
+  const after = await inspectSavedShowSets(options)
+  assert.equal(after[0].images, imageUrls.length - 1)
+  assert.equal(after[0].imageTotal, imageUrls.length)
 })

@@ -24,7 +24,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react"
-import { useOverlay } from "@/hooks/use-overlay"
+import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { useCardSearch, useIllustratorSearch, useSetSearch } from "@/hooks/use-card-search"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
@@ -52,6 +52,7 @@ import type { QuickBundleEntry, QuickCardAction, QuickCardState } from "@/compon
 import { CARD_STANDING_BADGES, getCardStanding, wantedToSearchCard, type HuntSourceItem, type PokemonCardStanding } from "@/lib/show-hunt"
 import { searchOfflineCards } from "@/lib/offline-card-index"
 // Bundled with Quick mode (not split) so the finder never needs a network round trip at a show.
+import ShowOfflinePrep from "@/components/show-offline-prep"
 import ShowHunt, { PokemonSprite } from "@/components/show-hunt"
 import ShowPokemonCards from "@/components/show-pokemon-cards"
 // Also bundled, so Scan opens offline at a show without fetching its code.
@@ -185,6 +186,7 @@ function QuickMode({
   lookupOnly = false,
   cardStanding,
 }: QuickModeProps) {
+  const [preparingOffline, setPreparingOffline] = useState(false)
   const [moveSort, setMoveSort] = useState<MomentumSort>("default")
   const [checking, setChecking] = useState<{ card: SearchCardResult; pokemon: { id: number; name: string }; finish?: CardFinish | null } | null>(null)
   // Show mode: the Pokémon whose cards are listed (opened from a Pokémon result or a Hunting group).
@@ -206,6 +208,7 @@ function QuickMode({
   const [scanNotice, setScanNotice] = useState<string | null>(null)
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentQuickSearches(typeof window === "undefined" ? undefined : window.localStorage))
   const dialogRef = useRef<HTMLDivElement | null>(null)
+  const prepSwipe = useSwipeToDismiss(dialogRef, onClose, preparingOffline)
   const inputRef = useRef<HTMLInputElement | null>(null)
   useOverlay(true, onClose, { containerRef: dialogRef, autoFocus: false })
   const isWide = useMediaQuery("(min-width: 768px)")
@@ -400,10 +403,13 @@ function QuickMode({
         data-keyboard-fit
         className={`mx-auto flex h-[100dvh] w-full ${wideWorkspace ? "max-w-6xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
       >
-        <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
+        <header {...prepSwipe} className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold leading-tight">{lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
+            <h2 className="text-base font-bold leading-tight">{preparingOffline ? "Prepare offline" : lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
           </div>
+          {show && <button type="button" onClick={() => setPreparingOffline(value => !value)} className="min-h-10 shrink-0 rounded-full bg-muted px-3 text-xs font-semibold">
+            {preparingOffline ? "Back" : "Prepare offline"}
+          </button>}
           {!isOnline && (
             <span role="status" className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
               <WifiOff className="h-3.5 w-3.5" aria-hidden /> Offline
@@ -419,7 +425,7 @@ function QuickMode({
           </button>
         </header>
 
-        {detailOpen && !twoPane ? (checkView ?? bundleView) : (
+        {preparingOffline ? <ShowOfflinePrep items={huntItems ?? []} isOnline={isOnline} /> : detailOpen && !twoPane ? (checkView ?? bundleView) : (
         // Keep the finder mounted when detail opens so filters and scroll position survive selection.
         <div className={wideWorkspace ? `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] ${twoPane ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-1"}` : "contents"}>
         <div className={wideWorkspace ? `flex min-h-0 min-w-0 flex-col ${twoPane ? "border-r border-border/50" : ""}` : "contents"}>
