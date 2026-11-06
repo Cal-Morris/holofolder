@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures"
-import { searchOfflineCards } from "../lib/offline-card-index"
+import { searchOfflineCards, searchOfflineCardsWithCorrection } from "../lib/offline-card-index"
 
 // Synthetic search fixture, no prices or collection writes.
 const cards = [
@@ -40,4 +40,48 @@ test("ordinary Search renders compound card hits and a useful empty state", asyn
   await expect(show.getByRole("region", { name: "Cards", exact: true })).toContainText("on this device")
   await expect(show.getByRole("region", { name: "Cards", exact: true }).getByRole("button", { name: /Abra, 151/ })).toBeVisible()
   await expect(show.getByRole("region", { name: "Cards", exact: true }).getByText("Base Set", { exact: true })).toHaveCount(0)
+})
+
+
+test("compound spelling correction is labelled without replacing the query in Search and Quick", async ({ harness, page }, info) => {
+  // Synthetic cards with real catalog set names, no price evidence.
+  const neoCards = [
+    { id: "neo1-9", localId: "9", name: "Lugia", set: { id: "neo1", name: "Neo Genesis" }, dexIds: [249] },
+    { id: "neo3-20", localId: "20", name: "Lugia", set: { id: "neo3", name: "Neo Revelation" }, dexIds: [249] },
+  ]
+  await page.route("**/api/tcg-card-search**", route => {
+    const query = new URL(route.request().url()).searchParams.get("q") ?? ""
+    return route.fulfill({ json: searchOfflineCardsWithCorrection(neoCards, query) })
+  })
+  await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
+  const search = page.getByRole("dialog", { name: "Search Pokemon" })
+  await search.getByRole("textbox").fill("Lucia neo")
+  const correction = search.getByRole("status").filter({ hasText: "Showing cards for lugia neo" })
+  await expect(correction).toBeVisible()
+  await expect(search.getByRole("textbox")).toHaveValue("Lucia neo")
+  await expect(search.getByRole("button", { name: "Lugia #9 Neo Genesis", exact: true })).toBeVisible()
+  await expect(search.getByRole("button", { name: "Lugia #20 Neo Revelation", exact: true })).toBeVisible()
+  await harness.expectWithinSafeViewport(correction)
+  await harness.expectNoHorizontalOverflow()
+  await page.screenshot({ path: `/tmp/search-correction-${info.project.name}.png` })
+  await search.getByRole("textbox").fill("Lugia neo")
+  await expect(search.getByRole("status").filter({ hasText: "Showing cards for" })).toHaveCount(0)
+  await search.getByRole("button", { name: "Quick mode", exact: true }).click()
+  const quick = page.getByRole("dialog", { name: "Quick mode" })
+  await quick.getByRole("searchbox").fill("Lucia neo")
+  await expect(quick.getByRole("status").filter({ hasText: "Showing cards for lugia neo" })).toBeVisible()
+  await expect(quick.getByRole("searchbox")).toHaveValue("Lucia neo")
+  await quick.getByRole("button", { name: "Close quick mode" }).click()
+  await page.getByRole("button", { name: "Show mode", exact: true }).click()
+  await page.evaluate(async cards => {
+    const cache = await caches.open("correction-fixture-data")
+    await cache.put("/api/tcg-card-search?q=fixture", new Response(JSON.stringify({ cards }), { headers: { "content-type": "application/json" } }))
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false })
+  }, neoCards)
+  await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
+  await quick.getByRole("searchbox").fill("Lucia neo")
+  await expect(quick.getByRole("region", { name: "Cards", exact: true })).toContainText("on this device")
+  await expect(quick.getByRole("status").filter({ hasText: "Showing cards for lugia neo" })).toBeVisible()
+  await expect(quick.getByRole("searchbox")).toHaveValue("Lucia neo")
+  await harness.expectNoHorizontalOverflow()
 })

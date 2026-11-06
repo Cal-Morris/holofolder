@@ -1,4 +1,4 @@
-import { cardSearchSetCandidates, resolveCardSearchQuery } from "@/lib/card-search-query"
+import { cardSearchSetCandidates, correctedCardSearchQuery, resolveCardSearchQuery } from "@/lib/card-search-query"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 import type { CardCatalogIdentity } from "@/lib/domain/cards"
 import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog"
@@ -489,7 +489,7 @@ function localIdCandidates(number: string) {
  * Card search across the mirror: card name, card number ("bulbasaur 44/102"), set name/id
  * ("pitch black", "me05 12"), illustrator ("arita") or a TCGdex card id ("base1-44"). Only cards that feature a Pokémon.
  */
-export async function searchMirroredCards(query: string, language: MirrorLanguage = "en", limit = 60): Promise<SearchCardResult[]> {
+export async function searchMirroredCards(query: string, language: MirrorLanguage = "en", limit = 60): Promise<{ cards: SearchCardResult[]; correction: string | null }> {
   "use cache: remote"
   cacheLife(MIRROR_CACHE_LIFE)
 
@@ -497,19 +497,22 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
   cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-card-search", cacheSafeTag("card-query", `${parsed.text}|${parsed.number ?? ""}|${parsed.cardId ?? ""}`), cacheSafeTag("language", language))
 
   if (parsed.text.length < 2 && !parsed.cardId) {
-    return []
+    return { cards: [], correction: null }
   }
 
   const admin = createAdminClient()
+  let correction: string | null = null
   const candidates = [...new Set(cardSearchSetCandidates(query).map(candidate => candidate.phrase).filter(phrase => !phrase.includes(" ") && phrase.length >= 2))]
   if (candidates.length) {
     const catalog = await admin.from("tcg_sets").select("id,name_en")
       .or(candidates.flatMap(phrase => [`id.ilike.${JSON.stringify(phrase)}`, `name_en.ilike.${JSON.stringify(`%${phrase}%`)}`]).join(","))
       .limit(1000)
     if (catalog.error) throw catalog.error
-    parsed = resolveCardSearchQuery(query, (catalog.data ?? [])
+    const sets = (catalog.data ?? [])
       .filter(set => !HIDDEN_SET_IDS.has(set.id))
-      .map(set => ({ id: set.id, name: set.name_en ?? "" })))
+      .map(set => ({ id: set.id, name: set.name_en ?? "" }))
+    parsed = resolveCardSearchQuery(query, sets)
+    correction = correctedCardSearchQuery(query, sets)
   }
   const numberCandidates = parsed.number ? localIdCandidates(parsed.number) : null
   const requests: Array<PromiseLike<{ data: any[] | null; error: unknown }>> = []
@@ -563,7 +566,12 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
     if (card && !results.has(card.id)) results.set(card.id, card)
   }
 
-  return Array.from(results.values()).slice(0, limit * 2)
+  const cards = Array.from(results.values()).slice(0, limit * 2)
+  if (!cards.length && correction) {
+    const retry = await searchMirroredCards(correction, language, limit)
+    return { cards: retry.cards, correction: retry.cards.length ? correction : null }
+  }
+  return { cards, correction: null }
 }
 
 const ILLUSTRATOR_DIRECTORY_FUNCTION = "tcg_illustrator_directory"

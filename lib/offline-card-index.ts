@@ -1,4 +1,4 @@
-import { resolveCardSearchQuery } from "@/lib/card-search-query"
+import { correctedCardSearchQuery, resolveCardSearchQuery } from "@/lib/card-search-query"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 // Offline card search: an index built from what is already on the device (the user's own cards and the card
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
@@ -213,4 +213,14 @@ export async function buildOfflineCardIndex(collection: CollectedPokemon[], cach
 export async function readOfflineSets(cacheStorage?: CacheStorage) {
   const responses = await readCachedCardApiResponses(cacheStorage)
   return responses.flatMap((response) => extractSetsFromCachedResponse(response.url, response.payload))
+}
+
+/** Literal matches win, with the same conservative correction retry as the online search. */
+export function searchOfflineCardsWithCorrection(cards: SearchCardResult[], query: string, limit = 60) {
+  const exact = searchOfflineCards(cards, query, limit)
+  if (exact.length) return { cards: exact, correction: null }
+  const sets = Array.from(new Map(cards.map(card => [card.set.id, card.set])).values())
+  const corrected = correctedCardSearchQuery(query, sets)
+  const matches = corrected ? searchOfflineCards(cards, corrected, limit) : []
+  return { cards: matches, correction: matches.length ? corrected : null }
 }

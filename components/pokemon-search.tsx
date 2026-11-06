@@ -548,6 +548,7 @@ export default function PokemonSearch({
                   {cardSearch.loading ? <Loader2 className="h-3 w-3 animate-spin" aria-label="Searching cards" /> : null}
                   {cardSearch.offline ? <span className="normal-case tracking-normal font-normal">· offline: your cards and saved sets</span> : null}
                 </p>
+                {cardSearch.correction ? <p role="status" className="px-4 py-1 text-xs text-muted-foreground">Showing cards for {cardSearch.correction}</p> : null}
                 {cardSearch.groups.map((group) => {
                   const groupName = formatPokemonDisplayName(group.name)
                   return (
