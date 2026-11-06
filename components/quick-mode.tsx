@@ -532,6 +532,7 @@ function QuickMode({
                   {show ? "Any card · tap to check the price" : "Cards"}{cardSearch.offline ? " · on this device" : ""}
                   {cardSearch.loading && <Loader2 className="ml-1.5 inline h-3 w-3 animate-spin" aria-label="Searching cards" />}
                 </h3>
+                {cardSearch.correction ? <p role="status" className="px-1 py-1 text-xs text-muted-foreground">Showing cards for {cardSearch.correction}</p> : null}
                 {formatPrice && cardResults.length > 1 && <MomentumSortChips value={moveSort} onChange={setMoveSort} className="mb-1.5" />}
                 {sortedCardResults.map(({ card, pokemon, standing }) => {
                   const thumb = cardThumbnail(card.image)

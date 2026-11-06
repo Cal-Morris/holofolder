@@ -1,3 +1,5 @@
+import { POKEMON_CATALOG } from "@/lib/pokemon-catalog"
+import { getEditDistance } from "@/lib/pokemon-search-state"
 import { parseCardSearchQuery, sanitizeSearchText } from "@/lib/pokemon-card-browse"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 
@@ -20,15 +22,52 @@ export function cardSearchSetCandidates(raw: string) {
   return candidates.sort((a, b) => b.phrase.length - a.phrase.length)
 }
 
-/** Exact catalog names/codes win over ambiguous bare numbers; no guessed set aliases. */
+/** Unique nearest full Pokémon name only; never correct a valid name or name fragment. */
+function pokemonCorrection(text: string) {
+  if (!/^[a-z]{4,}$/.test(text)) return null
+  if (POKEMON_CATALOG.some(pokemon => pokemon.name.includes(text))) return null
+  const max = text.length >= 5 ? 2 : 1
+  const ranked = POKEMON_CATALOG.map(pokemon => ({ name: pokemon.name, distance: getEditDistance(text, pokemon.name, max) }))
+    .filter(pokemon => pokemon.distance <= max).sort((a, b) => a.distance - b.distance)
+  return ranked[0] && ranked[0].distance !== ranked[1]?.distance ? ranked[0].name : null
+}
+
+function isPokemonText(text: string) {
+  return POKEMON_CATALOG.some(pokemon => pokemon.name === text) || Boolean(pokemonCorrection(text))
+}
+
+function partialSetMatch(name: string, phrase: string) {
+  // Whole word prefixes, at least three letters each; never arbitrary substrings or fuzzy set names.
+  const words = phrase.split(" ")
+  if (!words.every(word => /^[a-z]{3,}$/.test(word))) return false
+  const nameWords = name.toLowerCase().split(/[^a-z0-9]+/)
+  return nameWords.some((_, start) => words.every((word, index) => nameWords[start + index]?.startsWith(word)))
+}
+
+/** Exact catalog names/codes win; partial set phrases require a recognizable Pokémon remainder. */
 export function resolveCardSearchQuery(raw: string, sets: SearchSet[]) {
-  for (const candidate of cardSearchSetCandidates(raw)) {
-    const matches = sets.filter(set => set.id.toLowerCase() === candidate.phrase || set.name.toLowerCase() === candidate.phrase)
-    if (matches.length) {
+  const candidates = cardSearchSetCandidates(raw)
+  for (const partial of [false, true]) {
+    for (const candidate of candidates) {
       const parsed = parseCardSearchQuery(candidate.remainder)
-      const numberOnly = /^#?(\d{1,4}[a-z]?)$/.exec(candidate.remainder)
-      return { ...parsed, ...(numberOnly ? { text: "", number: numberOnly[1] } : {}), setIds: matches.map(set => set.id) }
+      if (partial && !isPokemonText(parsed.text)) continue
+      const matches = sets.filter(set => partial
+        ? partialSetMatch(set.name, candidate.phrase)
+        : set.id.toLowerCase() === candidate.phrase || set.name.toLowerCase() === candidate.phrase)
+      if (matches.length) {
+        const numberOnly = /^#?(\d{1,4}[a-z]?)$/.exec(candidate.remainder)
+        return { ...parsed, ...(numberOnly ? { text: "", number: numberOnly[1] } : {}), setIds: matches.map(set => set.id) }
+      }
     }
   }
   return { ...parseCardSearchQuery(raw), setIds: [] as string[] }
+}
+
+/** Retry only after literal results are empty, and only with a catalog-backed set constraint. */
+export function correctedCardSearchQuery(raw: string, sets: SearchSet[]) {
+  const parsed = resolveCardSearchQuery(raw, sets)
+  if (!parsed.setIds.length || parsed.cardId) return null
+  const name = pokemonCorrection(parsed.text)
+  if (!name) return null
+  return sanitizeSearchText(raw).toLowerCase().replace(new RegExp(`\\b${parsed.text}\\b`), name)
 }

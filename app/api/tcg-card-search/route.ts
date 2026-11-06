@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
   const language = normalizeCardLanguage(searchParams.get("language"))
 
   try {
-    const cards = await searchMirroredCards(query, language)
-    return NextResponse.json({ cards }, { headers: PUBLIC_JSON_CACHE_HEADERS })
+    const result = await searchMirroredCards(query, language)
+    return NextResponse.json(result, { headers: PUBLIC_JSON_CACHE_HEADERS })
   } catch (error) {
     console.error("[binderdex] Card search failed:", error)
     return NextResponse.json({ error: "Card search is unavailable right now.", cards: [] }, { status: 500 })

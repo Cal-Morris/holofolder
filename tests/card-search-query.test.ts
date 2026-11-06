@@ -1,7 +1,7 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { resolveCardSearchQuery } from "../lib/card-search-query"
-import { searchOfflineCards } from "../lib/offline-card-index"
+import { correctedCardSearchQuery, resolveCardSearchQuery } from "../lib/card-search-query"
+import { searchOfflineCards, searchOfflineCardsWithCorrection } from "../lib/offline-card-index"
 
 // Synthetic cards using catalog set identifiers/names, never pricing evidence.
 const sets = [
@@ -47,5 +47,53 @@ describe("catalog-backed compound card search", () => {
     assert.deepEqual(ids("abra 43"), ["base1-43"])
     assert.deepEqual(resolveCardSearchQuery("abra 151", []), { text: "abra", number: "151", cardId: null, setIds: [] })
     assert.deepEqual(ids("abra made up set"), [])
+  })
+})
+
+// Synthetic card rows using catalog names; these do not assert real printings or prices.
+const neoSets = [
+  { id: "neo1", name: "Neo Genesis" },
+  { id: "neo3", name: "Neo Revelation" },
+  { id: "neo4", name: "Neo Destiny" },
+]
+const neoCards = neoSets.map((set) => ({ id: `${set.id}-1`, name: "Lugia", localId: "1", set, dexIds: [249] }))
+
+test("partial set families constrain card names across cached catalog names", () => {
+  assert.deepEqual(searchOfflineCards(neoCards, "Lugia neo"), neoCards)
+  assert.deepEqual(searchOfflineCards(neoCards, "neo gen Lugia"), [neoCards[0]])
+  assert.deepEqual(searchOfflineCards(neoCards, "Lugia genesis"), [neoCards[0]])
+  assert.deepEqual(searchOfflineCards(neoCards, "Lugia ne"), [])
+  assert.deepEqual(searchOfflineCards(neoCards, "Lugia eon"), [])
+})
+
+
+test("unique Pokémon typos retry against the same set family and retain collector constraints", () => {
+  for (const query of ["Lucia neo", "Lguia neo", "Lugai neo", "Lguai neo"]) {
+    const result = searchOfflineCardsWithCorrection(neoCards, query)
+    assert.deepEqual(result.cards, neoCards, query)
+    assert.equal(result.correction, "lugia neo", query)
+  }
+  assert.deepEqual(searchOfflineCardsWithCorrection(neoCards, "Lucia neo #2"), { cards: [], correction: null })
+  assert.equal(correctedCardSearchQuery("Lucia neo #1", neoSets), "lugia neo #1")
+  assert.equal(correctedCardSearchQuery("neo Lucia 1/111", neoSets), "neo lugia 1/111")
+})
+
+test("literal results win, ambiguous names, fragments and unknown sets are never corrected", () => {
+  const literal = { ...neoCards[0], id: "synthetic-lucia", name: "Lucia" }
+  assert.deepEqual(searchOfflineCardsWithCorrection([...neoCards, literal], "Lucia neo"), { cards: [literal], correction: null })
+  for (const query of ["Lugia neo", "mew neo", "lug neo", "nidoran neo", "latixs neo", "xxxxxx neo", "Lucia unknown", "Lucia", "neo1-1", "arita neo"]) {
+    assert.equal(correctedCardSearchQuery(query, neoSets), null, query)
+  }
+  assert.deepEqual(searchOfflineCardsWithCorrection([], "Lucia neo"), { cards: [], correction: null })
+})
+
+
+test("partial sets still honor explicit numbers and exact set-name precedence", () => {
+  assert.deepEqual(searchOfflineCards(neoCards, "Lugia neo #1"), neoCards)
+  assert.deepEqual(searchOfflineCards(neoCards, "Lugia neo 1/111"), neoCards)
+  assert.deepEqual(searchOfflineCards(neoCards, "Lugia neo #2"), [])
+  assert.deepEqual(resolveCardSearchQuery("Lugia neo", [...neoSets, { id: "synthetic-neo", name: "Neo" }]).setIds, ["synthetic-neo"])
+  assert.deepEqual(searchOfflineCardsWithCorrection([{ ...neoCards[0], illustrator: "Mitsuhiro Arita" }], "Mitsuhiro Arita"), {
+    cards: [{ ...neoCards[0], illustrator: "Mitsuhiro Arita" }], correction: null,
   })
 })
