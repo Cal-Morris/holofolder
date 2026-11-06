@@ -97,3 +97,8 @@ export function selectCatalogPricing(payload: Record<string, unknown> | null, ca
   ))
   return variant ? { pricing: variant.pricing, variants: { [variant.type]: true } } : null
 }
+
+/** Existing catalog IDs, optionally followed by one numeric TCGplayer printing identity. */
+export function isPriceCheckCardId(value: string) {
+  return value.length <= 100 && /^[a-zA-Z0-9._-]+(?:~[1-9][0-9]*)?$/.test(value)
+}
