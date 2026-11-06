@@ -150,3 +150,21 @@ export function parseAnalyticsQuery(params: URLSearchParams) {
   if (beforeId !== null && (!/^[1-9]\d{0,18}$/.test(beforeId) || BigInt(beforeId) > BigInt("9223372036854775807"))) throw new Error("Invalid activity cursor")
   return { cardId, language, beforeId }
 }
+
+/** Current inventory only. No inference about acquisition dates or historical portfolio value. */
+export function buildAnalyticsBreakdown(summary: ReturnType<typeof buildCollectionAnalytics>) {
+  const owned = summary.cards.filter(card => card.scope === "owned")
+  const sets = new Map<string, { name: string; count: number }>()
+  for (const card of owned) {
+    const name = card.card.card_set?.trim() || "Unknown set"
+    const set = sets.get(name) ?? { name, count: 0 }
+    set.count++
+    sets.set(name, set)
+  }
+  return {
+    sets: [...sets.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    unpriced: owned.filter(card => card.amount === null),
+    topCards: owned.filter(card => card.amount !== null).sort((a, b) => b.amount! - a.amount! || a.key.localeCompare(b.key)),
+    uncertainPrices: owned.filter(card => card.amount !== null && card.price?.confidence !== "high" && card.price?.confidence !== "medium").length,
+  }
+}

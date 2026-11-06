@@ -76,3 +76,29 @@ test("a reverse holo is valued from TCGplayer's reverseHolofoil row, never a 1st
   assert.equal(buildCollectionAnalytics([reverse], withRows("reverse-holofoil"), now).valueGbp, 3)
   assert.equal(buildCollectionAnalytics([{ ...owned }], { "fixture-card::en": { ...quote, finishPrices: [{ ...quote, gbpAmount: 90, marketGbpAmount: 90, finish: "normal" as const, variantKey: "1st-edition" }] } }, now).pricedCards, 0)
 })
+
+// Synthetic inventory exercises coverage and grouping without provider requests.
+test("dashboard breakdown keeps unknown prices, wanted cards and copies distinct", async () => {
+  const { buildAnalyticsBreakdown } = await import("../lib/collection-analytics")
+  const rows = [owned, { ...owned, id: "second-copy" }, { ...owned, id: "unpriced", pokemon_id: 4, card_id: "no-quote", card_set: "Fixture set" }, { ...owned, id: "want", pokemon_id: 7, status: "wishlisted" as const }]
+  const summary = buildCollectionAnalytics(rows, prices(), now, { countCopies: true })
+  const result = buildAnalyticsBreakdown(summary)
+  assert.equal(result.topCards.length, 2)
+  assert.equal(result.unpriced.length, 1)
+  assert.deepEqual(result.sets, [{ name: "Unknown set", count: 2 }, { name: "Fixture set", count: 1 }])
+  assert.equal(result.uncertainPrices, 0)
+  assert.equal(summary.ownedSpecies, 2)
+  assert.equal(summary.wantedCards, 1)
+})
+
+test("dashboard reports weak price coverage and handles empty inventory", async () => {
+  const { buildAnalyticsBreakdown } = await import("../lib/collection-analytics")
+  assert.equal(buildAnalyticsBreakdown(buildCollectionAnalytics([owned], prices({ ...quote, confidence: "low" }), now)).uncertainPrices, 1)
+  assert.deepEqual(buildAnalyticsBreakdown(buildCollectionAnalytics([], {}, now)), { sets: [], unpriced: [], topCards: [], uncertainPrices: 0 })
+})
+
+test("dashboard ranks priced owned cards by value without treating missing as zero", async () => {
+  const { buildAnalyticsBreakdown } = await import("../lib/collection-analytics")
+  const summary = buildCollectionAnalytics([owned, { ...owned, pokemon_id: 4, card_id: "other", card_set: "Fixture" }], { ...prices(), "other::en": { ...quote, marketGbpAmount: 100 } }, now)
+  assert.deepEqual(buildAnalyticsBreakdown(summary).topCards.map(card => card.amount), [100, 12])
+})
