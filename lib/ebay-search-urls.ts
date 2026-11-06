@@ -26,7 +26,7 @@ export function cardListingSearchQuery(card: ListingSearchCard, finish?: CardFin
   const printingLabel = name?.match(/ \((Pokémon Center|Staff|Prerelease)\)$/)?.[1]
   // Stored collection rows have no number field. Keep unknown decorated identities intact;
   // only a named stamp lets a browser search use the printed number without its product suffix.
-  const number = card.localId || card.cardId.slice(card.cardId.indexOf("-") + 1)
+  const number = card.localId || (card.cardId.startsWith("tcgplayer-") ? "" : card.cardId.slice(card.cardId.indexOf("-") + 1))
   const localId = printingLabel ? number.split("~")[0] : number
   const query = priceCheckSearchQuery(name || card.cardId, localId, card.setName, printingLabel)
   const variant = finish === "reverse_holo" ? "reverse holo" : finish === "holo" ? "holo -reverse" : finish === "normal" ? "non holo -reverse" : ""
