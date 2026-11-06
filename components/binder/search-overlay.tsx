@@ -70,7 +70,6 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full" onClick={closeSearch} aria-label="Close search">
                 <X className="h-4 w-4" />
               </Button>
-              <p className="col-span-3 text-xs text-muted-foreground">Find Pokémon, cards, sets or artists.</p>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
               <PokemonSearch
@@ -92,7 +91,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
                 getCardState={getCardState}
               />
               {selectedPokemon && (
-                <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm dark:border-border/50">
+                <div className="mt-4 border-t border-border/50 pt-4">
                   <div className="flex items-center gap-3">
                     <div className={`relative flex shrink-0 items-center justify-center bg-muted/40 ${selectedPrimaryCardPreview?.cardImage ? "trading-card w-11" : "h-16 w-16 rounded-xl"}`}>
                       <img

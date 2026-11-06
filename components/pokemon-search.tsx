@@ -273,12 +273,13 @@ export default function PokemonSearch({
         <Input
           ref={searchInputRef}
           type="text"
-          placeholder={onBrowseCards ? "Search Pokémon, cards, sets, artists or #dex…" : "Search or browse Pokémon..."}
+          aria-label={onBrowseCards ? "Search Pokémon, cards, sets, artists or dex number" : "Search Pokémon"}
+          placeholder={onBrowseCards ? "Pokémon, cards, sets, artists…" : "Search Pokémon…"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
             data-overlay-escape="clear"
-          className="h-12 rounded-2xl border-2 border-primary/20 bg-card pl-12 text-lg focus:border-primary"
+          className="h-11 rounded-2xl border border-border/70 bg-card pl-12 text-base focus:border-primary"
           autoComplete="off"
         />
       </div>
@@ -302,7 +303,7 @@ export default function PokemonSearch({
                 setSelectedIndex(-1)
               }}
               aria-pressed={isActive}
-              className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+              className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
                 isActive
                   ? "border-primary/35 bg-primary/12 text-primary"
                   : "border-border/50 bg-card text-muted-foreground hover:border-primary/20 hover:text-foreground"
@@ -327,20 +328,15 @@ export default function PokemonSearch({
           </span>
           <ArrowRight className="h-4 w-4 shrink-0" />
         </button>
-      ) : visibleResults.length === 1 && query.trim() ? (
-        <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border-2 border-primary/30 bg-primary/5 px-4 py-3 text-center text-sm font-medium text-primary">
-          <span>Press Enter to select</span>
-          <ArrowRight className="w-4 h-4" />
-        </div>
       ) : null}
 
-      <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-border/50 bg-card/70">
+      <div className="mt-3 min-h-0 flex-1 overflow-hidden border-t border-border/50">
         {showRecentCards || visibleResults.length > 0 || setResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
           <div className="h-full overflow-y-auto">
             {showRecentCards ? (
               <section aria-label="Recently viewed cards" className="border-b border-border/50 pb-2">
                 <div className="flex items-center justify-between gap-2 px-4 pt-2">
-                  <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                     <History className="h-3 w-3" />
                     Recently viewed
                   </p>
@@ -382,7 +378,7 @@ export default function PokemonSearch({
               </section>
             ) : null}
             {visibleResults.length > 0 && (showRecentCards || setResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading) ? (
-              <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pokémon</p>
+              <p className="px-4 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">Pokémon</p>
             ) : null}
             {visibleResults.map((pokemon, index) => {
               const meta = getResultMeta?.(pokemon)
@@ -438,7 +434,7 @@ export default function PokemonSearch({
                           <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
                             <span>#{pokemon.id}</span>
                             {meta?.stateLabel ? (
-                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${meta.stateToneClass || "bg-muted text-muted-foreground"}`}>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.stateToneClass || "bg-muted text-muted-foreground"}`}>
                                 {meta.stateLabel}
                               </span>
                             ) : null}
@@ -481,7 +477,7 @@ export default function PokemonSearch({
                         type="button"
                         onClick={() => handleJumpToPage(meta.pageNumber!)}
                         aria-label={`Go to page ${meta.pageNumber}`}
-                        className="inline-flex h-9 items-center gap-1 rounded-full border border-border/60 bg-background/75 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                        className="inline-flex h-9 items-center gap-1 rounded-full border border-border/60 bg-background/75 px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
                         <MapPinned className="h-3 w-3" />
                         <span className="hidden sm:inline">Page</span>
@@ -494,7 +490,7 @@ export default function PokemonSearch({
             })}
             {setResults.length > 0 ? (
               <section aria-label="Set results" className="border-t border-border/50 px-3 pb-2">
-                <p className="px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Sets</p>
+                <p className="px-1 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">Sets</p>
                 <div className="flex flex-col gap-1">
                   {setResults.map((set) => {
                     const meta = formatSetHitMeta(set)
@@ -522,7 +518,7 @@ export default function PokemonSearch({
             ) : null}
             {illustratorResults.length > 0 ? (
               <section aria-label="Illustrator results" className="border-t border-border/50 px-3 pb-2">
-                <p className="px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Illustrators</p>
+                <p className="px-1 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">Illustrators</p>
                 <div className="flex flex-col gap-1">
                   {illustratorResults.map((illustrator) => (
                     <button
@@ -547,7 +543,7 @@ export default function PokemonSearch({
             ) : null}
             {cardSearch.groups.length > 0 || cardSearch.loading ? (
               <section aria-label="Card results" className="border-t border-border/50 pb-2">
-                <p className="flex items-center gap-2 px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                <p className="flex items-center gap-2 px-4 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">
                   Cards
                   {cardSearch.loading ? <Loader2 className="h-3 w-3 animate-spin" aria-label="Searching cards" /> : null}
                   {cardSearch.offline ? <span className="normal-case tracking-normal font-normal">· offline: your cards and saved sets</span> : null}
