@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { addRecentCard, parseRecentCards, readRecentCards, toRecentCard, writeRecentCards, RECENT_CARDS_LIMIT, RECENT_CARDS_STORAGE_KEY, type RecentCard } from "../lib/recent-cards"
+import { recentToSearchCard, addRecentCard, parseRecentCards, readRecentCards, toRecentCard, writeRecentCards, RECENT_CARDS_LIMIT, RECENT_CARDS_STORAGE_KEY, type RecentCard } from "../lib/recent-cards"
 import type { SearchCardResult } from "../lib/pokemon-card-browse"
 
 // Synthetic cards, not real catalogue data.
@@ -15,7 +15,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 describe("recently viewed cards", () => {
   test("captures what the strip needs from a search hit", () => {
     assert.deepEqual(toRecentCard(searchCard, { id: 4, name: "charmander" }, "2026-01-02T00:00:00.000Z"), {
-      id: "fixture-7", name: "Fixture", number: "7/99", setName: "Fixture Set", image: searchCard.image, language: "en", dexId: 4, pokemonName: "charmander", viewedAt: "2026-01-02T00:00:00.000Z",
+      localId: "7", setId: "fixture", officialCardCount: 99, id: "fixture-7", name: "Fixture", number: "7/99", setName: "Fixture Set", image: searchCard.image, language: "en", dexId: 4, pokemonName: "charmander", viewedAt: "2026-01-02T00:00:00.000Z",
     })
   })
 
@@ -47,4 +47,18 @@ describe("recently viewed cards", () => {
     assert.doesNotThrow(() => writeRecentCards(broken, [recent("a")]))
     assert.deepEqual(readRecentCards(undefined), [])
   })
+})
+
+test("reopening keeps exact printing and finish metadata, with old history still readable", () => {
+  const card = { ...searchCard, canonicalId: "fixture-7", aliasIds: ["old-fixture-7"], rarity: "Common", variants: { normal: true, reverse: true } }
+  const saved = toRecentCard(card, { id: 4, name: "charmander" }, undefined, "reverse_holo")
+  const [parsed] = parseRecentCards(JSON.stringify([saved]))
+  assert.equal(parsed.finish, "reverse_holo")
+  assert.deepEqual(recentToSearchCard(parsed), card)
+  const legacy = recentToSearchCard({ ...recent("base1-7"), number: "7/102" })
+  assert.equal(legacy.localId, "7")
+  assert.equal(legacy.set.id, "base1")
+  assert.equal(legacy.set.officialCardCount, 102)
+  assert.equal(parseRecentCards(JSON.stringify([{ ...saved, finish: "invented", variants: { normal: "yes", reverse: true } }]))[0].finish, undefined)
+  assert.deepEqual(parseRecentCards(JSON.stringify([{ ...saved, variants: { normal: "yes", reverse: true } }]))[0].variants, { reverse: true })
 })

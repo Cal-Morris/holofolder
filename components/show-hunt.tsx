@@ -3,7 +3,7 @@
 // Show mode's home: the "Hunting" list. The want list grouped by Pokémon (most wanted or dearest first), with
 // era/set and illustrator filters to match how a dealer's binder is sorted. Every card shows what to pay up to;
 // one tap opens the deal check. Built from the collection on this device, so it works offline.
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { ChevronRight, Heart, Target, TrendingDown } from "lucide-react"
 import { PriceDropBadge } from "@/components/price-drop-badge"
 import ShowCheckComps from "@/components/show-check-comps"
@@ -180,6 +180,7 @@ const GoodPickups = memo(function GoodPickups({
 const selectClass = "h-11 w-full min-w-0 rounded-xl border border-border/70 bg-card px-3 text-sm font-medium"
 
 export interface ShowHuntProps {
+  recentCards?: ReactNode
   items: readonly HuntSourceItem[]
   currency: DisplayCurrency
   fxRates?: DisplayFxRates | null
@@ -189,7 +190,7 @@ export interface ShowHuntProps {
   onPickPokemon: (pokemon: { id: number; name: string }) => void
 }
 
-function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCard, onPickPokemon }: ShowHuntProps) {
+function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnline, onPickCard, onPickPokemon }: ShowHuntProps) {
   const thresholds = useDealThresholds()
   const [sort, setSort] = useState<HuntSort>("wanted")
   const [era, setEra] = useState<string | null>(null)
@@ -279,6 +280,7 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
   return (
     <section aria-label="Hunting" className="flex min-h-0 flex-1 flex-col" data-testid="show-hunt">
       <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+        {recentCards}
         <div data-hunt-controls className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background px-3 pb-2 pt-2">
           <div className="flex flex-wrap items-center gap-2">
             <Target className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />

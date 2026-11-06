@@ -1,6 +1,7 @@
 "use client"
 
 import { getDetailArtwork } from "@/components/binder/binder-app-model"
+import type { BinderHistory } from "@/hooks/use-binder-history"
 import PokemonSearch from "@/components/pokemon-search"
 import { Button } from "@/components/ui/button"
 import { toCardImageSrc } from "@/lib/card-image-url"
@@ -16,6 +17,7 @@ import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import type { BinderCardDisplay, SelectedSlotDisplayCard } from "@/lib/selected-slot-card-display"
 
 export interface SearchOverlayContext {
+  history: BinderHistory
   binderCardDisplay: BinderCardDisplay
   closeSearch: () => void
   collected: boolean
@@ -47,7 +49,7 @@ export interface SearchOverlayContext {
 }
 
 export function renderSearchOverlayView(ctx: SearchOverlayContext) {
-  const { binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
+  const { history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
   return (
     isSearchOpen && (
       <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
@@ -73,6 +75,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
               <PokemonSearch
+                history={history}
                 onSelect={(pokemon) => {
                   handlePokemonSelect(pokemon)
                   setIsSearchOpen(false)
