@@ -13,7 +13,6 @@ test.describe("UK locale", () => {
     await harness.page.getByRole("button", { name: "Close view options" }).click()
     const detail = await harness.openCardDetail()
     await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£0.05")
-    await detail.locator("summary").filter({ hasText: "Price details" }).click()
     await expect(detail.getByText("Original US$0.26 USD", { exact: true })).toBeVisible()
     await expect(detail.getByText("Original €0.06 EUR", { exact: true })).toBeVisible()
     await detail.locator("summary").filter({ hasText: "Price details" }).click()

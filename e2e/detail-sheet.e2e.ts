@@ -95,7 +95,7 @@ for (const viewport of [{ width: 1169, height: 731 }, { width: 1280, height: 800
     await harness.page.locator('button[data-dex-id="1"]').first().click()
     const dialog = harness.page.getByRole("dialog", { name: /bulbasaur details/i })
     await expect(dialog).toBeVisible()
-    for (const label of ["Card & variant", "Price details", "Collection options"]) {
+    for (const label of ["Card & variant", "Collection options"]) {
       await dialog.locator("summary").filter({ hasText: label }).click()
     }
     await expect.poll(async () => {

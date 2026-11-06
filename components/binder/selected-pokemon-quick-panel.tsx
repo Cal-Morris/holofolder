@@ -283,13 +283,13 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
               {selectedPriceSourceLabel ? (
                 <p className="mt-2 break-words px-1 text-xs text-muted-foreground">{selectedPriceSourceLabel}</p>
               ) : null}
-              <details className="mt-2 group">
+              <details open className="mt-2 group">
                 <summary className="flex min-h-9 cursor-pointer items-center justify-between text-xs font-semibold">
                   Price details
                   <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                 </summary>
-                <CardPriceEvidence price={selectedDetailPriceSnapshot} />
                 {selectedPrimaryCardPreview ? <CardPriceComparison key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} catalogMarketGbp={selectedComparisonMarketGbp} onSoldCheck={onSelectedSoldCheck} /> : null}
+                <CardPriceEvidence price={selectedDetailPriceSnapshot} />
               </details>
             </div>
           ) : null}
