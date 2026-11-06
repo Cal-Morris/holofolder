@@ -178,7 +178,7 @@ interface CachedApiResponse {
 }
 
 /** JSON card-data responses the service worker has cached (empty without Cache Storage). */
-export async function readCachedCardApiResponses(cacheStorage: CacheStorage | undefined = typeof caches === "undefined" ? undefined : caches): Promise<CachedApiResponse[]> {
+export async function readCachedCardApiResponses(cacheStorage: CacheStorage | undefined = typeof caches === "undefined" ? undefined : caches, apiPrefixes: readonly string[] = CACHED_CARD_API_PREFIXES): Promise<CachedApiResponse[]> {
   if (!cacheStorage) return []
   const results: CachedApiResponse[] = []
   try {
@@ -187,7 +187,7 @@ export async function readCachedCardApiResponses(cacheStorage: CacheStorage | un
       const cache = await cacheStorage.open(name)
       const requests = (await cache.keys()).filter((request) => {
         const path = new URL(request.url).pathname
-        return CACHED_CARD_API_PREFIXES.some((prefix) => path.startsWith(prefix))
+        return apiPrefixes.some((prefix) => path.startsWith(prefix))
       })
       for (const request of requests.slice(0, MAX_CACHED_RESPONSES - results.length)) {
         const response = await cache.match(request)
@@ -211,6 +211,7 @@ export async function buildOfflineCardIndex(collection: CollectedPokemon[], cach
 }
 
 export async function readOfflineSets(cacheStorage?: CacheStorage) {
-  const responses = await readCachedCardApiResponses(cacheStorage)
+  // Other card responses contain no set summaries; skip their bodies before reading and parsing JSON.
+  const responses = await readCachedCardApiResponses(cacheStorage, ["/api/tcg-set-slots"])
   return responses.flatMap((response) => extractSetsFromCachedResponse(response.url, response.payload))
 }
