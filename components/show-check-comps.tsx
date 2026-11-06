@@ -23,21 +23,19 @@ function summary(progress: CheckCompsProgress) {
   return `${parts.join(", ")}.${stopped.length ? ` ${[...new Set(stopped)].join(" ")}` : ""}`
 }
 
-function refusedStatus(refused: CheckCompsRefusal) {
-  return refused.reason === "budget"
-    ? `Sold comps daily limit reached (${refused.remaining} left today). Try again tomorrow.`
-    : "Check comps cancelled."
+function refusedStatus(_refused: CheckCompsRefusal) {
+  return "Check comps cancelled."
 }
 
 // Plain confirm for big runs (the engine only asks at CHECK_COMPS_CONFIRM_AT+ sold comps calls).
-function confirmSpend({ cardsNeedingSoldcomps, remainingBudget }: CheckCompsSpendEstimate) {
-  return window.confirm(`${cardsNeedingSoldcomps} card${cardsNeedingSoldcomps === 1 ? "" : "s"} need a sold comps refresh (${remainingBudget} left today). Check them now?`)
+function confirmSpend({ cardsNeedingSoldcomps }: CheckCompsSpendEstimate) {
+  return window.confirm(`${cardsNeedingSoldcomps} card${cardsNeedingSoldcomps === 1 ? "" : "s"} need a sold comps refresh. Check them now?`)
 }
 
 function ShowCheckComps({ targets, isOnline }: ShowCheckCompsProps) {
   const { start, stop, running, progress, refused } = useShowCompsWarm()
   const [failed, setFailed] = useState(false)
-  // The single entry point here; the credit gate itself lives in the engine (runCheckComps) so Prepare shares it.
+  // The soft confirm gate lives in the engine (runCheckComps) so Prepare shares it; Show passes confirmSpend.
   const checkComps = useCallback(() => {
     setFailed(false)
     void start({ wanted: targets }, { confirmSpend }).catch(() => setFailed(true))

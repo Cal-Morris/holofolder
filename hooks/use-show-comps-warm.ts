@@ -1,7 +1,7 @@
 "use client"
 
 // React wrapper around the comps warm engine (lib/check-comps.ts) for buttons and Prepare: start/stop and
-// live counters, plus `refused` when the credit gate declined a run (daily budget, cancelled confirm).
+// live counters, plus `refused` when the soft confirm gate declined a run (cancelled confirm).
 // Unmounting stops the run.
 import { useCallback, useEffect, useRef, useState } from "react"
 import { warmShowComps, type CheckCompsProgress, type CheckCompsRefusal, type CheckCompsSpendEstimate, type CheckCompsTarget } from "@/lib/check-comps"

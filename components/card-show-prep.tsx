@@ -110,7 +110,7 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
       // Sold comps are a metered provider: warm only wanted cards in these sets, and never fail the prep over them.
       const comps = wanted.length
         ? await warmShowComps({ wanted }, { signal: controller.signal, onProgress: (next) => setPhase({ kind: "comps", plan, comps: next }) })
-          // Over today's sold comps budget is a silent skip, like any other comps failure.
+          // A refused confirm (or other comps failure) is a silent skip — never fails the prep.
           .then((outcome) => (outcome.ok ? outcome.progress : null), () => null)
         : null
       if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress, priced: prices.priced, comps })
