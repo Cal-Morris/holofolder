@@ -8,7 +8,7 @@
 // Soft gate: before any request, a run counts the cards that would need a sold comps call; at
 // CHECK_COMPS_CONFIRM_AT or more it asks confirmSpend first (Show passes one; Prepare doesn't).
 import { requestCardPriceCheck, PriceCheckRequestError } from "@/lib/card-price-check-client"
-import { isPriceCheckFresh, PRICE_CHECK_SOURCES, readPinnedCardPriceCheck } from "@/lib/card-price-check-cache"
+import { isPriceCheckFresh, priceCheckFinish, PRICE_CHECK_SOURCES, readPinnedCardPriceCheck } from "@/lib/card-price-check-cache"
 import type { CardPriceCheck, PriceCheckSource } from "@/lib/card-price-checks"
 import type { CardFinish } from "@/lib/domain/cards"
 
@@ -43,15 +43,15 @@ type ReadPinned = (cardId: string, finish: CardFinish | null | undefined, source
 
 const STOP_PATTERN = /allowance used up|not configured/i
 
-export function checkCompsTargets<T extends CheckCompsTarget>(targets: readonly T[]) {
+export function checkCompsTargets<T extends CheckCompsTarget>(targets: readonly T[], scope: "show" | "collection" = "show") {
   const seen = new Set<string>()
   return targets.filter(target => {
-    if ((target.language ?? "en") !== "en" || target.finish === "jumbo") return false
-    const key = `${target.cardId}:${target.finish ?? ""}`
+    if (!target.cardId || (target.language ?? "en") !== "en" || target.finish === "jumbo") return false
+    const key = `${target.cardId}:${priceCheckFinish(target.finish)}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
-  }).slice(0, CHECK_COMPS_MAX_CARDS)
+  }).slice(0, scope === "collection" ? undefined : CHECK_COMPS_MAX_CARDS)
 }
 
 /** Wanted cards with an exact finish first (their checks match the printing), then the rest of the want
@@ -67,6 +67,8 @@ export function warmShowComps(input: { wanted: readonly CheckCompsTarget[]; hunt
 
 export async function runCheckComps(targets: readonly CheckCompsTarget[], options: {
   signal: AbortSignal
+  /** Explicit collection actions check every eligible printing; Show stays capped. */
+  scope?: "show" | "collection"
   onProgress?: (progress: CheckCompsProgress) => void
   request?: Request
   readPinned?: ReadPinned
@@ -80,7 +82,7 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
   const readPinned = options.readPinned ?? readPinnedCardPriceCheck
   const sleep = options.sleep ?? wait
   const now = options.now ?? Date.now
-  const queue = checkCompsTargets(targets)
+  const queue = checkCompsTargets(targets, options.scope)
   const progress: CheckCompsProgress = { done: 0, total: queue.length, fresh: 0, checked: 0, failed: 0, stopped: {} }
   const report = () => onProgress?.({ ...progress, stopped: { ...progress.stopped } })
   let cursor = 0
@@ -92,6 +94,7 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
     if (signal.aborted) break
     if (!isPriceCheckFresh(await readPinned(target.cardId, target.finish, "soldcomps"), now())) needed += 1
   }
+  if (signal.aborted) return { ok: false, refused: { reason: "cancelled", needed }, progress }
   if (needed >= CHECK_COMPS_CONFIRM_AT && options.confirmSpend
     && !(await options.confirmSpend({ cardsNeedingSoldcomps: needed }))) {
     return { ok: false, refused: { reason: "cancelled", needed }, progress }
@@ -131,7 +134,10 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
       if (signal.aborted) return
       // A card counts by its sold check; asking is supporting evidence.
       const sold = results[PRICE_CHECK_SOURCES.indexOf("soldcomps")]
-      progress[sold] += 1
+      const result = options.scope === "collection"
+        ? results.includes("failed") ? "failed" : results.every(result => result === "fresh") ? "fresh" : "checked"
+        : sold
+      progress[result] += 1
       progress.done += 1
       report()
     }

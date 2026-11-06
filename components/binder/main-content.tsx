@@ -1,5 +1,6 @@
 "use client"
 
+import CollectionPriceCheck from "@/components/collection-price-check"
 import { getCollectionItemPriceKey } from "@/components/binder/binder-app-model"
 import { CollectionAnalyticsView, DashboardBinderPreview, DexListView, PageScanner, PokemonBrowseView, SetPopulationView, WantedDashboard } from "@/components/binder/lazy-views"
 import { Button } from "@/components/ui/button"
@@ -194,6 +195,9 @@ export function renderMainContentView(ctx: MainContentContext) {
             {(["pokemon", "sets"] as const).map(view => <button key={view} type="button" aria-pressed={activeMainView === view} onClick={() => switchMainView(view)} className={`min-h-9 rounded-full border px-4 text-xs font-semibold ${activeMainView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-card/70"}`}>{view === "pokemon" ? "Pokémon" : "Sets"}</button>)}
           </div>
         ) : null}
+        {!readOnlyMode && (activeMainView === "list" || activeMainView === "wanted") && (
+          <CollectionPriceCheck key={activeMainView} collection={collection} kind={activeMainView === "wanted" ? "wanted" : "owned"} isOnline={isOnline} />
+        )}
         {activeMainView === "pokemon" ? (
           <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} ownedElsewhere={allBinders ? ownedElsewhereLabel : undefined} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
         ) : activeMainView === "analytics" ? (
