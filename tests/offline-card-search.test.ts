@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import type { CollectedPokemon } from "../lib/domain/cards"
 import {
   buildOfflineCardIndex,
+  readOfflineSets,
   collectionToSearchCards,
   extractCardsFromCachedResponse,
   extractSetsFromCachedResponse,
@@ -213,4 +214,32 @@ test("offline search also finds cards by illustrator once the query is 3+ charac
   assert.deepEqual(searchOfflineCards(cards, "arita").map((c) => c.id), ["sv03.5-166"])
   assert.deepEqual(searchOfflineCards(cards, "5ban").map((c) => c.id), ["sv03.5-004"])
   assert.deepEqual(searchOfflineCards(cards, "ar").map((c) => c.id).includes("sv03.5-166"), false)
+})
+
+test("offline set search reads only set responses and sees later cache updates", async () => {
+  // Synthetic unrelated card responses must not consume the set reader's 600-response budget.
+  const responses = new Map<string, unknown>(Array.from({ length: 600 }, (_, i) => [
+    `http://x/api/tcgdex-cache?pokemonId=${i + 1}`, { cards: [] },
+  ]))
+  const setUrl = "http://x/api/tcg-set-slots?query=base"
+  responses.set(setUrl, { sets: [BASE] })
+  const reads: string[] = []
+  const fakeCaches = {
+    keys: async () => ["binderdex-v4-data", "binderdex-v3-images"],
+    open: async (name: string) => {
+      assert.equal(name, "binderdex-v4-data")
+      return {
+        keys: async () => [...responses.keys()].map((url) => ({ url })),
+        match: async (request: { url: string }) => {
+          reads.push(request.url)
+          return new Response(JSON.stringify(responses.get(request.url)))
+        },
+      }
+    },
+  } as unknown as CacheStorage
+  assert.deepEqual(await readOfflineSets(fakeCaches), [BASE])
+  assert.deepEqual(reads, [setUrl])
+  responses.set(setUrl, { sets: [{ id: "synthetic-new", name: "Synthetic new set" }] })
+  assert.deepEqual(await readOfflineSets(fakeCaches), [{ id: "synthetic-new", name: "Synthetic new set" }])
+  assert.deepEqual(reads, [setUrl, setUrl])
 })
