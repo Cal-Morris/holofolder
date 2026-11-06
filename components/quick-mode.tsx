@@ -211,10 +211,12 @@ function QuickMode({
   const isWide = useMediaQuery("(min-width: 768px)")
 
   // In Show mode the Hunting list opens unobscured; the keyboard comes up when the search field is tapped.
-  const focusOnOpen = !show || Boolean(initialQuery)
+  const focusOnOpen = !show || Boolean(initialQuery) || isWide
   useEffect(() => {
-    if (!focusOnOpen) return
-    const frame = window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
+    const frame = window.requestAnimationFrame(() => {
+      const target = focusOnOpen ? inputRef.current : dialogRef.current
+      target?.focus({ preventScroll: true })
+    })
     return () => window.cancelAnimationFrame(frame)
   }, [focusOnOpen])
 
@@ -287,8 +289,10 @@ function QuickMode({
   const pickCard = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish | null) => {
     remember()
     writeRecentCards(window.localStorage, addRecentCard(readRecentCards(window.localStorage), toRecentCard(card, pokemon)))
-    if (cardCheck) setChecking({ card, pokemon, finish })
-    else onSelectCard(card, pokemon)
+    if (cardCheck) {
+      setIsBundleOpen(false)
+      setChecking({ card, pokemon, finish })
+    } else onSelectCard(card, pokemon)
   }, [cardCheck, onSelectCard, remember])
 
   // A sure match opens its deal check (Back shows the search it read); anything else is typed in for him.
@@ -388,6 +392,71 @@ function QuickMode({
 
   const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0 && setHits.length === 0
 
+  const searchControls = (
+    <div className={`shrink-0 border-border/50 bg-card/95 px-3 ${wideWorkspace ? "border-b py-3" : "border-t pb-[calc(var(--safe-bottom)+0.75rem)] pt-3"}`}>
+      {show && bundle.length > 0 && (
+        <button
+          type="button"
+          onClick={() => { setChecking(null); setIsBundleOpen(true) }}
+          className="mb-2 flex h-14 w-full items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-left text-sm font-semibold text-primary"
+        >
+          <Layers className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">
+            Bundle · {bundle.length} card{bundle.length === 1 ? "" : "s"}
+            {bundle.some((entry) => entry.marketPrice !== null)
+              ? ` · market ${formatMoney(bundle.reduce((sum, entry) => sum + (entry.marketPrice ?? 0), 0), bundle[0].currency)}`
+              : ""}
+          </span>
+          <span className="shrink-0">Check bundle</span>
+        </button>
+      )}
+      {scanNotice && (
+        <p role="status" data-testid="scan-notice" className="mb-2 rounded-xl bg-amber-500/12 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+          {scanNotice}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+      <label className="relative block min-w-0 flex-1">
+        <span className="sr-only">Search cards, Pokémon, sets and pages</span>
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <input
+          ref={inputRef}
+          type="search"
+          inputMode="search"
+          enterKeyHint="go"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          value={query}
+          data-overlay-escape="clear"
+          onChange={(event) => {
+            setQuery(event.target.value)
+            setBrowsing(null)
+            setScanNotice(null)
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={show ? "Name or card number" : "Card, Pokémon, artist or page"}
+          className="h-14 w-full rounded-2xl border border-border/70 bg-background pl-12 pr-4 text-base font-medium outline-none placeholder:text-muted-foreground/80 focus:border-primary focus:ring-2 focus:ring-primary/30"
+        />
+      </label>
+      {show && (
+        <button
+          type="button"
+          onClick={() => {
+            setScanNotice(null)
+            setIsScannerOpen(true)
+          }}
+          aria-label="Scan a card"
+          className="flex h-14 shrink-0 items-center gap-1.5 rounded-2xl bg-amber-400 px-3.5 text-sm font-bold text-black"
+        >
+          <Camera className="h-5 w-5" aria-hidden />
+          Scan
+        </button>
+      )}
+      </div>
+    </div>
+  )
+
   return (
     <div className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm" data-overlay-backdrop onClick={onClose}>
       <div
@@ -395,6 +464,7 @@ function QuickMode({
         role="dialog"
         aria-modal="true"
         aria-label="Quick mode"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         // While the phone's keyboard is up the dialog fits the visible part of the page (app/globals.css).
         data-keyboard-fit
@@ -423,6 +493,7 @@ function QuickMode({
         // Keep the finder mounted when detail opens so filters and scroll position survive selection.
         <div className={wideWorkspace ? `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] ${twoPane ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-1"}` : "contents"}>
         <div className={wideWorkspace ? `flex min-h-0 min-w-0 flex-col ${twoPane ? "border-r border-border/50" : ""}` : "contents"}>
+        {wideWorkspace && searchControls}
         {show && !trimmed && browsing ? (
           <ShowPokemonCards
             key={browsing.id}
@@ -644,68 +715,7 @@ function QuickMode({
         </div>
         )}
 
-        <div className={`shrink-0 border-border/50 bg-card/95 px-3 ${wideWorkspace ? "order-first border-b py-3" : "border-t pb-[calc(var(--safe-bottom)+0.75rem)] pt-3"}`}>
-          {show && bundle.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setIsBundleOpen(true)}
-              className="mb-2 flex h-14 w-full items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-left text-sm font-semibold text-primary"
-            >
-              <Layers className="h-4 w-4 shrink-0" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">
-                Bundle · {bundle.length} card{bundle.length === 1 ? "" : "s"}
-                {bundle.some((entry) => entry.marketPrice !== null)
-                  ? ` · market ${formatMoney(bundle.reduce((sum, entry) => sum + (entry.marketPrice ?? 0), 0), bundle[0].currency)}`
-                  : ""}
-              </span>
-              <span className="shrink-0">Check bundle</span>
-            </button>
-          )}
-          {scanNotice && (
-            <p role="status" data-testid="scan-notice" className="mb-2 rounded-xl bg-amber-500/12 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-300">
-              {scanNotice}
-            </p>
-          )}
-          <div className="flex items-center gap-2">
-          <label className="relative block min-w-0 flex-1">
-            <span className="sr-only">Search cards, Pokémon, sets and pages</span>
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <input
-              ref={inputRef}
-              type="search"
-              inputMode="search"
-              enterKeyHint="go"
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              value={query}
-              data-overlay-escape="clear"
-              onChange={(event) => {
-                setQuery(event.target.value)
-                setBrowsing(null)
-                setScanNotice(null)
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={show ? "Name or card number" : "Card, Pokémon, artist or page"}
-              className="h-14 w-full rounded-2xl border border-border/70 bg-background pl-12 pr-4 text-base font-medium outline-none placeholder:text-muted-foreground/80 focus:border-primary focus:ring-2 focus:ring-primary/30"
-            />
-          </label>
-          {show && (
-            <button
-              type="button"
-              onClick={() => {
-                setScanNotice(null)
-                setIsScannerOpen(true)
-              }}
-              aria-label="Scan a card"
-              className="flex h-14 shrink-0 items-center gap-1.5 rounded-2xl bg-amber-400 px-3.5 text-sm font-bold text-black"
-            >
-              <Camera className="h-5 w-5" aria-hidden />
-              Scan
-            </button>
-          )}
-          </div>
-        </div>
+        {!wideWorkspace && searchControls}
         </div>
         {twoPane && (
           <div className="flex min-h-0 min-w-0 flex-col" data-testid="show-detail-pane">
