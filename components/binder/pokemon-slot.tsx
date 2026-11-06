@@ -1,7 +1,7 @@
 "use client"
 
 import { Check, Heart, Star, X } from "lucide-react"
-import { type CSSProperties, type TouchEvent as ReactTouchEvent, type SyntheticEvent, memo, useEffect, useRef, useState } from "react"
+import { type CSSProperties, type TouchEvent as ReactTouchEvent, type SyntheticEvent, memo, useRef, useState } from "react"
 import CardFinishShader from "@/components/card-finish-shader"
 import type { CardFinish, SlotStatus } from "@/hooks/use-collection"
 import { loadCardsForPokemon } from "@/hooks/use-tcgdex"
@@ -252,9 +252,11 @@ export const PokemonSlot = memo(function PokemonSlot({
   const cardImageSource = getUsableImageSource(cardImage)
   const fallbackPreviewImage = getPokemonOfficialArtworkUrl(pokemon.id)
   const previewImage = resolveSlotImageUrl(pokemon.id, cardImage)
-  const [previewImageSrc, setPreviewImageSrc] = useState(previewImage)
-  const [didFallbackPreviewImage, setDidFallbackPreviewImage] = useState(false)
-  const [isPreviewImageLoaded, setIsPreviewImageLoaded] = useState(false)
+  const [failedPreviewImage, setFailedPreviewImage] = useState<string | null>(null)
+  const [loadedPreviewImage, setLoadedPreviewImage] = useState<string | null>(null)
+  const didFallbackPreviewImage = failedPreviewImage === previewImage
+  const previewImageSrc = didFallbackPreviewImage ? fallbackPreviewImage : previewImage
+  const isPreviewImageLoaded = loadedPreviewImage === previewImageSrc
   const isVisuallyCollected = isCollected && !isWishlisted
   const previewFitClass = "object-contain"
   const previewToneClass = isVisuallyCollected
@@ -318,22 +320,14 @@ export const PokemonSlot = memo(function PokemonSlot({
   const shouldShowPocketGlare = showBinderSlotGlare && !shouldShowCardFinish
   const quickActions = getBinderSlotQuickActions({ hasAssignedCard, readOnly })
   const handlePreviewImageError = (event: SyntheticEvent<HTMLImageElement>) => {
-    setIsPreviewImageLoaded(false)
-
     if (previewImageSrc !== fallbackPreviewImage) {
-      setPreviewImageSrc(fallbackPreviewImage)
-      setDidFallbackPreviewImage(true)
+      setFailedPreviewImage(previewImage)
       return
     }
 
     event.currentTarget.style.visibility = "hidden"
   }
 
-  useEffect(() => {
-    setPreviewImageSrc(previewImage)
-    setDidFallbackPreviewImage(false)
-    setIsPreviewImageLoaded(false)
-  }, [previewImage])
 
   return (
     <div className="relative group/slot">
@@ -431,14 +425,15 @@ export const PokemonSlot = memo(function PokemonSlot({
             }}
           >
             <img
+              key={previewImageSrc}
               src={previewImageSrc}
               alt={cardName || pokemon.name}
               className={`h-full w-full ${didFallbackPreviewImage ? "object-contain p-3 opacity-85" : "object-contain"} ${previewToneClass}`}
-              loading={priority ? "eager" : "lazy"}
+              loading="eager"
               fetchPriority={priority ? "high" : "auto"}
-              decoding="async"
+              decoding="sync"
               draggable={false}
-              onLoad={() => setIsPreviewImageLoaded(true)}
+              onLoad={() => setLoadedPreviewImage(previewImageSrc)}
               onError={handlePreviewImageError}
             />
             {shouldShowCardFinish ? (
@@ -466,14 +461,15 @@ export const PokemonSlot = memo(function PokemonSlot({
             }}
           >
             <img
+              key={previewImageSrc}
               src={previewImageSrc}
               alt={cardName || pokemon.name}
               className={`h-full w-full ${previewFitClass} ${previewToneClass} group-hover:scale-[1.025] transition-transform duration-150`}
-              loading={priority ? "eager" : "lazy"}
+              loading="eager"
               fetchPriority={priority ? "high" : "auto"}
-              decoding="async"
+              decoding="sync"
               draggable={false}
-              onLoad={() => setIsPreviewImageLoaded(true)}
+              onLoad={() => setLoadedPreviewImage(previewImageSrc)}
               onError={handlePreviewImageError}
             />
           </div>

@@ -56,6 +56,7 @@ import { TopBannerSlot } from "@/components/top-banner-slot"
 import { offlineChipLabel, syncingChipLabel } from "@/lib/connection-chip"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
+import { BinderSlotImages } from "@/lib/binder-slot-images"
 import { useNavigationTransition } from "@/hooks/use-navigation-transition"
 import { useViewScrollRestoration } from "@/hooks/use-view-scroll-restoration"
 import { useEdgeSwipeBack } from "@/hooks/use-edge-swipe-back"
@@ -1275,39 +1276,35 @@ export default function BinderApp({
     return displayCard?.card_image
   }, [binderCardDisplay, collectionByPokemonId])
 
-  // Retain decoded images for the visible and neighbouring pages, not just URL markers.
-  // Four background decodes at a time leave bandwidth and CPU for the live grid.
-  const decodedSlotImagesRef = useRef<Map<string, HTMLImageElement>>(new Map())
+  const [slotImages] = useState(() => new BinderSlotImages())
+  const slotImageUrlsForPages = useCallback((pages: number[]) => pages.flatMap((page) =>
+    getPageSlots(page).flatMap((pokemon) => pokemon ? [resolveSlotImageUrl(pokemon.id, getSlotCardImage(pokemon.id))] : []),
+  ), [getPageSlots, getSlotCardImage])
+  const [pendingBinderPage, setPendingBinderPage] = useState<number | null>(null)
+  const requestedBinderPage = useRef(currentBinderPage)
+  const pageRequest = useRef(0)
+  useLayoutEffect(() => {
+    requestedBinderPage.current = currentBinderPage
+  }, [currentBinderPage])
+  useEffect(() => () => {
+    pageRequest.current += 1
+    slotImages.retain(new Set())
+  }, [slotImages])
+
+  const adjacentSlotUrls = JSON.stringify(slotImageUrlsForPages(getAdjacentPageNumbers(visibleBinderPageNumbers, totalBinderPages, isSpreadLayout ? 2 : 1)))
+  const visibleSlotUrls = JSON.stringify(slotImageUrlsForPages(visibleBinderPageNumbers))
+  const firstPendingPage = pendingBinderPage !== null && isSpreadLayout && pendingBinderPage > 1 ? pendingBinderPage - pendingBinderPage % 2 : pendingBinderPage
+  const pendingPages = firstPendingPage === null ? [] : isSpreadLayout && firstPendingPage > 1 ? [firstPendingPage, firstPendingPage + 1].filter(page => page <= totalBinderPages) : [firstPendingPage]
+  const pendingSlotUrls = JSON.stringify(slotImageUrlsForPages(pendingPages))
   useEffect(() => {
-    if (typeof Image === "undefined") return
-    const adjacentPages = getAdjacentPageNumbers(visibleBinderPageNumbers, totalBinderPages, isSpreadLayout ? 2 : 1)
-    const urlsForPages = (pages: number[]) => pages.flatMap((page) => getPageSlots(page).flatMap((pokemon) =>
-      pokemon ? [resolveSlotImageUrl(pokemon.id, getSlotCardImage(pokemon.id))] : [],
-    ))
-    const adjacentUrls = [...new Set(urlsForPages(adjacentPages))]
-    const retainedUrls = new Set([...adjacentUrls, ...urlsForPages(visibleBinderPageNumbers)])
-    const decoded = decodedSlotImagesRef.current
-    for (const url of decoded.keys()) if (!retainedUrls.has(url)) decoded.delete(url)
+    // Pending decodes belong to the destination as well as the outgoing page.
+    slotImages.retain(new Set([...JSON.parse(adjacentSlotUrls), ...JSON.parse(visibleSlotUrls), ...JSON.parse(pendingSlotUrls)]))
+  }, [slotImages, adjacentSlotUrls, visibleSlotUrls, pendingSlotUrls])
+  useEffect(() => {
     let cancelled = false
-    const pending = new Set<HTMLImageElement>()
-    const queue = adjacentUrls.filter((url) => !decoded.has(url))
+    const queue: string[] = [...new Set<string>(JSON.parse(adjacentSlotUrls))]
     const warmNext = async () => {
-      while (!cancelled && queue.length > 0) {
-        const url = queue.shift()!
-        const image = new Image()
-        image.decoding = "async"
-        image.fetchPriority = "low"
-        pending.add(image)
-        image.src = url
-        try {
-          await image.decode()
-          if (!cancelled) decoded.set(url, image)
-        } catch {
-          // Failed or cancelled images remain eligible for a later prefetch.
-        } finally {
-          pending.delete(image)
-        }
-      }
+      while (!cancelled && queue.length > 0) await slotImages.load(queue.shift()!)
     }
     const timer = window.setTimeout(() => {
       for (let worker = 0; worker < 4; worker += 1) void warmNext()
@@ -1315,9 +1312,8 @@ export default function BinderApp({
     return () => {
       cancelled = true
       window.clearTimeout(timer)
-      for (const image of pending) image.removeAttribute("src")
     }
-  }, [getPageSlots, getSlotCardImage, isSpreadLayout, totalBinderPages, visibleBinderPageNumbers])
+  }, [slotImages, adjacentSlotUrls])
   const offlineCacheWarmupUrls = useMemo(
     () => buildOfflineCacheWarmupUrls({
       collection,
@@ -1388,27 +1384,51 @@ export default function BinderApp({
     }
   }, [binderStageSize, isDesktopViewport, isSpreadLayout, isWideBinderSpread, settings.binderCols, settings.binderRows])
 
-  const navigateToPage = useCallback((page: number, direction: "left" | "right") => {
+  const navigateToPage = useCallback((page: number, _direction: "left" | "right") => {
     if (page < 1 || page > totalBinderPages) return
+    if (page === requestedBinderPage.current && page !== currentBinderPage) return
+    pageRequest.current += 1
+    requestedBinderPage.current = page
     if (page === currentBinderPage) {
+      setPendingBinderPage(null)
       transitionContent(null, () => {})
       return
     }
-
-    transitionContent(binderPageRef.current, () => setCurrentBinderPage(page), direction)
+    setPendingBinderPage(page)
   }, [currentBinderPage, transitionContent, totalBinderPages])
 
+  useEffect(() => {
+    if (pendingBinderPage === null) return
+    const page = pendingBinderPage
+    const request = pageRequest.current
+    let cancelled = false
+    const ready = activeMainView === "binder" ? Promise.all((JSON.parse(pendingSlotUrls) as string[]).map(url => slotImages.load(url, "high"))) : Promise.resolve()
+    void ready.then(() => {
+      if (cancelled || request !== pageRequest.current) return
+      if (activeMainView !== "binder" || requestedBinderPage.current !== page) {
+        requestedBinderPage.current = currentBinderPage
+        setPendingBinderPage(null)
+        return
+      }
+      transitionContent(binderPageRef.current, () => {
+        setCurrentBinderPage(page)
+        setPendingBinderPage(null)
+      }, page > currentBinderPage ? "left" : "right")
+    })
+    return () => { cancelled = true }
+  }, [activeMainView, currentBinderPage, pendingBinderPage, pendingSlotUrls, slotImages, transitionContent])
+
   const goToNextPage = useCallback(() => {
-    if (currentBinderPage < totalBinderPages) {
-      navigateToPage(currentBinderPage + 1, "left")
+    if (requestedBinderPage.current < totalBinderPages) {
+      navigateToPage(requestedBinderPage.current + 1, "left")
     }
-  }, [currentBinderPage, totalBinderPages, navigateToPage])
+  }, [totalBinderPages, navigateToPage])
 
   const goToPrevPage = useCallback(() => {
-    if (currentBinderPage > 1) {
-      navigateToPage(currentBinderPage - 1, "right")
+    if (requestedBinderPage.current > 1) {
+      navigateToPage(requestedBinderPage.current - 1, "right")
     }
-  }, [currentBinderPage, navigateToPage])
+  }, [navigateToPage])
 
   const goToNextSpread = useCallback(() => {
     if (!isSpreadLayout) {
@@ -1416,13 +1436,14 @@ export default function BinderApp({
       return
     }
 
-    const leftPage = currentBinderPage <= 1 ? 0 : currentBinderPage % 2 === 0 ? currentBinderPage : currentBinderPage - 1
+    const page = requestedBinderPage.current
+    const leftPage = page <= 1 ? 0 : page % 2 === 0 ? page : page - 1
     const nextPage = leftPage === 0 ? 2 : leftPage + 2
 
     if (nextPage <= totalBinderPages) {
       navigateToPage(nextPage, "left")
     }
-  }, [currentBinderPage, goToNextPage, isSpreadLayout, navigateToPage, totalBinderPages])
+  }, [goToNextPage, isSpreadLayout, navigateToPage, totalBinderPages])
 
   const goToPrevSpread = useCallback(() => {
     if (!isSpreadLayout) {
@@ -1430,17 +1451,16 @@ export default function BinderApp({
       return
     }
 
-    if (currentBinderPage <= 1) {
-      return
-    }
+    const page = requestedBinderPage.current
+    if (page <= 1) return
 
-    const leftPage = currentBinderPage % 2 === 0 ? currentBinderPage : currentBinderPage - 1
+    const leftPage = page % 2 === 0 ? page : page - 1
     const previousPage = leftPage <= 2 ? 1 : leftPage - 2
     navigateToPage(previousPage, "right")
-  }, [currentBinderPage, goToPrevPage, isSpreadLayout, navigateToPage])
+  }, [goToPrevPage, isSpreadLayout, navigateToPage])
 
   const lastVisibleBinderPageNumber = visibleBinderPageNumbers[visibleBinderPageNumbers.length - 1] ?? 0
-  const canGoToPreviousVisiblePage = currentBinderPage > 1
+  const canGoToPreviousVisiblePage = (pendingBinderPage ?? currentBinderPage) > 1
   const canGoToNextVisiblePage = isSpreadLayout
     ? lastVisibleBinderPageNumber < totalBinderPages
     : currentBinderPage < totalBinderPages
@@ -3368,7 +3388,7 @@ export default function BinderApp({
 
   const renderAppHeader = () => renderAppHeaderView({ activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
-  const renderMainContent = () => renderMainContentView({ activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
+  const renderMainContent = () => renderMainContentView({ pendingBinderPage, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
   const renderSearchOverlay = () => renderSearchOverlayView({ binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
