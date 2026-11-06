@@ -1,3 +1,4 @@
+import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 import type { CardCatalogIdentity } from "@/lib/domain/cards"
 import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -212,7 +213,7 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
   cacheLife(MIRROR_CACHE_LIFE)
 
   const admin = createAdminClient()
-  const trimmedQuery = query.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim()
+  const trimmedQuery = resolveSetSearchAlias(query.replace(/[,%()]/g, " "))
   cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-sets", cacheSafeTag("set-query", trimmedQuery), cacheSafeTag("limit", limit))
 
   if (trimmedQuery.length < 2) {
