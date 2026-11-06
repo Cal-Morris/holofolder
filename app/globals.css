@@ -597,11 +597,12 @@ html[data-binder-motion]::view-transition-new(binder-content) {
 }
 
 /*
- * Sheets and dialogs never rubber-band or hand their scroll to the page behind them,
- * including scrollers that only opted into `overscroll-contain`.
+ * Contain scrolling at dialog boundaries and their scrollable bodies, not every descendant.
+ * Clipped cards (`overflow-hidden`) are also scroll containers: containing them traps wheel/touch
+ * gestures over their artwork instead of letting those gestures reach the scrolling body.
  */
 [role="dialog"],
-[role="dialog"] *,
+[role="dialog"] :is(.overflow-auto, .overflow-y-auto, .overflow-x-auto, .overflow-scroll, .overflow-y-scroll, .overflow-x-scroll),
 [data-overlay-backdrop] {
   overscroll-behavior: none;
 }
