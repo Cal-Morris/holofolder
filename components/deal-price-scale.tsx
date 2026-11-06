@@ -18,9 +18,9 @@ export function DealPriceScale({ market, offer, overlap, thresholds, money, part
     { low: bands.fair.high, high: bands.walkAwayAbove, color: "#d97706", label: "Above market" },
     { low: bands.walkAwayAbove, high: max, color: "#dc2626", label: "Walk away" },
   ]
-  return <figure aria-label="Buying range" className="text-[11px]">
+  return <figure aria-label="Buying range" className="mb-1 text-[11px]">
     <figcaption className="flex flex-wrap justify-between gap-x-2"><span className="font-semibold">{partial ? "Priced cards · fair" : "Fair / expected"} {money(bands.fair.low)} to {money(bands.fair.high)}</span>{hasOffer ? <span>Your offer {money(offer)}</span> : null}</figcaption>
-    <svg viewBox="0 0 300 36" className="h-9 w-full" role="img" aria-label={`Fair range ${money(bands.fair.low)} to ${money(bands.fair.high)}${hasOffer ? `, your offer ${money(offer)}` : ""}`}>
+    <svg viewBox="0 0 300 40" className="h-10 w-full" role="img" aria-label={`Fair range ${money(bands.fair.low)} to ${money(bands.fair.high)}${hasOffer ? `, your offer ${money(offer)}` : ""}`}>
       {zones.map(zone => <rect key={zone.label} x={x(zone.low)} y="8" width={Math.max(0, x(zone.high) - x(zone.low))} height="10" fill={zone.color} fillOpacity="0.65"><title>{zone.label}: {money(zone.low)} to {money(zone.high)}</title></rect>)}
       {overlap ? <rect x={x(overlap.low)} y="5" width={Math.max(1, x(overlap.high) - x(overlap.low))} height="16" rx="3" fill="none" stroke="#7c3aed" strokeWidth="1.5"><title>Catalogue agreement {money(overlap.low)} to {money(overlap.high)}</title></rect> : null}
       <line x1={x(market)} x2={x(market)} y1="5" y2="21" stroke="currentColor" strokeOpacity="0.5" />
