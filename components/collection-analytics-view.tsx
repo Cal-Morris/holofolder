@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Download } from "lucide-react"
-import { Line, LineChart, Tooltip, XAxis, YAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts"
 import { collectionFingerprint } from "@/lib/collection/sync"
 import { buildCollectionCsv, collectionCsvFilename } from "@/lib/collection-export"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
+import { CollectionAnalyticsOverview } from "@/components/collection-analytics-overview"
 import { ChartContainer } from "@/components/ui/chart"
 import { buildCollectionAnalytics, normalizeAnalyticsHistory, activityDescription, type AnalyticsMover } from "@/lib/collection-analytics"
 import type { CardPriceSnapshot } from "@/lib/card-pricing"
@@ -22,10 +23,11 @@ interface Props {
   ownerId: string | null
   readOnly: boolean
   isOnline: boolean
+  isLoadingPrices?: boolean
   onBrowsePokemon: (pokemon: { id: number; name: string }) => void
 }
 const money = (amount: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(amount)
-const panel = "rounded-2xl border border-border/60 bg-card/70 p-4"
+const panel = "min-w-0 border-t border-border/60 py-6"
 const button = "min-h-9 rounded-xl border border-border/60 px-3 py-2 text-sm hover:bg-muted"
 const emptyHistory = normalizeAnalyticsHistory(null)
 
@@ -56,11 +58,12 @@ export default function CollectionAnalyticsView(props: Props) {
   return <AnalyticsContent key={props.ownerId ?? "local"} {...props} />
 }
 
-function AnalyticsContent({ collection: binderCollection, allBindersCollection = null, pricesByKey, ownerId, readOnly, isOnline, onBrowsePokemon }: Props) {
+function AnalyticsContent({ collection: binderCollection, allBindersCollection = null, pricesByKey, ownerId, readOnly, isOnline, isLoadingPrices = false, onBrowsePokemon }: Props) {
   const [scope, setScope] = useState<BinderScope>(() => readBinderScope("analytics"))
   const isAllBinders = scope === "all" && allBindersCollection !== null
   const collection = isAllBinders ? allBindersCollection : binderCollection
   const summary = useMemo(() => buildCollectionAnalytics(collection, pricesByKey, undefined, { countCopies: isAllBinders }), [collection, isAllBinders, pricesByKey])
+  const historyRef = useRef<HTMLElement>(null)
   const [selectedKey, setSelectedKey] = useState("")
   const selected = summary.cards.find(card => card.key === selectedKey) ?? summary.cards[0]
   const [history, setHistory] = useState(emptyHistory)
@@ -109,39 +112,43 @@ function AnalyticsContent({ collection: binderCollection, allBindersCollection =
     const day = new Date(Date.parse(eligible[0].observed_day) + index * 86400000).toISOString().slice(0, 10)
     return { day, value: eligible.find(point => point.observed_day.slice(0, 10) === day)?.gbp_amount ?? null }
   }) : []
+  const inspect = (key: string) => {
+    setSelectedKey(key)
+    setCursor(null)
+    historyRef.current?.scrollIntoView({ block: "start", behavior: "instant" })
+    historyRef.current?.focus({ preventScroll: true })
+  }
   const movers = (label: string, entries: AnalyticsMover[]) => <section className={panel} aria-label={label}>
     <h2 className="font-semibold">{label}</h2>
     <p className="mt-1 text-xs text-muted-foreground">Owned and wanted printings, fresh medium or high confidence prices.</p>
     {entries.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No qualifying {label.toLowerCase()} right now.</p> : <ul className="mt-3 divide-y divide-border/50">{entries.slice(0, 10).map(entry => <li key={entry.key} className="py-3">
-      <button className="min-h-9 w-full text-left" onClick={() => { setSelectedKey(entry.key); setCursor(null) }}>
+      <button className="min-h-9 w-full text-left" onClick={() => inspect(entry.key)}>
         <span className="flex items-start justify-between gap-3"><span className="min-w-0 break-words font-medium">{entry.card.card_name}</span><span className="shrink-0 font-semibold tabular-nums">{entry.momentum.change > 0 ? "+" : ""}{Math.round(entry.momentum.change * 100)}%</span></span>
         <span className="mt-1 block text-xs text-muted-foreground">{entry.scope} · {entry.card.card_set ?? entry.card.card_id} · {entry.card.card_finish ?? "normal"} · {entry.momentum.source} · {entry.momentum.timeframe}</span>
       </button>
     </li>)}</ul>}
   </section>
-  return <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4" aria-label="Collection analytics">
+  return <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 sm:px-3" aria-label="Collection analytics">
     {allBindersCollection ? <div className="pt-3"><BinderScopeToggle scope={isAllBinders ? "all" : "binder"} onChange={next => { setScope(next); rememberBinderScope("analytics", next) }} /></div> : null}
-    <header className="flex flex-wrap items-end justify-between gap-3 py-4"><div className="min-w-0"><p className="text-xs uppercase tracking-widest text-muted-foreground">{isAllBinders ? "All binders" : allBindersCollection ? "This binder" : "Your collection"}</p><h1 className="mt-1 text-2xl font-semibold">Analytics</h1><p className="mt-1 text-sm text-muted-foreground">Completion, card values and changes over time.</p></div>
+    <header className="flex flex-wrap items-center justify-between gap-3 pb-6 pt-4"><div><h1 className="text-2xl font-semibold tracking-tight">Analytics</h1><p className="mt-1 text-sm text-muted-foreground">{isAllBinders ? "All binders" : "This binder"}</p></div>
       {collection.length > 0 && <button type="button" className={`${button} inline-flex shrink-0 items-center gap-2`} onClick={() => void exportCollectionCsv(collection, pricesByKey)}><Download className="h-4 w-4" aria-hidden="true" />Export CSV</button>}
     </header>
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {[["Dex completion", `${summary.ownedSpecies} / 1025`], ["Assigned cards", String(summary.assignedCards)], ["Wanted cards", String(summary.wantedCards)], ["Priced owned value", summary.pricedCards ? money(summary.valueGbp) : "Unknown"]].map(([label, value]) => <section key={label} className={panel}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-xl font-semibold tabular-nums">{value}</p></section>)}
-    </div>
-    <p className="my-3 text-xs text-muted-foreground">{summary.pricedCards} of {summary.assignedCards} owned cards priced for their exact finish. Unpriced cards are excluded; cached quotes over 30 days old are excluded.</p>
+    <CollectionAnalyticsOverview key={isAllBinders ? "all" : "binder"} summary={summary} isLoadingPrices={isLoadingPrices} isAllBinders={isAllBinders} onBrowsePokemon={onBrowsePokemon} onInspect={inspect} />
     {!isOnline && <p role="status" className="mb-3 text-sm text-muted-foreground">Offline, showing cached collection and prices. Recorded history needs a connection.</p>}
-    <div className="grid gap-3 md:grid-cols-2">{movers("Rising cards", summary.rising)}{movers("Falling cards", summary.falling)}</div>
-    <section className={`${panel} mt-3`} aria-label="Card price history">
-      <h2 className="font-semibold">Price over time</h2><p className="mt-1 text-xs text-muted-foreground">Daily observations from tracking onward, last 90 days. Sources and finishes stay separate.</p>
+    {(summary.rising.length > 0 || summary.falling.length > 0) && <div className="grid gap-x-10 md:grid-cols-2">{movers("Rising cards", summary.rising)}{movers("Falling cards", summary.falling)}</div>}
+    <section ref={historyRef} tabIndex={-1} className={`${panel} mt-3 outline-none`} aria-label="Card price history">
+      <h2 className="font-semibold">Price over time</h2><p className="mt-1 text-xs text-muted-foreground">Recorded prices for one printing, last 90 days. This is not your collection’s value over time.</p>
       {summary.cards.length > 0 && <label className="mt-3 block text-sm">Card<select aria-label="History card" value={selected?.key ?? ""} onChange={event => { setSelectedKey(event.target.value); setCursor(null) }} className="mt-1 min-h-10 w-full min-w-0 rounded-xl border border-border bg-background p-2 text-base md:text-sm">{summary.cards.map(card => <option key={card.key} value={card.key}>{card.card.card_name} · {card.card.card_set ?? card.card.card_id} · {card.card.card_finish ?? "normal"} · {card.card.card_language ?? "en"} · {card.scope}</option>)}</select></label>}
       {selected && <p className="mt-2 break-words text-xs text-muted-foreground">{selected.card.card_id} · {selected.card.card_language ?? "en"} · {selected.card.card_finish ?? "normal"}{selected.card.added_at && Number.isFinite(Date.parse(selected.card.added_at)) ? ` · Wanted saved ${new Date(selected.card.added_at).toLocaleDateString("en-GB")}` : ""}</p>}
       {selected && <button className={`${button} mt-2`} onClick={() => onBrowsePokemon({ id: selected.pokemonId, name: selected.pokemonName })}>Browse this Pokémon</button>}
       {selected && <details className="mt-3 text-sm"><summary className="min-h-9 cursor-pointer py-2">Current price evidence</summary><p className="text-xs text-muted-foreground">{selected.amount !== null ? money(selected.amount) : "Exact finish price unavailable"} · {selected.price?.source ?? "Unknown source"} · {selected.price?.confidence ?? "unknown"} confidence</p><p className="mt-1 text-xs text-muted-foreground">Provider trends are averages, separate from daily recorded history.</p><CardPriceEvidence price={selected.price ?? undefined}/><CardPriceComparison key={selected.key} cardId={selected.card.card_id} language={selected.card.card_language} finish={selected.card.card_finish ?? "normal"} catalogMarketGbp={selected.price?.marketGbpAmount ?? selected.price?.gbpAmount}/></details>}
       {series.length > 0 && <label className="mt-3 block text-sm">Price source<select aria-label="History source" value={activeSeries} onChange={event => setSeriesKey(event.target.value)} className="ml-2 min-h-9 max-w-full rounded-lg border bg-background p-1 text-base md:text-sm">{series.map(key => <option key={key} value={key}>{key.replace(":", " · ")}</option>)}</select></label>}
-      {ownerId && !readOnly && isOnline && !error && history.historyAvailable && eligible.length >= 2 ? <ChartContainer config={{ value: { label: "GBP", color: "var(--chart-2)" } }} className="mt-4 h-48 w-full aspect-auto"><LineChart data={chart}><XAxis dataKey="day" tickFormatter={day => day.slice(5)} fontSize={10} minTickGap={30}/><YAxis tickFormatter={money} width={58} fontSize={10}/><Tooltip formatter={value => money(Number(value))}/><Line dataKey="value" type="linear" stroke="var(--color-value)" connectNulls={false} dot={{ r: 3 }} isAnimationActive={false}/></LineChart></ChartContainer> : <p className="mt-4 text-sm text-muted-foreground">{!ownerId ? "Sign in to record private history." : loading ? "Loading recorded history…" : error ? "Recorded history is unavailable." : !history.historyAvailable ? "History tracking is not available yet." : "Collecting history. At least two reliable observations are needed for a chart."}</p>}
+      {ownerId && !readOnly && isOnline && !error && history.historyAvailable && eligible.length >= 2 ? <ChartContainer config={{ value: { label: "GBP", color: "var(--primary)" } }} className="mt-6 h-56 w-full aspect-auto sm:h-72"><LineChart accessibilityLayer data={chart} margin={{ top: 12, right: 16, bottom: 4, left: 0 }}><CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5"/><XAxis tick={{ fill: "var(--muted-foreground)" }} dataKey="day" tickFormatter={day => new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })} fontSize={12} minTickGap={40} tickLine={false} axisLine={false} tickMargin={12}/><YAxis tick={{ fill: "var(--muted-foreground)" }} tickFormatter={value => `£${value}`} width={60} fontSize={12} tickLine={false} axisLine={false}/><Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} formatter={value => money(Number(value))}/><Line dataKey="value" type="linear" stroke="var(--color-value)" strokeWidth={2} connectNulls={false} dot={{ r: 3 }} isAnimationActive={false}/></LineChart></ChartContainer> : <p className="mt-4 text-sm text-muted-foreground">{!isOnline ? "Recorded history needs a connection. Your collection overview is available offline." : !ownerId ? "Sign in to record private history." : loading ? "Loading recorded history…" : error ? "Recorded history is unavailable." : !history.historyAvailable ? "History tracking is not available yet." : "Collecting history. At least two reliable observations are needed for a chart."}</p>}
       {seriesPoints.length > 0 && <details className="mt-3 text-sm"><summary className="min-h-9 cursor-pointer py-2">All recorded observations ({seriesPoints.length})</summary><ul className="max-h-52 overflow-y-auto text-xs">{seriesPoints.map(point => <li key={point.observed_day} className="flex justify-between gap-2 py-2"><span>{point.observed_day.slice(0, 10)} · {point.confidence} confidence{!eligible.includes(point) ? " · excluded from chart" : ""}</span><span>{money(point.gbp_amount)}</span></li>)}</ul></details>}
     </section>
-    <section className={`${panel} mt-3`} aria-label="Collection activity"><h2 className="font-semibold">Collection activity</h2><p className="mt-1 text-xs text-muted-foreground">Synced dates are committed server changes. Earlier saved dates are legacy metadata, not acquisition history.</p>
+    <section className={`${panel} mt-3`} aria-label="Collection activity"><h2 className="font-semibold">Collection activity</h2><p className="mt-1 text-xs text-muted-foreground">Account-wide changes across all binders. Synced dates are server changes, not acquisition dates.</p>
       {ownerId && !readOnly && isOnline && <ul className="mt-3 divide-y divide-border/50">{history.activity.map(event => <li key={event.id} className="py-3 text-sm"><p className="break-words">{activityDescription(event)}</p><p className="mt-1 text-xs text-muted-foreground">Synced {new Date(event.recorded_at).toLocaleString("en-GB")}</p></li>)}</ul>}
+      {error && <p role="alert" className="mt-3 text-sm">Could not refresh activity. Previously loaded entries may be out of date.</p>}
       {history.activity.length === 0 && <p className="mt-3 text-sm text-muted-foreground">{!ownerId ? "Sign in to record collection activity." : "No committed activity recorded yet."}</p>}
       {ownerId && isOnline && !readOnly && <button className={`${button} mt-3`} disabled={loading} onClick={() => { setCursor(null); setRetry(value => value + 1) }}>{error ? "Retry history" : "Refresh history"}</button>}
       {history.nextCursor && !error && isOnline && <button className={`${button} mt-3`} disabled={loading} onClick={() => setCursor(history.nextCursor)}>Load older activity</button>}

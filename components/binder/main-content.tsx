@@ -197,7 +197,7 @@ export function renderMainContentView(ctx: MainContentContext) {
         {activeMainView === "pokemon" ? (
           <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} ownedElsewhere={allBinders ? ownedElsewhereLabel : undefined} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
         ) : activeMainView === "analytics" ? (
-          <CollectionAnalyticsView collection={collection} allBindersCollection={allBindersOwned} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} onBrowsePokemon={openCardBrowser} />
+          <CollectionAnalyticsView collection={collection} allBindersCollection={allBindersOwned} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} isLoadingPrices={isLoadingPrices} onBrowsePokemon={openCardBrowser} />
         ) : activeMainView === "list" ? (
           <DexListView
             pokemonList={filteredPokemonSummaryList}

@@ -17,7 +17,7 @@ test("analytics preserves phone dock and honestly separates completion from pric
   const geometry = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }))
   expect(geometry.scroll).toBeLessThanOrEqual(geometry.width)
   await page.getByRole("button", { name: "List", exact: true }).last().click()
-  await expect(page.getByRole("heading", { name: "Manage the dex quickly" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "List", exact: true })).toBeVisible()
 })
 
 test.describe("signed-in analytics", () => {
@@ -58,7 +58,7 @@ test.describe("signed-in analytics", () => {
 
 test.describe("synthetic priced analytics", () => {
   test.use({ signedIn: true })
-  test("exact values, movers and source-separated history survive gaps", async ({ harness }) => {
+  test("exact values, movers and source-separated history survive gaps", async ({ harness }, testInfo) => {
     const page = harness.page
     await mockCardPrices(page, {
       "base1-44": { market: 12, confidence: "high", finishes: [{ finish: "normal", market: 12, trend: { "7d": 10, Trend: 12 } }] },
@@ -74,6 +74,8 @@ test.describe("synthetic priced analytics", () => {
     await expect(page.getByRole("region", { name: "Falling cards" }).getByText("-40%", { exact: true })).toBeVisible()
     const history = page.getByRole("region", { name: "Card price history" })
     await expect(history.locator(".recharts-line-curve")).toHaveCount(1)
+    await history.locator("[data-chart]").filter({ has: page.locator(".recharts-line-curve") }).scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath("recorded-price-chart.png") })
     await page.getByLabel("History source", { exact: true }).selectOption("tcgplayer:normal")
     await expect(history.getByText("Collecting history.", { exact: false })).toBeVisible()
     await harness.expectNoHorizontalOverflow()
@@ -101,7 +103,7 @@ test("an unavailable analytics chunk preserves the current view and dock", async
   await harness.expectHittable(harness.dock().getByRole("button", { name: "List", exact: true }))
   await page.unroute("**/_next/static/chunks/*.js")
   await harness.dock().getByRole("button", { name: "List", exact: true }).click()
-  await expect(page.getByRole("heading", { name: "Manage the dex quickly" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "List", exact: true })).toBeVisible()
 })
 
 test("read-only binders expose no private analytics destination", async ({ harness }) => {
