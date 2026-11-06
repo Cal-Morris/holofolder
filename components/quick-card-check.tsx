@@ -21,6 +21,7 @@ import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-chec
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { CardPriceCheck } from "@/lib/card-price-checks"
 import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
+import { CardPriceEvidence } from "@/components/card-price-evidence"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import { DealPriceScale } from "@/components/deal-price-scale"
 import UndoSnackbar from "@/components/undo-snackbar"
@@ -256,12 +257,22 @@ export default function QuickCardCheck({
           )}
         </div>
 
+        <section aria-label="Catalog price sources" className="min-w-0 rounded-2xl border border-border/60 bg-card px-3 py-2">
+          <h4 className="text-sm font-semibold">Catalog price sources · {formatCardFinishLabel(finish)}</h4>
+          <p className="text-xs text-muted-foreground">Catalog quotes and averages, not sold records. Values in GBP, converted from the original source currency shown.</p>
+          <CardPriceEvidence
+            price={finishPrices[finish as PricedCardFinish]}
+            emptyMessage="No catalog evidence saved for this finish."
+          />
+        </section>
+
         <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>
 
-      <div className="min-w-0 shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
+      {/* Short screens need room to scroll prices as well as reach the footer controls. */}
+      <div className="max-h-[70%] min-h-0 min-w-0 shrink overflow-y-auto overscroll-contain scroll-pb-[calc(var(--safe-bottom)+0.75rem)] border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.fairOverlap ? { low: toDisplay(soldGuide.fairOverlap.low)!.amount, high: toDisplay(soldGuide.fairOverlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
         {/* Show mode (and the Wanted price lookup) is about the asking price, so it opens the keyboard;

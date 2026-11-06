@@ -25,6 +25,7 @@ if (typeof window !== "undefined") {
 interface CardPriceEvidenceProps {
   price: CardPriceSnapshot | undefined
   showTrend?: boolean
+  emptyMessage?: string
 }
 
 function formatUpdatedAt(value: string | null | undefined) {
@@ -39,9 +40,9 @@ function formatUpdatedAt(value: string | null | undefined) {
   return `${days} days ago`
 }
 
-export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidenceProps) {
+export function CardPriceEvidence({ price, showTrend = true, emptyMessage }: CardPriceEvidenceProps) {
   const sourcePrices = price?.sourcePrices ?? []
-  const trendPoints = price?.trendPoints ?? []
+  const trendPoints = (price?.trendPoints ?? []).filter(point => point.source === "cardmarket")
   const history = price?.historyPoints ?? []
   // Cached snapshots can contain timing calls made before confidence gates.
   const rawBuySignal = price?.buySignal ?? null
@@ -50,7 +51,7 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
     : rawBuySignal
 
   if (!buySignal && sourcePrices.length === 0 && history.length === 0 && (!showTrend || trendPoints.length < 2)) {
-    return null
+    return emptyMessage ? <p className="mt-2 text-xs text-muted-foreground">{emptyMessage}</p> : null
   }
 
   const chartData = trendPoints.map((point) => ({
@@ -92,6 +93,7 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
             const market = formatGbpAmount(source.marketGbpAmount)
             const low = formatGbpAmount(source.lowGbpAmount)
             const originalMarket = source.originalCurrency === "GBP" ? null : formatCurrencyAmount(source.originalMarketAmount, source.originalCurrency)
+            const originalLow = source.originalCurrency === "GBP" ? null : formatCurrencyAmount(source.originalLowAmount, source.originalCurrency)
             const updated = formatUpdatedAt(source.updatedAt)
 
             return (
@@ -103,16 +105,17 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
                   <p className="truncate font-semibold text-foreground">
                     {source.label}{source.variantLabel ? `, ${source.variantLabel}` : ""}
                   </p>
-                  <p className="truncate text-muted-foreground">
+                  <p className="text-muted-foreground">
                     {[
-                      low ? `Low ${low}` : null,
+                      low ? `Low ${low} GBP` : null,
                       updated ? `Updated ${updated}` : null,
                     ].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 <div className="text-right tabular-nums">
-                  <p className="font-semibold">{market ?? "No market"}</p>
+                  <p className="font-semibold">{market ? `${market} GBP` : "No market"}</p>
                   {originalMarket && <p className="text-muted-foreground">Original {originalMarket} {source.originalCurrency}</p>}
+                  {originalLow && <p className="text-muted-foreground">Low {originalLow} {source.originalCurrency}</p>}
                 </div>
               </div>
             )
@@ -122,8 +125,8 @@ export function CardPriceEvidence({ price, showTrend = true }: CardPriceEvidence
 
       {showTrend && chartData.length >= 2 ? (
         <div className="rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 dark:border-white/10 dark:bg-white/[0.03]">
-          <div className="mb-1 flex items-center justify-between gap-2 text-[10px]">
-            <span className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">Cardmarket trend</span>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[10px]">
+            <span className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">Cardmarket trend · GBP</span>
             <span className="text-muted-foreground">avg 30d to now</span>
           </div>
           <CardPriceTrendChart data={chartData} />

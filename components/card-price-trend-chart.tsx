@@ -16,7 +16,7 @@ export default function CardPriceTrendChart({ data }: { data: CardPriceTrendDatu
   const gradientId = useId().replaceAll(":", "")
   return (
     <ChartContainer
-      config={{ value: { label: "Price", color: "var(--chart-2)" } }}
+      config={{ value: { label: "Price", color: "var(--primary)" } }}
       className="h-20 w-full aspect-auto"
     >
       <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
