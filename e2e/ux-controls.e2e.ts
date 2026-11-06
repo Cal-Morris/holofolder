@@ -16,18 +16,15 @@ test("list actions meet the minimum target size without overflowing", async ({ h
   await harness.expectNoHorizontalOverflow()
 })
 
-test("search instructions have their own row below the header controls", async ({ harness, page }) => {
+test("search has one title and reachable header controls", async ({ harness, page }) => {
   await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: "Search Pokemon" })
-  const hint = dialog.getByText("Find Pokémon, cards, sets or artists.")
   const quick = dialog.getByRole("button", { name: "Quick mode", exact: true })
   const close = dialog.getByRole("button", { name: "Close search", exact: true })
-  await expect(hint).toBeVisible()
+  await expect(dialog.getByText("Search", { exact: true })).toBeVisible()
   for (const control of [quick, close]) {
     await harness.expectMinTapTarget(control)
     await harness.expectHittable(control)
-    const box = (await control.boundingBox())!
-    expect((await hint.boundingBox())!.y).toBeGreaterThanOrEqual(box.y + box.height)
   }
   await harness.expectNoHorizontalOverflow()
 })
@@ -43,4 +40,31 @@ test("desktop view navigation keeps 36px targets", async ({ harness, page }) => 
     }
     await harness.expectNoHorizontalOverflow()
   }
+})
+
+test("list nested keyboard action does not open the slot", async ({ harness, page }) => {
+  await harness.dock().getByRole("button", { name: "List", exact: true }).click()
+  const action = page.getByRole("button", { name: "Add card for bulbasaur", exact: true })
+  await action.focus()
+  await action.press("Enter")
+  await expect(page.getByRole("dialog")).toHaveCount(1)
+  await expect(page.getByRole("dialog", { name: "Welcome, sign in" })).toBeVisible()
+})
+
+test("settings clears the dock and empty wanted offers a price check", async ({ harness, page }) => {
+  await page.getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
+  await expect(dialog).toBeVisible()
+  await harness.expectWithinSafeViewport(dialog)
+  const dock = harness.dock()
+  await expect.poll(async () => {
+    const box = (await dialog.boundingBox())!
+    return box.y + box.height
+  }).toBeLessThan((await dock.boundingBox())!.y)
+  await harness.expectHittable(dock.getByRole("button", { name: "Wanted", exact: true }))
+  await dock.getByRole("button", { name: "Wanted", exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  await page.getByRole("button", { name: "Check a card price", exact: true }).click()
+  await expect(page.getByRole("dialog", { name: "Quick mode", exact: true }).getByRole("heading", { name: "Price check", exact: true })).toBeVisible()
 })

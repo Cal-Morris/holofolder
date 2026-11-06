@@ -174,8 +174,7 @@ export default function DexListView({
       <div className="shrink-0 border-b border-border/45 px-4 py-3">
         <div data-testid="view-heading" data-collapsed={heading.collapsed ? "" : undefined} className={`flex items-center justify-between gap-3 ${heading.collapsed ? "max-sm:hidden" : ""}`}>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">List View</p>
-            <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Manage the dex quickly</h2>
+            <h2 className="text-base font-semibold tracking-tight sm:text-lg">List</h2>
           </div>
           <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-background/55 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:flex">
             <Search className="h-3.5 w-3.5" />
@@ -187,6 +186,7 @@ export default function DexListView({
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
+            aria-label="Search list"
             placeholder="Search name, card, set, or dex #"
             className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-base md:text-sm outline-none placeholder:text-muted-foreground/70"
           />
@@ -211,6 +211,7 @@ export default function DexListView({
                 key={filter.id}
                 type="button"
                 onClick={() => setActiveFilter(filter.id)}
+                aria-pressed={isActive}
                 className={`min-h-8 shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
                   isActive
                     ? "border-primary/45 bg-primary text-primary-foreground"
@@ -249,7 +250,7 @@ export default function DexListView({
                   tabIndex={0}
                   onClick={() => onSelectPokemon(pokemon)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
+                    if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
                       event.preventDefault()
                       onSelectPokemon(pokemon)
                     }

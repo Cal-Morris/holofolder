@@ -190,13 +190,13 @@ export default function SettingsModal({
     && motionGlintStatus !== "unsupported"
 
   return (
-    <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm" onClick={onClose}>
+    <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(85vh,48rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2"
+        className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--dock-clearance)+0.75rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(85vh,48rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
         <div data-sheet-grabber className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0" {...swipe}>
@@ -213,6 +213,7 @@ export default function SettingsModal({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
+                aria-pressed={effectiveActiveTab === tab.id}
                 className={`h-9 rounded-xl text-xs font-semibold transition ${
                   effectiveActiveTab === tab.id
                     ? "bg-background text-foreground shadow-sm"
@@ -243,7 +244,7 @@ export default function SettingsModal({
             )}
             <div className="flex items-center gap-2">
               <Grid3X3 className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">Binder Layout</h3>
+              <h3 className="font-semibold">Binder layout</h3>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {BINDER_SIZES.map((size) => {
@@ -265,9 +266,6 @@ export default function SettingsModal({
                 )
               })}
             </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Current: {settings.binderRows} x {settings.binderCols} = {settings.binderRows * settings.binderCols} cards per page
-            </p>
             {isReadOnlyView && (
               <p className="text-xs text-muted-foreground text-center">
                 Shared binders keep the owner&apos;s saved layout.
@@ -297,20 +295,17 @@ export default function SettingsModal({
               {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
               <h3 className="font-semibold">Appearance</h3>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
+            <div className="flex items-center justify-between gap-4 border-b border-border/40 py-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Dark mode</p>
-                <p className="text-xs text-muted-foreground">
-                  BinderDex defaults to dark. Turn this off for the light theme.
-                </p>
               </div>
               <Switch checked={isDarkMode} onCheckedChange={onToggleDarkMode} aria-label="Toggle dark mode" />
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
+            <div className="flex items-center justify-between gap-4 border-b border-border/40 py-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Binder slot glare</p>
                 <p className="text-xs text-muted-foreground">
-                  Adds moving pocket glare and foil shine. Uses device motion when available, otherwise runs a subtle app-side sweep.
+                  Pocket shine follows device motion when available.
                 </p>
               </div>
               <Switch
@@ -356,7 +351,7 @@ export default function SettingsModal({
                 </p>
               ) : null}
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
+            <div className="flex items-center justify-between gap-4 border-b border-border/40 py-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Card finish glints</p>
                 <p className="text-xs text-muted-foreground">
@@ -370,14 +365,11 @@ export default function SettingsModal({
                 disabled={isReadOnlyView}
               />
             </div>
-            <div className="rounded-2xl border border-border/50 bg-muted/25 p-4">
+            <div className="pt-2">
               <div className="flex items-center gap-2">
                 <Palette className="w-4 h-4 text-primary" />
                 <div>
                   <p className="text-sm font-medium">Binder color</p>
-                  <p className="text-xs text-muted-foreground">
-                    Pick a default binder tone, or override only the current page.
-                  </p>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2">
@@ -412,11 +404,8 @@ export default function SettingsModal({
                   Use for page {currentBinderPage}
                 </Button>
               </div>
-              <div className="mt-2 rounded-2xl border border-border/40 bg-background/45 p-3">
+              <div className="mt-4 border-t border-border/40 pt-4">
                 <p className="text-xs font-medium">Apply to page range</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Set this color for pages 1 through a chosen end page.
-                </p>
                 <div className="mt-3 flex items-center gap-2">
                   <span className="rounded-xl border border-border/40 bg-muted/35 px-3 py-2 text-sm font-medium text-muted-foreground">
                     1-
@@ -468,7 +457,7 @@ export default function SettingsModal({
           <div className="pt-4 border-t border-border space-y-4">
             <div className="flex items-center gap-2">
               <Download className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">App Mode</h3>
+              <h3 className="font-semibold">App mode</h3>
             </div>
             <div className="rounded-2xl border border-border/50 bg-muted/25 p-3">
               <div className="flex items-start justify-between gap-3">
@@ -556,7 +545,7 @@ export default function SettingsModal({
             <div className="pt-4 border-t border-border space-y-4">
               <div className="flex items-center gap-2">
                 <Link2 className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold">Read-Only Share Link</h3>
+                <h3 className="font-semibold">Read-only share link</h3>
               </div>
               <p className="text-xs text-muted-foreground">
                 Share a public binder link with prices enabled by default. Viewers can browse and filter, but they cannot collect, edit cards, or change your binder.
@@ -601,7 +590,7 @@ export default function SettingsModal({
           <div className="pt-4 border-t border-border space-y-4">
             <div className="flex items-center gap-2">
               <CloudUpload className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">Collection Sync</h3>
+              <h3 className="font-semibold">Collection sync</h3>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-2xl border border-border/50 bg-muted/25 px-3 py-3">

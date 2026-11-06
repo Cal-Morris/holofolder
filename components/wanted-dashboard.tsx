@@ -176,7 +176,13 @@ export default function WantedDashboard({
             <Heart className="h-5 w-5" />
           </div>
           <p className="mt-3 text-sm font-semibold">{isAllBinders ? "No wanted cards in any binder" : "No wanted cards yet"}</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Open a slot and choose Want card. Wanted cards show up here with their UK prices.</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose Want card on a binder slot to start your list.</p>
+          {!readOnlyMode && onCheckAnyCardPrice ? (
+            <button type="button" onClick={() => onCheckAnyCardPrice("")} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">
+              <Search className="h-4 w-4" aria-hidden="true" />
+              Check a card price
+            </button>
+          ) : null}
           {scopeToggle ? <div className="mt-4 flex justify-center">{scopeToggle}</div> : null}
         </div>
       </div>

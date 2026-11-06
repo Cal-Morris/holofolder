@@ -5,7 +5,7 @@ import { catalogCardIds, deduplicateCatalogCards, matchesCatalogCardId } from "@
 
 import NextImage from "next/image"
 import { useEffect, useMemo, useState, type SyntheticEvent } from "react"
-import { Check, Heart, Loader2, Search, Sparkles, X } from "lucide-react"
+import { Check, Heart, Loader2, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
@@ -352,12 +352,9 @@ export default function SetPopulationView({
       <div className="shrink-0 border-b border-border/45 p-4">
         <div data-testid="view-heading" data-collapsed={heading.collapsed ? "" : undefined} className={`flex items-start justify-between gap-3 ${heading.collapsed ? "max-sm:hidden" : ""}`}>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Set Mode</p>
-            <h2 className="text-base font-semibold leading-tight tracking-tight sm:truncate sm:text-lg">Find matches across sets</h2>
+            <h2 className="text-base font-semibold tracking-tight sm:text-lg">Sets</h2>
           </div>
-          <div className="shrink-0 whitespace-nowrap rounded-full border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-semibold tabular-nums text-primary">
-            {summary.total} slots
-          </div>
+          {selectedSet ? <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{summary.total} slots</span> : null}
         </div>
 
         <div className={`flex items-center gap-2 rounded-2xl border border-border/55 bg-background/58 px-3 py-2 dark:border-white/10 dark:bg-background/35 ${heading.collapsed ? "max-sm:mt-0 mt-4" : "mt-4"}`}>
@@ -474,7 +471,7 @@ export default function SetPopulationView({
           </div>
         ) : null}
 
-        <details open={!selectedSet} className="mt-3">
+        <details className="mt-3">
           <summary className="min-h-9 cursor-pointer py-2 text-xs font-semibold text-muted-foreground">Offline set tools</summary>
           <CardShowPrep
           wantedCards={prepWantedCards}
@@ -492,8 +489,8 @@ export default function SetPopulationView({
               ["Missing", visibleSummary.missing],
               ["Wanted", visibleSummary.wanted],
             ].map(([label, value]) => (
-              <div key={label} className="min-w-0 rounded-2xl border border-border/45 bg-background/45 px-1.5 py-1.5 text-center sm:py-2 dark:border-white/10 sm:px-3">
-                <p className="truncate text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:tracking-[0.16em]">{label}</p>
+              <div key={label} className="min-w-0 px-1.5 py-1.5 text-center sm:py-2 sm:px-3">
+                <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
                 <p className="mt-0.5 text-base font-bold tabular-nums sm:mt-1 sm:text-lg">{value}</p>
               </div>
             ))}
@@ -606,15 +603,10 @@ export default function SetPopulationView({
         {selectedSets.length === 1 && matchedPokemonIds.length === 0 && !isLoading ? <CardHighlights key={selectedSet.id} name={selectedSet.name} cards={highlightCards} prices={setPrices.pricesByCardId} formatPrice={formatPrice} showValues isLoading={setPrices.isLoading} /> : null}
         {error ? <div role="alert" className="mb-2 rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive">{error}</div> : null}
         {!selectedSet ? (
-          <div className="flex h-full items-center justify-center p-8 text-center">
-            <div className="max-w-sm">
-              <Sparkles className="mx-auto h-8 w-8 text-primary" />
-              <h3 className="mt-3 text-lg font-semibold">Start with a set</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Choose the sets you have cards from, then narrow the matches by Pokémon or your binder state.
-              </p>
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Latest sets</p>
-              <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <div className="px-2 py-3">
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Latest sets</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
                 {recentSets.length > 0
                   ? recentSets.map((set) => (
                       <button
