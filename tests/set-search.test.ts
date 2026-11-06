@@ -41,3 +41,10 @@ describe("formatSetHitMeta", () => {
     assert.equal(formatSetHitMeta(sets[3]), "")
   })
 })
+
+// Synthetic summary; identity is checked against the published source group.
+test("Delta Reign matches its name, canonical id and printed DLR code", () => {
+  const delta = { id: "me06", name: "Delta Reign" }
+  for (const query of ["delta reign", "Delta", "ME06", " DLR "]) assert.deepEqual(rankSetMatches([delta], query), [delta])
+  assert.deepEqual(rankSetMatches([], "DLR"), [])
+})

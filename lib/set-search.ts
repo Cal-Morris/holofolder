@@ -1,5 +1,6 @@
 // Set hits for the Search sheet and Quick mode: which mirrored sets a typed query names, best match first.
 // Pure (no React), so the ranking is unit-tested; the fetch lives in hooks/use-card-search.ts.
+import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 
 /** How many set rows the Search sheet and Quick mode show above their card results. */
@@ -28,7 +29,7 @@ function matchScore(set: TCGSetSummary, needle: string) {
  * are dropped; sets that don't match at all (e.g. a stale offline list) are left out.
  */
 export function rankSetMatches(sets: readonly TCGSetSummary[], query: string, limit = SEARCH_SET_RESULT_LIMIT): TCGSetSummary[] {
-  const needle = normalize(query)
+  const needle = normalize(resolveSetSearchAlias(query))
   if (needle.length < 2) return []
   const seen = new Set<string>()
   const scored: Array<{ set: TCGSetSummary; score: number; index: number }> = []

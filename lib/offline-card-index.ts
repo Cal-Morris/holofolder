@@ -1,3 +1,4 @@
+import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 // Offline card search: an index built from what is already on the device (the user's own cards and the card
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
 // with the same query rules as /api/tcg-card-search (name, set name/id, "44/102" numbers, card ids).
@@ -161,7 +162,7 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
 
 /** Sets whose name or id matches, for the Sets view while offline. */
 export function searchOfflineSets(sets: TCGSetSummary[], query: string) {
-  const text = query.trim().toLowerCase()
+  const text = resolveSetSearchAlias(query)
   if (text.length < 2) return []
   const byId = new Map<string, TCGSetSummary>()
   for (const set of sets) {
