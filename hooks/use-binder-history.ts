@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { isBinderId } from "@/lib/binders/model"
-import { emptyHistory, historyStorageKey, normalizeHistoryCard, normalizeHistorySearch, parseHistorySnapshot, parseHistoryStore, queueHistoryAction, syncBinderHistory, type HistoryKind, type HistoryScope, type HistorySnapshot, type HistoryStore } from "@/lib/binder-history"
+import { emptyHistory, historyStorageKey, normalizeHistoryCard, normalizeHistorySearch, parseHistorySnapshot, queueHistoryAction, syncBinderHistory, type HistoryKind, type HistoryScope, type HistorySnapshot } from "@/lib/binder-history"
+import { historyStorage } from "@/lib/binder-history-storage"
 import { addRecentCard, readRecentCards, writeRecentCards, type RecentCard } from "@/lib/recent-cards"
 import { addRecentQuickSearch, readRecentQuickSearches, writeRecentQuickSearches } from "@/lib/quick-mode"
 
@@ -27,24 +28,21 @@ export function useBinderHistory(scope: HistoryScope | null | undefined): Binder
     if (currentScope === null) { active.current = null; return }
     let cancelled = false
     const canSync = Boolean(currentScope && isBinderId(currentScope.binderId))
-    let storageAvailable = true
     let running = false
     let again = false
     let timer: ReturnType<typeof setTimeout> | undefined
-    let memory: HistoryStore = { ...emptyHistory(), clientId: crypto.randomUUID(), sequence: 0, pending: [] }
-    const read = () => {
-      if (!storageAvailable) return memory
-      try { return parseHistoryStore(localStorage.getItem(key)) ?? memory } catch { storageAvailable = false; return memory }
-    }
-    const write = (store: HistoryStore) => {
-      memory = store
-      try { localStorage.setItem(key, JSON.stringify(store)) } catch { storageAvailable = false }
+    const storage = historyStorage(key)
+    const channel = currentScope && typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(key) : null
+    const display = async () => {
+      const store = await storage.update(current => current)
       if (!cancelled) setView({ key, snapshot: store, status: canSync && store.pending.length ? "History saved on this device, waiting to sync" : null })
     }
+    const failed = (message: string) => {
+      if (!cancelled) setView(view => view.key === key ? { ...view, status: message } : { key, snapshot: emptyHistory(), status: message })
+    }
     const readLocal = () => ({ ...emptyHistory(), cards: readRecentCards(window.localStorage), searches: readRecentQuickSearches(window.localStorage) })
-    if (currentScope) memory = read()
     const frame = window.requestAnimationFrame(() => {
-      if (currentScope) write(read())
+      if (currentScope) void display().catch(() => failed("History storage unavailable on this device"))
       else setView({ key, snapshot: readLocal(), status: null })
     })
 
@@ -56,7 +54,7 @@ export function useBinderHistory(scope: HistoryScope | null | undefined): Binder
       running = true
       void (async () => {
         try {
-          const pending = await syncBinderHistory({ read, write }, {
+          const pending = await syncBinderHistory(storage, {
             async sync(clientId, actions) {
               const { data, error } = await createClient().rpc("sync_binder_history", {
                 target_binder: currentScope.binderId, expected_owner: currentScope.ownerId,
@@ -67,10 +65,14 @@ export function useBinderHistory(scope: HistoryScope | null | undefined): Binder
               if (!snapshot) throw new Error("Invalid history response")
               return snapshot
             },
-          })
+          }, () => !cancelled)
+          if (!cancelled) {
+            await display()
+            if (!cancelled) channel?.postMessage("updated")
+          }
           if (pending) again = true
         } catch {
-          if (!cancelled) setView({ key, snapshot: read(), status: "Shared history unavailable, saved on this device" })
+          failed("Shared history unavailable, saved changes will retry")
         } finally {
           running = false
           if (again && !cancelled) { again = false; refresh() }
@@ -80,11 +82,20 @@ export function useBinderHistory(scope: HistoryScope | null | undefined): Binder
     const change = (kind: HistoryKind, op: "add" | "clear", value?: RecentCard | string) => {
       if (cancelled) return
       if (currentScope) {
-        const next = queueHistoryAction(read(), kind, op, value)
-        if (!canSync) next.pending = []
-        write(next)
-        clearTimeout(timer)
-        timer = setTimeout(refresh, 300)
+        // Publish only after commit: a visible edit is durable even if this tab closes
+        // while another tab's sync request is stalled.
+        void storage.update(current => {
+          const next = queueHistoryAction(current, kind, op, value)
+          if (!canSync) next.pending = []
+          return next
+        }).then(async () => {
+          if (cancelled) return
+          await display()
+          if (cancelled) return
+          channel?.postMessage("changed")
+          clearTimeout(timer)
+          timer = setTimeout(refresh, 300)
+        }).catch(() => failed("History could not be saved on this device"))
       } else {
         const snapshot = readLocal()
         if (kind === "card") writeRecentCards(window.localStorage, op === "clear" ? [] : addRecentCard(snapshot.cards, value as RecentCard))
@@ -94,11 +105,13 @@ export function useBinderHistory(scope: HistoryScope | null | undefined): Binder
     }
     active.current = { key, refresh, change }
     const onFocus = () => { if (document.visibilityState === "visible") refresh() }
-    const onStorage = (event: StorageEvent) => { if (event.key === key) { setView({ key, snapshot: read(), status: null }); refresh() } }
+    if (channel) channel.onmessage = event => {
+      void display().then(() => { if (event.data === "changed") refresh() })
+        .catch(() => failed("History storage unavailable on this device"))
+    }
     refresh()
     window.addEventListener("online", refresh)
     window.addEventListener("focus", onFocus)
-    window.addEventListener("storage", onStorage)
     document.addEventListener("visibilitychange", onFocus)
     return () => {
       cancelled = true
@@ -106,7 +119,7 @@ export function useBinderHistory(scope: HistoryScope | null | undefined): Binder
       clearTimeout(timer)
       window.removeEventListener("online", refresh)
       window.removeEventListener("focus", onFocus)
-      window.removeEventListener("storage", onStorage)
+      channel?.close()
       document.removeEventListener("visibilitychange", onFocus)
     }
   }, [key, scope])

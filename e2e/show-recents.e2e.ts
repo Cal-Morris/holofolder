@@ -22,7 +22,19 @@ test.describe("Show recently viewed", () => {
       return route.abort()
     })
     await mockCardPrices(page, HUNT_PRICES)
-    await page.evaluate(({ key, snapshot }) => localStorage.setItem(key, JSON.stringify(snapshot)), { key: scopedKey, snapshot: { ...emptyHistory(), cards: recent, clientId: crypto.randomUUID(), sequence: 0, pending: [] } })
+    await page.evaluate(async ({ key, snapshot }) => {
+      const db = await new Promise<IDBDatabase>(resolve => {
+        const request = indexedDB.open("binderdex-history", 1)
+        request.onsuccess = () => resolve(request.result)
+      })
+      await new Promise<void>(resolve => {
+        const transaction = db.transaction("history", "readwrite")
+        transaction.objectStore("history").delete(key)
+        transaction.oncomplete = () => resolve()
+      })
+      db.close()
+      localStorage.setItem(key, JSON.stringify(snapshot))
+    }, { key: scopedKey, snapshot: { ...emptyHistory(), cards: recent, clientId: crypto.randomUUID(), sequence: 0, pending: [] } })
     await page.reload()
     await page.getByRole("button", { name: "Show mode", exact: true }).click()
     await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
@@ -55,7 +67,9 @@ test.describe("Show recently viewed", () => {
     const emptyHuntBox = await hunt.boundingBox()
     expect(emptyHuntBox!.height).toBe(huntBox!.height)
     await test.info().attach("hunt-scroll-height", { body: JSON.stringify({ withRecents: huntBox!.height, withoutRecents: emptyHuntBox!.height }), contentType: "application/json" })
-    await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).cards.length, scopedKey)).toBe(0)
+    await page.reload()
+    await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
+    await expect(rail).toHaveCount(0)
     // Hunt selection immediately repopulates history, retaining its known finish.
     await hunt.getByRole("button", { name: /^Charmander, 151/ }).click()
     await check.getByRole("button", { name: /^Back/ }).first().click()

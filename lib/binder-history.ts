@@ -97,16 +97,26 @@ export function queueHistoryAction(store: HistoryStore, kind: HistoryKind, op: "
 }
 
 export interface HistoryRemote { sync(clientId: string, actions: HistoryAction[]): Promise<HistorySnapshot> }
-export interface HistoryStorage { read(): HistoryStore; write(value: HistoryStore): void }
-/** One atomic server transaction, then replay only newer local actions. Stale generations never reappear. */
-export async function syncBinderHistory(storage: HistoryStorage, remote: HistoryRemote) {
-  const before = storage.read()
-  const sent = before.pending.slice(0, 100)
-  const snapshot = await remote.sync(before.clientId, sent)
-  const current = storage.read()
-  const sentIds = new Set(sent.map(action => action.id))
-  const pending = current.pending.filter(action => !sentIds.has(action.id))
-  const visible = pending.reduce(applyHistoryAction, snapshot)
-  storage.write({ ...current, ...visible, pending })
-  return pending.length
+export interface HistoryStorage {
+  update(change: (current: HistoryStore) => HistoryStore): Promise<HistoryStore>
+  sync<T>(run: () => Promise<T>): Promise<T>
+}
+/** Serialize requests through reconciliation, but never hold the edit transaction over the network. */
+export async function syncBinderHistory(storage: HistoryStorage, remote: HistoryRemote, isActive = () => true) {
+  return storage.sync(async () => {
+    if (!isActive()) return 0
+    const before = await storage.update(current => current)
+    if (!isActive()) return 0
+    const sent = before.pending.slice(0, 100)
+    const snapshot = await remote.sync(before.clientId, sent)
+    if (!isActive()) return 0
+    const current = await storage.update(current => {
+      // Check again inside the transaction, in case identity changed while waiting for it.
+      if (!isActive()) return current
+      const sentIds = new Set(sent.map(action => action.id))
+      const pending = current.pending.filter(action => !sentIds.has(action.id))
+      return { ...current, ...pending.reduce(applyHistoryAction, snapshot), pending }
+    })
+    return current.pending.length
+  })
 }
