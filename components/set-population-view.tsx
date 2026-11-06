@@ -301,7 +301,6 @@ export default function SetPopulationView({
   }, [collectionByPokemonId, slotFilter, slotSearch, matchedSlots])
 
   const matchingCards = useMemo(() => matchedPokemonIds.length ? setCards.filter(card => slots.some(slot => matchedPokemonIds.includes(slot.dexId) && slot.cards.some(candidate => candidate.id === card.id))) : setCards, [matchedPokemonIds, setCards, slots])
-  const prepWantedCards = useMemo(() => [...collectionByPokemonId.values()].flatMap(item => (item.wanted_cards ?? []).map(card => ({ cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish ?? null }))), [collectionByPokemonId])
   const cardEntries = useMemo(() => matchingCards.map(card => ({ card, ...getSetCardState(card, collectionByPokemonId.values()) })), [matchingCards, collectionByPokemonId])
   const cardCounts = { all: cardEntries.length, open: cardEntries.filter(entry => !entry.owned).length, owned: cardEntries.filter(entry => entry.owned).length, wanted: cardEntries.filter(entry => entry.wanted).length, multiple: 0 }
   const cardSummary = { total: cardCounts.all, owned: cardCounts.owned, missing: cardCounts.open, wanted: cardCounts.wanted }
@@ -474,7 +473,6 @@ export default function SetPopulationView({
         <details className="mt-3">
           <summary className="min-h-9 cursor-pointer py-2 text-xs font-semibold text-muted-foreground">Offline set tools</summary>
           <CardShowPrep
-          wantedCards={prepWantedCards}
           candidateSets={[...selectedSets, ...sets, ...recentSets].filter(
             (set, index, all): set is TCGSetSummary => Boolean(set) && all.findIndex((other) => other?.id === set?.id) === index,
           )}

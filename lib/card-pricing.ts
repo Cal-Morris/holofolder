@@ -261,6 +261,26 @@ export function normalizeCardPriceLookups(values: unknown[]): CardPriceLookup[] 
   return [...byKey.values()]
 }
 
+/** Saved server evidence only. Never refreshes a provider; batches stay below PostgREST's row cap. */
+export async function loadSavedCardPrices(lookups: CardPriceLookup[]): Promise<CardPriceSnapshot[]> {
+  const requested = normalizeCardPriceLookups(lookups)
+  const { createAdminClient } = await import("@/lib/supabase/admin")
+  const db = createAdminClient()
+  const result: CardPriceSnapshot[] = []
+  for (let offset = 0; offset < requested.length; offset += 25) {
+    const batch = requested.slice(offset, offset + 25)
+    const keys = new Set(batch.map(card => getCardPriceKey(card.cardId, card.language)))
+    const { data, error } = await db.from("card_prices").select("*")
+      .in("card_id", [...new Set(batch.map(card => card.cardId))])
+      .in("language", [...new Set(batch.map(card => card.language))])
+    if (error) throw new Error("Saved prices are unavailable")
+    for (const row of (data ?? []) as CardPriceRow[]) {
+      if (keys.has(getCardPriceKey(row.card_id, row.language))) result.push(rowToSnapshot(row))
+    }
+  }
+  return result
+}
+
 export async function refreshCardPriceLookups(
   lookups: CardPriceLookup[],
   options: { force?: boolean } = {},

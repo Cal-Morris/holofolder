@@ -48,6 +48,7 @@ import type { QuickBundleEntry, QuickCardAction, QuickCardState } from "@/compon
 import { CARD_STANDING_BADGES, getCardStanding, wantedToSearchCard, type HuntSourceItem, type PokemonCardStanding } from "@/lib/show-hunt"
 import { searchOfflineCards } from "@/lib/offline-card-index"
 // Bundled with Quick mode (not split) so the finder never needs a network round trip at a show.
+import type { BinderOfflineSource } from "@/components/binder-offline-prep"
 import ShowOfflinePrep from "@/components/show-offline-prep"
 import type { BinderHistory } from "@/hooks/use-binder-history"
 import RecentSearches from "@/components/recent-searches"
@@ -122,6 +123,7 @@ export interface QuickModePokemonState {
 }
 
 export interface QuickModeProps {
+  offlineBinder?: BinderOfflineSource
   history: BinderHistory
   onClose: () => void
   onNavigate: (destination: QuickDestinationId) => void
@@ -186,6 +188,7 @@ function QuickMode({
   initialQuery = "",
   lookupOnly = false,
   cardStanding,
+  offlineBinder,
 }: QuickModeProps) {
   const [preparingOffline, setPreparingOffline] = useState(false)
   const [moveSort, setMoveSort] = useState<MomentumSort>("default")
@@ -496,7 +499,7 @@ function QuickMode({
           </button>
         </header>
 
-        {preparingOffline ? <ShowOfflinePrep items={huntItems ?? []} isOnline={isOnline} /> : detailOpen && !twoPane ? (checkView ?? bundleView) : (
+        {preparingOffline ? <ShowOfflinePrep binder={offlineBinder} items={huntItems ?? []} isOnline={isOnline} /> : detailOpen && !twoPane ? (checkView ?? bundleView) : (
         // Keep the finder mounted when detail opens so filters and scroll position survive selection.
         <div className={wideWorkspace ? `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] ${twoPane ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-1"}` : "contents"}>
         <div className={wideWorkspace ? `flex min-h-0 min-w-0 flex-col ${twoPane ? "border-r border-border/50" : ""}` : "contents"}>

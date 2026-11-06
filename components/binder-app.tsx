@@ -3489,6 +3489,7 @@ export default function BinderApp({
 
       {isQuickModeOpen && (
         <QuickMode
+          offlineBinder={{ collection, scope: { ownerUserId: resolvedCollectionOwnerUserId ?? null, binderId: initialBinderId, isDefault: activeBinder?.isDefault !== false } }}
           history={history}
           onClose={closeQuickMode}
           onNavigate={onQuickNavigate}

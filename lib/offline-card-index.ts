@@ -114,14 +114,15 @@ export function collectionToSearchCards(collection: CollectedPokemon[]): SearchC
   return cards
 }
 
-/** Merge duplicates (same card id): first seen wins, Pokémon ids are combined. */
+/** Merge duplicates (same card id and language): first seen wins, Pokémon ids are combined. */
 export function mergeSearchCards(lists: SearchCardResult[][]): SearchCardResult[] {
   const byId = new Map<string, SearchCardResult>()
   for (const list of lists) {
     for (const card of list) {
-      const existing = byId.get(card.id)
+      const key = `${card.id}:${card.language ?? "en"}`
+      const existing = byId.get(key)
       if (!existing) {
-        byId.set(card.id, { ...card, dexIds: [...new Set(card.dexIds)] })
+        byId.set(key, { ...card, dexIds: [...new Set(card.dexIds)] })
       } else {
         existing.dexIds = [...new Set([...existing.dexIds, ...card.dexIds])]
         existing.image ??= card.image
@@ -135,6 +136,9 @@ export function mergeSearchCards(lists: SearchCardResult[][]): SearchCardResult[
 
 /** Same rules as the server search: card id, or name / set name / set id containing the text, optionally a number. */
 export function searchOfflineCards(cards: SearchCardResult[], query: string, limit = 60): SearchCardResult[] {
+  // Supplement identities can have stamped suffixes that the collector-number parser cannot infer.
+  const exactId = cards.filter(card => card.id.toLowerCase() === query.trim().toLowerCase())
+  if (exactId.length) return exactId.slice(0, limit)
   const parsed = resolveCardSearchQuery(query, Array.from(new Map(cards.map(card => [card.set.id, card.set])).values()))
   if (parsed.cardId) {
     const exact = cards.filter((card) => card.id.toLowerCase() === parsed.cardId)
