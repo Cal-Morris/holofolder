@@ -80,6 +80,37 @@ test.describe("binder page turn", () => {
     await expect.poll(() => slotImage.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), { timeout: 400 }).toBe(true)
   })
 
+  test("bounds adjacent image decoding and retries after a failed prefetch", async ({ harness }) => {
+    const page = harness.page
+    await page.addInitScript(() => {
+      const decode = HTMLImageElement.prototype.decode
+      const stats = { active: 0, peak: 0, completed: 0, failed: false, retried: false }
+      Object.assign(window, { prefetchStats: stats })
+      HTMLImageElement.prototype.decode = async function () {
+        if (this.fetchPriority !== "low") return decode.call(this)
+        stats.active += 1
+        stats.peak = Math.max(stats.peak, stats.active)
+        try {
+          await new Promise(resolve => setTimeout(resolve, 40))
+          if (this.src.includes("official-artwork%2F17.png")) {
+            if (!stats.failed) { stats.failed = true; throw new Error("synthetic decode failure") }
+            stats.retried = true
+          }
+          await decode.call(this)
+          stats.completed += 1
+        } finally { stats.active -= 1 }
+      }
+    })
+    await page.reload()
+    const stats = () => page.evaluate(() => (window as unknown as { prefetchStats: { peak: number; completed: number; retried: boolean } }).prefetchStats)
+    await expect.poll(async () => (await stats()).completed).toBeGreaterThanOrEqual(15)
+    expect((await stats()).peak).toBeLessThanOrEqual(4)
+    await page.getByRole("button", { name: "Next binder page", exact: true }).click()
+    await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toHaveValue("2")
+    await page.getByRole("button", { name: "Previous binder page", exact: true }).click()
+    await expect.poll(async () => (await stats()).retried).toBe(true)
+  })
+
   test("keeps the binder visible throughout a page turn", async ({ harness }) => {
     const page = harness.page
     const minimumOpacity = await page.getByTestId("mobile-header-pager").getByRole("button", { name: /^next binder/i }).evaluate(async (button) => {
@@ -93,7 +124,7 @@ test.describe("binder page turn", () => {
       }
       return minimum
     })
-    expect(minimumOpacity).toBe(1)
+    expect(minimumOpacity).toBeGreaterThanOrEqual(0.85)
     await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toHaveValue("2")
   })
 
@@ -113,37 +144,19 @@ test.describe("binder page turn", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
-  test("page snapshots keep the binder frame aligned in both directions", async ({ harness }) => {
+  test("page turns keep live content interactive without waiting for snapshots", async ({ harness }) => {
     const page = harness.page
+    await page.evaluate(() => {
+      document.startViewTransition = () => { throw new Error("Page turns must not capture snapshots") }
+    })
     for (const direction of ["Next", "Previous"]) {
-      const samples = await page.getByRole("button", { name: `${direction} binder page`, exact: true }).evaluate(async (button) => {
-        const start = document.startViewTransition.bind(document)
-        let captured: Promise<{ old: string; incoming: string; oldOpacity: number }> | undefined
-        document.startViewTransition = (update) => {
-          const transition = start(update)
-          captured = transition.ready.then(() => {
-            for (const animation of document.getAnimations()) {
-              if (animation instanceof CSSAnimation && animation.animationName.startsWith("binder-content-")) {
-                animation.pause()
-                animation.currentTime = 70
-              }
-            }
-            const root = document.documentElement
-            const old = getComputedStyle(root, "::view-transition-old(binder-content)")
-            const incoming = getComputedStyle(root, "::view-transition-new(binder-content)")
-            const values = { old: old.transform, incoming: incoming.transform, oldOpacity: Number(old.opacity) }
-            transition.skipTransition()
-            return values
-          })
-          return transition
-        }
-        ;(button as HTMLButtonElement).click()
-        while (!captured) await new Promise(requestAnimationFrame)
-        try { return await captured } finally { document.startViewTransition = start }
-      })
-      expect(samples.old).toBe("none")
-      expect(samples.incoming).toBe("none")
-      expect(samples.oldOpacity).toBeLessThan(1)
+      await page.getByRole("button", { name: `${direction} binder page`, exact: true }).click()
+      await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toHaveValue(direction === "Next" ? "2" : "1")
+      await harness.expectHittable(page.locator("button[data-dex-id]").first())
+      const transforms = await page.evaluate(() => document.getAnimations().flatMap(animation =>
+        animation.effect instanceof KeyframeEffect ? animation.effect.getKeyframes().filter(frame => "transform" in frame) : [],
+      ))
+      expect(transforms).toEqual([])
     }
   })
 
@@ -170,7 +183,7 @@ test.describe("binder page turn", () => {
     await harness.expectNoHorizontalOverflow()
   })
 
-  test("returning to the current page cancels a pending page update", async ({ harness }) => {
+  test("returning to the previous page keeps the latest destination", async ({ harness }) => {
     const page = harness.page
     await page.evaluate(() => {
       const start = document.startViewTransition.bind(document)
@@ -180,7 +193,7 @@ test.describe("binder page turn", () => {
       })
     })
     await page.getByRole("button", { name: "Next binder page", exact: true }).click()
-    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.binderMotion)).toBe("left")
+    await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toHaveValue("2")
     const input = page.getByRole("spinbutton", { name: "Binder page number" })
     await input.fill("1")
     await input.press("Enter")

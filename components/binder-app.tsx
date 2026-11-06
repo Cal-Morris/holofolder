@@ -1256,20 +1256,6 @@ export default function BinderApp({
 
     return ids
   }, [getPageSlots, visibleBinderPageNumbers])
-  // Once a page has settled, prefetch the neighbouring pages so a swipe renders immediately.
-  const [prefetchPagePokemonIds, setPrefetchPagePokemonIds] = useState<number[]>([])
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const ids: number[] = []
-      getAdjacentPageNumbers(visibleBinderPageNumbers, totalBinderPages, isSpreadLayout ? 2 : 1).forEach((pageNumber) => {
-        getPageSlots(pageNumber).forEach((pokemon) => {
-          if (pokemon) ids.push(pokemon.id)
-        })
-      })
-      setPrefetchPagePokemonIds(ids)
-    }, ADJACENT_PREFETCH_DELAY_MS)
-    return () => window.clearTimeout(timer)
-  }, [getPageSlots, isSpreadLayout, totalBinderPages, visibleBinderPageNumbers])
   useEffect(() => {
     if (!shouldClearSelectedPokemonForPage(selectedPokemon?.id, visiblePagePokemonIds)) {
       return
@@ -1289,25 +1275,49 @@ export default function BinderApp({
     return displayCard?.card_image
   }, [binderCardDisplay, collectionByPokemonId])
 
-  // Decode the neighbouring pages' slot images at grid size, using exactly the URLs the grid
-  // renders so the browser / service-worker cache serves them when the page turns.
-  const decodedSlotImageUrlsRef = useRef<Set<string>>(new Set())
+  // Retain decoded images for the visible and neighbouring pages, not just URL markers.
+  // Four background decodes at a time leave bandwidth and CPU for the live grid.
+  const decodedSlotImagesRef = useRef<Map<string, HTMLImageElement>>(new Map())
   useEffect(() => {
-    if (prefetchPagePokemonIds.length === 0 || typeof Image === "undefined") return
-    const decoded = decodedSlotImageUrlsRef.current
-    for (const pokemonId of prefetchPagePokemonIds) {
-      const url = resolveSlotImageUrl(pokemonId, getSlotCardImage(pokemonId))
-      if (decoded.has(url)) continue
-      decoded.add(url)
-      const image = new Image()
-      image.decoding = "async"
-      image.src = url
-      image.decode?.().catch(() => decoded.delete(url))
+    if (typeof Image === "undefined") return
+    const adjacentPages = getAdjacentPageNumbers(visibleBinderPageNumbers, totalBinderPages, isSpreadLayout ? 2 : 1)
+    const urlsForPages = (pages: number[]) => pages.flatMap((page) => getPageSlots(page).flatMap((pokemon) =>
+      pokemon ? [resolveSlotImageUrl(pokemon.id, getSlotCardImage(pokemon.id))] : [],
+    ))
+    const adjacentUrls = [...new Set(urlsForPages(adjacentPages))]
+    const retainedUrls = new Set([...adjacentUrls, ...urlsForPages(visibleBinderPageNumbers)])
+    const decoded = decodedSlotImagesRef.current
+    for (const url of decoded.keys()) if (!retainedUrls.has(url)) decoded.delete(url)
+    let cancelled = false
+    const pending = new Set<HTMLImageElement>()
+    const queue = adjacentUrls.filter((url) => !decoded.has(url))
+    const warmNext = async () => {
+      while (!cancelled && queue.length > 0) {
+        const url = queue.shift()!
+        const image = new Image()
+        image.decoding = "async"
+        image.fetchPriority = "low"
+        pending.add(image)
+        image.src = url
+        try {
+          await image.decode()
+          if (!cancelled) decoded.set(url, image)
+        } catch {
+          // Failed or cancelled images remain eligible for a later prefetch.
+        } finally {
+          pending.delete(image)
+        }
+      }
     }
-    if (decoded.size > 400) {
-      decodedSlotImageUrlsRef.current = new Set([...decoded].slice(-200))
+    const timer = window.setTimeout(() => {
+      for (let worker = 0; worker < 4; worker += 1) void warmNext()
+    }, ADJACENT_PREFETCH_DELAY_MS)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+      for (const image of pending) image.removeAttribute("src")
     }
-  }, [getSlotCardImage, prefetchPagePokemonIds])
+  }, [getPageSlots, getSlotCardImage, isSpreadLayout, totalBinderPages, visibleBinderPageNumbers])
   const offlineCacheWarmupUrls = useMemo(
     () => buildOfflineCacheWarmupUrls({
       collection,
