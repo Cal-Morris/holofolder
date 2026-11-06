@@ -1,3 +1,4 @@
+import { cardSearchSetCandidates, resolveCardSearchQuery } from "@/lib/card-search-query"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 import type { CardCatalogIdentity } from "@/lib/domain/cards"
 import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog"
@@ -492,7 +493,7 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
   "use cache: remote"
   cacheLife(MIRROR_CACHE_LIFE)
 
-  const parsed = parseCardSearchQuery(query)
+  let parsed = { ...parseCardSearchQuery(query), setIds: [] as string[] }
   cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-card-search", cacheSafeTag("card-query", `${parsed.text}|${parsed.number ?? ""}|${parsed.cardId ?? ""}`), cacheSafeTag("language", language))
 
   if (parsed.text.length < 2 && !parsed.cardId) {
@@ -500,6 +501,16 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
   }
 
   const admin = createAdminClient()
+  const candidates = [...new Set(cardSearchSetCandidates(query).map(candidate => candidate.phrase).filter(phrase => !phrase.includes(" ") && phrase.length >= 2))]
+  if (candidates.length) {
+    const catalog = await admin.from("tcg_sets").select("id,name_en")
+      .or(candidates.flatMap(phrase => [`id.ilike.${JSON.stringify(phrase)}`, `name_en.ilike.${JSON.stringify(`%${phrase}%`)}`]).join(","))
+      .limit(1000)
+    if (catalog.error) throw catalog.error
+    parsed = resolveCardSearchQuery(query, (catalog.data ?? [])
+      .filter(set => !HIDDEN_SET_IDS.has(set.id))
+      .map(set => ({ id: set.id, name: set.name_en ?? "" })))
+  }
   const numberCandidates = parsed.number ? localIdCandidates(parsed.number) : null
   const requests: Array<PromiseLike<{ data: any[] | null; error: unknown }>> = []
 
@@ -507,7 +518,12 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
     requests.push(admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("id", parsed.cardId).limit(5))
   }
 
-  if (parsed.text.length >= 2) {
+  if (parsed.setIds.length) {
+    let bySet = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).in("set_id", parsed.setIds)
+    if (parsed.text) bySet = bySet.ilike("name_en", `%${parsed.text}%`)
+    if (numberCandidates) bySet = bySet.in("local_id", numberCandidates)
+    requests.push(bySet.order("local_id_sort", { ascending: true, nullsFirst: false }).limit(limit))
+  } else if (parsed.text.length >= 2) {
     let byName = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("name_en", `%${parsed.text}%`)
     if (numberCandidates) byName = byName.in("local_id", numberCandidates)
     requests.push(byName.limit(limit))

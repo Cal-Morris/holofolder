@@ -1,9 +1,10 @@
+import { resolveCardSearchQuery } from "@/lib/card-search-query"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 // Offline card search: an index built from what is already on the device (the user's own cards and the card
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
 // with the same query rules as /api/tcg-card-search (name, set name/id, "44/102" numbers, card ids).
 import type { CollectedPokemon } from "@/lib/domain/cards"
-import { normalizeLocalId, parseCardSearchQuery, type SearchCardResult } from "@/lib/pokemon-card-browse"
+import { normalizeLocalId, type SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 
 export const CACHED_CARD_API_PREFIXES = ["/api/tcg-set-slots", "/api/tcgdex-cache", "/api/tcg-card-search"] as const
@@ -134,23 +135,23 @@ export function mergeSearchCards(lists: SearchCardResult[][]): SearchCardResult[
 
 /** Same rules as the server search: card id, or name / set name / set id containing the text, optionally a number. */
 export function searchOfflineCards(cards: SearchCardResult[], query: string, limit = 60): SearchCardResult[] {
-  const parsed = parseCardSearchQuery(query)
+  const parsed = resolveCardSearchQuery(query, Array.from(new Map(cards.map(card => [card.set.id, card.set])).values()))
   if (parsed.cardId) {
     const exact = cards.filter((card) => card.id.toLowerCase() === parsed.cardId)
     if (exact.length > 0) return exact.slice(0, limit)
   }
-  if (!parsed.text && !parsed.number) return []
+  if (!parsed.text && !parsed.number && !parsed.setIds.length) return []
 
   const text = parsed.text
   const number = parsed.number ? normalizeLocalId(parsed.number) : null
   const results: SearchCardResult[] = []
   for (const card of cards) {
+    if (parsed.setIds.length && !parsed.setIds.includes(card.set.id)) continue
     if (text) {
-      const matchesText =
-        card.name.toLowerCase().includes(text) ||
+      const matchesText = card.name.toLowerCase().includes(text) || (!parsed.setIds.length && (
         card.set.name.toLowerCase().includes(text) ||
         card.set.id.toLowerCase() === text ||
-        (text.length >= 3 && Boolean(card.illustrator?.toLowerCase().includes(text)))
+        (text.length >= 3 && Boolean(card.illustrator?.toLowerCase().includes(text)))))
       if (!matchesText) continue
     }
     if (number && normalizeLocalId(card.localId) !== number) continue
