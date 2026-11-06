@@ -292,7 +292,7 @@ export default function DexListView({
                           }}
                           onKeyDown={(event) => event.stopPropagation()}
                           aria-label={`All ${pokemon.name} cards`}
-                          className="inline-flex h-8 items-center gap-1 rounded-full border border-border/55 bg-background/60 px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                          className="inline-flex h-9 items-center gap-1 rounded-full border border-border/55 bg-background/60 px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
                         >
                           <Layers3 className="h-3.5 w-3.5" />
                           Cards
@@ -332,7 +332,7 @@ export default function DexListView({
                               type="button"
                               variant="outline"
                               size="sm"
-                              className="h-8 rounded-full px-3 text-[11px]"
+                              className="h-9 rounded-full px-3 text-[11px]"
                               onClick={(event) => {
                                 event.stopPropagation()
                                 onToggleOwned(pokemon)
@@ -345,7 +345,7 @@ export default function DexListView({
                             type="button"
                             variant="outline"
                             size="icon-sm"
-                            className="rounded-full"
+                            className="h-9 w-9 rounded-full"
                             onClick={(event) => {
                               event.stopPropagation()
                               onAddCard(pokemon)
@@ -358,7 +358,7 @@ export default function DexListView({
                             type="button"
                             variant="outline"
                             size="icon-sm"
-                            className="rounded-full"
+                            className="h-9 w-9 rounded-full"
                             onClick={(event) => {
                               event.stopPropagation()
                               onAddWanted(pokemon)
@@ -372,7 +372,7 @@ export default function DexListView({
                               type="button"
                               variant={item.status === "finalized" ? "default" : "outline"}
                               size="icon-sm"
-                              className="rounded-full"
+                              className="h-9 w-9 rounded-full"
                               onClick={(event) => {
                                 event.stopPropagation()
                                 onTogglePerfect(pokemon.id)
