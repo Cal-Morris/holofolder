@@ -20,8 +20,7 @@ export function useNavigationTransition(reducedMotion: boolean) {
     // Page turns must commit before snapshot capture can stall input and scrolling.
     // Keep the live grid interactive; snapshots are only useful for switching views.
     if (direction || !document.startViewTransition) {
-      if (direction) update()
-      else flushSync(update)
+      flushSync(update)
       const animation = element.animate([
         { opacity: 0.85 },
         { opacity: 1 },

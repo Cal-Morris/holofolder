@@ -87,7 +87,10 @@ test.describe("binder page turn", () => {
       const stats = { active: 0, peak: 0, completed: 0, failed: false, retried: false }
       Object.assign(window, { prefetchStats: stats })
       HTMLImageElement.prototype.decode = async function () {
-        if (this.fetchPriority !== "low") return decode.call(this)
+        if (this.fetchPriority !== "low") {
+          if (stats.failed && this.src.includes("official-artwork%2F17.png")) stats.retried = true
+          return decode.call(this)
+        }
         stats.active += 1
         stats.peak = Math.max(stats.peak, stats.active)
         try {
@@ -170,16 +173,16 @@ test.describe("binder page turn", () => {
       ;(element.querySelector('button[aria-label="Previous binder page"]') as HTMLButtonElement).click()
       ;(element.querySelector('button[aria-label="Next binder page"]') as HTMLButtonElement).click()
     })
-    await expect(input).toHaveValue("3")
+    await expect(input).toHaveValue("2")
     await harness.dock().evaluate((element) => {
       const buttons = Array.from(element.querySelectorAll("button"))
-      buttons.find((button) => button.getAttribute("aria-label") === "Sets")!.click()
+      buttons.find((button) => button.getAttribute("aria-label") === "Browse")!.click()
       buttons.find((button) => button.getAttribute("aria-label") === "List")!.click()
       buttons.find((button) => button.getAttribute("aria-label") === "Binder")!.click()
     })
-    await expect(input).toHaveValue("3")
+    await expect(input).toHaveValue("2")
     await expect.poll(() => page.evaluate(() => document.documentElement.hasAttribute("data-binder-motion"))).toBe(false)
-    await expect(input).toHaveValue("3")
+    await expect(input).toHaveValue("2")
     await harness.expectNoHorizontalOverflow()
   })
 
