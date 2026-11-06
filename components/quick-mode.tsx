@@ -10,7 +10,6 @@ import {
   Camera,
   Grid3X3,
   Heart,
-  History,
   Layers,
   Layers3,
   ListChecks,
@@ -35,13 +34,10 @@ import { formatCardNumber, type SearchCardResult } from "@/lib/pokemon-card-brow
 import { searchPokemonItems } from "@/lib/pokemon-search-state"
 import { formatSetHitMeta } from "@/lib/set-search"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
-import { addRecentCard, readRecentCards, toRecentCard, writeRecentCards } from "@/lib/recent-cards"
+import { toRecentCard } from "@/lib/recent-cards"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import {
-  addRecentQuickSearch,
   matchQuickDestinations,
-  readRecentQuickSearches,
-  writeRecentQuickSearches,
   type QuickDestination,
   type QuickDestinationId,
 } from "@/lib/quick-mode"
@@ -53,6 +49,9 @@ import { CARD_STANDING_BADGES, getCardStanding, wantedToSearchCard, type HuntSou
 import { searchOfflineCards } from "@/lib/offline-card-index"
 // Bundled with Quick mode (not split) so the finder never needs a network round trip at a show.
 import ShowOfflinePrep from "@/components/show-offline-prep"
+import type { BinderHistory } from "@/hooks/use-binder-history"
+import RecentSearches from "@/components/recent-searches"
+import ShowRecentCards from "@/components/show-recent-cards"
 import ShowHunt, { PokemonSprite } from "@/components/show-hunt"
 import ShowPokemonCards from "@/components/show-pokemon-cards"
 // Also bundled, so Scan opens offline at a show without fetching its code.
@@ -123,6 +122,7 @@ export interface QuickModePokemonState {
 }
 
 export interface QuickModeProps {
+  history: BinderHistory
   onClose: () => void
   onNavigate: (destination: QuickDestinationId) => void
   onSelectPokemon: (pokemon: PokemonSummary) => void
@@ -167,6 +167,7 @@ const sectionTitle = "px-1 pb-1.5 pt-3 text-[11px] font-semibold uppercase track
 const rowClass = "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none active:bg-muted"
 
 function QuickMode({
+  history,
   onClose,
   onNavigate,
   onSelectPokemon,
@@ -206,7 +207,6 @@ function QuickMode({
   const [query, setQuery] = useState(initialQuery)
   const [isScannerOpen, setIsScannerOpen] = useState(false)
   const [scanNotice, setScanNotice] = useState<string | null>(null)
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentQuickSearches(typeof window === "undefined" ? undefined : window.localStorage))
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const prepSwipe = useSwipeToDismiss(dialogRef, onClose, preparingOffline)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -280,23 +280,20 @@ function QuickMode({
   const illustrators = useIllustratorSearch(query, true).slice(0, 3)
   const setHits = useSetSearch(query, Boolean(onBrowseSet) && !show)
 
-  // Write storage directly (not inside a state updater): picking a result usually unmounts Quick mode
-  // in the same tick, and a queued updater on an unmounting component never runs.
-  const remember = useCallback(() => {
-    if (!trimmed) return
-    const next = addRecentQuickSearch(recentSearches, trimmed)
-    writeRecentQuickSearches(window.localStorage, next)
-    setRecentSearches(next)
-  }, [recentSearches, trimmed])
+  const { rememberSearch, rememberCard: saveRecentCard } = history
+  const remember = useCallback(() => rememberSearch(trimmed), [rememberSearch, trimmed])
+  const rememberCard = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish | null) => {
+    saveRecentCard(toRecentCard(card, pokemon, undefined, finish))
+  }, [saveRecentCard])
 
   const pickCard = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish | null) => {
     remember()
-    writeRecentCards(window.localStorage, addRecentCard(readRecentCards(window.localStorage), toRecentCard(card, pokemon)))
+    rememberCard(card, pokemon, finish)
     if (cardCheck) {
       setIsBundleOpen(false)
       setChecking({ card, pokemon, finish })
     } else onSelectCard(card, pokemon)
-  }, [cardCheck, onSelectCard, remember])
+  }, [cardCheck, onSelectCard, remember, rememberCard])
 
   // A sure match opens its deal check (Back shows the search it read); anything else is typed in for him.
   const focusSearchAfterScanRef = useRef(false)
@@ -305,15 +302,18 @@ function QuickMode({
     setBrowsing(null)
     setIsBundleOpen(false)
     const { outcome } = result
-    if (outcome.query) setQuery(outcome.query)
+    if (outcome.query) {
+      setQuery(outcome.query)
+      if (outcome.kind === "match") rememberSearch(outcome.query)
+    }
     setScanNotice(scanNoticeFor(result))
     if (outcome.kind === "match") {
-      writeRecentCards(window.localStorage, addRecentCard(readRecentCards(window.localStorage), toRecentCard(outcome.card, outcome.pokemon)))
+      rememberCard(outcome.card, outcome.pokemon)
       setChecking({ card: outcome.card, pokemon: outcome.pokemon })
       return
     }
     focusSearchAfterScanRef.current = true
-  }, [])
+  }, [rememberCard, rememberSearch])
 
   // Focus the search once the scanner has unmounted, after its overlay has handed focus back.
   useEffect(() => {
@@ -351,6 +351,7 @@ function QuickMode({
     else if (pokemonResults[0]) pickPokemon(pokemonResults[0])
     else if (cardResults[0]) pickCard(cardResults[0].card, cardResults[0].pokemon)
     else if (destinations[0]) go(destinations[0].id)
+    else remember()
   }
 
   // A deal check or bundle is open. On wide screens in Show mode it sits beside the results instead of replacing them.
@@ -516,6 +517,11 @@ function QuickMode({
           />
         ) : show && !trimmed ? (
           <ShowHunt
+            recentCards={<>
+              {history.status && <p role="status" className="py-1 text-xs text-muted-foreground">{history.status}</p>}
+              <RecentSearches history={history} onSearch={value => { setQuery(value); inputRef.current?.focus({ preventScroll: true }) }} />
+              <ShowRecentCards cards={history.cards} shared={history.shared} getCardState={show.getCardState} onPickCard={pickCard} onClear={() => history.clear("card")} />
+            </>}
             items={huntItems ?? []}
             currency={show.currency}
             fxRates={show.fxRates}
@@ -529,27 +535,11 @@ function QuickMode({
         /* Results grow upwards from the search field so the best match sits nearest the thumb. */
         <div className={`flex min-h-0 flex-1 ${wideWorkspace ? "flex-col" : "flex-col-reverse"} overflow-y-auto overscroll-contain px-2 pb-2`} data-testid="quick-results">
           <div>
-            {!trimmed && recentSearches.length > 0 && (
-              <section aria-label="Recent searches">
-                <h3 className={sectionTitle}>Recent</h3>
-                <div className="flex flex-wrap gap-2 px-1">
-                  {recentSearches.map((entry) => (
-                    <button
-                      key={entry}
-                      type="button"
-                      onClick={() => {
-                        setQuery(entry)
-                        inputRef.current?.focus({ preventScroll: true })
-                      }}
-                      className="flex h-12 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 text-sm font-medium"
-                    >
-                      <History className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                      {entry}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
+            {!trimmed && <>
+              {history.status && <p role="status" className="py-1 text-xs text-muted-foreground">{history.status}</p>}
+              <RecentSearches history={history} onSearch={value => { setQuery(value); inputRef.current?.focus({ preventScroll: true }) }} />
+              {getCardState && <ShowRecentCards cards={history.cards} shared={history.shared} getCardState={getCardState} onPickCard={pickCard} onClear={() => history.clear("card")} />}
+            </>}
 
             {setHits.length > 0 && (
               <section aria-label="Sets">

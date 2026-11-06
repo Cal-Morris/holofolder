@@ -67,6 +67,7 @@ import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
 import { shouldOfferShowMode } from "@/lib/show-mode"
 import { dismissShowModeOffer, useShowMode, useShowModeOfferDismissedAt } from "@/hooks/use-show-mode"
 import { useShowSession } from "@/hooks/use-show-session"
+import { useBinderHistory } from "@/hooks/use-binder-history"
 import { useShowPurchaseSync } from "@/hooks/use-show-purchase-sync"
 import { summarizeShowSession } from "@/lib/show-session"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
@@ -272,6 +273,15 @@ export default function BinderApp({
     if (readOnlyMode || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return
     rememberDeviceBinders(window.localStorage, resolvedCollectionOwnerUserId, binders)
   }, [binders, readOnlyMode, resolvedCollectionOwnerUserId, user])
+  const historyScope = useMemo(() => readOnlyMode ? null : user
+    ? resolvedCollectionOwnerUserId ? { accountId: user.id, ownerId: resolvedCollectionOwnerUserId, binderId: initialBinderId ?? "local" } : null
+    : undefined, [readOnlyMode, user, resolvedCollectionOwnerUserId, initialBinderId])
+  const history = useBinderHistory(historyScope)
+  const refreshHistory = history.refresh
+  useEffect(() => {
+    if (isSearchOpen || isQuickModeOpen) refreshHistory()
+  }, [isSearchOpen, isQuickModeOpen, refreshHistory])
+
   // Show purchases go to the collection owner's account (queued while offline), so a partner sees them too.
   useShowPurchaseSync({ ownerUserId: user && !readOnlyMode ? resolvedCollectionOwnerUserId ?? null : null, isOnline, isShowModeOn })
   // Read-only lookup across every binder: All binders analytics and want list, "Owned in <binder>" hints.
@@ -3391,7 +3401,7 @@ export default function BinderApp({
 
   const renderMainContent = () => renderMainContentView({ pendingBinderPage, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
-  const renderSearchOverlay = () => renderSearchOverlayView({ binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
+  const renderSearchOverlay = () => renderSearchOverlayView({ history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
   const renderMobileNavMenu = () => renderMobileNavMenuView({ activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
@@ -3479,6 +3489,7 @@ export default function BinderApp({
 
       {isQuickModeOpen && (
         <QuickMode
+          history={history}
           onClose={closeQuickMode}
           onNavigate={onQuickNavigate}
           onSelectPokemon={onQuickSelectPokemon}

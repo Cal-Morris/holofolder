@@ -3,6 +3,7 @@ import { searchOfflineCards, searchOfflineCardsWithCorrection } from "../lib/off
 
 // Synthetic search fixture, no prices or collection writes.
 const cards = [
+  { id: "sv03.5-064", localId: "064", name: "Kadabra", set: { id: "sv03.5", name: "151" }, dexIds: [64] },
   { id: "sv03.5-063", localId: "063", name: "Abra", set: { id: "sv03.5", name: "151" }, dexIds: [63] },
   { id: "base1-43", localId: "43", name: "Abra", set: { id: "base1", name: "Base Set" }, dexIds: [63] },
 ]
@@ -17,7 +18,7 @@ test("ordinary Search renders compound card hits and a useful empty state", asyn
   const input = dialog.getByRole("textbox")
   await input.fill("abra 151")
   const results = dialog.getByRole("region", { name: "Card results" })
-  await expect(results.getByText("151", { exact: true })).toBeVisible()
+  await expect(results.getByText("151", { exact: true })).toHaveCount(2)
   await expect(results.getByText("Base Set", { exact: true })).toHaveCount(0)
   await harness.expectNoHorizontalOverflow()
   await page.screenshot({ path: `/tmp/compound-${info.project.name}-results.png` })
@@ -30,6 +31,7 @@ test("ordinary Search renders compound card hits and a useful empty state", asyn
   const show = page.getByRole("dialog", { name: "Quick mode" })
   await show.getByRole("searchbox").fill("abra 151")
   await expect(show.getByRole("region", { name: "Cards", exact: true }).getByRole("button", { name: /Abra, 151/ })).toBeVisible()
+  await expect(show.getByRole("region", { name: "Cards", exact: true }).getByRole("button", { name: /Kadabra, 151/ })).toBeVisible()
   await expect(show.getByRole("region", { name: "Cards", exact: true }).getByText("Base Set", { exact: true })).toHaveCount(0)
   await page.evaluate(async cards => {
     const cache = await caches.open("compound-fixture-data")
@@ -39,6 +41,7 @@ test("ordinary Search renders compound card hits and a useful empty state", asyn
   await show.getByRole("searchbox").fill("151 abra")
   await expect(show.getByRole("region", { name: "Cards", exact: true })).toContainText("on this device")
   await expect(show.getByRole("region", { name: "Cards", exact: true }).getByRole("button", { name: /Abra, 151/ })).toBeVisible()
+  await expect(show.getByRole("region", { name: "Cards", exact: true }).getByRole("button", { name: /Kadabra, 151/ })).toBeVisible()
   await expect(show.getByRole("region", { name: "Cards", exact: true }).getByText("Base Set", { exact: true })).toHaveCount(0)
 })
 
