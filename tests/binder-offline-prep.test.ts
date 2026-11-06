@@ -4,6 +4,7 @@ import { binderPrintings, downloadBinderPrep, inspectBinderPrep, binderPrepKey, 
 import { createMemoryStore } from "@/lib/offline-store/kv"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import type { CardPriceSnapshot } from "@/lib/card-pricing"
+import { readPinnedCardPriceCheck } from "@/lib/card-price-check-cache"
 
 const scope: BinderPrepScope = { ownerUserId: "synthetic-owner", binderId: null, isDefault: true }
 // Synthetic cards and evidence, never provider data.
@@ -45,7 +46,7 @@ describe("binder offline prep", () => {
     assert.ok(cards.every(card => card.cardId === "base1-4-stamped"))
     assert.equal(cards[0].images.length, 2)
   })
-  test("downloads more than 60 saved checks with GET, retains stale evidence, resumes without requests", async () => {
+  test("downloads more than 60 saved checks with GET and refreshes saved evidence without repeating images", async () => {
     const rows = collection(65)
     const deps = setup(rows)
     const cards = binderPrintings(rows)
@@ -55,9 +56,24 @@ describe("binder offline prep", () => {
     assert.equal(result.complete, true)
     assert.equal(deps.requests.filter(url => url.includes("card-price-checks?")).length, 65)
     assert.equal(deps.requests.filter(url => url.includes("/api/card-prices?")).length, 3)
-    const calls = deps.requests.length
-    await downloadBinderPrep(cards, scope, deps)
-    assert.equal(deps.requests.length, calls)
+    const imageCalls = deps.requests.filter(url => url.includes("card-image-proxy")).length
+    await downloadBinderPrep(cards, scope, { ...deps, fetcher: (async (...args: Parameters<typeof fetch>) => {
+      const response = await deps.fetcher(...args)
+      if (String(args[0]).includes("/api/card-prices?")) {
+        const payload = await response.json()
+        return Response.json({ prices: payload.prices.map((price: CardPriceSnapshot) => ({ ...price, marketGbpAmount: 4 })) })
+      }
+      if (String(args[0]).includes("card-price-checks?")) {
+        const payload = await response.json()
+        payload.soldcomps = { ...check("sold"), checkedAt: "2026-11-06T12:00:00Z", summary: { kind: "sold", currency: "GBP", count: 1, low: 9, median: 9, high: 9 }, sales: [{ amount: 9, soldAt: "2026-11-06" }] }
+        return Response.json(payload)
+      }
+      return response
+    }) as typeof fetch })
+    assert.equal(deps.requests.filter(url => url.includes("card-image-proxy")).length, imageCalls)
+    assert.equal(deps.requests.filter(url => url.includes("card-price-checks?")).length, 130)
+    assert.equal(deps.prices.get("synthetic-0:en")?.marketGbpAmount, 4)
+    assert.equal((await readPinnedCardPriceCheck("synthetic-0", "normal", "soldcomps", deps.store))?.summary.median, 9)
     assert.equal((await deps.store.get<{ pendingOperations: unknown[] }>("collection"))?.pendingOperations.length, 1)
     assert.equal(result.oldestCheck, "2026-01-01T00:00:00Z")
     assert.ok([...deps.prices.values()].every(price => price.sourcePrices.length && price.historyPoints?.length && price.trendPoints.length))

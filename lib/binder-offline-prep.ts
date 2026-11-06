@@ -136,12 +136,8 @@ export async function downloadBinderPrep(cards: BinderPrinting[], scope: BinderP
     await options.cache.put(url, response)
   })
   const lookups = normalizeCardPriceLookups(cards)
-  const existing = new Set((await options.loadPrices(cards)).map(price => getCardPriceKey(price.cardId, price.language)))
-  const missing: typeof lookups = []
-  for (const card of lookups) {
-    if (!(existing.has(getCardPriceKey(card.cardId, card.language)) && await options.store.get(priceReceipt(scope, card)))) missing.push(card)
-  }
-  const batches = Array.from({ length: Math.ceil(missing.length / 25) }, (_, index) => missing.slice(index * 25, index * 25 + 25))
+  // A new preparation must pick up evidence saved on the server since the previous show.
+  const batches = Array.from({ length: Math.ceil(lookups.length / 25) }, (_, index) => lookups.slice(index * 25, index * 25 + 25))
   await run("prices", batches, async batch => {
     const response = await request(`/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`)
     if (!response.ok) throw new Error("Saved prices unavailable")
@@ -155,9 +151,6 @@ export async function downloadBinderPrep(cards: BinderPrinting[], scope: BinderP
   })
   const checks = [...new Map(cards.filter(supportsSavedChecks).map(card => [`${card.cardId}:${priceCheckFinish(card.finish)}`, card])).values()]
   await run("asking and sold", checks, async card => {
-    const missingSources = []
-    for (const source of PRICE_CHECK_SOURCES) if (!(await options.store.get(checkReceipt(scope, card, source)) && await readPinnedCardPriceCheck(card.cardId, card.finish, source, options.store))) missingSources.push(source)
-    if (!missingSources.length) return
     const params = new URLSearchParams({ cardId: card.cardId, language: card.language, finish: priceCheckFinish(card.finish) })
     const response = await request(`/api/card-price-checks?${params}`)
     if (!response.ok) throw new Error("Saved checks unavailable")

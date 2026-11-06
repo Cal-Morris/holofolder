@@ -85,7 +85,7 @@ test("binder download reads all saved evidence, retries missing images, then col
   await prep.getByRole("button", { name: "Resume / retry download" }).click()
   await expect(prep).toContainText("Download finished with missing evidence", { timeout: 30_000 })
   await expect(prep).toContainText("Images 67/68")
-  expect(checks.filter(id => id === "base1-44")).toHaveLength(1)
+  expect(checks.filter(id => id === "base1-44")).toHaveLength(2)
   await harness.expectNoHorizontalOverflow()
 
   expect(await page.evaluate(async () => {
