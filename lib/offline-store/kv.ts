@@ -3,7 +3,9 @@
 
 export interface OfflineKeyValueStore {
   get<T = unknown>(key: string): Promise<T | undefined>
+  getMany<T = unknown>(keys: string[]): Promise<Array<T | undefined>>
   set(key: string, value: unknown): Promise<void>
+  setMany(entries: Array<readonly [string, unknown]>): Promise<void>
   delete(key: string): Promise<void>
   keys(prefix?: string): Promise<string[]>
 }
@@ -50,7 +52,7 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
     return databasePromise
   }
 
-  const run = async <T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>) => {
+  const run = async <T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>[]) => {
     const db = await database()
     const transaction = db.transaction(OFFLINE_DB_STORE, mode)
     const done = new Promise<void>((resolve, reject) => {
@@ -58,24 +60,40 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
       transaction.onerror = () => reject(transaction.error)
       transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB transaction aborted"))
     })
-    const result = await requestToPromise(action(transaction.objectStore(OFFLINE_DB_STORE)))
-    // Writes only count once the transaction has committed.
-    await done
-    return result
+    let requests: IDBRequest<T>[]
+    try {
+      // Queue the whole batch before yielding, while the transaction is active.
+      requests = action(transaction.objectStore(OFFLINE_DB_STORE))
+    } catch (error) {
+      transaction.abort()
+      await done.catch(() => undefined)
+      throw error
+    }
+    // Observe both failures, and only count writes once the transaction commits.
+    const [results] = await Promise.all([Promise.all(requests.map(requestToPromise)), done])
+    return results
   }
 
   return {
     async get<T>(key: string) {
-      return (await run("readonly", (store) => store.get(key))) as T | undefined
+      return (await run("readonly", (store) => [store.get(key)]))[0] as T | undefined
+    },
+    async getMany<T>(keys: string[]) {
+      if (keys.length === 0) return []
+      return await run("readonly", (store) => keys.map(key => store.get(key))) as Array<T | undefined>
     },
     async set(key, value) {
-      await run("readwrite", (store) => store.put(value, key))
+      await run("readwrite", (store) => [store.put(value, key)])
+    },
+    async setMany(entries) {
+      if (entries.length === 0) return
+      await run("readwrite", (store) => entries.map(([key, value]) => store.put(value, key)))
     },
     async delete(key) {
-      await run("readwrite", (store) => store.delete(key))
+      await run("readwrite", (store) => [store.delete(key)])
     },
     async keys(prefix = "") {
-      const all = (await run("readonly", (store) => store.getAllKeys())) as IDBValidKey[]
+      const all = (await run("readonly", (store) => [store.getAllKeys()]))[0] as IDBValidKey[]
       return all.map(String).filter((key) => key.startsWith(prefix))
     },
   }
@@ -89,8 +107,15 @@ export function createMemoryStore(initial: Record<string, unknown> = {}): Offlin
     async get<T>(key: string) {
       return clone(records.get(key)) as T | undefined
     },
+    async getMany<T>(keys: string[]) {
+      return keys.map(key => clone(records.get(key)) as T | undefined)
+    },
     async set(key, value) {
       records.set(key, clone(value))
+    },
+    async setMany(entries) {
+      const copies = entries.map(([key, value]) => [key, clone(value)] as const)
+      for (const [key, value] of copies) records.set(key, value)
     },
     async delete(key) {
       records.delete(key)

@@ -356,23 +356,34 @@ export async function saveCardPricesForOffline(prices: unknown[], store = getOff
   writePriceCache(cache)
 }
 
+const PRICE_EVIDENCE_BATCH_SIZE = 100
+
 async function persistPriceEvidence(prices: CardPriceSnapshot[], store = getOfflineStore()) {
   if (!store) throw new Error("Offline price storage is unavailable on this device")
-  await mapWithConcurrency(prices, 4, price => store.set(`price-evidence:${getCardPriceKey(price.cardId, price.language)}`, price))
+  for (let offset = 0; offset < prices.length; offset += PRICE_EVIDENCE_BATCH_SIZE) {
+    await store.setMany(prices.slice(offset, offset + PRICE_EVIDENCE_BATCH_SIZE).map(price =>
+      [`price-evidence:${getCardPriceKey(price.cardId, price.language)}`, price] as const))
+  }
 }
 
-async function loadPriceEvidence(lookups: CardPriceLookup[], store: OfflineKeyValueStore | null = getOfflineStore()) {
+export async function loadPriceEvidence(lookups: CardPriceLookup[], store: OfflineKeyValueStore | null = getOfflineStore()) {
   if (!store) return []
-  const results = await mapWithConcurrency(lookups, 8, async (lookup): Promise<CardPriceSnapshot | null> => {
-    const saved = await store.get<CardPriceSnapshot>(`price-evidence:${getCardPriceKey(lookup.cardId, lookup.language)}`)
-    if (!saved || saved.cardId !== lookup.cardId || saved.language !== lookup.language || !Number.isFinite(saved.fetchedAt)) return null
-    const price = normalizeFetchedCardPrice(saved)
-    return price ? { ...price, fetchedAt: saved.fetchedAt,
-      finishPrices: saved.finishPrices === undefined ? undefined : price.finishPrices,
-      historyPoints: saved.historyPoints === undefined ? undefined : price.historyPoints,
-    } : null
-  })
-  return results.filter((price): price is CardPriceSnapshot => price !== null)
+  const results: CardPriceSnapshot[] = []
+  for (let offset = 0; offset < lookups.length; offset += PRICE_EVIDENCE_BATCH_SIZE) {
+    const batch = lookups.slice(offset, offset + PRICE_EVIDENCE_BATCH_SIZE)
+    const savedPrices = await store.getMany<CardPriceSnapshot>(batch.map(lookup =>
+      `price-evidence:${getCardPriceKey(lookup.cardId, lookup.language)}`))
+    for (const [index, lookup] of batch.entries()) {
+      const saved = savedPrices[index]
+      if (!saved || saved.cardId !== lookup.cardId || saved.language !== lookup.language || !Number.isFinite(saved.fetchedAt)) continue
+      const price = normalizeFetchedCardPrice(saved)
+      if (price) results.push({ ...price, fetchedAt: saved.fetchedAt,
+        finishPrices: saved.finishPrices === undefined ? undefined : price.finishPrices,
+        historyPoints: saved.historyPoints === undefined ? undefined : price.historyPoints,
+      })
+    }
+  }
+  return results
 }
 
 // Keep full history in IndexedDB; localStorage's small quota is reserved for quick current quotes.
