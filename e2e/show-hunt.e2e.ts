@@ -196,6 +196,91 @@ test.describe("Show mode finder", () => {
     expect([...requested].sort()).toEqual(["me02-001", "sv03.5-004", "sv03.5-006", "sv03.5-166"])
   })
 
+  test("Check comps big run: in-app confirm Cancel aborts, Check now proceeds", async ({ harness }, testInfo) => {
+    const { page } = harness
+    const checkedAt = new Date().toISOString()
+    const requested: string[] = []
+    await page.route("**/api/card-price-checks?**", async (route) => {
+      const params = new URL(route.request().url()).searchParams
+      const source = params.get("source")
+      if (source === "soldcomps") requested.push(params.get("cardId") ?? "")
+      await route.fulfill({ json: {
+        ebay: source === "ebay" ? { summary: { kind: "asking", currency: "GBP", count: 1, median: 2, low: 1, high: 3 }, checkedAt } : null,
+        soldcomps: source === "soldcomps" ? { summary: { kind: "sold", currency: "GBP", count: 1, median: 2, low: 1, high: 3 }, checkedAt } : null,
+        errors: {},
+      } })
+    })
+
+    // 15+ wanted printings so the engine asks confirmSpend (CHECK_COMPS_CONFIRM_AT).
+    const bigWanted = Array.from({ length: 15 }, (_, i) => {
+      const n = String(i + 1).padStart(3, "0")
+      return {
+        card_id: `sv03.5-${n}`,
+        card_name: `Bulbasaur ${n}`,
+        card_set: "151",
+        card_language: "en",
+        card_finish: "normal",
+        rarity: "Common",
+        local_id: n,
+        set_total: 165,
+        card_image: `https://assets.tcgdex.net/en/sv/sv03.5/${n}/high.webp`,
+        added_at: "2026-10-01T00:00:00.000Z",
+      }
+    })
+    const collection = [{
+      ...HUNT_COLLECTION[0],
+      wanted_cards: bigWanted,
+    }]
+    const prices = Object.fromEntries(bigWanted.map((card, i) => [card.card_id, { market: 20 - i * 0.5, confidence: "high" as const }]))
+    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
+      route.request().method() === "GET" ? route.fulfill({ json: collection }) : route.fallback())
+    await mockCardPrices(page, prices)
+    await page.reload()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+
+    const dialog = await openShowMode(harness)
+    const comps = dialog.getByTestId("show-check-comps")
+    await comps.getByRole("button", { name: "Check comps" }).click()
+
+    const confirm = page.getByTestId("check-comps-confirm")
+    await expect(confirm).toBeVisible()
+    await expect(confirm).toContainText("15 cards need a sold comps refresh. Check them now?")
+    await expect(confirm).not.toContainText("left today")
+    const cancel = confirm.getByRole("button", { name: "Cancel" })
+    const checkNow = confirm.getByRole("button", { name: "Check now" })
+    await harness.expectMinTapTarget(cancel, 48)
+    await harness.expectMinTapTarget(checkNow, 48)
+    await harness.expectWithinSafeViewport(checkNow)
+    await harness.expectNoHorizontalOverflow()
+
+    const shotDir = process.env.E2E_SCREENSHOT_DIR || "/workspace/pixel-shots"
+    const tag = testInfo.project.name
+    await page.screenshot({ path: `${shotDir}/check-comps-confirm-${tag}.png` })
+
+    await cancel.click()
+    await expect(confirm).toHaveCount(0)
+    await expect(comps.getByRole("status")).toHaveText("Check comps cancelled.")
+    expect(requested).toEqual([])
+
+    await comps.getByRole("button", { name: "Check comps" }).click()
+    await expect(page.getByTestId("check-comps-confirm")).toBeVisible()
+    // Backdrop tap cancels.
+    await page.getByTestId("check-comps-confirm-backdrop").click({ position: { x: 8, y: 8 } })
+    await expect(page.getByTestId("check-comps-confirm")).toHaveCount(0)
+    await expect(comps.getByRole("status")).toHaveText("Check comps cancelled.")
+
+    await comps.getByRole("button", { name: "Check comps" }).click()
+    await expect(page.getByTestId("check-comps-confirm")).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(page.getByTestId("check-comps-confirm")).toHaveCount(0)
+
+    await comps.getByRole("button", { name: "Check comps" }).click()
+    await page.getByTestId("check-comps-confirm").getByRole("button", { name: "Check now" }).click()
+    await expect(page.getByTestId("check-comps-confirm")).toHaveCount(0)
+    await expect(comps.getByRole("status")).toContainText(/Checking comps|Sold comps ready/)
+    await expect.poll(() => requested.length).toBe(15)
+  })
+
   test("no Good pickups strip when nothing on the want list has dropped", async ({ harness }) => {
     await seedHuntList(harness)
     const dialog = await openShowMode(harness)
