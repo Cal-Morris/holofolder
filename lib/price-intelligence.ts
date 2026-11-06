@@ -15,6 +15,8 @@ export interface PriceSubject {
   language: string
   /** Printing being priced. When set, listings for a different printing are rejected. */
   variant?: PriceSubjectVariant | null
+  /** Catalog-verified stamp, independent of the card name and foil finish. */
+  printing?: "pokemon-center" | "staff" | "pre-release"
 }
 
 export interface PriceObservation {
@@ -112,6 +114,17 @@ export function scorePriceObservationMatch(subject: PriceSubject, observation: P
 
   const normalizedTitle = normalizeComparableText(title)
   const normalizedName = normalizeComparableText(subject.name)
+  const stampPatterns = {
+    "pokemon-center": /\bpokemon cent(?:er|re)\b/,
+    staff: /\bstaff\b/,
+    "pre-release": /\bpre ?release\b/,
+  }
+  for (const [stamp, pattern] of Object.entries(stampPatterns)) {
+    if (pattern.test(normalizedTitle) !== (subject.printing === stamp)) return rejectedMatch(["printing stamp mismatch"])
+  }
+  if (/\b(?:gamestop|game stop|eb games|best buy|pokemon together|pokemon league|play pokemon|set logo|w promo)\b/.test(normalizedTitle)) return rejectedMatch(["unsupported printing stamp"])
+  if (subject.printing && /\b(?:non|not|no|without|unstamped|un stamped|regular|standard)\b/.test(normalizedTitle)) return rejectedMatch(["ambiguous printing stamp"])
+
   if (normalizeComparableText(subject.setName ?? "") === "base set" && /\b(?:base set (?:2|ii)|celebrations?|classic collection|legendary collection|evolutions|anniversary|25th|reprint|world championship|tcg classic|pokemon classic)\b/.test(normalizedTitle)) return rejectedMatch(["set mismatch"])
   const reasons: string[] = []
   let score = 0

@@ -15,13 +15,35 @@ export async function loadEbayListingIndicator(cardId: string, variant: PriceSub
 
 export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjectVariant | null) {
   const { data: card, error } = await createAdminClient().from("tcg_cards")
-    .select("id,name_en,local_id,set_id,external_ids_json,tcg_sets(name_en,official_card_count)").eq("id", cardId).maybeSingle()
+    .select("id,name_en,local_id,set_id,external_ids_json,raw_json,tcg_sets(name_en,official_card_count)").eq("id", cardId).maybeSingle()
   if (error) throw new Error("Card lookup unavailable")
-  if (!card?.name_en || !card.local_id || readCatalogMetadata(card.external_ids_json).variantId) return null
+  if (!card?.name_en || !card.local_id) return null
+  const catalog = readCatalogMetadata(card.external_ids_json)
+  let name = card.name_en
+  let localId = card.local_id
+  let printing: PriceSubject["printing"]
+  if (catalog.variantId) {
+    const evidence = card.raw_json?.supplementalSources?.tcgdexVariant
+    const labels = { "pokemon-center": "Pokémon Center", staff: "Staff", "pre-release": "Prerelease" } as const
+    const stamp = Array.isArray(evidence?.stamp) && evidence.stamp.length === 1 ? evidence.stamp[0] : undefined
+    if (typeof stamp !== "string" || evidence.size === "jumbo" || !Object.hasOwn(labels, stamp) || !catalog.localId || !catalog.productId
+      || String(evidence.thirdParty?.tcgplayer) !== catalog.productId
+      || (evidence.variantId ?? catalog.productId) !== catalog.variantId) return null
+    printing = stamp as NonNullable<PriceSubject["printing"]>
+    const label = labels[printing]
+    const suffix = ` (${label})`
+    if (catalog.printingLabel !== label || !name.endsWith(suffix)) return null
+    name = name.slice(0, -suffix.length)
+    localId = catalog.localId
+    if (!name) return null
+  } else if (cardId.includes("~") || catalog.printingLabel) {
+    // A decorated identity alone is never evidence of a supported printing.
+    return null
+  }
   const set = (Array.isArray(card.tcg_sets) ? card.tcg_sets[0] : card.tcg_sets) as { name_en?: string; official_card_count?: number } | null
   if (!set?.name_en) return null
-  const query = `${card.name_en} ${card.local_id} ${set.name_en}`.slice(0, 100)
-  const subject: PriceSubject = { cardId, name: card.name_en, localId: card.local_id, setId: card.set_id, setName: set.name_en, officialCardCount: set.official_card_count, language: "en", variant }
+  const query = `${card.name_en} ${localId} ${set.name_en}`.slice(0, 100)
+  const subject: PriceSubject = { cardId, name, localId, setId: card.set_id, setName: set.name_en, officialCardCount: set.official_card_count, language: "en", variant, printing }
   return { subject, query }
 }
 

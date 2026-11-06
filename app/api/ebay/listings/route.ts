@@ -1,3 +1,4 @@
+import { isPriceCheckCardId } from "@/lib/card-catalog"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
 import { loadEbayListingIndicator } from "@/lib/server/ebay-listings"
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams
     const cardId = params.get("cardId") ?? ""
     const finish = params.get("finish")
-    if (!/^[a-zA-Z0-9._-]{1,100}$/.test(cardId) || (finish && !["normal", "holo", "reverse_holo"].includes(finish))) {
+    if (!isPriceCheckCardId(cardId) || (finish && !["normal", "holo", "reverse_holo"].includes(finish))) {
       return Response.json({ error: "Invalid card or finish." }, { status: 400, headers })
     }
     if (!process.env.EBAY_CLIENT_ID || !process.env.EBAY_CLIENT_SECRET) return Response.json({ error: "eBay listings are unavailable." }, { status: 503, headers })

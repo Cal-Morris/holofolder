@@ -1,3 +1,4 @@
+import { isPriceCheckCardId } from "@/lib/card-catalog"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
 import { loadCardPriceChecks } from "@/lib/server/card-price-checks"
@@ -14,7 +15,7 @@ async function handle(request: Request, refresh: boolean) {
     const finish = url.searchParams.get("finish") ?? "any"
     const source = url.searchParams.get("source")
     if (source !== null && source !== "ebay" && source !== "soldcomps") return Response.json({ error: "Invalid price source." }, { status: 400, headers })
-    if (!/^[a-zA-Z0-9._-]{1,100}$/.test(cardId) || !["normal", "holo", "reverse_holo", "any"].includes(finish)) return Response.json({ error: "Invalid card or finish." }, { status: 400, headers })
+    if (!isPriceCheckCardId(cardId) || !["normal", "holo", "reverse_holo", "any"].includes(finish)) return Response.json({ error: "Invalid card or finish." }, { status: 400, headers })
     if ((url.searchParams.get("language") ?? "en") !== "en") return Response.json({ error: "Price comparisons currently support English cards only." }, { status: 422, headers })
     const result = await loadCardPriceChecks(cardId, finish, refresh, source ?? undefined)
     return Response.json(result ?? { error: "This exact printing is not supported yet." }, { status: result ? 200 : 422, headers })
