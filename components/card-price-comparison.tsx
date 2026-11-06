@@ -73,6 +73,8 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
     <section aria-label="Price comparisons" className="mt-2 rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 text-xs">
       <p className="font-semibold">eBay listings + sold comps</p>
       <p className="mt-1 text-muted-foreground">Manual checks · saved for 12 hours</p>
+      {error ? <p role="status" className="mt-2 text-muted-foreground">{error}</p> : null}
+      <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices()} disabled={loading}>{loading ? "Checking prices…" : "Check prices"}</Button>
       {result ? <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1" aria-live="polite">
         {(["ebay", "soldcomps"] as const).map(source => <div key={source}>
           {pending[source] ? <p role="status">Checking {source === "ebay" ? "eBay" : "sold comps"}…</p> : null}
@@ -99,8 +101,6 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
           <p>Fair / expected is centred on the market reference using your Fair tolerance. Green marks bargains; amber and red mark prices above market. Purple outlines agreement with the catalogue fair range. Only qualified sold evidence changes the guide.</p>
         </div>
       </details> : null}
-      {error ? <p role="status" className="mt-2 text-muted-foreground">{error}</p> : null}
-      <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices()} disabled={loading}>{loading ? "Checking prices…" : "Check prices"}</Button>
     </section>
   )
 }

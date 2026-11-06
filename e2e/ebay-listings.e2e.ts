@@ -12,7 +12,7 @@ const comparisonFixture = {
 
 test("asking and sold comparisons load on demand and remain separate from the card valuation", async ({ harness }) => {
   // Synthetic market quote and asking-price sample, never real sale data.
-  await mockCardPrices(harness.page, { "base1-44": { confidence: "medium", market: 8 } })
+  await mockCardPrices(harness.page, { "base1-44": { confidence: "medium", market: 8, trend: { "7d": 7, Trend: 8 } } })
   await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
   let lookups = 0
   await harness.page.route("**/api/card-price-checks?**", async route => {
@@ -25,11 +25,22 @@ test("asking and sold comparisons load on demand and remain separate from the ca
   const detail = await harness.openCardDetail()
   const market = detail.getByText("Market", { exact: true }).locator("..")
   await expect(market).toContainText("£8.00")
-  await detail.getByText("Price details", { exact: true }).click()
   const indicator = detail.getByRole("region", { name: "Price comparisons" })
   await expect(indicator.getByText(/Manual checks/)).toBeVisible()
   expect(lookups).toBe(0)
   const check = indicator.getByRole("button", { name: "Check prices" })
+  await expect(detail.getByText("Price details", { exact: true }).locator("..")).toHaveAttribute("open", "")
+  await detail.getByText("Price details", { exact: true }).click()
+  await expect(check).toBeHidden()
+  await detail.getByText("Price details", { exact: true }).click()
+  await expect(check).toBeVisible()
+  expect(lookups).toBe(0)
+  // The manual action precedes both comparison results and catalogue evidence.
+  expect(await check.evaluate(button => {
+    const details = button.closest("details")!
+    const evidence = details.querySelector("section + div")
+    return !!evidence && !!(button.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })).toBe(true)
   await harness.expectMinTapTarget(check)
   await check.click()
   await expect(indicator.getByText(/£12.00.*median asking price.*3 matched listings/)).toBeVisible()
@@ -50,7 +61,6 @@ test("eBay lookup degrades clearly offline without making a request", async ({ h
   let lookups = 0
   await harness.page.route("**/api/card-price-checks?**", async route => { lookups++; await route.abort() })
   const detail = await harness.openCardDetail()
-  await detail.getByText("Price details", { exact: true }).click()
   await context.setOffline(true)
   await detail.getByRole("button", { name: "Check prices" }).click()
   await expect(detail.getByRole("status")).toHaveText("Connect to the internet to check prices.")
@@ -65,7 +75,6 @@ test("eBay lookup failure and an empty sample do not invent a price", async ({ h
     else await route.fulfill({ json: { ebay: { summary: { kind: "asking", currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: "2026-10-27T12:00:00Z" }, soldcomps: null, errors: { soldcomps: "Monthly allowance used up." } } })
   })
   const detail = await harness.openCardDetail()
-  await detail.getByText("Price details", { exact: true }).click()
   const indicator = detail.getByRole("region", { name: "Price comparisons" })
   await indicator.getByRole("button", { name: "Check prices" }).click()
   await expect(indicator.getByRole("status").first()).toContainText("temporarily unavailable")
@@ -81,7 +90,6 @@ test("eBay lookup is available when the card has no market quote", async ({ harn
   await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
   await harness.page.reload()
   const detail = await harness.openCardDetail()
-  await detail.getByText("Price details", { exact: true }).click()
   await expect(detail.getByRole("button", { name: "Check prices" })).toBeVisible()
   await expect(detail.getByRole("region", { name: "Price comparisons" })).toContainText("Manual checks")
 })
@@ -102,7 +110,7 @@ test("Show mode checks both sources on tap and resets comparisons when the finis
     await route.fulfill({ json: comparisonFixture })
   })
   await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
   const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
   await dialog.getByRole("searchbox").fill("charmeleon")
   await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
@@ -114,6 +122,11 @@ test("Show mode checks both sources on tap and resets comparisons when the finis
   await button.click()
   await expect(check.getByText(/£9.00.*median sold price/)).toBeVisible()
   await expect(check.getByText(/£12.00.*median asking price/)).toBeVisible()
+  expect(await button.evaluate(button => {
+    const section = button.closest("section")!
+    const results = section.querySelector('[aria-live="polite"]')!
+    return !!(button.compareDocumentPosition(results) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })).toBe(true)
   await harness.expectNoHorizontalOverflow()
   const finish = check.getByRole("radiogroup", { name: "Variant" }).getByRole("radio", { name: /reverse/i })
   await finish.click()
@@ -142,7 +155,6 @@ for (const fast of ["ebay", "soldcomps"] as const) {
       await route.fulfill({ json: comparisonFixture })
     })
     const detail = await harness.openCardDetail()
-    await detail.getByText("Price details", { exact: true }).click()
     const comparison = detail.getByRole("region", { name: "Price comparisons" })
     await comparison.getByRole("button", { name: "Check prices", exact: true }).click()
     try {
@@ -167,7 +179,7 @@ test("qualified sold guide changes Show mode verdict, plots an overlay and reset
   let requests = 0
   await harness.page.route("**/api/card-price-checks?**", async route => { requests++; await route.fulfill({ json: qualifyingFixture() }) })
   await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
   const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
   await dialog.getByRole("searchbox").fill("charmeleon")
   await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
@@ -203,7 +215,6 @@ test("card details updates its good-price band only after a user checks qualifyi
   await harness.page.reload()
   const detail = await harness.openCardDetail()
   await expect(detail.getByText("Fair range · sold", { exact: true })).toHaveCount(0)
-  await detail.getByText("Price details", { exact: true }).click()
   await detail.getByRole("button", { name: "Check prices", exact: true }).click()
   await expect(detail.getByText("Fair range · sold", { exact: true })).toBeVisible()
   await expect(detail.getByRole("figure", { name: "Buying range", exact: true })).toBeVisible()
@@ -220,7 +231,6 @@ test("card details compares sold evidence with the tracked finish quote", async 
   await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
   await detail.getByRole("button", { name: /^Reverse/ }).click()
   await expect(detail.getByText("Market", { exact: true }).locator("..")).toContainText("£20.00")
-  await detail.getByText("Price details", { exact: true }).click()
   await detail.getByRole("button", { name: "Check prices", exact: true }).click()
   await detail.getByText("Evidence", { exact: true }).click()
   await expect(detail.getByText(/sold and catalogue buying ranges do not overlap/)).toBeVisible()
@@ -242,7 +252,7 @@ test("switching finishes cancels the old check before it can overwrite new evide
     await route.fulfill({ json: fixture }).catch(() => undefined)
   })
   await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
   const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
   await dialog.getByRole("searchbox").fill("charmeleon")
   await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
@@ -270,7 +280,7 @@ test("fair market bands, quick eBay link and individually verifiable source reco
     return route.fulfill({ json: { ebay, soldcomps: sold, errors: {} } })
   })
   await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await harness.page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
   const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
   await dialog.getByRole("searchbox").fill("charmeleon")
   await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
@@ -306,13 +316,11 @@ test("a saved check shows again without a request and is not re-requested while 
     await route.fulfill({ json: { ...fixture, ebay: { ...fixture.ebay, checkedAt: new Date().toISOString() } } })
   })
   let detail = await harness.openCardDetail()
-  await detail.getByText("Price details", { exact: true }).click()
   await detail.getByRole("button", { name: "Check prices", exact: true }).click()
   await expect(detail.getByText(/£9.80.*median sold price/)).toBeVisible()
   expect(requests).toBe(2)
   await harness.page.reload()
   detail = await harness.openCardDetail()
-  await detail.getByText("Price details", { exact: true }).click()
   const comparison = detail.getByRole("region", { name: "Price comparisons" })
   await expect(comparison.getByText(/£9.80.*median sold price/)).toBeVisible()
   await expect(comparison.getByTestId("price-check-age-soldcomps")).toContainText(/Checked (just now|1 min ago)/)
