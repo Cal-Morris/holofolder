@@ -42,8 +42,7 @@ test.describe("Show mode finder", () => {
     for (const name of ["Search", "Exit show mode"]) await harness.expectMinTapTarget(banner(harness).getByRole("button", { name, exact: true }), 48)
     const hunt = dialog.getByTestId("show-hunt")
     await expect(hunt).toBeVisible()
-    for (const name of ["Most wanted", "Top value"]) await harness.expectMinTapTarget(hunt.getByRole("radio", { name, exact: true }), 48)
-    for (const name of ["Set", "Illustrator"]) await harness.expectMinTapTarget(hunt.getByRole("combobox", { name }), 48)
+    for (const name of ["Sort", "Era", "Set", "Illustrator"]) await harness.expectMinTapTarget(hunt.getByRole("combobox", { name }), 44)
     // The keyboard stays down so the list can be read against a dealer's binder.
     await expect(dialog.getByRole("searchbox")).not.toBeFocused()
     await expect(hunt.getByRole("heading", { name: /Hunting · 4 cards/ })).toBeVisible()
@@ -59,7 +58,7 @@ test.describe("Show mode finder", () => {
     // The want list's finish is priced, not the headline price.
     await expect(hunt.getByRole("region", { name: "Hunting Charmander" }).getByTestId("hunt-pay-up-to")).toHaveText("£2.75")
 
-    await hunt.getByRole("radiogroup", { name: "Sort" }).getByRole("radio", { name: "Top value" }).click()
+    await hunt.getByRole("combobox", { name: "Sort" }).selectOption("value")
     await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Charizard", "Hunting Bulbasaur", "Hunting Charmander", "Hunting Squirtle"])
     await harness.expectNoHorizontalOverflow()
     await screenshot(harness, "show-hunt")
@@ -88,6 +87,7 @@ test.describe("Show mode finder", () => {
     await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
     const dialog = await openShowMode(harness)
     const pickups = dialog.getByRole("region", { name: "Good pickups" })
+    await pickups.locator("summary").click()
     await expect(pickups).toBeVisible()
     const tiles = pickups.getByTestId("good-pickup")
     await expect(tiles).toHaveCount(2)
@@ -98,10 +98,11 @@ test.describe("Show mode finder", () => {
     await screenshot(harness, "good-pickups")
 
     // Filters apply: Mega Evolution has no qualifying drop, so the strip hides.
-    await dialog.getByTestId("show-hunt").getByRole("radiogroup", { name: "Era" }).getByRole("radio", { name: /^Mega Evolution/ }).click()
+    await dialog.getByTestId("show-hunt").getByRole("combobox", { name: "Era" }).selectOption({ label: "Mega Evolution (1)" })
     await expect(pickups).toBeHidden()
-    await dialog.getByTestId("show-hunt").getByRole("radiogroup", { name: "Era" }).getByRole("radio", { name: "All eras" }).click()
+    await dialog.getByTestId("show-hunt").getByRole("combobox", { name: "Era" }).selectOption("")
 
+    await pickups.locator("summary").click()
     await tiles.nth(0).click()
     await expect(dialog.getByTestId("quick-card-check")).toBeVisible()
   })
@@ -122,14 +123,14 @@ test.describe("Show mode finder", () => {
     await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
     const dialog = await openShowMode(harness)
     const hunt = dialog.getByTestId("show-hunt")
-    const sort = hunt.getByRole("radiogroup", { name: "Sort" })
-    for (const name of ["Biggest price drop first", "Biggest price rise first"]) await harness.expectMinTapTarget(sort.getByRole("radio", { name }), 48)
+    const sort = hunt.getByRole("combobox", { name: "Sort" })
+    await harness.expectMinTapTarget(sort, 44)
     await harness.expectNoHorizontalOverflow()
 
-    await sort.getByRole("radio", { name: "Biggest price drop first" }).click()
+    await sort.selectOption("falling")
     await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Charmander", "Hunting Charizard", "Hunting Bulbasaur", "Hunting Squirtle"])
     await screenshot(harness, "hunt-sort-down")
-    await sort.getByRole("radio", { name: "Biggest price rise first" }).click()
+    await sort.selectOption("rising")
     await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Bulbasaur", "Hunting Charizard", "Hunting Charmander", "Hunting Squirtle"])
     await expect(hunt.getByRole("region", { name: "Hunting Bulbasaur" }).locator("button[data-standing]").first()).toHaveAccessibleName(/^Bulbasaur, Phantasmal Flames/)
 
@@ -185,7 +186,7 @@ test.describe("Show mode finder", () => {
     await expect(comps.getByRole("progressbar", { name: "Comps checked" })).toHaveAttribute("aria-valuemax", "4")
     await harness.expectMinTapTarget(comps.getByRole("button", { name: "Stop checking comps" }), 48)
     // The rest of Show stays usable while it runs.
-    await expect(dialog.getByTestId("show-hunt").getByRole("radio", { name: "Top value" })).toBeEnabled()
+    await expect(dialog.getByTestId("show-hunt").getByRole("combobox", { name: "Sort" })).toBeEnabled()
     await harness.expectNoHorizontalOverflow()
     await screenshot(harness, "show-check-comps")
     release()
@@ -292,13 +293,13 @@ test.describe("Show mode finder", () => {
     await seedHuntList(harness)
     const dialog = await openShowMode(harness)
     const hunt = dialog.getByTestId("show-hunt")
-    const eras = hunt.getByRole("radiogroup", { name: "Era" })
-    await expect(eras.getByRole("radio")).toHaveText(["All eras", "Mega Evolution1", "Scarlet & Violet3"])
-    await eras.getByRole("radio", { name: /^Mega Evolution/ }).click()
+    const eras = hunt.getByRole("combobox", { name: "Era" })
+    await expect(eras.locator("option")).toHaveText(["All eras", "Mega Evolution (1)", "Scarlet & Violet (3)"])
+    await eras.selectOption({ label: "Mega Evolution (1)" })
     await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Bulbasaur"])
     await expect(hunt.getByRole("button", { name: /^Bulbasaur, Phantasmal Flames/ })).toBeVisible()
     await expect(hunt.getByRole("button", { name: /^Bulbasaur, 151/ })).toHaveCount(0)
-    await eras.getByRole("radio", { name: "All eras" }).click()
+    await eras.selectOption("")
 
     await hunt.getByRole("combobox", { name: "Set" }).selectOption({ label: "151 (3)" })
     await expect.poll(() => groupNames(hunt)).toEqual(["Hunting Charizard", "Hunting Bulbasaur", "Hunting Charmander"])

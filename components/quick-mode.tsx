@@ -383,7 +383,8 @@ function QuickMode({
     />
   ) : null
   const detailOpen = Boolean(checkView ?? bundleView)
-  const twoPane = Boolean(show) && isWide
+  const wideWorkspace = Boolean(show) && isWide
+  const twoPane = wideWorkspace && detailOpen
 
   const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0 && setHits.length === 0
 
@@ -397,12 +398,11 @@ function QuickMode({
         onClick={(event) => event.stopPropagation()}
         // While the phone's keyboard is up the dialog fits the visible part of the page (app/globals.css).
         data-keyboard-fit
-        className={`mx-auto flex h-[100dvh] w-full ${twoPane ? "max-w-5xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
+        className={`mx-auto flex h-[100dvh] w-full ${wideWorkspace ? "max-w-6xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold leading-tight">{lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
-            <p className="truncate text-xs text-muted-foreground">{lookupOnly ? "Look up any card for its UK price and what to pay." : show ? "Find the cards you’re hunting, or check any card’s price." : "Search anything, or jump straight there."}</p>
           </div>
           {!isOnline && (
             <span role="status" className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
@@ -420,10 +420,9 @@ function QuickMode({
         </header>
 
         {detailOpen && !twoPane ? (checkView ?? bundleView) : (
-        // Wide screens (Show mode): the finder and results stay on the left and the deal check or bundle opens
-        // on the right. Phones keep one pane at a time; "contents" leaves their layout as it was.
-        <div className={twoPane ? "grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)]" : "contents"}>
-        <div className={twoPane ? "flex min-h-0 flex-col border-r border-border/50" : "contents"}>
+        // Keep the finder mounted when detail opens so filters and scroll position survive selection.
+        <div className={wideWorkspace ? `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] ${twoPane ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-1"}` : "contents"}>
+        <div className={wideWorkspace ? `flex min-h-0 min-w-0 flex-col ${twoPane ? "border-r border-border/50" : ""}` : "contents"}>
         {show && !trimmed && browsing ? (
           <ShowPokemonCards
             key={browsing.id}
@@ -451,7 +450,7 @@ function QuickMode({
           />
         ) : (
         /* Results grow upwards from the search field so the best match sits nearest the thumb. */
-        <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-2 pb-2" data-testid="quick-results">
+        <div className={`flex min-h-0 flex-1 ${wideWorkspace ? "flex-col" : "flex-col-reverse"} overflow-y-auto overscroll-contain px-2 pb-2`} data-testid="quick-results">
           <div>
             {!trimmed && recentSearches.length > 0 && (
               <section aria-label="Recent searches">
@@ -644,7 +643,7 @@ function QuickMode({
         </div>
         )}
 
-        <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-3">
+        <div className={`shrink-0 border-border/50 bg-card/95 px-3 ${wideWorkspace ? "order-first border-b py-3" : "border-t pb-[calc(var(--safe-bottom)+0.75rem)] pt-3"}`}>
           {show && bundle.length > 0 && (
             <button
               type="button"
@@ -686,7 +685,7 @@ function QuickMode({
                 setScanNotice(null)
               }}
               onKeyDown={handleKeyDown}
-              placeholder={show ? "Search a Pokémon, card or “44/102”…" : "Card, Pokémon, “44/102”, artist or page…"}
+              placeholder={show ? "Name or card number" : "Card, Pokémon, artist or page"}
               className="h-14 w-full rounded-2xl border border-border/70 bg-background pl-12 pr-4 text-base font-medium outline-none placeholder:text-muted-foreground/80 focus:border-primary focus:ring-2 focus:ring-primary/30"
             />
           </label>
@@ -708,14 +707,8 @@ function QuickMode({
         </div>
         </div>
         {twoPane && (
-          <div className="flex min-h-0 flex-col" data-testid="show-detail-pane">
-            {checkView ?? bundleView ?? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center text-muted-foreground">
-                <Ticket className="h-8 w-8 opacity-60" aria-hidden />
-                <p className="text-sm font-semibold text-foreground">Pick a card to check its price</p>
-                <p className="text-xs">Its market price, verdict and Bought / Want / Bundle open here, beside your search.</p>
-              </div>
-            )}
+          <div className="flex min-h-0 min-w-0 flex-col" data-testid="show-detail-pane">
+            {checkView ?? bundleView}
           </div>
         )}
         </div>
