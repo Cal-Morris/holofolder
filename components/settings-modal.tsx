@@ -34,6 +34,8 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 interface SettingsModalProps {
+  backupReady: boolean
+  onDownloadBackup: () => Promise<string>
   appearance?: { pageColor: string; pageColors: Record<string, string> }
   isOpen: boolean
   onClose: () => void
@@ -78,6 +80,8 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({
+  backupReady,
+  onDownloadBackup,
   appearance,
   isOpen,
   onClose,
@@ -119,6 +123,8 @@ export default function SettingsModal({
   motionGlintMessage,
   onRequestMotionGlint,
 }: SettingsModalProps) {
+  const [backupMessage, setBackupMessage] = useState<string | null>(null)
+  const [isBackingUp, setIsBackingUp] = useState(false)
   const { isShowModeOn, setShowMode } = useShowMode()
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
@@ -136,6 +142,7 @@ export default function SettingsModal({
       setSelectedBinderColorId(currentPageBinderColorId)
       setPageRangeInput(String(currentBinderPage))
       setCopyMessage(null)
+      setBackupMessage(null)
     }
   }, [currentBinderPage, currentPageBinderColorId, isOpen])
 
@@ -579,6 +586,23 @@ export default function SettingsModal({
                   Sign in first to manage your public share link.
                 </p>
               )}
+            </div>
+          )}
+
+          {effectiveActiveTab === "account" && !isReadOnlyView && (
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full min-h-10 justify-start gap-2" disabled={!backupReady || isBackingUp} onClick={async () => {
+                setIsBackingUp(true)
+                setBackupMessage(null)
+                try { setBackupMessage(await onDownloadBackup()) }
+                catch (error) { setBackupMessage(error instanceof Error ? error.message : "Could not create the backup. Try again.") }
+                finally { setIsBackingUp(false) }
+              }}>
+                <Download className="h-4 w-4" />
+                {isBackingUp ? "Preparing backup…" : "Download backup"}
+              </Button>
+              <p className="text-xs text-muted-foreground">This binder’s owned cards, wanted cards and settings, including unsynced edits. Saves a JSON file. Import isn’t available yet.</p>
+              {backupMessage && <p role="status" className="text-xs text-muted-foreground">{backupMessage}</p>}
             </div>
           )}
 

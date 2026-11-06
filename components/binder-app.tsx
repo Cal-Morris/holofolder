@@ -1,5 +1,6 @@
 "use client"
 
+import { createBinderBackup, downloadBinderBackup } from "@/lib/binder-backup"
 import type { Binder } from "@/lib/binders/model"
 import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
@@ -3490,6 +3491,18 @@ export default function BinderApp({
 
       {/* Modals */}
       <SettingsModal
+        backupReady={!readOnlyMode && !isCollectionLoading && !binderAppearance.loading}
+        onDownloadBackup={async () => {
+          if (readOnlyMode) throw new Error("Backups are only available in your own binder.")
+          const backup = await createBinderBackup({
+            binderId: initialBinderId, binder: activeBinder, collection, settings,
+            design: dashboardBinderDesign, uploads: binderAppearance.uploads,
+          })
+          downloadBinderBackup(backup)
+          return backup.missingArtwork.length > 0
+            ? "Download started. Some cover artwork is unavailable on this device and is listed as missing in the backup."
+            : "Download started. Keep this file somewhere safe."
+        }}
         appearance={binderAppearance.hasSavedDesign ? binderAppearance.design : undefined}
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
