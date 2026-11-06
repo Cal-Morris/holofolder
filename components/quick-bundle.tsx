@@ -127,7 +127,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
     : "No market prices for these cards yet."
 
   return (
-    <section aria-label="Bundle" className="flex min-h-0 flex-1 flex-col" data-testid="quick-bundle">
+    <section aria-label="Bundle" className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="quick-bundle">
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
         <div className="flex items-center gap-3">
           <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
@@ -178,7 +178,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
       </div>
 
-      <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
+      <div className="min-w-0 shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         {guide.marketTotal > 0 ? <DealPriceScale market={guide.marketTotal} offer={askingTotal} overlap={guide.overlap} thresholds={thresholds} money={money} partial={!guide.complete} /> : null}
         <PinnedDealVerdict deal={result.deal} money={money} testId="bundle-verdict-pinned" emptyText={verdictEmptyText} />
         <DealPriceInput value={input} onChange={setInput} label="Bundle price" />

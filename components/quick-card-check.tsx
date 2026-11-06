@@ -187,7 +187,7 @@ export default function QuickCardCheck({
   const bigButton = "flex h-14 min-w-0 items-center justify-center gap-2 rounded-2xl px-3 text-base font-bold disabled:opacity-45"
 
   return (
-    <section aria-label={`Check ${card.name}`} className="flex min-h-0 flex-1 flex-col" data-testid="quick-card-check">
+    <section aria-label={`Check ${card.name}`} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="quick-card-check">
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
         <div className="flex items-start gap-3">
           <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
@@ -234,7 +234,7 @@ export default function QuickCardCheck({
         )}
 
         <div className="rounded-2xl border border-border/60 bg-card px-3 py-2" data-testid="quick-card-market">
-          <div className="flex items-baseline justify-between gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {usesSoldGuide ? "Sold reference" : "Market"}{finishChoices.length > 0 ? ` · ${formatCardFinishLabel(finish)}` : ""}
             </span>
@@ -261,7 +261,7 @@ export default function QuickCardCheck({
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>
 
-      <div className="shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
+      <div className="min-w-0 shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         {market ? <DealPriceScale market={market.amount} offer={askingPrice} overlap={soldGuide?.eligible && soldGuide.fairOverlap ? { low: toDisplay(soldGuide.fairOverlap.low)!.amount, high: toDisplay(soldGuide.fairOverlap.high)!.amount } : null} thresholds={thresholds} money={money} /> : null}
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
         {/* Show mode (and the Wanted price lookup) is about the asking price, so it opens the keyboard;
@@ -275,16 +275,16 @@ export default function QuickCardCheck({
             </button>
           )}
           {!readOnly && (state.wanted && !state.owned ? (
-            <button type="button" disabled={busy} onClick={() => void run("got")} aria-label="Mark got" className={`${bigButton} bg-emerald-600 text-white`}>
+            <button type="button" disabled={busy} onClick={() => void run("got")} aria-label="Mark got" className={`${bigButton} border border-border/70 bg-card`}>
               <Check className="h-5 w-5 shrink-0" aria-hidden />Got it
             </button>
           ) : (
-            <button type="button" disabled={busy || state.owned} onClick={() => void run("add-owned")} aria-label={state.owned ? "Owned" : "Add owned"} className={`${bigButton} bg-emerald-600 text-white`}>
+            <button type="button" disabled={busy || state.owned} onClick={() => void run("add-owned")} aria-label={state.owned ? "Owned" : "Add owned"} className={`${bigButton} border border-border/70 bg-card`}>
               <Plus className="h-5 w-5 shrink-0" aria-hidden />{state.owned ? "Owned" : "Own"}
             </button>
           ))}
           {!readOnly && (
-            <button type="button" disabled={busy || state.wanted || state.owned} onClick={() => void run("want")} aria-label="Want" className={`${bigButton} bg-rose-500/15 text-rose-700 dark:text-rose-300`}>
+            <button type="button" disabled={busy || state.wanted || state.owned} onClick={() => void run("want")} aria-label="Want" className={`${bigButton} border border-border/70 bg-card`}>
               <Heart className="h-5 w-5 shrink-0" aria-hidden />Want
             </button>
           )}

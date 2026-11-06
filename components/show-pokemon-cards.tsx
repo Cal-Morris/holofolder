@@ -87,8 +87,8 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
 
   return (
     <section aria-label={`${name} cards`} className="flex min-h-0 flex-1 flex-col" data-testid="show-pokemon-cards">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
-        <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
+      <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+        <div data-hunt-controls className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background px-3 pb-2 pt-2">
           <div className="flex items-center gap-3">
             <button type="button" onClick={onBack} aria-label="Back to hunting" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
               <ArrowLeft className="h-5 w-5" />
@@ -117,7 +117,7 @@ export default function ShowPokemonCards({ pokemon, wantedCards, getCardState, g
           )}
           <MomentumSortChips value={moveSort} onChange={setMoveSort} className="-mx-3 px-3" />
         </div>
-        <div className="space-y-1.5 pt-3">
+        <div className="grid grid-cols-1 gap-1.5 pt-3 @min-[48rem]:grid-cols-2">
           {visible.map((entry) => (
             <HuntCardRow
               key={`${entry.card.id}:${entry.card.language ?? "en"}`}

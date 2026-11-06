@@ -6,7 +6,7 @@ import { mockCardPrices } from "./price-fixtures"
 // this file sets its own desktop context and runs once (on the browser-390 project).
 const DESKTOP_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
 
-for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768 }]) {
+for (const viewport of [{ width: 768, height: 800 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1440, height: 900 }]) {
   test.describe(`show mode on desktop ${viewport.width}×${viewport.height}`, () => {
     test.use({ viewport, isMobile: false, hasTouch: false, userAgent: DESKTOP_UA })
 
@@ -29,9 +29,9 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768
       const dialog = page.getByRole("dialog", { name: "Quick mode" })
       await expect(dialog).toBeVisible()
       await expect(dialog.getByRole("heading", { name: "Show mode" })).toBeVisible()
-      // Wider than a phone column, with the empty deal-check pane beside the finder.
+      // Results use the workspace until a card is selected.
       expect((await dialog.boundingBox())!.width).toBeGreaterThan(760)
-      await expect(dialog.getByTestId("show-detail-pane")).toContainText("Pick a card to check its price")
+      await expect(dialog.getByTestId("show-detail-pane")).toHaveCount(0)
       await page.keyboard.press("Escape")
       await expect(dialog).toBeHidden()
 
@@ -55,6 +55,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768
       const checkBox = (await check.boundingBox())!
       expect(checkBox.x).toBeGreaterThanOrEqual(resultBox.x + resultBox.width - 1)
 
+      expect(await check.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
       const asking = check.getByRole("textbox", { name: "Asking price" })
       await expect(asking).toBeFocused()
       await asking.fill("7")
@@ -63,13 +64,15 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768
         const button = check.getByRole("button", { name, exact: true })
         await expect(button).toBeVisible()
         const box = (await button.boundingBox())!
+        expect(box.x).toBeGreaterThanOrEqual(checkBox.x)
+        expect(box.x + box.width).toBeLessThanOrEqual(checkBox.x + checkBox.width)
         expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5)
       }
 
       // Back clears the check pane; the results are still there.
       await check.getByRole("button", { name: "Back to results" }).click()
       await expect(check).toHaveCount(0)
-      await expect(dialog.getByTestId("show-detail-pane")).toContainText("Pick a card to check its price")
+      await expect(dialog.getByTestId("show-detail-pane")).toHaveCount(0)
       await expect(result).toBeVisible()
 
       await page.keyboard.press("Escape")

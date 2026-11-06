@@ -4,7 +4,7 @@
 // era/set and illustrator filters to match how a dealer's binder is sorted. Every card shows what to pay up to;
 // one tap opens the deal check. Built from the collection on this device, so it works offline.
 import { memo, useCallback, useEffect, useMemo, useState } from "react"
-import { ChevronRight, Heart, Palette, Target, TrendingDown } from "lucide-react"
+import { ChevronRight, Heart, Target, TrendingDown } from "lucide-react"
 import { PriceDropBadge } from "@/components/price-drop-badge"
 import ShowCheckComps from "@/components/show-check-comps"
 import { useDisplayCardPrices, type DisplayPriceLookup } from "@/hooks/use-display-card-prices"
@@ -65,6 +65,7 @@ export function HuntCardRow({
   market,
   thresholds,
   standing,
+  showStanding = true,
   onPick,
 }: {
   card: SearchCardResult
@@ -72,13 +73,12 @@ export function HuntCardRow({
   market: Money | null
   thresholds: DealThresholds
   standing: "wanted" | "missing" | "owned"
+  showStanding?: boolean
   onPick: () => void
 }) {
   const thumb = cardThumb(card.image)
   const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null
-  const tone = standing === "wanted"
-    ? "border-rose-500/60 bg-rose-500/[0.07] ring-1 ring-rose-500/30"
-    : standing === "owned" ? "border-border/40 opacity-55" : "border-border/60 bg-card"
+  const tone = standing === "owned" ? "border-border/40 opacity-55" : "border-border/60 bg-card"
   const finishLabel = finish && finish !== "normal" ? formatCardFinishLabel(finish) : null
   return (
     <button
@@ -96,7 +96,7 @@ export function HuntCardRow({
         <span className="block truncate text-base font-bold leading-tight">{card.name}</span>
         <span className="block truncate text-xs text-muted-foreground">{card.set.name} · {formatCardNumber(card)}</span>
         <span className="mt-1 flex flex-wrap items-center gap-1">
-          {standing === "wanted" && <span className="flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300"><Heart className="h-3 w-3" aria-hidden />Wanted</span>}
+          {showStanding && standing === "wanted" && <span className="flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300"><Heart className="h-3 w-3" aria-hidden />Wanted</span>}
           {standing === "owned" && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">✓ Owned</span>}
           {finishLabel && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{finishLabel}</span>}
         </span>
@@ -117,10 +117,10 @@ export function HuntCardRow({
 }
 
 /**
- * "Good pickups": a sideways strip of wanted cards whose catalogue price has dropped (price-momentum's drop
+ * "Good pickups": an expandable list of wanted cards whose catalogue price has dropped (price-momentum's drop
  * rule), biggest fall first. Each tile shows the drop and what to pay up to; one tap opens the deal check.
  */
-const GoodPickupsStrip = memo(function GoodPickupsStrip({
+const GoodPickups = memo(function GoodPickups({
   pickups,
   thresholds,
   marketOf,
@@ -134,49 +134,50 @@ const GoodPickupsStrip = memo(function GoodPickupsStrip({
   onPick: (pickup: HuntPickup) => void
 }) {
   return (
-    <section aria-label="Good pickups" data-testid="show-good-pickups" className="space-y-1.5 pt-3">
-      <h4 className="flex items-center gap-1.5 px-1 text-sm font-bold">
-        <TrendingDown className="h-4 w-4 text-emerald-600" aria-hidden />
-        Good pickups <span className="font-medium text-muted-foreground">· price dropped</span>
-      </h4>
-      <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
-        {pickups.map((pickup) => {
-          const { wanted } = pickup.card
-          const market = marketOf(wanted)
-          const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null
-          const thumb = cardThumb(wanted.card_image)
-          const drop = formatMomentumChange(pickup.momentum.change).replace("-", "")
-          return (
-            <button
-              key={pickup.card.key}
-              type="button"
-              onClick={() => onPick(pickup)}
-              data-testid="good-pickup"
-              aria-label={`${wanted.card_name}, ${pickup.card.setName}, price dropped ${drop} over ${pickup.momentum.timeframe}${limit ? `, pay up to ${limit}` : ""}`}
-              className="flex min-h-[5.5rem] w-44 shrink-0 items-center gap-2 rounded-2xl border border-emerald-600/40 bg-emerald-500/[0.06] px-2 py-2 text-left active:bg-muted"
-            >
-              <span className="trading-card relative w-11 shrink-0 overflow-hidden bg-muted/50">
-                {/* eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker */}
-                {thumb && <img src={thumb} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold leading-tight">{wanted.card_name}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">{pickup.card.setName}</span>
-                <PriceDropBadge price={snapshotOf(wanted)} className="mt-1" />
-                {limit && <span className="mt-0.5 block text-xs font-black tabular-nums" data-testid="good-pickup-pay-up-to">≤ {limit}</span>}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+    <section aria-label="Good pickups" data-testid="show-good-pickups" className="pt-3">
+      <details className="group/pickups">
+        <summary className="flex min-h-10 cursor-pointer items-center gap-1.5 px-1 text-sm font-semibold">
+          <TrendingDown className="h-4 w-4 text-emerald-600" aria-hidden />
+          Good pickups <span className="font-normal text-muted-foreground">{pickups.length} price drops</span>
+          <ChevronRight className="ml-auto h-4 w-4 group-open/pickups:rotate-90" aria-hidden />
+        </summary>
+        <div className="grid grid-cols-1 gap-2 @min-[28rem]:grid-cols-2 @min-[48rem]:grid-cols-3">
+          {pickups.map((pickup) => {
+            const { wanted } = pickup.card
+            const market = marketOf(wanted)
+            const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null
+            const thumb = cardThumb(wanted.card_image)
+            const drop = formatMomentumChange(pickup.momentum.change).replace("-", "")
+            return (
+              <button
+                key={pickup.card.key}
+                type="button"
+                onClick={() => onPick(pickup)}
+                data-testid="good-pickup"
+                aria-label={`${wanted.card_name}, ${pickup.card.setName}, price dropped ${drop} over ${pickup.momentum.timeframe}${limit ? `, pay up to ${limit}` : ""}`}
+                className="flex min-h-18 w-full min-w-0 items-center gap-2 rounded-2xl border border-border/60 bg-card px-2 py-2 text-left active:bg-muted"
+              >
+                <span className="trading-card relative w-9 shrink-0 overflow-hidden bg-muted/50">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker */}
+                  {thumb && <img src={thumb} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold leading-tight">{wanted.card_name}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{pickup.card.setName}</span>
+                  <PriceDropBadge price={snapshotOf(wanted)} className="mt-1" />
+                  {limit && <span className="mt-0.5 block text-xs font-black tabular-nums" data-testid="good-pickup-pay-up-to">≤ {limit}</span>}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </details>
     </section>
   )
 })
 
 
-const chip = (active: boolean) =>
-  `flex h-12 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-card"}`
-const selectClass = "h-12 w-full min-w-0 rounded-2xl border border-border/70 bg-card px-3 text-base font-medium"
+const selectClass = "h-11 w-full min-w-0 rounded-xl border border-border/70 bg-card px-3 text-sm font-medium"
 
 export interface ShowHuntProps {
   items: readonly HuntSourceItem[]
@@ -277,34 +278,25 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
 
   return (
     <section aria-label="Hunting" className="flex min-h-0 flex-1 flex-col" data-testid="show-hunt">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
-        <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background/95 px-3 pb-2 pt-2 backdrop-blur">
+      <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+        <div data-hunt-controls className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background px-3 pb-2 pt-2">
           <div className="flex flex-wrap items-center gap-2">
             <Target className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />
             <h3 className="min-w-0 flex-1 truncate text-base font-bold">
               Hunting <span className="font-medium text-muted-foreground">· {total} card{total === 1 ? "" : "s"}{isOnline ? "" : " · offline"}</span>
             </h3>
-            <div role="radiogroup" aria-label="Sort" className="flex w-full rounded-2xl bg-muted/70 p-1">
-              {([["wanted", "Most wanted", "Most wanted"], ["value", "Top value", "Top value"], ["falling", "% down", "Biggest price drop first"], ["rising", "% up", "Biggest price rise first"]] as const).map(([id, label, name]) => (
-                <button key={id} type="button" role="radio" aria-checked={sort === id} aria-label={name} onClick={() => setSort(id)}
-                  className={`h-12 min-w-0 flex-1 rounded-xl px-1.5 text-sm font-semibold leading-tight ${sort === id ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
-          {options.eras.length > 0 && (
-            <div role="radiogroup" aria-label="Era" className="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]">
-              <button type="button" role="radio" aria-checked={!era} onClick={() => { setEra(null); setSetId(null) }} className={chip(!era)}>All eras</button>
-              {options.eras.map(({ era: entry, count }) => (
-                <button key={entry.id} type="button" role="radio" aria-checked={era === entry.id}
-                  onClick={() => { setEra(era === entry.id ? null : entry.id); setSetId(null) }} className={chip(era === entry.id)}>
-                  {entry.label}<span className="text-xs opacity-70">{count}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 @min-[48rem]:grid-cols-4">
+            <select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as HuntSort)} className={selectClass}>
+              <option value="wanted">Most wanted</option>
+              <option value="value">Top value</option>
+              <option value="falling">Biggest price drop</option>
+              <option value="rising">Biggest price rise</option>
+            </select>
+            <select aria-label="Era" value={era ?? ""} onChange={(event) => { setEra(event.target.value || null); setSetId(null) }} className={selectClass}>
+              <option value="">All eras</option>
+              {options.eras.map(({ era: entry, count }) => <option key={entry.id} value={entry.id}>{entry.label} ({count})</option>)}
+            </select>
             <label className="min-w-0">
               <span className="sr-only">Set</span>
               <select aria-label="Set" value={setId ?? ""} onChange={(event) => setSetId(event.target.value || null)} className={selectClass}>
@@ -314,8 +306,7 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
             </label>
             <label className="relative min-w-0">
               <span className="sr-only">Illustrator</span>
-              <Palette className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <select aria-label="Illustrator" value={illustrator} onChange={(event) => setIllustrator(event.target.value)} className={`${selectClass} pl-8`}>
+              <select aria-label="Illustrator" value={illustrator} onChange={(event) => setIllustrator(event.target.value)} className={selectClass}>
                 <option value="">Any illustrator</option>
                 {illustratorNames.map((name) => <option key={name} value={name}>{name}</option>)}
               </select>
@@ -330,7 +321,7 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
         )}
 
         {pickups.length > 0 && (
-          <GoodPickupsStrip
+          <GoodPickups
             pickups={pickups}
             thresholds={thresholds}
             marketOf={priceOfWanted}
@@ -342,13 +333,13 @@ function ShowHunt({ items, currency, fxRates, pricingRegion, isOnline, onPickCar
         {groups.length === 0 ? (
           <div role="status" className="px-3 py-8 text-center text-sm text-muted-foreground">
             {total === 0 && !filtering
-              ? <>Your want list is empty. Search a Pokémon below and tap <b>Want</b> on the cards you&apos;re after.</>
+              ? <>Your want list is empty. Search a Pokémon and tap <b>Want</b> on the cards you&apos;re after.</>
               : illustrator && illustratorCards?.name === illustrator && illustratorCards.ids === null
               ? `None of your wanted cards are by ${illustrator}, as far as this device knows.`
               : "Nothing on your want list matches these filters."}
           </div>
         ) : (
-          <div className="space-y-4 pt-3">
+          <div className="grid grid-cols-1 items-start gap-4 pt-3 @min-[48rem]:grid-cols-2">
             {groups.map((group) => (
               <HuntGroupSection
                 key={group.pokemonId}
@@ -405,6 +396,7 @@ const HuntGroupSection = memo(function HuntGroupSection({
             market={priceOfWanted(entry.wanted)}
             thresholds={thresholds}
             standing="wanted"
+            showStanding={false}
             onPick={() => onPickCard(card, pokemon, entry.wanted.card_finish ?? null)}
           />
         )
