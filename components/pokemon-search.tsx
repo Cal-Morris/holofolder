@@ -612,11 +612,13 @@ export default function PokemonSearch({
             ) : null}
           </div>
         ) : (
-          <div className="flex h-full min-h-[12rem] items-center justify-center px-6 text-center text-sm text-muted-foreground">
+          <div className="px-4 py-6 text-sm text-muted-foreground">
             {pageJump
               ? "Press Enter or tap the page jump above."
               : query.trim()
-              ? "No Pokemon match that search in this filter."
+              ? cardSearch.offline
+                ? "No matches in your saved cards. Try a card name or set you have saved."
+                : "No matches. Try a Pokémon name, a set, or both, like Abra 151."
               : "Nothing in this filter yet. Try another view or search by name."}
           </div>
         )}
