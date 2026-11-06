@@ -12,9 +12,11 @@ The storage backend is chosen by `CARD_IMAGE_STORE` (see `lib/card-image-store.t
 | `r2` | Cloudflare R2 (S3 API, signed with aws4fetch) | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL` (recommended) |
 | `blob` | Vercel Blob | `BLOB_READ_WRITE_TOKEN`; `CARD_IMAGE_BLOB=0` still disables it |
 | `off` | none, TCGdex live | none |
-| unset | legacy: Blob if `BLOB_READ_WRITE_TOKEN` is set and `CARD_IMAGE_BLOB` is not `0`, otherwise off | |
+| unset or unknown | none, source images served live | none |
 
 If a backend is selected but its credentials are missing or invalid, the mirror is off and TCGdex is served live. It never falls through to the other backend. If the store refuses requests (401/403, a blocked store) or throttles them (429/503), the proxy skips it for a cooldown period and serves TCGdex directly.
+
+Production uses `CARD_IMAGE_STORE=r2`. Preview and development use `CARD_IMAGE_STORE=off` so ordinary previews do not spend storage operations. An inherited `BLOB_READ_WRITE_TOKEN` never enables Blob on its own. Environment changes only affect new deployments; older preview URLs retain their original configuration.
 
 Object keys are deterministic:
 

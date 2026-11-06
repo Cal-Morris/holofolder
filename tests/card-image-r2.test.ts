@@ -84,8 +84,10 @@ describe("card image store selection", () => {
     assert.equal(getCardImageStoreKind({ CARD_IMAGE_STORE: "blob" }), "off")
   })
 
-  test("unset CARD_IMAGE_STORE keeps the legacy Blob gating, including CARD_IMAGE_BLOB=0", () => {
-    assert.equal(getCardImageStoreKind({ BLOB_READ_WRITE_TOKEN: "x" }), "blob")
+  test("Blob requires explicit selection even when its token is inherited", () => {
+    assert.equal(getCardImageStoreKind({ BLOB_READ_WRITE_TOKEN: "x" }), "off")
+    assert.equal(getCardImageStoreKind({ CARD_IMAGE_STORE: "typo", BLOB_READ_WRITE_TOKEN: "x" }), "off")
+    assert.equal(getCardImageStoreKind({ CARD_IMAGE_STORE: "", BLOB_READ_WRITE_TOKEN: "x" }), "off")
     assert.equal(getCardImageStoreKind({ BLOB_READ_WRITE_TOKEN: "x", CARD_IMAGE_BLOB: "0" }), "off")
     assert.equal(getCardImageStoreKind({ CARD_IMAGE_STORE: "blob", BLOB_READ_WRITE_TOKEN: "x", CARD_IMAGE_BLOB: "0" }), "off")
     assert.equal(getCardImageStoreKind({}), "off")

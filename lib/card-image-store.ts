@@ -9,7 +9,7 @@ import { convertSourceImageToWebp } from "./card-image-transform"
  *                          R2_PUBLIC_BASE_URL recommended)
  *   CARD_IMAGE_STORE=blob  Vercel Blob (needs BLOB_READ_WRITE_TOKEN; CARD_IMAGE_BLOB=0 still turns it off)
  *   CARD_IMAGE_STORE=off   no mirror, TCGdex live
- *   unset                  legacy behaviour: Blob when BLOB_READ_WRITE_TOKEN is set and CARD_IMAGE_BLOB != 0
+ *   unset / unknown        no mirror; inherited credentials never select a backend
  *
  * A selected backend with missing or invalid credentials resolves to "off" (TCGdex live), never to another backend.
  */
@@ -19,8 +19,7 @@ export function getCardImageStoreKind(env: Record<string, string | undefined> = 
   const requested = env.CARD_IMAGE_STORE?.trim().toLowerCase()
   if (requested === "r2") return getR2Config(env) ? "r2" : "off"
   if (requested === "off" || requested === "0" || requested === "none") return "off"
-  // "blob", unset, or an unknown value: keep the original Blob gating (token present, CARD_IMAGE_BLOB != "0").
-  return isCardImageBlobEnabled(env) ? "blob" : "off"
+  return requested === "blob" && isCardImageBlobEnabled(env) ? "blob" : "off"
 }
 
 export function createCardImageMirrorFromEnv(env: Record<string, string | undefined> = process.env): CardImageMirror | null {
