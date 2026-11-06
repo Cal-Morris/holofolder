@@ -6,7 +6,8 @@ import { upsertRestSetPayload, type MirrorCardRow } from "../lib/card-db-sync"
 
 const databaseUrl = process.env.CATALOG_TEST_DATABASE_URL
 test("additive sync retains saved IDs, supplemental metadata and source links across repeat imports", { skip: !databaseUrl }, async () => {
-  if (!["localhost", "127.0.0.1"].includes(new URL(databaseUrl!).hostname)) throw new Error("Catalog integration tests require an isolated local database")
+  if (!databaseUrl) return
+  if (!["localhost", "127.0.0.1"].includes(new URL(databaseUrl).hostname)) throw new Error("Catalog integration tests require an isolated local database")
   const client = new Client({ connectionString: databaseUrl })
   await client.connect()
   try {
