@@ -89,7 +89,7 @@ test.describe("IndexedDB offline store", () => {
       return route.fulfill({ json: { sets: [BASE_SET], selectedSet: null, slots: [] } })
     })
 
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await page.getByRole("button", { name: "Base Set", exact: true }).click()
     const slotFilter = page.getByRole("textbox", { name: "Add Pokémon to match" })
     await expect(slotFilter).toBeVisible()

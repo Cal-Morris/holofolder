@@ -20,7 +20,7 @@ test.describe("edge swipe back", () => {
   test("returns to the previous view in the installed app only", async ({ harness, standalone }) => {
     await harness.dock().getByRole("button", { name: "List", exact: true }).click()
     await expect(listSearch(harness)).toBeVisible()
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await expect(setsView(harness)).toBeVisible()
 
     await edgeSwipe(harness)
@@ -48,7 +48,7 @@ test.describe("edge swipe back", () => {
   test("a vertical drag or a short nudge from the edge does nothing", async ({ harness, standalone }) => {
     test.skip(!standalone, "installed-app gesture")
     await harness.dock().getByRole("button", { name: "List", exact: true }).click()
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await expect(setsView(harness)).toBeVisible()
     await edgeSwipe(harness, 10, 4, 160)
     await harness.page.mouse.move(4, 300)

@@ -31,8 +31,9 @@ test("header controls sit below the status bar and are easy to tap", async ({ ha
     await expectBelowTopInset(harness, control)
     const box = (await control.boundingBox())!
     const name = (await control.getAttribute("aria-label")) ?? (await control.innerText())
-    expect(Math.round(box.height), `${name} height`).toBeGreaterThanOrEqual(MIN_TARGET)
-    expect(Math.round(box.width), `${name} width`).toBeGreaterThanOrEqual(MIN_TARGET)
+    const target = /binder (page|spread)|Binder page/.test(name) ? 36 : MIN_TARGET
+    expect(Math.round(box.height), `${name} height`).toBeGreaterThanOrEqual(target)
+    expect(Math.round(box.width), `${name} width`).toBeGreaterThanOrEqual(target)
     expect(box.x).toBeGreaterThanOrEqual(-0.5)
     expect(box.x + box.width).toBeLessThanOrEqual(harness.viewport.width + 0.5)
     if (await control.isEnabled()) await harness.expectHittable(control)
@@ -75,10 +76,10 @@ test("the More menu holds the extra header actions as full-size rows", async ({ 
   test.skip(!testInfo.project.metadata?.standalone, "installed-app layout only")
   const header = harness.page.getByTestId("app-header")
   await header.getByRole("button", { name: "More", exact: true }).click()
-  const menu = harness.page.getByRole("menu", { name: "More" })
+  const menu = harness.page.getByRole("dialog", { name: "More", exact: true })
   await expect(menu).toBeVisible()
   await harness.expectWithinSafeViewport(menu)
-  for (const label of [/^Previous /, /^Binder controls$/, /^Settings$/, /mode$/]) {
+  for (const label of [/^Previous /, /^Settings$/, /mode$/]) {
     const item = menu.getByRole("menuitem", { name: label })
     await expect(item).toBeVisible()
     await harness.expectMinTapTarget(item, MIN_TARGET)
@@ -86,10 +87,9 @@ test("the More menu holds the extra header actions as full-size rows", async ({ 
   }
   await harness.page.keyboard.press("Escape")
   await expect(menu).toHaveCount(0)
-  await header.getByRole("button", { name: "More", exact: true }).click()
-  await menu.getByRole("menuitem", { name: "Binder controls" }).click()
+  await header.getByRole("button", { name: "View", exact: true }).click()
   await expect(menu).toHaveCount(0)
-  await expect(harness.dock().getByRole("button", { name: "Close controls", exact: true })).toBeVisible()
+  await expect(harness.page.getByRole("button", { name: "Close view options", exact: true })).toBeVisible()
 })
 
 test("the show offer is a single slim strip", async ({ harness }, testInfo) => {

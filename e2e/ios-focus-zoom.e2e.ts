@@ -19,7 +19,7 @@ async function openSets(harness: Harness) {
     const selected = new URL(route.request().url()).searchParams.has("setId")
     return route.fulfill({ json: selected ? payload : { sets: [set], selectedSet: null, slots: [] } })
   })
-  await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
 }
 
 test.describe("search fields do not trigger iOS focus zoom", () => {
@@ -83,7 +83,7 @@ test.describe("search fields do not trigger iOS focus zoom", () => {
 
   test("generation picker in the controls sheet", async ({ harness }) => {
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-    await harness.dock().getByRole("button", { name: "Open controls" }).click()
+    await harness.page.getByTestId("app-header").getByRole("button", { name: "View" }).click()
     await expectNoFocusZoom(harness.page.getByLabel("Generation", { exact: true }), "Generation picker")
   })
 

@@ -70,7 +70,7 @@ test.describe("vertical space by the dock", () => {
 
   test("main content ends just above the dock in every view, never under it", async ({ harness }) => {
     const dockBar = harness.dock().locator(":scope > div").first()
-    for (const tab of ["Binder", "List", "Wanted", "Sets"] as const) {
+    for (const tab of ["Binder", "List", "Wanted", "Browse"] as const) {
       await harness.dock().getByRole("button", { name: tab, exact: true }).click()
       await expect(harness.page.getByTestId("main-content")).toBeVisible()
       const dockTop = (await dockBar.boundingBox())!.y
@@ -108,14 +108,17 @@ test("binder controls stay reachable and cards keep their full proportions", asy
     )).toBeLessThan(0.002)
   }
   const display = page.getByRole("group", { name: "Binder display" })
-  await expect(header(harness).getByRole("group", { name: "Binder display" })).toBeVisible()
+  await header(harness).getByRole("button", { name: "View", exact: true }).click()
+  await expect(display).toBeVisible()
   await harness.expectMinTapTarget(display.getByRole("button", { name: "2D", exact: true }))
   await harness.expectMinTapTarget(display.getByRole("button", { name: "3D", exact: true }))
   await harness.expectHittable(display.getByRole("button", { name: "3D", exact: true }))
   await checkSlots()
   await display.getByRole("button", { name: "3D", exact: true }).click()
   await expect(page.getByRole("region", { name: "Your 3D National Dex binder" })).toBeVisible()
+  await header(harness).getByRole("button", { name: "View", exact: true }).click()
   await display.getByRole("button", { name: "2D", exact: true }).click()
+  await page.getByRole("button", { name: "Close view options", exact: true }).click()
   await checkSlots()
   await page.goto("/e2e-harness?cardArtwork=1")
   await expect(page.locator('button[data-dex-id="1"] img').first()).toHaveCSS("object-fit", "contain")

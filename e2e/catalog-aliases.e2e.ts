@@ -27,7 +27,7 @@ test.describe("reviewed catalog aliases across sets", () => {
     })
     await page.reload()
     const openSets = async () => {
-      await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+      await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
       await page.getByRole("button", { name: "Fixture Parent", exact: true }).click()
       await page.getByRole("textbox", { name: "Search sets by name or code" }).fill("gallery")
       await page.getByRole("button", { name: "Fixture Gallery", exact: true }).first().click()

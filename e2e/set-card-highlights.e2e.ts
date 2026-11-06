@@ -20,7 +20,7 @@ test("set value and momentum rankings include all cards and separate finishes", 
     "synthetic-2": { confidence: "medium", market: 24, finishes: [{ finish: "holo", market: 24, trend: { "7d": 20, Trend: 24 } }] },
     "synthetic-3": { confidence: "high", market: 30, finishes: [{ finish: "normal", market: 30, trend: { "7d": 20, Trend: 30 } }] },
   })
-  await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
   await page.getByRole("button", { name: "Synthetic set", exact: true }).click()
   let region = page.getByRole("region", { name: "Synthetic set top value cards" })
   await expect(region.getByRole("listitem")).toHaveCount(4)
@@ -49,7 +49,7 @@ test("set value and momentum rankings include all cards and separate finishes", 
   await page.route("**/api/tcg-set-slots**", (route) => route.abort("internetdisconnected"))
   await page.route("**/api/card-prices**", (route) => route.abort("internetdisconnected"))
   await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-  await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+  await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
   await page.getByRole("button", { name: "Synthetic set", exact: true }).click()
   await expect(page.getByRole("region", { name: "Synthetic set top value cards" }).getByRole("listitem")).toHaveCount(4)
 })

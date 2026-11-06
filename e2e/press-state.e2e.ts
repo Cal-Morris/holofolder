@@ -53,7 +53,7 @@ test.describe("pressed state", () => {
   })
 
   test("releasing restores the resting style immediately", async ({ harness }) => {
-    const target = harness.dock().getByRole("button", { name: "Sets", exact: true })
+    const target = harness.dock().getByRole("button", { name: "Browse", exact: true })
     await press(harness, target)
     const after = await styles(target)
     expect(after.filter).not.toContain("brightness(")

@@ -112,7 +112,7 @@ test.describe("offline search and card show prep", () => {
     })
     await page.evaluate(() => { delete (window as { TextDetector?: unknown }).TextDetector })
 
-    await harness.dock().getByRole("button", { name: "Sets", exact: true }).click()
+    await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     const prep = page.getByRole("region", { name: "Prepare for card show" })
     await prep.getByRole("button", { name: "Prepare for card show" }).click()
     await prep.getByRole("checkbox", { name: /legends showcase/i }).check()

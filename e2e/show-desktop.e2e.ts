@@ -20,8 +20,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768
       await page.getByRole("button", { name: "Show mode", exact: true }).click()
       const banner = page.getByRole("region", { name: "Show mode" })
       await expect(banner).toContainText("Show mode on")
-      // "Screen stays on" is a phone thing; a mouse-and-keyboard screen gets the shortcut instead.
-      await expect(banner.getByText("Ctrl / ⌘ K to search")).toBeVisible()
+      // The compact status strip leaves search in the primary navigation.
       await expect(banner.getByText("Screen stays on")).toBeHidden()
 
       // The header's own Search (desktop nav) opens Show mode's finder, like the phone dock does.
@@ -35,12 +34,12 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768
       await page.keyboard.press("Escape")
       await expect(dialog).toBeHidden()
 
-      // Ctrl+K opens it too; the amber Search button with a mouse click as well.
+      // Ctrl+K and the navigation Search button both open the finder.
       await page.keyboard.press("Control+k")
       await expect(dialog).toBeVisible()
       await page.keyboard.press("Escape")
       await expect(dialog).toBeHidden()
-      await banner.getByRole("button", { name: "Search", exact: true }).click()
+      await page.getByTestId("app-header").getByRole("button", { name: "Search", exact: true }).click()
       await expect(dialog).toBeVisible()
 
       await dialog.getByRole("searchbox").fill("charizard")

@@ -2,8 +2,8 @@ import { mockCardPrices } from "./price-fixtures"
 import { test, expect } from "./fixtures"
 
 async function openAnalytics(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Open controls", exact: true }).click()
-  await page.getByRole("button", { name: "Analytics", exact: true }).click()
+  await page.getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Analytics", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Analytics", exact: true })).toBeVisible()
 }
 
@@ -95,8 +95,8 @@ test("an unavailable analytics chunk preserves the current view and dock", async
   await page.addInitScript(() => { window.requestIdleCallback = () => 0 })
   await harness.open()
   await page.route("**/_next/static/chunks/*.js", route => route.abort())
-  await page.getByRole("button", { name: "Open controls", exact: true }).click()
-  await page.getByRole("button", { name: "Analytics", exact: true }).click()
+  await page.getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Analytics", exact: true }).click()
   await expect(page.getByRole("alert").filter({ hasText: "Analytics could not load" })).toBeVisible()
   await harness.expectHittable(harness.dock().getByRole("button", { name: "List", exact: true }))
   await page.unroute("**/_next/static/chunks/*.js")
@@ -109,8 +109,8 @@ test("read-only binders expose no private analytics destination", async ({ harne
   let privateRequests = 0
   page.on("request", request => { if (request.url().includes("/api/collection-analytics")) privateRequests++ })
   await page.goto("/e2e-harness?readOnly=1")
-  await page.getByRole("button", { name: "Open controls", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Analytics", exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: "More", exact: true }).click()
+  await expect(page.getByRole("menuitem", { name: "Analytics", exact: true })).toHaveCount(0)
   expect(privateRequests).toBe(0)
 })
 

@@ -184,7 +184,7 @@ for (const overlay of overlays) {
   })
 }
 
-const dockTabs = ["Binder", "List", "Wanted", "Sets", "Search"] as const
+const dockTabs = ["Binder", "List", "Wanted", "Browse", "Search"] as const
 const binderOverlays = overlays.filter((overlay) => ["card detail", "controls sheet", "filter sheet", "search", "all cards view"].includes(overlay.name))
 
 test.describe("bottom navigation", () => {
@@ -234,7 +234,7 @@ test.describe("bottom navigation", () => {
   })
 
   test("every main view has no horizontal overflow and keeps the dock usable", async ({ harness }) => {
-    for (const tab of ["List", "Wanted", "Sets", "Binder"] as const) {
+    for (const tab of ["List", "Wanted", "Browse", "Binder"] as const) {
       await harness.dock().getByRole("button", { name: tab, exact: true }).click()
       await harness.expectNoHorizontalOverflow()
       // The nav's own box extends behind the home indicator; its visible bar must clear it.
