@@ -133,3 +133,64 @@ test("gate: small runs skip confirm; no confirmSpend (Prepare) proceeds", async 
   assert.equal(prepare.progress.checked, CHECK_COMPS_CONFIRM_AT + 5)
   assert.equal(calls.filter(c => c.endsWith("soldcomps")).length, CHECK_COMPS_CONFIRM_AT + 5)
 })
+
+test("collection scope checks all 75 printings, confirms once, and keeps Show capped", async () => {
+  const calls: string[] = []
+  const estimates: number[] = []
+  const outcome = await runCheckComps(many(75), {
+    scope: "collection", signal: new AbortController().signal, now: () => now,
+    readPinned: async () => null, request: okRequest(calls),
+    confirmSpend: estimate => { estimates.push(estimate.cardsNeedingSoldcomps); return true },
+  })
+  assert.equal(outcome.progress.total, 75)
+  assert.equal(outcome.progress.checked, 75)
+  assert.equal(calls.length, 150)
+  assert.deepEqual(estimates, [75])
+  assert.equal(checkCompsTargets(many(75)).length, 60)
+})
+
+test("collection deduplication matches API finishes, preserving exact printings", () => {
+  assert.deepEqual(checkCompsTargets([
+    { cardId: "a" }, { cardId: "a", finish: "illustration_rare" },
+    { cardId: "a", finish: "holo" }, { cardId: "a", finish: "reverse_holo" },
+    { cardId: "a", language: "ja" }, { cardId: "b", finish: "jumbo" }, { cardId: "" },
+  ], "collection").map(t => t.finish), [undefined, "holo", "reverse_holo"])
+})
+
+test("collection progress reports partial asking failures even with fresh sold comps", async () => {
+  const outcome = await runCheckComps([{ cardId: "a" }], {
+    scope: "collection", signal: new AbortController().signal, now: () => now,
+    readPinned: async (_id, _finish, source) => source === "soldcomps" ? check(source, hours(1)) : null,
+    request: async () => ({ check: null, error: "Not configured" }),
+  })
+  assert.equal(outcome.progress.failed, 1)
+  assert.equal(outcome.progress.fresh, 0)
+})
+
+test("stop during estimation never opens confirmation or sends requests", async () => {
+  const controller = new AbortController()
+  const calls: string[] = []
+  let confirmed = false
+  await runCheckComps(many(75), {
+    scope: "collection", signal: controller.signal,
+    readPinned: async () => { controller.abort(); return null }, request: okRequest(calls),
+    confirmSpend: () => { confirmed = true; return true },
+  })
+  assert.equal(confirmed, false)
+  assert.deepEqual(calls, [])
+})
+
+test("stop in flight does not start further provider calls", async () => {
+  const controller = new AbortController()
+  const calls: string[] = []
+  await runCheckComps(many(75), {
+    scope: "collection", signal: controller.signal, readPinned: async () => null,
+    request: async (id, _language, _finish, source) => {
+      calls.push(`${id}:${source}`)
+      controller.abort()
+      return { check: null, error: undefined }
+    },
+  })
+  assert.ok(calls.length <= CHECK_COMPS_CONCURRENCY)
+  assert.ok(calls.every(call => call.endsWith(":ebay")))
+})
