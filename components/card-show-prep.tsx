@@ -1,15 +1,17 @@
 "use client"
 
 // "Prepare for card show": pick sets, see the download size, then save their coverage data and card
-// thumbnails for offline use. Deliberately plain markup; styling is up to the design owner.
-import { useEffect, useRef, useState } from "react"
+// thumbnails for offline use. Shared by Sets and the Show finder.
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
-import { saveCardPricesForOffline } from "@/hooks/use-card-prices"
+import { saveCardPricesForOffline, loadPriceEvidence } from "@/hooks/use-card-prices"
 import { warmCardTextReader } from "@/lib/card-scan-ocr"
 import { requestPersistentStorage } from "@/lib/service-worker-registration"
 import { warmShowComps, type CheckCompsProgress, type CheckCompsTarget } from "@/lib/check-comps"
 import { getSetIdFromCardId } from "@/lib/show-hunt"
 import {
+  inspectSavedShowSets,
+  type SavedShowSet,
   downloadCardShowImages,
   downloadCardShowPrices,
   formatBytes,
@@ -28,16 +30,25 @@ type Phase =
   | { kind: "done"; plan: CardShowPlan; progress: CardShowProgress; priced: number; comps: CheckCompsProgress | null }
   | { kind: "error"; message: string }
 
-export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
+export default function CardShowPrep({ candidateSets, wantedCards = [], embedded = false }: {
+  embedded?: boolean
   candidateSets: TCGSetSummary[]
   /** Want list printings; those in the chosen sets also get sold comps + asking checks saved (skipping any under 12 h old). */
   wantedCards?: readonly CheckCompsTarget[]
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(embedded)
   const [chosen, setChosen] = useState<Set<string>>(() => new Set())
   const [phase, setPhase] = useState<Phase>({ kind: "idle" })
   const [canStoreOffline, setCanStoreOffline] = useState(true)
   const [isOnline, setIsOnline] = useState(true)
+  const [saved, setSaved] = useState<SavedShowSet[] | null>(null)
+  const [storageError, setStorageError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const inspect = useCallback(() => inspectSavedShowSets({ cacheStorage: window.caches, loadPrices: loadPriceEvidence }).then(
+    entries => { setSaved(entries); setStorageError(null) },
+    () => setStorageError("Couldn't inspect saved data on this device. Try again."),
+  ), [])
+  useEffect(() => { if (open) void inspect() }, [open, inspect])
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -71,6 +82,8 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
   }
 
   const checkSize = async () => {
+    if (!navigator.onLine || !navigator.serviceWorker?.controller) return
+    setNotice(null)
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
@@ -84,6 +97,8 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
   }
 
   const download = async (plan: CardShowPlan) => {
+    if (!navigator.onLine || !navigator.serviceWorker?.controller) return
+    setNotice(null)
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
@@ -97,55 +112,62 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
     try {
       const progress = await downloadCardShowImages(plan, {
         signal: controller.signal,
-        onProgress: (next) => setPhase({ kind: "downloading", plan, progress: next }),
+        onProgress: (next) => { if (!controller.signal.aborted) setPhase({ kind: "downloading", plan, progress: next }) },
       })
       if (controller.signal.aborted) return
       setPhase({ kind: "prices", plan, done: 0, total: plan.priceLookups.length })
       const prices = await downloadCardShowPrices(plan, { signal: controller.signal, savePrices: saveCardPricesForOffline,
-        onProgress: next => setPhase({ kind: "prices", plan, done: next.done, total: next.total }),
+        onProgress: next => { if (!controller.signal.aborted) setPhase({ kind: "prices", plan, done: next.done, total: next.total }) },
       })
       if (controller.signal.aborted) return
       const setIds = new Set(plan.sets.map((entry) => entry.set.id))
       const wanted = wantedCards.filter((card) => setIds.has(getSetIdFromCardId(card.cardId)))
       // Sold comps are a metered provider: warm only wanted cards in these sets, and never fail the prep over them.
       const comps = wanted.length
-        ? await warmShowComps({ wanted }, { signal: controller.signal, onProgress: (next) => setPhase({ kind: "comps", plan, comps: next }) })
+        ? await warmShowComps({ wanted }, { signal: controller.signal, onProgress: (next) => { if (!controller.signal.aborted) setPhase({ kind: "comps", plan, comps: next }) } })
           // A refused confirm (or other comps failure) is a silent skip — never fails the prep.
           .then((outcome) => (outcome.ok ? outcome.progress : null), () => null)
         : null
-      if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress, priced: prices.priced, comps })
+      if (!controller.signal.aborted) {
+        setPhase({ kind: "done", plan, progress, priced: prices.priced, comps })
+        if (wanted.length && (!comps || comps.failed || Object.keys(comps.stopped).length)) setNotice("Some wanted-card sold comps weren't saved. Provider limits and retry delays still apply.")
+      }
+      await inspect()
     } catch (error) {
       if (!controller.signal.aborted) setPhase({ kind: "error", message: error instanceof Error ? error.message : "Couldn't save prices on this device." })
+      await inspect()
     }
   }
 
   const cancel = () => {
     abortRef.current?.abort()
     setPhase({ kind: "idle" })
+    setNotice("Stopped. Anything already saved stays on this device.")
+    void inspect()
   }
 
   return (
     <section aria-label="Prepare for card show" data-card-show-prep className="mt-3 text-sm">
-      <button
+      {!embedded && <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="rounded-full border border-border/55 bg-background/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground dark:border-white/10"
+        className="min-h-9 rounded-full border border-border/55 bg-background/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground dark:border-white/10"
       >
         Prepare for card show
-      </button>
+      </button>}
 
       {open ? (
-        <div className="mt-2 space-y-2 rounded-2xl border border-border/55 bg-background/45 p-3 dark:border-white/10">
-          <p className="text-xs text-muted-foreground">Save sets on this device so they open without signal: set coverage, card thumbnails and available prices with their history. Prices can still change before the show.</p>
+        <div className="space-y-3 py-2">
+          <p className="text-xs text-muted-foreground">Save set data, card thumbnails and available price history on this device. Prices may change before the show.</p>
 
           {candidateSets.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Search for a set above first, then pick it here.</p>
+            <p className="text-xs text-muted-foreground">Search for a set, then pick it here.</p>
           ) : (
-            <fieldset disabled={busy} className="space-y-1">
+            <fieldset disabled={busy} className="max-h-40 space-y-1 overflow-y-auto">
               <legend className="sr-only">Sets to save</legend>
               {candidateSets.map((set) => (
-                <label key={set.id} className="flex items-center gap-2 text-xs">
+                <label key={set.id} className="flex min-h-10 items-center gap-2 text-sm">
                   <input type="checkbox" checked={chosen.has(set.id)} onChange={() => toggle(set.id)} />
                   <span>{set.name}</span>
                   {set.officialCardCount ? <span className="text-muted-foreground">({set.officialCardCount} cards)</span> : null}
@@ -160,6 +182,7 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
             <p className="text-xs text-muted-foreground">You&apos;re offline. Connect to download sets.</p>
           ) : null}
 
+          {notice && <p className="text-xs text-muted-foreground">{notice}</p>}
           <div role="status" aria-live="polite" className="text-xs">
             {phase.kind === "planning" ? "Checking download size…" : null}
             {phase.kind === "planned"
@@ -169,23 +192,24 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
             {phase.kind === "prices" ? `Saving prices ${phase.done}/${phase.total}…` : null}
             {phase.kind === "comps" ? `Saving sold comps for wanted cards ${phase.comps.done}/${phase.comps.total}…` : null}
             {phase.kind === "done"
-              ? `Ready offline: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""}, ${phase.priced}/${phase.plan.priceLookups.length} cards priced${phase.comps ? `, sold comps for ${phase.comps.fresh + phase.comps.checked}/${phase.comps.total} wanted cards` : ""})`
+              ? `Download finished: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""}, ${phase.priced}/${phase.plan.priceLookups.length} cards priced${phase.comps ? `, sold comps for ${phase.comps.fresh + phase.comps.checked}/${phase.comps.total} wanted cards` : ""})`
               : null}
             {phase.kind === "error" ? phase.message : null}
           </div>
 
+          {phase.kind === "planned" && <p className="text-xs text-muted-foreground">Estimate covers set data and images. Prices and scanning tools use extra data, including a few MB for the first scan download. Scanning tools are best effort; offline scanning is not guaranteed.</p>}
           <div className="flex flex-wrap gap-2">
             {phase.kind === "planned" ? (
               <>
-                <button type="button" onClick={() => void download(phase.plan)} className="rounded-full border border-primary/35 bg-primary/12 px-3.5 py-2 text-xs font-semibold text-foreground">
+                <button type="button" disabled={!isOnline || !canStoreOffline} onClick={() => void download(phase.plan)} className="min-h-9 rounded-full border border-primary/35 bg-primary/12 px-3.5 py-2 text-xs font-semibold text-foreground">
                   Download for offline
                 </button>
-                <button type="button" onClick={cancel} className="rounded-full border border-border/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground">
+                <button type="button" onClick={cancel} className="min-h-9 rounded-full border border-border/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground">
                   Cancel
                 </button>
               </>
-            ) : phase.kind === "downloading" || phase.kind === "prices" || phase.kind === "comps" ? (
-              <button type="button" onClick={cancel} className="rounded-full border border-border/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground">
+            ) : busy ? (
+              <button type="button" onClick={cancel} className="min-h-9 rounded-full border border-border/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground">
                 Stop
               </button>
             ) : (
@@ -193,12 +217,22 @@ export default function CardShowPrep({ candidateSets, wantedCards = [] }: {
                 type="button"
                 disabled={chosenSets.length === 0 || busy || !isOnline || !canStoreOffline}
                 onClick={() => void checkSize()}
-                className="rounded-full border border-primary/35 bg-primary/12 px-3.5 py-2 text-xs font-semibold text-foreground disabled:opacity-50"
+                className="min-h-9 rounded-full border border-primary/35 bg-primary/12 px-3.5 py-2 text-xs font-semibold text-foreground disabled:opacity-50"
               >
                 Check download size
               </button>
             )}
           </div>
+          <section aria-label="Saved on this device" className="space-y-2 border-t border-border/50 pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold">Saved on this device</h3>
+              <button type="button" disabled={busy} onClick={() => void inspect()} className="min-h-9 rounded-full px-3 text-xs font-semibold">Refresh</button>
+            </div>
+            {storageError ? <p className="text-xs">{storageError}</p> : saved === null ? <p className="text-xs">Checking saved data…</p> : saved.length === 0 ? <p className="text-xs text-muted-foreground">No saved set data found.</p> : saved.map(entry => (
+              <p key={entry.set.id} className="text-xs"><span className="font-medium">{entry.set.name}</span>: set data saved, {entry.images}/{entry.imageTotal} images, {entry.priced}/{entry.priceTotal} available prices.</p>
+            ))}
+            <p className="text-xs text-muted-foreground">Saved prices are last-known values, not live quotes. Missing images or prices need a connection. Browser storage can be cleared or evicted.</p>
+          </section>
         </div>
       ) : null}
     </section>

@@ -47,6 +47,7 @@ export function getSetThumbnailUrls(payload: Pick<TCGSetSlotsResponse, "slots" |
 }
 
 export interface CardShowPlan {
+  sampledImageUrls?: string[]
   priceLookups: CardPriceLookup[]
   sets: Array<{ set: TCGSetSummary; url: string; dataBytes: number; imageUrls: string[] }>
   imageUrls: string[]
@@ -95,9 +96,12 @@ export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher
 
   const imageUrls = [...new Set(planned.flatMap((entry) => entry.imageUrls))]
   const sampledImageBytes: number[] = []
+  const sampledImageUrls: string[] = []
   for (const url of imageUrls.slice(0, ESTIMATE_SAMPLE_SIZE)) {
     const response = await fetcher(url, { signal: options.signal, headers: SAVE_FOR_SHOW_HEADERS }).catch(() => null)
-    if (response?.ok) sampledImageBytes.push(await responseBytes(response))
+    if (response?.ok) {
+      try { sampledImageBytes.push(await responseBytes(response)); sampledImageUrls.push(url) } catch { /* Retry when downloading. */ }
+    }
   }
   const dataBytes = planned.reduce((sum, entry) => sum + entry.dataBytes, 0)
 
@@ -107,6 +111,7 @@ export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher
     imageUrls,
     dataBytes,
     sampledImageBytes,
+    sampledImageUrls,
     estimatedBytes: estimateCardShowBytes(imageUrls.length, dataBytes, sampledImageBytes),
   }
 }
@@ -148,12 +153,13 @@ export interface CardShowProgress {
 
 /** Step 2 (after the user confirms): download the remaining thumbnails, a few at a time. */
 export async function downloadCardShowImages(
-  plan: Pick<CardShowPlan, "imageUrls">,
+  plan: Pick<CardShowPlan, "imageUrls" | "sampledImageUrls">,
   options: { fetcher?: Fetcher; signal?: AbortSignal; onProgress?: (progress: CardShowProgress) => void; concurrency?: number } = {},
 ): Promise<CardShowProgress> {
   const fetcher = options.fetcher ?? ((input, init) => fetch(input, init))
-  const urls = plan.imageUrls.slice(ESTIMATE_SAMPLE_SIZE)
-  const progress: CardShowProgress = { done: Math.min(ESTIMATE_SAMPLE_SIZE, plan.imageUrls.length), total: plan.imageUrls.length, failed: 0 }
+  const sampled = new Set(plan.sampledImageUrls ?? [])
+  const urls = plan.imageUrls.filter(url => !sampled.has(url))
+  const progress: CardShowProgress = { done: plan.imageUrls.length - urls.length, total: plan.imageUrls.length, failed: 0 }
   options.onProgress?.({ ...progress })
 
   let next = 0
@@ -165,7 +171,7 @@ export async function downloadCardShowImages(
       try {
         const response = await fetcher(url, { signal: options.signal, headers: SAVE_FOR_SHOW_HEADERS })
         if (!response.ok) progress.failed += 1
-        await response.arrayBuffer().catch(() => undefined)
+        if (response.ok) await response.arrayBuffer()
       } catch {
         if (options.signal?.aborted) return
         progress.failed += 1
@@ -176,4 +182,47 @@ export async function downloadCardShowImages(
   }
   await Promise.all(Array.from({ length: Math.max(1, options.concurrency ?? PREP_CONCURRENCY) }, worker))
   return progress
+}
+
+export interface SavedShowSet {
+  set: TCGSetSummary
+  images: number
+  imageTotal: number
+  priced: number
+  priceTotal: number
+}
+
+/** Inspect the actual cached coverage and thumbnails, never a previous run's success flag. */
+export async function inspectSavedShowSets(options: {
+  cacheStorage: CacheStorage
+  loadPrices: (lookups: CardPriceLookup[]) => Promise<readonly { marketGbpAmount?: number | null }[]>
+}): Promise<SavedShowSet[]> {
+  const names = await options.cacheStorage.keys()
+  const imageUrls = new Set<string>()
+  for (const name of names.filter(name => /^binderdex-.*-(?:show-)?images$/.test(name))) {
+    for (const request of await (await options.cacheStorage.open(name)).keys()) imageUrls.add(request.url)
+  }
+  const saved = new Map<string, SavedShowSet>()
+  for (const name of names.filter(name => /^binderdex-.*-data$/.test(name))) {
+    const cache = await options.cacheStorage.open(name)
+    for (const request of await cache.keys()) {
+      const url = new URL(request.url)
+      if (url.pathname !== "/api/tcg-set-slots" || !url.searchParams.has("setId")) continue
+      const response = await cache.match(request)
+      const payload = await response?.json().catch(() => null) as TCGSetSlotsResponse | null
+      if (!payload?.selectedSet || typeof payload.selectedSet.id !== "string" || typeof payload.selectedSet.name !== "string" || !Array.isArray(payload.slots)) continue
+      const cards = payload.cards ?? payload.slots.flatMap(slot => slot.cards ?? [])
+      const lookups = normalizeCardPriceLookups(cards.map(card => ({ cardId: card.id, language: card.language ?? "en" })))
+      const thumbnails = getSetThumbnailUrls(payload)
+      const prices = await options.loadPrices(lookups)
+      saved.set(payload.selectedSet.id, {
+        set: payload.selectedSet,
+        images: thumbnails.filter(image => imageUrls.has(new URL(image, url.origin).href)).length,
+        imageTotal: thumbnails.length,
+        priced: prices.filter(price => typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount) && price.marketGbpAmount > 0).length,
+        priceTotal: lookups.length,
+      })
+    }
+  }
+  return [...saved.values()]
 }
