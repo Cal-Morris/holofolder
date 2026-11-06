@@ -288,7 +288,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   Price details
                   <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                 </summary>
-                {selectedPrimaryCardPreview ? <CardPriceComparison key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} catalogMarketGbp={selectedComparisonMarketGbp} onSoldCheck={onSelectedSoldCheck} /> : null}
+                {selectedPrimaryCardPreview ? <CardPriceComparison key={`${selectedPrimaryCardPreview.cardId}:${selectedPrimaryCardPreview.cardLanguage}:${selectedPrimaryCardPreview.cardFinish}`} cardId={selectedPrimaryCardPreview.cardId} searchCard={{ name: selectedPrimaryCardPreview.cardName, setName: selectedPrimaryCardPreview.cardSet }} language={selectedPrimaryCardPreview.cardLanguage} finish={selectedPrimaryCardPreview.cardFinish} catalogMarketGbp={selectedComparisonMarketGbp} onSoldCheck={onSelectedSoldCheck} /> : null}
                 <CardPriceEvidence price={selectedDetailPriceSnapshot} />
               </details>
             </div>

@@ -11,12 +11,13 @@ import { formatGbpAmount } from "@/lib/price-format"
 import { type CardPriceChecks, type CardPriceCheck, type PriceCheckSource } from "@/lib/card-price-checks"
 import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
 import { readDealThresholds, type DealThresholds } from "@/lib/deal-check"
+import { cardListingSearchQuery, ebayOpenListingsUrl, ebaySoldListingsUrl, type ListingSearchCard } from "@/lib/ebay-search-urls"
 import type { CardFinish } from "@/lib/domain/cards"
 
 const ComparisonChart = dynamic(() => import("@/components/card-price-comparison-chart"), { ssr: false, loading: () => <div className="h-56" aria-hidden="true" /> })
 
-export function CardPriceComparison({ cardId, language = "en", finish, catalogMarketGbp, thresholds: givenThresholds, onSoldCheck, offerGbp, showBuyingScale = true }: {
-  cardId: string; language?: string; finish?: CardFinish; catalogMarketGbp?: number | null; thresholds?: DealThresholds; onSoldCheck?: (check: CardPriceCheck) => void; offerGbp?: number | null; showBuyingScale?: boolean
+export function CardPriceComparison({ cardId, searchCard, language = "en", finish, catalogMarketGbp, thresholds: givenThresholds, onSoldCheck, offerGbp, showBuyingScale = true }: {
+  cardId: string; searchCard: Omit<ListingSearchCard, "cardId">; language?: string; finish?: CardFinish; catalogMarketGbp?: number | null; thresholds?: DealThresholds; onSoldCheck?: (check: CardPriceCheck) => void; offerGbp?: number | null; showBuyingScale?: boolean
 }) {
   const [result, setResult] = useState<CardPriceChecks | null>(null)
   const requestController = useRef<AbortController | null>(null)
@@ -40,6 +41,9 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
   }, [cardId, language, finish])
   if (language !== "en" || finish === "jumbo") return null
   const exactFinish = finish && ["normal", "holo", "reverse_holo"].includes(finish) ? finish : "any"
+  const query = cardListingSearchQuery({ cardId, ...searchCard }, finish)
+  const openUrl = result?.ebay?.searchUrl ?? ebayOpenListingsUrl(query)
+  const soldUrl = result?.soldcomps?.searchUrl ?? ebaySoldListingsUrl(query)
   const loading = pending.ebay || pending.soldcomps
   const guide = buildSoldPriceGuide(result?.soldcomps, catalogMarketGbp, finish, givenThresholds ?? savedThresholds)
 
@@ -73,6 +77,10 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
     <section aria-label="Price comparisons" className="mt-2 rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 text-xs">
       <p className="font-semibold">eBay listings + sold comps</p>
       <p className="mt-1 text-muted-foreground">Manual checks · saved for 12 hours</p>
+      <div className="flex flex-wrap gap-x-4">
+        <a href={openUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View open listings ↗</a>
+        <a href={soldUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View sold listings ↗</a>
+      </div>
       {error ? <p role="status" className="mt-2 text-muted-foreground">{error}</p> : null}
       <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices()} disabled={loading}>{loading ? "Checking prices…" : "Check prices"}</Button>
       {result ? <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1" aria-live="polite">
@@ -83,7 +91,7 @@ export function CardPriceComparison({ cardId, language = "en", finish, catalogMa
           {result.errors[source] ? <p role="status" className="text-muted-foreground">{result.errors[source]}{result[source] ? " Showing the saved check." : ""}</p> : null}
         </div>)}
       </div> : null}
-      {result ? <PriceCheckRecords checks={result} /> : null}
+      {result ? <PriceCheckRecords checks={result} showLinks={false} /> : null}
       {result && (result.ebay || result.soldcomps) ? <ComparisonChart sold={result.soldcomps} asking={result.ebay} marketGbp={guide?.referenceGbp ?? catalogMarketGbp} thresholds={givenThresholds ?? savedThresholds} offerGbp={offerGbp} /> : null}
       {showBuyingScale && guide?.eligible ? <DealPriceScale market={guide.referenceGbp!} overlap={guide.fairOverlap} thresholds={givenThresholds ?? savedThresholds} money={value => formatGbpAmount(value) ?? ""} /> : null}
       {result ? <details className="mt-1">

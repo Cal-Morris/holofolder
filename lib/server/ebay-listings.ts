@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { readCatalogMetadata } from "@/lib/card-catalog"
 import { summarizeEbayListingEvidence } from "@/lib/ebay-listings"
 import { getEbayAppToken } from "@/lib/server/ebay-auth"
-import { ebayOpenListingsUrl } from "@/lib/ebay-search-urls"
+import { ebayOpenListingsUrl, priceCheckSearchQuery } from "@/lib/ebay-search-urls"
 import type { PriceSubject, PriceSubjectVariant } from "@/lib/price-intelligence"
 
 export async function loadEbayListingIndicator(cardId: string, variant: PriceSubjectVariant | null) {
@@ -61,7 +61,7 @@ export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjec
   // is "ME: Mega Evolution Promo", abbreviation MEP. Do not require the verbose set label
   // in a stamped-card search; title matching still verifies the set independently.
   const setAliases = card.set_id === "mep" && set.name_en === "MEP Black Star Promos" ? ["Mega Evolution Promo", "Mega Evolution Promos"] : []
-  const query = (printing ? `${name} ${localId} ${catalog.printingLabel}` : `${card.name_en} ${localId} ${set.name_en}`).slice(0, 100)
+  const query = priceCheckSearchQuery(name, localId, set.name_en, printing ? catalog.printingLabel : undefined).slice(0, 100)
   const subject: PriceSubject = { cardId, name, localId, setId: card.set_id, setName: set.name_en, officialCardCount: set.official_card_count, language: "en", variant, printing, setAliases, unambiguousPrintingFinish }
   return { subject, query }
 }

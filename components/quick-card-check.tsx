@@ -266,7 +266,7 @@ export default function QuickCardCheck({
           />
         </section>
 
-        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
+        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>
