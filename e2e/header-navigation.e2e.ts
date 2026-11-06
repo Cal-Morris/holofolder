@@ -16,10 +16,21 @@ for (const theme of ["light", "dark"]) {
     await expect(harness.dock().getByRole("button", { name: "Binder", exact: true })).toHaveAttribute("aria-pressed", "true")
     await expect(harness.dock().getByRole("button", { name: "Browse" })).toContainText("Browse")
     for (const button of await header.locator("button:visible, input:visible").all()) {
-      await harness.expectMinTapTarget(button, 36)
+      await harness.expectMinTapTarget(button, 44)
       await harness.expectWithinSafeViewport(button)
       if (await button.isEnabled()) await harness.expectHittable(button)
     }
+    const dock = harness.dock()
+    const dockBox = (await dock.boundingBox())!
+    expect(dockBox.x).toBe(0)
+    expect(dockBox.width).toBe(harness.viewport.width)
+    expect(dockBox.height).toBe(54 + Math.max(harness.insets.bottom, 8))
+    for (const button of await dock.getByRole("button").all()) {
+      await harness.expectMinTapTarget(button, 44)
+      await harness.expectWithinSafeViewport(button)
+      if (await button.isEnabled()) await harness.expectHittable(button)
+    }
+    await page.screenshot({ path: `/tmp/native-chrome-${info.project.name}-${theme}.png` })
     await header.getByRole("button", { name: /Next binder/ }).click()
     await expect(header.getByRole("spinbutton")).not.toHaveValue("1")
     await header.getByRole("button", { name: /Previous binder/ }).click()

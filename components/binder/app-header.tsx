@@ -91,19 +91,19 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
   const syncStatus = !isOnline ? offlineChipLabel(ctx.user ? localPendingSyncCount : 0)
     : ctx.user && localPendingSyncCount > 0 ? syncingChipLabel(localPendingSyncCount) : null
   return (
-    <nav ref={shellNavRef} aria-label="Binder navigation" data-testid="app-header" className="sticky top-0 z-40 mb-1 shrink-0 pl-[var(--left-inset)] pr-[var(--right-inset)] pt-[var(--top-inset)] sm:px-4">
-      <div data-scroll-blur="card" className="rounded-2xl border border-border/70 bg-card/96 md:backdrop-blur-xl dark:border-border/50 dark:bg-background">
+    <nav ref={shellNavRef} aria-label="Binder navigation" data-testid="app-header" className="sticky top-0 z-40 mb-1 shrink-0 border-b border-border/40 bg-background pt-[var(--top-inset)]">
+      <div data-scroll-blur="card" className="pl-[var(--left-inset)] pr-[var(--right-inset)] sm:px-4">
         {isShowModeOn && (
-          <section aria-label="Show mode" className="flex items-center gap-2 rounded-t-2xl bg-amber-400 px-3 py-1 text-black">
+          <section aria-label="Show mode" className="flex items-center gap-2 bg-amber-400 px-3 py-1 text-black">
             <Ticket className="h-4 w-4 shrink-0" aria-hidden />
             <div className="min-w-0 flex-1 text-xs" data-testid="show-mode-banner-text">
               <span className="font-semibold">Show mode on</span>
               {(showStatus || syncStatus) && <span role="status" className="ml-2">{[showStatus, syncStatus].filter(Boolean).join(" · ")}</span>}
             </div>
-            <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="min-h-9 shrink-0 rounded-lg px-3 text-xs font-semibold hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-black">Exit</button>
+            <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-black">Exit</button>
           </section>
         )}
-        <div className="flex flex-wrap items-center gap-1 p-1.5 md:gap-2 md:px-3">
+        <div className="flex flex-wrap items-center gap-0 py-1 md:gap-2 md:px-3">
           {activeBinder && !readOnlyMode ? (
             <button type="button" data-testid="binder-switcher-trigger" onClick={() => openExclusively(() => setIsBinderSwitcherOpen(true))} aria-haspopup="dialog" aria-label={`Binders: ${activeBinder.name}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-xl px-1.5 text-left hover:bg-muted/60 xl:flex-none xl:max-w-48">
               <Grid3X3 className="hidden h-4 w-4 shrink-0 text-primary sm:block" aria-hidden />
@@ -122,14 +122,14 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
           </div>
 
           {activeMainView === "binder" && binderDimension === "2d" && (
-            <div data-testid="mobile-header-pager" className="flex shrink-0 items-center rounded-xl bg-muted/40">
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}><ChevronLeft className="h-4 w-4" /></Button>
+            <div data-testid="mobile-header-pager" className="flex shrink-0 items-center">
+              <Button variant="ghost" size="icon" className="h-11 w-11" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}><ChevronLeft className="h-4 w-4" /></Button>
               <input type="number" min={1} max={totalBinderPages} value={pageInputValue} onChange={e => setPageInputValue(e.target.value)} onBlur={commitPageInput} onKeyDown={e => {
                 if (e.key === "Enter") { commitPageInput(); e.currentTarget.blur() }
                 else if (e.key === "Escape") { setPageInputValue(String(currentBinderPage)); e.currentTarget.blur() }
-              }} inputMode="numeric" aria-label="Binder page number" className="h-9 w-9 rounded-lg bg-background/70 text-center text-base font-semibold tabular-nums" />
+              }} inputMode="numeric" aria-label="Binder page number" className="h-11 w-11 rounded-lg bg-transparent text-center text-base font-semibold tabular-nums" />
               <span className="hidden pr-1 text-xs tabular-nums text-muted-foreground sm:inline">/ {totalBinderPages}</span>
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-11 w-11" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           )}
           {activeMainView !== "pokemon" && activeMainView !== "analytics" && (
