@@ -10,6 +10,10 @@ export interface PriceSubject {
   name: string
   setId: string | null
   setName: string | null
+  /** Reviewed market names for this catalog set. */
+  setAliases?: string[]
+  /** Full catalog variant list proves this stamped printing has only this finish. */
+  unambiguousPrintingFinish?: PriceSubjectVariant
   officialCardCount?: number | null
   localId: string | null
   language: string
@@ -320,7 +324,7 @@ function buildCollectorNumberAliases(subject: PriceSubject) {
 }
 
 function buildSetSignals(subject: PriceSubject) {
-  return [subject.setId, subject.setName]
+  return [subject.setId, subject.setName, ...(subject.setAliases ?? [])]
     .flatMap((value) => value ? [normalizeComparableText(value), normalizeComparableText(value).replace(/\s+/g, "")] : [])
     .filter(Boolean)
 }

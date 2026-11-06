@@ -22,6 +22,7 @@ export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjec
   let name = card.name_en
   let localId = card.local_id
   let printing: PriceSubject["printing"]
+  let unambiguousPrintingFinish: PriceSubject["unambiguousPrintingFinish"]
   if (catalog.variantId) {
     const evidence = card.raw_json?.supplementalSources?.tcgdexVariant
     const labels = { "pokemon-center": "Pokémon Center", staff: "Staff", "pre-release": "Prerelease" } as const
@@ -36,14 +37,32 @@ export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjec
     name = name.slice(0, -suffix.length)
     localId = catalog.localId
     if (!name) return null
+    if (["normal", "holo", "reverse"].includes(evidence.type) && variant && evidence.type !== variant) return null
+    // The decorated row retains only one variant. Check the base catalog list before inferring
+    // a finish from its stamp; another finish with the same stamp makes the title ambiguous.
+    if (catalog.tcgdexCardId === `${card.set_id}-${localId}` && evidence.size === "standard") {
+      const { data: base, error: baseError } = await createAdminClient().from("tcg_cards").select("raw_json").eq("id", catalog.tcgdexCardId).maybeSingle()
+      const raw = base?.raw_json
+      const variants: unknown = Array.isArray(raw?.variants) ? raw.variants : raw?.variants_detailed
+      if (!baseError && raw?.id === catalog.tcgdexCardId && Array.isArray(variants)) {
+        const stamped = variants.filter(v => v && typeof v === "object" && v.size !== "jumbo" && Array.isArray(v.stamp) && v.stamp.includes(printing))
+        if (stamped.length && stamped.every(v => v.size === "standard" && v.stamp.length === 1 && v.type === evidence.type)
+          && stamped.some(v => v.variantId === evidence.variantId && String(v.thirdParty?.tcgplayer) === catalog.productId)
+          && ["normal", "holo", "reverse"].includes(evidence.type)) unambiguousPrintingFinish = evidence.type
+      }
+    }
   } else if (cardId.includes("~") || catalog.printingLabel) {
     // A decorated identity alone is never evidence of a supported printing.
     return null
   }
   const set = (Array.isArray(card.tcg_sets) ? card.tcg_sets[0] : card.tcg_sets) as { name_en?: string; official_card_count?: number } | null
   if (!set?.name_en) return null
-  const query = `${card.name_en} ${localId} ${set.name_en}`.slice(0, 100)
-  const subject: PriceSubject = { cardId, name, localId, setId: card.set_id, setName: set.name_en, officialCardCount: set.official_card_count, language: "en", variant, printing }
+  // TCGcsv group 24451 maps to TCGdex mep (card-catalog-supplement.ts). Its market name
+  // is "ME: Mega Evolution Promo", abbreviation MEP. Do not require the verbose set label
+  // in a stamped-card search; title matching still verifies the set independently.
+  const setAliases = card.set_id === "mep" && set.name_en === "MEP Black Star Promos" ? ["Mega Evolution Promo", "Mega Evolution Promos"] : []
+  const query = (printing ? `${name} ${localId} ${catalog.printingLabel}` : `${card.name_en} ${localId} ${set.name_en}`).slice(0, 100)
+  const subject: PriceSubject = { cardId, name, localId, setId: card.set_id, setName: set.name_en, officialCardCount: set.official_card_count, language: "en", variant, printing, setAliases, unambiguousPrintingFinish }
   return { subject, query }
 }
 
