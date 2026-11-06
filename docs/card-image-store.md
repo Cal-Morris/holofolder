@@ -16,7 +16,7 @@ The storage backend is chosen by `CARD_IMAGE_STORE` (see `lib/card-image-store.t
 
 If a backend is selected but its credentials are missing or invalid, the mirror is off and TCGdex is served live. It never falls through to the other backend. If the store refuses requests (401/403, a blocked store) or throttles them (429/503), the proxy skips it for a cooldown period and serves TCGdex directly.
 
-Production uses `CARD_IMAGE_STORE=r2`. Preview and development use `CARD_IMAGE_STORE=off` so ordinary previews do not spend storage operations. An inherited `BLOB_READ_WRITE_TOKEN` never enables Blob on its own. Environment changes only affect new deployments; older preview URLs retain their original configuration.
+Production and Preview use `CARD_IMAGE_STORE=r2` with the same R2 bucket and credentials. Development uses `CARD_IMAGE_STORE=off` unless configured explicitly. Deterministic object keys let previews reuse existing mirrored images. An inherited `BLOB_READ_WRITE_TOKEN` never enables Blob on its own. Environment changes only affect new deployments; older preview URLs retain their original configuration.
 
 Object keys are deterministic:
 
