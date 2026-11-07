@@ -6,10 +6,12 @@ import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
 import {
   LEGACY_USER_SETTINGS_COLUMNS,
+  PRE_VALUE_VISIBILITY_COLUMNS,
   USER_SETTINGS_COLUMNS,
   isMissingColumnError,
   settingsFromRow,
   settingsToRow,
+  withoutBinderValueColumn,
   withoutPricingPreferenceColumns,
   type UserSettingsRow,
 } from "@/lib/settings"
@@ -44,6 +46,9 @@ export async function GET() {
       .eq("user_id", settingsOwnerUserId)
       .maybeSingle()
 
+    if (error && isMissingColumnError(error)) {
+      ;({ data, error } = await admin.from("user_settings").select(PRE_VALUE_VISIBILITY_COLUMNS).eq("user_id", settingsOwnerUserId).maybeSingle())
+    }
     if (error && isMissingColumnError(error)) {
       // Migration 024 (pricing preferences) not applied yet: serve the legacy columns.
       ;({ data, error } = await admin
@@ -93,6 +98,7 @@ export async function PUT(request: NextRequest) {
       binder_slot_glare_enabled: Boolean(body.binderSlotGlareEnabled),
       card_finish_effects_enabled: body.cardFinishEffectsEnabled !== false,
       dark_mode: Boolean(body.darkMode),
+      show_binder_value: body.showBinderValue !== false,
       pricing_region: typeof body.pricingRegion === "string" ? body.pricingRegion : null,
       preferred_currency: typeof body.preferredCurrency === "string" ? body.preferredCurrency : null,
       preferred_card_language: typeof body.preferredCardLanguage === "string" ? body.preferredCardLanguage : null,
@@ -124,11 +130,15 @@ export async function PUT(request: NextRequest) {
             ...row,
           })
 
-    const fullRow = settingsToRow(nextSettings)
+    // Older clients must not reset a preference they do not know about.
+    const fullRow = typeof body.showBinderValue === "boolean" ? settingsToRow(nextSettings) : withoutBinderValueColumn(settingsToRow(nextSettings))
     let { error } = await writeSettings(fullRow)
     if (error && isMissingColumnError(error)) {
+      ;({ error } = await writeSettings(withoutBinderValueColumn(fullRow)))
+    }
+    if (error && isMissingColumnError(error)) {
       // Migration 024 not applied yet: save everything else; pricing preferences stay device-local.
-      ;({ error } = await writeSettings(withoutPricingPreferenceColumns(fullRow)))
+      ;({ error } = await writeSettings(withoutPricingPreferenceColumns(withoutBinderValueColumn(fullRow))))
     }
 
     if (error) {

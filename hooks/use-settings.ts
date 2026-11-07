@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { setItemMakingRoom } from "@/lib/storage/make-room"
 import { createClient } from "@/lib/supabase/client"
 import {
@@ -90,7 +90,12 @@ export function useSettings(options: UseSettingsOptions = {}) {
     hasRemoteSettings = false,
   } = options
   const initialResolvedSettings = initialSettings ?? DEFAULT_SETTINGS
-  const [settings, setSettings] = useState<BinderSettings>(initialResolvedSettings)
+  const [settings, setSettingsState] = useState<BinderSettings>(initialResolvedSettings)
+  const settingsRef = useRef(initialResolvedSettings)
+  const setSettings = useCallback((next: BinderSettings) => {
+    settingsRef.current = next
+    setSettingsState(next)
+  }, [])
   const [user, setUser] = useState<{ id: string } | null>(initialUser)
 
   const supabase = createClient()
@@ -115,7 +120,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
 
     setSettings(initialResolvedSettings)
     writeStoredSettings(initialResolvedSettings, settingsOwnerUserId ?? user?.id)
-  }, [hasRemoteSettings, initialResolvedSettings, readOnly, settingsOwnerUserId, user?.id])
+  }, [hasRemoteSettings, initialResolvedSettings, readOnly, setSettings, settingsOwnerUserId, user?.id])
 
   useEffect(() => {
     if (readOnly) {
@@ -156,18 +161,15 @@ export function useSettings(options: UseSettingsOptions = {}) {
     return () => {
       cancelled = true
     }
-  }, [hasRemoteSettings, readOnly, settingsOwnerUserId, user?.id])
+  }, [hasRemoteSettings, readOnly, setSettings, settingsOwnerUserId, user?.id])
 
   const updateSettings = useCallback(async (newSettings: Partial<BinderSettings>) => {
     if (readOnly) {
       return
     }
 
-    let updatedSettings = settings
-    setSettings((current) => {
-      updatedSettings = { ...current, ...newSettings }
-      return updatedSettings
-    })
+    const updatedSettings = { ...settingsRef.current, ...newSettings }
+    setSettings(updatedSettings)
     writeStoredSettings(updatedSettings, settingsOwnerUserId ?? user?.id)
 
     if (user) {
@@ -196,7 +198,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
         )
       }
     }
-  }, [readOnly, settings, settingsOwnerUserId, user])
+  }, [readOnly, setSettings, settingsOwnerUserId, user])
 
   return { settings, updateSettings }
 }

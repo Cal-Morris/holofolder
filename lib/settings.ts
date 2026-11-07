@@ -18,6 +18,7 @@ export interface BinderSettings {
   binderSlotGlareEnabled: boolean
   cardFinishEffectsEnabled: boolean
   darkMode: boolean
+  showBinderValue: boolean
   /** null = automatic (from the browser locale); see lib/pricing-region.ts. */
   pricingRegion: PricingRegion | null
   /** null = derived from the region. */
@@ -34,6 +35,7 @@ export const DEFAULT_BINDER_SETTINGS: Readonly<BinderSettings> = Object.freeze({
   binderSlotGlareEnabled: true,
   cardFinishEffectsEnabled: true,
   darkMode: true,
+  showBinderValue: true,
   pricingRegion: null,
   preferredCurrency: null,
   preferredCardLanguage: null,
@@ -46,7 +48,13 @@ export const LEGACY_USER_SETTINGS_COLUMNS =
 /** Pricing preference columns added by scripts/028_user_pricing_preferences.sql. */
 export const PRICING_PREFERENCE_COLUMNS = ["pricing_region", "preferred_currency", "preferred_card_language"] as const
 
-export const USER_SETTINGS_COLUMNS = `${LEGACY_USER_SETTINGS_COLUMNS}, ${PRICING_PREFERENCE_COLUMNS.join(", ")}`
+export const PRE_VALUE_VISIBILITY_COLUMNS = `${LEGACY_USER_SETTINGS_COLUMNS}, ${PRICING_PREFERENCE_COLUMNS.join(", ")}`
+export const USER_SETTINGS_COLUMNS = `${PRE_VALUE_VISIBILITY_COLUMNS}, show_binder_value`
+
+export function withoutBinderValueColumn<T extends Record<string, unknown>>(row: T) {
+  const { show_binder_value: _visibility, ...previous } = row
+  return previous
+}
 
 /**
  * True when Postgres/PostgREST rejected a query because a column doesn't exist yet, i.e. migration
@@ -74,6 +82,7 @@ export interface UserSettingsRow {
   binder_slot_glare_enabled?: boolean | null
   card_finish_effects_enabled?: boolean | null
   dark_mode?: boolean | null
+  show_binder_value?: boolean | null
   pricing_region?: string | null
   preferred_currency?: string | null
   preferred_card_language?: string | null
@@ -105,6 +114,7 @@ export function settingsFromRow(row: UserSettingsRow | null | undefined): Binder
     binderSlotGlareEnabled: row?.binder_slot_glare_enabled ?? defaults.binderSlotGlareEnabled,
     cardFinishEffectsEnabled: row?.card_finish_effects_enabled ?? defaults.cardFinishEffectsEnabled,
     darkMode: row?.dark_mode ?? defaults.darkMode,
+    showBinderValue: typeof row?.show_binder_value === "boolean" ? row.show_binder_value : defaults.showBinderValue,
     pricingRegion: normalizePricingRegion(row?.pricing_region),
     preferredCurrency: normalizeDisplayCurrency(row?.preferred_currency),
     preferredCardLanguage: normalizePreferredCardLanguage(row?.preferred_card_language),
@@ -121,6 +131,7 @@ export function settingsToRow(settings: BinderSettings): Required<UserSettingsRo
     binder_slot_glare_enabled: settings.binderSlotGlareEnabled,
     card_finish_effects_enabled: settings.cardFinishEffectsEnabled,
     dark_mode: settings.darkMode,
+    show_binder_value: settings.showBinderValue,
     pricing_region: settings.pricingRegion,
     preferred_currency: settings.preferredCurrency,
     preferred_card_language: settings.preferredCardLanguage,
@@ -150,6 +161,7 @@ export function normalizeBinderSettings(
     binderSlotGlareEnabled: source.binderSlotGlareEnabled ?? fallback.binderSlotGlareEnabled,
     cardFinishEffectsEnabled: source.cardFinishEffectsEnabled ?? fallback.cardFinishEffectsEnabled,
     darkMode: source.darkMode ?? fallback.darkMode,
+    showBinderValue: typeof source.showBinderValue === "boolean" ? source.showBinderValue : fallback.showBinderValue,
     pricingRegion: "pricingRegion" in source ? normalizePricingRegion(source.pricingRegion) : fallback.pricingRegion,
     preferredCurrency: "preferredCurrency" in source ? normalizeDisplayCurrency(source.preferredCurrency) : fallback.preferredCurrency,
     preferredCardLanguage: "preferredCardLanguage" in source

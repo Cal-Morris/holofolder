@@ -6,6 +6,7 @@ import {
   normalizeBinderSettings,
   settingsFromRow,
   settingsToRow,
+  withoutBinderValueColumn,
   type BinderSettings,
 } from "../lib/settings"
 
@@ -17,6 +18,7 @@ const custom: BinderSettings = {
   binderSlotGlareEnabled: false,
   cardFinishEffectsEnabled: false,
   darkMode: false,
+  showBinderValue: false,
   pricingRegion: "EU",
   preferredCurrency: "USD",
   preferredCardLanguage: "fr",
@@ -58,6 +60,7 @@ test("settingsToRow and settingsFromRow round-trip", () => {
     binder_slot_glare_enabled: false,
     card_finish_effects_enabled: false,
     dark_mode: false,
+    show_binder_value: false,
     pricing_region: "EU",
     preferred_currency: "USD",
     preferred_card_language: "fr",
@@ -68,6 +71,18 @@ test("settingsFromRow does not share the default page colour object", () => {
   const first = settingsFromRow(null)
   first.binderPageColors["1"] = DEFAULT_BINDER_COLOR_ID
   assert.deepEqual(settingsFromRow(null).binderPageColors, {})
+})
+
+test("binder value defaults visible and preserves a hidden preference in local and remote settings", () => {
+  assert.equal(settingsFromRow({}).showBinderValue, true)
+  assert.equal(settingsFromRow({ show_binder_value: false }).showBinderValue, false)
+  assert.equal(normalizeBinderSettings({ showBinderValue: false }, DEFAULT_BINDER_SETTINGS).showBinderValue, false)
+  assert.equal(normalizeBinderSettings({ showBinderValue: true }, custom).showBinderValue, true)
+  assert.equal(normalizeBinderSettings({ showBinderValue: "false" } as unknown as Partial<BinderSettings>, DEFAULT_BINDER_SETTINGS).showBinderValue, true)
+  const previousSchema = withoutBinderValueColumn(settingsToRow(custom))
+  assert.equal("show_binder_value" in previousSchema, false)
+  assert.equal(previousSchema.preferred_currency, "USD")
+  assert.equal(previousSchema.dark_mode, false)
 })
 
 test("normalizeBinderSettings supports legacy rows/cols and falls back on invalid values", () => {
