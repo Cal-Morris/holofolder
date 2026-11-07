@@ -64,13 +64,14 @@ export interface MainContentContext {
   handleCollectSetCards: (cards: { slot: TCGSetDexSlot; card: TCGSetSlotCard; }[]) => Promise<void>
   handleGotWantedCard: (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => Promise<void>
   handlePagePhotoSelected: (event: ChangeEvent<HTMLInputElement, JSX.Element>) => Promise<void>
+  handleWantedSelect: (pokemon: PokemonSummary, card: WantedCard) => void
   handlePokemonSelect: (pokemon: PokemonSummary) => void
   handleQuickCollect: (pokemon: { id: number; name: string; }) => Promise<void>
   handleSelectSetSlot: (slot: TCGSetDexSlot) => void
   handleShareWantedList: (scope?: "binder" | "all") => Promise<void>
   handleSlotClick: (pokemon: { id: number; name: string; }) => void
   handleToggleFavorite: (pokemonId: number) => Promise<void>
-  handleWantSetCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => Promise<void>
+  handleWantSetCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard, toggle?: boolean) => Promise<void>
   handleWantSetCards: (cards: { slot: TCGSetDexSlot; card: TCGSetSlotCard; }[]) => Promise<void>
   hasTrackedCards: boolean
   initialBinderId: string | null
@@ -132,7 +133,7 @@ export interface MainContentContext {
 }
 
 export function renderMainContentView(ctx: MainContentContext) {
-  const { assignWantedCard, pendingBinderPage, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
+  const { assignWantedCard, pendingBinderPage, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
       <input
@@ -239,7 +240,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             handleShareWantedList={handleShareWantedList}
             handleGotWantedCard={handleGotWantedCard}
             handleClearWantedCard={handleClearWantedCard}
-            handlePokemonSelect={handlePokemonSelect}
+            handlePokemonSelect={handleWantedSelect}
             jumpToWantedPokemonPage={jumpToWantedPokemonPage}
             onCheckAnyCardPrice={openPriceLookup}
           />
@@ -253,7 +254,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             onSelectSlot={handleSelectSetSlot}
             onBrowseCard={(slot, card) => openCardBrowser({ id: slot.dexId, name: slot.pokemonName }, { highlightCardId: card.id })}
             onCollectCard={handleCollectSetCard}
-            onWantCard={handleWantSetCard}
+            onWantCard={(slot, card) => handleWantSetCard(slot, card, true)}
             onCollectCards={handleCollectSetCards}
             onWantCards={handleWantSetCards}
             readOnly={readOnlyMode}

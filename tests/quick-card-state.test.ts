@@ -26,6 +26,7 @@ describe("deal checker acquisition state", () => {
     const wanted = { card_id: "sv-1", card_name: "Bulbasaur", card_language: "ja" as const, card_finish: "holo" as const, added_at: "2026-01-01" }
     assert.equal(getQuickCardState(card, { ...row, wanted_cards: [wanted] }, "holo").wanted, false)
     assert.equal(getQuickCardState({ ...card, language: "ja" }, { ...row, wanted_cards: [wanted] }, "holo").wanted, true)
+    assert.equal(getQuickCardState({ ...card, language: "ja" }, { ...row, wanted_cards: [wanted] }, "normal").wanted, false)
   })
   test("an absent or partial lookup never claims a complete duplicate check", () => {
     assert.equal(getQuickCardState(card, null, "normal").otherBindersIncomplete, true)

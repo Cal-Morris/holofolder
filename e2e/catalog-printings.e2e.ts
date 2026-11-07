@@ -23,7 +23,7 @@ test.describe("distinct catalog printings", () => {
     await page.getByRole("group", { name: "Binder cards", exact: true }).getByRole("button", { name: "Owned", exact: true }).click()
     await page.getByRole("button", { name: "Close view options", exact: true }).click()
     const detail = await harness.openCardDetail()
-    await detail.getByRole("button", { name: /edit card|add card/i }).first().click()
+    await detail.getByRole("button", { name: /change owned card|add owned card/i }).first().click()
     const selector = page.getByRole("dialog", { name: /card selector/i })
     await expect(selector.getByText("2 of 2 cards")).toBeVisible()
     await expect(selector.getByText(stamped.name, { exact: true }).filter({ visible: true })).toBeVisible()

@@ -46,7 +46,7 @@ test.describe("remove an owned card", () => {
     await expect.poll(() => server.rows.get(4)?.card_finish).toBe("holo")
     const ownedRow = { ...server.rows.get(4)! }
 
-    const remove = detail.getByRole("button", { name: "Remove", exact: true })
+    const remove = detail.getByRole("button", { name: "Remove owned card", exact: true })
     await harness.expectMinTapTarget(remove)
     await remove.click()
     const sheet = removeSheet(page, "charmander")
@@ -72,8 +72,8 @@ test.describe("remove an owned card", () => {
 
     // The detail sheet now shows the wanted state.
     detail = page.getByRole("dialog", { name: /details$/i })
-    await expect(detail.getByRole("button", { name: "Clear", exact: true })).toBeVisible()
-    await expect(detail.getByRole("button", { name: "Remove", exact: true })).toHaveCount(0)
+    await expect(detail.getByRole("button", { name: "Remove from want list", exact: true })).toBeVisible()
+    await expect(detail.getByRole("button", { name: "Remove owned card", exact: true })).toHaveCount(0)
 
     const snackbar = undoSnackbar(page)
     await expect(snackbar).toContainText(/charmander moved back to wanted/i)
@@ -91,7 +91,7 @@ test.describe("remove an owned card", () => {
       expect(restored[key], key).toEqual(ownedRow[key])
     }
     expect(restored.wanted_cards).toEqual([])
-    await expect(detail.getByRole("button", { name: "Remove", exact: true })).toBeVisible()
+    await expect(detail.getByRole("button", { name: "Remove owned card", exact: true })).toBeVisible()
     await expect(detail.getByRole("button", { name: "Holo", exact: true })).toHaveAttribute("aria-pressed", "true")
   })
 
@@ -133,7 +133,7 @@ test.describe("remove an owned card", () => {
     const server = new FakeCollectionServer()
     await server.install(page)
     const detail = await openDetail(page, 1)
-    await detail.getByRole("button", { name: "Remove", exact: true }).click()
+    await detail.getByRole("button", { name: "Remove owned card", exact: true }).click()
     const sheet = removeSheet(page, "bulbasaur")
     await expect(sheet).toBeVisible()
     await page.keyboard.press("Escape")
@@ -149,15 +149,15 @@ test.describe("remove an owned card", () => {
 
     const detail = await openDetail(page, 1)
     await setNetwork(page, true)
-    await detail.getByRole("button", { name: "Remove", exact: true }).click()
+    await detail.getByRole("button", { name: "Remove owned card", exact: true }).click()
     await removeSheet(page, "bulbasaur").getByRole("button", { name: /move back to wanted/i }).click()
-    await expect(detail.getByRole("button", { name: "Clear", exact: true })).toBeVisible()
+    await expect(detail.getByRole("button", { name: "Remove from want list", exact: true })).toBeVisible()
     const queued = await page.evaluate(() => JSON.parse(localStorage.getItem("pokemon_collection_pending_ops_v1") ?? "[]"))
     expect(queued).toHaveLength(1)
     expect(queued[0].item.status).toBe("wishlisted")
 
     await undoSnackbar(page).getByRole("button", { name: "Undo", exact: true }).click()
-    await expect(detail.getByRole("button", { name: "Remove", exact: true })).toBeVisible()
+    await expect(detail.getByRole("button", { name: "Remove owned card", exact: true })).toBeVisible()
     expect(server.writes, "nothing is sent while offline").toEqual([])
 
     await setNetwork(page, false)

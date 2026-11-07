@@ -50,6 +50,8 @@ interface CardSelectorProps {
   selectedCardId?: string
   selectedCollectedCardId?: string
   selectedWantedCardId?: string
+  replacingWanted?: boolean
+  onClearWanted?: () => void
   mode?: CardSelectorMode
   /** Initial card language (the user's preferred card language setting). */
   defaultCardLanguage?: CardLanguage
@@ -167,6 +169,8 @@ export default function CardSelector({
   selectedCardId,
   selectedCollectedCardId,
   selectedWantedCardId,
+  replacingWanted = false,
+  onClearWanted,
   mode = "collect",
   defaultCardLanguage,
   pricingRegion = DEFAULT_PRICING_REGION,
@@ -210,26 +214,26 @@ export default function CardSelector({
   const { pricesByCardId, isLoading: isLoadingPrices } = useRegionalCardPrices(priceLookups, cards.length > 0, pricingRegion)
   const intentCopy = isWishlistMode
     ? {
-        title: `Choose wanted card for ${pokemonName}`,
+        title: `${replacingWanted ? "Change" : "Choose"} wanted card for ${pokemonName}`,
         label: "Wanted",
         shortLabel: "Want",
-        actionLabel: "Track as wanted",
+        actionLabel: replacingWanted ? "Change wanted card" : "Add wanted card",
         scanLabel: "Scan wanted",
         emptyActionLabel: "Clear wanted card",
-        helper: "Selecting a card keeps this slot open and tracks the card you want to find.",
+        helper: "Tracks the card you want without changing your owned card.",
         searchPlaceholder: "Search name or number",
         currentLabel: "Current wanted",
         activeClass: "border-amber-400/60 bg-amber-400/15 text-amber-700 shadow-[0_10px_24px_-18px_rgba(251,191,36,0.85)] dark:text-amber-300",
         accentClass: "border-amber-400/40 bg-amber-400/12 text-amber-700 dark:text-amber-300",
       }
     : {
-        title: `Add card for ${pokemonName}`,
+        title: `${selectedCollectedCardId ? "Change owned" : "Add"} card for ${pokemonName}`,
         label: "Add card",
         shortLabel: "Add",
-        actionLabel: "Add card",
+        actionLabel: selectedCollectedCardId ? "Change owned card" : "Add owned card",
         scanLabel: "Scan card",
         emptyActionLabel: "Mark owned without card",
-        helper: "Selecting a card marks the slot collected and attaches this card to your binder.",
+        helper: "Saves this printing as the card you own in this slot.",
         searchPlaceholder: "Search name or number",
         currentLabel: "Current card",
         activeClass: "border-emerald-400/55 bg-emerald-400/14 text-emerald-700 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)] dark:text-emerald-300",
@@ -828,11 +832,12 @@ export default function CardSelector({
                       role="menuitem"
                       onClick={() => {
                         setIsMoreOpen(false)
-                        selectWithoutCard()
+                        if (isWishlistMode) onClose()
+                        else selectWithoutCard()
                       }}
                       className="flex min-h-10 w-full items-center rounded-xl px-3 text-left text-sm hover:bg-muted/70"
                     >
-                      {intentCopy.emptyActionLabel}
+                      {isWishlistMode ? "Cancel wanted selection" : intentCopy.emptyActionLabel}
                     </button>
                   </div>
                 )}
@@ -1035,6 +1040,8 @@ export default function CardSelector({
             )}
 
             <div className="px-5 py-4 pb-[calc(var(--safe-bottom)+1.25rem)] sm:px-5 sm:py-4">
+            {isWishlistMode && onClearWanted && <Button variant="outline" onClick={onClearWanted} className="mb-3 min-h-11 w-full text-destructive">Remove from want list</Button>}
+            <p className="mb-3 text-sm font-semibold">{intentCopy.title}</p>
             {!isOnline && cards.length > 0 && (
               <p role="status" className="mb-3 flex items-center gap-2 rounded-2xl border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 <WifiOff className="h-3.5 w-3.5 shrink-0" />
@@ -1067,8 +1074,8 @@ export default function CardSelector({
                       ? "Check your connection and try again, or mark the slot without a card."
                       : "You can still mark the slot without choosing a printing."}
                 </p>
-                <Button variant="outline" size="sm" className="h-10 rounded-2xl px-4" onClick={selectWithoutCard}>
-                  {intentCopy.emptyActionLabel}
+                <Button variant="outline" size="sm" className="h-10 rounded-2xl px-4" onClick={isWishlistMode ? onClose : selectWithoutCard}>
+                  {isWishlistMode ? "Cancel" : intentCopy.emptyActionLabel}
                 </Button>
               </div>
             ) : filteredCards.length === 0 ? (

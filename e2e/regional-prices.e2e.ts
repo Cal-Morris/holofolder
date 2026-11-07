@@ -22,7 +22,7 @@ test.describe("UK locale", () => {
 
   test("the card selector prices each printing for the UK", async ({ harness }) => {
     const detail = await harness.openCardDetail()
-    await detail.getByRole("button", { name: /edit card|add card/i }).first().click()
+    await detail.getByRole("button", { name: /change owned card|add owned card/i }).first().click()
     const selector = harness.page.getByRole("dialog", { name: /card selector/i })
     await expect(selector.getByText("M £0.05", { exact: true }).filter({ visible: true }).first()).toBeVisible()
     await expect(selector.getByText("M £0.20", { exact: true }).filter({ visible: true })).toHaveCount(0)
@@ -116,7 +116,7 @@ test.describe("US locale", () => {
 
   test("the card selector prices each printing in USD", async ({ harness }) => {
     const detail = await harness.openCardDetail()
-    await detail.getByRole("button", { name: /edit card|add card/i }).first().click()
+    await detail.getByRole("button", { name: /change owned card|add owned card/i }).first().click()
     const selector = harness.page.getByRole("dialog", { name: /card selector/i })
     await expect(selector.getByText("M $0.26", { exact: true }).filter({ visible: true }).first()).toBeVisible()
     await expect(selector.getByText(/£/).filter({ visible: true })).toHaveCount(0)
@@ -171,7 +171,7 @@ test.describe("card picker price sort (UK)", () => {
       await expect(selector.getByRole("button", { name: `Remove filter ${label}` })).toBeVisible()
     }
 
-    await (await openSquirtle()).getByRole("button", { name: "Add card", exact: true }).click()
+    await (await openSquirtle()).getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
     await expect(selector.getByText("M £12.00", { exact: true }).filter({ visible: true })).toBeVisible()
     await expect(selector.getByRole("list", { name: "Active filters" })).toHaveCount(0)
     expect((await filtersButton.boundingBox())!.height).toBeGreaterThanOrEqual(36)
@@ -195,7 +195,7 @@ test.describe("card picker price sort (UK)", () => {
     await page.unroute("**/app/api/card-prices**")
     await page.route("**/app/api/card-prices**", (route) => route.abort("internetdisconnected"))
     await page.context().setOffline(true)
-    await (await openSquirtle()).getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
+    await (await openSquirtle()).getByRole("button", { name: /^(add wanted card|add another wanted card)$/i }).click()
     await expect(selector).toBeVisible()
     await expect(selector.getByRole("button", { name: "Remove filter Price: high to low" })).toBeVisible()
     await expect(selector.getByRole("status").filter({ hasText: /offline/i })).toBeVisible()

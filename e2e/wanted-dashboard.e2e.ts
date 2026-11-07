@@ -8,7 +8,7 @@ const SQUIRTLE = 7
 async function wantSquirtle(page: Page, server: FakeCollectionServer) {
   await page.locator(`button[data-dex-id="${SQUIRTLE}"]`).first().click()
   const detail = page.getByRole("dialog", { name: /squirtle details/i })
-  await detail.getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
+  await detail.getByRole("button", { name: /^(add wanted card|add another wanted card)$/i }).click()
   const selector = page.getByRole("dialog", { name: /card selector/i })
   await selector.getByRole("button", { name: "Want card Squirtle from 151", exact: true }).click()
   // 151 comes in two finishes, so the picker asks which variant; take the suggested one.

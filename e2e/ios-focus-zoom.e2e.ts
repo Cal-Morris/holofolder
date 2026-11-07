@@ -57,7 +57,7 @@ test.describe("search fields do not trigger iOS focus zoom", () => {
   test("card picker search", async ({ harness }) => {
     const page = harness.page
     await page.locator('button[data-dex-id="7"]').first().click()
-    await page.getByRole("dialog", { name: /squirtle details/i }).getByRole("button", { name: "Add card", exact: true }).click()
+    await page.getByRole("dialog", { name: /squirtle details/i }).getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
     await expectNoFocusZoom(page.getByRole("dialog", { name: /card selector/i }).getByRole("searchbox", { name: "Search cards" }), "Card picker search")
   })
 
