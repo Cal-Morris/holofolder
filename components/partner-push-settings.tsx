@@ -69,7 +69,7 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
     <h3 className="font-semibold">Partner notifications</h3>
     <p className="text-sm text-muted-foreground">Hear when your partner adds an owned card or marks one Got in Show mode. Enable this separately on each device.</p>
     {!supported ? <p className="text-sm text-muted-foreground">Push notifications are unavailable in this browser.</p>
-      : needsInstall ? <p className="text-sm text-muted-foreground">On iPhone or iPad, add BinderDex to your Home Screen, then enable notifications inside the installed app.</p>
+      : needsInstall ? <p className="text-sm text-muted-foreground">On iPhone or iPad, add Holo Folder to your Home Screen, then enable notifications inside the installed app.</p>
       : !configured ? <p className="text-sm text-muted-foreground">Partner notifications are not available yet.</p>
       : !current && <Button variant="outline" className="min-h-10" disabled={busy} onClick={enable}>Enable on this device</Button>}
     <ul className="space-y-2">{devices.map(device => <li key={device.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">

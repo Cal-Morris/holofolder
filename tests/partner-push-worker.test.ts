@@ -55,7 +55,7 @@ test('worker redacts previews after unlink, signout, account change and unavaila
   for (const account of [person, null, 'different-account']) {
     const app = runtime(account, { ok: false })
     await app.dispatch('push', { data: { json: () => ({ recipientId: person, eventId, title: 'Private payload is ignored', body: 'Secret card' }) } })
-    assert.equal(app.notifications[0].title, 'BinderDex update')
+    assert.equal(app.notifications[0].title, 'Holo Folder update')
     assert.equal(app.notifications[0].options.body, 'Open the app to see your update.')
     assert.equal(app.reads(), account === person ? 1 : 0)
     await app.dispatch('notificationclick', { notification: { close() {}, data: app.notifications[0].options.data } })

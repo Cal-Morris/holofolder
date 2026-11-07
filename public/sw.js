@@ -556,7 +556,7 @@ self.addEventListener('push', event => {
         if (response.ok) preview = await response.json()
       } catch { /* Offline or signed out: keep the visible notification private. */ }
     }
-    await self.registration.showNotification(preview ? String(preview.title ?? 'BinderDex update').slice(0, 160) : 'BinderDex update', {
+    await self.registration.showNotification(preview ? String(preview.title ?? 'Holo Folder update').slice(0, 160) : 'Holo Folder update', {
       body: preview ? String(preview.body ?? '').slice(0, 240) : 'Open the app to see your update.',
       icon: '/pwa-192x192.png', badge: '/icon-light-32x32.png',
       tag: typeof payload?.tag === 'string' ? payload.tag.slice(0, 100) : 'binderdex-update',
