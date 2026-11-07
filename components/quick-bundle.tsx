@@ -4,6 +4,7 @@
 // combined market price. "Bought bundle" adds every card as owned and logs the total, split by market price.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft, ShoppingBag, Trash2, X } from "lucide-react"
+import ShowBudget from "@/components/show-budget"
 import { useShowSession } from "@/hooks/use-show-session"
 import { checkBundle, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
 import { requestCardPriceCheck } from "@/lib/card-price-check-client"
@@ -22,6 +23,7 @@ import type { QuickCardState, QuickBundleEntry, QuickCardAction } from "@/compon
 
 export interface QuickBundleProps {
   entries: QuickBundleEntry[]
+  budgetKey?: string | null
   destinationName?: string
   getCardState?: (entry: QuickBundleEntry) => QuickCardState
   currency: DisplayCurrency
@@ -33,7 +35,7 @@ export interface QuickBundleProps {
   onAction: (action: QuickCardAction, entry: QuickBundleEntry) => Promise<(() => Promise<void>) | null>
 }
 
-export default function QuickBundle({ entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck }: QuickBundleProps) {
+export default function QuickBundle({ budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck }: QuickBundleProps) {
   const states = entries.map(entry => getCardState?.(entry))
   const replacementKey = JSON.stringify(entries.map((entry, index) => [entry.key, states[index]?.replacing]))
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
@@ -203,6 +205,7 @@ export default function QuickBundle({ entries, destinationName = "this binder", 
       <div className="min-w-0 shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
         {guide.marketTotal > 0 ? <DealPriceScale market={guide.marketTotal} offer={askingTotal} overlap={guide.overlap} thresholds={thresholds} money={money} partial={!guide.complete} /> : null}
         <PinnedDealVerdict deal={result.deal} money={money} testId="bundle-verdict-pinned" emptyText={verdictEmptyText} />
+        {budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
         <DealPriceInput value={input} onChange={setInput} label="Bundle price" />
         {!readOnly && (
           <button
