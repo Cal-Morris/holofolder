@@ -4,8 +4,9 @@ import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from '@/lib/a
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { Mail, Sparkles, Loader2, KeyRound } from 'lucide-react'
+import { Mail, Loader2, KeyRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import styles from './login.module.css'
 
 type AuthMethod = 'magic-link' | 'password'
 type PasswordMode = 'sign-in' | 'sign-up'
@@ -215,27 +216,20 @@ export function LoginForm() {
 
   return (
     <>
-      <div className="relative p-8 pb-6">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
-
-        <div className="relative flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-5 shadow-lg shadow-primary/20">
-            <Sparkles className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {recoveryMode ? 'Set a new password' : success ? successTitle : 'Sign in to Binder'}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            {recoveryMode
-              ? 'Choose a password for your Holo Folder account.'
-              : success
-                ? successMessage
-                : 'Use a magic link or sign in with a password.'}
-          </p>
-        </div>
+      <div className={styles.header}>
+        <h1 className={styles.heading}>
+          {recoveryMode ? 'Set a new password' : success ? successTitle : 'Sign in to Holo Folder'}
+        </h1>
+        <p className={styles.intro}>
+          {recoveryMode
+            ? 'Choose a password for your Holo Folder account.'
+            : success
+              ? successMessage
+              : 'Use a magic link or sign in with a password.'}
+        </p>
       </div>
 
-      <div className="px-8 pb-8">
+      <div className={styles.body}>
         {recoveryMode ? (
           <form onSubmit={handleRecoverySubmit} className="space-y-4">
             {error && (
@@ -254,6 +248,8 @@ export function LoginForm() {
                   <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="password"
+                    aria-label="New password"
+                    autoComplete="new-password"
                     placeholder="New password"
                     required
                     value={password}
@@ -267,6 +263,8 @@ export function LoginForm() {
                   <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="password"
+                    aria-label="Confirm new password"
+                    autoComplete="new-password"
                     placeholder="Confirm new password"
                     required
                     value={confirmPassword}
@@ -277,7 +275,7 @@ export function LoginForm() {
 
                 <Button
                   type="submit"
-                  className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20"
+                  className="w-full h-12 rounded-xl font-semibold text-base"
                   disabled={isLoading}
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save new password'}
@@ -325,7 +323,7 @@ export function LoginForm() {
                 }}
                 className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   authMethod === 'magic-link'
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-primary/15 text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -340,7 +338,7 @@ export function LoginForm() {
                 }}
                 className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   authMethod === 'password'
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-primary/15 text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -355,6 +353,8 @@ export function LoginForm() {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     type="email"
+                    aria-label="Email address"
+                    autoComplete="email"
                     placeholder="you@example.com"
                     required
                     value={email}
@@ -366,7 +366,7 @@ export function LoginForm() {
 
                 <Button
                   type="submit"
-                  className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20"
+                  className="w-full h-12 rounded-xl font-semibold text-base"
                   disabled={isLoading}
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send magic link'}
@@ -387,7 +387,7 @@ export function LoginForm() {
                     }}
                     className={`py-2 rounded-lg text-sm font-medium transition-all ${
                       passwordMode === 'sign-in'
-                        ? 'bg-background text-foreground shadow-sm'
+                        ? 'bg-primary/15 text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -401,7 +401,7 @@ export function LoginForm() {
                     }}
                     className={`py-2 rounded-lg text-sm font-medium transition-all ${
                       passwordMode === 'sign-up'
-                        ? 'bg-background text-foreground shadow-sm'
+                        ? 'bg-primary/15 text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -414,6 +414,8 @@ export function LoginForm() {
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       type="email"
+                      aria-label="Email address"
+                      autoComplete="email"
                       placeholder="you@example.com"
                       required
                       value={email}
@@ -427,6 +429,8 @@ export function LoginForm() {
                     <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       type="password"
+                      aria-label={passwordMode === 'sign-in' ? 'Password' : 'Create a password'}
+                      autoComplete={passwordMode === 'sign-in' ? 'current-password' : 'new-password'}
                       placeholder={passwordMode === 'sign-in' ? 'Password' : 'Create a password'}
                       required
                       value={password}
@@ -440,6 +444,8 @@ export function LoginForm() {
                       <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         type="password"
+                        aria-label="Confirm password"
+                        autoComplete="new-password"
                         placeholder="Confirm password"
                         required
                         value={confirmPassword}
@@ -451,7 +457,7 @@ export function LoginForm() {
 
                   <Button
                     type="submit"
-                    className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary/20"
+                    className="w-full h-12 rounded-xl font-semibold text-base"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -478,8 +484,8 @@ export function LoginForm() {
 
                 <p className="text-xs text-center text-muted-foreground">
                   {passwordMode === 'sign-in'
-                    ? 'Use this if magic links are being rate limited.'
-                    : 'New password accounts may still require an email confirmation, depending on your Supabase settings.'}
+                    ? 'Your usual password, straight to your collection.'
+                    : 'Keep your collection together with a Holo Folder account.'}
                 </p>
               </div>
             )}

@@ -1,0 +1,36 @@
+.page {
+  --background: #07070a;
+  --foreground: #f4f3f8;
+  --card: #111116;
+  --primary: #b9a6ff;
+  --primary-foreground: #07070a;
+  --muted: #23222c;
+  --muted-foreground: #b9b8c2;
+  --accent: #292535;
+  --accent-foreground: #f4f3f8;
+  --border: #35333f;
+  --input: #1a1921;
+  --ring: #b9a6ff;
+  --destructive: #ff9eab;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: dark;
+}
+
+.frame { width: 100%; max-width: 440px; }
+.navigation { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 19px; font-weight: 700; letter-spacing: -.6px; white-space: nowrap; }
+.brand img { flex-shrink: 0; }
+.backLink { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--muted-foreground); font-size: 12px; }
+.backLink:hover { color: var(--foreground); }
+.page a:focus-visible { outline: 2px solid var(--ring); outline-offset: 5px; border-radius: 4px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; }
+.header { padding: 32px 28px 24px; }
+.heading { font-size: clamp(29px, 7vw, 36px); line-height: 1.12; font-weight: 650; letter-spacing: -1.2px; text-wrap: balance; }
+.intro { margin-top: 14px; color: var(--muted-foreground); font-size: 14px; line-height: 1.65; }
+.body { padding: 0 28px 28px; }
+.tagline { margin-top: 24px; text-align: center; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
