@@ -489,7 +489,7 @@ function QuickMode({
   )
 
   return (
-    <div className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm" data-overlay-backdrop onClick={onClose}>
+    <div className="fixed inset-0 z-[55] bg-black/60 sm:backdrop-blur-sm" data-overlay-backdrop onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"

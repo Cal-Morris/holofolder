@@ -377,7 +377,12 @@ const HuntGroupSection = memo(function HuntGroupSection({
   const pokemon = { id: group.pokemonId, name: group.pokemonName }
   const name = formatPokemonDisplayName(group.pokemonName)
   return (
-    <section aria-label={`Hunting ${name}`} className="space-y-1.5">
+    <section
+      aria-label={`Hunting ${name}`}
+      className="space-y-1.5"
+      // Keep offscreen groups out of layout/paint; remember their measured height once visited.
+      style={{ contentVisibility: "auto", containIntrinsicBlockSize: `auto ${3.5 + group.cards.length * 6.4}rem` }}
+    >
       <button type="button" onClick={() => onPickPokemon(pokemon)} aria-label={`${name}: all cards`} className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-1 text-left active:bg-muted">
         <PokemonSprite id={group.pokemonId} />
         <span className="min-w-0 flex-1">
