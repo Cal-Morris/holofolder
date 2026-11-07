@@ -71,3 +71,8 @@
 - Reviewer found an overlay-history navigation race and unknown-binder cache poisoning. Both were reproduced RED in browser tests and fixed GREEN. Smallest standalone viewport additionally caught an undefined safe-area variable; the panel now uses env(safe-area-inset-top) and keeps its close header visible.
 - Typecheck and lint pass with the existing 65 warnings; no new warnings.
 - Full suite/release remain gated by baseline UI test navigation repairs being completed in the valuation branch. No migrations required for optional JSON attribution.
+
+
+## Installed-client compatibility
+
+Assignee-aware writes declare fingerprint version 2. Current clients continue detecting assignment conflicts; older installed clients may compare the pre-assignment fingerprint when they omit the version and assignment fields. All other row fields still participate in conflict detection, and the API preserves omitted assignment metadata. This prevents legacy queued writes looping on 409 after a partner assigns a wanted card. Pure regression observed RED then GREEN, with a transport test covering versioned saves and deletes.

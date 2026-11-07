@@ -7,6 +7,7 @@ import {
   applyPendingEdits,
   classifyWriteFailure,
   collectionFingerprint,
+  matchesCollectionFingerprint,
   nextSyncRetryDelay,
   resolveConflict,
 } from "../lib/collection/sync"
@@ -141,5 +142,18 @@ test("the queue keeps one edit per Pokémon with the base of the first unsynced 
     assert.equal(readPendingCollectionOperations()[0].base, null)
   } finally {
     delete globals.window
+  }
+})
+
+
+test("legacy collection writes can ignore only wanted-person metadata, while current clients detect it", () => {
+  const before = row({ wanted_cards: [want("a")] })
+  const assigned = row({ wanted_cards: [{ ...want("a"), wanted_by: ["00000000-0000-4000-8000-000000000001"] }] })
+  const legacy = collectionFingerprint(before)
+  assert.equal(matchesCollectionFingerprint(assigned, legacy), false)
+  assert.equal(matchesCollectionFingerprint(assigned, legacy, true), true)
+  assert.equal(matchesCollectionFingerprint(assigned, collectionFingerprint(assigned)), true)
+  for (const changed of [{ ...assigned, status: "finalized" as const }, { ...assigned, card_id: "other" }, { ...assigned, wanted_cards: [...assigned.wanted_cards, want("b")] }]) {
+    assert.equal(matchesCollectionFingerprint(changed, legacy, true), false)
   }
 })

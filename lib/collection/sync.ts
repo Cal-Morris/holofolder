@@ -14,6 +14,8 @@ import type { CollectedPokemon, WantedCard } from "@/lib/domain/cards"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
 import { mergeWantedPeople } from "@/lib/wanted-people"
 
+export const COLLECTION_FINGERPRINT_VERSION = 2
+
 export const ABSENT_ROW_FINGERPRINT = "absent"
 
 function wantedKey(card: WantedCard) {
@@ -33,6 +35,13 @@ export function collectionFingerprint(item: Partial<CollectedPokemon> | null | u
     owned: ownedGroup(normalized),
     wanted: normalized.wanted_cards.map(card => `${wantedKey(card)}${card.wanted_by === undefined ? "" : `:wanted-by:${[...card.wanted_by].sort().join(",")}`}`).sort(),
   })
+}
+
+/** Older installed clients do not know wanted_by; their other conflict protections still apply. */
+export function matchesCollectionFingerprint(item: Partial<CollectedPokemon> | null | undefined, expected: string, allowLegacyPeople = false) {
+  if (collectionFingerprint(item) === expected) return true
+  if (!allowLegacyPeople || !item) return false
+  return collectionFingerprint({ ...item, wanted_cards: item.wanted_cards?.map(({ wanted_by: _people, ...card }) => card) }) === expected
 }
 
 export type PendingEdit =

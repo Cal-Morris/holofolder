@@ -6,7 +6,7 @@ import { resolveCollectionMembership, resolveCollectionOwnerUserId } from "@/lib
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { validateWantedPeople } from "@/lib/wanted-people"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
-import { collectionFingerprint } from "@/lib/collection/sync"
+import { matchesCollectionFingerprint } from "@/lib/collection/sync"
 import { scopeCollectionQuery } from "@/lib/collection/load"
 import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
 
@@ -25,6 +25,7 @@ async function checkBaseFingerprint(
   pokemonId: number,
   baseFingerprint: unknown,
   loadedItem?: CollectedPokemon | null,
+  allowLegacyPeople = false,
 ) {
   if (typeof baseFingerprint !== "string" || baseFingerprint.length === 0) return null
 
@@ -35,7 +36,7 @@ async function checkBaseFingerprint(
     if (error) throw error
     current = data ? normalizeCollectionItem(data) : null
   }
-  if (collectionFingerprint(current) === baseFingerprint) return null
+  if (matchesCollectionFingerprint(current, baseFingerprint, allowLegacyPeople)) return null
 
   return NextResponse.json({ error: "Collection item changed on the server", item: current ?? null }, { status: 409 })
 }
@@ -92,7 +93,8 @@ export async function POST(request: NextRequest) {
       .eq("pokemon_id", pokemonId).maybeSingle()
     if (previousError) throw previousError
     const previous = previousRow ? normalizeCollectionItem(previousRow) : null
-    const conflict = await checkBaseFingerprint(admin, ownerUserId, binderId, pokemonId, body?.baseFingerprint, previous)
+    const hasPeopleMetadata = Array.isArray(body?.wantedCards) && body.wantedCards.some((card: unknown) => card && typeof card === "object" && Object.hasOwn(card, "wanted_by"))
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, binderId, pokemonId, body?.baseFingerprint, previous, body?.fingerprintVersion === undefined && !hasPeopleMetadata)
     if (conflict) return conflict
     let wantedCards
     try {
@@ -197,7 +199,7 @@ export async function DELETE(request: NextRequest) {
     const admin = createAdminClient()
     const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"))
     if (binder.response) return binder.response
-    const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"))
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"), undefined, !request.nextUrl.searchParams.has("fingerprintVersion"))
     if (conflict) return conflict
 
     const { error } = await scopeCollectionQuery(admin.from("pokemon_collection").delete(), ownerUserId, binder.binderId)

@@ -1,4 +1,5 @@
 // Remote collection writes through /api/collection, plus error helpers.
+import { COLLECTION_FINGERPRINT_VERSION } from "@/lib/collection/sync"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
 
@@ -97,6 +98,7 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
     },
     body: JSON.stringify({
       ...getCollectionRequestBody(item, options.binderId ?? null),
+      fingerprintVersion: COLLECTION_FINGERPRINT_VERSION,
       ...(options.baseFingerprint !== undefined ? { baseFingerprint: options.baseFingerprint } : {}),
     }),
   })
@@ -110,7 +112,7 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
 }
 
 export async function deleteRemoteCollectionItem(pokemonId: number, options: RemoteWriteOptions = {}) {
-  const params = new URLSearchParams({ pokemonId: String(pokemonId) })
+  const params = new URLSearchParams({ pokemonId: String(pokemonId), fingerprintVersion: String(COLLECTION_FINGERPRINT_VERSION) })
   if (options.binderId) params.set("binderId", options.binderId)
   if (options.baseFingerprint !== undefined) params.set("baseFingerprint", options.baseFingerprint)
   const response = await sendCollectionWrite(`/api/collection?${params.toString()}`, {
