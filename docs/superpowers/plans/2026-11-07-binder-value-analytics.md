@@ -51,8 +51,8 @@
 
 ### Task 3: Verify and release
 
-- [ ] Run unit suite, typecheck, lint, production build and full six-project e2e suite with a dedicated port and two workers.
-- [ ] Inspect screenshots and layout geometry at 375, 390 and 430 in both modes and at desktop width.
+- [x] Run unit suite, typecheck, lint, production build and full six-project e2e suite with a dedicated port and bounded workers.
+- [x] Inspect screenshots and layout geometry at 375, 390 and 430 in both modes and at desktop width.
 - [x] Run fresh branch review, fix substantive findings with regression coverage.
 - [ ] Commit, push once, create/link PR, merge after gates and verify production under the release skill. If checks are pending, watch and resume on completion.
 
@@ -74,3 +74,5 @@ Global Wanted will extend `WantedCard`, normalization, conflict merges, API vali
 ## Full-suite maintenance
 
 The repository's full suite still targeted navigation and price-download behavior predating the current app. Updated the existing assertions to use Browse, View options, the global Search action and current headings. Offline download mocks now handle the current GET request and query payload. The 3D image continuity test permits at most one RGB level of compositor noise while still rejecting a changed page. These repairs preserve behavior and make the required release suite exercise the current UI.
+
+Final release checks on the Holo Folder logo base: 903 units passed, typecheck clean, lint at the existing 65 warnings, production build passed, and 2,671 e2e tests passed with 149 intentional skips across all six projects. Final review found no blockers.
