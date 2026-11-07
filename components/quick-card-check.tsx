@@ -29,10 +29,8 @@ import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVer
 
 export type QuickCardAction = "bought" | "add-owned" | "want" | "got"
 
-export interface QuickCardState {
-  owned: boolean
-  wanted: boolean
-}
+import type { QuickCardState } from "@/lib/quick-card-state"
+export type { QuickCardState } from "@/lib/quick-card-state"
 
 /** A card waiting in the bundle, priced in the display currency when the check was made. */
 export interface QuickBundleEntry {
@@ -53,6 +51,8 @@ export interface QuickCardCheckProps {
   card: SearchCardResult
   pokemon: { id: number; name: string }
   state: QuickCardState
+  getState?: (finish: CardFinish) => QuickCardState
+  destinationName?: string
   currency: DisplayCurrency
   fxRates?: DisplayFxRates | null
   pricingRegion: PricingRegion
@@ -87,7 +87,9 @@ export function formatPriceAge(fetchedAt: number | undefined, now: number) {
 export default function QuickCardCheck({
   card,
   pokemon,
-  state,
+  state: initialState,
+  getState,
+  destinationName = "this binder",
   currency,
   fxRates: fxRatesProp,
   pricingRegion,
@@ -114,6 +116,10 @@ export default function QuickCardCheck({
   const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any"), [card.variants, inferred])
   const [finish, setFinish] = useState<CardFinish>(() =>
     initialFinish && finishChoices.some((choice) => choice.finish === initialFinish) ? initialFinish : finishChoices[0]?.finish ?? inferred)
+  const state = getState?.(finish) ?? initialState
+  const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
+  const replacementKey = state.replacing ? `${card.id}:${finish}:${state.replacing}` : null
+  const needsConfirmation = Boolean(replacementKey && confirmedReplacement !== replacementKey)
   const [soldEvidence, setSoldEvidence] = useState<{ key: string; check: CardPriceCheck } | null>(null)
   const finishPrices = useMemo(() => getRegionalFinishPrices(snapshot, pricingRegion), [pricingRegion, snapshot])
   // A variant with its own quote uses it; otherwise the headline price stands for the card's main printing.
@@ -148,10 +154,11 @@ export default function QuickCardCheck({
   const [busy, setBusy] = useState(false)
   const [undo, setUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
   const run = async (action: QuickCardAction) => {
-    if (busy) return
+    if (busy || (action !== "want" && needsConfirmation)) return
     setBusy(true)
     try {
       const revert = await onAction(action, finish)
+      if (!revert) return
       const purchaseIds = action === "bought" && askingPrice
         ? logPurchases([{ cardId: card.id, cardName: card.name, language, finish, price: askingPrice, marketPrice: market?.amount ?? null, currency: moneyCurrency }])
         : []
@@ -190,6 +197,15 @@ export default function QuickCardCheck({
   return (
     <section aria-label={`Check ${card.name}`} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="quick-card-check">
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
+        <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-sm" aria-label="Acquisition destination">
+          <p className="font-semibold">Adds to {destinationName}</p>
+          {state.ownedElsewhere?.length ? <p>Already owned in {state.ownedElsewhere.join(", ")}</p> : null}
+          {state.otherBindersIncomplete ? <p className="text-xs text-muted-foreground">Other binders haven&apos;t all loaded. Duplicate check is incomplete.</p> : !isOnline ? <p className="text-xs text-muted-foreground">Other binders use saved data and may have changed.</p> : null}
+          {state.replacing && <label className="mt-2 flex min-h-10 items-center gap-2">
+            <input type="checkbox" checked={!needsConfirmation} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} />
+            <span>Replace {state.replacing} in {destinationName}</span>
+          </label>}
+        </div>
         <div className="flex items-start gap-3">
           <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
             <ArrowLeft className="h-5 w-5" />
@@ -281,16 +297,16 @@ export default function QuickCardCheck({
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {showTools && !readOnly && (
-            <button type="button" disabled={busy} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
+            <button type="button" disabled={busy || needsConfirmation} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
               <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought
             </button>
           )}
           {!readOnly && (state.wanted && !state.owned ? (
-            <button type="button" disabled={busy} onClick={() => void run("got")} aria-label="Mark got" className={`${bigButton} border border-border/70 bg-card`}>
+            <button type="button" disabled={busy || needsConfirmation} onClick={() => void run("got")} aria-label="Mark got" className={`${bigButton} border border-border/70 bg-card`}>
               <Check className="h-5 w-5 shrink-0" aria-hidden />Got it
             </button>
           ) : (
-            <button type="button" disabled={busy || state.owned} onClick={() => void run("add-owned")} aria-label={state.owned ? "Owned" : "Add owned"} className={`${bigButton} border border-border/70 bg-card`}>
+            <button type="button" disabled={busy || state.owned || needsConfirmation} onClick={() => void run("add-owned")} aria-label={state.owned ? "Owned" : "Add owned"} className={`${bigButton} border border-border/70 bg-card`}>
               <Plus className="h-5 w-5 shrink-0" aria-hidden />{state.owned ? "Owned" : "Own"}
             </button>
           ))}
