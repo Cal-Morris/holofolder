@@ -8,7 +8,7 @@ const trainer = { ...card, id: "fixture-set-2", localId: "2", name: "Fixture Tra
 const payload: TCGSetSlotsResponse = { sets: [set], selectedSet: set, cards: [card, trainer], slots: [{ dexId: 1, pokemonName: "bulbasaur", cards: [card] }, { dexId: 2, pokemonName: "ivysaur", cards: [card] }] }
 
 async function mockSet(page: import("@playwright/test").Page, data: TCGSetSlotsResponse = payload) {
-  await page.route("**/api/tcg-set-slots**", route => {
+  await page.route("**/app/api/tcg-set-slots**", route => {
     const selected = new URL(route.request().url()).searchParams.has("setId")
     return route.fulfill({ json: selected ? data : { sets: [set], selectedSet: null, slots: [] } })
   })
@@ -77,7 +77,7 @@ test.describe("set checklists", () => {
 
   test("read-only browsing retains exact state without collection mutations", async ({ harness }) => {
     const page = harness.page
-    await page.goto("/e2e-harness?signedIn=1&readOnly=1")
+    await page.goto("/app/e2e-harness?signedIn=1&readOnly=1")
     await mockSet(page, { ...payload, cards: [{ ...card, id: "base1-44" }, trainer], slots: [{ ...payload.slots[0], cards: [{ ...card, id: "base1-44" }] }] })
     await selectSet(harness)
     await expect(page.getByText("Already have", { exact: true })).toBeVisible()
@@ -101,7 +101,7 @@ test.describe("set checklists", () => {
       return databases.some(database => database.name === "binderdex-offline")
     })).toBe(true)
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-    await page.route("**/api/tcg-set-slots**", route => route.abort())
+    await page.route("**/app/api/tcg-set-slots**", route => route.abort())
     await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await page.getByRole("button", { name: "Fixture Set", exact: true }).first().click()
     await expect(page.getByText("Showing saved set data on this device.")).toBeVisible()

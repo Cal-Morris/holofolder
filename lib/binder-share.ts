@@ -5,7 +5,7 @@ export interface BinderShareRecord {
 }
 
 export function buildBinderSharePath(token: string) {
-  return `/share/${token}`
+  return `/app/share/${token}`
 }
 
 export function buildBinderShareUrl(origin: string, token: string) {

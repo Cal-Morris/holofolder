@@ -90,7 +90,7 @@ for (const theme of ["light", "dark"] as const) {
     test.use({ signedIn: true, colorScheme: theme })
     test.beforeEach(async ({ harness }) => {
       await harness.page.evaluate(value => document.documentElement.classList.toggle("dark", value === "dark"), theme)
-      await harness.page.route("**/api/tcgdex-cache**", route => route.fulfill({ json: { cards, source: "mirror" } }))
+      await harness.page.route("**/app/api/tcgdex-cache**", route => route.fulfill({ json: { cards, source: "mirror" } }))
     })
 
     test("all cards: artwork, text, ends, header, focus, reopening and tab return", async ({ harness }) => {
@@ -209,7 +209,7 @@ for (const theme of ["light", "dark"] as const) {
 
     test("illustrator grid scrolls over cards and reaches both ends", async ({ harness, hasTouch }) => {
       const { page } = harness
-      await page.route("**/api/tcg-illustrators**", route => {
+      await page.route("**/app/api/tcg-illustrators**", route => {
         const name = new URL(route.request().url()).searchParams.get("name")
         return route.fulfill({ json: name ? { illustrator: name, cards } : { illustrators: [{ name: "Mitsuhiro Arita", cardCount: 35 }] } })
       })
@@ -231,7 +231,7 @@ for (const theme of ["light", "dark"] as const) {
 
     test("search highlight and breakout jumps remain scrollable, keyboard keeps controls visible", async ({ harness, hasTouch }) => {
       const { page } = harness
-      await page.route("**/api/tcg-card-search**", route => route.fulfill({ json: { cards: [cards[30]] } }))
+      await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [cards[30]] } }))
       await mockCardPrices(page, { "scroll-30": { confidence: "high", market: 15, trend: { "7d": 10, Trend: 15 } } })
       await nav(harness).getByRole("button", { name: "Search", exact: true }).click()
       const search = page.getByRole("dialog", { name: /search pokemon/i })
@@ -361,8 +361,8 @@ test.describe("overlay inventory", () => {
         ownerUserId: "00000000-0000-4000-8000-0000000000e2", name: `Fixture binder ${index + 1}`,
         sortOrder: index, isDefault: index === 0, slotCount: 2, color: null, rows: null, cols: null, createdAt: null, updatedAt: null,
       }))
-      await page.route("**/api/binders**", route => route.fulfill({ json: { binders } }))
-      await page.goto("/e2e-harness?signedIn=1&binders=1")
+      await page.route("**/app/api/binders**", route => route.fulfill({ json: { binders } }))
+      await page.goto("/app/e2e-harness?signedIn=1&binders=1")
       await page.getByTestId("binder-switcher-trigger").click()
       const dialog = page.getByRole("dialog", { name: "Binders", exact: true })
       await expect(dialog.getByRole("listitem")).toHaveCount(30)

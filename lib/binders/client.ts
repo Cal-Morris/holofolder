@@ -30,7 +30,8 @@ export function binderHref(binderId: string, currentHref?: string) {
   if (!currentHref) return `/?binder=${encodeURIComponent(binderId)}`
   const url = new URL(currentHref)
   url.searchParams.set("binder", binderId)
-  return `${url.pathname}${url.search}`
+  const pathname = url.pathname.replace(/^\/app(?=\/|$)/, "") || "/"
+  return `${pathname}${url.search}`
 }
 
 export class BinderRequestError extends Error {
@@ -42,7 +43,7 @@ export class BinderRequestError extends Error {
 
 async function request(init: RequestInit & { query?: string } = {}) {
   const { query, ...rest } = init
-  const response = await fetch(`/api/binders${query ?? ""}`, {
+  const response = await fetch(`/app/api/binders${query ?? ""}`, {
     cache: "no-store",
     ...rest,
     headers: rest.body ? { "Content-Type": "application/json", ...rest.headers } : rest.headers,

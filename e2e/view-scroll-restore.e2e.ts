@@ -113,7 +113,7 @@ test.describe("per-view scroll restoration", () => {
     const target = Math.min(300, Math.floor(range / 2))
     await scrollTo(harness, "Wanted", target)
 
-    await page.goto("/")
+    await page.goto("/app")
     await page.goBack()
     await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
     await openTab(harness, "Wanted")

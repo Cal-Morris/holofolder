@@ -1,9 +1,9 @@
-import { describe, it } from "node:test"
+import { describe, it, test } from "node:test"
 import assert from "node:assert/strict"
 import { config } from "../proxy"
 
 // Next.js anchors the matcher to the whole pathname.
-const matcher = new RegExp(`^${config.matcher[0]}$`)
+const matcher = new RegExp(`^${config.matcher[1]}$`)
 const runsProxy = (pathname: string) => matcher.test(pathname)
 
 describe("proxy matcher", () => {
@@ -35,4 +35,13 @@ describe("proxy matcher", () => {
       assert.equal(runsProxy(path), false, path)
     }
   })
+})
+
+test("worker script can be served from slashless /app without an authenticated session", async () => {
+  const { NextRequest } = await import("next/server")
+  const { proxy } = await import("../proxy")
+  const request = new NextRequest("https://holofolder.com/app?service-worker=1", { nextConfig: { basePath: "/app" } })
+  const response = await proxy(request)
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get("x-middleware-rewrite"), "https://holofolder.com/app/sw.js")
 })

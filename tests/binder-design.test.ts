@@ -17,9 +17,9 @@ test("framing can reach the full zoomed artwork and handles fit",()=>{
   assert.deepEqual(artworkRectangle(400,100,100,100,{fit:"fit",zoom:1,x:0,y:0}),{x:0,y:37.5,width:100,height:25})
 })
 test("untrusted artwork cannot request arbitrary hosts or persist blob URLs",()=>{
-  const allowed="/api/card-image-proxy?url="+encodeURIComponent("https://assets.tcgdex.net/en/sv/sv03.5/166/high.webp")
+  const allowed="/app/api/card-image-proxy?url="+encodeURIComponent("https://assets.tcgdex.net/en/sv/sv03.5/166/high.webp")
   assert.equal(isCardArtworkUrl(allowed),true)
-  for(const value of ["https://attacker.example/a","/api/card-image-proxy?url=https://evil.example/a","blob:wrong","data:image/svg+xml,x"]){
+  for(const value of ["https://attacker.example/a","/app/api/card-image-proxy?url=https://evil.example/a","blob:wrong","data:image/svg+xml,x"]){
     assert.equal(isCardArtworkUrl(value),false)
     const d=defaultBinderDesign();d.surfaces.cover.artwork=value
     assert.equal(normalizeBinderDesign(d).surfaces.cover.artwork,null)

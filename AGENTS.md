@@ -20,6 +20,10 @@ Stack:
 - **Supabase** (auth, Postgres, Realtime)
 - **Vercel** (hosting, Workflows, cron), with a **Cloudflare R2** card image mirror
 
+## Public URL boundary
+
+Framer serves `https://holofolder.com`; its Multi Site rules proxy `/app` and `/app/*` to the same paths on the Vercel origin `https://app.holofolder.com`. Next.js builds with `basePath: "/app"`. Route names below describe source routes; public URLs, raw fetches, images and service workers need the `/app` prefix. Next Link/router destinations remain unprefixed. Local entry is `http://localhost:3000/app`. See [`docs/app-routing.md`](docs/app-routing.md), including auth, legacy installs and paused push/branding branches.
+
 ## Architecture map
 
 | Path | What lives there |

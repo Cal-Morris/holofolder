@@ -61,7 +61,7 @@ function mockCard(dexId: number, name: string, setId: string, setName: string, l
   }
 }
 
-/** Printings served by the mocked TCG mirror (/api/tcgdex-cache and /api/tcg-card-search). */
+/** Printings served by the mocked TCG mirror (/app/api/tcgdex-cache and /app/api/tcg-card-search). */
 export const MOCK_CARDS: MockCard[] = [
   mockCard(1, "Bulbasaur", "base1", "Base Set", "44", 102, "1999-01-09", "Common", { normal: true, firstEdition: true }),
   mockCard(1, "Bulbasaur", "sv03.5", "151", "001", 165, "2023-09-22", "Common", { normal: true, reverse: true }),
@@ -105,7 +105,7 @@ for (const card of MOCK_CARDS) {
   if (MOCK_ILLUSTRATORS[card.id]) card.illustrator = MOCK_ILLUSTRATORS[card.id]
 }
 
-/** Directory and per-illustrator lists, shaped like /api/tcg-illustrators. */
+/** Directory and per-illustrator lists, shaped like /app/api/tcg-illustrators. */
 export function mockIllustratorResponse(url: string) {
   const name = new URL(url).searchParams.get("name")
   if (name === null) {
@@ -139,8 +139,8 @@ export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
  */
 export async function mockBackends(target: Page | BrowserContext, context: BrowserContext, { signedIn, baseURL }: { signedIn: boolean; baseURL?: string }) {
   await target.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort())
-  await target.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
-  await target.route("**/api/card-prices**", async (route) => {
+  await target.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
+  await target.route("**/app/api/card-prices**", async (route) => {
     const body = route.request().postDataJSON?.() ?? {}
     const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : []
     const now = Date.now()
@@ -177,18 +177,18 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
       },
     })
   })
-  await target.route("**/api/tcgdex-cache**", (route) => {
+  await target.route("**/app/api/tcgdex-cache**", (route) => {
     const pokemonId = Number(new URL(route.request().url()).searchParams.get("pokemonId"))
     const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map(({ dexIds: _dexIds, ...card }) => card)
     return route.fulfill({ json: { cards, source: "mirror" } })
   })
-  await target.route("**/api/tcg-card-search**", (route) => {
+  await target.route("**/app/api/tcg-card-search**", (route) => {
     const query = (new URL(route.request().url()).searchParams.get("q") ?? "").toLowerCase().trim()
     const [first, second] = query.split(/\s+/)
     const cards = MOCK_CARDS.filter((card) => {
       const haystack = `${card.name} ${card.set.name} ${card.set.id} ${card.id} ${card.illustrator ?? ""}`.toLowerCase()
       if (!haystack.includes(first)) return false
-      return !second || card.localId.replace(/^0+/, "") === second.replace(/^#/, "").split("/")[0].replace(/^0+/, "")
+      return !second || card.localId.replace(/^0+/, "") === second.replace(/^#/, "").split("/app")[0].replace(/^0+/, "")
     })
     return route.fulfill({ json: { cards } })
   })
@@ -199,13 +199,13 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     const label = card ? `${card.name} ${card.localId}` : (url.match(/(\d+)\.png$/)?.[1] ? `#${url.match(/(\d+)\.png$/)![1]}` : "card")
     return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, card ? MOCK_CARDS.indexOf(card) : label.length) })
   })
-  await target.route("**/api/card-image-proxy**", (route) => {
+  await target.route("**/app/api/card-image-proxy**", (route) => {
     const source = new URL(route.request().url()).searchParams.get("url") ?? ""
     const label = source.match(/(\d+)\.png$/)?.[1] ? `#${source.match(/(\d+)\.png$/)![1]}` : "card"
     return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, label.length) })
   })
-  await target.route("**/api/tcg-illustrators**", (route) => route.fulfill({ json: mockIllustratorResponse(route.request().url()) }))
-  await target.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: { sets: [], selectedSet: null, slots: [] } }))
+  await target.route("**/app/api/tcg-illustrators**", (route) => route.fulfill({ json: mockIllustratorResponse(route.request().url()) }))
+  await target.route("**/app/api/tcg-set-slots**", (route) => route.fulfill({ json: { sets: [], selectedSet: null, slots: [] } }))
 
   if (signedIn) {
     const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`
@@ -257,7 +257,7 @@ export class Harness {
   constructor(readonly page: Page, readonly insets: typeof SAFE_AREA, readonly signedIn = false) {}
 
   get path() {
-    return this.signedIn ? "/e2e-harness?signedIn=1" : "/e2e-harness"
+    return this.signedIn ? "/app/e2e-harness?signedIn=1" : "/app/e2e-harness"
   }
 
   get viewport() {

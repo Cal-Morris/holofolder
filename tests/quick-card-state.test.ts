@@ -6,7 +6,7 @@ import type { SearchCardResult } from "../lib/pokemon-card-browse"
 
 const card: SearchCardResult = { id: "sv-1", dexIds: [1], aliasIds: ["alias-1"], name: "Bulbasaur", localId: "1", language: "en", set: { id: "sv", name: "Synthetic set" } }
 const row: CollectedPokemon = { id: "row", pokemon_id: 1, pokemon_name: "bulbasaur", card_id: "alias-1", card_name: "Old Bulbasaur", card_language: "en", card_finish: "holo", status: "collected", wanted_cards: [], collected_at: "2026-01-01" }
-const lookup = { binders: [{ id: "a", name: "Main" }, { id: "b", name: "Trades" }], collections: new Map([["a", []], ["b", [row]]]), missingBinderIds: [] }
+const lookup = { binders: [{ id: "a", name: "Main" }, { id: "b", name: "Trades" }], collections: new Map([["a", []], ["b", [row]]]), loadedBinderIds: ["a", "b"] }
 
 describe("deal checker acquisition state", () => {
   test("matches aliases but keeps language and finish distinct", () => {
@@ -29,7 +29,7 @@ describe("deal checker acquisition state", () => {
   })
   test("an absent or partial lookup never claims a complete duplicate check", () => {
     assert.equal(getQuickCardState(card, null, "normal").otherBindersIncomplete, true)
-    assert.equal(getQuickCardState(card, null, "normal", { ...lookup, missingBinderIds: ["b"] }, "a").otherBindersIncomplete, true)
+    assert.equal(getQuickCardState(card, null, "normal", { ...lookup, loadedBinderIds: ["a"] }, "a").otherBindersIncomplete, true)
     assert.equal(getQuickCardState(card, null, "normal", lookup, "a").otherBindersIncomplete, false)
   })
 })

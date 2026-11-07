@@ -1,3 +1,4 @@
+import { appRedirectUrl } from "@/lib/auth-redirects"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -13,7 +14,7 @@ export function appearanceJson(body: unknown, status = 200) {
 }
 export function requireAppearanceOrigin(request: Request) {
   const origin = request.headers.get("origin")
-  if (request.headers.get("sec-fetch-site") === "cross-site" || (origin && origin !== new URL(request.url).origin)) throw new AppearanceError("Request origin is not allowed", 403)
+  if (request.headers.get("sec-fetch-site") === "cross-site" || (origin && origin !== new URL(request.url).origin && origin !== appRedirectUrl(null, request.url).origin)) throw new AppearanceError("Request origin is not allowed", 403)
 }
 export function appearanceError(error: unknown) {
   if (error instanceof AppearanceError) return appearanceJson({ error: error.message, code: error.code }, error.status)

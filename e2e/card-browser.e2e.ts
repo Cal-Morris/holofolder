@@ -47,7 +47,7 @@ test.describe("all cards for a Pokémon", () => {
     await expect(harness.page.getByRole("dialog", { name: /bulbasaur details/i })).toBeVisible()
     await harness.page.goBack()
     await expect(harness.dialogs()).toHaveCount(0)
-    await expect(harness.page).toHaveURL(/\/e2e-harness/)
+    await expect(harness.page).toHaveURL(/\/app\/e2e-harness/)
   })
 
   test("filters owned and wanted printings and toggles a wanted printing", async ({ harness }) => {
@@ -153,7 +153,7 @@ test.describe("card hit prices in search (UK)", () => {
   test("each card hit shows its price in the user's currency without overflowing", async ({ harness }) => {
     // Default harness fixture (TEST FIXTURE ONLY): the UK price is the Cardmarket quote, £0.05.
     const prices: string[] = []
-    harness.page.on("request", (request) => { if (request.url().includes("/api/card-prices")) prices.push(request.url()) })
+    harness.page.on("request", (request) => { if (request.url().includes("/app/api/card-prices")) prices.push(request.url()) })
     await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
     const dialog = harness.page.getByRole("dialog", { name: /search pokemon/i })
     await dialog.getByRole("textbox").fill("charm")

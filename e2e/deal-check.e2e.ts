@@ -245,7 +245,7 @@ test.describe("deal checker", () => {
     await openQuickInShowMode(harness)
     const check = await checkCard(harness, "charizard", /^Charizard ex, 151 /)
     await expect(check.getByTestId("quick-card-market-price")).toHaveText("£10.00")
-    await page.route("**/api/card-prices**", (route) => route.abort("internetdisconnected"))
+    await page.route("**/app/api/card-prices**", (route) => route.abort("internetdisconnected"))
     await page.context().setOffline(true)
     await expect(check.getByTestId("quick-card-cache-age")).toContainText("Offline · saved price from")
     await typePrice(check, "12")
@@ -261,7 +261,7 @@ test.describe("manual bundle price checks", () => {
     let calls = 0
     let release: (() => void) | undefined
     const gate = new Promise<void>(resolve => { release = resolve })
-    await harness.page.route("**/api/card-price-checks?**", async route => {
+    await harness.page.route("**/app/api/card-price-checks?**", async route => {
       calls++
       const query = new URL(route.request().url()).searchParams
       expect(route.request().method()).toBe("POST")

@@ -107,7 +107,7 @@ async function expectClosed(harness: Harness, dialog: Locator, returnsTo?: RegEx
     await expect(harness.dialogs()).toHaveCount(0)
     await harness.expectScrollUnlocked()
   }
-  await expect(harness.page).toHaveURL(/\/e2e-harness/)
+  await expect(harness.page).toHaveURL(/\/app\/e2e-harness/)
 }
 
 for (const overlay of overlays) {

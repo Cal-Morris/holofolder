@@ -27,7 +27,7 @@ export default function ShowOfflinePrep({ items, isOnline, binder }: { items: re
     setSearching(true)
     setError(null)
     try {
-      const response = await fetch(`/api/tcg-set-slots?${new URLSearchParams({ query: query.trim() })}`)
+      const response = await fetch(`/app/api/tcg-set-slots?${new URLSearchParams({ query: query.trim() })}`)
       if (!response.ok) throw new Error("Couldn't search sets. Try again when connected.")
       const payload = await response.json()
       const sets = Array.isArray(payload.sets) ? payload.sets.filter((set: TCGSetSummary) => set && typeof set.id === "string" && typeof set.name === "string") : []

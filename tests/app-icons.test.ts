@@ -6,7 +6,7 @@ import manifest from "../app/manifest"
 test("install icons are reachable square PNG files with opaque backgrounds", async () => {
   for (const icon of manifest().icons ?? []) {
     assert.equal(icon.type, "image/png")
-    const metadata = await sharp(new URL(`../public${icon.src}`, import.meta.url).pathname).metadata()
+    const metadata = await sharp(new URL(`../public${icon.src.replace(/^\/app/, "")}`, import.meta.url).pathname).metadata()
     assert.equal(`${metadata.width}x${metadata.height}`, icon.sizes)
     assert.equal(metadata.hasAlpha, false, "Home Screen icons need an opaque background")
   }

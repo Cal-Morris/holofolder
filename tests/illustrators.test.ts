@@ -164,8 +164,8 @@ describe("illustrator offline storage", () => {
   })
 
   test("cached illustrator responses feed offline card search (Pokémon cards only)", () => {
-    const cards = extractCardsFromCachedResponse("/api/tcg-illustrators?name=Mitsuhiro%20Arita&language=en", { illustrator: "Mitsuhiro Arita", cards: CARDS })
+    const cards = extractCardsFromCachedResponse("/app/api/tcg-illustrators?name=Mitsuhiro%20Arita&language=en", { illustrator: "Mitsuhiro Arita", cards: CARDS })
     assert.deepEqual(cards.map((entry) => entry.id).sort(), ["30th-c-001", "base1-44", "promo-1", "sv03.5-166"])
-    assert.deepEqual(extractCardsFromCachedResponse("/api/tcg-illustrators", { illustrators: DIRECTORY }), [])
+    assert.deepEqual(extractCardsFromCachedResponse("/app/api/tcg-illustrators", { illustrators: DIRECTORY }), [])
   })
 })

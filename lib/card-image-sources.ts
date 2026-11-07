@@ -5,7 +5,7 @@ import { pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
  * Fallback card image sources (used when TCGdex has no image for a card).
  *
  * Every image from these hosts is copied into the card image store (R2 or Blob) under a deterministic key and served
- * from there by `/api/card-image-proxy`; the origin is only contacted when the copy is missing. Copies are stored as
+ * from there by `/app/api/card-image-proxy`; the origin is only contacted when the copy is missing. Copies are stored as
  * WebP (see `lib/card-image-transform.ts`), so each source image costs one small object.
  */
 export const CARD_IMAGE_SOURCE_PREFIX = "cards/src"

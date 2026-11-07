@@ -5,7 +5,7 @@ import { PUBLIC_JSON_CACHE_HEADERS } from "@/lib/http-cache"
 
 export const instant = false
 
-/** GET /api/tcg-card-search?q=bulbasaur%2044 → { cards: SearchCardResult[] } */
+/** GET /app/api/tcg-card-search?q=bulbasaur%2044 → { cards: SearchCardResult[] } */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = (searchParams.get("q") ?? "").slice(0, 80)

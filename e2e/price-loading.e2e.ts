@@ -19,7 +19,7 @@ test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
 
 test("a failed stale batch keeps the successful missing-card batch", async ({ page, insets }) => {
   await page.evaluate(snapshot => localStorage.setItem("binderdex_card_price_cache_v7", JSON.stringify({ "base1-46::en": snapshot })), quote("base1-46", 9, Date.now() - 3 * 60 * 60 * 1000))
-  await page.route("**/api/card-prices**", route => route.request().postDataJSON().force
+  await page.route("**/app/api/card-prices**", route => route.request().postDataJSON().force
     ? route.fulfill({ status: 503, json: { error: "Synthetic batch failure" } })
     : route.fallback())
   const harness = new Harness(page, insets, true)
@@ -32,7 +32,7 @@ test("a failed stale batch keeps the successful missing-card batch", async ({ pa
 test("an offline price lookup retries when the connection returns", async ({ page, insets }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false }))
   let requests = 0
-  await page.route("**/api/card-prices**", route => { requests++; return route.fallback() })
+  await page.route("**/app/api/card-prices**", route => { requests++; return route.fallback() })
   const harness = new Harness(page, insets, true)
   await harness.open()
   const detail = await harness.openCardDetail()
@@ -63,7 +63,7 @@ for (const legacy of [false, true]) {
       quote("base1-46", 9),
     ])
     let requests = 0
-    await page.route("**/api/card-prices**", route => { requests++; return route.fallback() })
+    await page.route("**/app/api/card-prices**", route => { requests++; return route.fallback() })
     const harness = new Harness(page, insets, true)
     await harness.open()
     const detail = await harness.openCardDetail()

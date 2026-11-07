@@ -14,7 +14,7 @@ export interface BinderRef { id: string; name: string }
 export interface AllBindersLookup {
   binders: BinderRef[]
   collections: Map<string, CollectedPokemon[]>
-  missingBinderIds?: string[]
+  loadedBinderIds?: string[]
 }
 
 /** IndexedDB record holding the cached lookup (owner-scoped; read offline). */
@@ -53,7 +53,7 @@ export function buildAllBindersLookup(input: {
     collections.set(binder.id, binder.id === input.currentBinderId ? [...input.currentCollection] : [...(input.others?.[binder.id] ?? [])])
   }
   return { binders: input.binders.map(({ id, name }) => ({ id, name })), collections,
-    missingBinderIds: input.binders.filter(binder => binder.id !== input.currentBinderId && !Object.hasOwn(input.others ?? {}, binder.id)).map(binder => binder.id) }
+    loadedBinderIds: input.binders.filter(binder => binder.id === input.currentBinderId || Object.hasOwn(input.others ?? {}, binder.id)).map(binder => binder.id) }
 }
 
 const isOwned = (item: CollectedPokemon) => item.status !== "wishlisted"
@@ -131,9 +131,10 @@ const SCOPE_KEY_PREFIX = "binderdex:binder-scope:"
 /** The This binder / All binders choice, remembered per view on this device. */
 export function readBinderScope(view: "analytics" | "wanted"): BinderScope {
   try {
-    return typeof window !== "undefined" && window.localStorage.getItem(SCOPE_KEY_PREFIX + view) === "all" ? "all" : "binder"
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem(SCOPE_KEY_PREFIX + view) : null
+    return saved === "all" || (saved === null && view === "wanted") ? "all" : "binder"
   } catch {
-    return "binder"
+    return view === "wanted" ? "all" : "binder"
   }
 }
 

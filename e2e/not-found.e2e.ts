@@ -6,5 +6,5 @@ test("unknown URLs show the Holo Folder not-found page with a 404 status", async
   const response = await page.goto("/this-page-does-not-exist")
   expect(response?.status()).toBe(404)
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/home")
+  await expect(page.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/app/home")
 })

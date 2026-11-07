@@ -24,6 +24,6 @@ export function getQuickCardState(card: SearchCardResult, item: CollectedPokemon
     ownedElsewhere: lookup?.binders.filter(binder => binder.id !== currentBinderId
       && lookup.collections.get(binder.id)?.some(entry => hasOwnedPrinting(entry) && matches(entry))).map(binder => binder.name) ?? [],
     replacing: item && hasOwnedPrinting(item) && !owned ? item.card_name || item.card_id! : null,
-    otherBindersIncomplete: !lookup || Boolean(lookup.missingBinderIds?.length),
+    otherBindersIncomplete: !lookup || lookup.binders.some(binder => !lookup.loadedBinderIds?.includes(binder.id)),
   }
 }

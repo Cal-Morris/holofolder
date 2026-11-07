@@ -124,7 +124,7 @@ export async function loadLastKnownPrices(store: OfflineKeyValueStore): Promise<
   return value && value.prices && typeof value.prices === "object" ? value.prices : {}
 }
 
-/** Set-coverage lookups the user made (`/api/tcg-set-slots` responses), keyed by their query string. */
+/** Set-coverage lookups the user made (`/app/api/tcg-set-slots` responses), keyed by their query string. */
 interface StoredSetQuery {
   savedAt: string
   payload: TCGSetSlotsResponse

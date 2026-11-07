@@ -5,7 +5,7 @@ test.use({ signedIn: true })
 for (const theme of ["light", "dark"]) {
   test(`compact header and discoverable navigation, ${theme}`, async ({ harness }, info) => {
     const page = harness.page
-    await page.goto("/e2e-harness?signedIn=1&binders=1")
+    await page.goto("/app/e2e-harness?signedIn=1&binders=1")
     await page.getByRole("button", { name: "More", exact: true }).click()
     const themeAction = page.getByRole("menuitem", { name: theme === "light" ? "Light mode" : "Dark mode" })
     if (await themeAction.isVisible()) await themeAction.click()
@@ -86,7 +86,7 @@ for (const width of [1280, 1440]) for (const colorScheme of ["light", "dark"] as
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme, serviceWorkers: "block" })
     const page = await context.newPage()
     await mockBackends(page, context, { signedIn: true, baseURL })
-    await page.goto(`${baseURL}/e2e-harness?signedIn=1&binders=1`)
+    await page.goto(`${baseURL}/app/e2e-harness?signedIn=1&binders=1`)
     await page.getByRole("button", { name: "More", exact: true }).click()
     const themeAction = page.getByRole("menuitem", { name: colorScheme === "light" ? "Light mode" : "Dark mode" })
     if (await themeAction.isVisible()) await themeAction.click()

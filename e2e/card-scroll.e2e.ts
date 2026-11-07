@@ -7,7 +7,7 @@ for (const picker of [false, true]) {
     const { page } = harness
     // Synthetic printings make the card grid scroll at every phone size.
     const cards = Array.from({ length: 80 }, (_, index) => ({ ...MOCK_CARDS[0], id: `scroll-${index}`, localId: String(index) }))
-    await page.route("**/api/tcgdex-cache**", route => route.fulfill({ json: { cards } }))
+    await page.route("**/app/api/tcgdex-cache**", route => route.fulfill({ json: { cards } }))
     const detail = await harness.openCardDetail()
     await detail.getByRole("button", { name: picker ? /edit card|add card/i : /all bulbasaur cards/i }).first().click()
     const dialog = page.getByRole("dialog", { name: picker ? "Card selector" : "All Bulbasaur cards", exact: true })

@@ -12,10 +12,10 @@ test.describe("Dashboard binder appearance", () => {
     design.name = "Cal's archive"
     design.pageColor = "#aa2244"
     design.surfaces.cover.words = "My collection"
-    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
     // Synthetic printing artwork supplied by the existing image-proxy fixture.
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: SEEDED_COLLECTION.map(item => ({ ...item, card_image: `https://assets.tcgdex.net/en/base/base1/${item.pokemon_id === 1 ? "44" : "46"}/high.webp` })) }))
-    await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
+    await page.goto("/app/e2e-harness?signedIn=1&cardArtwork=1")
     await harness.openViewOptions()
     const display = page.getByRole("group", { name: "Binder display" })
     await expect(display.getByRole("button", { name: "2D", exact: true })).toHaveAttribute("aria-pressed", "true")
@@ -26,7 +26,7 @@ test.describe("Dashboard binder appearance", () => {
     await expect(preview).toHaveAttribute("data-binder-name", "Cal's archive")
     await expect(preview.getByText("National Dex / 2 cards placed", { exact: true })).toBeVisible()
     await expect(preview.getByRole("list", { name: "Cards on this spread" }).getByRole("listitem")).toHaveText(["Bulbasaur, slot 1", "Charmander, slot 4"])
-    await expect(preview.getByRole("link", { name: "Customize in Studio" })).toHaveAttribute("href", "/studio")
+    await expect(preview.getByRole("link", { name: "Customize in Studio" })).toHaveAttribute("href", "/app/studio")
     await expect(preview.getByTestId("binder-3d-stage")).toHaveAttribute("data-right-cards", "2")
     const next = preview.getByRole("button", { name: "Next 3D binder spread" })
     await harness.expectMinTapTarget(next)
@@ -53,8 +53,8 @@ test.describe("Dashboard binder appearance", () => {
     const { page } = harness
     // Synthetic Studio layout differs from the active binder's 4x4 grid.
     const design = { ...defaultBinderDesign(), rows: 3, cols: 3, pageCount: 200 }
-    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
-    await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
+    await page.goto("/app/e2e-harness?signedIn=1&cardArtwork=1")
     const pageNumber = page.getByRole("spinbutton", { name: "Binder page number", exact: true }).filter({ visible: true })
     await pageNumber.fill("3")
     await pageNumber.press("Enter")
@@ -135,7 +135,7 @@ test.describe("Dashboard binder appearance", () => {
 
   test("3D failure keeps collection editing accessible in 2D", async ({ harness }) => {
     const { page } = harness
-    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
     await page.addInitScript(() => {
       const original = HTMLCanvasElement.prototype.getContext
       Object.defineProperty(HTMLCanvasElement.prototype, "getContext", { configurable: true, value: function(this: HTMLCanvasElement, context: string, ...args: unknown[]) {
@@ -160,7 +160,7 @@ test.describe("Dashboard binder appearance", () => {
     const original = { ...defaultBinderDesign(), name: "Previous account archive" }
     const shared = { ...defaultBinderDesign(), name: "New partner archive" }
     const requestedOwners: string[] = []
-    await page.route("**/api/binder-appearance", route => {
+    await page.route("**/app/api/binder-appearance", route => {
       const owner = route.request().headers()["x-binder-owner"]
       requestedOwners.push(owner)
       return route.fulfill({ json: { ownerId: owner, design: owner === partnerOwner ? shared : original, revision: 1 } })
@@ -205,7 +205,7 @@ test.describe("Dashboard binder appearance", () => {
     const { page } = harness
     const partner = { ...E2E_USER, id: "00000000-0000-4000-8000-0000000000b3", email: "partner2@holofolder.test" }
     const partnerOwner = "00000000-0000-4000-8000-0000000000c3"
-    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: route.request().headers()["x-binder-owner"], design: defaultBinderDesign(), revision: 1 } }))
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: route.request().headers()["x-binder-owner"], design: defaultBinderDesign(), revision: 1 } }))
     await page.reload()
     await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()

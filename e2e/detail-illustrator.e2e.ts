@@ -9,7 +9,7 @@ const SCREENS = process.env.E2E_SCREENSHOT_DIR
 async function holdBulbasaurCards(harness: Harness) {
   const held: Route[] = []
   let released = false
-  await harness.page.route("**/api/tcgdex-cache**", (route) => {
+  await harness.page.route("**/app/api/tcgdex-cache**", (route) => {
     if (new URL(route.request().url()).searchParams.get("pokemonId") !== "1" || released) return route.fallback()
     held.push(route)
   })
@@ -78,7 +78,7 @@ test.describe("illustrator on the card detail", () => {
   })
 
   test("a card without a credit keeps the same row, marked not listed", async ({ harness }) => {
-    await harness.page.route("**/api/tcgdex-cache**", (route) => {
+    await harness.page.route("**/app/api/tcgdex-cache**", (route) => {
       if (new URL(route.request().url()).searchParams.get("pokemonId") !== "1") return route.fallback()
       const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(1)).map(({ dexIds: _dexIds, illustrator: _illustrator, ...card }) => card)
       return route.fulfill({ json: { cards, source: "mirror" } })

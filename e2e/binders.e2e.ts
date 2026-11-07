@@ -14,7 +14,7 @@ async function snap(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path: `${dir}/binders-${name}.png` })
 }
 
-/** In-memory /api/binders plus per-binder collection reads and writes. */
+/** In-memory /app/api/binders plus per-binder collection reads and writes. */
 class FakeBinders {
   binders: FakeBinder[] = [
     { id: MY_BINDER, name: "My binder", sortOrder: 0, isDefault: true, slotCount: 2 },
@@ -35,14 +35,14 @@ class FakeBinders {
       const rows = binder === `eq.${TRADES}` ? SEEDED_COLLECTION.filter((row) => row.pokemon_id === 4) : SEEDED_COLLECTION
       return route.fulfill({ json: rows })
     })
-    await page.route("**/api/collection**", async (route) => {
+    await page.route("**/app/api/collection**", async (route) => {
       const request = route.request()
       const body = request.method() === "POST" ? request.postDataJSON() : null
       if (body) this.collectionWrites.push({ pokemonId: body.pokemonId, binderId: body.binderId })
       const base = SEEDED_COLLECTION.find((row) => row.pokemon_id === body?.pokemonId) ?? SEEDED_COLLECTION[0]
       return route.fulfill({ json: { item: { ...base, card_finish: body?.cardFinish ?? base.card_finish } } })
     })
-    await page.route("**/api/binders**", (route) => this.handle(route, ownerUserId))
+    await page.route("**/app/api/binders**", (route) => this.handle(route, ownerUserId))
   }
 
   private handle(route: Route, ownerUserId: string) {
@@ -77,7 +77,7 @@ class FakeBinders {
 }
 
 async function openWithBinders(harness: Harness, query = "") {
-  await harness.page.goto(`/e2e-harness?signedIn=1&binders=1${query}`)
+  await harness.page.goto(`/app/e2e-harness?signedIn=1&binders=1${query}`)
   await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
 }
 

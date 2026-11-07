@@ -13,6 +13,15 @@ export interface WantedDashboardEntry {
   /** Set in the All binders want list: the binder this printing is wanted in. */
   binderId?: string
   binderName?: string
+  locations?: WantedLocation[]
+}
+
+export interface WantedLocation {
+  binderId: string
+  binderName: string
+  pokemonId: number
+  pokemonName: string
+  card: WantedCard
 }
 
 export interface WantedDashboardCard extends WantedDashboardEntry {

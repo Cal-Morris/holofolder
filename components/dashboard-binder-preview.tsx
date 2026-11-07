@@ -1,5 +1,7 @@
 "use client"
 
+import { toCardImageSrc } from "@/lib/card-image-url"
+
 import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
@@ -19,7 +21,7 @@ export default function DashboardBinderPreview({ appearance: design, artwork, lo
   const cards = useMemo(() => collection.flatMap(item => {
     const card = getBinderDisplayCard(item, cardDisplay)
     if (!card?.card_id) return []
-    const image = card.card_image?.startsWith("/api/card-image-proxy?") ? card.card_image : `/api/card-image-proxy?url=${encodeURIComponent(card.card_image || "")}`
+    const image = toCardImageSrc(card.card_image) ?? ""
     return [{ id: card.card_id, name: card.card_name || item.pokemon_name, image: isCardArtworkUrl(image) ? image : "", slot: item.pokemon_id - 1 }]
   }), [collection, cardDisplay])
   const stats = useMemo(() => ({ placed: occupied.length, wanted: collection.reduce((count, item) => count + (item.wanted_cards?.length || 0) + (item.status === "wishlisted" && !item.wanted_cards?.length ? 1 : 0), 0), capacity: design.pageCount * design.rows * design.cols, sample: false, filled: binderFill(occupied.map(item => item.pokemon_id - 1), design.pageCount * design.rows * design.cols) }), [occupied, collection, design])

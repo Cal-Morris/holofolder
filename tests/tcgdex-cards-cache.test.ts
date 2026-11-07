@@ -21,7 +21,7 @@ test("concurrent requests for the same Pokémon share one fetch", async () => {
   try {
     const [first, second] = await Promise.all([loadCardsForPokemon(1, "en"), loadCardsForPokemon(1, "en")])
     assert.equal(fetchMock.calls.length, 1)
-    assert.equal(fetchMock.calls[0], "/api/tcgdex-cache?pokemonId=1&language=en")
+    assert.equal(fetchMock.calls[0], "/app/api/tcgdex-cache?pokemonId=1&language=en")
     assert.equal(first[0].language, "en")
     assert.deepEqual(first, second)
   } finally {

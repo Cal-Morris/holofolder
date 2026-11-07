@@ -7,7 +7,7 @@ import { expect, SEEDED_COLLECTION, SUPABASE_URL } from "./fixtures"
 type Row = Record<string, unknown> & { pokemon_id: number }
 
 /**
- * In-memory stand-in for pokemon_collection behind /api/collection, with the same contract as the real route:
+ * In-memory stand-in for pokemon_collection behind /app/api/collection, with the same contract as the real route:
  * upsert on (user, pokemon_id), delete by key, and compare-and-set via baseFingerprint (409 + current row).
  */
 export class FakeCollectionServer {
@@ -25,7 +25,7 @@ export class FakeCollectionServer {
   }
 
   async install(page: Page) {
-    await page.route("**/api/collection**", (route) => this.handle(route))
+    await page.route("**/app/api/collection**", (route) => this.handle(route))
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
       route.request().method() === "GET"
         ? route.fulfill({ json: [...this.rows.values()].sort((a, b) => a.pokemon_id - b.pokemon_id) })

@@ -29,7 +29,7 @@ export function binderPrintings(items: readonly CollectedPokemon[]): BinderPrint
       const printing: BinderPrinting = { cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish ?? "normal", images: [] }
       const key = printingKey(printing)
       const images = [toCardImageSrc(card.card_image), getProxiedThumbnailUrl(card.card_image)]
-        .filter((url): url is string => Boolean(url?.startsWith("/api/card-image-proxy?")))
+        .filter((url): url is string => Boolean(url?.startsWith("/app/api/card-image-proxy?")))
       printing.images = [...new Set([...(cards.get(key)?.images ?? []), ...images])]
       cards.set(key, printing)
     }
@@ -139,7 +139,7 @@ export async function downloadBinderPrep(cards: BinderPrinting[], scope: BinderP
   // A new preparation must pick up evidence saved on the server since the previous show.
   const batches = Array.from({ length: Math.ceil(lookups.length / 25) }, (_, index) => lookups.slice(index * 25, index * 25 + 25))
   await run("prices", batches, async batch => {
-    const response = await request(`/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`)
+    const response = await request(`/app/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`)
     if (!response.ok) throw new Error("Saved prices unavailable")
     const data = await response.json()
     if (!Array.isArray(data.prices)) throw new Error("Invalid saved prices")
@@ -152,7 +152,7 @@ export async function downloadBinderPrep(cards: BinderPrinting[], scope: BinderP
   const checks = [...new Map(cards.filter(supportsSavedChecks).map(card => [`${card.cardId}:${priceCheckFinish(card.finish)}`, card])).values()]
   await run("asking and sold", checks, async card => {
     const params = new URLSearchParams({ cardId: card.cardId, language: card.language, finish: priceCheckFinish(card.finish) })
-    const response = await request(`/api/card-price-checks?${params}`)
+    const response = await request(`/app/api/card-price-checks?${params}`)
     if (!response.ok) throw new Error("Saved checks unavailable")
     const data = await response.json()
     for (const source of PRICE_CHECK_SOURCES) {

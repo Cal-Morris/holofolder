@@ -15,12 +15,12 @@ test.describe("reviewed catalog aliases across sets", () => {
     const wanted = { card_id: alias.id, card_name: "Bulbasaur", card_language: "en", card_finish: "holo", added_at: "2026-01-01" }
     let rows: Array<Record<string, unknown>> = SEEDED_COLLECTION.map(row => row.pokemon_id === 1 ? { ...row, card_id: alias.id, wanted_cards: [wanted] } : row)
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: rows }))
-    await page.route("**/api/collection**", async route => {
+    await page.route("**/app/api/collection**", async route => {
       const body = route.request().postDataJSON()
       rows = rows.map(row => row.pokemon_id === body.pokemonId ? { ...row, card_id: body.cardId, wanted_cards: body.wantedCards, status: body.status } : row)
       await route.fulfill({ json: { item: rows.find(row => row.pokemon_id === body.pokemonId) } })
     })
-    await page.route("**/api/tcg-set-slots**", route => {
+    await page.route("**/app/api/tcg-set-slots**", route => {
       const index = sets.findIndex(set => set.id === new URL(route.request().url()).searchParams.get("setId"))
       const cards = index === 0 ? [base, stamp] : [alias, reprint]
       return route.fulfill({ json: { sets, selectedSet: sets[index] ?? null, cards: index < 0 ? [] : cards, slots: index < 0 ? [] : [{ dexId: 1, pokemonName: "bulbasaur", cards }] } })
@@ -50,7 +50,7 @@ test.describe("reviewed catalog aliases across sets", () => {
     await expect(checklist.getByText("Owned", { exact: true })).toHaveCount(1)
     await expect(checklist.getByText("Wanted", { exact: true })).toHaveCount(2)
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-    await page.route("**/api/tcg-set-slots**", route => route.abort("internetdisconnected"))
+    await page.route("**/app/api/tcg-set-slots**", route => route.abort("internetdisconnected"))
     await page.context().setOffline(true)
     await openSets()
     await cardsTab.click()

@@ -5,7 +5,7 @@ test.describe("analytics dashboard", () => {
   test.use({ signedIn: true })
   test("current binder value resets a remembered all-binders Analytics scope", async ({ harness }) => {
     const page = harness.page
-    await page.goto("/e2e-harness?signedIn=1&binders=1")
+    await page.goto("/app/e2e-harness?signedIn=1&binders=1")
     await page.getByRole("button", { name: "More", exact: true }).click()
     await page.getByRole("menuitem", { name: "Analytics", exact: true }).click()
     const scope = page.getByRole("group", { name: "Binders shown", exact: true })
@@ -20,7 +20,7 @@ test.describe("analytics dashboard", () => {
     // Synthetic £11 sales agree with the synthetic £10 catalogue estimate.
     await mockCardPrices(page, { "base1-44": { market: 10, confidence: "high", finishes: [{ finish: "normal", market: 10 }] } })
     let calls = 0
-    await page.route("**/api/card-price-checks?**", route => {
+    await page.route("**/app/api/card-price-checks?**", route => {
       calls++
       const params = new URL(route.request().url()).searchParams
       const source = params.get("source")!
@@ -45,7 +45,7 @@ test.describe("analytics dashboard", () => {
   test("binder value leads to a readable Cardmarket valuation without paid checks", async ({ harness }) => {
     const page = harness.page
     let checks = 0
-    await page.route("**/api/card-price-checks**", route => { checks++; return route.fulfill({ json: { ebay: null, soldcomps: null, errors: {} } }) })
+    await page.route("**/app/api/card-price-checks**", route => { checks++; return route.fulfill({ json: { ebay: null, soldcomps: null, errors: {} } }) })
     // Synthetic Cardmarket prices, no live provider calls.
     await mockCardPrices(page, { "base1-44": { market: 12, confidence: "high", finishes: [{ finish: "normal", market: 12 }] } })
     await page.reload()
@@ -77,7 +77,7 @@ test.describe("analytics dashboard", () => {
       const page = harness.page
       // Synthetic exact-finish prices, never real provider requests.
       await mockCardPrices(page, { "base1-44": { market: 12, confidence: "high", finishes: [{ finish: "normal", market: 12 }] } })
-      await page.route("**/api/collection-analytics?**", route => route.fulfill({ json: { historyAvailable: true, activity: [], priceHistory: [], nextCursor: null } }))
+      await page.route("**/app/api/collection-analytics?**", route => route.fulfill({ json: { historyAvailable: true, activity: [], priceHistory: [], nextCursor: null } }))
       await clearCardPriceCache(page)
       await page.reload()
       await page.evaluate(theme => document.documentElement.classList.toggle("dark", theme === "dark"), theme)

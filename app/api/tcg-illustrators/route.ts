@@ -7,8 +7,8 @@ import { PUBLIC_JSON_CACHE_HEADERS } from "@/lib/http-cache"
 export const instant = false
 
 /**
- * GET /api/tcg-illustrators → { illustrators: [{ name, cardCount }] } (the whole directory, for search)
- * GET /api/tcg-illustrators?name=Mitsuhiro%20Arita&language=en → { illustrator, cards }
+ * GET /app/api/tcg-illustrators → { illustrators: [{ name, cardCount }] } (the whole directory, for search)
+ * GET /app/api/tcg-illustrators?name=Mitsuhiro%20Arita&language=en → { illustrator, cards }
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams

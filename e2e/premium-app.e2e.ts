@@ -5,7 +5,7 @@ test("binder settings retain page colours and expose the 3D studio", async ({ ha
   await harness.page.getByRole("menuitem", { name: "Settings" }).click()
   const settings = harness.page.getByRole("dialog", { name: /settings/i })
   const studio = settings.getByRole("link", { name: /customise binder/i })
-  await expect(studio).toHaveAttribute("href", "/studio")
+  await expect(studio).toHaveAttribute("href", "/app/studio")
   await harness.expectMinTapTarget(studio)
   await harness.expectWithinSafeViewport(studio)
   await settings.getByRole("button", { name: "Display", exact: true }).click()

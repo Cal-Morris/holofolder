@@ -11,11 +11,11 @@ export default function Page() {
       <ServiceWorkerRegistration />
       <div className="w-full max-w-sm">
         <Link
-          href="/"
+          href="https://holofolder.com"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Binder
+          Back to Holo Folder
         </Link>
 
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-xl">

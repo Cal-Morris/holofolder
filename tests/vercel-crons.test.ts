@@ -17,7 +17,7 @@ test("every cron runs at most once a day so Hobby deploys are not blocked", () =
 
 test("scheduled price refresh fires every three hours via one daily cron per slot", () => {
   const hours = config.crons
-    .filter(cron => cron.path === "/api/card-prices/refresh")
+    .filter(cron => cron.path === "/app/api/card-prices/refresh")
     .map(cron => Number(cron.schedule.split(" ")[1]))
     .sort((a, b) => a - b)
   assert.deepEqual(hours, [0, 3, 6, 9, 12, 15, 18, 21])

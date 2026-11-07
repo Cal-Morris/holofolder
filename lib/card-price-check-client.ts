@@ -12,7 +12,7 @@ export class PriceCheckRequestError extends Error {
 export async function requestCardPriceCheck(cardId: string, language: string, finish: CardFinish | undefined, source: PriceCheckSource, signal: AbortSignal) {
   const exactFinish = priceCheckFinish(finish)
   const params = new URLSearchParams({ cardId, language, finish: exactFinish, source })
-  const response = await fetch(`/api/card-price-checks?${params}`, { method: "POST", cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]) })
+  const response = await fetch(`/app/api/card-price-checks?${params}`, { method: "POST", cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]) })
   const data = await response.json().catch(() => null)
   if (!response.ok) throw new PriceCheckRequestError(typeof data?.error === "string" ? data.error : "Price check unavailable.", response.status)
   const check: unknown = data?.[source]

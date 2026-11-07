@@ -9,8 +9,8 @@ test("wanted batch counts all 65, confirms, reuses fresh checks and disables off
   await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: [{ ...SEEDED_COLLECTION[0], wanted_cards: [...wanted, wanted[0]] }] }))
   let calls = 0
   let marketRefreshes = 0
-  await page.route("**/api/card-prices/refresh**", route => { marketRefreshes++; return route.abort() })
-  await page.route("**/api/card-price-checks?**", route => {
+  await page.route("**/app/api/card-prices/refresh**", route => { marketRefreshes++; return route.abort() })
+  await page.route("**/app/api/card-price-checks?**", route => {
     calls++
     const source = new URL(route.request().url()).searchParams.get("source")!
     return route.fulfill({ json: { [source]: { summary: { kind: source === "ebay" ? "asking" : "sold", currency: "GBP", count: 1, low: 2, median: 2, high: 2 }, checkedAt: new Date().toISOString() }, errors: {} } })
@@ -49,7 +49,7 @@ test("owned batch stops in flight", async ({ harness }) => {
   let calls = 0
   let release: () => void = () => {}
   const waiting = new Promise<void>(resolve => { release = resolve })
-  await page.route("**/api/card-price-checks?**", async route => {
+  await page.route("**/app/api/card-price-checks?**", async route => {
     calls++
     await waiting
     await route.abort().catch(() => {})

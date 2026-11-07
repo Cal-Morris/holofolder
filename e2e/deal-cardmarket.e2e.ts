@@ -3,7 +3,7 @@ import { clearCardPriceCache } from "./price-fixtures"
 
 // Synthetic catalog evidence: deliberately different headline and exact-finish quotes.
 async function mockEvidence(harness: Harness, source = "cardmarket", withEvidence = true) {
-  await harness.page.route("**/api/card-prices**", async route => {
+  await harness.page.route("**/app/api/card-prices**", async route => {
     const updatedAt = new Date(Date.now() - 2 * 86400000).toISOString()
     const quote = {
       gbpAmount: 8, marketGbpAmount: 8, confidence: "high", source,
@@ -90,7 +90,7 @@ test.describe("Cardmarket catalog in the deal checker", () => {
 
   for (const currency of ["EUR", "USD"]) {
     test(`catalog GBP attribution stays explicit with ${currency} display`, async ({ harness }) => {
-      await harness.page.route("**/api/settings", route => route.fulfill({ json: { settings: { preferredCurrency: currency, pricingRegion: "UK" } } }))
+      await harness.page.route("**/app/api/settings", route => route.fulfill({ json: { settings: { preferredCurrency: currency, pricingRegion: "UK" } } }))
       await mockEvidence(harness)
       await harness.page.reload()
       const check = await openCheck(harness, false)

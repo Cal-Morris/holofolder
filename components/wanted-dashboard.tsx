@@ -1,3 +1,12 @@
+"use client"
+
+import { appPath } from "@/lib/app-path"
+
+import type { User } from "@supabase/supabase-js"
+import { usePartner } from "@/hooks/use-partner"
+import { wantedPeopleLabel } from "@/lib/wanted-people"
+import { runAfterOverlayHistory } from "@/hooks/use-overlay"
+import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { toCardImageSrc } from "@/lib/card-image-url"
@@ -42,6 +51,11 @@ type PriceFormat = {
 }
 
 export type WantedDashboardProps = {
+  user?: User | null
+  isOnline?: boolean
+  loadedBinderCount?: number
+  binderCount?: number
+  onAssignWanted?: (pokemonId: number, pokemonName: string, card: WantedCard, ids: string[]) => void
   wantedDashboard: WantedDashboardSummary
   /** Every binder's wanted cards (two or more binders only); enables the This binder / All binders toggle. */
   allBindersDashboard?: WantedDashboardSummary | null
@@ -50,7 +64,7 @@ export type WantedDashboardProps = {
   isLoadingPrices: boolean
   readOnlyMode: boolean
   wantedShareMessage: string | null
-  handleShareWantedList: () => void
+  handleShareWantedList: (scope?: "binder" | "all") => void
   handleGotWantedCard: (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => void
   handleClearWantedCard: (pokemonId: number, wantedCard: WantedCard) => void
   handlePokemonSelect: (pokemon: PokemonSummary) => void
@@ -121,6 +135,11 @@ function cardNumberLabel(card: WantedCard) {
 }
 
 export default function WantedDashboard({
+  user = null,
+  isOnline = true,
+  loadedBinderCount = 1,
+  binderCount = 1,
+  onAssignWanted,
   wantedDashboard: binderDashboard,
   allBindersDashboard = null,
   currentBinderId = null,
@@ -135,6 +154,13 @@ export default function WantedDashboard({
   jumpToWantedPokemonPage,
   onCheckAnyCardPrice,
 }: WantedDashboardProps) {
+  const { partner } = usePartner({ user })
+  const personLabel = (ids: string[] | undefined) => wantedPeopleLabel(ids, user?.id ?? null, partner?.id ?? null, partner?.email ?? "Partner")
+  const [pendingBinder, setPendingBinder] = useState<string | null>(null)
+  const openWantedBinder = (binderId: string) => {
+    rememberBinderScope("wanted", "binder")
+    setPendingBinder(binderId)
+  }
   const [scope, setScope] = useState<BinderScope>(() => readBinderScope("wanted"))
   const changeScope = (next: BinderScope) => {
     setScope(next)
@@ -146,6 +172,15 @@ export default function WantedDashboard({
   const [query, setQuery] = useState("")
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [actionsFor, setActionsFor] = useState<WantedDashboardEntry | null>(null)
+  useEffect(() => {
+    if (!pendingBinder || actionsFor) return
+    runAfterOverlayHistory(() => {
+      const url = new URL(appPath(binderHref(pendingBinder, window.location.href)), window.location.origin)
+      url.searchParams.set("view", "wanted")
+      rememberLastOpenedBinder(pendingBinder)
+      window.location.assign(url.href)
+    })
+  }, [actionsFor, pendingBinder])
   const { sort, setSort, filters, setFilters } = useRememberedWantedView()
   const sortedCards = useMemo(
     () => sortWantedDashboardEntries(applyWantedFilters(wantedDashboard.cards, filters), sort),
@@ -168,6 +203,13 @@ export default function WantedDashboard({
   const marketTotalLabel = priceFormat.amount(wantedDashboard.marketTotalGbp)
   const hasAnyPrice = wantedDashboard.pricedCount > 0
 
+  const incomplete = scope === "all" && loadedBinderCount < binderCount
+  const coverage = incomplete ? `${loadedBinderCount} of ${binderCount} binders loaded. ${isOnline ? "Other binders are still loading or unavailable." : "Offline, showing saved binders only."}` : null
+  const title = readOnlyMode ? "Wanted cards" : scope === "all" ? "Global Wanted" : "Wanted in this binder"
+  const activeActions = actionsFor ? wantedDashboard.cards.find(entry => entry.key === actionsFor.key) ?? actionsFor : null
+  const actionLocation = activeActions?.locations?.find(location => location.binderId === currentBinderId)
+  const editableAction = activeActions && (!isAllBinders || !activeActions.locations?.length) ? activeActions : actionLocation
+
   if (totalWantedCount === 0) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center rounded-[1.35rem] border border-border/65 bg-card/88 p-6 text-center dark:border-white/10 dark:bg-card/72">
@@ -175,7 +217,9 @@ export default function WantedDashboard({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300">
             <Heart className="h-5 w-5" />
           </div>
-          <p className="mt-3 text-sm font-semibold">{isAllBinders ? "No wanted cards in any binder" : "No wanted cards yet"}</p>
+          <h1 className="mt-3 text-xl font-semibold">{title}</h1>
+          <p className="mt-3 text-sm font-semibold">{incomplete ? "No wanted cards loaded yet" : isAllBinders ? "No wanted cards in any binder" : "No wanted cards yet"}</p>
+          {coverage && <p role="status" className="mt-2 text-sm text-muted-foreground">{coverage}</p>}
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose Want card on a binder slot to start your list.</p>
           {!readOnlyMode && onCheckAnyCardPrice ? (
             <button type="button" onClick={() => onCheckAnyCardPrice("")} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">
@@ -196,9 +240,10 @@ export default function WantedDashboard({
       priceFormat={priceFormat}
       isLoadingPrices={isLoadingPrices}
       readOnlyMode={readOnlyMode}
-      otherBinderName={isAllBinders && wantedCard.binderId && wantedCard.binderId !== currentBinderId ? wantedCard.binderName ?? "another binder" : null}
-      onOpen={handlePokemonSelect}
-      onGot={handleGotWantedCard}
+      otherBinderName={isAllBinders ? wantedCard.locations?.map(location => location.binderName).filter((name, index, names) => names.indexOf(name) === index).join(", ") ?? wantedCard.binderName ?? null : null}
+      peopleLabel={personLabel(wantedCard.card.wanted_by)}
+      onOpen={isAllBinders ? () => setActionsFor(wantedCard) : handlePokemonSelect}
+      onGot={isAllBinders ? () => setActionsFor(wantedCard) : handleGotWantedCard}
       onMore={setActionsFor}
     />
   )
@@ -210,11 +255,13 @@ export default function WantedDashboard({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(var(--dock-clearance)+1rem)] md:pb-3" data-testid="wanted-list">
       <div className="mx-auto max-w-3xl space-y-2">
+        <h1 className="pt-2 text-2xl font-semibold">{title}</h1>
+        {coverage && <p role="status" className="text-sm text-muted-foreground">{coverage}</p>}
         <div data-scroll-blur="background" className="sticky top-0 z-10 -mx-1 space-y-2 bg-background/92 px-1 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/75">
           {scopeToggle ? (
             <div className="flex items-center justify-between gap-2">
               {scopeToggle}
-              {isAllBinders ? <p className="min-w-0 truncate text-[11px] text-muted-foreground">Other binders are view only here</p> : null}
+              {isAllBinders ? <p className="min-w-0 truncate text-[11px] text-muted-foreground">Choose a binder to edit its wants</p> : null}
             </div>
           ) : null}
           <div className="flex items-center gap-2">
@@ -247,7 +294,7 @@ export default function WantedDashboard({
             </label>
             <button
               type="button"
-              onClick={() => void handleShareWantedList()}
+              onClick={() => void handleShareWantedList(isAllBinders ? "all" : "binder")}
               aria-label="Share list"
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-card text-xs font-semibold transition hover:border-primary/35 dark:border-white/10"
             >
@@ -374,14 +421,19 @@ export default function WantedDashboard({
 
         <WantedInsights wantedDashboard={wantedDashboard} priceFormat={priceFormat} />
 
-        {actionsFor ? (
+        {activeActions ? (
           <WantedRowActionsSheet
-            cardName={actionsFor.card.card_name}
-            detail={[actionsFor.card.card_set, cardNumberLabel(actionsFor.card), formatCardFinishLabel(actionsFor.card.card_finish)].filter(Boolean).join(" · ")}
-            readOnlyMode={readOnlyMode}
-            onGot={() => handleGotWantedCard(actionsFor.pokemonId, actionsFor.pokemonName, actionsFor.card)}
-            onShowInBinder={getPokemonSummary(actionsFor.pokemonId) ? () => jumpToWantedPokemonPage(getPokemonSummary(actionsFor.pokemonId)) : null}
-            onRemove={() => handleClearWantedCard(actionsFor.pokemonId, actionsFor.card)}
+            cardName={activeActions.card.card_name}
+            detail={[activeActions.card.card_set, cardNumberLabel(activeActions.card), formatCardFinishLabel(activeActions.card.card_finish)].filter(Boolean).join(" · ")}
+            readOnlyMode={readOnlyMode || !editableAction}
+            locations={isAllBinders ? activeActions.locations : undefined}
+            onOpenBinder={openWantedBinder}
+            peopleLabel={personLabel}
+            gotLabel={actionLocation ? `Got it for ${actionLocation.binderName}` : undefined}
+            assignment={user && editableAction && onAssignWanted && !readOnlyMode ? { selected: editableAction.card.wanted_by, viewerId: user.id, partnerId: partner?.id ?? null, partnerLabel: partner?.email ?? "Partner", onChange: ids => onAssignWanted(editableAction.pokemonId, editableAction.pokemonName, editableAction.card, ids) } : undefined}
+            onGot={() => { if (editableAction) handleGotWantedCard(editableAction.pokemonId, editableAction.pokemonName, editableAction.card) }}
+            onShowInBinder={editableAction && getPokemonSummary(editableAction.pokemonId) ? () => jumpToWantedPokemonPage(getPokemonSummary(editableAction.pokemonId)) : null}
+            onRemove={() => { if (editableAction) handleClearWantedCard(editableAction.pokemonId, editableAction.card) }}
             onClose={() => setActionsFor(null)}
           />
         ) : null}
@@ -417,6 +469,7 @@ function WantedRow({
   isLoadingPrices,
   readOnlyMode,
   otherBinderName,
+  peopleLabel,
   onOpen,
   onGot,
   onMore,
@@ -427,6 +480,7 @@ function WantedRow({
   readOnlyMode: boolean
   /** Set when the row belongs to another binder (All binders view): shown, but changed from that binder. */
   otherBinderName: string | null
+  peopleLabel: string
   onOpen: (pokemon: PokemonSummary) => void
   onGot: WantedDashboardProps["handleGotWantedCard"]
   onMore: (entry: WantedDashboardEntry) => void
@@ -461,6 +515,7 @@ function WantedRow({
           </span>
           <span className="block truncate text-xs text-muted-foreground">{setLine || "Unknown set"}</span>
           <span className="block truncate text-[11px] text-muted-foreground/90">{variantLine}</span>
+          <span className="block break-words text-sm text-muted-foreground">Wanted by: {peopleLabel}</span>
           {otherBinderName ? <span className="block truncate text-[11px] font-semibold text-primary" data-testid="wanted-row-binder">In {otherBinderName}</span> : null}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">
@@ -471,7 +526,7 @@ function WantedRow({
           {priceDropped ? <PriceDropBadge price={price} /> : null}
         </span>
       </button>
-      {otherBinderName ? null : <span className="flex shrink-0 items-center">
+      <span className="flex shrink-0 items-center">
         {readOnlyMode ? null : (
           <button
             type="button"
@@ -493,7 +548,7 @@ function WantedRow({
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
-      </span>}
+      </span>
     </li>
   )
 }

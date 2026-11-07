@@ -8,7 +8,7 @@ test.describe("desktop Show workspace navigation", () => {
     test.skip(test.info().project.name !== "browser-390x844", "desktop context, run once")
     await mockBackends(page, page.context(), { signedIn: true, baseURL })
     await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
-    await page.goto("/e2e-harness?signedIn=1")
+    await page.goto("/app/e2e-harness?signedIn=1")
     await page.getByRole("button", { name: "Show mode", exact: true }).click()
     await page.getByTestId("app-header").getByRole("button", { name: "Search", exact: true }).click()
   })

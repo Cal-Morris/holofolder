@@ -20,7 +20,7 @@ const test = base.extend<{ harness: Harness }>({
       if (binder && binder !== `eq.${MY_BINDER}`) return route.fulfill({ json: [] })
       return route.fulfill({ json: SEEDED_COLLECTION })
     })
-    await page.context().route("**/api/binders**", (route) => route.fulfill({ status: 503, json: { error: "offline test" } }))
+    await page.context().route("**/app/api/binders**", (route) => route.fulfill({ status: 503, json: { error: "offline test" } }))
     await use(new Harness(page, insets, true))
   },
 })
@@ -42,7 +42,7 @@ const slot = (page: Page, dexId: number) => page.locator(`button[data-dex-id="${
 
 async function openBinder(harness: Harness, binderId?: string) {
   const { page } = harness
-  await page.goto(`/e2e-harness?signedIn=1&binders=3${binderId ? `&binder=${binderId}` : ""}`)
+  await page.goto(`/app/e2e-harness?signedIn=1&binders=3${binderId ? `&binder=${binderId}` : ""}`)
   await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
   await expect(slot(page, 1)).toBeVisible()
 }
@@ -52,7 +52,7 @@ async function prepareOnline(harness: Harness) {
   const { page } = harness
   await openBinder(harness, TRADES)
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
-  await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app-shell"))), { timeout: 30_000 }).toBe(true)
+  await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app/app-shell"))), { timeout: 30_000 }).toBe(true)
   await expect.poll(() => page.evaluate((id) => window.localStorage.getItem(`pokemon_collection_snapshot_v1:${id}`)?.includes("base1-46") ?? false, TRADES), { timeout: 30_000 }).toBe(true)
   await openBinder(harness)
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pokemon_collection_snapshot_v1")?.includes("base1-44") ?? false), { timeout: 30_000 }).toBe(true)
@@ -108,7 +108,7 @@ test.describe("multiple binders offline", () => {
     const main = await page.evaluate(() => JSON.parse(window.localStorage.getItem("pokemon_collection_snapshot_v1") ?? "null"))
     expect(main.collection.map((row: { pokemon_id: number }) => row.pokemon_id).sort()).toEqual([1, 4])
 
-    await page.goto(`/e2e-harness?signedIn=1&binders=3&binder=e2e00000-0000-4000-8000-000000000004`)
+    await page.goto(`/app/e2e-harness?signedIn=1&binders=3&binder=e2e00000-0000-4000-8000-000000000004`)
     await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
     await expect(page.getByRole("status").filter({ hasText: "“Spare” isn't saved on this device yet" })).toBeVisible()
     await expect(page.getByTestId("binder-switcher-trigger")).toHaveAttribute("aria-label", /Binders: (Trades|My binder)/)

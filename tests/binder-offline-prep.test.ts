@@ -23,8 +23,8 @@ function setup(rows: CollectedPokemon[]) {
     assert.notEqual(init?.method, "POST")
     const url = new URL(String(input), "https://synthetic.test")
     requests.push(url.href)
-    if (url.pathname === "/api/card-image-proxy") return new Response("synthetic-image", { headers: { "Content-Type": "image/webp" } })
-    if (url.pathname === "/api/card-prices") return Response.json({ prices: JSON.parse(url.searchParams.get("cards")!).map((card: { cardId: string; language: string }) => ({ ...card, marketGbpAmount: 2, finishPrices: [{ finish: "normal", variantKey: "normal", marketGbpAmount: 2 }], sourcePrices: [{ source: "cardmarket" }], historyPoints: [{ amount: 2 }], trendPoints: [{ gbpAmount: 2 }] })) })
+    if (url.pathname === "/app/api/card-image-proxy") return new Response("synthetic-image", { headers: { "Content-Type": "image/webp" } })
+    if (url.pathname === "/app/api/card-prices") return Response.json({ prices: JSON.parse(url.searchParams.get("cards")!).map((card: { cardId: string; language: string }) => ({ ...card, marketGbpAmount: 2, finishPrices: [{ finish: "normal", variantKey: "normal", marketGbpAmount: 2 }], sourcePrices: [{ source: "cardmarket" }], historyPoints: [{ amount: 2 }], trendPoints: [{ gbpAmount: 2 }] })) })
     return Response.json({ ebay: check("asking"), soldcomps: check("sold"), errors: {} })
   }) as typeof fetch
   return { shellReady: true, store, cache, images, prices, requests, fetcher, signal: new AbortController().signal, onProgress: () => {},
@@ -55,11 +55,11 @@ describe("binder offline prep", () => {
     assert.equal(result.asking, 65)
     assert.equal(result.complete, true)
     assert.equal(deps.requests.filter(url => url.includes("card-price-checks?")).length, 65)
-    assert.equal(deps.requests.filter(url => url.includes("/api/card-prices?")).length, 3)
+    assert.equal(deps.requests.filter(url => url.includes("/app/api/card-prices?")).length, 3)
     const imageCalls = deps.requests.filter(url => url.includes("card-image-proxy")).length
     await downloadBinderPrep(cards, scope, { ...deps, fetcher: (async (...args: Parameters<typeof fetch>) => {
       const response = await deps.fetcher(...args)
-      if (String(args[0]).includes("/api/card-prices?")) {
+      if (String(args[0]).includes("/app/api/card-prices?")) {
         const payload = await response.json()
         return Response.json({ prices: payload.prices.map((price: CardPriceSnapshot) => ({ ...price, marketGbpAmount: 4 })) })
       }

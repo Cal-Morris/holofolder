@@ -220,5 +220,5 @@ export function combinePriceSummaries(summaries: PriceSummary[]): PriceSummary {
 
 /** The share-link endpoint for one binder (the owner's default when unknown). */
 export function binderShareUrl(binderId: string | null) {
-  return binderId ? `/api/binder-share?binderId=${encodeURIComponent(binderId)}` : "/api/binder-share"
+  return binderId ? `/app/api/binder-share?binderId=${encodeURIComponent(binderId)}` : "/app/api/binder-share"
 }

@@ -1,3 +1,4 @@
+import { appPath } from "@/lib/app-path"
 export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
 
 import { normalizeCardLanguage } from "@/lib/domain/cards"
@@ -26,12 +27,13 @@ export function toCacheableCardImageUrl(value: unknown) {
   if (typeof value !== "string" || value.trim().length === 0) return null
 
   const trimmed = value.trim()
+  if (trimmed.startsWith("/api/")) return appPath(trimmed)
   if (trimmed.startsWith("/")) return trimmed
 
   try {
     const url = new URL(trimmed)
     if (url.protocol !== "http:" && url.protocol !== "https:") return null
-    return `/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`
+    return `/app/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`
   } catch {
     return null
   }
@@ -42,7 +44,7 @@ export function buildOfflineCacheWarmupUrls(input: OfflineCacheWarmupInput) {
   const maxUrls = typeof input.maxUrls === "number" && Number.isInteger(input.maxUrls) && input.maxUrls > 0
     ? input.maxUrls
     : 500
-  const urls = new Set<string>(["/"])
+  const urls = new Set<string>(["/app"])
   const collection = Array.isArray(input.collection) ? input.collection as OfflineCacheWarmupCollectionItem[] : []
 
   // What is on screen comes first so it survives the maxUrls cut on large collections:
@@ -83,7 +85,7 @@ function addPokemonCacheUrls(urls: Set<string>, values: unknown, language: strin
 
   for (const value of values) {
     if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) continue
-    urls.add(`/api/tcgdex-cache?pokemonId=${value}&language=${encodeURIComponent(language)}`)
+    urls.add(`/app/api/tcgdex-cache?pokemonId=${value}&language=${encodeURIComponent(language)}`)
   }
 }
 

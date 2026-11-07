@@ -3,7 +3,7 @@ import { test, expect, emulateStandalone, mockBackends, SAFE_AREA } from "./fixt
 test.beforeEach(async ({ page, baseURL }, testInfo) => {
   if (testInfo.project.metadata.standalone) await emulateStandalone(page, SAFE_AREA)
   await mockBackends(page, page.context(), { signedIn: false, baseURL })
-  await page.goto("/home")
+  await page.goto("/app/home")
 })
 
 test("homepage keeps real cards, app entry and studio navigation", async ({ page }) => {
@@ -14,7 +14,7 @@ test("homepage keeps real cards, app entry and studio navigation", async ({ page
   await expect(pricing.getByRole("button",{name:"Start collecting",exact:true})).toBeVisible()
   const fan = page.getByRole("region", { name: "Featured Pokémon cards" })
   await expect(fan.getByRole("img", { name: "Bulbasaur, 151, 166 / 165" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Try the binder studio" })).toHaveAttribute("href", "/studio")
+  await expect(page.getByRole("link", { name: "Try the binder studio" })).toHaveAttribute("href", "/app/studio")
   await expect(page.getByTestId("card-data-attribution")).toBeVisible()
   await expect(page.getByRole("heading", { name: /What’s that.*card worth/ })).toBeVisible()
   for (const name of ["Check the sources.", "See how prices move.", "Keep an eye on wanted cards."]) {
@@ -132,7 +132,7 @@ const navigationLinks = [
   ["Share your collection", "#sharing"],
   ["Partner collections", "#partners"],
   ["Offline access", "#offline"],
-  ["Binder Studio", "/studio"],
+  ["Binder Studio", "/app/studio"],
   ["Pricing", "#pricing"],
 ]
 
@@ -161,7 +161,7 @@ test("mobile navigation exposes features and closes by every sheet dismissal", a
   await opener.click()
   await page.goBack()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(/\/home$/)
+  await expect(page).toHaveURL(/\/app\/home$/)
   await opener.click()
   await page.locator("[data-overlay-backdrop]").click({ position: { x: 5, y: 5 } })
   await expect(dialog).toHaveCount(0)
@@ -184,12 +184,12 @@ test("feature links close navigation and arrive at the matching section", async 
   await opener.click()
   await dialog.getByRole("link", { name: /^Card wishlisting/ }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(/\/home#wishlisting$/)
+  await expect(page).toHaveURL(/\/app\/home#wishlisting$/)
   await expect(page.getByRole("heading", { name: /^Card wishlisting\.?$/ })).toBeInViewport()
   await opener.click()
   await dialog.getByRole("link", { name: /^Pricing/ }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(/\/home#pricing$/)
+  await expect(page).toHaveURL(/\/app\/home#pricing$/)
   await expect(page.getByRole("article", { name: "Early access pricing" })).toBeInViewport()
 })
 
@@ -204,7 +204,7 @@ test("desktop Features offers the same product navigation", async ({ page }, tes
   await expect(dialog).toBeVisible()
   await dialog.getByRole("link", { name: /^Price tracking/ }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(/\/home#prices$/)
+  await expect(page).toHaveURL(/\/app\/home#prices$/)
   await expect(page.getByRole("heading", { name: /What’s that.*card worth/ })).toBeInViewport()
 })
 
@@ -230,7 +230,7 @@ test("homepage offers a compact interactive 3D binder preview", async ({ page })
   await expect(preview.getByRole("button", { name: "Apply Magikarp preset", exact: true })).toHaveAttribute("aria-pressed", "true")
   await expect(preview.getByRole("button", { name: "Cover", exact: true })).toHaveAttribute("aria-pressed", "true")
   await page.getByRole("link", { name: "Enter the binder studio" }).click()
-  await expect(page).toHaveURL(/\/studio$/)
+  await expect(page).toHaveURL(/\/app\/studio$/)
 })
 
 test("Holo Folder branding fits mobile and installed app chrome", async ({ page, request }, testInfo) => {
@@ -239,18 +239,18 @@ test("Holo Folder branding fits mobile and installed app chrome", async ({ page,
   await expect(page.locator('meta[name="application-name"]')).toHaveAttribute("content", "Holo Folder")
   await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute("content", "Holo Folder")
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Holo Folder")
-  const response = await request.get("/manifest.webmanifest")
+  const response = await request.get("/app/manifest.webmanifest")
   expect(response.ok()).toBe(true)
   const manifest = await response.json()
-  expect(manifest).toMatchObject({ name: "Holo Folder", short_name: "Holo Folder", start_url: "/", display: "standalone" })
+  expect(manifest).toMatchObject({ name: "Holo Folder", short_name: "Holo Folder", start_url: "/app", display: "standalone" })
   expect(manifest.icons).toEqual(expect.arrayContaining([
-    expect.objectContaining({ src: "/pwa-holo-card-192.png", sizes: "192x192", purpose: "maskable" }),
-    expect.objectContaining({ src: "/pwa-holo-card-512.png", sizes: "512x512", purpose: "maskable" }),
+    expect.objectContaining({ src: "/app/pwa-holo-card-192.png", sizes: "192x192", purpose: "maskable" }),
+    expect.objectContaining({ src: "/app/pwa-holo-card-512.png", sizes: "512x512", purpose: "maskable" }),
   ]))
-  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/apple-touch-icon-holo-card.png")
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/app/apple-touch-icon-holo-card.png")
   const logo = page.getByRole("link", { name: "Holo Folder", exact: true }).first().locator("img")
   await expect(logo).toBeVisible()
-  await expect(logo).toHaveAttribute("src", "/holo-card-mark.png")
+  await expect(logo).toHaveAttribute("src", "/app/holo-card-mark.png")
   await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
   for (const dark of [true, false]) {
     await page.evaluate(enabled => document.documentElement.classList.toggle("dark", enabled), dark)

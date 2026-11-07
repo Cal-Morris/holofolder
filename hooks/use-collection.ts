@@ -881,7 +881,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const existingWantedCards = existingItem?.wanted_cards ?? []
     const wantedKey = `${wantedCard.card_id}:${wantedCard.card_language ?? "en"}:${wantedCard.card_finish ?? "normal"}`
     const nextWantedCards = [
-      wantedCard,
+      { ...wantedCard, ...(wantedCard.wanted_by === undefined && user ? { wanted_by: [user.id] } : {}) },
       ...existingWantedCards.filter((card) => `${card.card_id}:${card.card_language ?? "en"}:${card.card_finish ?? "normal"}` !== wantedKey),
     ]
     const existingIsOwned = existingItem?.status !== undefined && existingItem.status !== "wishlisted"
@@ -900,7 +900,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         wantedCards: nextWantedCards,
       },
     )
-  }, [addToCollection, collection])
+  }, [addToCollection, collection, user])
 
   const removeWantedCard = useCallback(async (pokemonId: number, cardId: string) => {
     const existingItem = collection.find((item) => item.pokemon_id === pokemonId)

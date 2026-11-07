@@ -12,6 +12,9 @@
 // already has is dropped, so a retry after a lost response never duplicates anything.
 import type { CollectedPokemon, WantedCard } from "@/lib/domain/cards"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
+import { mergeWantedPeople } from "@/lib/wanted-people"
+
+export const COLLECTION_FINGERPRINT_VERSION = 2
 
 export const ABSENT_ROW_FINGERPRINT = "absent"
 
@@ -30,8 +33,15 @@ export function collectionFingerprint(item: Partial<CollectedPokemon> | null | u
   return JSON.stringify({
     status: normalized.status,
     owned: ownedGroup(normalized),
-    wanted: normalized.wanted_cards.map(wantedKey).sort(),
+    wanted: normalized.wanted_cards.map(card => `${wantedKey(card)}${card.wanted_by === undefined ? "" : `:wanted-by:${[...card.wanted_by].sort().join(",")}`}`).sort(),
   })
+}
+
+/** Older installed clients do not know wanted_by; their other conflict protections still apply. */
+export function matchesCollectionFingerprint(item: Partial<CollectedPokemon> | null | undefined, expected: string, allowLegacyPeople = false) {
+  if (collectionFingerprint(item) === expected) return true
+  if (!allowLegacyPeople || !item) return false
+  return collectionFingerprint({ ...item, wanted_cards: item.wanted_cards?.map(({ wanted_by: _people, ...card }) => card) }) === expected
 }
 
 export type PendingEdit =
@@ -85,7 +95,14 @@ export function resolveConflict(edit: PendingEdit, serverItem: CollectedPokemon 
   const baseWanted = new Map((baseItem?.wanted_cards ?? []).map((card) => [wantedKey(card), card] as const))
   const localWanted = new Map(local.wanted_cards.map((card) => [wantedKey(card), card] as const))
   const mergedWanted = new Map(serverItem.wanted_cards.map((card) => [wantedKey(card), card] as const))
-  for (const [key, card] of localWanted) if (!baseWanted.has(key)) mergedWanted.set(key, card)
+  for (const [key, card] of localWanted) {
+    const remote = mergedWanted.get(key)
+    if (!baseWanted.has(key)) {
+      mergedWanted.set(key, remote ? { ...card, wanted_by: mergeWantedPeople(undefined, card.wanted_by, remote.wanted_by) } : card)
+    } else if (remote) {
+      mergedWanted.set(key, { ...remote, wanted_by: mergeWantedPeople(baseWanted.get(key)?.wanted_by, card.wanted_by, remote.wanted_by) })
+    }
+  }
   for (const key of baseWanted.keys()) if (!localWanted.has(key)) mergedWanted.delete(key)
 
   const owned = ownedChangedLocally ? local : serverItem

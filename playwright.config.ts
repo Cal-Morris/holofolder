@@ -55,7 +55,7 @@ export default defineConfig({
     ? undefined
     : {
         command: `bun run build && bunx next start -p ${PORT}`,
-        url: `${baseURL}/e2e-harness`,
+        url: `${baseURL}/app/e2e-harness`,
         timeout: 300_000,
         reuseExistingServer: !process.env.CI,
         env: {

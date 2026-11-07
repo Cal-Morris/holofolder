@@ -2,7 +2,7 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { toCardImageSrc } from "../lib/card-image-url"
 
-const proxied = (url: string) => `/api/card-image-proxy?url=${encodeURIComponent(url)}`
+const proxied = (url: string) => `/app/api/card-image-proxy?url=${encodeURIComponent(url)}`
 
 describe("toCardImageSrc", () => {
   test("serves TCGdex and fallback-source card images through the image store proxy", () => {
@@ -16,7 +16,7 @@ describe("toCardImageSrc", () => {
   })
 
   test("keeps same-origin, data, blob and other-host images unchanged", () => {
-    assert.equal(toCardImageSrc(" /api/card-image-proxy?url=x "), "/api/card-image-proxy?url=x")
+    assert.equal(toCardImageSrc(" /app/api/card-image-proxy?url=x "), "/app/api/card-image-proxy?url=x")
     assert.equal(toCardImageSrc("data:image/png;base64,AA"), "data:image/png;base64,AA")
     assert.equal(toCardImageSrc("blob:https://holofolder.com/1"), "blob:https://holofolder.com/1")
     assert.equal(toCardImageSrc("https://example.com/card.png"), "https://example.com/card.png")
@@ -29,7 +29,7 @@ describe("toCardImageSrc", () => {
 
 test("only proxies the playshop.fr path on the shared Shopify CDN", () => {
   const scan = "https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2019sm-fr-1-bulbizarre.png"
-  assert.equal(toCardImageSrc(scan), `/api/card-image-proxy?url=${encodeURIComponent(scan)}`)
+  assert.equal(toCardImageSrc(scan), `/app/api/card-image-proxy?url=${encodeURIComponent(scan)}`)
   const other = "https://cdn.shopify.com/s/files/1/0000/0000/0001/files/logo.png"
   assert.equal(toCardImageSrc(other), other)
 })
