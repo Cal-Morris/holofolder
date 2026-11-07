@@ -25,10 +25,10 @@ export function normalizeAcquisition(value: unknown): AcquisitionIntent | undefi
     || row.actorId === row.recipientId || typeof row.printingKey !== 'string' || !row.printingKey || row.printingKey.length > 512) return undefined
   return { operationId: row.operationId, actorId: row.actorId, partnershipId: row.partnershipId, recipientId: row.recipientId, printingKey: row.printingKey }
 }
-export function captureAcquisition(before: CollectedPokemon | null, after: CollectedPokemon, context: { showMode: boolean; actorId: string; ownerId: string | null; membership: PushMembership | null }, operationId = crypto.randomUUID()) {
+export function captureAcquisition(before: CollectedPokemon | null, after: CollectedPokemon, context: { showMode: boolean; actorId: string; ownerId: string | null; membership: PushMembership | null }, operationId?: string) {
   const key = ownedPrintingKey(after), member = context.membership
   if (!context.showMode || !key || key === ownedPrintingKey(before) || !member || member.actorId !== context.actorId || member.ownerId !== context.ownerId) return undefined
-  return normalizeAcquisition({ operationId, actorId: context.actorId, partnershipId: member.partnershipId, recipientId: member.recipientId, printingKey: key })
+  return normalizeAcquisition({ operationId: operationId ?? (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined), actorId: context.actorId, partnershipId: member.partnershipId, recipientId: member.recipientId, printingKey: key })
 }
 export function mergeQueuedAcquisition(base: CollectedPokemon | null | undefined, next: CollectedPokemon | null, given: AcquisitionIntent | undefined, previous: AcquisitionIntent | undefined) {
   const key = ownedPrintingKey(next)

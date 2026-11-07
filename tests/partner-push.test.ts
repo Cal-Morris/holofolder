@@ -52,3 +52,12 @@ test('cached membership is actor-scoped and an unlinked account clears only its 
  writePushMembership(actorId, null, storage)
  assert.equal(readPushMembership(actorId, storage), null)
 })
+
+test('notification intent cannot prevent a collection save when UUID generation is unavailable', () => {
+ const original = crypto.randomUUID
+ Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined })
+ try {
+  assert.equal(captureAcquisition(null, card, { showMode: false, actorId, ownerId: actorId, membership }), undefined)
+  assert.equal(captureAcquisition(null, card, { showMode: true, actorId, ownerId: actorId, membership }), undefined)
+ } finally { Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: original }) }
+})
