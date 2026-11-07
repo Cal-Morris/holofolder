@@ -208,7 +208,7 @@ export default function SettingsModal({
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--dock-clearance)+0.75rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-2xl backdrop-blur-xl animate-slide-up md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(85vh,48rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2"
+        className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--dock-clearance)+0.75rem)] mx-auto flex w-auto max-w-md flex-col holo-panel overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-2xl backdrop-blur-xl animate-slide-up md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(85vh,48rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
         <div data-sheet-grabber className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0" {...swipe}>

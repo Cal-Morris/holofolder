@@ -420,7 +420,7 @@ function QuickMode({
   const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0 && setHits.length === 0
 
   const searchControls = (
-    <div className={`shrink-0 border-border/50 bg-card/95 px-3 ${wideWorkspace ? "border-b py-3" : "border-t pb-[calc(var(--safe-bottom)+0.75rem)] pt-3"}`}>
+    <div className={`holo-toolbar shrink-0 border-border/50 px-3 ${wideWorkspace ? "border-b py-3" : "border-t pb-[calc(var(--safe-bottom)+0.75rem)] pt-3"}`}>
       {show && bundle.length > 0 && (
         <button
           type="button"
@@ -474,7 +474,7 @@ function QuickMode({
             setIsScannerOpen(true)
           }}
           aria-label="Scan a card"
-          className="flex h-14 shrink-0 items-center gap-1.5 rounded-2xl bg-amber-400 px-3.5 text-sm font-bold text-black"
+          className="flex h-14 shrink-0 items-center gap-1.5 holo-action rounded-2xl px-3.5 text-sm font-semibold"
         >
           <Camera className="h-5 w-5" aria-hidden />
           Scan
@@ -497,7 +497,7 @@ function QuickMode({
         data-keyboard-fit
         className={`mx-auto flex h-[100dvh] w-full ${wideWorkspace ? "max-w-6xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
       >
-        <header {...prepSwipe} className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
+        <header {...prepSwipe} className="holo-toolbar flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold leading-tight">{preparingOffline ? "Prepare offline" : lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
           </div>

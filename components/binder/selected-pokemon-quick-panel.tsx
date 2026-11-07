@@ -196,7 +196,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
               maxHeight: "calc(100dvh - max(env(safe-area-inset-top) + 0.5rem, var(--top-banner-bottom, 0px)) - var(--dock-clearance) - 0.375rem)",
             }}
     >
-      <div className="flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-card/96 dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
+      <div className="holo-panel flex min-h-0 flex-col rounded-[1.35rem] border border-border/70 bg-card/96 p-3 text-foreground shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl sm:rounded-[1.6rem] dark:bg-card/96 dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]">
         <div className="flex min-h-0 flex-col gap-3">
           <div className="shrink-0" data-sheet-grabber={isMobileQuickPanel ? "" : undefined} {...(isMobileQuickPanel ? quickPanelSwipe : {})}>
           {isMobileQuickPanel ? <div aria-hidden="true" className="mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30" /> : null}
