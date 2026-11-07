@@ -10,7 +10,7 @@ const root = path.join(process.cwd(), "public")
 describe("install icon exports", () => {
   test("installed app icons use an opaque near-black background", async () => {
     const pngs = (manifest().icons ?? []).filter(icon => icon.type === "image/png").map(icon => icon.src.replace(/^\/app\//, ""))
-    for (const name of [...pngs, "apple-touch-icon-holo-dark.png"]) {
+    for (const name of [...pngs, "holofolder-apple-touch-icon.png"]) {
       const { data } = await sharp(path.join(root, name)).removeAlpha().extract({ left: 0, top: 0, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true })
       assert.deepEqual([...data], [7, 7, 10], name)
     }
@@ -52,10 +52,17 @@ describe("install icon exports", () => {
     }
   })
 
-  test("logo and appearance SVGs are self-contained vectors that render at any export size", async () => {
+  test("logo and appearance SVGs embed the canonical framed card without external requests", async () => {
     for (const name of ["mark", "icon", "light", "dark", "glass", "maskable", "monochrome"]) {
       const data = await fs.readFile(path.join(root, `holo-cards-${name}.svg`))
-      assert.doesNotMatch(data.toString(), /<image\b|data:image|https?:\/\/(?!www\.w3\.org)/)
+      assert.doesNotMatch(data.toString(), /https?:\/\/(?!www\.w3\.org)/)
+      if (name !== "monochrome") {
+        const encoded = data.toString().match(/data:image\/png;base64,([^"\s]+)/)?.[1]
+        assert.ok(encoded, name)
+        const master = await sharp("assets/brand/holo-card-master.png").trim().png().toBuffer()
+        const canonical = await sharp(master).resize(512, 512, { fit: "inside" }).png({ palette: true, effort: 10 }).toBuffer()
+        assert.deepEqual(Buffer.from(encoded, "base64"), canonical)
+      }
       for (const size of [32, 1024]) {
         const { info } = await sharp(data).resize(size, size).png().toBuffer({ resolveWithObject: true })
         assert.equal(info.width, size)

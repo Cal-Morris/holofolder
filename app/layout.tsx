@@ -9,7 +9,6 @@ import { KEYBOARD_INSET_SCRIPT } from "@/lib/keyboard-inset"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" })
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap" })
-const THEME_COLOR_LIGHT = "#f7f6fb"
 const THEME_COLOR_DARK = "#07070a"
 
 export const metadata: Metadata = {
@@ -34,12 +33,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/app/holo-cards-light-32.png", media: "(prefers-color-scheme: light)" },
-      { url: "/app/holo-cards-dark-32.png", media: "(prefers-color-scheme: dark)" },
-      { url: "/app/holo-cards-icon.svg", type: "image/svg+xml" },
+      { url: "/app/holofolder-icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/app/holofolder-icon.svg", type: "image/svg+xml" },
     ],
-    shortcut: "/app/holo-cards-favicon.ico",
-    apple: "/app/apple-touch-icon-holo-dark.png",
+    shortcut: "/app/holofolder-favicon.ico",
+    apple: "/app/holofolder-apple-touch-icon.png",
   },
   other: {
     "mobile-web-app-capable": "yes",
@@ -52,10 +50,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: THEME_COLOR_LIGHT },
-    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR_DARK },
-  ],
+  themeColor: THEME_COLOR_DARK,
 }
 
 export default async function RootLayout({
