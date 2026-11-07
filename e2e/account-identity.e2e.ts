@@ -43,6 +43,7 @@ test.describe('account identity', () => {
     await expect(usernameInput).toHaveValue('cal')
     await harness.expectNoHorizontalOverflow()
     await dialog.getByRole('button', { name: 'Close settings' }).click()
+    await page.reload()
     dialog = await openAccount(harness)
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Cal Morris')
     await expect(dialog.getByRole('textbox', { name: 'Username', exact: true })).toHaveValue('cal')

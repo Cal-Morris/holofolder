@@ -19,10 +19,13 @@
   background-image: linear-gradient(130deg, color-mix(in srgb, var(--primary) 7%, transparent), transparent 65%);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 4%, transparent);
 }
-.holo-action, .holo-progress {
+.holo-progress {
   background-image: linear-gradient(110deg, #e7a4dc, #b9a6ff 36%, #9debe6 72%, #f5e9ab);
 }
-.holo-action { color: #15121f; }
+.holo-action {
+  color: #f4f3f8;
+  background-image: linear-gradient(110deg, #7039a6, #5b44b4 36%, #235c88 72%, #186550);
+}
 .holo-selected {
   background-image: linear-gradient(120deg, color-mix(in srgb, var(--primary) 18%, transparent), color-mix(in srgb, var(--highlight) 7%, transparent));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);

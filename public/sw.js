@@ -34,19 +34,22 @@ const APP_SHELL_REFRESH_INTERVAL_MS = 10 * 60 * 1000
 let lastAppShellRefreshAt = 0
 
 const APP_SHELL_ASSETS = [
+  "/app/holofolder-favicon.ico",
+  "/app/holofolder-icon-32.png",
+  "/app/holofolder-monochrome.svg",
   "/app/favicon.ico",
   "/app/manifest.webmanifest",
   "/app/apple-icon.png",
-  "/app/apple-touch-icon-holo-dark.png",
-  "/app/pwa-holo-cards-dark-192.png",
-  "/app/pwa-holo-cards-dark-512.png",
-  "/app/pwa-holo-cards-dark-maskable-192.png",
-  "/app/pwa-holo-cards-dark-maskable-512.png",
-  "/app/holo-cards-dark.svg",
+  "/app/holofolder-apple-touch-icon.png",
+  "/app/holofolder-icon-192.png",
+  "/app/holofolder-icon-512.png",
+  "/app/holofolder-maskable-192.png",
+  "/app/holofolder-maskable-512.png",
+  "/app/holofolder-icon.svg",
   "/app/apple-touch-icon-holo-card.png",
   "/app/pwa-holo-card-192.png",
   "/app/pwa-holo-card-512.png",
-  "/app/holo-card-mark.png",
+  "/app/holofolder-mark.png",
   "/app/icon.svg",
   "/app/icon-light-32x32.png",
   "/app/icon-dark-32x32.png",
@@ -565,7 +568,7 @@ self.addEventListener('push', event => {
     }
     await self.registration.showNotification(preview ? String(preview.title ?? 'Holo Folder update').slice(0, 160) : 'Holo Folder update', {
       body: preview ? String(preview.body ?? '').slice(0, 240) : 'Open the app to see your update.',
-      icon: '/app/pwa-holo-cards-dark-192.png', badge: '/app/holo-cards-monochrome.svg',
+      icon: '/app/holofolder-icon-192.png', badge: '/app/holofolder-monochrome.svg',
       tag: typeof payload?.tag === 'string' ? payload.tag.slice(0, 100) : 'binderdex-update',
       ...(isTest ? { renotify: true } : {}),
       data: { url: preview ? notificationDestination(preview.url) : '/app', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null },

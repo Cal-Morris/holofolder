@@ -170,10 +170,10 @@ export function renderMainContentView(ctx: MainContentContext) {
       )}
 
       {isShowModeOfferVisible && (
-        <section aria-label="At a card show?" className="mb-2 flex shrink-0 items-center gap-2 rounded-2xl border border-amber-400/45 bg-amber-400/12 py-0.5 pl-3 pr-0.5">
-          <Ticket className="h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+        <section aria-label="At a card show?" className="holo-panel mb-2 flex shrink-0 items-center gap-2 rounded-2xl border border-border/60 py-0.5 pl-3 pr-0.5">
+          <Ticket className="h-5 w-5 shrink-0 text-primary" aria-hidden />
           <p className="min-w-0 flex-1 truncate text-sm leading-tight">
-            <span className="font-bold">At a card show?</span>{" "}
+            <span className="font-semibold">At a card show?</span>{" "}
             <span className="text-xs text-muted-foreground">{isOnline ? "Quick search, screen on" : "Offline: Show mode uses saved cards"}</span>
           </p>
           <Button className="h-11 shrink-0 rounded-xl px-3 text-sm font-semibold" onClick={() => setShowMode(true)} aria-label="Turn on Show mode">

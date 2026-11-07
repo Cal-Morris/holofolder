@@ -17,7 +17,7 @@ export default function ShowBudget({ storageKey, currency, compact = false }: { 
   const summary = budget ? summarizeShowBudget(budget, session) : null
   const amount = parseAskingPrice(input)
   if (compact && !budget) return null
-  return <section aria-label="Show budget" className={compact ? "py-1 text-sm" : "rounded-xl border border-border/60 p-3 text-sm"}>
+  return <section aria-label="Show budget" className={compact ? "py-1 text-sm" : "holo-panel mb-3 rounded-3xl border border-border/60 p-3 text-sm"}>
     {budget && summary && <p role="status" className={summary.remaining < 0 ? "font-semibold text-amber-700 dark:text-amber-300" : "font-semibold"}>{formatMoney(Math.abs(summary.remaining), budget.currency)} {summary.remaining < 0 ? "over budget" : "left"} · {formatMoney(summary.spent, budget.currency)} spent</p>}
     {summary?.excludedCount ? <p className="text-xs text-muted-foreground">{summary.excludedCount} purchase{summary.excludedCount === 1 ? "" : "s"} in other currencies excluded.</p> : null}
     {!compact && <>
@@ -27,7 +27,7 @@ export default function ShowBudget({ storageKey, currency, compact = false }: { 
           <label className="min-w-0 flex-1">Spending limit<input aria-label="Spending limit" inputMode="decimal" value={input} onChange={event => setInput(event.target.value)} className="mt-1 h-11 w-full rounded-lg border border-border bg-background px-2 text-base" /></label>
           <label>Currency<select aria-label="Budget currency" value={chosenCurrency} onChange={event => setChosenCurrency(event.target.value as DisplayCurrency)} className="mt-1 block h-11 rounded-lg border border-border bg-background px-2 text-base">{DISPLAY_CURRENCIES.map(value => <option key={value}>{value}</option>)}</select></label>
         </div>
-        <button type="submit" disabled={!amount} className="min-h-10 rounded-xl bg-muted px-3 font-semibold disabled:opacity-50">Save budget</button>
+        <button type="submit" disabled={!amount} className="holo-action min-h-10 rounded-full px-4 font-semibold disabled:opacity-50">Save budget</button>
         <button type="button" onClick={() => setEditing(false)} className="min-h-10 rounded-xl px-3">Cancel</button>
       </form> : <button type="button" className="min-h-10 rounded-xl px-3 font-semibold" onClick={() => { setInput(budget ? String(budget.limit) : ""); setChosenCurrency(budget?.currency ?? currency); setEditing(true) }}>{budget ? "Edit budget" : "Set show budget"}</button>}
       {budget && <button type="button" className="min-h-10 rounded-xl px-3" onClick={() => { if (write(null)) setEditing(false) }}>Clear budget</button>}

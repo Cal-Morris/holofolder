@@ -194,7 +194,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
               type="button"
               onClick={() => void read()}
               disabled={!camera.ready || busy}
-              className="flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-400 px-4 text-base font-bold text-black disabled:opacity-50"
+              className="flex h-14 min-w-0 flex-1 items-center justify-center gap-2 holo-action rounded-2xl px-4 text-base font-semibold disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Camera className="h-5 w-5" aria-hidden />}
               {busy ? "Reading…" : "Read card"}
