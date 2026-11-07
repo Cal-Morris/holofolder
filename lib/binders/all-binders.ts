@@ -14,6 +14,7 @@ export interface BinderRef { id: string; name: string }
 export interface AllBindersLookup {
   binders: BinderRef[]
   collections: Map<string, CollectedPokemon[]>
+  missingBinderIds?: string[]
 }
 
 /** IndexedDB record holding the cached lookup (owner-scoped; read offline). */
@@ -51,7 +52,8 @@ export function buildAllBindersLookup(input: {
   for (const binder of input.binders) {
     collections.set(binder.id, binder.id === input.currentBinderId ? [...input.currentCollection] : [...(input.others?.[binder.id] ?? [])])
   }
-  return { binders: input.binders.map(({ id, name }) => ({ id, name })), collections }
+  return { binders: input.binders.map(({ id, name }) => ({ id, name })), collections,
+    missingBinderIds: input.binders.filter(binder => binder.id !== input.currentBinderId && !Object.hasOwn(input.others ?? {}, binder.id)).map(binder => binder.id) }
 }
 
 const isOwned = (item: CollectedPokemon) => item.status !== "wishlisted"

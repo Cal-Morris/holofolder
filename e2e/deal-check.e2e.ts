@@ -157,7 +157,7 @@ test.describe("deal checker", () => {
     await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", "good")
   })
 
-  test("Bought adds it as owned, logs the price to the tally, and Undo takes it back", async ({ harness }) => {
+  test("Bought records an acquisition once and repeated owned saves cannot inflate the tally", async ({ harness }) => {
     const { page } = harness
     await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
     await openQuickInShowMode(harness)
@@ -176,7 +176,7 @@ test.describe("deal checker", () => {
     await expect(again.getByTestId("quick-card-status")).toHaveText("Owned")
     await typePrice(again, "9")
     await again.getByRole("button", { name: "Bought", exact: true }).click()
-    await page.getByTestId("undo-snackbar").getByRole("button", { name: "Undo", exact: true }).click()
+    await expect(page.getByTestId("undo-snackbar")).toHaveCount(0)
     await page.keyboard.press("Escape")
     await expect(banner(harness)).toContainText("1 bought · £8.00")
 

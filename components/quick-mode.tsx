@@ -96,10 +96,11 @@ function readBundle(): QuickBundleEntry[] {
 
 /** The deal checker: tapping a card opens its price check (asking price → verdict) instead of the card browser. */
 export interface QuickCardCheckOptions {
+  destinationName?: string
   currency: DisplayCurrency
   fxRates?: DisplayFxRates | null
   readOnly?: boolean
-  getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }) => QuickCardState
+  getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => QuickCardState
   onAction: (action: QuickCardAction, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => Promise<(() => Promise<void>) | null>
   /** The collection on this device: Show mode's Hunting list and per-Pokémon view are built from it. */
   huntItems?: readonly HuntSourceItem[]
@@ -152,7 +153,7 @@ export interface QuickModeProps {
   lookupOnly?: boolean
   /** Outside Show mode too: each card result gets its Owned / Wanted badge, wanted printings first. */
   cardStanding?: {
-    getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }) => QuickCardState
+    getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => QuickCardState
     /** The collection on this device: its wanted printings always match, even offline. */
     items?: readonly HuntSourceItem[]
   }
@@ -364,6 +365,8 @@ function QuickMode({
       card={checking.card}
       pokemon={checking.pokemon}
       state={cardCheck.getCardState(checking.card, checking.pokemon)}
+      getState={finish => cardCheck.getCardState(checking.card, checking.pokemon, finish)}
+      destinationName={cardCheck.destinationName}
       currency={cardCheck.currency}
       fxRates={cardCheck.fxRates}
       pricingRegion={pricingRegion}
@@ -384,6 +387,8 @@ function QuickMode({
   const bundleView = show && isBundleOpen ? (
     <QuickBundle
       entries={bundle}
+      destinationName={show.destinationName}
+      getCardState={entry => show.getCardState(entry.card, entry.pokemon, entry.finish)}
       currency={show.currency}
       readOnly={show.readOnly}
       onBack={() => setIsBundleOpen(false)}

@@ -6,6 +6,7 @@ import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
 import { allBindersCollection, allBindersWantedEntries, cardsOwnedElsewhere, formatOwnedIn, speciesOwnedElsewhere } from "@/lib/binders/all-binders"
 import { useAllBinders } from "@/hooks/use-all-binders"
+import { getQuickCardState as resolveQuickCardState } from "@/lib/quick-card-state"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
 import { hasWantedSetCard } from "@/lib/set-checklist"
 
@@ -3163,13 +3164,10 @@ export default function BinderApp({
 
   const snoozeShowModePrompt = dismissShowModeOffer
   // Quick mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
-  const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }) => {
-    const item = getCollectionItem(pokemon.id)
-    return {
-      owned: item?.status === "collected" && Boolean(item.card_id) && matchesCatalogCardId(card, item.card_id as string),
-      wanted: Boolean(item?.wanted_cards?.some((wanted) => matchesCatalogCardId(card, wanted.card_id))),
-    }
-  }, [getCollectionItem])
+  const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => {
+    const state = resolveQuickCardState(card, getCollectionItem(pokemon.id), finish, allBinders, initialBinderId)
+    return { ...state, otherBindersIncomplete: binders.length > 1 && state.otherBindersIncomplete }
+  }, [allBinders, binders.length, getCollectionItem, initialBinderId])
   const handleQuickCardAction = useCallback(async (
     action: QuickCardAction,
     card: SearchCardResult,
@@ -3190,7 +3188,7 @@ export default function BinderApp({
     }
     const language = (card.language ?? "en") as CardLanguage
     if (action === "want") {
-      if (getQuickCardState(card, pokemon).wanted) return null
+      if (getQuickCardState(card, pokemon, finish).wanted) return null
       await addWantedCard(pokemon.id, pokemon.name, {
         card_id: card.id,
         card_name: card.name,
@@ -3207,18 +3205,18 @@ export default function BinderApp({
       return undo
     }
     // Bought, Add owned and Got it all put this printing in the binder and take it off the want list.
-    if (getQuickCardState(card, pokemon).owned && previous?.card_finish === finish) return null
+    if (getQuickCardState(card, pokemon, finish).owned) return null
     await addToCollection(pokemon.id, pokemon.name, card.id, card.name, card.image, card.set.name, language, "collected", {
       cardFinish: finish,
-      wantedCards: (previous?.wanted_cards ?? []).filter((wanted) => !matchesCatalogCardId(card, wanted.card_id)),
+      wantedCards: (previous?.wanted_cards ?? []).filter((wanted) => !(matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === language && (wanted.card_finish ?? "normal") === finish)),
       cardIds: catalogCardIds(card),
     })
     return undo
   }, [addToCollection, addWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
   // The deal check is part of every Quick mode; Show mode (and the price lookup) add the hunt list, bundle and tally.
   const quickCardCheck = useMemo(
-    () => ({ currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }),
-    [collection, fxRates, getQuickCardState, handleQuickCardAction, pricingPreferences.currency, readOnlyMode],
+    () => ({ currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, destinationName: activeBinder?.name ?? "this binder", getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }),
+    [activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, pricingPreferences.currency, readOnlyMode],
   )
   // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.
   const quickCardStanding = useMemo(() => ({ getCardState: getQuickCardState, items: collection }), [collection, getQuickCardState])

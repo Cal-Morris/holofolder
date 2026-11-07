@@ -60,8 +60,10 @@ export function useAllBinders({ ownerUserId, binders, currentBinderId, currentCo
         .order("pokemon_id", { ascending: true })
         .range(from, to))
     if (error) return
-    setOthers({ ownerUserId, collections: groupRowsByBinder(data) })
-  }, [currentBinderId, enabled, ownerUserId])
+    const collections = groupRowsByBinder(data)
+    for (const binder of binders) if (binder.id !== currentBinderId) collections[binder.id] ??= []
+    setOthers({ ownerUserId, collections })
+  }, [binders, currentBinderId, enabled, ownerUserId])
 
   useEffect(() => {
     if (!enabled || !isOnline) return
@@ -91,7 +93,8 @@ export function useAllBinders({ ownerUserId, binders, currentBinderId, currentCo
     const timer = window.setTimeout(() => {
       const collections: Record<string, CollectedPokemon[]> = {}
       for (const binder of binders) {
-        collections[binder.id] = binder.id === currentBinderId ? [...currentCollection] : others.collections[binder.id] ?? []
+        if (binder.id === currentBinderId) collections[binder.id] = [...currentCollection]
+        else if (Object.hasOwn(others.collections, binder.id)) collections[binder.id] = others.collections[binder.id]
       }
       void writeAllBindersCache(getOfflineStore(), { ownerUserId, savedAt: new Date().toISOString(), collections })
     }, CACHE_WRITE_DELAY_MS)

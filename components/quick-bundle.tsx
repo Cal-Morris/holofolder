@@ -18,10 +18,12 @@ import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { DisplayCurrency } from "@/lib/pricing-region"
 import UndoSnackbar from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
-import type { QuickBundleEntry, QuickCardAction } from "@/components/quick-card-check"
+import type { QuickCardState, QuickBundleEntry, QuickCardAction } from "@/components/quick-card-check"
 
 export interface QuickBundleProps {
   entries: QuickBundleEntry[]
+  destinationName?: string
+  getCardState?: (entry: QuickBundleEntry) => QuickCardState
   currency: DisplayCurrency
   readOnly?: boolean
   onBack: () => void
@@ -31,7 +33,14 @@ export interface QuickBundleProps {
   onAction: (action: QuickCardAction, entry: QuickBundleEntry) => Promise<(() => Promise<void>) | null>
 }
 
-export default function QuickBundle({ entries, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck }: QuickBundleProps) {
+export default function QuickBundle({ entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck }: QuickBundleProps) {
+  const states = entries.map(entry => getCardState?.(entry))
+  const replacementKey = JSON.stringify(entries.map((entry, index) => [entry.key, states[index]?.replacing]))
+  const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
+  const replacing = states.some(state => state?.replacing)
+  const needsConfirmation = replacing && confirmedReplacement !== replacementKey
+  const repeatedSlot = new Set(entries.map(entry => entry.pokemon.id)).size !== entries.length
+  const alreadyOwned = states.some(state => state?.owned)
   const [input, setInput] = useState("")
   const [thresholds] = useState(() => readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
   const { logPurchases, removePurchases } = useShowSession()
@@ -83,14 +92,19 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
   const [undo, setUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
 
   const buyAll = async () => {
-    if (busy || entries.length === 0) return
+    if (busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned) return
     setBusy(true)
     try {
       const bought = [...pricedEntries]
       const reverts: Array<() => Promise<void>> = []
       for (const entry of bought) {
         const revert = await onAction("bought", entry)
-        if (revert) reverts.push(revert)
+        if (!revert) {
+          for (const undo of reverts.reverse()) await undo()
+          setError("A card could not be added. The bundle was not recorded. Check the destination and try again.")
+          return
+        }
+        reverts.push(revert)
       }
       const bundleId = `b-${Date.now().toString(36)}`
       const prices = askingTotal ? splitBundlePrice(askingTotal, bought.map((entry) => entry.marketPrice)) : []
@@ -146,6 +160,14 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
           )}
         </div>
 
+        <section aria-label="Bundle destination" className="rounded-xl border border-border/60 p-3 text-sm">
+          <p className="font-semibold">Adds to {destinationName}</p>
+          {entries.map((entry, index) => states[index]?.ownedElsewhere?.length ? <p key={entry.key}>{entry.card.name}: already owned in {states[index]!.ownedElsewhere!.join(", ")}</p> : null)}
+          {states.some(state => state?.otherBindersIncomplete) && <p>Other binders haven&apos;t all loaded. Duplicate check is incomplete.</p>}
+          {repeatedSlot && <p role="status">Only one printing per Pokémon fits in this binder. Remove the extra printings before buying.</p>}
+          {alreadyOwned && <p role="status">A card is already in this binder. Remove it from the bundle before buying.</p>}
+          {replacing && <label className="mt-2 flex min-h-10 items-center gap-2"><input type="checkbox" checked={!needsConfirmation} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} /><span>Replace {states.filter(state => state?.replacing).map(state => state!.replacing).join(", ")} in {destinationName}</span></label>}
+        </section>
         <ul className="flex flex-col gap-1" aria-label="Cards in bundle">
           {entries.map((entry, index) => (
             <li key={entry.key} className="flex min-h-12 items-center gap-2 rounded-xl border border-border/50 bg-card pl-3 pr-1">
@@ -185,7 +207,7 @@ export default function QuickBundle({ entries, currency, readOnly = false, onBac
         {!readOnly && (
           <button
             type="button"
-            disabled={busy || entries.length === 0}
+            disabled={busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned}
             onClick={() => void buyAll()}
             className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
           >
