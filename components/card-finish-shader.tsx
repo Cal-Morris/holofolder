@@ -269,6 +269,8 @@ function getFinishUniformValue(finish: CardFinish) {
 
 function shouldUseCssFinishFallback() {
   if (typeof window === "undefined") return true
+  // Phone page turns should not compile a WebGL program for every shiny thumbnail.
+  if (window.matchMedia("(max-width: 767px), (pointer: coarse)").matches) return true
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true
 
   const navigatorWithMemory = window.navigator as Navigator & {
