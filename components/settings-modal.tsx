@@ -158,7 +158,7 @@ export default function SettingsModal({
   const hasPageColorOverride = appearance ? Boolean(appearance.pageColors[String(currentBinderPage)]) : Boolean(settings.binderPageColors[String(currentBinderPage)])
   const appearanceColorName = (color: string) => BINDER_COLOR_PRESETS.find(preset => preset.swatch[0].toLowerCase() === color.toLowerCase())?.label ?? "a custom colour"
   const fullShareUrl = sharePath && typeof window !== "undefined"
-    ? buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/share\//, ""))
+    ? buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/(?:app\/)?share\//, ""))
     : sharePath
 
   const handleCopyShareLink = async () => {

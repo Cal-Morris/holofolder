@@ -9,7 +9,7 @@ const cards = [
 ]
 
 test("ordinary Search renders compound card hits and a useful empty state", async ({ harness, page }, info) => {
-  await page.route("**/api/tcg-card-search**", route => {
+  await page.route("**/app/api/tcg-card-search**", route => {
     const query = new URL(route.request().url()).searchParams.get("q") ?? ""
     return route.fulfill({ json: { cards: searchOfflineCards(cards, query) } })
   })
@@ -35,7 +35,7 @@ test("ordinary Search renders compound card hits and a useful empty state", asyn
   await expect(show.getByRole("region", { name: "Cards", exact: true }).getByText("Base Set", { exact: true })).toHaveCount(0)
   await page.evaluate(async cards => {
     const cache = await caches.open("compound-fixture-data")
-    await cache.put("/api/tcg-card-search?q=fixture", new Response(JSON.stringify({ cards }), { headers: { "content-type": "application/json" } }))
+    await cache.put("/app/api/tcg-card-search?q=fixture", new Response(JSON.stringify({ cards }), { headers: { "content-type": "application/json" } }))
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false })
   }, cards)
   await show.getByRole("searchbox").fill("151 abra")
@@ -52,7 +52,7 @@ test("compound spelling correction is labelled without replacing the query in Se
     { id: "neo1-9", localId: "9", name: "Lugia", set: { id: "neo1", name: "Neo Genesis" }, dexIds: [249] },
     { id: "neo3-20", localId: "20", name: "Lugia", set: { id: "neo3", name: "Neo Revelation" }, dexIds: [249] },
   ]
-  await page.route("**/api/tcg-card-search**", route => {
+  await page.route("**/app/api/tcg-card-search**", route => {
     const query = new URL(route.request().url()).searchParams.get("q") ?? ""
     return route.fulfill({ json: searchOfflineCardsWithCorrection(neoCards, query) })
   })
@@ -78,7 +78,7 @@ test("compound spelling correction is labelled without replacing the query in Se
   await page.getByRole("button", { name: "Show mode", exact: true }).click()
   await page.evaluate(async cards => {
     const cache = await caches.open("correction-fixture-data")
-    await cache.put("/api/tcg-card-search?q=fixture", new Response(JSON.stringify({ cards }), { headers: { "content-type": "application/json" } }))
+    await cache.put("/app/api/tcg-card-search?q=fixture", new Response(JSON.stringify({ cards }), { headers: { "content-type": "application/json" } }))
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false })
   }, neoCards)
   await harness.dock().getByRole("button", { name: "Search", exact: true }).click()

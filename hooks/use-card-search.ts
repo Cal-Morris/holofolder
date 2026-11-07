@@ -57,7 +57,7 @@ export function useCardSearch(query: string, enabled: boolean, getOfflineCards?:
         void showOffline()
         return
       }
-      fetch(`/api/tcg-card-search?q=${encodeURIComponent(key)}`, { signal: controller.signal })
+      fetch(`/app/api/tcg-card-search?q=${encodeURIComponent(key)}`, { signal: controller.signal })
         .then((response) => {
           if (!response.ok) throw new Error(`Card search failed (${response.status})`)
           return response.json()
@@ -125,7 +125,7 @@ export function useSetSearch(query: string, enabled: boolean, limit = SEARCH_SET
         void showSaved()
         return
       }
-      fetch(`/api/tcg-set-slots?${new URLSearchParams({ query: key }).toString()}`, { signal: controller.signal })
+      fetch(`/app/api/tcg-set-slots?${new URLSearchParams({ query: key }).toString()}`, { signal: controller.signal })
         .then((response) => {
           if (!response.ok) throw new Error(`Set search failed (${response.status})`)
           return response.json() as Promise<Partial<TCGSetSlotsResponse>>

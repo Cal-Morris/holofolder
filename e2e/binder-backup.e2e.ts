@@ -19,7 +19,7 @@ test("downloads the current binder's queued offline edit without changing the qu
   const { page } = harness
   const trades = "e2e00000-0000-4000-8000-000000000002"
   await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: SEEDED_COLLECTION.filter(row => row.pokemon_id === 4) }))
-  await page.goto(`/e2e-harness?signedIn=1&binders=1&binder=${trades}`)
+  await page.goto(`/app/e2e-harness?signedIn=1&binders=1&binder=${trades}`)
   await expect(harness.dock()).toBeVisible()
   const button = await openBackup(harness)
   await expect(button).toBeEnabled()
@@ -60,7 +60,7 @@ test("empty local binder can download and read-only shares hide the backup", asy
   const backup = JSON.parse(await readFile((await (await downloading).path())!, "utf8"))
   expect(backup.binder.id).toBeNull()
   expect(backup.collection).toEqual([])
-  await page.goto("/e2e-harness?readOnly=1")
+  await page.goto("/app/e2e-harness?readOnly=1")
   await expect(harness.dock()).toBeVisible()
   await page.getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click()

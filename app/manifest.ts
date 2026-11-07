@@ -5,8 +5,8 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Holo Folder",
     short_name: "Holo Folder",
     description: "Pokemon binder tracking with offline-friendly collection lookup, card matching, and app-style navigation.",
-    start_url: "/",
-    scope: "/",
+    start_url: "/app",
+    scope: "/app",
     display: "standalone",
     orientation: "portrait",
     background_color: "#f2f5fb",
@@ -14,19 +14,19 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["productivity", "entertainment", "utilities"],
     icons: [
       {
-        src: "/pwa-holo-card-192.png",
+        src: "/app/pwa-holo-card-192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/pwa-holo-card-512.png",
+        src: "/app/pwa-holo-card-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/apple-touch-icon-holo-card.png",
+        src: "/app/apple-touch-icon-holo-card.png",
         sizes: "180x180",
         type: "image/png",
         purpose: "any",

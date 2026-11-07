@@ -32,7 +32,7 @@ test.describe("edge swipe back", () => {
       await harness.page.waitForTimeout(300)
       await expect(setsView(harness)).toBeVisible()
     }
-    await expect(harness.page).toHaveURL(/\/e2e-harness/)
+    await expect(harness.page).toHaveURL(/\/app\/e2e-harness/)
   })
 
   test("closes the open sheet like the back button", async ({ harness, standalone }) => {
@@ -41,7 +41,7 @@ test.describe("edge swipe back", () => {
     await edgeSwipe(harness)
     await expect(dialog).toBeHidden()
     await expect(harness.dialogs()).toHaveCount(0)
-    await expect(harness.page).toHaveURL(/\/e2e-harness/)
+    await expect(harness.page).toHaveURL(/\/app\/e2e-harness/)
     await harness.expectScrollUnlocked()
   })
 

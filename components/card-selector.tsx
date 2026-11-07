@@ -396,8 +396,8 @@ export default function CardSelector({
     }
 
     const proxyUrl = card.image.startsWith("/")
-      ? card.image
-      : `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+      ? toCardImageSrc(card.image)!
+      : `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
 
     const descriptorPromise = buildCardImageDescriptor(proxyUrl).catch(() => null)
     descriptorCacheRef.current.set(card.id, descriptorPromise)
@@ -412,9 +412,9 @@ export default function CardSelector({
 
     const metadataSignals = buildCardMetadataTextSignals(card)
     const proxyUrl = card.image?.startsWith("/")
-      ? card.image
+      ? toCardImageSrc(card.image)!
       : card.image
-        ? `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+        ? `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
         : null
 
     const textSignalPromise = proxyUrl

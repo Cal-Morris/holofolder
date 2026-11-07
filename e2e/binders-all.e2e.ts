@@ -34,7 +34,7 @@ async function mockBinderRows(page: Page) {
     const id = binder.startsWith("eq.") ? binder.slice(3) : MY_BINDER
     return route.fulfill({ json: [...MY_ROWS, ...OTHER_ROWS].filter((row) => row.binder_id === id) })
   })
-  await page.route("**/api/binders**", (route) => route.fulfill({ status: 503, json: { error: "not needed" } }))
+  await page.route("**/app/api/binders**", (route) => route.fulfill({ status: 503, json: { error: "not needed" } }))
   return state
 }
 
@@ -45,7 +45,7 @@ async function snap(page: Page, testInfo: TestInfo, name: string) {
 }
 
 async function open(harness: Harness, query = "") {
-  await harness.page.goto(`/e2e-harness?signedIn=1&binders=3${query}`)
+  await harness.page.goto(`/app/e2e-harness?signedIn=1&binders=3${query}`)
   await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
   await expect(harness.page.locator('button[data-dex-id="1"]').first()).toBeVisible()
 }

@@ -8,7 +8,7 @@ const themeCookie = async (page: import("@playwright/test").Page) =>
 test("the theme cookie is only written when the user switches theme", async ({ harness }) => {
   const { page } = harness
   await page.context().clearCookies({ name: "binderdex_theme" })
-  await page.goto("/e2e-harness?signedIn=1")
+  await page.goto("/app/e2e-harness?signedIn=1")
   await expect(page.getByTestId("app-header")).toBeVisible()
   const startedDark = await page.evaluate(() => document.documentElement.classList.contains("dark"))
   expect(await themeCookie(page), "loading the app does not save a theme").toBeUndefined()

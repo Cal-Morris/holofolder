@@ -1,5 +1,7 @@
 "use client"
 
+import { appPath } from "@/lib/app-path"
+import { toCardImageSrc } from "@/lib/card-image-url"
 import { createBinderBackup, downloadBinderBackup } from "@/lib/binder-backup"
 import type { Binder } from "@/lib/binders/model"
 import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
@@ -196,7 +198,7 @@ export default function BinderApp({
   const closeBurstScanner = useCallback(() => setIsBurstScannerOpen(false), [])
   const [isSyncingLocalCollection, setIsSyncingLocalCollection] = useState(false)
   const [localCollectionSyncMessage, setLocalCollectionSyncMessage] = useState<string | null>(null)
-  const [sharePath, setSharePath] = useState<string | null>(shareViewToken ? `/share/${shareViewToken}` : null)
+  const [sharePath, setSharePath] = useState<string | null>(shareViewToken ? `/app/share/${shareViewToken}` : null)
   const [isShareEnabled, setIsShareEnabled] = useState(Boolean(shareViewToken))
   const [isShareLoading, setIsShareLoading] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
@@ -316,7 +318,7 @@ export default function BinderApp({
     runAfterOverlayHistory(() => {
       const href = binderHref(pendingBinderSwitch, window.location.href)
       // Offline, a full load lets the service worker open that binder's saved copy from the app shell.
-      if (typeof navigator !== "undefined" && navigator.onLine === false) window.location.assign(href)
+      if (typeof navigator !== "undefined" && navigator.onLine === false) window.location.assign(appPath(href))
       else router.push(href)
     })
   }, [isBinderSwitcherOpen, pendingBinderSwitch, router])
@@ -376,7 +378,7 @@ export default function BinderApp({
     if (!sharePath) return null
     if (typeof window === "undefined") return sharePath
 
-    return buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/share\//, ""))
+    return buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/(?:app\/)?share\//, ""))
   }, [sharePath])
   const handleSignOut = useCallback(async () => {
     await signOut()
@@ -2221,8 +2223,8 @@ export default function BinderApp({
     if (existingPromise) return existingPromise
 
     const proxyUrl = card.image.startsWith("/")
-      ? card.image
-      : `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+      ? toCardImageSrc(card.image)!
+      : `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
     const descriptorPromise = import("@/lib/card-image-match")
       .then(({ buildCardImageDescriptor }) => buildCardImageDescriptor(proxyUrl))
       .catch(() => null)
@@ -2237,9 +2239,9 @@ export default function BinderApp({
 
     const metadataSignals = buildCardMetadataTextSignals(card)
     const proxyUrl = card.image?.startsWith("/")
-      ? card.image
+      ? toCardImageSrc(card.image)!
       : card.image
-        ? `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+        ? `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
         : null
     const textSignalPromise = proxyUrl
       ? import("@/lib/card-scan-ocr")
@@ -2714,7 +2716,7 @@ export default function BinderApp({
     setShareCopyMessage(null)
 
     try {
-      const response = await fetch("/api/binder-share", {
+      const response = await fetch("/app/api/binder-share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(initialBinderId ? { binderId: initialBinderId } : {}),
@@ -2788,7 +2790,7 @@ export default function BinderApp({
     setPriceRefreshMessage(null)
 
     try {
-      const response = await fetch("/api/card-prices/refresh", {
+      const response = await fetch("/app/api/card-prices/refresh", {
         method: "POST",
       })
       const payload = await response.json().catch(() => null)

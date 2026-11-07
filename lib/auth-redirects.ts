@@ -1,6 +1,7 @@
+import { appPath, appReturnPath } from "@/lib/app-path"
+
 const PASSWORD_RECOVERY_PATH = "/auth/login?mode=recovery"
-// Keep the current origin working until the domain cutover is configured.
-const PRODUCTION_SITE_URL = "https://binder.cal.gg"
+const PRODUCTION_SITE_URL = "https://holofolder.com"
 
 function normalizeBaseUrl(value?: string | null) {
   if (!value) return null
@@ -41,19 +42,28 @@ function getBaseUrl() {
 }
 
 export function getMagicLinkRedirectUrl() {
-  return `${getBaseUrl()}/auth/callback`
+  return `${new URL(getBaseUrl()).origin}${appPath("/auth/callback")}`
 }
 
 export function getPasswordRecoveryRedirectUrl() {
-  return `${getBaseUrl()}/auth/callback?next=${encodeURIComponent(PASSWORD_RECOVERY_PATH)}`
+  return `${getMagicLinkRedirectUrl()}?next=${encodeURIComponent(appPath(PASSWORD_RECOVERY_PATH))}`
 }
 
 /**
  * Where a request should go before any page renders: signed-out visitors to the binder (`/`) go to the
- * landing page. The proxy answers with this redirect up front, so they never download the binder's HTML
+ * sign-in page. The proxy answers with this redirect up front, so they never download the binder's HTML
  * and JS (`app/page.tsx` keeps the same redirect as a fallback). Returns null when no redirect applies.
  */
 export function getSignedOutRedirectPath(pathname: string, isSignedIn: boolean) {
   if (isSignedIn) return null
-  return pathname === "/" ? "/home" : null
+  return pathname === "/" ? "/auth/login" : null
+}
+
+/** Production proxy requests can reach Vercel with its origin hostname. Never trust arbitrary forwarded hosts. */
+export function appRedirectUrl(path: string | null, requestUrl: string) {
+  const url = new URL(requestUrl)
+  const origin = ["app.holofolder.com", "holofolder.com"].includes(url.hostname)
+    ? PRODUCTION_SITE_URL
+    : url.origin
+  return new URL(appReturnPath(path), origin)
 }

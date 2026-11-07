@@ -9,7 +9,7 @@ export const maxDuration = 300
 const TIME_BUDGET_MS = (maxDuration - 60) * 1000
 
 /**
- * POST /api/admin/mirror-card-images  (Authorization: Bearer <CARD_DB_SYNC_SECRET, SYNC_SECRET or CRON_SECRET>)
+ * POST /app/api/admin/mirror-card-images  (Authorization: Bearer <CARD_DB_SYNC_SECRET, SYNC_SECRET or CRON_SECRET>)
  *
  * Copies TCGdex card images for every mirrored set into the card image store (R2 or Vercel Blob, see
  * lib/card-image-store.ts), set by set (ordered by set id).

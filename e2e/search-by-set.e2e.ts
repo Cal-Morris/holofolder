@@ -9,7 +9,7 @@ const card = { id: "fxs1-1", localId: "1", name: "Fixture Bulbasaur", language: 
 const payload: TCGSetSlotsResponse = { sets: [set], selectedSet: set, cards: [card], slots: [{ dexId: 1, pokemonName: "bulbasaur", cards: [card] }] }
 
 async function mockSets(page: Page) {
-  await page.route("**/api/tcg-set-slots**", (route) => {
+  await page.route("**/app/api/tcg-set-slots**", (route) => {
     const params = new URL(route.request().url()).searchParams
     if (params.get("setId")) return route.fulfill({ json: params.get("setId") === set.id ? payload : { error: "not found" }, status: params.get("setId") === set.id ? 200 : 404 })
     const query = (params.get("query") ?? "").toLowerCase()
@@ -88,7 +88,7 @@ plainTest.describe("search by set on desktop 1280×800", () => {
     plainTest.skip(plainTest.info().project.name !== "browser-390x844", "desktop context: run once")
     await mockBackends(page, page.context(), { signedIn: true, baseURL })
     await mockSets(page)
-    await page.goto("/e2e-harness?signedIn=1")
+    await page.goto("/app/e2e-harness?signedIn=1")
     await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible({ timeout: 30_000 })
 
     await page.keyboard.press("Control+k")

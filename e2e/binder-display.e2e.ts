@@ -10,7 +10,7 @@ test.describe("binder printing display", () => {
     const owned = { ...SEEDED_COLLECTION[0], card_name: "Owned Bulbasaur", card_image: "https://assets.tcgdex.net/en/mock/base1/44/high.webp" }
     const wanted = { card_id: "sv03.5-166", card_name: "Wanted Bulbasaur", card_image: "https://assets.tcgdex.net/en/mock/sv03.5/166/high.webp", card_set: "151", card_language: "ja", card_finish: "holo", added_at: "2026-10-11T00:00:00Z" }
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: [{ ...owned, wanted_cards: [wanted] }, SEEDED_COLLECTION[1]] }))
-    await page.route("**/api/card-prices**", async route => {
+    await page.route("**/app/api/card-prices**", async route => {
       const body = route.request().postDataJSON() ?? {}
       await route.fulfill({ json: { prices: (body.cards ?? []).map((card: { cardId: string; language?: string }) => ({
         ...card, language: card.language ?? "en", gbpAmount: card.cardId === wanted.card_id ? 20 : 3,

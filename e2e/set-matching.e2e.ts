@@ -24,7 +24,7 @@ async function setup(harness: import("./fixtures").Harness, failSecond = false) 
     { ...SEEDED_COLLECTION[0], id: "wanted-flaaffy", pokemon_id: 180, pokemon_name: "flaaffy", status: "wishlisted", card_id: "another-set-flaaffy" },
   ] }))
   await page.reload()
-  await page.route("**/api/tcg-set-slots**", route => {
+  await page.route("**/app/api/tcg-set-slots**", route => {
     const params = new URL(route.request().url()).searchParams
     const index = sets.findIndex(set => set.id === params.get("setId"))
     if (failSecond && index === 1) return route.fulfill({ status: 503, json: { error: "Fixture unavailable" } })
@@ -103,7 +103,7 @@ test.describe("multi-set matching", () => {
     const page = harness.page
     await expect(page.getByRole("button", { name: "Select mareep", exact: true })).toBeVisible()
     await page.getByRole("button", { name: "Remove Fixture Rising", exact: true }).click()
-    await page.route("**/api/tcg-set-slots**", route => {
+    await page.route("**/app/api/tcg-set-slots**", route => {
       const id = new URL(route.request().url()).searchParams.get("setId")
       return route.fulfill({ json: id === sets[1].id ? payloads[1] : { sets, selectedSet: null, slots: [] } })
     })
@@ -131,7 +131,7 @@ test.describe("multi-set matching", () => {
       return keys.filter(key => String(key).startsWith("sets:query:") && String(key).includes("setId=")).length
     })).toBe(2)
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-    await page.route("**/api/tcg-set-slots**", route => route.abort("internetdisconnected"))
+    await page.route("**/app/api/tcg-set-slots**", route => route.abort("internetdisconnected"))
     await page.context().setOffline(true)
     await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
     await expect(page.getByRole("button", { name: "Remove Fixture Rivals", exact: true })).toHaveCount(0)

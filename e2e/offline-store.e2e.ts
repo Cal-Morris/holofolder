@@ -51,7 +51,7 @@ test.describe("IndexedDB offline store", () => {
     }, { timeout: 15_000 }).toEqual([1, 4])
     expect(await readRecord(page, "meta:migrated-from-local-storage")).not.toBeNull()
 
-    // Prices are copied from the app's own price cache (filled by the mocked /api/card-prices).
+    // Prices are copied from the app's own price cache (filled by the mocked /app/api/card-prices).
     await expect.poll(async () => {
       const record = await readRecord<{ prices: Record<string, { cardId: string; marketGbpAmount: number }> }>(page, "prices")
       return Object.values(record?.prices ?? {}).some((price) => price.cardId === "base1-44" && price.marketGbpAmount === 0.2)
@@ -82,7 +82,7 @@ test.describe("IndexedDB offline store", () => {
 
   test("a set opened online opens again offline from IndexedDB", async ({ harness, context }) => {
     const { page } = harness
-    await page.route("**/api/tcg-set-slots**", (route) => {
+    await page.route("**/app/api/tcg-set-slots**", (route) => {
       const url = new URL(route.request().url())
       if (url.searchParams.get("recent") === "1") return route.fulfill({ json: { sets: [BASE_SET], selectedSet: null, slots: [] } })
       if (url.searchParams.get("setId") === "base1") return route.fulfill({ json: { sets: [BASE_SET], selectedSet: BASE_SET, slots: BASE_SET_SLOTS } })
@@ -97,8 +97,8 @@ test.describe("IndexedDB offline store", () => {
     await expect.poll(async () => (await readRecord(page, "sets:query:query=Base+Set&setId=base1")) !== null, { timeout: 10_000 }).toBe(true)
 
     // Offline: the API is unreachable.
-    await page.unroute("**/api/tcg-set-slots**")
-    await page.route("**/api/tcg-set-slots**", (route) => route.abort("internetdisconnected"))
+    await page.unroute("**/app/api/tcg-set-slots**")
+    await page.route("**/app/api/tcg-set-slots**", (route) => route.abort("internetdisconnected"))
     await context.setOffline(true)
 
     await page.getByRole("button", { name: "Remove Base Set" }).click()

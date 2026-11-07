@@ -9,7 +9,7 @@ import { canCreateBinder, nextBinderSortOrder, planBinderDelete, validateBinderO
 
 /**
  * Binders of the signed-in owner. A partner manages the owner's binders (they share every binder), so every
- * request resolves the owner first and then uses the service role, like /api/collection.
+ * request resolves the owner first and then uses the service role, like /app/api/collection.
  */
 async function requireOwner({ readOnly = false } = {}) {
   const supabase = await createClient()

@@ -17,7 +17,7 @@ test.describe("Show recently viewed", () => {
   test("shared recents reopen exact printings, update order, and clear without squeezing Hunt", async ({ harness, page }, info) => {
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.request().method() === "GET" ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback())
     let meteredRequests = 0
-    await page.route("**/api/card-price-checks**", route => {
+    await page.route("**/app/api/card-price-checks**", route => {
       meteredRequests++
       return route.abort()
     })
@@ -94,7 +94,7 @@ test.describe("Show recently viewed", () => {
     await dialog.getByRole("searchbox").fill("")
     await expect(rail.locator("button[data-standing]")).toHaveCount(1)
     await page.evaluate(() => Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false }))
-    await page.route("**/api/tcg-card-search**", route => route.abort())
+    await page.route("**/app/api/tcg-card-search**", route => route.abort())
     await rail.getByRole("button", { name: /^Bulbasaur,/ }).click()
     await expect(check).toContainText("151")
   })

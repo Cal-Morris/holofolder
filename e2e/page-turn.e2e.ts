@@ -57,7 +57,7 @@ test.describe("binder page turn", () => {
   test("prefetches and decodes the next page's slot images before the turn", async ({ harness }) => {
     const page = harness.page
     const requested: string[] = []
-    await page.route("**/api/card-image-proxy**", (route) => {
+    await page.route("**/app/api/card-image-proxy**", (route) => {
       requested.push(route.request().url())
       return route.fulfill({ contentType: "image/svg+xml", headers: { "cache-control": "public, max-age=3600" }, body: PLACEHOLDER })
     })

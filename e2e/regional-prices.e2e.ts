@@ -45,7 +45,7 @@ test.describe("variant prices (UK)", () => {
       sourcePrices: sources, trendPoints: [], buySignal: null, originalAmount: null, originalCurrency: null,
       source: sources[0].source, variantLabel: null, updatedAt: new Date().toISOString(), fxDate: null,
     })
-    await harness.page.route("**/api/card-prices**", async (route) => {
+    await harness.page.route("**/app/api/card-prices**", async (route) => {
       const lookups: Array<{ cardId: string; language?: string }> = route.request().postDataJSON()?.cards ?? []
       await route.fulfill({ json: { prices: lookups.map(({ cardId, language }) => ({
         cardId, language: language ?? "en", historyPoints: [],
@@ -90,7 +90,7 @@ test.describe("list prices (UK)", () => {
     // TEST FIXTURE ONLY: a one-card set.
     const set = { id: "fixture-set", name: "Fixture Set", officialCardCount: 1 }
     const card = { id: "fixture-set-1", localId: "1", name: "Fixture Bulbasaur", language: "en", set, inferredFinish: "normal" }
-    await harness.page.route("**/api/tcg-set-slots**", (route) => route.fulfill({ json: new URL(route.request().url()).searchParams.has("setId")
+    await harness.page.route("**/app/api/tcg-set-slots**", (route) => route.fulfill({ json: new URL(route.request().url()).searchParams.has("setId")
       ? { sets: [set], selectedSet: set, cards: [card], slots: [{ dexId: 1, pokemonName: "bulbasaur", cards: [card] }] }
       : { sets: [set], selectedSet: null, slots: [] } }))
     await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
@@ -131,7 +131,7 @@ test.describe("card picker price sort (UK)", () => {
 
   test("sorts printings by UK price in Add and Wanted modes, remembers it and works offline", async ({ harness }) => {
     const { page } = harness
-    await page.route("**/api/card-prices**", async (route) => {
+    await page.route("**/app/api/card-prices**", async (route) => {
       const lookups: Array<{ cardId: string; language?: string }> = route.request().postDataJSON()?.cards ?? []
       await route.fulfill({ json: { prices: lookups.map(({ cardId, language }) => {
         const gbp = QUOTES[cardId] ?? null
@@ -192,8 +192,8 @@ test.describe("card picker price sort (UK)", () => {
     await selector.getByRole("button", { name: "Close card selector" }).click()
     await expect(selector).toHaveCount(0)
     await page.keyboard.press("Escape")
-    await page.unroute("**/api/card-prices**")
-    await page.route("**/api/card-prices**", (route) => route.abort("internetdisconnected"))
+    await page.unroute("**/app/api/card-prices**")
+    await page.route("**/app/api/card-prices**", (route) => route.abort("internetdisconnected"))
     await page.context().setOffline(true)
     await (await openSquirtle()).getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
     await expect(selector).toBeVisible()

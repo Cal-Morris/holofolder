@@ -65,7 +65,7 @@ async function run() {
   mock.module("../../lib/supabase/session-user", () => ({ getSessionUser: async () => ({ id: "synthetic" }) }))
   const routes = await import("../../app/api/card-price-checks/route")
   const legacy = await import("../../app/api/ebay/listings/route")
-  const request = (cardId: string, finish = "holo") => new Request(`https://synthetic.test/api/card-price-checks?${new URLSearchParams({ cardId, finish })}`)
+  const request = (cardId: string, finish = "holo") => new Request(`https://synthetic.test/app/api/card-price-checks?${new URLSearchParams({ cardId, finish })}`)
   assert.equal((await routes.GET(request(id))).status, 200)
   for (const handler of [routes.GET, routes.POST, legacy.GET]) {
     for (const bad of ["", "../card", "a/b", "a?b", "a~", "a~~123", "a:123", "a~123~456", "x".repeat(101)]) assert.equal((await handler(request(bad))).status, 400, bad)

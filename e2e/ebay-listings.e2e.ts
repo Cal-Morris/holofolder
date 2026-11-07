@@ -15,7 +15,7 @@ test("asking and sold comparisons load on demand and remain separate from the ca
   await mockCardPrices(harness.page, { "base1-44": { confidence: "medium", market: 8, trend: { "7d": 7, Trend: 8 } } })
   await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
   let lookups = 0
-  await harness.page.route("**/api/card-price-checks?**", async route => {
+  await harness.page.route("**/app/api/card-price-checks?**", async route => {
     lookups++
     expect(route.request().method()).toBe("POST")
     expect(new URL(route.request().url()).searchParams.get("cardId")).toBe("base1-44")
@@ -59,7 +59,7 @@ test("asking and sold comparisons load on demand and remain separate from the ca
 
 test("eBay lookup degrades clearly offline without making a request", async ({ harness, context }) => {
   let lookups = 0
-  await harness.page.route("**/api/card-price-checks?**", async route => { lookups++; await route.abort() })
+  await harness.page.route("**/app/api/card-price-checks?**", async route => { lookups++; await route.abort() })
   const detail = await harness.openCardDetail()
   await context.setOffline(true)
   await detail.getByRole("button", { name: "Check prices" }).click()
@@ -70,7 +70,7 @@ test("eBay lookup degrades clearly offline without making a request", async ({ h
 
 test("eBay lookup failure and an empty sample do not invent a price", async ({ harness }) => {
   let failed = true
-  await harness.page.route("**/api/card-price-checks?**", async route => {
+  await harness.page.route("**/app/api/card-price-checks?**", async route => {
     if (failed) await route.fulfill({ status: 503, json: { error: "eBay listings are temporarily unavailable. Try again later." } })
     else await route.fulfill({ json: { ebay: { summary: { kind: "asking", currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: "2026-10-27T12:00:00Z" }, soldcomps: null, errors: { soldcomps: "Monthly allowance used up." } } })
   })
@@ -95,7 +95,7 @@ test("eBay lookup is available when the card has no market quote", async ({ harn
 })
 
 test("eBay listings API requires a signed-in session", async ({ request }) => {
-  const response = await request.get("/api/ebay/listings?cardId=base1-44")
+  const response = await request.get("/app/api/ebay/listings?cardId=base1-44")
   expect(response.status()).toBe(401)
   expect(response.headers()["cache-control"]).toBe("no-store")
 })
@@ -103,7 +103,7 @@ test("eBay listings API requires a signed-in session", async ({ request }) => {
 
 test("Show mode checks both sources on tap and resets comparisons when the finish changes", async ({ harness }) => {
   let requests = 0
-  await harness.page.route("**/api/card-price-checks?**", async route => {
+  await harness.page.route("**/app/api/card-price-checks?**", async route => {
     requests++
     expect(route.request().method()).toBe("POST")
     expect(new URL(route.request().url()).searchParams.get("cardId")).toBe("sv03.5-005")
@@ -137,7 +137,7 @@ test("Show mode checks both sources on tap and resets comparisons when the finis
 
 test("price check writes and saved reads require authentication", async ({ request }) => {
   for (const method of ["GET", "POST"]) {
-    const response = await request.fetch("/api/card-price-checks?cardId=base1-44&finish=normal", { method })
+    const response = await request.fetch("/app/api/card-price-checks?cardId=base1-44&finish=normal", { method })
     expect(response.status()).toBe(401)
     expect(response.headers()["cache-control"]).toBe("no-store")
   }
@@ -149,7 +149,7 @@ for (const fast of ["ebay", "soldcomps"] as const) {
     const slow = fast === "ebay" ? "soldcomps" : "ebay"
     let release: (() => void) | undefined
     const gate = new Promise<void>(resolve => { release = resolve })
-    await harness.page.route("**/api/card-price-checks?**", async route => {
+    await harness.page.route("**/app/api/card-price-checks?**", async route => {
       const source = new URL(route.request().url()).searchParams.get("source")
       if (source === slow) await gate
       await route.fulfill({ json: comparisonFixture })
@@ -177,7 +177,7 @@ const qualifyingFixture = () => ({ ...comparisonFixture, soldcomps: {
 test("qualified sold guide changes Show mode verdict, plots an overlay and resets on finish change", async ({ harness }) => {
   await mockCardPrices(harness.page, { "sv03.5-005": { market: 10, confidence: "high", finishes: [{ finish: "normal", market: 10 }, { finish: "reverse_holo", market: 20 }] } })
   let requests = 0
-  await harness.page.route("**/api/card-price-checks?**", async route => { requests++; await route.fulfill({ json: qualifyingFixture() }) })
+  await harness.page.route("**/app/api/card-price-checks?**", async route => { requests++; await route.fulfill({ json: qualifyingFixture() }) })
   await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
   await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
   const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
@@ -211,7 +211,7 @@ test("qualified sold guide changes Show mode verdict, plots an overlay and reset
 test("card details updates its good-price band only after a user checks qualifying sold evidence", async ({ harness }) => {
   await mockCardPrices(harness.page, { "base1-44": { market: 10, confidence: "high" } })
   await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
-  await harness.page.route("**/api/card-price-checks?**", route => route.fulfill({ json: qualifyingFixture() }))
+  await harness.page.route("**/app/api/card-price-checks?**", route => route.fulfill({ json: qualifyingFixture() }))
   await harness.page.reload()
   const detail = await harness.openCardDetail()
   await expect(detail.getByText("Fair range · sold", { exact: true })).toHaveCount(0)
@@ -225,7 +225,7 @@ test("card details updates its good-price band only after a user checks qualifyi
 test("card details compares sold evidence with the tracked finish quote", async ({ harness }) => {
   await mockCardPrices(harness.page, { "base1-44": { market: 10, confidence: "high", finishes: [{ finish: "normal", market: 10 }, { finish: "reverse_holo", market: 20 }] } })
   await harness.page.addInitScript(() => localStorage.removeItem("binderdex_card_price_cache_v7"))
-  await harness.page.route("**/api/card-price-checks?**", route => route.fulfill({ json: qualifyingFixture() }))
+  await harness.page.route("**/app/api/card-price-checks?**", route => route.fulfill({ json: qualifyingFixture() }))
   await harness.page.reload()
   const detail = await harness.openCardDetail()
   await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
@@ -241,7 +241,7 @@ test("switching finishes cancels the old check before it can overwrite new evide
   await mockCardPrices(harness.page, { "sv03.5-005": { market: 10, confidence: "high", finishes: [{ finish: "normal", market: 10 }, { finish: "reverse_holo", market: 20 }] } })
   let release: (() => void) | undefined
   const gate = new Promise<void>(resolve => { release = resolve })
-  await harness.page.route("**/api/card-price-checks?**", async route => {
+  await harness.page.route("**/app/api/card-price-checks?**", async route => {
     const params = new URL(route.request().url()).searchParams
     if (params.get("source") === "soldcomps" && params.get("finish") === "normal") await gate
     const fixture = qualifyingFixture()
@@ -272,7 +272,7 @@ test("switching finishes cancels the old check before it can overwrite new evide
 test("fair market bands, quick eBay link and individually verifiable source records", async ({ harness }) => {
   await mockCardPrices(harness.page, { "sv03.5-005": { market: 10, confidence: "high" } })
   let calls = 0
-  await harness.page.route("**/api/card-price-checks?**", route => {
+  await harness.page.route("**/app/api/card-price-checks?**", route => {
     calls++
     const fixture = qualifyingFixture()
     const sold = { ...fixture.soldcomps, sales: fixture.soldcomps.sales.map((sale, index) => ({ ...sale, title: `Synthetic Charmeleon 005/165 151 sale ${index + 1}`, url: `https://www.ebay.co.uk/itm/${123456789010 + index}`, condition: "Used" })) }
@@ -310,7 +310,7 @@ test("fair market bands, quick eBay link and individually verifiable source reco
 
 test("a saved check shows again without a request and is not re-requested while under 12 hours old", async ({ harness }) => {
   let requests = 0
-  await harness.page.route("**/api/card-price-checks?**", async route => {
+  await harness.page.route("**/app/api/card-price-checks?**", async route => {
     requests++
     const fixture = qualifyingFixture()
     await route.fulfill({ json: { ...fixture, ebay: { ...fixture.ebay, checkedAt: new Date().toISOString() } } })

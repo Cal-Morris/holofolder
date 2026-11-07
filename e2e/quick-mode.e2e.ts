@@ -138,7 +138,7 @@ test.describe("quick mode", () => {
     // Load the Quick mode chunk while online, as an installed app would have it cached.
     let dialog = await longPressSearch(harness)
     await dialog.getByRole("button", { name: "Close quick mode" }).click()
-    await page.route("**/api/tcg-card-search**", (route) => route.abort("internetdisconnected"))
+    await page.route("**/app/api/tcg-card-search**", (route) => route.abort("internetdisconnected"))
     await page.context().setOffline(true)
 
     dialog = await longPressSearch(harness)

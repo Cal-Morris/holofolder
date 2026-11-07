@@ -25,7 +25,7 @@ test.describe("mobile slot quick actions", () => {
       if (dismissal === "dock") await harness.dock().getByRole("button", { name: "List", exact: true }).tap()
       await expect(actions).toHaveCount(0)
       await harness.expectScrollUnlocked()
-      await expect(harness.page).toHaveURL(/e2e-harness/)
+      await expect(harness.page).toHaveURL(/\/app\/e2e-harness/)
     })
   }
 })

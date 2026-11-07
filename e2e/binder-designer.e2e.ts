@@ -6,10 +6,10 @@ import type { BinderDesign } from "../lib/binder-design"
 const image=`<svg xmlns="http://www.w3.org/2000/svg" width="315" height="440"><rect width="315" height="440" fill="#c9c9cb"/><rect x="18" y="18" width="279" height="404" rx="12" fill="#644c71"/><text x="40" y="80" fill="white">SYNTHETIC TEST</text></svg>`
 test.beforeEach(async({page},info)=>{
   if(info.project.metadata.standalone) await emulateStandalone(page,SAFE_AREA)
-  await page.route("**/api/card-image-proxy?**",route=>route.fulfill({status:200,contentType:"image/svg+xml",body:image}))
+  await page.route("**/app/api/card-image-proxy?**",route=>route.fulfill({status:200,contentType:"image/svg+xml",body:image}))
 })
 test("studio retains artwork framing, supports cancel and page colours",async({page})=>{
-  await page.goto("/studio")
+  await page.goto("/app/studio")
   await expect(page).toHaveTitle("Binder Studio · Holo Folder")
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   await expect(page.getByLabel("Preview collection")).toHaveValue("sample")
@@ -62,7 +62,7 @@ test("studio retains artwork framing, supports cancel and page colours",async({p
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
 test("valid upload survives reload and storage failure preserves draft",async({page})=>{
-  await page.goto("/studio")
+  await page.goto("/app/studio")
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   const png=await page.evaluate(()=>{const c=document.createElement("canvas");c.width=300;c.height=400;const x=c.getContext("2d")!;x.fillStyle="#aa2244";x.fillRect(0,0,300,400);return c.toDataURL("image/png").split(",")[1]})
   await page.evaluate(()=>{const original=window.createImageBitmap;const gate=new Promise<void>(resolve=>{(window as Window & { releaseArtwork?:()=>void }).releaseArtwork=resolve});Object.defineProperty(window,"createImageBitmap",{configurable:true,value:async(image:ImageBitmapSource,options?:ImageBitmapOptions)=>{await gate;return original(image,options)}})})
@@ -96,7 +96,7 @@ test("WebGL unavailable leaves appearance controls and saving usable",async({pag
     const original=HTMLCanvasElement.prototype.getContext
     Object.defineProperty(HTMLCanvasElement.prototype,"getContext",{configurable:true,value:function(this:HTMLCanvasElement,context:string,...args:unknown[]){return context.includes("webgl")?null:Reflect.apply(original,this,[context,...args])}})
   })
-  await page.goto("/studio")
+  await page.goto("/app/studio")
   await expect(page.getByRole("status").filter({hasText:"Your browser cannot open the 3D preview"})).toBeVisible()
   if(!await page.getByLabel("Words",{exact:true}).isVisible()) await page.locator("summary").filter({hasText:/^Lettering/}).click()
   await page.getByLabel("Words",{exact:true}).fill("Fallback appearance")
@@ -113,7 +113,7 @@ async function readSavedRecord(page: import("@playwright/test").Page) {
 
 test("physical page turns settle on paired faces and respect reduced motion",async({page})=>{
   await page.emulateMedia({reducedMotion:"no-preference"})
-  await page.goto("/studio")
+  await page.goto("/app/studio")
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   await page.getByRole("button",{name:"Pocket pages",exact:true}).click()
   const stage=page.locator(".studio-stage")
@@ -151,7 +151,7 @@ test("physical page turns settle on paired faces and respect reduced motion",asy
 
 test("clicking a page turns its spread while orbit dragging does not",async({page})=>{
   await page.emulateMedia({reducedMotion:"no-preference"})
-  await page.goto("/studio")
+  await page.goto("/app/studio")
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   await page.getByRole("button",{name:"Pocket pages",exact:true}).click()
   const stage=page.locator(".studio-stage")
@@ -177,7 +177,7 @@ test("clicking a page turns its spread while orbit dragging does not",async({pag
 })
 
 test("curated presets preserve page settings and support undo and device saving",async({page})=>{
-  await page.goto("/studio")
+  await page.goto("/app/studio")
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   await page.getByRole("button",{name:"Pocket pages",exact:true}).click()
   await page.getByLabel("Page count",{exact:true}).fill("40")

@@ -60,18 +60,18 @@ const charmander: CollectedPokemon = {
 }
 
 test("cached set coverage, per-Pokémon lists and earlier searches all become searchable cards", () => {
-  const fromSet = extractCardsFromCachedResponse("http://x/api/tcg-set-slots?query=Base+Set&setId=base1", setSlots)
+  const fromSet = extractCardsFromCachedResponse("http://x/app/api/tcg-set-slots?query=Base+Set&setId=base1", setSlots)
   assert.deepEqual(fromSet.map((entry) => [entry.id, entry.dexIds]), [["base1-44", [1]], ["base1-46", [4]]])
 
-  const fromPokemon = extractCardsFromCachedResponse("/api/tcgdex-cache?pokemonId=6&language=en", { cards: [card("sv03.5-006", "Charizard ex", "006", { id: "sv03.5", name: "151", officialCardCount: 165 })] })
+  const fromPokemon = extractCardsFromCachedResponse("/app/api/tcgdex-cache?pokemonId=6&language=en", { cards: [card("sv03.5-006", "Charizard ex", "006", { id: "sv03.5", name: "151", officialCardCount: 165 })] })
   assert.deepEqual(fromPokemon[0].dexIds, [6])
 
-  const fromSearch = extractCardsFromCachedResponse("/api/tcg-card-search?q=pika", { cards: [{ ...card("base1-58", "Pikachu", "58"), dexIds: [25] }, { ...card("x-1", "No dex", "1"), dexIds: [] }] })
+  const fromSearch = extractCardsFromCachedResponse("/app/api/tcg-card-search?q=pika", { cards: [{ ...card("base1-58", "Pikachu", "58"), dexIds: [25] }, { ...card("x-1", "No dex", "1"), dexIds: [] }] })
   assert.deepEqual(fromSearch.map((entry) => entry.id), ["base1-58"])
 
-  assert.deepEqual(extractCardsFromCachedResponse("/api/tcgdex-cache?pokemonId=0", { cards: [card("a-1", "A", "1")] }), [])
-  assert.deepEqual(extractCardsFromCachedResponse("/api/other", setSlots), [])
-  assert.deepEqual(extractSetsFromCachedResponse("/api/tcg-set-slots?recent=1", setSlots).map((set) => set.id), ["base1", "base1"])
+  assert.deepEqual(extractCardsFromCachedResponse("/app/api/tcgdex-cache?pokemonId=0", { cards: [card("a-1", "A", "1")] }), [])
+  assert.deepEqual(extractCardsFromCachedResponse("/app/api/other", setSlots), [])
+  assert.deepEqual(extractSetsFromCachedResponse("/app/api/tcg-set-slots?recent=1", setSlots).map((set) => set.id), ["base1", "base1"])
 })
 
 test("the user's owned and wanted printings are searchable with set ids and numbers", () => {
@@ -86,7 +86,7 @@ test("the user's owned and wanted printings are searchable with set ids and numb
 test("offline search follows the server's rules: name, set name, set id, number, card id", () => {
   const index = mergeSearchCards([
     collectionToSearchCards([charmander]),
-    extractCardsFromCachedResponse("/api/tcg-set-slots?setId=base1", setSlots),
+    extractCardsFromCachedResponse("/app/api/tcg-set-slots?setId=base1", setSlots),
   ])
   const ids = (query: string) => searchOfflineCards(index, query).map((entry) => entry.id)
   assert.deepEqual(ids("charm"), ["sv03.5-168", "swsh12pt5-001", "base1-46"])
@@ -114,13 +114,13 @@ test("saved sets can be found offline by name or id", () => {
 
 test("the index reads JSON card data from the service worker's data caches only", async () => {
   const responses = new Map<string, unknown>([
-    ["http://x/api/tcg-set-slots?setId=base1", setSlots],
-    ["http://x/api/card-prices", { prices: [] }],
+    ["http://x/app/api/tcg-set-slots?setId=base1", setSlots],
+    ["http://x/app/api/card-prices", { prices: [] }],
   ])
   const fakeCaches = {
     keys: async () => ["binderdex-v3-data", "binderdex-v3-images"],
     open: async (name: string) => ({
-      keys: async () => (name.endsWith("-data") ? [...responses.keys()].map((url) => ({ url })) : [{ url: "http://x/api/tcg-set-slots?setId=evil" }]),
+      keys: async () => (name.endsWith("-data") ? [...responses.keys()].map((url) => ({ url })) : [{ url: "http://x/app/api/tcg-set-slots?setId=evil" }]),
       match: async (request: { url: string }) => new Response(JSON.stringify(responses.get(request.url))),
     }),
   } as unknown as CacheStorage
@@ -129,12 +129,12 @@ test("the index reads JSON card data from the service worker's data caches only"
 })
 
 test("card show prep uses the Sets view's exact URLs and proxied low-res thumbnails", () => {
-  assert.equal(getSetSlotsUrl(BASE), "/api/tcg-set-slots?query=Base+Set&setId=base1")
+  assert.equal(getSetSlotsUrl(BASE), "/app/api/tcg-set-slots?query=Base+Set&setId=base1")
   assert.equal(
     getProxiedThumbnailUrl("https://assets.tcgdex.net/en/base/base1/44/high.webp"),
-    `/api/card-image-proxy?url=${encodeURIComponent("https://assets.tcgdex.net/en/base/base1/44/low.webp")}`,
+    `/app/api/card-image-proxy?url=${encodeURIComponent("https://assets.tcgdex.net/en/base/base1/44/low.webp")}`,
   )
-  assert.equal(getProxiedThumbnailUrl("/api/card-image-proxy?url=x"), "/api/card-image-proxy?url=x")
+  assert.equal(getProxiedThumbnailUrl("/app/api/card-image-proxy?url=x"), "/app/api/card-image-proxy?url=x")
   assert.equal(getProxiedThumbnailUrl("javascript:alert(1)"), null)
   assert.equal(getProxiedThumbnailUrl(undefined), null)
   assert.equal(getSetThumbnailUrls(setSlots).length, 2)
@@ -154,21 +154,21 @@ test("planning downloads only set data and a few samples; downloading fetches th
   const unmarkedImageRequests: string[] = []
   const fetcher = async (url: string, init?: RequestInit) => {
     requested.push(url)
-    if (url.startsWith("/api/card-image-proxy") && new Headers(init?.headers).get("x-binderdex-save") !== "show") unmarkedImageRequests.push(url)
-    if (url.startsWith("/api/tcg-set-slots")) return new Response(JSON.stringify(many))
+    if (url.startsWith("/app/api/card-image-proxy") && new Headers(init?.headers).get("x-binderdex-save") !== "show") unmarkedImageRequests.push(url)
+    if (url.startsWith("/app/api/tcg-set-slots")) return new Response(JSON.stringify(many))
     return new Response(new Uint8Array(20_000))
   }
 
   const plan = await planCardShowPrep([BASE], { fetcher })
   assert.equal(plan.priceLookups.length, 10)
   assert.equal(plan.imageUrls.length, 10)
-  assert.equal(requested.filter((url) => url.startsWith("/api/card-image-proxy")).length, ESTIMATE_SAMPLE_SIZE)
+  assert.equal(requested.filter((url) => url.startsWith("/app/api/card-image-proxy")).length, ESTIMATE_SAMPLE_SIZE)
   assert.equal(plan.estimatedBytes, plan.dataBytes + 10 * 20_000)
 
   const updates: number[] = []
   const result = await downloadCardShowImages(plan, { fetcher, onProgress: (progress) => updates.push(progress.done) })
   assert.deepEqual(result, { done: 10, total: 10, failed: 0 })
-  const imageRequests = requested.filter((url) => url.startsWith("/api/card-image-proxy"))
+  const imageRequests = requested.filter((url) => url.startsWith("/app/api/card-image-proxy"))
   assert.equal(imageRequests.length, 10)
   assert.equal(new Set(imageRequests).size, 10, "each image fetched exactly once")
   assert.equal(updates.at(-1), 10)
@@ -203,8 +203,8 @@ test("card show preparation includes Trainer and Energy highlight thumbnails", (
   // Synthetic all-card payload, including a Trainer outside Pokémon dex slots.
   const payload = { ...setSlots, cards: [setSlots.slots[0].cards[0], card("synthetic-trainer", "Trainer fixture", "99")] }
   assert.deepEqual(getSetThumbnailUrls(payload), [
-    "/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F44%2Flow.webp",
-    "/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F99%2Flow.webp",
+    "/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F44%2Flow.webp",
+    "/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F99%2Flow.webp",
   ])
 })
 
@@ -221,9 +221,9 @@ test("offline search also finds cards by illustrator once the query is 3+ charac
 test("offline set search reads only set responses and sees later cache updates", async () => {
   // Synthetic unrelated card responses must not consume the set reader's 600-response budget.
   const responses = new Map<string, unknown>(Array.from({ length: 600 }, (_, i) => [
-    `http://x/api/tcgdex-cache?pokemonId=${i + 1}`, { cards: [] },
+    `http://x/app/api/tcgdex-cache?pokemonId=${i + 1}`, { cards: [] },
   ]))
-  const setUrl = "http://x/api/tcg-set-slots?query=base"
+  const setUrl = "http://x/app/api/tcg-set-slots?query=base"
   responses.set(setUrl, { sets: [BASE] })
   const reads: string[] = []
   const fakeCaches = {
@@ -249,7 +249,7 @@ test("offline set search reads only set responses and sees later cache updates",
 test("failed estimate samples are retried and failed bodies never count as saved images", async () => {
   const attempts = new Map<string, number>()
   const fetcher = async (url: string) => {
-    if (url.startsWith("/api/tcg-set-slots")) return Response.json(setSlots)
+    if (url.startsWith("/app/api/tcg-set-slots")) return Response.json(setSlots)
     const count = (attempts.get(url) ?? 0) + 1
     attempts.set(url, count)
     return new Response("image", { status: count === 1 ? 503 : 200 })

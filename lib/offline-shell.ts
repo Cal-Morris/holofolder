@@ -6,7 +6,7 @@ import { collectionSnapshotKey, offlineAvailableBinderIds, pickOfflineBinder, re
 import { normalizeCollectionItems } from "@/lib/collection/normalize"
 import { getDefaultBinderSettings, normalizeBinderSettings, type BinderSettings, type StoredBinderSettings } from "@/lib/settings"
 
-export const APP_SHELL_PATH = "/app-shell"
+export const APP_SHELL_PATH = "/app/app-shell"
 
 export interface OfflineShellState {
   collection: CollectedPokemon[]

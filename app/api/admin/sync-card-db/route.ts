@@ -15,7 +15,7 @@ export const maxDuration = 300
 const TIME_BUDGET_MS = (maxDuration - 60) * 1000
 
 /**
- * POST /api/admin/sync-card-db
+ * POST /app/api/admin/sync-card-db
  *   Authorization: Bearer <CARD_DB_SYNC_SECRET, SYNC_SECRET or CRON_SECRET>
  *
  * Query:

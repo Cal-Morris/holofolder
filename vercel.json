@@ -1,36 +1,46 @@
 {
   "crons": [
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 12 * * *"
     },
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 15 * * *"
     },
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 18 * * *"
     },
     {
-      "path": "/api/card-prices/refresh",
+      "path": "/app/api/card-prices/refresh",
       "schedule": "0 21 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/.well-known/workflow/:path*",
+      "destination": "/app/.well-known/workflow/:path*"
+    },
+    {
+      "source": "/app/_vercel/:path*",
+      "destination": "/_vercel/:path*"
     }
   ]
 }

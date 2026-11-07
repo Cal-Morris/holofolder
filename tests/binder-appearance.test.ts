@@ -12,7 +12,7 @@ test("appearance writes reject missing revision, malformed surfaces and unsafe a
   assert.deepEqual(parseBinderAppearance({ design, baseRevision: 0 }), { design, baseRevision: 0 })
   for (const baseRevision of [-1, 1.5, "0", undefined, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => parseBinderAppearance({ design, baseRevision }), /revision/)
   assert.throws(() => parseBinderAppearance({ design: {}, baseRevision: 0 }), /design/)
-  for (const artwork of ["upload:missing", "blob:bad", "/api/binder-appearance/artwork?id=other", "https://evil.example/x"]) {
+  for (const artwork of ["upload:missing", "blob:bad", "/app/api/binder-appearance/artwork?id=other", "https://evil.example/x"]) {
     const invalid = structuredClone(design); invalid.surfaces.cover.artwork = artwork
     assert.throws(() => parseBinderAppearance({ design: invalid, baseRevision: 0 }), /artwork/)
   }
@@ -26,12 +26,12 @@ test("artwork paths are owner scoped and unique references are retained", () => 
   assert.deepEqual(binderArtworkIds(design), [upload])
 })
 test("cross-site writes are rejected and missing migration reports unavailable", () => {
-  requireAppearanceOrigin(new Request("https://binder.example/api/binder-appearance", { headers: { Origin: "https://binder.example" } }))
-  assert.throws(() => requireAppearanceOrigin(new Request("https://binder.example/api/binder-appearance", { headers: { Origin: "https://evil.example" } })), (error: unknown) => error instanceof AppearanceError && error.status === 403)
+  requireAppearanceOrigin(new Request("https://binder.example/app/api/binder-appearance", { headers: { Origin: "https://binder.example" } }))
+  assert.throws(() => requireAppearanceOrigin(new Request("https://binder.example/app/api/binder-appearance", { headers: { Origin: "https://evil.example" } })), (error: unknown) => error instanceof AppearanceError && error.status === 403)
   assert.throws(() => checkAppearanceDatabaseError({ code: "42P01" }), (error: unknown) => error instanceof AppearanceError && error.status === 503)
 })
 test("appearance requests must match the owner derived from the current session", () => {
-  const endpoint = "https://binder.example/api/binder-appearance"
+  const endpoint = "https://binder.example/app/api/binder-appearance"
   requireExpectedAppearanceOwner(new Request(endpoint, { headers: { "X-Binder-Owner": "owner" } }), "owner")
   for (const request of [new Request(endpoint), new Request(endpoint, { headers: { "X-Binder-Owner": "previous-owner" } })]) {
     assert.throws(() => requireExpectedAppearanceOwner(request, "owner"), (error: unknown) => error instanceof AppearanceError && error.status === 403)
@@ -71,4 +71,11 @@ test("uploaded bytes are validated instead of trusting the declared image MIME",
   const validated = await loadBinderArtwork(admin, "owner", upload)
   assert.equal(validated.contentType, "image/png")
   assert.deepEqual(validated.bytes, synthetic)
+})
+
+test("appearance writes through Framer accept only the known public origin", () => {
+  const request = (origin: string) => new Request("https://app.holofolder.com/app/api/binder-appearance", { method: "PUT", headers: { origin, "sec-fetch-site": "same-origin" } })
+  assert.doesNotThrow(() => requireAppearanceOrigin(request("https://holofolder.com")))
+  assert.throws(() => requireAppearanceOrigin(request("https://evil.example")), /origin/)
+  assert.throws(() => requireAppearanceOrigin(new Request("https://preview.vercel.app/app/api/binder-appearance", { method: "PUT", headers: { origin: "https://holofolder.com" } })), /origin/)
 })

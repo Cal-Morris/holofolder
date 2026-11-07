@@ -40,7 +40,7 @@ async function visitOnlineAndPrepare(harness: Harness, timeout = 30_000) {
   await harness.open()
   const { page } = harness
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
-  await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app-shell"))), { timeout }).toBe(true)
+  await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app/app-shell"))), { timeout }).toBe(true)
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pokemon_collection_snapshot_v1")?.includes("base1-44") ?? false), { timeout }).toBe(true)
 }
 
@@ -67,7 +67,7 @@ test.describe("offline", () => {
   test("opening the app offline at / or another page also lands in the binder", async ({ harness }) => {
     await visitOnlineAndPrepare(harness)
     await goOffline(harness.page)
-    for (const path of ["/", "/home"]) {
+    for (const path of ["/app", "/app/home"]) {
       await harness.page.goto(path)
       await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
       await expect(harness.page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
@@ -81,7 +81,7 @@ test.describe("offline", () => {
       for (const name of await caches.keys()) {
         if (!name.endsWith("-data")) continue
         const keys = await (await caches.open(name)).keys()
-        if (keys.some((request) => request.url.includes("/api/tcgdex-cache?pokemonId=1&"))) return true
+        if (keys.some((request) => request.url.includes("/app/api/tcgdex-cache?pokemonId=1&"))) return true
       }
       return false
     }), { timeout: 30_000 }).toBe(true)
@@ -95,12 +95,12 @@ test.describe("offline", () => {
 
   test("when the server stalls (dead card-show Wi-Fi) the app opens from the shell instead of hanging", async ({ harness, context }) => {
     await visitOnlineAndPrepare(harness)
-    await context.route((url) => url.pathname === "/", async (route) => {
+    await context.route((url) => url.pathname === "/app", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 20_000))
       await route.fallback().catch(() => undefined)
     })
     const started = Date.now()
-    await harness.page.goto("/", { waitUntil: "commit" })
+    await harness.page.goto("/app", { waitUntil: "commit" })
     await expect(harness.dock()).toBeVisible({ timeout: 15_000 })
     await expect(harness.page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
     expect(Date.now() - started).toBeLessThan(15_000)
@@ -126,11 +126,11 @@ test.describe("offline, signed out", () => {
     },
   })
 
-  signedOutTest("a first visit to /home installs the worker, so /home reloads offline into the shell", async ({ visitor: page }) => {
-    await page.goto("/home")
+  signedOutTest("a first visit to /app/home installs the worker, so /app/home reloads offline into the shell", async ({ visitor: page }) => {
+    await page.goto("/app/home")
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
     // Registered after load and idle; the shell is stored once its assets and lazy chunks are cached.
-    await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app-shell"))), { timeout: 30_000 }).toBe(true)
+    await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app/app-shell"))), { timeout: 30_000 }).toBe(true)
 
     await goOffline(page)
     await page.reload()

@@ -106,7 +106,7 @@ function ServerStartedBinder({ serverBoot }: { serverBoot: Promise<ServerBinderB
 
   useEffect(() => {
     // The proxy redirects signed-out visitors before this page; this covers a session that ended in between.
-    if (signedOut) router.replace("/home")
+    if (signedOut) router.replace("/auth/login")
   }, [router, signedOut])
 
   if (signedOut) return <BinderSkeleton />

@@ -15,7 +15,7 @@ const card = { id: "fixture-set-1", localId: "1", name: "Fixture Bulbasaur", lan
 const payload: TCGSetSlotsResponse = { sets: [set], selectedSet: set, cards: [card], slots: [{ dexId: 1, pokemonName: "bulbasaur", cards: [card] }] }
 
 async function openSets(harness: Harness) {
-  await harness.page.route("**/api/tcg-set-slots**", route => {
+  await harness.page.route("**/app/api/tcg-set-slots**", route => {
     const selected = new URL(route.request().url()).searchParams.has("setId")
     return route.fulfill({ json: selected ? payload : { sets: [set], selectedSet: null, slots: [] } })
   })
@@ -101,8 +101,8 @@ test.describe("search fields do not trigger iOS focus zoom", () => {
     const owner = "00000000-0000-4000-8000-0000000000e2"
     const binder = (id: string, name: string, sortOrder: number) => ({ id, name, sortOrder, isDefault: sortOrder === 0, slotCount: 0, ownerUserId: owner, color: null, rows: null, cols: null, createdAt: null, updatedAt: null })
     const binders = [binder("e2e00000-0000-4000-8000-000000000001", "My binder", 0), binder("e2e00000-0000-4000-8000-000000000002", "Trades", 1)]
-    await page.route("**/api/binders**", route => route.fulfill({ json: { binders } }))
-    await page.goto("/e2e-harness?signedIn=1&binders=1")
+    await page.route("**/app/api/binders**", route => route.fulfill({ json: { binders } }))
+    await page.goto("/app/e2e-harness?signedIn=1&binders=1")
     await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
     await page.getByTestId("binder-switcher-trigger").click()
     const sheet = page.getByRole("dialog", { name: "Binders" })

@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   title: "Holo Folder",
   description: "Mobile-first Pokemon binder tracking with National Dex positions, collection status, and card matching.",
   applicationName: "Holo Folder",
-  manifest: "/manifest.webmanifest",
+  manifest: "/app/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -36,12 +36,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
-      { url: "/icon-dark-32x32.png", media: "(prefers-color-scheme: dark)" },
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/app/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
+      { url: "/app/icon-dark-32x32.png", media: "(prefers-color-scheme: dark)" },
+      { url: "/app/icon.svg", type: "image/svg+xml" },
     ],
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon-holo-card.png",
+    shortcut: "/app/favicon.ico",
+    apple: "/app/apple-touch-icon-holo-card.png",
   },
   other: {
     "mobile-web-app-capable": "yes",
@@ -75,9 +75,9 @@ export default async function RootLayout({
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
         {children}
-        <Analytics />
+        <Analytics scriptSrc="/app/_vercel/insights/script.js" endpoint="/app/_vercel/insights" />
         {/* Real-user Core Web Vitals per route (enabled on the Vercel project). */}
-        <SpeedInsights />
+        <SpeedInsights scriptSrc="/app/_vercel/speed-insights/script.js" endpoint="/app/_vercel/speed-insights/vitals" />
       </body>
     </html>
   )

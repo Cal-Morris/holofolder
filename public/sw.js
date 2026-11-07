@@ -1,7 +1,7 @@
 // Holo Folder card logo update; keep cache and message identifiers compatible with existing installs.
-const CACHE_VERSION = "binderdex-v4"
+const CACHE_VERSION = "binderdex-v5"
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`
-const DATA_CACHE = `${CACHE_VERSION}-data`
+const DATA_CACHE = "binderdex-v4-data"
 // Images keep their v3 name so the cards people already cached survive this upgrade.
 const IMAGE_CACHE = "binderdex-v3-images"
 // Thumbnails saved by "Prepare for card show". They live apart from IMAGE_CACHE so everyday browsing
@@ -24,27 +24,28 @@ const MAX_IMAGE_CACHE_ENTRIES = 1500
 
 // Static, user-independent page that boots the binder from local data (app/app-shell).
 // Served for any navigation the network can't answer, instead of a per-user cached "/".
-const APP_SHELL_URL = "/app-shell"
+const APP_SHELL_URL = "/app/app-shell"
 // On weak Wi-Fi, stop waiting for the server after this long and open the offline shell.
 // Only for the app's own entry pages: auth callbacks, share links etc. always wait for the server.
 const NAVIGATION_TIMEOUT_MS = 6000
-const APP_ENTRY_PATHS = ["/", APP_SHELL_URL]
+const LEGACY_BINDER_ORIGIN = self.location.origin === "https://binder.cal.gg"
+const APP_ENTRY_PATHS = ["/app", "/app/", APP_SHELL_URL, ...(LEGACY_BINDER_ORIGIN ? ["/", "/home"] : [])]
 const APP_SHELL_REFRESH_INTERVAL_MS = 10 * 60 * 1000
 let lastAppShellRefreshAt = 0
 
 const APP_SHELL_ASSETS = [
-  "/favicon.ico",
-  "/manifest.webmanifest",
-  "/apple-icon.png",
-  "/apple-touch-icon-holo-card.png",
-  "/pwa-holo-card-192.png",
-  "/pwa-holo-card-512.png",
-  "/holo-card-mark.png",
-  "/icon.svg",
-  "/icon-light-32x32.png",
-  "/icon-dark-32x32.png",
-  "/pwa-192x192.png",
-  "/pwa-512x512.png",
+  "/app/favicon.ico",
+  "/app/manifest.webmanifest",
+  "/app/apple-icon.png",
+  "/app/apple-touch-icon-holo-card.png",
+  "/app/pwa-holo-card-192.png",
+  "/app/pwa-holo-card-512.png",
+  "/app/holo-card-mark.png",
+  "/app/icon.svg",
+  "/app/icon-light-32x32.png",
+  "/app/icon-dark-32x32.png",
+  "/app/pwa-192x192.png",
+  "/app/pwa-512x512.png",
 ]
 
 function isOcrAssetUrl(url) {
@@ -64,17 +65,17 @@ function isImagePath(pathname) {
 
 function getCacheNameForUrl(url) {
   if (
-    url.pathname.startsWith("/api/card-image-proxy") ||
+    url.pathname.startsWith("/app/api/card-image-proxy") ||
     isImagePath(url.pathname)
   ) {
     return IMAGE_CACHE
   }
 
   if (
-    url.pathname.startsWith("/api/tcgdex-cache") ||
-    url.pathname.startsWith("/api/tcg-set-slots") ||
-    url.pathname.startsWith("/api/tcg-card-search") ||
-    url.pathname.startsWith("/api/tcg-illustrators")
+    url.pathname.startsWith("/app/api/tcgdex-cache") ||
+    url.pathname.startsWith("/app/api/tcg-set-slots") ||
+    url.pathname.startsWith("/app/api/tcg-card-search") ||
+    url.pathname.startsWith("/app/api/tcg-illustrators")
   ) {
     return DATA_CACHE
   }
@@ -116,10 +117,17 @@ async function putInCache(cache, cacheName, request, response) {
   }
 }
 
+function legacyApiRequest(request) {
+  const url = new URL(request.url)
+  if (url.origin !== self.location.origin || !url.pathname.startsWith("/app/api/")) return request
+  url.pathname = url.pathname.slice(4)
+  return url.href
+}
+
 async function cacheFirst(request, cacheName, event) {
   const cache = await caches.open(cacheName)
   const keepForShow = cacheName === IMAGE_CACHE && isSaveForShowRequest(request)
-  const cached = (await cache.match(request)) ?? (cacheName === IMAGE_CACHE ? await caches.open(SHOW_IMAGE_CACHE).then((show) => show.match(request.url)) : undefined)
+  const cached = (await cache.match(request)) ?? (await cache.match(legacyApiRequest(request))) ?? (cacheName === IMAGE_CACHE ? await caches.open(SHOW_IMAGE_CACHE).then(async (show) => (await show.match(request.url)) ?? show.match(legacyApiRequest(request))) : undefined)
   if (cached) {
     if (keepForShow) {
       const write = saveForShow(request.url, cached.clone()).catch(() => undefined)
@@ -170,7 +178,7 @@ const DATA_NETWORK_TIMEOUT_MS = 5000
 
 async function networkFirst(request, cacheName, event) {
   const cache = await caches.open(cacheName)
-  const cached = await cache.match(request)
+  const cached = (await cache.match(request)) ?? (await cache.match(legacyApiRequest(request)))
 
   const network = fetch(request).then((response) => {
     if (isCacheableResponse(response)) {
@@ -206,7 +214,7 @@ function getAppShellAssetUrls(html) {
   // for browsers without service workers, so they're skipped.
   for (const [tag] of html.matchAll(/<(?:script|link)\b[^>]*>/gi)) {
     if (/\bnomodule\b/i.test(tag)) continue
-    const match = tag.match(/\b(?:src|href)="(\/_next\/static\/[^"?]+\.(?:js|css|woff2)(?:\?[^"]*)?)"/)
+    const match = tag.match(/\b(?:src|href)="(\/app\/_next\/static\/[^"?]+\.(?:js|css|woff2)(?:\?[^"]*)?)"/)
     if (match) urls.add(match[1].replace(/&amp;/g, "&"))
   }
   return [...urls]
@@ -232,8 +240,8 @@ const MAX_LAZY_CHUNKS = 150
 
 function getReferencedChunkPaths(script, search) {
   const paths = new Set()
-  for (const [, chunkPath] of script.matchAll(/["'](?:\/_next\/)?(static\/(?:immutable\/)?chunks\/[\w.-]+\.(?:js|css))["']/g)) {
-    paths.add(`/_next/${chunkPath}${search}`)
+  for (const [, chunkPath] of script.matchAll(/["'](?:\/app\/_next\/)?(static\/(?:immutable\/)?chunks\/[\w.-]+\.(?:js|css))["']/g)) {
+    paths.add(`/app/_next/${chunkPath}${search}`)
   }
   return [...paths]
 }
@@ -333,7 +341,7 @@ async function handleNavigation(event) {
   const isShellRequest = url.pathname === APP_SHELL_URL
   // Auth routes set cookies and redirect, and share links show someone else's binder: never answer
   // them with the shell (which shows your own binder).
-  const canUseShell = url.origin === self.location.origin && !url.pathname.startsWith("/auth/") && !url.pathname.startsWith("/share/")
+  const canUseShell = url.origin === self.location.origin && (/^\/app(?:\/|$)/.test(url.pathname) || (LEGACY_BINDER_ORIGIN && APP_ENTRY_PATHS.includes(url.pathname))) && !/^\/(?:app\/)?(?:auth|share)(?:\/|$)/.test(url.pathname)
   const useTimeout = canUseShell && APP_ENTRY_PATHS.includes(url.pathname) && Boolean(await getOfflineAppShell())
 
   try {
@@ -370,7 +378,7 @@ async function warmCacheUrl(rawUrl) {
   }
 
   // Pages aren't cached per user any more; warming "/" means "make sure the offline shell is ready".
-  if (url.origin === self.location.origin && (url.pathname === "/" || url.pathname === APP_SHELL_URL)) {
+  if (url.origin === self.location.origin && (APP_ENTRY_PATHS.includes(url.pathname))) {
     if (!(await getOfflineAppShell())) {
       await precacheAppShell()
     }
@@ -381,6 +389,7 @@ async function warmCacheUrl(rawUrl) {
     credentials: url.origin === self.location.origin ? "same-origin" : "omit",
   })
   const cacheName = getCacheNameForUrl(url)
+  if (cacheName === APP_SHELL_CACHE) return
   const cache = await caches.open(cacheName)
 
   if (await cache.match(request)) {
@@ -459,13 +468,14 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url)
 
   if (request.mode === "navigate") {
+    if (url.origin !== self.location.origin || (!/^\/app(?:\/|$)/.test(url.pathname) && !(LEGACY_BINDER_ORIGIN && APP_ENTRY_PATHS.includes(url.pathname)))) return
     event.respondWith(handleNavigation(event))
     return
   }
 
   if (
     request.destination === "image" ||
-    url.pathname.startsWith("/api/card-image-proxy")
+    url.pathname.startsWith("/app/api/card-image-proxy")
   ) {
     event.respondWith(cacheFirst(request, IMAGE_CACHE, event))
     return
@@ -474,8 +484,8 @@ self.addEventListener("fetch", (event) => {
   if (
     url.origin === self.location.origin &&
     (
-      url.pathname.startsWith("/_next/static/") ||
-      url.pathname.startsWith("/_next/image") ||
+      url.pathname.startsWith("/app/_next/static/") ||
+      url.pathname.startsWith("/app/_next/image") ||
       APP_SHELL_ASSETS.includes(url.pathname)
     )
   ) {
@@ -486,10 +496,10 @@ self.addEventListener("fetch", (event) => {
   if (
     url.origin === self.location.origin &&
     (
-      url.pathname.startsWith("/api/tcgdex-cache") ||
-      url.pathname.startsWith("/api/tcg-set-slots") ||
-      url.pathname.startsWith("/api/tcg-card-search") ||
-      url.pathname.startsWith("/api/tcg-illustrators")
+      url.pathname.startsWith("/app/api/tcgdex-cache") ||
+      url.pathname.startsWith("/app/api/tcg-set-slots") ||
+      url.pathname.startsWith("/app/api/tcg-card-search") ||
+      url.pathname.startsWith("/app/api/tcg-illustrators")
     )
   ) {
     event.respondWith(networkFirst(request, DATA_CACHE, event))

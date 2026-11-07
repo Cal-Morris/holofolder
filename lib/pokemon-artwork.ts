@@ -9,5 +9,5 @@ export const ARTWORK_GRID_WIDTH = 240
 export const ARTWORK_DETAIL_WIDTH = 480
 
 export function getOfficialArtworkUrl(id: number, width: number = ARTWORK_GRID_WIDTH): string {
-  return `/api/card-image-proxy?url=${encodeURIComponent(getOfficialArtworkSourceUrl(id))}&w=${width}`
+  return `/app/api/card-image-proxy?url=${encodeURIComponent(getOfficialArtworkSourceUrl(id))}&w=${width}`
 }

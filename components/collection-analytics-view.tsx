@@ -92,7 +92,7 @@ function AnalyticsContent({ collection: binderCollection, allBindersCollection =
       if (controller.signal.aborted) return null
       setLoading(true)
       setError(false)
-      return fetch(`/api/collection-analytics?${params}`, { signal: controller.signal, cache: "no-store" })
+      return fetch(`/app/api/collection-analytics?${params}`, { signal: controller.signal, cache: "no-store" })
     })
       .then(async response => {
         if (!response) return

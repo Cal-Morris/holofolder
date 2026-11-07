@@ -1,6 +1,7 @@
+import { appPath } from "@/lib/app-path"
 import { isCardImageSourceUrl } from "@/lib/card-image-sources"
 
-const CARD_IMAGE_PROXY_PATH = "/api/card-image-proxy"
+const CARD_IMAGE_PROXY_PATH = "/app/api/card-image-proxy"
 
 function isCardImageUrl(url: URL) {
   return url.hostname === "assets.tcgdex.net" || url.hostname.endsWith(".tcgdex.net") || isCardImageSourceUrl(url)
@@ -16,6 +17,7 @@ export function toCardImageSrc(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   if (!trimmed || trimmed === "null" || trimmed === "undefined") return null
+  if (trimmed.startsWith("/api/")) return appPath(trimmed)
   if (trimmed.startsWith("/") || trimmed.startsWith("data:") || trimmed.startsWith("blob:")) return trimmed
   try {
     const url = new URL(trimmed)

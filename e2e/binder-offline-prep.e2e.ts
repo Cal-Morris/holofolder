@@ -46,26 +46,26 @@ test("binder download reads all saved evidence, retries missing images, then col
   const checks: string[] = []
   const downloadedPrices: string[] = []
   await context.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: rows }))
-  await context.route("**/api/card-price-checks?**", route => {
+  await context.route("**/app/api/card-price-checks?**", route => {
     if (route.request().method() !== "GET") paidRequests++
     const id = new URL(route.request().url()).searchParams.get("cardId")!
     checks.push(id)
     return route.fulfill({ json: { ebay: id === "synthetic-missing" ? null : check("asking"), soldcomps: id === "synthetic-missing" ? null : check("sold"), errors: {} } })
   })
-  await context.route("**/api/card-prices**", route => {
+  await context.route("**/app/api/card-prices**", route => {
     const url = new URL(route.request().url())
     const lookups = route.request().method() === "GET" ? JSON.parse(url.searchParams.get("cards") ?? "[]") : route.request().postDataJSON()?.cards ?? []
     if (route.request().method() === "GET") downloadedPrices.push(...lookups.map((card: { cardId: string }) => card.cardId))
     return route.fulfill({ json: { prices: lookups.filter((card: { cardId: string }) => card.cardId !== "synthetic-missing").map((card: { cardId: string; language: string }) => price(card.cardId, card.language)) } })
   })
-  await context.route("**/api/card-image-proxy?**", route => {
+  await context.route("**/app/api/card-image-proxy?**", route => {
     if (failImage && decodeURIComponent(route.request().url()).includes("/63/")) return route.fulfill({ status: 503, body: "Synthetic image failure" })
     return route.fallback()
   })
   // Mock routes can otherwise answer even while Chromium is offline. Block all real network traffic too.
   await context.route("**/*", route => offline ? route.abort("internetdisconnected") : route.fallback())
   await harness.open()
-  await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app-shell"))), { timeout: 30_000 }).toBe(true)
+  await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app/app-shell"))), { timeout: 30_000 }).toBe(true)
   const prep = await openPrep(harness)
   await expect(prep).toContainText("All 68 owned and wanted printings")
   const download = prep.getByRole("button", { name: "Download binder", exact: true })

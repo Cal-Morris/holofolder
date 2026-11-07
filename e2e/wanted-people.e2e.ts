@@ -22,13 +22,13 @@ test.describe('Global Wanted people', () => {
    const binder = new URL(route.request().url()).searchParams.get('binder_id') ?? `eq.${main}`
    return route.fulfill({ json: rows.filter(row => binder.startsWith('neq.') ? row.binder_id !== binder.slice(4) : row.binder_id === binder.slice(3)) })
   })
-  await page.route('**/api/collection', route => {
+  await page.route('**/app/api/collection', route => {
    const body = route.request().postDataJSON()
    writes.push(body)
    rows[0].wanted_cards = body.wantedCards
    return route.fulfill({ json: { item: { ...rows[0], wanted_cards: body.wantedCards } } })
   })
-  await page.goto('/e2e-harness?signedIn=1&binders=1')
+  await page.goto('/app/e2e-harness?signedIn=1&binders=1')
   await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Global Wanted', exact: true })).toBeVisible()
   const list = page.getByRole('list', { name: 'Wanted cards', exact: true })
@@ -87,7 +87,7 @@ test.describe('incomplete Global Wanted cache', () => {
  test.use({ signedIn: true })
  test('never turns an unread binder into a known empty binder', async ({ harness }) => {
   const { page } = harness
-  await page.goto('/e2e-harness?signedIn=1&binders=3')
+  await page.goto('/app/e2e-harness?signedIn=1&binders=3')
   await page.evaluate(async ({ me, main, trades }) => {
    await new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('binderdex-offline', 1)

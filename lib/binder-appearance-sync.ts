@@ -19,11 +19,11 @@ async function responseData(response: Response): Promise<unknown> {
   return body
 }
 export async function fetchBinderAppearance(owner: string): Promise<RemoteBinderAppearance> {
-  return normalizeRemoteAppearance(await responseData(await fetch("/api/binder-appearance", { cache: "no-store", credentials: "same-origin", headers: { "X-Binder-Owner": owner }, signal: AbortSignal.timeout(8000) })), owner)
+  return normalizeRemoteAppearance(await responseData(await fetch("/app/api/binder-appearance", { cache: "no-store", credentials: "same-origin", headers: { "X-Binder-Owner": owner }, signal: AbortSignal.timeout(8000) })), owner)
 }
 export async function fetchArtwork(owner: string, design: BinderDesign): Promise<Record<string, Blob>> {
   const entries = await Promise.all(binderArtworkIds(design).map(async id => {
-    const response = await fetch(`/api/binder-appearance/artwork?id=${encodeURIComponent(id)}`, { cache: "no-store", credentials: "same-origin", headers: { "X-Binder-Owner": owner }, signal: AbortSignal.timeout(15000) })
+    const response = await fetch(`/app/api/binder-appearance/artwork?id=${encodeURIComponent(id)}`, { cache: "no-store", credentials: "same-origin", headers: { "X-Binder-Owner": owner }, signal: AbortSignal.timeout(15000) })
     if (!response.ok) throw new Error("Saved artwork could not load. Your cached appearance is still available.")
     const blob = await response.blob()
     if (!/^image\/(png|jpeg|webp)$/.test(blob.type) || blob.size > 5 * 1024 * 1024 || !blob.size) throw new Error("Saved artwork could not be verified.")
@@ -35,7 +35,7 @@ export async function syncBinderAppearance(owner: string, snapshot: SavedBinderD
   for (const id of binderArtworkIds(snapshot.design)) {
     const blob = snapshot.uploads[id]
     if (!blob) throw new Error("Artwork is missing. Re-upload it before saving.")
-    const response = await fetch("/api/binder-appearance/upload", { method: "POST", credentials: "same-origin", signal: AbortSignal.timeout(15000), headers: { "Content-Type": "application/json", "X-Binder-Owner": owner }, body: JSON.stringify({ id, mimeType: blob.type, size: blob.size }) })
+    const response = await fetch("/app/api/binder-appearance/upload", { method: "POST", credentials: "same-origin", signal: AbortSignal.timeout(15000), headers: { "Content-Type": "application/json", "X-Binder-Owner": owner }, body: JSON.stringify({ id, mimeType: blob.type, size: blob.size }) })
     const upload = await responseData(response) as { exists?: boolean; path?: string; token?: string }
     if (!upload.exists) {
       if (!upload.path || !upload.token) throw new Error("Could not prepare the artwork upload.")
@@ -49,7 +49,7 @@ export async function syncBinderAppearance(owner: string, snapshot: SavedBinderD
       } finally { clearTimeout(timer) }
     }
   }
-  const response = await fetch("/api/binder-appearance", { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Binder-Owner": owner }, signal: AbortSignal.timeout(15000), body: JSON.stringify({ design: snapshot.design, baseRevision: snapshot.revision }) })
+  const response = await fetch("/app/api/binder-appearance", { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Binder-Owner": owner }, signal: AbortSignal.timeout(15000), body: JSON.stringify({ design: snapshot.design, baseRevision: snapshot.revision }) })
   if (response.status === 409) {
     const latest = normalizeRemoteAppearance(await response.json(), owner)
     // A lost acknowledgement can leave a queued save that already committed.
