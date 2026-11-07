@@ -252,7 +252,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
               pageNumber={pageNumber}
               actions={slotActions}
               user={user}
-              priority={pageNumber === 1}
+              priority
             />
           )
         })}
