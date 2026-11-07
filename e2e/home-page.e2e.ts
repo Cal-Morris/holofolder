@@ -78,7 +78,7 @@ test("featured cards support manual cycling and respect reduced motion", async (
   await fan.getByRole("button", { name: "Pause featured cards" }).click()
   await expect(fan.getByRole("button", { name: "Play featured cards" })).toHaveAttribute("aria-pressed", "true")
   for (const image of await fan.getByRole("img").all()) {
-    await expect(image).toHaveAttribute("src", /^\/api\/card-image-proxy\?url=/)
+    await expect(image).toHaveAttribute("src", /^\/app\/api\/card-image-proxy\?url=/)
   }
   for (const button of await fan.getByRole("button").all()) {
     const bounds = await button.boundingBox()
