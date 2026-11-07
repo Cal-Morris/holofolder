@@ -32,6 +32,10 @@ const nextConfig = {
     "10.4.1.154",
   ],
   cacheComponents: true,
+  typescript: {
+    // Typecheck CI checks the full repo; keep local builds checked too.
+    ignoreBuildErrors: process.env.VERCEL === "1",
+  },
   turbopack: {
     root: projectRoot,
   },

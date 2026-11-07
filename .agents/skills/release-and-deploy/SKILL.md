@@ -5,7 +5,7 @@ description: Use when opening, verifying, merging or deploying a Holo Folder PR 
 
 # Release and deploy
 
-Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (currently https://binder.cal.gg, later https://holofolder.com). The **Vercel** status check on the PR is the only CI. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
+Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (currently https://binder.cal.gg, later https://holofolder.com). GitHub Actions runs **Typecheck** in parallel, generating Next route types before checking the full repository with the pinned `tsrs` checker. Vercel skips its duplicate type check. Both checks must pass before merging; the current GitHub plan cannot enforce required checks on this private repo, so agents enforce this release policy. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
 
 ## Steps
 
@@ -14,8 +14,8 @@ Vercel builds every PR push as a preview, and every merge to `main` as a product
    - `bun run test`, `bun run typecheck`, `bun run lint` (no new warnings; cap in `package.json`), `bun run build` and `bun run test:e2e`
    - if the PR includes a migration, the steps in `adding-a-db-migration`
 3. **Push once** and open the PR. The description covers what and why, the rules or numbers, how it was verified (with counts), deploy notes (migrations, env vars) and follow-ups.
-4. **Inspect the Vercel check.**
-   - Green: merge with a merge commit (`gh pr merge <n> --merge`). Merge one PR at a time.
+4. **Inspect Typecheck and Vercel on the current PR head.**
+   - Both green: merge with a merge commit (`gh pr merge <n> --merge`). Merge one PR at a time.
    - "Deployment rate limited" or an exhausted account build/deployment quota: confirm the check details explicitly identify a quota failure. All required local checks must pass on the current PR head, and every other required check and review must pass. Record the quota evidence and local validation in the PR, then merge without waiting for the reset or pushing retry commits. Pin the merge to the verified head with `--match-head-commit <sha>`.
    - A real build failure: reproduce it with `bun run build` locally, fix it, and push once.
 5. **Keep every other gate.** Real build failures, failed local checks and unmet checks or reviews still block merging. Use `--admin` only if needed to bypass the verified quota-only Vercel check after every other requirement passes. Never use `--no-verify`.

@@ -98,7 +98,7 @@ bun run dev                  # http://localhost:3000
 | `bun run dev` | Dev server |
 | `bun run test` | Unit tests in `tests/` (`bun test tests/`) |
 | `bun run test:coverage` | Unit tests with coverage |
-| `bun run typecheck` | `tsc --noEmit`; must be clean. `next build` also type-checks. |
+| `bun run typecheck` | `next typegen && tsrs --noEmit`; checks the full repo with the pinned Rust checker. `bun run typecheck:tsc` compares reference diagnostics. Local builds also type-check; Vercel relies on Typecheck CI. |
 | `bun run lint` | ESLint with **`--max-warnings=68`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
 | `bun run build` | Production build |
 | `bun run test:e2e` | Playwright: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `HOLOFOLDER_E2E=1` |
@@ -132,7 +132,7 @@ See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKI
 ## Deployment
 
 - **Ship small, scoped changes by default.** Unless Cal explicitly asks for local-only work, completing a small change includes committing it on its own branch, running the required local checks, pushing the branch, opening a PR, and merging once all required checks and reviews pass. Continue through production deployment verification using the `release-and-deploy` skill. This is standing authorization for those steps; don't stop at "fixed locally" or ask for separate permission to commit, push, open the PR or merge. If a gate fails, fix failures within the task's scope or report the concrete blocker. The verified quota exception below still applies.
-- Vercel deploys `main` to production. Every PR push gets a preview deployment, and its **Vercel** status check is the default merge gate.
+- Vercel deploys `main` to production. Every PR push gets a preview deployment. Both **Typecheck** (GitHub Actions) and **Vercel** must pass before merging. The current GitHub plan does not enforce required checks on this private repo; agents must enforce this release-policy gate.
 - The project is on the **Hobby plan**, which has a daily deployment limit. Every push, rebase and merge costs a deploy. So:
   - **verify locally first, then push once per PR**
   - don't push "retry" commits
@@ -140,7 +140,7 @@ See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKI
   - merge one PR at a time
 - **Keep merging when Vercel explicitly reports "Deployment rate limited" or an exhausted account build/deployment quota.** Verify the check details, run all required local checks on the current PR head, and require every other required check and review to pass. Record the quota failure and local validation in the PR, then merge without waiting for the reset or pushing retry commits.
 - A quota-blocked merge is **merged, deployment pending**. After the limit resets, deploy the latest `main` and verify its production deployment; don't redeploy an older PR head.
-- There are no GitHub Actions workflows. Don't add `.github/workflows` unless the owner asks.
+- GitHub Actions runs the full-repo **Typecheck** workflow in parallel with Vercel, which skips duplicate type-checking. Don't add other workflows unless the owner asks.
 
 See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md).
 
@@ -149,7 +149,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 - Product branding is **Holo Folder** (`holofolder.com`), package and tooling names use `holofolder` / `HOLOFOLDER`. Existing `binderdex` storage keys and service-worker protocols are compatibility identifiers, keep them stable (see `docs/holo-folder-rebrand.md`). Repository, local folder and Vercel project renames are managed separately by Cal.
 
 - **Small, focused PRs and commits, one concern each.** Use a separate short-lived branch off the latest `main` for each independent feature or fix wherever possible. Split unrelated work before committing; keep dependent changes together when needed for a working PR. No drive-by refactors. Say what was verified and what wasn't.
-- **Merge on a green Vercel check or the verified quota exception above.** Real build failures and other unmet checks or reviews still block merging. Admin merge is allowed only when needed to bypass the quota-only Vercel check after every other requirement passes. Never skip hooks.
+- **Merge on green Typecheck and Vercel checks, or green Typecheck plus the verified Vercel quota exception above.** Real build failures and other unmet checks or reviews still block merging. Admin merge is allowed only when needed to bypass the quota-only Vercel check after every other requirement passes. Never skip hooks.
 - **Mobile-first.** Verify at **375×667, 390×844 and 430×932**, in both a normal browser tab and **standalone PWA** mode with safe-area insets (59 px top, 34 px bottom in the e2e harness).
   - Tap targets are at least 36 px. No horizontal overflow.
   - Nothing goes under the dock: position against `--dock-inset`, `--dock-bar` and `--dock-clearance` in `globals.css`.
@@ -189,7 +189,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 
 - [ ] One concern per PR and commit, on a short-lived branch off the latest `main`; independent features use separate branches wherever possible
 - [ ] `bun run test` passes, with new logic covered in `tests/`
-- [ ] `bun run typecheck` is clean
+- [ ] `bun run typecheck` is clean and the Typecheck CI check passes on the current PR head
 - [ ] `bun run lint` passes with no new warnings, and the cap is lowered if you removed some
 - [ ] `bun run build` passes
 - [ ] `bun run test:e2e` passes on all 6 projects (3 widths × browser and standalone). UI changes were checked at 375, 390 and 430 with insets.
