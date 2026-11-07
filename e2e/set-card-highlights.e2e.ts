@@ -26,7 +26,7 @@ test("set value and momentum rankings include all cards and separate finishes", 
   await expect(region.getByRole("listitem")).toHaveCount(4)
   await expect(region.getByRole("listitem").first()).toContainText("Trainer fixture")
   await expect(region.getByRole("listitem").first()).toContainText("£30")
-  await expect(region.locator("img").first()).toHaveAttribute("src", /^\/api\/card-image-proxy\?url=/)
+  await expect(region.locator("img").first()).toHaveAttribute("src", /^\/app\/api\/card-image-proxy\?url=/)
   const finishButton = region.getByRole("button", { name: "Non-holo", exact: true })
   await finishButton.evaluate((element) => element.scrollIntoView({ block: "center" }))
   await harness.expectMinTapTarget(finishButton)
