@@ -255,7 +255,7 @@ function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnli
     [cards, directory],
   )
   const groups = useMemo(
-    () => buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds }, { priceOf: (card) => snapshotOfWanted(card.wanted) }),
+    () => buildHuntGroups(items, cards, sort, { era, setId, cardIds: illustratorIds }, { priceOf: (card) => snapshotOfWanted(card.wanted), stableWantedOrder: true }),
     [cards, era, illustratorIds, items, setId, snapshotOfWanted, sort],
   )
   const pickups = useMemo(
