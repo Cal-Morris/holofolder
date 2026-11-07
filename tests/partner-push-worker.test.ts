@@ -42,6 +42,7 @@ test('worker fetches an authorized preview, constrains click destinations and re
   const app = runtime(person, { ok: true, json: async () => ({ title: 'Partner got Bulbasaur', body: 'Synthetic card fixture', url: `/?binder=${binder}` }) })
   await app.dispatch('push', { data: { json: () => ({ recipientId: person, eventId, tag: 'synthetic-event' }) } })
   assert.equal(app.notifications[0].title, 'Partner got Bulbasaur')
+  assert.equal(app.notifications[0].options.icon, '/pwa-holo-card-192.png')
   assert.equal(app.reads(), 1)
   await app.dispatch('notificationclick', { notification: { close() {}, data: app.notifications[0].options.data } })
   assert.equal(app.reads(), 2)

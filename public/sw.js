@@ -558,7 +558,7 @@ self.addEventListener('push', event => {
     }
     await self.registration.showNotification(preview ? String(preview.title ?? 'Holo Folder update').slice(0, 160) : 'Holo Folder update', {
       body: preview ? String(preview.body ?? '').slice(0, 240) : 'Open the app to see your update.',
-      icon: '/pwa-192x192.png', badge: '/icon-light-32x32.png',
+      icon: '/pwa-holo-card-192.png', badge: '/icon-light-32x32.png',
       tag: typeof payload?.tag === 'string' ? payload.tag.slice(0, 100) : 'binderdex-update',
       data: { url: preview ? notificationDestination(preview.url) : '/', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null },
     })
