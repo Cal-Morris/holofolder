@@ -10,16 +10,15 @@ Vercel builds every PR push as a preview, and every merge to `main` as a product
 ## Steps
 
 1. **Branch** off the latest `origin/main`, using separate branches for independent features or fixes wherever possible. Keep PRs and commits small, with one concern each; dependent changes can stay together when needed for a working PR.
-2. **Verify locally before the first push:**
-   - `bun run test`, `bun run typecheck`, `bun run lint` (no new warnings; cap in `package.json`), `bun run build` and `bun run test:e2e`
+2. **Run focused local checks when useful for the change.** Commit, push, and use CI as the default merge gate. A full local test, build or e2e run is not required by default; run the full e2e suite only when Cal explicitly asks.
    - if the PR includes a migration, the steps in `adding-a-db-migration`
 3. **Push once** and open the PR. The description covers what and why, the rules or numbers, how it was verified (with counts), deploy notes (migrations, env vars) and follow-ups.
 4. **Inspect Typecheck and Vercel on the current PR head.**
    - Both green: merge with a merge commit (`gh pr merge <n> --merge`). Merge one PR at a time.
-   - "Deployment rate limited" or an exhausted account build/deployment quota: confirm the check details explicitly identify a quota failure. All required local checks must pass on the current PR head, and every other required check and review must pass. Record the quota evidence and local validation in the PR, then merge without waiting for the reset or pushing retry commits. Pin the merge to the verified head with `--match-head-commit <sha>`.
+   - "Deployment rate limited" or an exhausted account build/deployment quota: confirm the check details explicitly identify a quota failure. `bun run test`, `bun run typecheck`, `bun run lint` and `bun run build` must pass on the current PR head (no full e2e required), and every other required check and review must pass. Record the quota evidence and local validation in the PR, then merge without waiting for the reset or pushing retry commits. Pin the merge to the verified head with `--match-head-commit <sha>`.
    - A real build failure: reproduce it with `bun run build` locally, fix it, and push once.
 5. **Keep every other gate.** Real build failures, failed local checks and unmet checks or reviews still block merging. Use `--admin` only if needed to bypass the verified quota-only Vercel check after every other requirement passes. Never use `--no-verify`.
-6. **Rebase only when GitHub reports** the PR as out of date or conflicting. Re-run the local checks after rebasing, then push once.
+6. **Rebase only when GitHub reports** the PR as out of date or conflicting. Repeat any relevant focused checks after rebasing, then push once.
 7. **After merging:**
    - For a quota-blocked merge, report **merged, deployment pending**. After the limit resets, deploy the latest `main`, covering all accumulated merges rather than an older PR head, and verify that exact commit's production deployment.
    - Otherwise, confirm the production deployment for the merge commit succeeded (the commit status on `main`).
