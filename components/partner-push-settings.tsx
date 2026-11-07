@@ -80,7 +80,7 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
   const current = devices.find(device => device.endpoint === endpoint)
   return <section aria-label="Partner notifications" className="space-y-3 border-t border-border pt-4">
     <h3 className="font-semibold">Partner notifications</h3>
-    <p className="text-sm text-muted-foreground">Hear when your partner adds an owned card or marks one Got in Show mode. Enable this separately on each device.</p>
+    <p className="text-sm text-muted-foreground">Hear when your partner adds an owned card or marks a wanted card Got, in any mode. Enable this separately on each device.</p>
     {!supported ? <p className="text-sm text-muted-foreground">Push notifications are unavailable in this browser.</p>
       : needsInstall ? <p className="text-sm text-muted-foreground">On iPhone or iPad, add Holo Folder to your Home Screen, then enable notifications inside the installed app.</p>
       : !configured ? <p className="text-sm text-muted-foreground">Partner notifications are not available yet.</p>
