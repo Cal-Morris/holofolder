@@ -1,3 +1,4 @@
+import { notificationFirstName } from '@/lib/account-identity'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSessionUser } from '@/lib/supabase/session-user'
@@ -18,5 +19,5 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { data: binder, error: binderError } = await admin.from('binders').select('name').eq('id', event.binder_id).eq('owner_user_id', event.owner_user_id).maybeSingle()
   if (binderError) return Response.json({}, { status: 503, headers })
   if (!binder) return Response.json({}, { status: 404, headers })
-  return Response.json({ title: `${event.actor_name} found a card`, body: `${event.card_name} was added to ${binder.name}.`, url: `/app?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
+  return Response.json({ title: `${notificationFirstName({ display_name: event.actor_name })} found a card`, body: `${event.card_name} was added to ${binder.name}.`, url: `/app?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
 }
