@@ -33,3 +33,17 @@ test("failed named share navigations never reveal the private offline binder", a
     await assert.rejects(runInContext(`handleNavigation({request:{url:${JSON.stringify(`https://holofolder.com${path}`)}}})`, context), /synthetic offline network/)
   }
 })
+
+test("offline shell downloads lazy screens referenced by its scripts", async () => {
+  const { context } = worker()
+  const entries = new Map<string, Response>([
+    ["/app/_next/static/chunks/main.js", new Response('"static/chunks/lazy-screen.js"')],
+  ])
+  context.cache = {
+    match: async (url: string) => entries.get(url)?.clone(),
+    put: async (url: string, response: Response) => { entries.set(url, response) },
+  }
+  context.fetch = async () => new Response("synthetic lazy screen")
+  await runInContext('precacheLazyChunks(cache, ["/app/_next/static/chunks/main.js"])', context)
+  assert.equal(await entries.get("/app/_next/static/chunks/lazy-screen.js")?.text(), "synthetic lazy screen")
+})

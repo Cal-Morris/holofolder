@@ -1372,18 +1372,13 @@ export default function BinderApp({
     slotImages.retain(new Set([...JSON.parse(adjacentSlotUrls), ...JSON.parse(visibleSlotUrls)]))
   }, [slotImages, adjacentSlotUrls, visibleSlotUrls])
   useEffect(() => {
-    let cancelled = false
-    const queue: string[] = [...new Set<string>(JSON.parse(adjacentSlotUrls))]
-    const warmNext = async () => {
-      while (!cancelled && queue.length > 0) await slotImages.load(queue.shift()!, "low", binderSlotImageSizes)
-    }
     const timer = window.setTimeout(() => {
-      for (let worker = 0; worker < 4; worker += 1) void warmNext()
+      // Let the browser schedule the whole next page; one slow decode must not gate later slots.
+      for (const url of new Set<string>(JSON.parse(adjacentSlotUrls))) {
+        void slotImages.load(url, "low", binderSlotImageSizes)
+      }
     }, ADJACENT_PREFETCH_DELAY_MS)
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
+    return () => window.clearTimeout(timer)
   }, [slotImages, adjacentSlotUrls, binderSlotImageSizes])
   const offlineCacheWarmupUrls = useMemo(
     () => buildOfflineCacheWarmupUrls({

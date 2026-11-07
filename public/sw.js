@@ -396,6 +396,7 @@ async function warmCacheUrl(rawUrl) {
 
   const request = new Request(url.toString(), {
     credentials: url.origin === self.location.origin ? "same-origin" : "omit",
+    priority: "low",
   })
   const cacheName = getCacheNameForUrl(url)
   if (cacheName === APP_SHELL_CACHE) return
@@ -411,15 +412,38 @@ async function warmCacheUrl(rawUrl) {
   }
 }
 
-async function warmCacheUrls(rawUrls) {
-  if (!Array.isArray(rawUrls)) {
-    return
-  }
+// Page turns share one queue: a new message must not multiply background downloads.
+let warmCacheQueue = []
+let warmCacheRun = null
+const warmCacheInFlight = new Set()
 
+function warmCacheUrls(rawUrls) {
+  if (!Array.isArray(rawUrls)) return Promise.resolve()
   const urls = [...new Set(rawUrls.filter((url) => typeof url === "string" && url.length > 0))]
     .slice(0, MAX_WARM_CACHE_URLS)
+  const latest = new Set(urls)
+  // The newest visible page goes first; preserve other queued work within the budget.
+  warmCacheQueue = [
+    ...urls.filter((url) => !warmCacheInFlight.has(url)),
+    ...warmCacheQueue.filter((url) => !latest.has(url)),
+  ].slice(0, MAX_WARM_CACHE_URLS)
 
-  await runWithConcurrency(urls, WARM_CACHE_CONCURRENCY, warmCacheUrl)
+  if (!warmCacheRun) {
+    warmCacheRun = Promise.all(Array.from({ length: WARM_CACHE_CONCURRENCY }, async () => {
+      while (warmCacheQueue.length > 0) {
+        const url = warmCacheQueue.shift()
+        warmCacheInFlight.add(url)
+        try {
+          await warmCacheUrl(url)
+        } catch {
+          // Best effort; a later warm-up can retry a failed download.
+        } finally {
+          warmCacheInFlight.delete(url)
+        }
+      }
+    })).finally(() => { warmCacheRun = null })
+  }
+  return warmCacheRun
 }
 
 self.addEventListener("install", (event) => {
