@@ -39,7 +39,7 @@ test.describe("signed-in analytics", () => {
   await expect(page.getByText("Added Fixture older card", { exact: true })).toBeVisible()
   expect(calls).toBeGreaterThanOrEqual(2)
   await page.getByText("Current price evidence", { exact: true }).click()
-  await expect(page.getByText("Thin data", { exact: true })).toBeVisible()
+  await expect(page.getByText("Exact finish price unavailable · Unknown source · unknown confidence", { exact: true })).toBeVisible()
   await expect(page.getByText("Good time", { exact: true })).toHaveCount(0)
   const beforeEdit = calls
   await page.getByRole("button", { name: "Browse this Pokémon", exact: true }).click()

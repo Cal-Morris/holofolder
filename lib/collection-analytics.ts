@@ -1,7 +1,7 @@
-import { getCardPriceKey, isStandardFinishVariantKey, type CardPriceSnapshot } from "@/lib/card-pricing"
+import { getCardPriceKey, isStandardFinishVariantKey, type CardPriceSnapshot, type PriceSource } from "@/lib/card-pricing"
 import { isCardFinish, isCardLanguage, type CollectedPokemon, type WantedCard } from "@/lib/domain/cards"
 import { getFallingMomentum, getRisingMomentum, type PriceMomentum } from "@/lib/price-momentum"
-import { getPriceDataAgeDays } from "@/lib/price-freshness"
+import { CARRY_FORWARD_MAX_DAYS, getPriceDataAgeDays, STALE_AFTER_DAYS } from "@/lib/price-freshness"
 
 export interface AnalyticsCard {
   key: string
@@ -15,35 +15,55 @@ export interface AnalyticsCard {
 
 export interface AnalyticsMover extends AnalyticsCard { momentum: PriceMomentum }
 
-function exactQuote(card: AnalyticsCard["card"], snapshot: CardPriceSnapshot | undefined): CardPriceSnapshot | null {
+function labelledFinish(label: string | null) {
+  const variant = label?.toLowerCase().replaceAll(/[^a-z]/g, "")
+  return variant === "normal" || variant === "nonholo" || variant === "unlimited" ? "normal"
+    : variant === "holo" || variant === "holofoil" ? "holo"
+      : variant === "reverseholo" || variant === "reverseholofoil" ? "reverse_holo" : null
+}
+
+function quoteFromSource(price: CardPriceSnapshot, source: PriceSource | undefined, finish: string, verifiedRow = false): CardPriceSnapshot | null {
+  if (!source) return price
+  const evidence = price.sourcePrices.find(quote => quote.source === source && (verifiedRow || labelledFinish(quote.variantLabel) === finish))
+  if (!evidence) return price.source === source ? price : null
+  return {
+    ...price, source, sourcePrices: [evidence],
+    gbpAmount: evidence.marketGbpAmount, marketGbpAmount: evidence.marketGbpAmount,
+    lowGbpAmount: evidence.lowGbpAmount, highGbpAmount: null, goodGbpAmount: null,
+    originalAmount: evidence.originalMarketAmount,
+    originalCurrency: evidence.originalCurrency === "GBP" ? null : evidence.originalCurrency,
+    updatedAt: evidence.updatedAt, variantLabel: evidence.variantLabel,
+    trendPoints: price.trendPoints.filter(point => point.source === source), buySignal: null,
+  }
+}
+
+function exactQuote(card: AnalyticsCard["card"], snapshot: CardPriceSnapshot | undefined, source?: PriceSource): CardPriceSnapshot | null {
   if (!snapshot) return null
   const finish = card.card_finish ?? "normal"
   if (snapshot.finishPrices?.length) {
     const matching = snapshot.finishPrices.filter(price => price.finish === finish && isStandardFinishVariantKey(price.variantKey))
+    if (source) return matching.map(price => quoteFromSource(price, source, finish, true)).find(price => price !== null) ?? null
     return matching.find(price => price.source === snapshot.source) ?? matching[0] ?? null
   }
-  const variant = snapshot.variantLabel?.toLowerCase().replaceAll(/[^a-z]/g, "")
-  const verifiedFinish = variant === "normal" || variant === "nonholo" || variant === "unlimited" ? "normal"
-    : variant === "holo" || variant === "holofoil" ? "holo"
-      : variant === "reverseholo" || variant === "reverseholofoil" ? "reverse_holo" : null
-  return verifiedFinish === finish ? snapshot : null
+  if (source && snapshot.source !== source) return quoteFromSource(snapshot, source, finish)
+  return labelledFinish(snapshot.variantLabel) === finish ? quoteFromSource(snapshot, source, finish, true) : null
 }
 
 /**
  * `countCopies`: the All binders view, where a Pokémon can sit in several binders. Each binder's copy of an owned
  * card counts (and is valued) separately; species still count once.
  */
-export function buildCollectionAnalytics(collection: CollectedPokemon[], prices: Record<string, CardPriceSnapshot>, now = Date.now(), { countCopies = false }: { countCopies?: boolean } = {}) {
+export function buildCollectionAnalytics(collection: CollectedPokemon[], prices: Record<string, CardPriceSnapshot>, now = Date.now(), { countCopies = false, source }: { countCopies?: boolean; source?: PriceSource } = {}) {
   const cards: AnalyticsCard[] = []
   const seen = new Set<string>()
   const add = (item: CollectedPokemon, card: AnalyticsCard["card"], scope: AnalyticsCard["scope"]) => {
     const key = `${countCopies && scope === "owned" ? `${item.id}:` : ""}${item.pokemon_id}:${scope}:${getCardPriceKey(card.card_id, card.card_language)}:${card.card_finish ?? "normal"}`
     if (seen.has(key)) return
     seen.add(key)
-    const price = exactQuote(card, prices[getCardPriceKey(card.card_id, card.card_language)])
+    const price = exactQuote(card, prices[getCardPriceKey(card.card_id, card.card_language)], source)
     const rawAmount = price?.marketGbpAmount ?? price?.gbpAmount
     const age = getPriceDataAgeDays(price?.updatedAt, now)
-    const amount = typeof rawAmount === "number" && Number.isFinite(rawAmount) && rawAmount > 0 && age !== null && age <= 30 && Date.parse(price?.updatedAt ?? "") <= now ? rawAmount : null
+    const amount = typeof rawAmount === "number" && Number.isFinite(rawAmount) && rawAmount > 0 && age !== null && age <= CARRY_FORWARD_MAX_DAYS && Date.parse(price?.updatedAt ?? "") <= now ? rawAmount : null
     cards.push({ key, pokemonId: item.pokemon_id, pokemonName: item.pokemon_name, scope, card, price, amount })
   }
   for (const item of collection) {
@@ -65,11 +85,14 @@ export function buildCollectionAnalytics(collection: CollectedPokemon[], prices:
   rising.sort((a, b) => b.momentum.change - a.momentum.change || a.key.localeCompare(b.key))
   falling.sort((a, b) => a.momentum.change - b.momentum.change || a.key.localeCompare(b.key))
   const owned = cards.filter(card => card.scope === "owned")
+  const priced = owned.filter(card => card.amount !== null)
   return {
     ownedSpecies: new Set(collection.filter(item => item.status !== "wishlisted").map(item => item.pokemon_id)).size,
     assignedCards: owned.length,
     wantedCards: cards.filter(card => card.scope === "wanted").length,
-    pricedCards: owned.filter(card => card.amount !== null).length,
+    pricedCards: priced.length,
+    oldestQuoteAt: priced.map(card => card.price!.updatedAt!).sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null,
+    staleCards: priced.filter(card => (getPriceDataAgeDays(card.price?.updatedAt, now) ?? 0) > STALE_AFTER_DAYS).length,
     valueGbp: owned.reduce((sum, card) => sum + (card.amount ?? 0), 0),
     cards, rising, falling,
   }

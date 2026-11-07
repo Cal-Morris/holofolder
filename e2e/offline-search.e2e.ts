@@ -72,14 +72,18 @@ async function mockNetwork(context: BrowserContext, page: Page) {
     return route.fulfill({ json: { cards: MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map((card) => ({ ...card, dexIds: undefined })), source: "mirror" } })
   }))
   await context.route("**/api/tcg-card-search**", guard((route) => route.fulfill({ json: { cards: [] } })))
-  await context.route("**/api/card-prices**", guard((route) => {
-    const body = route.request().postDataJSON() ?? {}
+  const prices = guard((route) => {
+    const body = route.request().method() === "GET"
+      ? { cards: JSON.parse(new URL(route.request().url()).searchParams.get("cards") ?? "[]") }
+      : route.request().postDataJSON() ?? {}
     // Synthetic quotes verify explicit card-show downloads survive going offline.
     return route.fulfill({ json: { prices: (body.cards ?? []).map((card: { cardId: string; language: string }) => ({
       ...card, marketGbpAmount: 5, gbpAmount: 5, confidence: "medium", source: "tcgplayer", finishPrices: [],
       historyPoints: [{ date: "2026-09-15", source: "tcgplayer", currency: "USD", amount: 4, lowAmount: 2, finish: "normal", productId: "123" }],
     })) } })
-  }))
+  })
+  await context.route("**/api/card-prices**", prices)
+  await page.route("**/api/card-prices**", prices)
   return network
 }
 
@@ -120,10 +124,10 @@ test.describe("offline search and card show prep", () => {
 
     // Size first: only the set data and a couple of sample thumbnails are fetched.
     await prep.getByRole("button", { name: "Check download size" }).click()
-    await expect(prep.getByRole("status")).toHaveText(/1 set · 3 card images · about \d+ KB/)
+    await expect(prep.getByRole("status").filter({ hasText: /card images/ })).toHaveText(/1 set · 3 card images · about \d+ KB/)
     expect(network.proxyImages.length, "only the 3 samples before confirming").toBe(3)
     await prep.getByRole("button", { name: "Download for offline" }).click()
-    await expect(prep.getByRole("status")).toHaveText("Download finished: Legends Showcase (3/3 card images, 3/3 cards priced)")
+    await expect(prep.getByRole("status").filter({ hasText: "Download finished:" })).toHaveText("Download finished: Legends Showcase (3/3 card images, 3/3 cards priced)")
     await expect.poll(() => page.evaluate(() => new Promise<number>((resolve, reject) => {
       const request = indexedDB.open("binderdex-offline")
       request.onerror = () => reject(request.error)
@@ -202,11 +206,11 @@ test.describe("offline search and card show prep", () => {
     await quick.getByRole("button", { name: "Find", exact: true }).click()
     await quick.getByRole("checkbox", { name: /Legends Showcase/ }).check()
     await quick.getByRole("button", { name: "Check download size" }).click()
-    await expect(quick.getByRole("status")).toContainText("3 card images")
+    await expect(quick.getByRole("status").filter({ hasText: "card images" })).toContainText("3 card images")
     // Price batches fail, then one image is evicted. Saved coverage and other images remain useful.
-    await page.route("**/api/card-prices", route => route.fulfill({ status: 503, body: "synthetic unavailable" }))
+    await page.route("**/api/card-prices**", route => route.fulfill({ status: 503, body: "synthetic unavailable" }))
     await quick.getByRole("button", { name: "Download for offline" }).click()
-    await expect(quick.getByRole("status")).toContainText("Couldn't download prices (503)")
+    await expect(quick.getByRole("status").filter({ hasText: "Couldn't download prices" })).toContainText("Couldn't download prices (503)")
     await expect.poll(() => page.evaluate(async () => (await (await caches.open("binderdex-v1-show-images")).keys()).filter(request => request.url.includes("show1")).length)).toBe(3)
     await page.evaluate(async () => {
       for (const name of ["binderdex-v1-show-images", "binderdex-v3-images"]) {
@@ -252,7 +256,7 @@ test.describe("offline search and card show prep", () => {
     await context.route("**/api/tcg-set-slots**", async route => { await pending; await route.abort().catch(() => undefined) })
     try {
       await quick.getByRole("button", { name: "Check download size" }).click()
-      await expect(quick.getByRole("status")).toHaveText("Checking download size…")
+      await expect(quick.getByRole("status").filter({ hasText: "Checking download size…" })).toHaveText("Checking download size…")
       await quick.getByRole("button", { name: "Stop", exact: true }).click()
       await expect(quick.getByText("Stopped. Anything already saved stays on this device.")).toBeVisible()
       await expect(quick.getByRole("button", { name: "Check download size" })).toBeEnabled()

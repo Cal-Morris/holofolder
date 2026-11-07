@@ -39,7 +39,7 @@ async function mockShowPurchases(page: Page, initial: Row[] = []) {
 
 async function openShowMode(harness: Harness) {
   if (!(await banner(harness).isVisible())) await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await banner(harness).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.page.getByRole("button", { name: "Search", exact: true }).click()
   await expect(quickDialog(harness)).toBeVisible()
   return quickDialog(harness)
 }
@@ -77,7 +77,7 @@ test.describe("show purchases on the account", () => {
     await check.getByRole("button", { name: "Bought", exact: true }).click()
     await expect(check.getByTestId("quick-card-status")).toHaveText("Owned")
     await page.keyboard.press("Escape")
-    await expect(banner(harness)).toContainText("1 bought · £8.00 · offline")
+    await expect(banner(harness)).toContainText("1 bought · £8.00 · Offline")
     await expect.poll(() => queueLength(page)).toBe(1)
     await screenshot(harness, "show-purchase-queued")
     expect(account.posts).toHaveLength(0)

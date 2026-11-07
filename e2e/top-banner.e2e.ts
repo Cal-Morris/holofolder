@@ -54,8 +54,8 @@ test.describe("top banner slot (offline / sync pill) with overlays", () => {
 
   test("the banner yields to any open overlay", async ({ harness }) => {
     await goOffline(harness)
-    await harness.dock().getByRole("button", { name: /open controls/i }).click()
-    const sheet = harness.page.getByRole("dialog", { name: /controls/i })
+    await harness.page.getByRole("button", { name: "View", exact: true }).click()
+    const sheet = harness.page.getByRole("dialog", { name: "View options" })
     await expect(sheet).toBeVisible()
     await expect(harness.page.locator("[data-top-banner-slot]")).toHaveAttribute("data-overlay-open", "")
     await harness.expectHittable(harness.closeControl(sheet))

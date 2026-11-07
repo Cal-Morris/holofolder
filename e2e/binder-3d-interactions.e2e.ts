@@ -1,4 +1,5 @@
 import { PerspectiveCamera, Vector3 } from "three"
+import sharp from "sharp"
 import { test, expect, E2E_USER, SEEDED_COLLECTION, SUPABASE_URL } from "./fixtures"
 import { binderDimensions, binderPocket, BINDER_PAGE, BINDER_LAYERS, defaultBinderDesign } from "../lib/binder-design"
 
@@ -226,7 +227,13 @@ test.describe("3D binder gestures", () => {
       await preview.getByRole("button", { name: "Next 3D binder spread" }).click()
       await expect(stage).toHaveAttribute("aria-busy", "true")
       await expect(stage).toHaveAttribute("data-current-page", "1")
-      expect((await stage.locator("canvas").screenshot()).equals(initial)).toBe(true)
+      const pending = await stage.locator("canvas").screenshot()
+      const [before, after] = await Promise.all([initial, pending].map(buffer => sharp(buffer).raw().toBuffer({ resolveWithObject: true })))
+      expect(after.info).toEqual(before.info)
+      // Allow one colour level of compositing noise without accepting a page flash.
+      let maxDifference = 0
+      for (let index = 0; index < before.data.length; index++) maxDifference = Math.max(maxDifference, Math.abs(before.data[index] - after.data[index]))
+      expect(maxDifference).toBeLessThanOrEqual(1)
     } finally {
       await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 100)))
       // Observe the turn being scheduled, then interrupt before its first animation frame.

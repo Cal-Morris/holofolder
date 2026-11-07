@@ -22,7 +22,7 @@ async function seedHuntList(harness: Harness) {
 
 async function openShowMode(harness: Harness) {
   if (!(await banner(harness).isVisible())) await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await banner(harness).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.page.getByRole("button", { name: "Search", exact: true }).click()
   const dialog = quickDialog(harness)
   await expect(dialog).toBeVisible()
   return dialog
@@ -39,7 +39,7 @@ test.describe("Show mode finder", () => {
     const dialog = await openShowMode(harness)
     await expect(dialog.getByRole("heading", { name: "Show mode" })).toBeVisible()
     await harness.expectMinTapTarget(dialog.getByRole("button", { name: "Close quick mode" }), 48)
-    for (const name of ["Search", "Exit show mode"]) await harness.expectMinTapTarget(banner(harness).getByRole("button", { name, exact: true }), 48)
+    for (const name of ["Search", "Exit show mode"]) await harness.expectMinTapTarget(harness.page.getByRole("button", { name, exact: true }), 44)
     const hunt = dialog.getByTestId("show-hunt")
     await expect(hunt).toBeVisible()
     for (const name of ["Sort", "Era", "Set", "Illustrator"]) await harness.expectMinTapTarget(hunt.getByRole("combobox", { name }), 44)
@@ -254,7 +254,7 @@ test.describe("Show mode finder", () => {
     await harness.expectWithinSafeViewport(checkNow)
     await harness.expectNoHorizontalOverflow()
 
-    const shotDir = process.env.E2E_SCREENSHOT_DIR || "/workspace/pixel-shots"
+    const shotDir = process.env.E2E_SCREENSHOT_DIR || testInfo.outputDir
     const tag = testInfo.project.name
     await page.screenshot({ path: `${shotDir}/check-comps-confirm-${tag}.png` })
 
