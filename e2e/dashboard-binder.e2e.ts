@@ -155,7 +155,7 @@ test.describe("Dashboard binder appearance", () => {
 
   test("account changes hide cached artwork until the new partner owner resolves", async ({ harness }) => {
     const { page } = harness
-    const partner = { ...E2E_USER, id: "00000000-0000-4000-8000-0000000000b2", email: "partner@binderdex.test" }
+    const partner = { ...E2E_USER, id: "00000000-0000-4000-8000-0000000000b2", email: "partner@holofolder.test" }
     const partnerOwner = "00000000-0000-4000-8000-0000000000c2"
     const original = { ...defaultBinderDesign(), name: "Previous account archive" }
     const shared = { ...defaultBinderDesign(), name: "New partner archive" }
@@ -203,7 +203,7 @@ test.describe("Dashboard binder appearance", () => {
 
   test("a collection refresh in flight during an account change never shows the previous account's cards", async ({ harness }) => {
     const { page } = harness
-    const partner = { ...E2E_USER, id: "00000000-0000-4000-8000-0000000000b3", email: "partner2@binderdex.test" }
+    const partner = { ...E2E_USER, id: "00000000-0000-4000-8000-0000000000b3", email: "partner2@holofolder.test" }
     const partnerOwner = "00000000-0000-4000-8000-0000000000c3"
     await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: route.request().headers()["x-binder-owner"], design: defaultBinderDesign(), revision: 1 } }))
     await page.reload()

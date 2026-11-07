@@ -1,6 +1,6 @@
 ---
 name: writing-e2e-tests
-description: Write Playwright end-to-end tests for binderdex using the /e2e-harness page, the Harness fixture, mocked backends, the six phone viewport projects (browser and standalone PWA) and offline mode. Use when adding or changing user-visible behaviour.
+description: Write Playwright end-to-end tests for Holo Folder using the /e2e-harness page, the Harness fixture, mocked backends, the six phone viewport projects (browser and standalone PWA) and offline mode. Use when adding or changing user-visible behaviour.
 ---
 
 # Writing e2e tests
@@ -9,10 +9,10 @@ The suite lives in `e2e/*.e2e.ts`. `playwright.config.ts` defines 6 projects: **
 
 ## How it runs
 
-- `bun run test:e2e` builds the app, then serves it on port 3210 with `BINDERDEX_E2E=1`.
+- `bun run test:e2e` builds the app, then serves it on port 3210 with `HOLOFOLDER_E2E=1`.
   - `E2E_PORT=<port>` picks another port. Use your own port on shared machines.
-  - `E2E_BASE_URL=http://localhost:<port>` tests a server that's already running. Build and start it yourself with `BINDERDEX_E2E=1` plus the Supabase envs pointed at a dummy URL.
-- Tests drive `/e2e-harness`, a seeded `BinderApp` that returns 404 unless `BINDERDEX_E2E=1`. `?signedIn=1` plants a fake session. `?binders=1` gives the owner two binders ("My binder" and "Trades", which holds only Charmander), `?binder=<id>` opens one and `?partner=1` makes the signed-in user the owner's partner; see `e2e/binders.e2e.ts` for a fake `/api/binders`.
+  - `E2E_BASE_URL=http://localhost:<port>` tests a server that's already running. Build and start it yourself with `HOLOFOLDER_E2E=1` plus the Supabase envs pointed at a dummy URL.
+- Tests drive `/e2e-harness`, a seeded `BinderApp` that returns 404 unless `HOLOFOLDER_E2E=1`. `?signedIn=1` plants a fake session. `?binders=1` gives the owner two binders ("My binder" and "Trades", which holds only Charmander), `?binder=<id>` opens one and `?partner=1` makes the signed-in user the owner's partner; see `e2e/binders.e2e.ts` for a fake `/api/binders`.
 - `mockBackends()` mocks Supabase, the collection, settings, card data, prices and `/api/card-image-proxy`. **Tests never hit the internet or a real database.**
 - Service workers are blocked by default.
 

@@ -33,7 +33,7 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
     .maybeSingle()
 
   if (shareError) {
-    console.error("[binderdex] Failed to load binder share:", shareError)
+    console.error("[holofolder] Failed to load binder share:", shareError)
     notFound()
   }
 
@@ -48,7 +48,7 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
   const bootstrap = await loadBinderBootstrap(admin, share.owner_user_id, activeBinder?.id ?? null)
 
   if (bootstrap.collectionError) {
-    console.error("[binderdex] Failed to load shared collection:", bootstrap.collectionError)
+    console.error("[holofolder] Failed to load shared collection:", bootstrap.collectionError)
     notFound()
   }
 
@@ -56,7 +56,7 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
 
   return (
     <>
-      <Script id="binderdex-shared-theme" strategy="beforeInteractive">
+      <Script id="holofolder-shared-theme" strategy="beforeInteractive">
         {`document.documentElement.classList.toggle("dark", ${JSON.stringify(initialSettings.darkMode)});`}
       </Script>
       <BinderApp

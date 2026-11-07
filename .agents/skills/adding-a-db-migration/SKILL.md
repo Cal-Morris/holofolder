@@ -1,6 +1,6 @@
 ---
 name: adding-a-db-migration
-description: Add or change the binderdex Supabase schema with a numbered, idempotent SQL migration in scripts/, documented in scripts/MIGRATIONS.md and applied manually. Use for any new table, column, constraint, index or RLS policy.
+description: Add or change the Holo Folder Supabase schema with a numbered, idempotent SQL migration in scripts/, documented in scripts/MIGRATIONS.md and applied manually. Use for any new table, column, constraint, index or RLS policy.
 ---
 
 # Adding a DB migration

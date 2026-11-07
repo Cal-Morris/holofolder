@@ -21,7 +21,7 @@ describe("binder backup", () => {
     const input = fixture()
     input.design.surfaces.cover.words = "My trades"
     const backup = JSON.parse(JSON.stringify(await createBinderBackup(input, date)))
-    assert.equal(backup.format, "binderdex-binder-backup")
+    assert.equal(backup.format, "holofolder-binder-backup")
     assert.equal(backup.version, 1)
     assert.equal(backup.exportedAt, date.toISOString())
     assert.equal(backup.scope, "current-binder")
@@ -76,8 +76,8 @@ describe("binder backup", () => {
     assert.deepEqual(backup.collection, [])
   })
   test("filenames are readable, dated and safe even for unusual binder names", () => {
-    assert.equal(binderBackupFilename("Cal’s Pokémon / Trades", date.toISOString()), "binderdex-cal-s-pokemon-trades-2026-11-06T12-34-56-000Z.json")
-    assert.equal(binderBackupFilename("../../💚", date.toISOString()), "binderdex-binder-2026-11-06T12-34-56-000Z.json")
+    assert.equal(binderBackupFilename("Cal’s Pokémon / Trades", date.toISOString()), "holofolder-cal-s-pokemon-trades-2026-11-06T12-34-56-000Z.json")
+    assert.equal(binderBackupFilename("../../💚", date.toISOString()), "holofolder-binder-2026-11-06T12-34-56-000Z.json")
     assert.ok(binderBackupFilename("x".repeat(200), date.toISOString()).length < 110)
   })
 })

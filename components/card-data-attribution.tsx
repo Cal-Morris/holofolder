@@ -14,7 +14,7 @@ export function CardDataAttribution({ className = "", compact = false }: { class
       </a>{" "}
       {compact
         ? "(TCGdex data: MIT). Cards © The Pokémon Company / Nintendo / Creatures / GAME FREAK. Unaffiliated."
-        : "(TCGdex card data MIT licensed). Pokémon and all card names, text and artwork are © The Pokémon Company, Nintendo, Creatures and GAME FREAK. BinderDex is not produced, endorsed, supported or affiliated with them."}
+        : "(TCGdex card data MIT licensed). Pokémon and all card names, text and artwork are © The Pokémon Company, Nintendo, Creatures and GAME FREAK. Holo Folder is not produced, endorsed, supported or affiliated with them."}
     </p>
   )
 }

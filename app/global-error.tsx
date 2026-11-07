@@ -19,7 +19,7 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
           padding: 24,
         }}
       >
-        <title>BinderDex</title>
+        <title>Holo Folder</title>
         <div>
           <h1 style={{ fontSize: 18, margin: "0 0 8px" }}>Something went wrong</h1>
           <p style={{ fontSize: 14, opacity: 0.7, margin: "0 0 16px" }}>

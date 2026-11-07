@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "my-v0-project",
+      "name": "holofolder",
       "dependencies": {
         "@radix-ui/react-select": "2.2.6",
         "@radix-ui/react-slot": "1.2.4",

@@ -44,8 +44,8 @@ test("adds https:// to bare Vercel hostnames", () => {
 })
 
 test("prefers the production URL over the per-deployment URL", () => {
-  withEnv({ VERCEL_PROJECT_PRODUCTION_URL: "binder.cal.gg", VERCEL_URL: "binderdex-abc.vercel.app" }, () => {
-    assert.equal(getMagicLinkRedirectUrl(), "https://binder.cal.gg/auth/callback")
+  withEnv({ VERCEL_PROJECT_PRODUCTION_URL: "holofolder.com", VERCEL_URL: "binderdex-abc.vercel.app" }, () => {
+    assert.equal(getMagicLinkRedirectUrl(), "https://holofolder.com/auth/callback")
   })
 })
 
@@ -55,7 +55,7 @@ test("ignores blank values and falls back to localhost outside production", () =
   })
 })
 
-test("falls back to the production site in production", () => {
+test("keeps the existing production site as the fallback until domain cutover", () => {
   withEnv({ NODE_ENV: "production" }, () => {
     assert.equal(getMagicLinkRedirectUrl(), "https://binder.cal.gg/auth/callback")
   })

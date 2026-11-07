@@ -365,7 +365,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         setCollection([])
       }
     } catch (error) {
-      console.error("[binderdex] Error loading collection:", error)
+      console.error("[holofolder] Error loading collection:", error)
     }
   }, [binderId, collectionOwnerUserId, readBinderPendingOperations, readOnly, resolveCollectionOwnerUserId, supabase, user])
 
@@ -392,7 +392,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         payload: createCollectionChangedPayload(),
       })
     } catch (error) {
-      console.error("[binderdex] Error broadcasting collection refresh:", error)
+      console.error("[holofolder] Error broadcasting collection refresh:", error)
     } finally {
       if (!existingChannel) {
         void supabase.removeChannel(channel)
@@ -425,7 +425,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
             if (authenticatedUserId.current !== sessionUser.id) return
             collectionBaselineRef.current = baseline
             setCollection(applyPendingEdits(normalizeCollectionItems(collectionBaselineRows(baseline)), readBinderPendingOperations()))
-          })().catch(error => console.error("[binderdex] Error refreshing signed-in collection:", error))
+          })().catch(error => console.error("[holofolder] Error refreshing signed-in collection:", error))
         }, 0)
       } else {
         setCollectionOwnerUserId(null)
@@ -473,7 +473,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         isCollectionRealtimeConnectedRef.current = status === "SUBSCRIBED"
 
         if (error) {
-          console.error("[binderdex] Collection realtime subscription failed:", { status, error })
+          console.error("[holofolder] Collection realtime subscription failed:", { status, error })
         }
       })
 
@@ -510,7 +510,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   /** Undo an edit the server will never accept, and say so. */
   const rollBackEdit = useCallback((operation: { pokemonId: number; item?: CollectedPokemon; base?: CollectedPokemon | null; binderId?: string | null }, error: unknown) => {
-    console.error("[binderdex] Collection change rejected, rolled back:", {
+    console.error("[holofolder] Collection change rejected, rolled back:", {
       pokemonId: operation.pokemonId,
       message: extractErrorMessage(error),
     })
@@ -594,7 +594,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
               break
             }
 
-            console.error("[binderdex] Pending collection sync paused:", {
+            console.error("[holofolder] Pending collection sync paused:", {
               message: extractErrorMessage(error),
               pokemonId: operation.pokemonId,
               operation: operation.type,
@@ -823,7 +823,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     })
     const result = await commitItemChange(pokemonId, nextItem)
     if ("rolledBack" in result) {
-      console.error("[binderdex] Error adding to collection:", { message: extractErrorMessage(result.error), pokemonId, status })
+      console.error("[holofolder] Error adding to collection:", { message: extractErrorMessage(result.error), pokemonId, status })
       return { error: extractErrorMessage(result.error) }
     }
     if (result.queued) {
@@ -837,7 +837,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const result = await commitItemChange(pokemonId, null)
     if ("rolledBack" in result) {
-      console.error("[binderdex] Error removing from collection:", result.error)
+      console.error("[holofolder] Error removing from collection:", result.error)
       return { error: result.error }
     }
     return result.queued ? { success: true, queued: true, ...("error" in result ? { error: result.error } : {}) } : { success: true }
@@ -855,7 +855,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const { previous, next } = planOwnedRemoval(existingItem, mode)
     const result = await commitItemChange(pokemonId, next)
     if ("rolledBack" in result) {
-      console.error("[binderdex] Error removing owned card:", result.error)
+      console.error("[holofolder] Error removing owned card:", result.error)
       return { error: extractErrorMessage(result.error) }
     }
     return { previous, data: next, queued: result.queued }
@@ -866,7 +866,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (readOnly) return { error: "Read-only binder" }
     const result = await commitItemChange(previous.pokemon_id, previous)
     if ("rolledBack" in result) {
-      console.error("[binderdex] Error restoring collection item:", result.error)
+      console.error("[holofolder] Error restoring collection item:", result.error)
       return { error: extractErrorMessage(result.error) }
     }
     return { data: result.item ?? previous, queued: result.queued }
@@ -1035,7 +1035,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         },
       }
     } catch (error) {
-      console.error("[binderdex] Error syncing local collection:", error)
+      console.error("[holofolder] Error syncing local collection:", error)
       return { error }
     }
   }, [applyLocalCollection, binderId, broadcastCollectionChanged, collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, supabase, user, writeRemoteCollection])
@@ -1048,7 +1048,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const result = await commitItemChange(pokemonId, nextItem)
     if ("rolledBack" in result) {
-      console.error("[binderdex] Error updating status:", result.error)
+      console.error("[holofolder] Error updating status:", result.error)
       return { error: result.error }
     }
     if (result.queued) {

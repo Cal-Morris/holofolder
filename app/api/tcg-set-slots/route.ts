@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       { headers: PUBLIC_JSON_CACHE_HEADERS },
     )
   } catch (error) {
-    console.error("[binderdex] Failed to load TCG set slot coverage:", error)
+    console.error("[holofolder] Failed to load TCG set slot coverage:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to load set slot coverage." },
       { status: 500 },

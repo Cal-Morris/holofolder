@@ -110,7 +110,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <span className="truncate text-sm font-semibold">{activeBinder.name}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
             </button>
-          ) : <span className="min-w-0 flex-1 truncate px-1.5 text-sm font-semibold xl:flex-none">{readOnlyMode ? "Shared binder" : "BinderDex"}</span>}
+          ) : <span className="min-w-0 flex-1 truncate px-1.5 text-sm font-semibold xl:flex-none">{readOnlyMode ? "Shared binder" : "Holo Folder"}</span>}
 
           <div className="order-last hidden w-full items-center gap-1 border-t border-border/40 pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
             {destinations.map(({ id, label, icon: Icon }) => (

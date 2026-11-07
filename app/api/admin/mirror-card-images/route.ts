@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         { status: 503 },
       )
     }
-    console.error("[binderdex] Card image backfill failed:", error)
+    console.error("[holofolder] Card image backfill failed:", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 })
   }
 }

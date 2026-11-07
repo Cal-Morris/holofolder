@@ -63,5 +63,5 @@ export function buildCollectionCsv(collection: CollectedPokemon[], prices: Recor
 }
 
 export function collectionCsvFilename(now = new Date()) {
-  return `binderdex-collection-${now.toISOString().slice(0, 10)}.csv`
+  return `holofolder-collection-${now.toISOString().slice(0, 10)}.csv`
 }

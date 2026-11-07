@@ -18,7 +18,7 @@ const dir = path.resolve(values["source-dir"])
 const ARCHIVE_REF = "84eeee7331ded271a31dbd77727b2cfa5cd86deb"
 // shortcut: the free archive ends on this date, use a verified newer archive to close later gaps.
 const ARCHIVE_LAST_DAY = "2026-09-15"
-const headers = { "User-Agent": "BinderDex/0.1 (+https://binder.cal.gg)" }
+const headers = { "User-Agent": "HoloFolder/0.1 (+https://holofolder.com)" }
 const normalizeNumber = (value: string) => value.split("/")[0].toLowerCase().replace(/(?<!\d)0+(?=\d)/g, "")
 type Product = { productId: number; groupId: number; name: string; extendedData: Array<{ name: string; value: string }> }
 type Card = { id: string; name_en: string; local_id: string; set_name: string; external_ids_json: unknown; source_product_url: string | null; history_points: unknown }

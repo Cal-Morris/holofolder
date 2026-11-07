@@ -522,7 +522,7 @@ export default function SetPopulationView({
                 </button>
               ) : null}
             </div> : null}
-            <div role="group" aria-label={checklistView === "pokemon" ? "Filter by BinderDex state" : "Filter card printings"} className="flex flex-wrap gap-1.5">
+            <div role="group" aria-label={checklistView === "pokemon" ? "Filter by Holo Folder state" : "Filter card printings"} className="flex flex-wrap gap-1.5">
               {SET_SLOT_FILTERS.filter(filter => checklistView === "pokemon" || filter.id !== "multiple").map((filter) => {
                 const isActive = slotFilter === filter.id
                 const count = checklistView === "cards" ? cardCounts[filter.id] : filterCounts[filter.id]

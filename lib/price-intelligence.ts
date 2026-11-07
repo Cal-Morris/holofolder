@@ -96,9 +96,9 @@ const FIRST_EDITION_PATTERNS = [
   /\bfirst[\s-]*edition\b/i,
 ]
 
-export function buildPriceResearchHeaders(contactUrl = "https://binder.cal.gg") {
+export function buildPriceResearchHeaders(contactUrl = "https://holofolder.com") {
   return {
-    "User-Agent": `BinderDexPriceResearch/1.0 (+${contactUrl})`,
+    "User-Agent": `HoloFolderPriceResearch/1.0 (+${contactUrl})`,
     Accept: "text/html,application/json;q=0.9,*/*;q=0.8",
   }
 }

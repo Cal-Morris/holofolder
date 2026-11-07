@@ -76,7 +76,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error("[binderdex] Failed to fetch binder share:", error)
+    console.error("[holofolder] Failed to fetch binder share:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to fetch binder share" },
       { status: 500 },
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       },
     })
   } catch (error) {
-    console.error("[binderdex] Failed to enable binder share:", error)
+    console.error("[holofolder] Failed to enable binder share:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to enable binder share" },
       { status: 500 },
@@ -174,7 +174,7 @@ export async function DELETE(request: Request) {
         : null,
     })
   } catch (error) {
-    console.error("[binderdex] Failed to disable binder share:", error)
+    console.error("[holofolder] Failed to disable binder share:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to disable binder share" },
       { status: 500 },

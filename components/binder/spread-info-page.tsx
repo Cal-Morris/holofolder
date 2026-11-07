@@ -69,7 +69,7 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: "left
           }}
         >
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Inside Cover</p>
-          <h2 className="mt-2 text-[clamp(1.35rem,2.2vw,2rem)] font-semibold tracking-tight">Binderdex</h2>
+          <h2 className="mt-2 text-[clamp(1.35rem,2.2vw,2rem)] font-semibold tracking-tight">Holo Folder</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {selectedGen === 0 ? "National Dex binder" : `${GENERATIONS[selectedGen].name} binder`} with {settings.binderRows}x{settings.binderCols} slots per page.
           </p>

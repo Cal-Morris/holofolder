@@ -28,7 +28,7 @@ export async function createBinderBackup(input: BinderBackupInput, now = new Dat
   const settings = normalizeBinderSettings(input.settings, getDefaultBinderSettings())
   // Copy before reading artwork asynchronously, so later edits cannot change this snapshot.
   const snapshot = structuredClone({
-    format: "binderdex-binder-backup" as const,
+    format: "holofolder-binder-backup" as const,
     version: 1 as const,
     exportedAt: now.toISOString(),
     scope: "current-binder" as const,
@@ -60,7 +60,7 @@ export async function createBinderBackup(input: BinderBackupInput, now = new Dat
 export function binderBackupFilename(name: string | null, exportedAt: string) {
   const slug = (name ?? "binder").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60).replace(/-$/, "") || "binder"
-  return `binderdex-${slug}-${new Date(exportedAt).toISOString().replace(/[:.]/g, "-")}.json`
+  return `holofolder-${slug}-${new Date(exportedAt).toISOString().replace(/[:.]/g, "-")}.json`
 }
 
 export function downloadBinderBackup(backup: Awaited<ReturnType<typeof createBinderBackup>>) {

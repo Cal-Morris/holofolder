@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto"
 import { verifyEbayNotification } from "@/lib/server/ebay-notifications"
 
-const endpoint = "https://binder.cal.gg/api/ebay/account-deletion"
 const headers = { "Cache-Control": "no-store" }
 
 export async function GET(request: Request) {
@@ -11,6 +10,8 @@ export async function GET(request: Request) {
   if (!token || !/^[A-Za-z0-9_-]{32,80}$/.test(token)) {
     return Response.json({ error: "eBay verification is not configured" }, { status: 503, headers })
   }
+  // The registered URL participates in the hash; branding alone must not change it.
+  const endpoint = process.env.EBAY_ACCOUNT_DELETION_ENDPOINT || "https://binder.cal.gg/api/ebay/account-deletion"
   const challengeResponse = createHash("sha256").update(challenge).update(token).update(endpoint).digest("hex")
   return Response.json({ challengeResponse }, { headers })
 }
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid eBay signature" }, { status: 412, headers })
     }
   } catch (error) {
-    console.warn("[binderdex] eBay notification verification unavailable:", error instanceof Error ? error.message : "Unknown error")
+    console.warn("[holofolder] eBay notification verification unavailable:", error instanceof Error ? error.message : "Unknown error")
     return Response.json({ error: "eBay signature verification unavailable" }, { status: 503, headers })
   }
   // shortcut: no eBay account data is stored, add verified data deletion before introducing eBay persistence.

@@ -9,11 +9,16 @@ const payload = { metadata: { topic: "MARKETPLACE_ACCOUNT_DELETION", schemaVersi
 
 test("eBay challenge uses the registered endpoint and rejects missing config or challenge", async () => {
   const previous = process.env.EBAY_ACCOUNT_DELETION_VERIFICATION_TOKEN
+  const previousEndpoint = process.env.EBAY_ACCOUNT_DELETION_ENDPOINT
   try {
+    delete process.env.EBAY_ACCOUNT_DELETION_ENDPOINT
     process.env.EBAY_ACCOUNT_DELETION_VERIFICATION_TOKEN = "synthetic_verification_token_12345678"
     const response = await GET(new Request(`${endpoint}?challenge_code=synthetic-challenge`))
     assert.equal(response.status, 200)
     assert.deepEqual(await response.json(), { challengeResponse: "72cf8d39554dd3f34ee94783ce0608bb70fbc58df87aed2a87a51ec0cdc6ae58" })
+    process.env.EBAY_ACCOUNT_DELETION_ENDPOINT = "https://holofolder.com/api/ebay/account-deletion"
+    const switched = await GET(new Request("https://holofolder.com/api/ebay/account-deletion?challenge_code=synthetic-challenge"))
+    assert.deepEqual(await switched.json(), { challengeResponse: "30fdc66daac0d72db121cb9603ee6d51c8899f71b79a7cfa609d619296a222cc" })
     assert.equal(response.headers.get("cache-control"), "no-store")
     assert.equal((await GET(new Request(endpoint))).status, 400)
     for (const token of ["", "too-short", "x".repeat(81), "x".repeat(32) + "!"]) {
@@ -21,6 +26,8 @@ test("eBay challenge uses the registered endpoint and rejects missing config or 
       assert.equal((await GET(new Request(`${endpoint}?challenge_code=test`))).status, 503)
     }
   } finally {
+    if (previousEndpoint === undefined) delete process.env.EBAY_ACCOUNT_DELETION_ENDPOINT
+    else process.env.EBAY_ACCOUNT_DELETION_ENDPOINT = previousEndpoint
     if (previous === undefined) delete process.env.EBAY_ACCOUNT_DELETION_VERIFICATION_TOKEN
     else process.env.EBAY_ACCOUNT_DELETION_VERIFICATION_TOKEN = previous
   }

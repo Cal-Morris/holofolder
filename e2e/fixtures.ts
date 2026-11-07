@@ -7,7 +7,7 @@ export const E2E_USER = {
   id: "00000000-0000-4000-8000-0000000000e2",
   aud: "authenticated",
   role: "authenticated",
-  email: "e2e@binderdex.test",
+  email: "e2e@holofolder.test",
   app_metadata: { provider: "email", providers: ["email"] },
   user_metadata: {},
   created_at: "2026-01-01T00:00:00.000Z",

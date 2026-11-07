@@ -10,7 +10,7 @@ test.beforeEach(async({page},info)=>{
 })
 test("studio retains artwork framing, supports cancel and page colours",async({page})=>{
   await page.goto("/studio")
-  await expect(page).toHaveTitle("Binder Studio · BinderDex")
+  await expect(page).toHaveTitle("Binder Studio · Holo Folder")
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   await expect(page.getByLabel("Preview collection")).toHaveValue("sample")
   // Async GPU readback can exceed the default assertion timeout during parallel rendering.

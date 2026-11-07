@@ -61,7 +61,7 @@ export function flushCollectionMirror(store: OfflineKeyValueStore | null = getOf
   pendingOperations = null
   flushing = flushing
     .then(() => writeMirror(store, collectionUpdates, operationsUpdate))
-    .catch((error) => console.error("[binderdex] Failed to save collection to IndexedDB:", error))
+    .catch((error) => console.error("[holofolder] Failed to save collection to IndexedDB:", error))
   return flushing
 }
 

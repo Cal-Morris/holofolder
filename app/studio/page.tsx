@@ -7,7 +7,7 @@ import { normalizeCollectionItem } from "@/lib/collection/normalize"
 import { isCardArtworkUrl, type StudioCard } from "@/lib/binder-design"
 import BinderDesigner from "@/components/binder-designer/designer"
 export const instant = false
-export const metadata = { title: "Binder Studio · BinderDex" }
+export const metadata = { title: "Binder Studio · Holo Folder" }
 export default async function StudioPage() {
   const supabase = await createClient()
   const user = await getSessionUser(supabase)

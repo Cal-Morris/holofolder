@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ sync: result, done: result.remainingSetIds.length === 0 })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error("[binderdex] Card DB sync failed:", error)
+    console.error("[holofolder] Card DB sync failed:", error)
     const status = message.includes("already running") ? 409 : 500
     return NextResponse.json({ error: message, log: log.slice(-20) }, { status })
   }

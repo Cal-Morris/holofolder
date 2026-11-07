@@ -134,13 +134,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("[binderdex] API collection upsert failed:", error)
+      console.error("[holofolder] API collection upsert failed:", error)
       return NextResponse.json({ error: error.message || "Failed to save collection item" }, { status: 500 })
     }
 
     return NextResponse.json({ item: data })
   } catch (error) {
-    console.error("[binderdex] API collection POST failed:", error)
+    console.error("[holofolder] API collection POST failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save collection item" },
       { status: 500 },
@@ -177,13 +177,13 @@ export async function PATCH(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("[binderdex] API collection status update failed:", error)
+      console.error("[holofolder] API collection status update failed:", error)
       return NextResponse.json({ error: error.message || "Failed to update collection item" }, { status: 500 })
     }
 
     return NextResponse.json({ item: data })
   } catch (error) {
-    console.error("[binderdex] API collection PATCH failed:", error)
+    console.error("[holofolder] API collection PATCH failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to update collection item" },
       { status: 500 },
@@ -214,13 +214,13 @@ export async function DELETE(request: NextRequest) {
       .eq("pokemon_id", pokemonId)
 
     if (error) {
-      console.error("[binderdex] API collection delete failed:", error)
+      console.error("[holofolder] API collection delete failed:", error)
       return NextResponse.json({ error: error.message || "Failed to delete collection item" }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[binderdex] API collection DELETE failed:", error)
+    console.error("[holofolder] API collection DELETE failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to delete collection item" },
       { status: 500 },

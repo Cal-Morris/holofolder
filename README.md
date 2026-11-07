@@ -1,4 +1,6 @@
-# binderdex
+# Holo Folder
+
+Pokémon card collections at [holofolder.com](https://holofolder.com). See [the rebrand cutover checklist](docs/holo-folder-rebrand.md) before switching the production domain.
 
 Mobile-first Pokémon binder tracker: National Dex binder pages, collection and wanted lists, card matching and scanning, partner (shared) collections, read-only share links and card price tracking. Built with Next.js (App Router), Supabase and Bun, and deployed on Vercel from `main`.
 
@@ -25,7 +27,7 @@ The database schema lives in `scripts/NNN_*.sql`. Apply the files to your Supaba
 | `bun run lint` | ESLint |
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run test` | Unit tests (`tests/*.test.ts`, `node:test` style, run by Bun) |
-| `bun run test:e2e` | Playwright end-to-end suite (`e2e/*.e2e.ts`) at three phone sizes, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `BINDERDEX_E2E=1` and a mocked Supabase |
+| `bun run test:e2e` | Playwright end-to-end suite (`e2e/*.e2e.ts`) at three phone sizes, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `HOLOFOLDER_E2E=1` and a mocked Supabase |
 | `bun run test:e2e:install` | Installs Playwright's Chromium (or set `CHROME_PATH` to a local Chrome) |
 | `bun run sync-card-db` | Syncs the TCGdex card database into Postgres (needs `POSTGRES_URL_NON_POOLING`; `--dry-run` supported) |
 

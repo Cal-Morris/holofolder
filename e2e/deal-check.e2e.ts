@@ -316,7 +316,7 @@ test.describe("manual bundle price checks", () => {
     await dialog.getByRole("button", { name: /^Bundle · 2 cards/ }).click()
     await expect(bundle.getByTestId("bundle-market-total")).toContainText("£13.80")
     expect(calls).toBe(4)
-    if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) await harness.page.screenshot({ path: "/tmp/binderdex-readable-bundle.png" })
+    if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) await harness.page.screenshot({ path: "/tmp/holofolder-readable-bundle.png" })
   })
 })
 

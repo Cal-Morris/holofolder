@@ -307,7 +307,7 @@ export async function refreshCardPriceLookups(
     .in("language", languages)
 
   if (cacheError) {
-    console.error("[binderdex] Failed to read card_prices cache:", cacheError)
+    console.error("[holofolder] Failed to read card_prices cache:", cacheError)
   }
 
   const now = Date.now()
@@ -331,7 +331,7 @@ export async function refreshCardPriceLookups(
   if (missingLookups.length > 0) {
     const metadataByCardId = await loadCardPriceMetadata(supabase, [...new Set(missingLookups.map((lookup) => lookup.cardId))])
     const fxRates = await fetchEcbFxRates().catch((error) => {
-      console.error("[binderdex] Failed to load ECB FX rates for card prices:", error)
+      console.error("[holofolder] Failed to load ECB FX rates for card prices:", error)
       return null
     })
     const fetchedSnapshots = fxRates
@@ -368,7 +368,7 @@ export async function refreshCardPriceLookups(
       upsertError = result.error
     }
     if (upsertError) {
-      console.error("[binderdex] Failed to upsert card_prices rows:", upsertError)
+      console.error("[holofolder] Failed to upsert card_prices rows:", upsertError)
     }
   }
 
@@ -401,7 +401,7 @@ async function loadCardPriceMetadata(
     .in("id", cardIds)
 
   if (error) {
-    console.error("[binderdex] Failed to read card metadata for price fallback:", error)
+    console.error("[holofolder] Failed to read card metadata for price fallback:", error)
     return metadataByCardId
   }
 
@@ -701,7 +701,7 @@ export async function fetchCardPriceSnapshot(
         if (snapshot.marketGbpAmount != null) return snapshot
       }
     } catch (error) {
-      console.error(`[binderdex] Failed to fetch price for ${upstreamId} (${language}):`, error)
+      console.error(`[holofolder] Failed to fetch price for ${upstreamId} (${language}):`, error)
     }
   }
 
@@ -762,7 +762,7 @@ async function fetchTcgplayerProductPriceFallback(
   const productSnapshots = (
     await mapWithConcurrency(productIds, Math.min(3, productIds.length), async (productId) => {
       const details = await fetchTcgplayerProductDetails(productId).catch((error) => {
-        console.error(`[binderdex] Failed to fetch TCGplayer product ${productId} for ${cardId}:`, error)
+        console.error(`[holofolder] Failed to fetch TCGplayer product ${productId} for ${cardId}:`, error)
         return null
       })
       return details ? buildTcgplayerProductPriceSnapshot(cardId, language, details, fxRates) : null
@@ -802,7 +802,7 @@ async function fetchTcgplayerSearchPriceFallback(
   }
 
   const products = await fetchTcgplayerSearchProducts(query).catch((error) => {
-    console.error(`[binderdex] Failed to search TCGplayer for ${cardId}:`, error)
+    console.error(`[holofolder] Failed to search TCGplayer for ${cardId}:`, error)
     return []
   })
   const matchedProduct = pickTcgplayerSearchProduct(card, products)
@@ -856,7 +856,7 @@ async function fetchTcgplayerSearchProducts(query: string): Promise<TcgplayerPro
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "User-Agent": "BinderDexPriceResearch/1.0 (+https://binder.cal.gg)",
+      "User-Agent": "HoloFolderPriceResearch/1.0 (+https://holofolder.com)",
     },
     body: JSON.stringify({
       filters: {
@@ -936,7 +936,7 @@ async function fetchPokePulseSearchPriceFallback(
     },
     next: { revalidate: 60 * 60 * 12 },
   }).catch((error) => {
-    console.error(`[binderdex] Failed to search PokePulse for ${cardId}:`, error)
+    console.error(`[holofolder] Failed to search PokePulse for ${cardId}:`, error)
     return null
   })
 
@@ -952,7 +952,7 @@ async function fetchPokePulseSearchPriceFallback(
   }
 
   const marketData = await fetchPokePulseMarketData(matchedItem.productId).catch((error) => {
-    console.error(`[binderdex] Failed to load PokePulse market data for ${cardId}:`, error)
+    console.error(`[holofolder] Failed to load PokePulse market data for ${cardId}:`, error)
     return null
   })
 
@@ -1253,7 +1253,7 @@ async function fetchTcgplayerProductDetails(productId: string): Promise<Tcgplaye
     {
       headers: {
         Accept: "application/json",
-        "User-Agent": "BinderDexPriceResearch/1.0 (+https://binder.cal.gg)",
+        "User-Agent": "HoloFolderPriceResearch/1.0 (+https://holofolder.com)",
       },
       next: { revalidate: 60 * 60 * 12 },
     },
@@ -1667,7 +1667,7 @@ export function parseEcbFxRates(xml: string): FxRates {
 /** Today's ECB rates for client-side currency display, or null when the feed is unavailable. */
 export async function loadDisplayFxRates(): Promise<FxRates | null> {
   return fetchEcbFxRates().catch((error) => {
-    console.error("[binderdex] Failed to load ECB FX rates for display:", error)
+    console.error("[holofolder] Failed to load ECB FX rates for display:", error)
     return null
   })
 }

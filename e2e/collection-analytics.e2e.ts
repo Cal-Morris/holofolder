@@ -130,7 +130,7 @@ test.describe("collection export", () => {
       page.getByRole("button", { name: "Export CSV", exact: true }).click(),
     ])
     await page.context().setOffline(false)
-    expect(download.suggestedFilename()).toMatch(/^binderdex-collection-\d{4}-\d{2}-\d{2}\.csv$/)
+    expect(download.suggestedFilename()).toMatch(/^holofolder-collection-\d{4}-\d{2}-\d{2}\.csv$/)
     const fs = await import("node:fs/promises")
     const lines = (await fs.readFile((await download.path())!, "utf8")).trimEnd().split("\r\n")
     expect(lines[0]).toBe("dex_number,pokemon,list,slot_status,card_id,card_name,set,language,finish,market_gbp,price_source,added")

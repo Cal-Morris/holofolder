@@ -20,7 +20,7 @@ import { loadProjectEnvFiles } from "../lib/load-project-env"
 const args = process.argv.slice(2)
 const applying = args.includes("--apply")
 const cacheDir = path.resolve(".cache/card-gap-fill")
-const USER_AGENT = "BinderDexCatalog/1.0 (+https://binder.cal.gg)"
+const USER_AGENT = "HoloFolderCatalog/1.0 (+https://holofolder.com)"
 const LEGACY_ROOT = "https://raw.githubusercontent.com/PokemonTCG/pokemon-tcg-data/master/cards/en"
 
 async function cachedJson<T>(name: string, url: string): Promise<T> {
@@ -36,7 +36,7 @@ async function cachedJson<T>(name: string, url: string): Promise<T> {
 const SCRYDEX = "https://images.scrydex.com/"
 /** Scrydex answers unknown card ids with 200 and a stock "image not found" picture; its ETag identifies it. */
 async function scrydexPlaceholderEtag() {
-  const response = await fetch(`${SCRYDEX}pokemon/binderdex-missing-0/large`, { method: "HEAD", headers: { "User-Agent": USER_AGENT, Accept: "image/png" }, signal: AbortSignal.timeout(20_000) }).catch(() => null)
+  const response = await fetch(`${SCRYDEX}pokemon/holofolder-missing-0/large`, { method: "HEAD", headers: { "User-Agent": USER_AGENT, Accept: "image/png" }, signal: AbortSignal.timeout(20_000) }).catch(() => null)
   return response?.headers.get("etag") ?? null
 }
 

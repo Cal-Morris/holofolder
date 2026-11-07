@@ -39,9 +39,9 @@ test("downloads the current binder's queued offline edit without changing the qu
   const downloading = page.waitForEvent("download")
   await downloadButton.click()
   const download = await downloading
-  expect(download.suggestedFilename()).toMatch(/^binderdex-trades-.*\.json$/)
+  expect(download.suggestedFilename()).toMatch(/^holofolder-trades-.*\.json$/)
   const backup = JSON.parse(await readFile((await download.path())!, "utf8"))
-  expect(backup.format).toBe("binderdex-binder-backup")
+  expect(backup.format).toBe("holofolder-binder-backup")
   expect(backup.version).toBe(1)
   expect(backup.binder).toMatchObject({ id: trades, name: "Trades" })
   expect(backup.collection).toHaveLength(1)

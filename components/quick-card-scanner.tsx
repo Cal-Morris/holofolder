@@ -105,7 +105,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
           frames.push(await withTimeout(recognizeCardTextSignalsFromImage(previewUrl, { regions: SCAN_REGIONS, isEnough: isScanReadComplete }), SCAN_FRAME_TIMEOUT_MS))
         } catch (error) {
           readerFailures += 1
-          console.info("[binderdex] Card scan frame not read:", error)
+          console.info("[holofolder] Card scan frame not read:", error)
         }
         if (isScanReadComplete(mergeCardTextSignals(frames))) break
         if (index < SCAN_FRAMES - 1) await delay(SCAN_FRAME_GAP_MS)
@@ -120,7 +120,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
         offline,
       })
     } catch (error) {
-      console.info("[binderdex] Card scan failed:", error)
+      console.info("[holofolder] Card scan failed:", error)
       onResult({ outcome: { kind: "unread", query: readScannedCard(mergeCardTextSignals(frames)).query }, readerUnavailable: true, offline: !isOnline })
     } finally {
       setPhase("idle")

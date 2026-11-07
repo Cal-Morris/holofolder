@@ -1,4 +1,4 @@
-// Card show mode: a device-local switch for using BinderDex at a card show. With it on, Search opens
+// Card show mode: a device-local switch for using Holo Folder at a card show. With it on, Search opens
 // Quick mode, the screen stays awake and a banner shows how to leave. Pure helpers; the hook is
 // hooks/use-show-mode.ts.
 

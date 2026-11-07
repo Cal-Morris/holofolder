@@ -7,7 +7,7 @@ TCGdex `/v2/en/sets/me06` returned 404 on 2026-11-06 and its set index omitted D
 - [Pokémon's launch announcement](https://pokemon.gamespress.com/en-GB/MEDIA-ALERT-Legendary-Pokemon-Mega-Rayquaza-ex-Descends-into-Battle-in): Mega Evolution—Delta Reign, released 2026-11-06.
 - [TCGCSV groups](https://tcgcsv.com/tcgplayer/3/groups): group 24831, `ME06: Delta Reign`, printed code `DLR`, published 2026-11-06.
 - [TCGCSV products](https://tcgcsv.com/tcgplayer/3/24831/products): 162 products, 141 numbered cards, collector numbers 001–141 with printed denominator 103. The other 21 products were excluded.
-- [TCGCSV access rules](https://tcgcsv.com/docs#usage-guidelines) require an application/version User-Agent. `binderdex/1.0.0` succeeded; generic clients were rejected.
+- [TCGCSV access rules](https://tcgcsv.com/docs#usage-guidelines) require an application/version User-Agent. `holofolder/1.0.0` succeeded; generic clients were rejected.
 
 ## Scoped import
 

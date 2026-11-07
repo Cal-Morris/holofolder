@@ -1,6 +1,6 @@
 ---
 name: nextjs-conventions
-description: Next.js 16 App Router conventions for binderdex, covering cacheComponents/PPR static shells, reading the session in proxy and pages (getClaims rather than getUser), the proxy matcher, next/dynamic for heavy client code, images, error/not-found boundaries, and measuring first-load JS and Lighthouse. Use when adding or changing a page, layout, proxy, route config, next.config or a heavy client dependency.
+description: Next.js 16 App Router conventions for Holo Folder, covering cacheComponents/PPR static shells, reading the session in proxy and pages (getClaims rather than getUser), the proxy matcher, next/dynamic for heavy client code, images, error/not-found boundaries, and measuring first-load JS and Lighthouse. Use when adding or changing a page, layout, proxy, route config, next.config or a heavy client dependency.
 ---
 
 # Next.js conventions
@@ -46,7 +46,7 @@ Next 16.4 (App Router, Turbopack) and React 19.3. Read `node_modules/next/dist/d
 ## Observability and checks
 
 - `<Analytics />` and `<SpeedInsights />` are in the root layout. Use Speed Insights (real mobile users) as well as Lighthouse.
-- Lighthouse mobile against production: `lighthouse https://binder.cal.gg/home --preset=perf --form-factor=mobile --chrome-flags="--headless=new"` (mobile is the default).
+- Lighthouse mobile against production: `lighthouse https://holofolder.com/home --preset=perf --form-factor=mobile --chrome-flags="--headless=new"` (mobile is the default).
 - Playwright on a shared box: use `--workers=2`. The WebGL and designer specs flake with more parallel workers.
 
 ## Vercel

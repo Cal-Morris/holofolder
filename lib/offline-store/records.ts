@@ -1,4 +1,4 @@
-// What BinderDex keeps in IndexedDB for offline use. Every record is a plain, versionless JSON value
+// What Holo Folder keeps in IndexedDB for offline use. Every record is a plain, versionless JSON value
 // under a fixed key; readers validate what they get back.
 import type { CollectedPokemon, WantedCard } from "@/lib/domain/cards"
 import { normalizeCollectionItems } from "@/lib/collection/normalize"

@@ -2242,7 +2242,7 @@ export default function BinderApp({
           .then(({ recognizeCardTextSignalsFromImage }) => recognizeCardTextSignalsFromImage(proxyUrl, { exhaustive: true }))
           .then((imageSignals) => mergeCardTextSignals([metadataSignals, imageSignals]) ?? metadataSignals)
           .catch((error) => {
-            console.info("[binderdex] Skipping candidate card OCR scan:", error)
+            console.info("[holofolder] Skipping candidate card OCR scan:", error)
             return metadataSignals
           })
       : Promise.resolve(metadataSignals)
@@ -2304,7 +2304,7 @@ export default function BinderApp({
       const { recognizeCardTextSignalsFromImage } = await import("@/lib/card-scan-ocr")
       return await recognizeCardTextSignalsFromImage(cardImageDataUrl, { exhaustive: true })
     } catch (error) {
-      console.info("[binderdex] Skipping page slot OCR scan:", error)
+      console.info("[holofolder] Skipping page slot OCR scan:", error)
       return null
     }
   }, [])
@@ -2357,7 +2357,7 @@ export default function BinderApp({
             frameMatches.push(matches)
             slotFrames.set(slot.index, frameMatches)
           } catch (error) {
-            console.info("[binderdex] Skipping page slot card match:", error)
+            console.info("[holofolder] Skipping page slot card match:", error)
           }
         }),
       )
@@ -2476,7 +2476,7 @@ export default function BinderApp({
         page: currentBinderPage,
       })
     } catch (error) {
-      console.error("[binderdex] Error scanning page photo:", error)
+      console.error("[holofolder] Error scanning page photo:", error)
       setPageScanError(error instanceof Error ? error.message : "Could not scan that page photo.")
     } finally {
       setIsScanningPage(false)
@@ -2519,12 +2519,12 @@ export default function BinderApp({
     document.documentElement.classList.toggle("dark", isDarkMode)
 
     const head = document.head
-    let themeColorMeta = head.querySelector<HTMLMetaElement>('meta[name="theme-color"][data-binderdex-runtime-theme="true"]')
+    let themeColorMeta = head.querySelector<HTMLMetaElement>('meta[name="theme-color"][data-holofolder-runtime-theme="true"]')
 
     if (!themeColorMeta) {
       themeColorMeta = document.createElement("meta")
       themeColorMeta.name = "theme-color"
-      themeColorMeta.dataset.binderdexRuntimeTheme = "true"
+      themeColorMeta.dataset.holofolderRuntimeTheme = "true"
       head.appendChild(themeColorMeta)
     }
 
@@ -2561,12 +2561,12 @@ export default function BinderApp({
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault()
       setInstallPromptEvent(event as BeforeInstallPromptEvent)
-      setPwaStatusMessage("BinderDex is ready to install for better offline use.")
+      setPwaStatusMessage("Holo Folder is ready to install for better offline use.")
     }
     const handleAppInstalled = () => {
       setInstallPromptEvent(null)
       setIsInstalledApp(true)
-      setPwaStatusMessage("BinderDex installed. The app shell and cached assets are now available offline.")
+      setPwaStatusMessage("Holo Folder installed. The app shell and cached assets are now available offline.")
     }
 
     window.addEventListener("online", handleOnline)
@@ -2622,7 +2622,7 @@ export default function BinderApp({
           lastOfflineCacheWarmupSignatureRef.current = warmupSignature
         })
         .catch((error) => {
-          console.error("[binderdex] Failed to warm offline cache:", error)
+          console.error("[holofolder] Failed to warm offline cache:", error)
         })
     }, 1200)
 
@@ -2634,7 +2634,7 @@ export default function BinderApp({
 
   const handleInstallApp = useCallback(async () => {
     if (!installPromptEvent) {
-      setPwaStatusMessage("Use your browser's Add to Home Screen option to install BinderDex.")
+      setPwaStatusMessage("Use your browser's Add to Home Screen option to install Holo Folder.")
       return
     }
 
@@ -2642,12 +2642,12 @@ export default function BinderApp({
       await installPromptEvent.prompt()
       const { outcome } = await installPromptEvent.userChoice
       if (outcome === "accepted") {
-        setPwaStatusMessage("Install started. BinderDex will open like an app once added.")
+        setPwaStatusMessage("Install started. Holo Folder will open like an app once added.")
       } else {
         setPwaStatusMessage("Install prompt dismissed.")
       }
     } catch (error) {
-      console.error("[binderdex] Failed to install app:", error)
+      console.error("[holofolder] Failed to install app:", error)
       setPwaStatusMessage("Could not open the install prompt.")
     } finally {
       setInstallPromptEvent(null)

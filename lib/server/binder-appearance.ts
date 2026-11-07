@@ -17,7 +17,7 @@ export function requireAppearanceOrigin(request: Request) {
 }
 export function appearanceError(error: unknown) {
   if (error instanceof AppearanceError) return appearanceJson({ error: error.message, code: error.code }, error.status)
-  console.error("[binderdex] Appearance request failed", error)
+  console.error("[holofolder] Appearance request failed", error)
   return appearanceJson({ error: "Appearance could not be synced. Your draft is still here." }, 500)
 }
 export function checkAppearanceDatabaseError(error: { code?: string } | null) {

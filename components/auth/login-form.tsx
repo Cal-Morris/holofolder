@@ -227,7 +227,7 @@ export function LoginForm() {
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
             {recoveryMode
-              ? 'Choose a password for your BinderDex account.'
+              ? 'Choose a password for your Holo Folder account.'
               : success
                 ? successMessage
                 : 'Use a magic link or sign in with a password.'}
