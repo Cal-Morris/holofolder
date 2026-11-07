@@ -28,7 +28,7 @@ import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import { DealPriceScale } from "@/components/deal-price-scale"
-import UndoSnackbar from "@/components/undo-snackbar"
+import type { UndoAction } from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 
 export type QuickCardAction = "bought" | "add-owned" | "want" | "got" | "remove-wanted"
@@ -71,6 +71,7 @@ export interface QuickCardCheckProps {
   onRemoveOwned?: () => void
   onChangeCard?: (mode: "collect" | "wishlist", finish: CardFinish) => void
   onOpenDetails: (finish: CardFinish) => void
+  onUndoAvailable: (action: UndoAction) => void
   /** Runs the action; resolves to an undo function, or null when nothing changed. */
   onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
   isInBundle: (key: string) => boolean
@@ -113,6 +114,7 @@ export default function QuickCardCheck({
   onChangeCard,
   onRemoveOwned,
   onAction,
+  onUndoAvailable,
   isInBundle,
   onAddToBundle,
   showTools = true,
@@ -169,10 +171,11 @@ export default function QuickCardCheck({
     : null
 
   const [busy, setBusy] = useState(false)
-  const [undo, setUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const run = async (action: QuickCardAction) => {
     if (busy || (action !== "want" && action !== "remove-wanted" && needsConfirmation)) return
     setBusy(true)
+    setActionError(null)
     try {
       const revert = await onAction(action, finish)
       if (!revert) return
@@ -184,14 +187,16 @@ export default function QuickCardCheck({
         ? `Bought ${card.name}${askingPrice ? ` for ${money(askingPrice)}` : ""}`
         : action === "remove-wanted" ? `${card.name} removed from want list` : action === "want" ? `${card.name} added to Wanted` : action === "got" ? `Got ${card.name}` : `${card.name} added to your binder`
       if (revert || purchaseIds.length > 0) {
-        setUndo({
+        onUndoAvailable({
           message,
           run: async () => {
+            await revert()
             if (purchaseIds.length > 0) removePurchases(purchaseIds)
-            await revert?.()
           },
         })
       }
+    } catch {
+      setActionError("Could not update your binder. Try again.")
     } finally {
       setBusy(false)
     }
@@ -324,6 +329,7 @@ export default function QuickCardCheck({
           </>}
         </div>}
         <DealPriceInput value={input} onChange={setInput} autoFocus={showTools} />
+        {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {showTools && !readOnly && (
@@ -362,18 +368,6 @@ export default function QuickCardCheck({
         </div>
         )}
       </div>
-
-      {undo && (
-        <UndoSnackbar
-          message={undo.message}
-          onUndo={() => {
-            const current = undo
-            setUndo(null)
-            void current.run()
-          }}
-          onDismiss={() => setUndo(null)}
-        />
-      )}
     </section>
   )
 }

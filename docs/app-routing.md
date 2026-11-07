@@ -36,3 +36,9 @@ A different hostname cannot read existing on-device data. Sync old devices befor
 ## Paused branches
 
 Reconcile unpublished push notification routes, recovery links, worker registration/click destinations and public icon paths against this contract before shipping those branches. The Next marketing `/home` work is superseded by Framer. Do not bulk-stage or reset the show workflow branch's mixed index.
+
+## Workflow delivery on Vercel
+
+Production and preview set `NEXT_ENABLE_ADAPTER=0`. The Vercel Next.js adapter currently routes queue deliveries to a nonexistent Pages Router module when `basePath` is set, so Workflow accepts runs but never executes them. This temporarily opts out of that adapter while retaining `/app`. See [the upstream issue and workaround](https://github.com/vercel/workflow/issues/4971). Remove the setting once the adapter fix ships.
+
+The setting requires a fresh deployment. Verify the build log no longer says `Applying modifyConfig from Vercel`, and check a new partner acquisition reaches `partner_push_deliveries` and completes. HTTP route availability alone does not verify queue delivery.

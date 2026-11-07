@@ -51,7 +51,7 @@ test.describe("specific wanted card actions", () => {
     await remove.click()
     await expect.poll(() => server.rows.get(4)?.wanted_cards).toEqual([])
     expect(server.rows.get(4)?.card_id).toBe("base1-46")
-    await check.getByTestId("undo-snackbar").getByRole("button", { name: "Undo", exact: true }).click()
+    await page.getByTestId("undo-snackbar").getByRole("button", { name: "Undo", exact: true }).click()
     await expect.poll(() => server.rows.get(4)?.wanted_cards).toEqual([savedHolo])
     await check.getByRole("button", { name: "Change wanted card", exact: true }).click()
     const picker = page.getByRole("dialog", { name: /card selector/i })

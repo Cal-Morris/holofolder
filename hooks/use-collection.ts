@@ -2,7 +2,7 @@
 
 import { captureAcquisition, mergeQueuedAcquisition, readPushMembership, writePushMembership, type AcquisitionIntent } from "@/lib/partner-push"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { readLocalCollectedIds, writeLocalCollectedIds } from "@/lib/local-collection"
 import { getOfflineStore } from "@/lib/offline-store/kv"
@@ -148,6 +148,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
   )
   const [user, setUser] = useState<User | null>(initialUser)
   const [collection, setCollection] = useState<CollectedPokemon[]>(normalizeCollectionItems(initialCollection))
+  // Undo callbacks outlive the render that created them.
+  const collectionRef = useRef(collection)
+  useLayoutEffect(() => { collectionRef.current = collection }, [collection])
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
   const [ownerResolvedForUserId, setOwnerResolvedForUserId] = useState<string | null>(initialCollectionOwnerUserId ? initialUser?.id ?? null : null)
   const authenticatedUserId = useRef(initialUser?.id ?? null)
@@ -222,6 +225,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [])
 
   const applyLocalCollection = useCallback((nextCollection: CollectedPokemon[]) => {
+    collectionRef.current = nextCollection
     setCollection(nextCollection)
     persistLocalCollectionState(nextCollection, collectionOwnerUserId, binderId, isDefaultBinder)
     refreshLocalCollectedCount()
@@ -752,9 +756,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
    * older edit of the same Pokémon still queued, the edit is queued instead (and keeps per-Pokémon order).
    * A hard server rejection rolls the edit back; network/server failures and conflicts go to the queue.
    */
-  const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null, acquisition?: AcquisitionIntent) => {
-    const existingItem = collection.find((item) => item.pokemon_id === pokemonId) ?? null
-    applyLocalCollection(nextItem ? upsertCollectionItem(collection, nextItem) : removeCollectionItem(collection, pokemonId))
+  const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null, acquisition?: AcquisitionIntent, expected?: CollectedPokemon | null) => {
+    const current = collectionRef.current
+    const existingItem = current.find((item) => item.pokemon_id === pokemonId) ?? null
+    if (expected !== undefined && collectionFingerprint(existingItem) !== collectionFingerprint(expected)) {
+      return { item: existingItem, queued: false as const, rolledBack: true as const, error: "This card changed since the action. Check your binder before undoing." }
+    }
+    applyLocalCollection(nextItem ? upsertCollectionItem(current, nextItem) : removeCollectionItem(current, pokemonId))
 
     const binderField = binderId ? { binderId } : {}
     const edit: PendingCollectionOperationInput = nextItem
@@ -786,7 +794,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       queueLocalCollectionOperation(edit, { afterFailure: classifyWriteFailure(error) === "retry" })
       return { item: nextItem, queued: true as const, error }
     }
-  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collection, collectionOwnerUserId, queueLocalCollectionOperation, rollBackEdit, settleLocalItem, user, writeRemoteCollection])
+  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collectionOwnerUserId, queueLocalCollectionOperation, rollBackEdit, settleLocalItem, user, writeRemoteCollection])
 
   const addToCollection = useCallback(async (
     pokemonId: number,
@@ -838,10 +846,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return { data: result.item ?? nextItem }
   }, [commitItemChange, collection, collectionOwnerUserId, readOnly, user])
 
-  const removeFromCollection = useCallback(async (pokemonId: number) => {
+  const removeFromCollection = useCallback(async (pokemonId: number, expected?: CollectedPokemon | null) => {
     if (readOnly) return { error: "Read-only binder" }
 
-    const result = await commitItemChange(pokemonId, null)
+    const result = await commitItemChange(pokemonId, null, undefined, expected)
     if ("rolledBack" in result) {
       console.error("[holofolder] Error removing from collection:", result.error)
       return { error: result.error }
@@ -868,9 +876,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [collection, commitItemChange, readOnly])
 
   /** Write a previously saved row back exactly as it was (used by undo). */
-  const restoreCollectionItem = useCallback(async (previous: CollectedPokemon) => {
+  const restoreCollectionItem = useCallback(async (previous: CollectedPokemon, expected?: CollectedPokemon | null) => {
     if (readOnly) return { error: "Read-only binder" }
-    const result = await commitItemChange(previous.pokemon_id, previous)
+    const result = await commitItemChange(previous.pokemon_id, previous, undefined, expected)
     if ("rolledBack" in result) {
       console.error("[holofolder] Error restoring collection item:", result.error)
       return { error: extractErrorMessage(result.error) }
