@@ -50,7 +50,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
           role="dialog"
           aria-modal="true"
           aria-label="View options"
-          className={`${dashboardStyles.viewOptions} absolute inset-x-0 bottom-0 flex flex-col overflow-hidden outline-none rounded-t-[1.75rem] border-t border-border/65 bg-card px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background dark:shadow-2xl md:inset-x-auto md:bottom-auto md:right-4 md:top-24 md:w-80 md:rounded-2xl md:border md:pb-3`}
+          className={`${dashboardStyles.viewOptions} absolute inset-x-0 bottom-0 flex flex-col overflow-hidden outline-none rounded-t-[1.75rem] border-t border-border/65 bg-card px-4 pb-[calc(var(--dock-clearance)+1rem)] pt-3 shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] dark:border-border/50 dark:shadow-2xl md:inset-x-auto md:bottom-auto md:right-4 md:top-24 md:w-80 md:rounded-2xl md:border md:pb-3`}
           onClick={(event) => event.stopPropagation()}
           style={{
             maxHeight: isDesktopViewport ? "calc(100dvh - 7rem)" : "calc(100dvh - var(--top-inset) - 0.25rem)",

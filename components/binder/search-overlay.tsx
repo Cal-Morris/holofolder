@@ -60,7 +60,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
             aria-modal="true"
             aria-label="Search Pokemon"
             onClick={(event) => event.stopPropagation()}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.75rem] border border-border/65 bg-card/96 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.35)] dark:border-border/50 dark:bg-background/96 dark:shadow-2xl">
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.75rem] border border-border/65 bg-card/96 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.35)] dark:border-border/50 dark:shadow-2xl">
             <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1 gap-y-1 border-b border-border/40 px-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold">Search</p>

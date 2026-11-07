@@ -38,7 +38,7 @@ export default function CheckCompsConfirm({
         aria-modal="true"
         aria-labelledby="check-comps-confirm-title"
         data-testid="check-comps-confirm"
-        className="absolute inset-x-0 bottom-[var(--dock-clearance)] mx-auto w-full max-w-md rounded-t-[1.6rem] border-t border-border/65 bg-card/97 px-4 pb-[calc(var(--safe-bottom)+0.75rem)] pt-3 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] max-h-[calc(100dvh-var(--dock-clearance)-var(--safe-top)-1rem)] overflow-y-auto sm:bottom-4 sm:rounded-[1.6rem] sm:border sm:pb-4 dark:border-border/50 dark:bg-background/97"
+        className="absolute inset-x-0 bottom-[var(--dock-clearance)] mx-auto w-full max-w-md rounded-t-[1.6rem] border-t border-border/65 bg-card/97 px-4 pb-[calc(var(--safe-bottom)+0.75rem)] pt-3 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] max-h-[calc(100dvh-var(--dock-clearance)-var(--safe-top)-1rem)] overflow-y-auto sm:bottom-4 sm:rounded-[1.6rem] sm:border sm:pb-4 dark:border-border/50"
         onClick={(event) => event.stopPropagation()}
       >
         <div {...swipe} className="flex items-center justify-between pb-2">

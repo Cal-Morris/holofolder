@@ -27,7 +27,7 @@ export function HeaderMoreMenu({ items, message }: { items: HeaderMoreItem[]; me
       </button>
       {open && <>
         <div className="fixed inset-0 z-40" data-overlay-backdrop aria-hidden onClick={close} />
-        <div ref={menuRef} role="dialog" aria-modal="true" aria-label="More" className="fixed right-[max(0.5rem,var(--right-inset))] top-[calc(var(--top-inset)+0.5rem)] z-50 flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] w-64 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-1.5 shadow-xl outline-none md:right-4 dark:bg-background">
+        <div ref={menuRef} role="dialog" aria-modal="true" aria-label="More" className="fixed right-[max(0.5rem,var(--right-inset))] top-[calc(var(--top-inset)+0.5rem)] z-50 flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] w-64 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-1.5 shadow-xl outline-none md:right-4">
           <div className="flex shrink-0 items-center justify-between pl-3">
             <p className="text-sm font-semibold">More</p>
             <button type="button" onClick={close} aria-label="Close more" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>

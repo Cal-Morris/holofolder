@@ -49,8 +49,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             aria-pressed={isSearchOpen || isQuickModeOpen}
             aria-description="Press and hold for Quick mode"
             title="Search (hold for Quick mode)"
-            className={`flex h-11 flex-col gap-0.5 min-w-0 touch-manipulation select-none items-center justify-center rounded-lg px-1 transition-colors [-webkit-touch-callout:none] ${
-                isSearchOpen || isQuickModeOpen ? "text-foreground [&>svg]:stroke-[2.5] [&>span]:font-bold" : "text-muted-foreground"
+            className={`flex h-11 flex-col gap-0.5 min-w-0 touch-manipulation select-none items-center justify-center rounded-full px-1 transition-colors [-webkit-touch-callout:none] ${
+                isSearchOpen || isQuickModeOpen ? "bg-primary/10 text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
               }`}
           >
             <SearchIcon className="h-4 w-4" aria-hidden />
@@ -63,8 +63,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             aria-label="Binder"
             aria-pressed={!isSearchOpen && !isQuickModeOpen && activeMainView === "binder"}
             title="Binder"
-            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-lg px-1 transition-colors ${
-                !isSearchOpen && !isQuickModeOpen && activeMainView === "binder" ? "text-foreground [&>svg]:stroke-[2.5] [&>span]:font-bold" : "text-muted-foreground"
+            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-full px-1 transition-colors ${
+                !isSearchOpen && !isQuickModeOpen && activeMainView === "binder" ? "bg-primary/10 text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
               }`}
           >
             <Grid3X3 className="h-4 w-4" aria-hidden />
@@ -80,8 +80,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             aria-label="List"
             aria-pressed={!isSearchOpen && !isQuickModeOpen && activeMainView === "list"}
             title="List"
-            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-lg px-1 transition-colors ${
-                !isSearchOpen && !isQuickModeOpen && activeMainView === "list" ? "text-foreground [&>svg]:stroke-[2.5] [&>span]:font-bold" : "text-muted-foreground"
+            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-full px-1 transition-colors ${
+                !isSearchOpen && !isQuickModeOpen && activeMainView === "list" ? "bg-primary/10 text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
               }`}
           >
             <ListChecks className="h-4 w-4" aria-hidden />
@@ -96,8 +96,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             aria-label="Wanted"
             aria-pressed={!isSearchOpen && !isQuickModeOpen && activeMainView === "wanted"}
             title="Wanted"
-            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-lg px-1 transition-colors ${
-                !isSearchOpen && !isQuickModeOpen && activeMainView === "wanted" ? "text-foreground [&>svg]:stroke-[2.5] [&>span]:font-bold" : "text-muted-foreground"
+            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-full px-1 transition-colors ${
+                !isSearchOpen && !isQuickModeOpen && activeMainView === "wanted" ? "bg-primary/10 text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
               }`}
           >
             <Heart className="h-4 w-4" aria-hidden />
@@ -112,8 +112,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             aria-label="Browse"
             aria-pressed={!isSearchOpen && !isQuickModeOpen && (activeMainView === "sets" || activeMainView === "pokemon")}
             title="Browse"
-            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-lg px-1 transition-colors ${
-                !isSearchOpen && !isQuickModeOpen && (activeMainView === "sets" || activeMainView === "pokemon") ? "text-foreground [&>svg]:stroke-[2.5] [&>span]:font-bold" : "text-muted-foreground"
+            className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-full px-1 transition-colors ${
+                !isSearchOpen && !isQuickModeOpen && (activeMainView === "sets" || activeMainView === "pokemon") ? "bg-primary/10 text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
               }`}
           >
             <Layers3 className="h-4 w-4" aria-hidden />

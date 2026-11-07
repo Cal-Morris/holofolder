@@ -1,18 +1,16 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 import { IOS_VIEWPORT_GAP_SCRIPT } from "@/lib/ios-viewport-gap"
 import { KEYBOARD_INSET_SCRIPT } from "@/lib/keyboard-inset"
 
-// next/font must be assigned at module scope. The classNames are not applied: the
-// generated @font-face rules ("Geist", "Geist Mono") are used via --font-sans/--font-mono in globals.css.
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
-const THEME_COLOR_LIGHT = "#fafafd"
-const THEME_COLOR_DARK = "#171a22"
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" })
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap" })
+const THEME_COLOR_LIGHT = "#f7f6fb"
+const THEME_COLOR_DARK = "#07070a"
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://holofolder.com"),
@@ -66,7 +64,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark bg-background" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} dark bg-background`} suppressHydrationWarning>
       <head>
         {/* Measures the iOS 26 installed-app dead band under the page before first paint (lib/ios-viewport-gap.ts). */}
         <script dangerouslySetInnerHTML={{ __html: IOS_VIEWPORT_GAP_SCRIPT }} />
