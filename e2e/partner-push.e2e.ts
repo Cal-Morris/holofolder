@@ -55,7 +55,7 @@ test.describe('partner acquisition intent', () => {
     await expect(page.getByRole('button', { name: 'Show mode', exact: true })).toBeVisible()
     await page.locator('button[data-dex-id="7"]').first().click()
     const detail = page.getByRole('dialog', { name: /squirtle details/i })
-    await detail.getByRole('button', { name: 'Add card', exact: true }).click()
+    await detail.getByRole('button', { name: 'Add owned card', exact: true }).click()
     const selector = page.getByRole('dialog', { name: /card selector/i })
     await selector.getByRole('button', { name: 'Add card Squirtle from 30th Classic Collection', exact: true }).click()
     await expect(selector).toHaveCount(0)

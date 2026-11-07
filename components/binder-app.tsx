@@ -23,7 +23,7 @@ import { type PokemonSearchResultMeta } from "@/components/pokemon-search"
 import type { CardSelectorMode } from "@/components/card-selector"
 import { closeAllOverlays, runAfterOverlayHistory, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import OwnedRemoveSheet from "@/components/owned-remove-sheet"
-import UndoSnackbar from "@/components/undo-snackbar"
+import UndoSnackbar, { type UndoAction } from "@/components/undo-snackbar"
 import type { OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
@@ -168,6 +168,8 @@ export default function BinderApp({
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
   const [ownedRemoveTarget, setOwnedRemoveTarget] = useState<{ id: number; name: string } | null>(null)
+  const [quickUndo, setQuickUndo] = useState<(UndoAction & { id: string; accountId: string | null; ownerId: string | null }) | null>(null)
+  const [undoBusy, setUndoBusy] = useState(false)
   const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; focusedCard?: SearchCardResult; finish?: CardFinish; nested: boolean } | null>(null)
@@ -277,6 +279,10 @@ export default function BinderApp({
     isDefaultBinder: !initialBinderId || initialBinders.find((binder) => binder.id === initialBinderId)?.isDefault !== false,
     readOnly: readOnlyMode,
   })
+  const offerQuickUndo = useCallback((action: UndoAction) => {
+    setOwnedRemoveUndo(null)
+    setQuickUndo({ ...action, id: crypto.randomUUID(), accountId: user?.id ?? null, ownerId: resolvedCollectionOwnerUserId })
+  }, [user?.id, resolvedCollectionOwnerUserId])
   useOfflineStoreSync(!readOnlyMode)
 
   // The binder on screen is this device's last opened one (the server reads the cookie on the next visit).
@@ -3147,14 +3153,6 @@ export default function BinderApp({
   }, [getSearchResultMeta, isShowModeOn, quickLookup])
 
   const snoozeShowModePrompt = dismissShowModeOffer
-  const quickUndoActions = useRef({ restoreCollectionItem, removeFromCollection })
-  useLayoutEffect(() => { quickUndoActions.current = { restoreCollectionItem, removeFromCollection } }, [restoreCollectionItem, removeFromCollection])
-
-  const handleQuickUndo = useCallback(async (snapshot: CollectedPokemon | null, pokemonId: number) => {
-    if (snapshot) await quickUndoActions.current.restoreCollectionItem(snapshot)
-    else await quickUndoActions.current.removeFromCollection(pokemonId)
-  }, [])
-
   // Quick mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
   const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => {
     const state = resolveQuickCardState(card, getCollectionItem(pokemon.id), finish, allBinders, initialBinderId)
@@ -3174,13 +3172,19 @@ export default function BinderApp({
     }
     const previous = getCollectionItem(pokemon.id)
     const snapshot = previous ? { ...previous, wanted_cards: [...(previous.wanted_cards ?? [])] } : null
-    const undo = () => handleQuickUndo(snapshot, pokemon.id)
+    let acquired: CollectedPokemon | null | undefined
+    const undo = async () => {
+      const result = snapshot ? await restoreCollectionItem(snapshot, acquired) : await removeFromCollection(pokemon.id, acquired)
+      if (result.error && !("queued" in result && result.queued)) throw new Error(typeof result.error === "string" ? result.error : "Could not undo. Try again.")
+    }
     const language = (card.language ?? "en") as CardLanguage
     if (action === "remove-wanted") {
       const wanted = previous?.wanted_cards.find(entry => matchesCatalogCardId(card, entry.card_id) && (entry.card_language ?? "en") === language && (entry.card_finish ?? "normal") === finish)
       if (!wanted) return null
       const result = await editWantedCard(pokemon.id, wanted, null)
-      return "error" in result && !("queued" in result && result.queued) ? null : undo
+      if ("error" in result && !("queued" in result && result.queued)) throw new Error("Could not remove the wanted card")
+      acquired = "data" in result ? result.data : null
+      return undo
     }
     if (action === "want") {
       if (getQuickCardState(card, pokemon, finish).wanted) return null
@@ -3197,7 +3201,9 @@ export default function BinderApp({
         illustrator: card.illustrator,
         added_at: new Date().toISOString(),
       })
-      return result.error && !result.queued ? null : undo
+      if (result.error && !result.queued) throw new Error("Could not add the wanted card")
+      acquired = result.data
+      return undo
     }
     // Bought, Add owned and Got it all put this printing in the binder and take it off the want list.
     if (getQuickCardState(card, pokemon, finish).owned) return null
@@ -3206,8 +3212,10 @@ export default function BinderApp({
       wantedCards: (previous?.wanted_cards ?? []).filter((wanted) => !(matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === language && (wanted.card_finish ?? "normal") === finish)),
       cardIds: catalogCardIds(card),
     })
-    return result.error && !result.queued ? null : undo
-  }, [addToCollection, addWantedCard, editWantedCard, getCollectionItem, getQuickCardState, handleQuickUndo, openExclusively, readOnlyMode, user])
+    if (result.error && !result.queued) throw new Error("Could not add the owned card")
+    acquired = result.data
+    return undo
+  }, [addToCollection, addWantedCard, editWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
   const handleQuickChangeCard = useCallback((mode: CardSelectorMode, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => {
     const summary = getPokemonSummary(pokemon.id)
     if (!summary || readOnlyMode) return
@@ -3228,9 +3236,9 @@ export default function BinderApp({
   }, [requestOwnedRemoval])
   // The deal check is part of every Quick mode; Show mode (and the price lookup) add the hunt list, bundle and tally.
   const quickCardCheck = useMemo(
-    // eslint-disable-next-line react-hooks/refs -- Navigation refs are only read when these event handlers run.
-    () => ({ currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, onChangeCard: handleQuickChangeCard, onRemoveOwned: handleQuickRemoveOwned, huntItems: collection }),
-    [activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, handleQuickChangeCard, handleQuickRemoveOwned, pricingPreferences.currency, readOnlyMode, resolvedCollectionOwnerUserId, user?.id],
+    // eslint-disable-next-line react-hooks/refs -- Collection refs are only read when these event handlers run.
+    () => ({ onUndoAvailable: offerQuickUndo, currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, onChangeCard: handleQuickChangeCard, onRemoveOwned: handleQuickRemoveOwned, huntItems: collection }),
+    [offerQuickUndo, activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, handleQuickChangeCard, handleQuickRemoveOwned, pricingPreferences.currency, readOnlyMode, resolvedCollectionOwnerUserId, user?.id],
   )
   // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.
   const quickCardStanding = useMemo(() => ({ getCardState: getQuickCardState, items: collection }), [collection, getQuickCardState])
@@ -3441,6 +3449,26 @@ export default function BinderApp({
           onClose={closeOwnedRemoveSheet}
         />
       ) : null}
+      {quickUndo && quickUndo.accountId === user?.id && quickUndo.ownerId === resolvedCollectionOwnerUserId && !readOnlyMode && (
+        <UndoSnackbar
+          key={quickUndo.id}
+          message={quickUndo.message}
+          durationMs={30_000}
+          placement={isQuickModeOpen ? "top" : "bottom"}
+          busy={undoBusy}
+          onDismiss={() => setQuickUndo(null)}
+          onUndo={() => {
+            if (undoBusy) return
+            const pending = quickUndo
+            setUndoBusy(true)
+            void pending.run().then(() => {
+              setQuickUndo(current => current === pending ? null : current)
+            }).catch(error => {
+              setQuickUndo(current => current === pending ? { ...pending, message: error instanceof Error ? error.message : "Could not undo. Try again." } : current)
+            }).finally(() => setUndoBusy(false))
+          }}
+        />
+      )}
       {ownedRemoveUndo && !readOnlyMode ? (
         <UndoSnackbar
           message={ownedRemoveUndo.message}

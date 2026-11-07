@@ -5,6 +5,7 @@
 // lib/quick-mode.ts for the pure helpers and docs in AGENTS.md (Quick mode).
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import dynamic from "next/dynamic"
+import type { UndoAction } from "@/components/undo-snackbar"
 import {
   BarChart3,
   Camera,
@@ -102,6 +103,7 @@ function readBundle(): QuickBundleEntry[] {
 export interface QuickCardCheckOptions {
   onRemoveOwned?: (pokemon: { id: number; name: string }) => void
   onChangeCard?: (mode: "collect" | "wishlist", card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => void
+  onUndoAvailable: (action: UndoAction) => void
   destinationName?: string
   budgetKey?: string | null
   revisitKey?: string | null
@@ -393,6 +395,7 @@ function QuickMode({
       onOpenDetails={(finish) => onSelectCard(checking.card, checking.pokemon, finish)}
       onRemoveOwned={cardCheck.onRemoveOwned ? () => cardCheck.onRemoveOwned?.(checking.pokemon) : undefined}
       onChangeCard={cardCheck.onChangeCard ? (mode, finish) => cardCheck.onChangeCard?.(mode, checking.card, checking.pokemon, finish) : undefined}
+      onUndoAvailable={cardCheck.onUndoAvailable}
       onAction={(action, finish) => cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
       isInBundle={(key) => bundle.some((entry) => entry.key === key)}
       onAddToBundle={(entry) => updateBundle([...bundle.filter((item) => item.key !== entry.key), entry])}
@@ -410,6 +413,7 @@ function QuickMode({
       onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
       onClear={() => updateBundle([])}
       onSoldCheck={(key, soldCheck) => updateBundle(current => current.map(entry => entry.key === key ? { ...entry, soldCheck } : entry))}
+      onUndoAvailable={show.onUndoAvailable}
       onAction={(action, entry) => show.onAction(action, entry.card, entry.pokemon, entry.finish)}
     />
   ) : null

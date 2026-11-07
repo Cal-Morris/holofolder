@@ -1,25 +1,33 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useEffectEvent } from "react"
 import { X } from "lucide-react"
+
+export interface UndoAction {
+  message: string
+  run: () => Promise<void>
+}
 
 interface UndoSnackbarProps {
   message: string
   onUndo: () => void
   onDismiss: () => void
   /** Auto-dismiss delay; the undo stays available until then. */
+  placement?: "top" | "bottom"
+  busy?: boolean
   durationMs?: number
 }
 
 /** A small, non-modal snackbar above the dock with an Undo action. */
-export default function UndoSnackbar({ message, onUndo, onDismiss, durationMs = 10_000 }: UndoSnackbarProps) {
+export default function UndoSnackbar({ message, onUndo, onDismiss, placement = "bottom", busy = false, durationMs = 10_000 }: UndoSnackbarProps) {
+  const dismiss = useEffectEvent(onDismiss)
   useEffect(() => {
-    const timer = window.setTimeout(onDismiss, durationMs)
+    const timer = window.setTimeout(() => dismiss(), durationMs)
     return () => window.clearTimeout(timer)
-  }, [durationMs, message, onDismiss])
+  }, [durationMs, message])
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dock-clearance,1rem)+0.5rem)] z-[60] flex justify-center px-3">
+    <div className={`pointer-events-none fixed inset-x-0 ${placement === "top" ? "top-[calc(var(--top-inset,0px)+3.5rem)]" : "bottom-[calc(var(--dock-clearance,1rem)+0.5rem)]"} z-[60] flex justify-center px-3`}>
       <div
         role="status"
         aria-live="polite"
@@ -30,6 +38,7 @@ export default function UndoSnackbar({ message, onUndo, onDismiss, durationMs = 
         <button
           type="button"
           onClick={onUndo}
+          disabled={busy}
           className="h-11 min-w-14 shrink-0 rounded-xl px-3 text-xs font-bold uppercase tracking-wide text-sky-300 hover:bg-background/10 dark:text-sky-700"
         >
           Undo

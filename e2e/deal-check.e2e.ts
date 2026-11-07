@@ -176,7 +176,8 @@ test.describe("deal checker", () => {
     await expect(again.getByTestId("quick-card-status")).toHaveText("Owned")
     await typePrice(again, "9")
     await again.getByRole("button", { name: "Bought", exact: true }).click()
-    await expect(page.getByTestId("undo-snackbar")).toHaveCount(0)
+    await expect(snackbar).toContainText("Bought Charizard ex for £8.00")
+    await snackbar.getByRole("button", { name: "Dismiss undo" }).click()
     await page.keyboard.press("Escape")
     await expect(banner(harness)).toContainText("1 bought · £8.00")
 
@@ -237,6 +238,15 @@ test.describe("deal checker", () => {
     await expect(dialog.getByRole("button", { name: /^Bundle ·/ })).toHaveCount(0)
     const after = await checkCard(harness, "squirtle", /^Squirtle, 151 /)
     await expect(after.getByTestId("quick-card-status")).toHaveText("Owned")
+    await page.keyboard.press("Escape")
+    await page.getByTestId("undo-snackbar").getByRole("button", { name: "Undo", exact: true }).click()
+    await expect(banner(harness)).not.toContainText("2 bought")
+    await openQuickInShowMode(harness)
+    for (const [query, name] of [["squirtle", /^Squirtle, 151 /], ["charizard", /^Charizard ex, 151 /]] as const) {
+      const restored = await checkCard(harness, query, name)
+      await expect(restored.getByTestId("quick-card-status")).toHaveText("Not in binder")
+      await restored.getByRole("button", { name: "Back to results" }).click()
+    }
   })
 
   test("offline it still judges from the saved price and says how old it is", async ({ harness }) => {

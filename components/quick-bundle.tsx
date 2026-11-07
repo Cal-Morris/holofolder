@@ -17,7 +17,7 @@ import { formatMoney } from "@/lib/regional-price"
 import { formatCardNumber } from "@/lib/pokemon-card-browse"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { DisplayCurrency } from "@/lib/pricing-region"
-import UndoSnackbar from "@/components/undo-snackbar"
+import type { UndoAction } from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 import type { QuickCardState, QuickBundleEntry, QuickCardAction } from "@/components/quick-card-check"
 
@@ -32,10 +32,11 @@ export interface QuickBundleProps {
   onRemove: (key: string) => void
   onClear: () => void
   onSoldCheck: (key: string, check: CardPriceCheck) => void
+  onUndoAvailable: (action: UndoAction) => void
   onAction: (action: QuickCardAction, entry: QuickBundleEntry) => Promise<(() => Promise<void>) | null>
 }
 
-export default function QuickBundle({ budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck }: QuickBundleProps) {
+export default function QuickBundle({ budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck, onUndoAvailable }: QuickBundleProps) {
   const states = entries.map(entry => getCardState?.(entry))
   const replacementKey = JSON.stringify(entries.map((entry, index) => [entry.key, states[index]?.replacing]))
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
@@ -91,24 +92,20 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
     if (!abort.signal.aborted) setChecking(false)
   }
   const [busy, setBusy] = useState(false)
-  const [undo, setUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
 
-  const buyAll = async () => {
+  const buyAll = async (bundleId: string) => {
     if (busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned) return
     setBusy(true)
+    const reverts: Array<() => Promise<void>> = []
     try {
       const bought = [...pricedEntries]
-      const reverts: Array<() => Promise<void>> = []
       for (const entry of bought) {
         const revert = await onAction("bought", entry)
         if (!revert) {
-          for (const undo of reverts.reverse()) await undo()
-          setError("A card could not be added. The bundle was not recorded. Check the destination and try again.")
-          return
+          throw new Error("A card could not be added")
         }
         reverts.push(revert)
       }
-      const bundleId = `b-${Date.now().toString(36)}`
       const prices = askingTotal ? splitBundlePrice(askingTotal, bought.map((entry) => entry.marketPrice)) : []
       const ids = askingTotal
         ? logPurchases(bought.map((entry, index) => ({
@@ -125,14 +122,19 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
       navigator.vibrate?.([12, 40, 12])
       onClear()
       setInput("")
-      setUndo({
+      onUndoAvailable({
         message: `Bought ${bought.length} card${bought.length === 1 ? "" : "s"}${askingTotal ? ` for ${money(askingTotal)}` : ""}`,
         run: async () => {
-          removePurchases(ids)
           // Undo in reverse so cards for the same Pokémon unwind to where they started.
-          for (const revert of reverts.reverse()) await revert()
+          for (const revert of [...reverts].reverse()) await revert()
+          removePurchases(ids)
         },
       })
+    } catch {
+      for (const revert of [...reverts].reverse()) {
+        try { await revert() } catch { /* Keep unwinding the other cards. */ }
+      }
+      setError("Could not buy the bundle. Check your binder and try again.")
     } finally {
       setBusy(false)
     }
@@ -211,25 +213,13 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
           <button
             type="button"
             disabled={busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned}
-            onClick={() => void buyAll()}
+            onClick={() => void buyAll(`b-${Date.now().toString(36)}`)}
             className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
           >
             <ShoppingBag className="h-5 w-5" aria-hidden />Bought bundle
           </button>
         )}
       </div>
-
-      {undo && (
-        <UndoSnackbar
-          message={undo.message}
-          onUndo={() => {
-            const current = undo
-            setUndo(null)
-            void current.run()
-          }}
-          onDismiss={() => setUndo(null)}
-        />
-      )}
     </section>
   )
 }
