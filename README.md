@@ -25,7 +25,8 @@ The database schema lives in `scripts/NNN_*.sql`. Apply the files to your Supaba
 | `bun run dev` | Next.js dev server |
 | `bun run build` / `bun run start` | Production build / serve |
 | `bun run lint` | ESLint |
-| `bun run typecheck` | `tsc --noEmit` |
+| `bun run typecheck` | Generate Next.js route types, then check the full repository with the pinned Rust `tsrs` checker |
+| `bun run typecheck:tsc` | Run the TypeScript reference checker for diagnostic comparison |
 | `bun run test` | Unit tests (`tests/*.test.ts`, `node:test` style, run by Bun) |
 | `bun run test:e2e` | Playwright end-to-end suite (`e2e/*.e2e.ts`) at three phone sizes, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `HOLOFOLDER_E2E=1` and a mocked Supabase |
 | `bun run test:e2e:smoke` | Fast feedback: card browsing, Quick mode navigation and offline card lookup across all six phone projects. The full suite is still required before release |
@@ -33,6 +34,10 @@ The database schema lives in `scripts/NNN_*.sql`. Apply the files to your Supaba
 | `bun run sync-card-db` | Syncs the TCGdex card database into Postgres (needs `POSTGRES_URL_NON_POOLING`; `--dry-run` supported) |
 
 E2E tips: set `E2E_PORT` to use another port, or `E2E_BASE_URL` to test an already running server.
+
+GitHub Actions runs the **Typecheck** check on pull requests and `main`, in parallel with Vercel. Both checks must pass before merging. Vercel skips its duplicate TypeScript pass; local builds still check types. GitHub's current plan does not enforce required checks on this private repository, so this is a release-policy gate.
+
+`tsrs` is pinned to `0.23.0-ts7.1.0-beta` and uses its default checker settings. It is experimental; compare unexpected diagnostics with `bun run typecheck:tsc`. TypeScript 6 remains installed for the editor, ESLint and other compiler-API integrations.
 
 For repeated test runs, use a persistent production server on your own port. Set these synthetic test values in **both terminals**, overriding any real values in `.env.local`:
 
