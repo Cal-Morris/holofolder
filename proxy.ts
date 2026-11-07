@@ -9,6 +9,14 @@ export async function proxy(request: NextRequest) {
     url.search = ""
     return NextResponse.rewrite(url)
   }
+  if (/^\/(?:share|u)(?:\/|$)/.test(request.nextUrl.pathname)) {
+    // The cached PPR shell must not make a revocable binder response storable.
+    const response = NextResponse.next()
+    response.headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate")
+    response.headers.set("CDN-Cache-Control", "no-store")
+    response.headers.set("Vercel-CDN-Cache-Control", "no-store")
+    return response
+  }
   return await updateSession(request)
 }
 
