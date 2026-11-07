@@ -25,7 +25,7 @@ async function run() {
     if (url.pathname.endsWith('/binders')) {
       assert.equal(url.searchParams.get('id'), `eq.${binderId}`)
       assert.equal(url.searchParams.get('owner_user_id'), `eq.${actor}`)
-      return unavailable ? Response.json({ message: 'Synthetic outage' }, { status: 503 }) : Response.json(binderName ? { name: binderName } : null)
+      return unavailable ? Response.json({ code: '42501', message: 'Synthetic read permission failure' }, { status: 403 }) : Response.json(binderName ? { name: binderName } : null)
     }
     throw new Error('Unexpected synthetic backend request')
   }) as typeof fetch
