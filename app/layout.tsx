@@ -36,12 +36,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/app/icon-light-32x32.png", media: "(prefers-color-scheme: light)" },
-      { url: "/app/icon-dark-32x32.png", media: "(prefers-color-scheme: dark)" },
-      { url: "/app/icon.svg", type: "image/svg+xml" },
+      { url: "/app/holo-cards-light-32.png", media: "(prefers-color-scheme: light)" },
+      { url: "/app/holo-cards-dark-32.png", media: "(prefers-color-scheme: dark)" },
+      { url: "/app/holo-cards-icon.svg", type: "image/svg+xml" },
     ],
-    shortcut: "/app/favicon.ico",
-    apple: "/app/apple-touch-icon-holo-card.png",
+    shortcut: "/app/holo-cards-favicon.ico",
+    apple: "/app/apple-touch-icon-holo-cards.png",
   },
   other: {
     "mobile-web-app-capable": "yes",

@@ -13,24 +13,12 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#171a22",
     categories: ["productivity", "entertainment", "utilities"],
     icons: [
-      {
-        src: "/app/pwa-holo-card-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      {
-        src: "/app/pwa-holo-card-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      {
-        src: "/app/apple-touch-icon-holo-card.png",
-        sizes: "180x180",
-        type: "image/png",
-        purpose: "any",
-      },
+      { src: "/app/pwa-holo-cards-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/app/pwa-holo-cards-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/app/holo-cards-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/app/pwa-holo-cards-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/app/pwa-holo-cards-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/app/holo-cards-monochrome.svg", sizes: "any", type: "image/svg+xml", purpose: "monochrome" },
     ],
   }
 }
