@@ -1,4 +1,5 @@
 import { PerspectiveCamera, Vector3 } from "three"
+import { binderCameraFrame } from "../lib/binder-camera"
 import sharp from "sharp"
 import { test, expect, E2E_USER, SEEDED_COLLECTION, SUPABASE_URL } from "./fixtures"
 import { binderDimensions, binderPocket, BINDER_PAGE, BINDER_LAYERS, defaultBinderDesign } from "../lib/binder-design"
@@ -55,11 +56,12 @@ test.describe("3D binder gestures", () => {
     await canvas.scrollIntoViewIfNeeded()
     await swipe(50, 38)
     await expect(stage).toHaveAttribute("data-current-page", "1")
+    await expect(stage).toHaveAttribute("aria-busy", "false")
     // Project the real first pocket centre, so this tests canvas hit detection rather than an alternate button.
     const box = (await canvas.boundingBox())!, dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))))
-    const distance = Math.max(box.width < 450 ? 10 : 8, dimensions.coverZ * 3 + 6)
+    const frame = binderCameraFrame("inside", box.width, box.height, dimensions.coverZ)
     const camera = new PerspectiveCamera(34, box.width / box.height, .1, 100)
-    camera.position.set(-1.12, 2.5, distance + 1);camera.lookAt(-1.12, 0, 0);camera.updateMatrixWorld()
+    camera.position.set(...frame.position);camera.lookAt(...frame.target);camera.updateMatrixWorld()
     const pocket = binderPocket(design.rows, design.cols, 0, 1)
     const point = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(camera)
     await canvas.tap({ position: { x: (point.x + 1) * box.width / 2, y: (1 - point.y) * box.height / 2 } })
@@ -78,12 +80,13 @@ test.describe("3D binder gestures", () => {
     await expect(stage).toHaveAttribute("data-current-page", "1")
     expect((await canvas.screenshot()).equals(zoomed)).toBe(false)
     const zoomCamera = camera.clone()
-    zoomCamera.position.sub(new Vector3(-1.12, 0, 0)).multiplyScalar(50 / 90).add(new Vector3(-1.12, 0, 0))
-    zoomCamera.lookAt(-1.12, 0, 0);zoomCamera.updateMatrixWorld()
+    zoomCamera.position.sub(new Vector3(-1.3, 0, 0)).multiplyScalar(50 / 90).add(new Vector3(-1.3, 0, 0))
+    zoomCamera.lookAt(-1.3, 0, 0);zoomCamera.updateMatrixWorld()
     const zoomPoint = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(zoomCamera)
     // A cancelled contact must not leave the next tap in the old gesture.
     await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] })
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
     await canvas.tap({ position: { x: (zoomPoint.x + 1) * panBox.width / 2 - 30, y: (1 - zoomPoint.y) * panBox.height / 2 } })
     await expect(page.getByRole("dialog", { name: /bulbasaur/i })).toBeVisible()
     await harness.closeControl(page.getByRole("dialog", { name: /bulbasaur/i })).click()
@@ -101,13 +104,20 @@ test.describe("3D binder gestures", () => {
     await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
+    await expect(stage).toHaveAttribute("data-current-page", "1")
+    await expect(stage).toHaveAttribute("aria-busy", "false")
     const freshBox = (await canvas.boundingBox())!
     const fx = freshBox.x + freshBox.width / 2, fy = freshBox.y + freshBox.height / 2
     await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: fx - 25, y: fy, id: 1 }, { x: fx + 25, y: fy, id: 2 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: fx - 45, y: fy, id: 1 }, { x: fx + 45, y: fy, id: 2 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: fx - 25, y: fy, id: 1 }, { x: fx + 25, y: fy, id: 2 }] })
     await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
-    await canvas.tap({ position: { x: (point.x + 1) * freshBox.width / 2, y: (1 - point.y) * freshBox.height / 2 } })
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    const freshFrame = binderCameraFrame("inside", freshBox.width, freshBox.height, dimensions.coverZ)
+    const freshCamera = new PerspectiveCamera(34, freshBox.width / freshBox.height, .1, 100)
+    freshCamera.position.set(...freshFrame.position);freshCamera.lookAt(...freshFrame.target);freshCamera.updateMatrixWorld()
+    const freshPoint = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(freshCamera)
+    await canvas.tap({ position: { x: (freshPoint.x + 1) * freshBox.width / 2, y: (1 - freshPoint.y) * freshBox.height / 2 } })
     await expect(page.getByRole("dialog", { name: /bulbasaur/i })).toBeVisible()
     await harness.expectNoHorizontalOverflow()
     await expect(harness.dock()).toBeVisible()
@@ -122,10 +132,13 @@ test.describe("3D binder gestures", () => {
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
     await canvas.scrollIntoViewIfNeeded()
     const tapPocket = async () => {
+      await expect(stage).toHaveAttribute("data-current-page", "1")
+      await expect(stage).toHaveAttribute("aria-busy", "false")
       const fitted = (await canvas.boundingBox())!, dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))))
       const camera = new PerspectiveCamera(34, fitted.width / fitted.height, .1, 100)
-      camera.position.set(-1.12, 2.5, Math.max(fitted.width < 450 ? 10 : 8, dimensions.coverZ * 3 + 6) + 1)
-      camera.lookAt(-1.12, 0, 0);camera.updateMatrixWorld()
+      const frame = binderCameraFrame("inside", fitted.width, fitted.height, dimensions.coverZ)
+      camera.position.set(...frame.position)
+      camera.lookAt(...frame.target);camera.updateMatrixWorld()
       const pocket = binderPocket(design.rows, design.cols, 0, 1)
       const point = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(camera)
       await canvas.tap({ position: { x: (point.x + 1) * fitted.width / 2, y: (1 - point.y) * fitted.height / 2 } })
@@ -221,13 +234,17 @@ test.describe("3D binder gestures", () => {
     await expect(stage).toHaveAttribute("data-current-page", "1")
     await expect(stage).toHaveAttribute("data-opening-state", "settled")
     await expect.poll(() => requested).toBe(true)
-    const initial = await stage.locator("canvas").screenshot()
+    await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 100)))
+    // Compare rendered pages without the overlay button's browser compositing.
+    const screenshotOptions = { style: 'button[aria-label="Fit binder"] { visibility: hidden !important; }' }
+    const initial = await stage.locator("canvas").screenshot(screenshotOptions)
     const artworkResponse = page.waitForResponse(response => decodeURIComponent(response.url()).includes("card-image-proxy") && decodeURIComponent(response.url()).includes("/8/high.webp"))
     try {
       await preview.getByRole("button", { name: "Next 3D binder spread" }).click()
+      await page.clock.runFor(100)
       await expect(stage).toHaveAttribute("aria-busy", "true")
       await expect(stage).toHaveAttribute("data-current-page", "1")
-      const pending = await stage.locator("canvas").screenshot()
+      const pending = await stage.locator("canvas").screenshot(screenshotOptions)
       const [before, after] = await Promise.all([initial, pending].map(buffer => sharp(buffer).raw().toBuffer({ resolveWithObject: true })))
       expect(after.info).toEqual(before.info)
       // Allow one colour level of compositing noise without accepting a page flash.
@@ -235,7 +252,6 @@ test.describe("3D binder gestures", () => {
       for (let index = 0; index < before.data.length; index++) maxDifference = Math.max(maxDifference, Math.abs(before.data[index] - after.data[index]))
       expect(maxDifference).toBeLessThanOrEqual(1)
     } finally {
-      await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 100)))
       // Observe the turn being scheduled, then interrupt before its first animation frame.
       await stage.evaluate(element => {
         const schedule = window.requestAnimationFrame.bind(window)

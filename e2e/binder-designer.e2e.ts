@@ -13,11 +13,10 @@ test("studio retains artwork framing, supports cancel and page colours",async({p
   await expect(page).toHaveTitle("Binder Studio · Holo Folder")
   await expect(page.getByRole("button",{name:"Save appearance",exact:true})).toBeEnabled()
   await expect(page.getByLabel("Preview collection")).toHaveValue("sample")
-  // Async GPU readback can exceed the default assertion timeout during parallel rendering.
-  await expect(page.locator(".studio-thumbnails img")).toHaveCount(5, { timeout: 20_000 })
+  await expect(page.getByRole("group",{name:"Preview angle"}).getByRole("button")).toHaveCount(5)
   await expect(page.getByRole("img",{name:/^3D binder, swipe to turn pages/})).toBeVisible()
   await page.getByRole("button",{name:"Zip hardware",exact:true}).click()
-  await page.locator(".studio-thumbnails button").first().click()
+  await page.getByRole("group",{name:"Preview angle"}).getByRole("button",{name:"Front",exact:true}).click()
   await page.locator(".studio-stage canvas").click()
   await expect(page.getByRole("heading",{name:"Front cover",exact:true})).toBeVisible()
   if(!await page.getByLabel("Words",{exact:true}).isVisible()) await page.locator("summary").filter({hasText:/^Lettering/}).click()
