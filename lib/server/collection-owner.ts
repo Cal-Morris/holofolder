@@ -18,17 +18,25 @@ export async function resolveCollectionOwnerUserId(
   userId: string,
   options: ResolveCollectionOwnerOptions = {},
 ): Promise<string> {
+  return (await resolveCollectionMembership(client, userId, options)).ownerUserId
+}
+
+export async function resolveCollectionMembership(client: AnySupabaseClient, userId: string, options: ResolveCollectionOwnerOptions = {}) {
   const { data: partnership, error } = await client
     .from("partnerships")
-    .select("owner_user_id")
+    .select("id,owner_user_id,user1_id,user2_id")
     .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
     .limit(1)
     .maybeSingle()
 
   if (error) {
-    if (options.fallbackOnError) return userId
+    if (options.fallbackOnError) return { ownerUserId: userId, memberIds: [userId], partnershipId: null }
     throw error
   }
 
-  return (partnership as { owner_user_id?: string | null } | null)?.owner_user_id || userId
+  return {
+    ownerUserId: typeof partnership?.owner_user_id === "string" ? partnership.owner_user_id : userId,
+    memberIds: [...new Set([userId, partnership?.user1_id, partnership?.user2_id].filter((id): id is string => typeof id === "string"))],
+    partnershipId: typeof partnership?.id === "string" ? partnership.id : null,
+  }
 }

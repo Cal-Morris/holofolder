@@ -33,6 +33,7 @@ import type { CollectedPokemon, SaveCollectionOptions, WantedCard } from "@/hook
 import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSummary } from "@/components/binder/binder-app-model"
 
 export interface MainContentContext {
+  assignWantedCard: (pokemonId: number, pokemonName: string, card: WantedCard, people: string[]) => void
   activeJumpLabel: "Needed" | "Perfect" | "Upgrade" | "Wanted"
   activeMainView: ActiveMainView
   addToCollection: (pokemonId: number, pokemonName: string, cardId?: string | undefined, cardName?: string | undefined, cardImage?: string | undefined, cardSet?: string | undefined, cardLanguage?: "en" | "fr" | "de" | "es" | "it" | "pt-br" | "ja" | "ko", status?: "collected" | "finalized" | "considering" | "wishlisted", options?: SaveCollectionOptions) => Promise<{ data?: CollectedPokemon | undefined; queued?: boolean | undefined; error?: string | undefined; }>
@@ -66,7 +67,7 @@ export interface MainContentContext {
   handlePokemonSelect: (pokemon: PokemonSummary) => void
   handleQuickCollect: (pokemon: { id: number; name: string; }) => Promise<void>
   handleSelectSetSlot: (slot: TCGSetDexSlot) => void
-  handleShareWantedList: () => Promise<void>
+  handleShareWantedList: (scope?: "binder" | "all") => Promise<void>
   handleSlotClick: (pokemon: { id: number; name: string; }) => void
   handleToggleFavorite: (pokemonId: number) => Promise<void>
   handleWantSetCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => Promise<void>
@@ -131,7 +132,7 @@ export interface MainContentContext {
 }
 
 export function renderMainContentView(ctx: MainContentContext) {
-  const { pendingBinderPage, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
+  const { assignWantedCard, pendingBinderPage, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
       <input
@@ -223,6 +224,11 @@ export function renderMainContentView(ctx: MainContentContext) {
           />
         ) : activeMainView === "wanted" ? (
           <WantedDashboard
+            user={readOnlyMode ? null : user}
+            isOnline={isOnline}
+            loadedBinderCount={allBinders?.loadedBinderIds?.length ?? 1}
+            binderCount={allBinders?.binders.length ?? 1}
+            onAssignWanted={assignWantedCard}
             wantedDashboard={wantedDashboard}
             allBindersDashboard={allBindersWantedDashboard}
             currentBinderId={initialBinderId}

@@ -114,6 +114,8 @@ test.describe("owned and wanted across binders", () => {
     await openView(harness, "Want list")
     const scope = page.getByTestId("binder-scope").first()
     await expect(scope).toBeVisible()
+    await expect(scope.getByRole("button", { name: "All binders" })).toHaveAttribute("aria-pressed", "true")
+    await scope.getByRole("button", { name: "This binder" }).click()
     const list = page.getByRole("list", { name: "Wanted cards" })
     await expect(list.getByRole("button", { name: /^Open Charmeleon/ })).toBeVisible()
     await expect(list.getByRole("button", { name: /^Open Charizard ex/ })).toHaveCount(0)
@@ -123,8 +125,12 @@ test.describe("owned and wanted across binders", () => {
     await expect(scope.getByRole("button", { name: "All binders" })).toHaveAttribute("aria-pressed", "true")
     const other = list.getByRole("listitem").filter({ hasText: "Charizard ex" })
     await expect(other.getByTestId("wanted-row-binder")).toHaveText("In Spare")
-    // Other binders' cards are view only; the open binder's keep their actions.
-    await expect(other.getByRole("button", { name: /^Got it/ })).toHaveCount(0)
+    // A global action requires choosing the destination binder.
+    await other.getByRole("button", { name: /^Got it/ }).click()
+    const actions = page.getByRole("dialog", { name: "Actions for Charizard ex", exact: true })
+    await expect(actions.getByRole("button", { name: "Open Spare", exact: true })).toBeVisible()
+    await expect(actions.getByRole("button", { name: /^Got it/ })).toHaveCount(0)
+    await page.keyboard.press("Escape")
     await expect(list.getByRole("listitem").filter({ hasText: "Charmeleon" }).getByRole("button", { name: /^Got it/ })).toBeVisible()
     await harness.expectNoHorizontalOverflow()
     await snap(page, testInfo, "want-list")
@@ -134,7 +140,7 @@ test.describe("owned and wanted across binders", () => {
     await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
     await openView(harness, "Want list")
     await expect(page.getByTestId("binder-scope").first().getByRole("button", { name: "All binders" })).toHaveAttribute("aria-pressed", "true")
-    await expect(page.getByRole("list", { name: "Wanted cards" }).getByTestId("wanted-row-binder")).toHaveText("In Spare")
+    await expect(page.getByRole("list", { name: "Wanted cards" }).getByRole("listitem").filter({ hasText: "Charizard ex" }).getByTestId("wanted-row-binder")).toHaveText("In Spare")
 
     await openView(harness, "Analytics")
     await expect(page.getByRole("heading", { name: "Analytics", exact: true })).toBeVisible()

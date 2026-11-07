@@ -3,6 +3,7 @@ import {
   isSlotStatus,
   normalizeCardFinish,
   normalizeCardLanguage,
+  normalizeWantedPeople,
   type CollectedPokemon,
   type WantedCard,
 } from "@/lib/domain/cards"
@@ -24,6 +25,7 @@ export function normalizeWantedCard(value: unknown): WantedCard | null {
     set_total: typeof item.set_total === "number" && Number.isFinite(item.set_total) ? item.set_total : undefined,
     illustrator: typeof item.illustrator === "string" && item.illustrator.trim() ? item.illustrator.trim() : undefined,
     added_at: typeof item.added_at === "string" ? item.added_at : new Date().toISOString(),
+    ...(Array.isArray(item.wanted_by) ? { wanted_by: normalizeWantedPeople(item.wanted_by) } : {}),
   }
 }
 

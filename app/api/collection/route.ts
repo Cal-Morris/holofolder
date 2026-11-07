@@ -2,35 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isSlotStatus, normalizeCardFinish, normalizeCardLanguage } from "@/lib/domain/cards"
-import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
+import { resolveCollectionMembership, resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
+import type { CollectedPokemon } from "@/lib/domain/cards"
+import { validateWantedPeople } from "@/lib/wanted-people"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
-import { collectionFingerprint } from "@/lib/collection/sync"
+import { matchesCollectionFingerprint } from "@/lib/collection/sync"
 import { scopeCollectionQuery } from "@/lib/collection/load"
 import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
-
-function normalizeWantedCards(value: unknown) {
-  if (!Array.isArray(value)) return []
-
-  return value.flatMap((rawCard) => {
-    if (!rawCard || typeof rawCard !== "object") return []
-    const card = rawCard as Record<string, unknown>
-    if (typeof card.card_id !== "string" || typeof card.card_name !== "string") return []
-
-    return [{
-      card_id: card.card_id,
-      card_name: card.card_name,
-      card_image: typeof card.card_image === "string" ? card.card_image : null,
-      card_set: typeof card.card_set === "string" ? card.card_set : null,
-      card_language: normalizeCardLanguage(card.card_language),
-      card_finish: normalizeCardFinish(card.card_finish),
-      rarity: typeof card.rarity === "string" ? card.rarity : null,
-      local_id: typeof card.local_id === "string" ? card.local_id : null,
-      set_total: typeof card.set_total === "number" && Number.isFinite(card.set_total) ? card.set_total : null,
-      illustrator: typeof card.illustrator === "string" && card.illustrator.trim() ? card.illustrator.trim().slice(0, 120) : null,
-      added_at: typeof card.added_at === "string" ? card.added_at : new Date().toISOString(),
-    }]
-  })
-}
 
 async function resolveOwnerUserId(userId: string) {
   return resolveCollectionOwnerUserId(createAdminClient(), userId)
@@ -46,18 +24,21 @@ async function checkBaseFingerprint(
   binderId: string | null,
   pokemonId: number,
   baseFingerprint: unknown,
+  loadedItem?: CollectedPokemon | null,
+  allowLegacyPeople = false,
 ) {
   if (typeof baseFingerprint !== "string" || baseFingerprint.length === 0) return null
 
-  const { data, error } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId)
-    .eq("pokemon_id", pokemonId)
-    .maybeSingle()
+  let current = loadedItem
+  if (current === undefined) {
+    const { data, error } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId)
+      .eq("pokemon_id", pokemonId).maybeSingle()
+    if (error) throw error
+    current = data ? normalizeCollectionItem(data) : null
+  }
+  if (matchesCollectionFingerprint(current, baseFingerprint, allowLegacyPeople)) return null
 
-  if (error) throw error
-  const current = data ? normalizeCollectionItem(data) : null
-  if (collectionFingerprint(current) === baseFingerprint) return null
-
-  return NextResponse.json({ error: "Collection item changed on the server", item: data ?? null }, { status: 409 })
+  return NextResponse.json({ error: "Collection item changed on the server", item: current ?? null }, { status: 409 })
 }
 
 /** The binder this request writes to (the owner's default when none is named); a 404 response for someone else's. */
@@ -103,13 +84,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid collection status" }, { status: 400 })
     }
 
-    const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
+    const { ownerUserId, memberIds } = await resolveCollectionMembership(admin, user.id)
     const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
     if (binder.response) return binder.response
     const { binderId } = binder
-    const conflict = await checkBaseFingerprint(admin, ownerUserId, binderId, pokemonId, body?.baseFingerprint)
+    const { data: previousRow, error: previousError } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId)
+      .eq("pokemon_id", pokemonId).maybeSingle()
+    if (previousError) throw previousError
+    const previous = previousRow ? normalizeCollectionItem(previousRow) : null
+    const hasPeopleMetadata = Array.isArray(body?.wantedCards) && body.wantedCards.some((card: unknown) => card && typeof card === "object" && Object.hasOwn(card, "wanted_by"))
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, binderId, pokemonId, body?.baseFingerprint, previous, body?.fingerprintVersion === undefined && !hasPeopleMetadata)
     if (conflict) return conflict
+    let wantedCards
+    try {
+      wantedCards = validateWantedPeople(body?.wantedCards, previous?.wanted_cards ?? [], memberIds)
+    } catch {
+      return NextResponse.json({ error: "Invalid wanted assignment" }, { status: 400 })
+    }
 
     const { data, error } = await admin
       .from("pokemon_collection")
@@ -125,7 +117,7 @@ export async function POST(request: NextRequest) {
           card_set: typeof body?.cardSet === "string" ? body.cardSet : null,
           card_language: normalizeCardLanguage(body?.cardLanguage),
           card_finish: normalizeCardFinish(body?.cardFinish),
-          wanted_cards: normalizeWantedCards(body?.wantedCards),
+          wanted_cards: wantedCards,
           status,
         },
         { onConflict: "binder_id,pokemon_id" },
@@ -207,7 +199,7 @@ export async function DELETE(request: NextRequest) {
     const admin = createAdminClient()
     const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"))
     if (binder.response) return binder.response
-    const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"))
+    const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"), undefined, !request.nextUrl.searchParams.has("fingerprintVersion"))
     if (conflict) return conflict
 
     const { error } = await scopeCollectionQuery(admin.from("pokemon_collection").delete(), ownerUserId, binder.binderId)
