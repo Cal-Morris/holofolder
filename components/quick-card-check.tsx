@@ -18,6 +18,9 @@ import type { CardFinish } from "@/lib/domain/cards"
 import { getPriceDataAgeDays } from "@/lib/price-freshness"
 import { getRisingMomentum } from "@/lib/price-momentum"
 import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
+import ShowRevisitForm from "@/components/show-revisit-form"
+import { toRecentCard } from "@/lib/recent-cards"
+import { revisitAskingInput, revisitKey, type RevisitCard } from "@/lib/show-revisit"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { CardPriceCheck } from "@/lib/card-price-checks"
 import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
@@ -53,6 +56,8 @@ export interface QuickCardCheckProps {
   state: QuickCardState
   getState?: (finish: CardFinish) => QuickCardState
   destinationName?: string
+  savedDeal?: RevisitCard
+  revisit?: { cards: RevisitCard[]; error: string | null; save: (entry: RevisitCard) => boolean }
   currency: DisplayCurrency
   fxRates?: DisplayFxRates | null
   pricingRegion: PricingRegion
@@ -90,6 +95,8 @@ export default function QuickCardCheck({
   state: initialState,
   getState,
   destinationName = "this binder",
+  savedDeal,
+  revisit,
   currency,
   fxRates: fxRatesProp,
   pricingRegion,
@@ -145,7 +152,10 @@ export default function QuickCardCheck({
   const isRising = !usesSoldGuide && Boolean(getRisingMomentum(snapshot, now))
   const cacheAge = formatPriceAge(snapshot?.fetchedAt, now)
 
-  const [input, setInput] = useState("")
+  const currentSavedDeal = revisit?.cards.find(entry => revisitKey(entry.card) === revisitKey(toRecentCard(card, pokemon, undefined, finish)))
+  const initialOffer = currentSavedDeal ?? (savedDeal && (savedDeal.card.finish ?? "normal") === finish ? savedDeal : undefined)
+  const [editedInput, setInput] = useState<string | null>(null)
+  const input = revisitAskingInput(initialOffer, moneyCurrency, editedInput)
   const askingPrice = parseAskingPrice(input)
   const deal = askingPrice && market
     ? checkDeal({ askingPrice, marketPrice: market.amount, thresholds, confidence: usesSoldGuide ? "medium" : price?.confidence, dataAgeDays, isRising })
@@ -282,6 +292,8 @@ export default function QuickCardCheck({
           />
         </section>
 
+        {currentSavedDeal && currentSavedDeal.currency !== moneyCurrency && currentSavedDeal.askingPrice !== null && <p className="text-sm">Saved asking price: {formatMoney(currentSavedDeal.askingPrice, currentSavedDeal.currency)}. Enter a new price to use {moneyCurrency}.</p>}
+        {revisit && <ShowRevisitForm key={`revisit:${comparisonKey}`} card={toRecentCard(card, pokemon, undefined, finish)} entry={currentSavedDeal} askingPrice={askingPrice} currency={moneyCurrency} onSave={entry => revisit.save(editedInput === null && !askingPrice && currentSavedDeal ? { ...entry, askingPrice: currentSavedDeal.askingPrice, currency: currentSavedDeal.currency } : entry)} error={revisit.error} />}
         <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
