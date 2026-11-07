@@ -46,7 +46,7 @@ test.describe("deal checker", () => {
     await openQuickInShowMode(harness)
     const check = await checkCard(harness, "charizard", /^Charizard ex, 151 /)
     await expect(check.getByTestId("quick-card-market-price")).toHaveText("£10.00")
-    await expect(check.getByTestId("quick-card-cache-age")).toContainText("Updated")
+    await expect(check.getByTestId("quick-card-cache-age")).toContainText("Saved")
     const input = check.getByRole("textbox", { name: "Asking price" })
     await expect(input).toBeFocused()
 
@@ -128,7 +128,10 @@ test.describe("deal checker", () => {
     })
     await openQuickInShowMode(harness)
     let check = await checkCard(harness, "squirtle", /^Squirtle, 151 /)
+    await expect(check.getByTestId("deal-verdict")).toContainText("rough comparison")
+    await expect(check.getByTestId("deal-verdict")).not.toContainText("Pay up to")
     await typePrice(check, "4")
+    await expect(check.getByTestId("quick-pay-up-to")).toHaveText("Unknown")
     await expect(check.getByTestId("deal-verdict")).toContainText("Thin price data")
     await check.getByRole("button", { name: "Back to results" }).click()
 

@@ -46,9 +46,60 @@ test.describe("Cardmarket catalog in the deal checker", () => {
   test.use({ signedIn: true })
 
   for (const show of [true, false]) {
+    test(`${show ? "Show" : "Quick"} keeps the buying summary clear and Check prices charts available`, async ({ harness }) => {
+      await harness.page.emulateMedia({ colorScheme: show ? "dark" : "light" })
+      await harness.page.route("**/app/api/settings", route => route.fulfill({ json: { settings: { preferredCurrency: "GBP", pricingRegion: "UK" } } }))
+      await harness.page.reload()
+      await mockEvidence(harness)
+      // Synthetic matching sales across three dates and an independent asking sample.
+      await harness.page.route("**/app/api/card-price-checks?**", route => route.fulfill({ json: {
+        ebay: { checkedAt: new Date().toISOString(), summary: { kind: "asking", currency: "GBP", count: 1, low: 9, median: 9, high: 9 } },
+        soldcomps: { checkedAt: new Date().toISOString(), summary: { kind: "sold", currency: "GBP", count: 12, low: 7.8, median: 7.8, high: 7.8 }, sales: Array.from({ length: 12 }, (_, i) => ({ amount: 7.8, soldAt: new Date(Date.now() - (i % 3 + 1) * 86400000).toISOString().slice(0, 10) })) },
+        errors: {},
+      } }))
+      const check = await openCheck(harness, show)
+      await harness.page.evaluate(dark => document.documentElement.classList.toggle("dark", dark), show)
+      const comparisons = check.getByRole("region", { name: "Price comparisons" })
+      const button = comparisons.getByRole("button", { name: "Check prices", exact: true })
+      const metrics = await button.evaluate(el => {
+        const scroller = el.closest('[data-testid="quick-card-check"]')!.firstElementChild!
+        return { contentHeight: scroller.scrollHeight, checkPricesOffset: el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop }
+      })
+      console.log(`${test.info().project.name} ${show ? "Show" : "Quick"} layout`, metrics)
+      await expect(check.getByTestId("quick-pay-up-to")).toHaveText("£8.80")
+      await expect(check.getByText("Provider quote: 2 days ago", { exact: true })).toBeVisible()
+      if (test.info().project.name === "standalone-390x844") {
+        await check.getByTestId("quick-card-market").scrollIntoViewIfNeeded()
+        await harness.page.screenshot({ path: `/tmp/quick-check-${show ? "show" : "quick"}-summary.png` })
+      }
+      const disclosure = check.getByText("Catalog price sources", { exact: true })
+      await expect(disclosure.locator("..")).not.toHaveAttribute("open")
+      await button.click()
+      await expect(check.getByTestId("quick-card-market-price")).toHaveText("£7.80")
+      await expect(check.getByTestId("quick-pay-up-to")).toHaveText("£8.58")
+      const chart = comparisons.getByRole("figure", { name: "Sold price history" })
+      await expect(chart.locator(".recharts-surface")).toBeVisible()
+      await chart.getByRole("button", { name: "Show full sale range" }).click()
+      await expect(chart.getByRole("button", { name: "Hide full sale range" })).toHaveAttribute("aria-pressed", "true")
+      if (test.info().project.name === "standalone-390x844") await harness.page.screenshot({ path: `/tmp/quick-check-${show ? "show" : "quick"}-chart.png` })
+      await disclosure.click()
+      await expect(check.getByRole("region", { name: "Catalog price sources" }).locator(".recharts-surface")).toBeVisible()
+      const input = check.getByRole("textbox", { name: "Asking price" })
+      await input.fill("7")
+      await input.press("Enter")
+      await expect(check.getByTestId("deal-verdict")).toHaveAttribute("data-verdict", "good")
+      const action = check.getByRole("button", { name: show ? "Bought" : "Add owned", exact: true })
+      await harness.expectWithinSafeViewport(action)
+      await harness.expectHittable(action)
+      await harness.expectNoHorizontalOverflow()
+    })
+  }
+
+  for (const show of [true, false]) {
     test(`${show ? "Show" : "Quick"} shows exact-finish quotes and trend separately, including offline`, async ({ harness }) => {
       await mockEvidence(harness)
       const check = await openCheck(harness, show)
+      await check.getByText("Catalog price sources", { exact: true }).click()
       const sources = check.getByRole("region", { name: "Catalog price sources" })
       await sources.scrollIntoViewIfNeeded()
       await expect(sources).toContainText("Cardmarket, Normal")
@@ -99,6 +150,7 @@ test.describe("Cardmarket catalog in the deal checker", () => {
       await harness.page.reload()
       const check = await openCheck(harness, false)
       await expect(check.getByTestId("quick-card-market-price")).toHaveText(currency === "EUR" ? "€10.00" : "$11.43")
+      await check.getByText("Catalog price sources", { exact: true }).click()
       const sources = check.getByRole("region", { name: "Catalog price sources" })
       await expect(sources).toContainText("£8.00 GBP")
       await expect(sources).toContainText("Original €10.00 EUR")
@@ -141,6 +193,7 @@ test.describe("Cardmarket catalog in the deal checker", () => {
   test("missing evidence has no empty chart", async ({ harness }) => {
     await mockEvidence(harness, "cardmarket", false)
     const check = await openCheck(harness, true)
+    await check.getByText("Catalog price sources", { exact: true }).click()
     const sources = check.getByRole("region", { name: "Catalog price sources" })
     await expect(sources).toContainText("No catalog evidence saved for this finish")
     await expect(sources.locator(".recharts-surface")).toHaveCount(0)
@@ -149,6 +202,7 @@ test.describe("Cardmarket catalog in the deal checker", () => {
   test("other providers are not labelled Cardmarket trend", async ({ harness }) => {
     await mockEvidence(harness, "pokepulse")
     const check = await openCheck(harness, false)
+    await check.getByText("Catalog price sources", { exact: true }).click()
     const sources = check.getByRole("region", { name: "Catalog price sources" })
     await expect(sources).toContainText("PokePulse")
     await expect(sources).not.toContainText("Cardmarket trend")
@@ -175,6 +229,7 @@ test.describe("deal scale geometry", () => {
       const scaleBox = (await scale.boundingBox())!
       const fieldBox = (await field.boundingBox())!
       expect.soft(fieldBox.y - scaleBox.y - scaleBox.height, "gap clears 2px input focus ring").toBeGreaterThanOrEqual(4)
+      await check.getByText("Catalog price sources", { exact: true }).click()
       const sources = check.getByRole("region", { name: "Catalog price sources" })
       await sources.scrollIntoViewIfNeeded()
       await expect(sources).toContainText("Original €10.00 EUR")
@@ -190,7 +245,7 @@ test.describe("deal scale geometry", () => {
       }
       const want = check.getByRole("button", { name: "Want", exact: true })
       await want.click()
-      await check.getByRole("button", { name: "Dismiss undo" }).click()
+      await harness.page.getByRole("button", { name: "Dismiss undo" }).click()
       const got = check.getByRole("button", { name: "Mark got", exact: true })
       await got.scrollIntoViewIfNeeded()
       await harness.expectWithinSafeViewport(got)
