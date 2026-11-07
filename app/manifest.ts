@@ -14,19 +14,19 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["productivity", "entertainment", "utilities"],
     icons: [
       {
-        src: "/pwa-192x192.png",
+        src: "/pwa-holo-card-192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/pwa-512x512.png",
+        src: "/pwa-holo-card-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/apple-icon.png",
+        src: "/apple-touch-icon-holo-card.png",
         sizes: "180x180",
         type: "image/png",
         purpose: "any",

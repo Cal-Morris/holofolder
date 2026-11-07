@@ -1,4 +1,4 @@
-// Holo Folder keeps these cache and message identifiers compatible with existing installs.
+// Holo Folder card logo update; keep cache and message identifiers compatible with existing installs.
 const CACHE_VERSION = "binderdex-v4"
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`
 const DATA_CACHE = `${CACHE_VERSION}-data`
@@ -36,6 +36,10 @@ const APP_SHELL_ASSETS = [
   "/favicon.ico",
   "/manifest.webmanifest",
   "/apple-icon.png",
+  "/apple-touch-icon-holo-card.png",
+  "/pwa-holo-card-192.png",
+  "/pwa-holo-card-512.png",
+  "/holo-card-mark.png",
   "/icon.svg",
   "/icon-light-32x32.png",
   "/icon-dark-32x32.png",

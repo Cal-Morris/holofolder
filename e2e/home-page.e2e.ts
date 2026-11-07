@@ -233,7 +233,7 @@ test("homepage offers a compact interactive 3D binder preview", async ({ page })
   await expect(page).toHaveURL(/\/studio$/)
 })
 
-test("Holo Folder branding fits mobile and installed app chrome", async ({ page, request }) => {
+test("Holo Folder branding fits mobile and installed app chrome", async ({ page, request }, testInfo) => {
   await expect(page).toHaveTitle("Holo Folder")
   await expect(page.getByRole("link", { name: "Holo Folder", exact: true })).toHaveCount(2)
   await expect(page.locator('meta[name="application-name"]')).toHaveAttribute("content", "Holo Folder")
@@ -241,7 +241,17 @@ test("Holo Folder branding fits mobile and installed app chrome", async ({ page,
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Holo Folder")
   const response = await request.get("/manifest.webmanifest")
   expect(response.ok()).toBe(true)
-  expect(await response.json()).toMatchObject({ name: "Holo Folder", short_name: "Holo Folder", start_url: "/", display: "standalone" })
+  const manifest = await response.json()
+  expect(manifest).toMatchObject({ name: "Holo Folder", short_name: "Holo Folder", start_url: "/", display: "standalone" })
+  expect(manifest.icons).toEqual(expect.arrayContaining([
+    expect.objectContaining({ src: "/pwa-holo-card-192.png", sizes: "192x192", purpose: "maskable" }),
+    expect.objectContaining({ src: "/pwa-holo-card-512.png", sizes: "512x512", purpose: "maskable" }),
+  ]))
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/apple-touch-icon-holo-card.png")
+  const logo = page.getByRole("link", { name: "Holo Folder", exact: true }).first().locator("img")
+  await expect(logo).toBeVisible()
+  await expect(logo).toHaveAttribute("src", "/holo-card-mark.png")
+  await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
   for (const dark of [true, false]) {
     await page.evaluate(enabled => document.documentElement.classList.toggle("dark", enabled), dark)
     const wordmark = page.getByRole("link", { name: "Holo Folder", exact: true }).first()
@@ -252,4 +262,5 @@ test("Holo Folder branding fits mobile and installed app chrome", async ({ page,
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await expect(page.locator("body")).not.toContainText(/BinderDex/i)
+  await page.screenshot({ path: testInfo.outputPath("holo-card-home.png") })
 })
