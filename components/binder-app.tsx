@@ -16,6 +16,7 @@ import { hasWantedSetCard } from "@/lib/set-checklist"
 
 import { useState, useMemo, useEffect, useEffectEvent, useLayoutEffect, useRef, useCallback, type CSSProperties, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react"
 import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
+import { BillingContext, useBilling } from "@/hooks/use-billing"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
 import { WifiOff } from "lucide-react"
@@ -401,6 +402,21 @@ export default function BinderApp({
     return buildBinderShareUrl(window.location.origin, sharePath)
   }, [sharePath])
   const [pushSettingsRequested, setPushSettingsRequested] = useState(false)
+  const requestUpgrade = useCallback(() => {
+    closeAllOverlays()
+    setSelectedPokemon(null)
+    setPushSettingsRequested(true)
+    runAfterOverlayHistory(() => setIsSettingsOpen(true))
+  }, [setIsSettingsOpen, setPushSettingsRequested, setSelectedPokemon])
+  const billing = useBilling(user?.id ?? null, resolvedCollectionOwnerUserId, requestUpgrade)
+  useEffect(() => {
+    const upgrade = () => requestUpgrade()
+    const signIn = () => { closeAllOverlays(); runAfterOverlayHistory(() => setIsAuthOpen(true)) }
+    window.addEventListener("holofolder-upgrade", upgrade)
+    window.addEventListener("holofolder-sign-in", signIn)
+    return () => { window.removeEventListener("holofolder-upgrade", upgrade); window.removeEventListener("holofolder-sign-in", signIn) }
+  }, [requestUpgrade])
+
   usePartnerPush(user?.id ?? null, !readOnlyMode)
   const handleSignOut = useCallback(async () => {
     await clearPushDevice().catch(() => undefined)
@@ -2674,6 +2690,7 @@ export default function BinderApp({
 
   const handleEnableReadOnlyShare = useCallback(async () => {
     if (readOnlyMode || !user) return
+    if (!billing.premium) { requestUpgrade(); return }
 
     setIsShareLoading(true)
     setShareMessage(null)
@@ -2699,9 +2716,10 @@ export default function BinderApp({
     } finally {
       setIsShareLoading(false)
     }
-  }, [initialBinderId, readOnlyMode, user])
+  }, [billing.premium, requestUpgrade, initialBinderId, readOnlyMode, user])
 
   const handleCopyReadOnlyShareLink = useCallback(async () => {
+    if (!billing.premium) { requestUpgrade(); return }
     if (!fullShareUrl) {
       setShareCopyMessage("Generate a share link first.")
       return
@@ -2714,7 +2732,7 @@ export default function BinderApp({
     } catch {
       setShareCopyMessage("Could not copy the share link.")
     }
-  }, [fullShareUrl])
+  }, [fullShareUrl, billing.premium, requestUpgrade])
 
   const handleDisableReadOnlyShare = useCallback(async () => {
     if (readOnlyMode || !user) return
@@ -2842,7 +2860,7 @@ export default function BinderApp({
   const [selectedSoldEvidence, setSelectedSoldEvidence] = useState<{ key: string; check: CardPriceCheck } | null>(null)
   const selectedComparisonKey = `${selectedPrimaryCardPreview?.cardId}:${selectedPrimaryCardPreview?.cardLanguage ?? "en"}:${selectedPrimaryCardPreview?.cardFinish}`
   const onSelectedSoldCheck = (check: CardPriceCheck) => setSelectedSoldEvidence({ key: selectedComparisonKey, check })
-  const selectedSoldGuide = buildSoldPriceGuide(selectedSoldEvidence?.key === selectedComparisonKey ? selectedSoldEvidence.check : null, selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount, selectedPrimaryCardPreview?.cardFinish, readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
+  const selectedSoldGuide = billing.premium ? buildSoldPriceGuide(selectedSoldEvidence?.key === selectedComparisonKey ? selectedSoldEvidence.check : null, selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount, selectedPrimaryCardPreview?.cardFinish, readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage)) : null
   const selectedUsesSoldGuide = selectedSoldGuide?.referenceGbp != null
   const selectedMarketPriceLabel = priceFormat.amount(selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount, selectedDetailPriceSnapshot)
   const selectedGoodPriceLabel = selectedUsesSoldGuide
@@ -3352,6 +3370,7 @@ export default function BinderApp({
   const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
   const handleShareWantedList = async (scope: "binder" | "all" = "binder") => {
+    if (!billing.premium) { requestUpgrade(); return }
     const summary = scope === "all" && allBindersWantedDashboard ? allBindersWantedDashboard : wantedDashboard
     const text = buildWantedListText(summary.cards, (card) => priceFormat.amount(card.effectiveGbpAmount, card.price))
     // Phones get the share sheet (Messages, WhatsApp, Notes); everywhere else the list is copied.
@@ -3411,6 +3430,7 @@ export default function BinderApp({
   const renderBottomNav = () => renderBottomNavView({ activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
 
   return (
+    <BillingContext.Provider value={billing}>
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"
@@ -3692,5 +3712,6 @@ export default function BinderApp({
         <CardDataAttribution compact />
       </footer>
     </main>
+    </BillingContext.Provider>
   )
 }

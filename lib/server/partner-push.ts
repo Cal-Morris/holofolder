@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { BillingAccessError, isBillingError } from '@/lib/billing'
 import type { AcquisitionIntent } from '@/lib/partner-push'
 
 export function pushConfigured() {
@@ -20,6 +21,7 @@ export async function saveCollectionWithAcquisition(input: {
     p_acquisition: input.acquisition ?? null, p_actor_name: input.actorName,
   })
   if (missingPushSchema(error)) return null
+  if (isBillingError(error)) throw new BillingAccessError(error?.message?.includes('card_limit_reached') ? 'card_limit_reached' : 'upgrade_required')
   if (error) throw new Error('Could not save the collection change')
   if (!data || typeof data !== 'object' || (!data.conflict && !data.item)) throw new Error('Invalid collection save response')
   return data

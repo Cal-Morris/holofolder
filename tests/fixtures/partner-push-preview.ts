@@ -17,6 +17,7 @@ async function run() {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'synthetic'
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = new URL(String(input))
+    if (url.pathname.endsWith('/rpc/get_billing_access')) return Response.json({ enforced: true, perpetual: true, saved_card_count: 2 })
     assert.equal(url.hostname, 'synthetic.supabase.test')
     if (url.pathname.endsWith('/partner_acquisitions')) {
       assert.equal(url.searchParams.get('id'), `eq.${eventId}`)

@@ -1,3 +1,7 @@
+import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
+import { isBillingError } from "@/lib/billing"
+import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
+import { requireAppearanceOrigin } from "@/lib/server/binder-appearance"
 import { isPriceCheckCardId } from "@/lib/card-catalog"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
@@ -7,10 +11,11 @@ const headers = { "Cache-Control": "no-store" }
 async function handle(request: Request, refresh: boolean) {
   try {
     const url = new URL(request.url)
-    if (refresh && request.headers.get("origin") && request.headers.get("origin") !== url.origin) return Response.json({ error: "Invalid request origin." }, { status: 403, headers })
+    if (refresh) requireAppearanceOrigin(request)
     const client = await createClient()
     const user = refresh ? (await client.auth.getUser()).data.user : await getSessionUser(client)
     if (!user) return Response.json({ error: "Sign in to check prices." }, { status: 401, headers })
+    await requirePaidAccess(await resolveCollectionOwnerUserId(client, user.id))
     const cardId = url.searchParams.get("cardId") ?? ""
     const finish = url.searchParams.get("finish") ?? "any"
     const source = url.searchParams.get("source")
@@ -19,7 +24,8 @@ async function handle(request: Request, refresh: boolean) {
     if ((url.searchParams.get("language") ?? "en") !== "en") return Response.json({ error: "Price comparisons currently support English cards only." }, { status: 422, headers })
     const result = await loadCardPriceChecks(cardId, finish, refresh, source ?? undefined)
     return Response.json(result ?? { error: "This exact printing is not supported yet." }, { status: result ? 200 : 422, headers })
-  } catch {
+  } catch (error) {
+    if (isBillingError(error)) return billingErrorResponse(error)
     return Response.json({ error: "Saved price checks are temporarily unavailable." }, { status: 503, headers })
   }
 }

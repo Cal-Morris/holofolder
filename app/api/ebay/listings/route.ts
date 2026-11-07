@@ -1,3 +1,6 @@
+import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
+import { isBillingError } from "@/lib/billing"
+import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { isPriceCheckCardId } from "@/lib/card-catalog"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
@@ -7,7 +10,10 @@ const headers = { "Cache-Control": "no-store" }
 
 export async function GET(request: Request) {
   try {
-    if (!await getSessionUser(await createClient())) return Response.json({ error: "Sign in to check eBay listings." }, { status: 401, headers })
+    const client = await createClient()
+    const user = await getSessionUser(client)
+    if (!user) return Response.json({ error: "Sign in to check eBay listings." }, { status: 401, headers })
+    await requirePaidAccess(await resolveCollectionOwnerUserId(client, user.id))
     const params = new URL(request.url).searchParams
     const cardId = params.get("cardId") ?? ""
     const finish = params.get("finish")
@@ -18,6 +24,7 @@ export async function GET(request: Request) {
     const result = await loadEbayListingIndicator(cardId, finish === "reverse_holo" ? "reverse" : finish === "normal" || finish === "holo" ? finish : null)
     return Response.json(result ?? { error: "This exact printing is not supported by the listing lookup yet." }, { status: result ? 200 : 422, headers })
   } catch (error) {
+    if (isBillingError(error)) return billingErrorResponse(error)
     console.warn("[holofolder] eBay listings unavailable:", error instanceof Error ? error.message : "Unknown error")
     return Response.json({ error: "eBay listings are temporarily unavailable. Try again later." }, { status: 503, headers })
   }

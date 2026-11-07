@@ -14,16 +14,16 @@ interface BundlePriceEvidence {
 const positive = (value: number | null | undefined): value is number => typeof value === "number" && Number.isFinite(value) && value > 0
 const round = (value: number) => Math.round(value * 100) / 100
 
-export function buildBundlePriceGuide(entries: readonly BundlePriceEvidence[], currency: string, thresholds?: DealThresholds, now = Date.now()) {
+export function buildBundlePriceGuide(entries: readonly BundlePriceEvidence[], currency: string, thresholds?: DealThresholds, now = Date.now(), allowSold = true) {
   const { greatPct, fairPct } = normalizeDealThresholds(thresholds)
   const items = entries.map(entry => {
     const rate = entry.currency === "GBP" ? 1 : entry.gbpPerUnit
-    const sold = entry.soldCheck && isCardPriceCheck(entry.soldCheck) ? entry.soldCheck : null
+    const sold = allowSold && entry.soldCheck && isCardPriceCheck(entry.soldCheck) ? entry.soldCheck : null
     const guide = buildSoldPriceGuide(sold, entry.catalogMarketGbp, entry.finish, thresholds, now)
     const convertible = entry.currency === currency && positive(rate)
     const catalogue = positive(entry.catalogMarketGbp) && convertible ? round(entry.catalogMarketGbp / rate) : null
     const qualified = guide?.referenceGbp != null && convertible ? round(guide.referenceGbp / rate) : null
-    const legacy = entry.catalogMarketGbp === undefined && entry.currency === currency && positive(entry.marketPrice) ? entry.marketPrice : null
+    const legacy = (allowSold || !entry.soldCheck) && entry.catalogMarketGbp === undefined && entry.currency === currency && positive(entry.marketPrice) ? entry.marketPrice : null
     const marketPrice = qualified ?? catalogue ?? legacy
     return { marketPrice, catalogPrice: catalogue, source: qualified != null ? "sold" : catalogue != null ? "catalogue" : legacy != null ? "saved" : "unknown" }
   })

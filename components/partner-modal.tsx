@@ -1,5 +1,6 @@
 "use client"
 
+import { useBillingContext } from "@/hooks/use-billing"
 import { useRef, useState } from "react"
 import { useOverlay } from "@/hooks/use-overlay"
 import { X, UserPlus, Users, Check, XIcon, Loader2 } from "lucide-react"
@@ -15,6 +16,7 @@ interface PartnerModalProps {
 }
 
 export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProps) {
+  const billing = useBillingContext()
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [email, setEmail] = useState("")
   const [isSending, setIsSending] = useState(false)
@@ -32,6 +34,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
   } = usePartner({ user })
 
   const handleSendInvite = async () => {
+    if (billing && !billing.premium) { billing.upgrade(); return }
     if (!email.trim()) return
     setIsSending(true)
     setActionError(null)
@@ -137,7 +140,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
                         onKeyDown={(e) => e.key === "Enter" && handleSendInvite()}
                         className="flex-1"
                       />
-                      <Button onClick={handleSendInvite} disabled={isSending || !email.trim()}>
+                      <Button aria-label={billing && !billing.premium ? "Upgrade to invite a partner" : "Invite partner"} onClick={handleSendInvite} disabled={isSending || (!email.trim() && billing?.premium !== false)}>
                         {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                       </Button>
                     </div>

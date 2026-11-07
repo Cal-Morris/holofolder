@@ -28,3 +28,9 @@ test("legacy bundle values remain usable without claiming catalogue or sold prov
   assert.equal(guide.items[0].source, "saved")
   assert.equal(guide.overlap, null)
 })
+
+test('expired access drops retained sold evidence and restores catalogue reference', () => {
+  const guide = buildBundlePriceGuide([entry], 'GBP', undefined, now, false)
+  assert.equal(guide.items[0].source, 'catalogue')
+  assert.equal(guide.items[0].marketPrice, 102)
+})

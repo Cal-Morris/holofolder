@@ -157,3 +157,7 @@ test("legacy collection writes can ignore only wanted-person metadata, while cur
     assert.equal(matchesCollectionFingerprint(changed, legacy, true), false)
   }
 })
+
+test('billing rejections pause edits rather than treating them as permanent errors', () => {
+  assert.equal(classifyWriteFailure({ status: 402 }), 'paused')
+})

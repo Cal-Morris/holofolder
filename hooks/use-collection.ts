@@ -1,4 +1,6 @@
 "use client"
+import { BillingAccessError, countSavedCards, pendingCardDelta, canGrowCollection, resolveBillingAccess, savedCardWeight } from "@/lib/billing"
+import { BILLING_CHANGED, readBillingCache } from "@/lib/billing-cache"
 
 import { captureAcquisition, mergeQueuedAcquisition, readPushMembership, writePushMembership, type AcquisitionIntent } from "@/lib/partner-push"
 
@@ -207,7 +209,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     if (error) throw error
 
-    const ownerUserId = partnership?.owner_user_id || currentUser.id
+    let ownerUserId = partnership?.owner_user_id || currentUser.id
+    if (partnership?.owner_user_id) {
+      const { data: allowed, error: accessError } = await supabase.rpc("billing_partner_allowed", { owner_id: ownerUserId, actor_id: currentUser.id })
+      if (accessError && !["PGRST202", "42883"].includes(accessError.code)) throw accessError
+      if (!accessError && !allowed) ownerUserId = currentUser.id
+    }
     if (authenticatedUserId.current === currentUser.id) {
       setCollectionOwnerUserId(ownerUserId)
       const recipientId = partnership?.user1_id === currentUser.id ? partnership.user2_id : partnership?.user1_id
@@ -309,6 +316,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
       const isOffline = typeof navigator !== "undefined" && navigator.onLine === false
       const ownerMatches = Boolean(collectionOwnerUserId && snapshot.ownerUserId === collectionOwnerUserId)
 
+      const sharedAccess = snapshot.ownerUserId && snapshot.ownerUserId !== user?.id ? readBillingCache(localStorage, user?.id ?? null, snapshot.ownerUserId) : null
+      if (snapshot.ownerUserId && snapshot.ownerUserId !== user?.id && (!sharedAccess || (sharedAccess.enforced && sharedAccess.tier !== "paid"))) return
       if (!isOffline && !ownerMatches) {
         return
       }
@@ -353,7 +362,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return () => {
       cancelled = true
     }
-  }, [binderId, collectionOwnerUserId, isDefaultBinder, isEditForThisBinder, readOnly, refreshLocalPendingSyncCount])
+  }, [binderId, collectionOwnerUserId, isDefaultBinder, isEditForThisBinder, readOnly, refreshLocalPendingSyncCount, user?.id])
 
   const reloadRemoteCollection = useCallback(async () => {
     if (readOnly) return
@@ -554,9 +563,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
     setSyncStatus("syncing")
     let didWriteRemoteCollection = false
     let shouldRetry = false
+    let didPause = false
 
     try {
       for (const queuedOperation of operations) {
+        const access = readBillingCache(localStorage, user.id, collectionOwnerUserId)
+        const accessKey = JSON.stringify(access)
+        if (queuedOperation.billingPause === accessKey) { didPause = true; continue }
         let operation = queuedOperation
         let conflictRounds = 0
 
@@ -581,6 +594,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
           } catch (error) {
             const kind = classifyWriteFailure(error)
 
+            if (kind === "paused") {
+              replacePendingCollectionOperation(operation.id, { ...operation, billingPause: accessKey })
+              setSyncNotice("Your changes are saved on this device. Upgrade or remove cards to sync them.")
+              didPause = true
+              break
+            }
             if (kind === "conflict" && conflictRounds < 2) {
               conflictRounds += 1
               const serverItem = error instanceof CollectionWriteError ? error.serverItem : null
@@ -620,6 +639,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       }
 
       if (didWriteRemoteCollection) {
+        window.dispatchEvent(new Event("holofolder-refresh-billing"))
         void broadcastCollectionChanged()
       }
     } finally {
@@ -633,6 +653,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     syncRetryAttemptRef.current = 0
+    if (didPause) { setSyncStatus("waiting"); return }
     if (readPendingCollectionOperations().length > 0) {
       // Edits made while we were sending: go again.
       void Promise.resolve().then(() => flushPendingCollectionOperationsRef.current())
@@ -688,9 +709,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
       if (isDocumentVisible()) syncNow()
     }
 
+    window.addEventListener(BILLING_CHANGED, syncNow)
     window.addEventListener("online", syncNow)
     document.addEventListener("visibilitychange", handleVisibility)
     return () => {
+      window.removeEventListener(BILLING_CHANGED, syncNow)
       window.removeEventListener("online", syncNow)
       document.removeEventListener("visibilitychange", handleVisibility)
       cancelSyncRetry()
@@ -764,6 +787,16 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (expected !== undefined && collectionFingerprint(existingItem) !== collectionFingerprint(expected)) {
       return { item: existingItem, queued: false as const, rolledBack: true as const, error: "This card changed since the action. Check your binder before undoing." }
     }
+    const cachedAccess = typeof window === "undefined" ? null : readBillingCache(localStorage, user?.id ?? null, collectionOwnerUserId)
+    const access = cachedAccess ?? resolveBillingAccess(collectionOwnerUserId ?? "guest", { enforced: true })
+    const before = countSavedCards(current)
+    const after = before - (existingItem ? savedCardWeight(existingItem) : 0) + (nextItem ? savedCardWeight(nextItem) : 0)
+    const totalBefore = Math.max(before, access.savedCardCount + pendingCardDelta(readPendingCollectionOperations()))
+    if (!canGrowCollection(access, totalBefore, totalBefore + after - before)) {
+      setSyncNotice("Your free account holds 10 cards. Upgrade to save more.")
+      window.dispatchEvent(new Event("holofolder-upgrade"))
+      return { item: existingItem, queued: false as const, error: "Upgrade to add more cards.", rolledBack: true as const }
+    }
     applyLocalCollection(nextItem ? upsertCollectionItem(current, nextItem) : removeCollectionItem(current, pokemonId))
 
     const binderField = binderId ? { binderId } : {}
@@ -782,10 +815,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
         const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId, acquisition }))
         settleLocalItem(pokemonId, savedItem)
         void broadcastCollectionChanged()
+        window.dispatchEvent(new Event("holofolder-refresh-billing"))
         return { item: savedItem, queued: false as const }
       }
       await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId, { baseFingerprint, binderId }))
       void broadcastCollectionChanged()
+      window.dispatchEvent(new Event("holofolder-refresh-billing"))
       return { item: null, queued: false as const }
     } catch (error) {
       if (classifyWriteFailure(error) === "hard") {
@@ -970,6 +1005,16 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const binderRowField = binderId ? { binder_id: binderId } : {}
     // Without a binder id the insert trigger files rows into the default binder before the conflict check.
     const upsertConflictTarget = "binder_id,pokemon_id"
+
+    const access = readBillingCache(localStorage, user.id, collectionOwnerUserId) ?? resolveBillingAccess(collectionOwnerUserId, { enforced: true })
+    const proposed = new Map<number, Pick<CollectedPokemon, "status" | "wanted_cards">>((replaceRemote ? wishlistedRows : collection).map(item => [item.pokemon_id, item]))
+    for (const pokemonId of replaceRemote ? localIds : idsToAdd) proposed.set(pokemonId, { status: "collected", wanted_cards: [] })
+    const currentCount = countSavedCards(collection)
+    const totalBefore = Math.max(currentCount, access.savedCardCount + pendingCardDelta(readPendingCollectionOperations()))
+    if (!canGrowCollection(access, totalBefore, totalBefore + countSavedCards([...proposed.values()]) - currentCount)) {
+      window.dispatchEvent(new Event("holofolder-upgrade"))
+      return { error: new BillingAccessError("card_limit_reached") }
+    }
 
     try {
       if (replaceRemote && idsToRemove.length > 0) {

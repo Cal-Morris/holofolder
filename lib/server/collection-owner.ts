@@ -1,3 +1,4 @@
+import { BillingAccessError } from "@/lib/billing"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,9 +35,35 @@ export async function resolveCollectionMembership(client: AnySupabaseClient, use
     throw error
   }
 
+  if (partnership?.owner_user_id && typeof client.rpc === "function") {
+    const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: partnership.owner_user_id, actor_id: userId })
+    if (accessError && !["PGRST202", "42883"].includes(accessError.code)) throw accessError
+    if (!accessError && !allowed) return { ownerUserId: userId, memberIds: [userId], partnershipId: null }
+  }
+
   return {
     ownerUserId: typeof partnership?.owner_user_id === "string" ? partnership.owner_user_id : userId,
     memberIds: [...new Set([userId, partnership?.user1_id, partnership?.user2_id].filter((id): id is string => typeof id === "string"))],
     partnershipId: typeof partnership?.id === "string" ? partnership.id : null,
   }
+}
+
+/** Preserve edits for a suspended shared binder as billing pauses, rather than unrelated-binder 404s. */
+export async function assertCollectionWriteAccess(client: AnySupabaseClient, userId: string, requestedBinderId: unknown) {
+  const { data: membership, error } = await client.from("partnerships").select("owner_user_id").or(`user1_id.eq.${userId},user2_id.eq.${userId}`).limit(1).maybeSingle()
+  if (error) throw error
+  const owner = membership?.owner_user_id
+  if (!owner || owner === userId) return
+  const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: owner, actor_id: userId })
+  if (accessError) {
+    if (["PGRST202", "42883"].includes(accessError.code)) return
+    throw accessError
+  }
+  if (allowed) return
+  if (typeof requestedBinderId === "string" && requestedBinderId) {
+    const { data: binder, error: binderError } = await client.from("binders").select("owner_user_id").eq("id", requestedBinderId).maybeSingle()
+    if (binderError) throw binderError
+    if (binder?.owner_user_id === userId) return
+  }
+  throw new BillingAccessError()
 }

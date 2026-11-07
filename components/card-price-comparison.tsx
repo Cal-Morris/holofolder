@@ -1,5 +1,6 @@
 "use client"
 
+import { useBillingContext } from "@/hooks/use-billing"
 import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { requestCardPriceCheck } from "@/lib/card-price-check-client"
@@ -19,6 +20,8 @@ const ComparisonChart = dynamic(() => import("@/components/card-price-comparison
 export function CardPriceComparison({ cardId, searchCard, language = "en", finish, catalogMarketGbp, thresholds: givenThresholds, onSoldCheck, offerGbp, showBuyingScale = true }: {
   cardId: string; searchCard: Omit<ListingSearchCard, "cardId">; language?: string; finish?: CardFinish; catalogMarketGbp?: number | null; thresholds?: DealThresholds; onSoldCheck?: (check: CardPriceCheck) => void; offerGbp?: number | null; showBuyingScale?: boolean
 }) {
+  const billing = useBillingContext()
+  const premium = billing?.premium !== false
   const [result, setResult] = useState<CardPriceChecks | null>(null)
   const requestController = useRef<AbortController | null>(null)
   useEffect(() => () => requestController.current?.abort(), [])
@@ -30,7 +33,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   // Show the last check saved on this device straight away (works offline, costs no request); "Check prices"
   // only goes to the network for a source whose saved check is 12 hours old or more.
   useEffect(() => {
-    if (language !== "en" || finish === "jumbo") return
+    if (language !== "en" || finish === "jumbo" || !premium) return
     let cancelled = false
     void readPinnedCardPriceChecks(cardId, finish).then(pinned => {
       if (cancelled || (!pinned.ebay && !pinned.soldcomps)) return
@@ -38,7 +41,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
       if (pinned.soldcomps) onSoldCheckRef.current?.(pinned.soldcomps)
     })
     return () => { cancelled = true }
-  }, [cardId, language, finish])
+  }, [cardId, language, finish, premium])
   if (language !== "en" || finish === "jumbo") return null
   const exactFinish = finish && ["normal", "holo", "reverse_holo"].includes(finish) ? finish : "any"
   const query = cardListingSearchQuery({ cardId, ...searchCard }, finish)
@@ -72,6 +75,8 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
     requestController.current = controller
     await Promise.all(stale.map(source => checkSource(source, controller.signal)))
   }
+
+  if (billing && !billing.premium) return <section aria-label="Price comparisons" className="mt-2 rounded-xl border p-3"><p className="text-sm">Sold comps are included with Holo Folder Premium.</p><Button className="mt-2 min-h-11 w-full" onClick={billing.upgrade}>Unlock price comparisons</Button></section>
 
   return (
     <section aria-label="Price comparisons" className="mt-2 rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 text-xs">

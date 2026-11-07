@@ -1,3 +1,4 @@
+import { getBillingAccess } from '@/lib/server/billing'
 import { notificationFirstName } from '@/lib/account-identity'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -13,6 +14,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { data: event, error } = await admin.from('partner_acquisitions').select('recipient_id,actor_id,owner_user_id,partnership_id,binder_id,card_id,card_name,actor_name').eq('id', id).eq('recipient_id', user.id).maybeSingle()
   if (error) return Response.json({}, { status: 503, headers })
   if (!event) return Response.json({}, { status: 404, headers })
+  const access = await getBillingAccess(event.owner_user_id)
+  if (access.enforced && access.tier !== 'paid') return Response.json({}, { status: 404, headers })
   const { data: partnership, error: membershipError } = await admin.from('partnerships').select('user1_id,user2_id').eq('id', event.partnership_id).eq('owner_user_id', event.owner_user_id).maybeSingle()
   if (membershipError) return Response.json({}, { status: 503, headers })
   if (!partnership || ![partnership.user1_id, partnership.user2_id].includes(user.id) || ![partnership.user1_id, partnership.user2_id].includes(event.actor_id)) return Response.json({}, { status: 404, headers })
