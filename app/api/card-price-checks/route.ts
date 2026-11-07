@@ -5,7 +5,8 @@ import { requireAppearanceOrigin } from "@/lib/server/binder-appearance"
 import { isPriceCheckCardId } from "@/lib/card-catalog"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
-import { loadCardPriceChecks } from "@/lib/server/card-price-checks"
+import { normalizeComparisonTargets } from "@/lib/comparison-jobs"
+import { loadCardPriceChecks, loadSavedCardPriceChecks } from "@/lib/server/card-price-checks"
 
 const headers = { "Cache-Control": "no-store" }
 async function handle(request: Request, refresh: boolean) {
@@ -16,6 +17,12 @@ async function handle(request: Request, refresh: boolean) {
     const user = refresh ? (await client.auth.getUser()).data.user : await getSessionUser(client)
     if (!user) return Response.json({ error: "Sign in to check prices." }, { status: 401, headers })
     await requirePaidAccess(await resolveCollectionOwnerUserId(client, user.id))
+    if (!refresh && url.searchParams.has("cards")) {
+      let cards
+      try { cards = normalizeComparisonTargets(JSON.parse(url.searchParams.get("cards")!)) } catch { cards = null }
+      if (!cards || cards.length > 25) return Response.json({ error: "Invalid saved-check batch." }, { status: 400, headers })
+      return Response.json({ checks: await loadSavedCardPriceChecks(cards) }, { headers })
+    }
     const cardId = url.searchParams.get("cardId") ?? ""
     const finish = url.searchParams.get("finish") ?? "any"
     const source = url.searchParams.get("source")

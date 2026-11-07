@@ -31,7 +31,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   const onSoldCheckRef = useRef(onSoldCheck)
   useEffect(() => { onSoldCheckRef.current = onSoldCheck })
   // Show the last check saved on this device straight away (works offline, costs no request); "Check prices"
-  // only goes to the network for a source whose saved check is 12 hours old or more.
+  // only goes to the network for a source whose saved check is 30 hours old or more.
   useEffect(() => {
     if (language !== "en" || finish === "jumbo" || !premium) return
     let cancelled = false
@@ -69,7 +69,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
     setError(null)
     setResult(previous => ({ ebay: null, soldcomps: null, ...previous, errors: {} }))
     const stale = (["ebay", "soldcomps"] as const).filter(source => !isPriceCheckFresh(result?.[source]))
-    if (stale.length === 0) { setError("Showing saved checks from the last 12 hours."); return }
+    if (stale.length === 0) { setError("Showing saved checks from the last 30 hours."); return }
     setPending({ ebay: stale.includes("ebay"), soldcomps: stale.includes("soldcomps") })
     const controller = new AbortController()
     requestController.current = controller
@@ -81,7 +81,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   return (
     <section aria-label="Price comparisons" className="mt-2 rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 text-xs">
       <p className="font-semibold">eBay listings + sold comps</p>
-      <p className="mt-1 text-muted-foreground">Manual checks · saved for 12 hours</p>
+      <p className="mt-1 text-muted-foreground">Manual checks · saved for 30 hours</p>
       <div className="flex flex-wrap gap-x-4">
         <a href={openUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View open listings ↗</a>
         <a href={soldUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View sold listings ↗</a>

@@ -25,7 +25,7 @@ function setup(rows: CollectedPokemon[]) {
     requests.push(url.href)
     if (url.pathname === "/app/api/card-image-proxy") return new Response("synthetic-image", { headers: { "Content-Type": "image/webp" } })
     if (url.pathname === "/app/api/card-prices") return Response.json({ prices: JSON.parse(url.searchParams.get("cards")!).map((card: { cardId: string; language: string }) => ({ ...card, marketGbpAmount: 2, finishPrices: [{ finish: "normal", variantKey: "normal", marketGbpAmount: 2 }], sourcePrices: [{ source: "cardmarket" }], historyPoints: [{ amount: 2 }], trendPoints: [{ gbpAmount: 2 }] })) })
-    return Response.json({ ebay: check("asking"), soldcomps: check("sold"), errors: {} })
+    return Response.json({ checks: JSON.parse(url.searchParams.get("cards")!).map((card: object) => ({ ...card, ebay: check("asking"), soldcomps: check("sold"), errors: {} })) })
   }) as typeof fetch
   return { shellReady: true, store, cache, images, prices, requests, fetcher, signal: new AbortController().signal, onProgress: () => {},
     loadPrices: async () => [...prices.values()], savePrices: async (values: unknown[]) => { for (const price of values as CardPriceSnapshot[]) prices.set(`${price.cardId}:${price.language}`, price) },
@@ -54,7 +54,7 @@ describe("binder offline prep", () => {
     assert.equal(result.sold, 65)
     assert.equal(result.asking, 65)
     assert.equal(result.complete, true)
-    assert.equal(deps.requests.filter(url => url.includes("card-price-checks?")).length, 65)
+    assert.equal(deps.requests.filter(url => url.includes("card-price-checks?")).length, 3)
     assert.equal(deps.requests.filter(url => url.includes("/app/api/card-prices?")).length, 3)
     const imageCalls = deps.requests.filter(url => url.includes("card-image-proxy")).length
     await downloadBinderPrep(cards, scope, { ...deps, fetcher: (async (...args: Parameters<typeof fetch>) => {
@@ -65,13 +65,13 @@ describe("binder offline prep", () => {
       }
       if (String(args[0]).includes("card-price-checks?")) {
         const payload = await response.json()
-        payload.soldcomps = { ...check("sold"), checkedAt: "2026-11-06T12:00:00Z", summary: { kind: "sold", currency: "GBP", count: 1, low: 9, median: 9, high: 9 }, sales: [{ amount: 9, soldAt: "2026-11-06" }] }
+        for (const saved of payload.checks) saved.soldcomps = { ...check("sold"), checkedAt: "2026-11-06T12:00:00Z", summary: { kind: "sold", currency: "GBP", count: 1, low: 9, median: 9, high: 9 }, sales: [{ amount: 9, soldAt: "2026-11-06" }] }
         return Response.json(payload)
       }
       return response
     }) as typeof fetch })
     assert.equal(deps.requests.filter(url => url.includes("card-image-proxy")).length, imageCalls)
-    assert.equal(deps.requests.filter(url => url.includes("card-price-checks?")).length, 130)
+    assert.equal(deps.requests.filter(url => url.includes("card-price-checks?")).length, 6)
     assert.equal(deps.prices.get("synthetic-0:en")?.marketGbpAmount, 4)
     assert.equal((await readPinnedCardPriceCheck("synthetic-0", "normal", "soldcomps", deps.store))?.summary.median, 9)
     assert.equal((await deps.store.get<{ pendingOperations: unknown[] }>("collection"))?.pendingOperations.length, 1)
@@ -136,10 +136,23 @@ test("legacy summaries without asking/sold records never count as fully prepared
   const result = await downloadBinderPrep(binderPrintings(rows), scope, { ...deps, fetcher: (async (...args: Parameters<typeof fetch>) => {
     if (!String(args[0]).includes("card-price-checks?")) return deps.fetcher(...args)
     const asking = check("asking"), sold = check("sold")
-    return Response.json({ ebay: { summary: asking.summary, checkedAt: asking.checkedAt }, soldcomps: { summary: sold.summary, checkedAt: sold.checkedAt }, errors: {} })
+    return Response.json({ checks: [{ cardId: "synthetic-0", finish: "normal", ebay: { summary: asking.summary, checkedAt: asking.checkedAt }, soldcomps: { summary: sold.summary, checkedAt: sold.checkedAt }, errors: {} }] })
   }) as typeof fetch })
   assert.equal(result.sold, 0)
   assert.equal(result.asking, 0)
   assert.equal(result.soldRecords, 0)
   assert.equal(result.complete, false)
+})
+
+test("transient image and saved-price failures retry within the same preparation", async () => {
+  const rows = collection(1), deps = setup(rows)
+  const attempts = new Map<string, number>()
+  const result = await downloadBinderPrep(binderPrintings(rows), scope, { ...deps, retryDelay: async () => {}, fetcher: (async (...args: Parameters<typeof fetch>) => {
+    const url = String(args[0]), count = (attempts.get(url) ?? 0) + 1
+    attempts.set(url, count)
+    if (count === 1 && (url.includes("card-image-proxy") || url.includes("/app/api/card-prices?"))) return new Response(null, { status: 503 })
+    return deps.fetcher(...args)
+  }) as typeof fetch })
+  assert.equal(result.complete, true)
+  assert.equal(result.failedDownloads, 0)
 })

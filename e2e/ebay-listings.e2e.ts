@@ -308,7 +308,7 @@ test("fair market bands, quick eBay link and individually verifiable source reco
   await harness.expectNoHorizontalOverflow()
 })
 
-test("a saved check shows again without a request and is not re-requested while under 12 hours old", async ({ harness }) => {
+test("a saved check shows again without a request and is not re-requested while under 30 hours old", async ({ harness }) => {
   let requests = 0
   await harness.page.route("**/app/api/card-price-checks?**", async route => {
     requests++
@@ -325,6 +325,6 @@ test("a saved check shows again without a request and is not re-requested while 
   await expect(comparison.getByText(/£9.80.*median sold price/)).toBeVisible()
   await expect(comparison.getByTestId("price-check-age-soldcomps")).toContainText(/Checked (just now|1 min ago)/)
   await comparison.getByRole("button", { name: "Check prices", exact: true }).click()
-  await expect(comparison.getByText("Showing saved checks from the last 12 hours.")).toBeVisible()
+  await expect(comparison.getByText("Showing saved checks from the last 30 hours.")).toBeVisible()
   expect(requests).toBe(2)
 })

@@ -342,17 +342,17 @@ function normalizeFetchedCardPrice(value: unknown): CardPriceSnapshot | null {
 
 /** A card-show download must report IndexedDB failure; the localStorage quick cache is trimmed to fit instead. */
 export async function saveCardPricesForOffline(prices: unknown[], store = getOfflineStore()) {
-  const cache = readPriceCache()
   const updates: CardPriceSnapshot[] = []
   for (const value of prices) {
     const price = normalizeFetchedCardPrice(value)
     if (price) {
-      cache[getCardPriceKey(price.cardId, price.language)] = price
       updates.push(price)
     }
   }
   // IndexedDB holds the full evidence offline; the localStorage copy below is a best-effort quick cache.
   await persistPriceEvidence(updates, store)
+  const cache = readPriceCache()
+  for (const price of updates) cache[getCardPriceKey(price.cardId, price.language)] = price
   writePriceCache(cache)
 }
 

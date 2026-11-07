@@ -204,7 +204,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
         </ul>
 
         <button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{!premium ? "Unlock bundle comparisons" : checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
-        <p className="text-[11px] text-muted-foreground">Checks each English card and finish, reuses saved results for 12 hours. {guide.items.filter(item => item.source === "sold").length} of {entries.length} use qualified sold evidence.</p>
+        <p className="text-[11px] text-muted-foreground">Checks each English card and finish, reuses saved results for 30 hours. {guide.items.filter(item => item.source === "sold").length} of {entries.length} use qualified sold evidence.</p>
         {error ? <p role="status" className="text-xs text-muted-foreground">{error}</p> : null}
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
       </div>

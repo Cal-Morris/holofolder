@@ -9,7 +9,8 @@ import type { CardPriceCheck } from "@/lib/card-price-checks"
 import type { AnalyticsCard } from "@/lib/collection-analytics"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 
-export function BinderValuationRefinement({ cards, collection, isOnline, readOnly, isAllBinders }: {
+export function BinderValuationRefinement({ cards, collection, isOnline, readOnly, isAllBinders, ownerId }: {
+  ownerId: string | null
   cards: AnalyticsCard[]
   collection: CollectedPokemon[]
   isOnline: boolean
@@ -31,7 +32,7 @@ export function BinderValuationRefinement({ cards, collection, isOnline, readOnl
   const refined = useMemo(() => buildRefinedValuation(cards, checks), [cards, checks])
   if (billing && !billing.premium) return null
   return <section aria-label="Refine binder valuation" className="mt-4 space-y-3 rounded-xl bg-muted/40 p-3 text-sm">
-    {!readOnly && <CollectionPriceCheck collection={collection} kind="owned" isOnline={isOnline} label="Refine valuation" scopeLabel={isAllBinders ? "all binders" : "this binder"} onComplete={() => setRevision(value => value + 1)} />}
+    {!readOnly && <CollectionPriceCheck ownerId={ownerId} collection={collection} kind="owned" isOnline={isOnline} label="Refine valuation" scopeLabel={isAllBinders ? "all binders" : "this binder"} onComplete={() => setRevision(value => value + 1)} />}
     <p className="text-muted-foreground">Use matching sold prices where the evidence is strong enough. Active eBay listings are supporting evidence.</p>
     <div>
       <h3 className="font-medium">Sales-based estimate</h3>

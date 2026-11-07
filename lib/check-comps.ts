@@ -2,8 +2,8 @@
 // optionally the rest of Show's hunt list) the morning of a show, so each card's last-known check is on
 // this device. UI entry points (Prepare for card show, a Show "Check comps" button) call
 // warmShowComps / useShowCompsWarm. Gentle on the provider allowance by design:
-// cards whose pinned check is under 12 hours old are skipped without a request, the server skips any it
-// already checked in the last 12 hours, only a couple of requests run at once, a 429/503 backs the whole
+// cards whose pinned check is under 30 hours old are skipped without a request, the server skips any it
+// already checked in the last 30 hours, only a couple of requests run at once, a 429/503 backs the whole
 // batch off, and an exhausted or unconfigured source stops being asked for the rest of the batch.
 // Soft gate: before any request, a run counts the cards that would need a sold comps call; at
 // CHECK_COMPS_CONFIRM_AT or more it asks confirmSpend first (Show passes one; Prepare doesn't).
@@ -23,9 +23,9 @@ export interface CheckCompsTarget { cardId: string; language?: string | null; fi
 export interface CheckCompsProgress {
   done: number
   total: number
-  /** Cards with a check that was already under 12 hours old (no provider call). */
+  /** Cards with a check that was already under 30 hours old (no provider call). */
   fresh: number
-  /** Cards that now have a check under 12 hours old on this device (the server may have had it already). */
+  /** Cards that now have a check under 30 hours old on this device (the server may have had it already). */
   checked: number
   failed: number
   /** Set when a source stopped for the rest of the run (allowance used up, not configured). */

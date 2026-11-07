@@ -55,3 +55,18 @@ export async function loadCardPriceChecks(cardId: string, finish: string, refres
   }))
   return result
 }
+
+/** Saved comparisons in one query per download batch, with no catalog lookups or provider requests. */
+export async function loadSavedCardPriceChecks(cards: { cardId: string; finish: string }[]) {
+  const { data, error } = await createAdminClient().from("card_price_checks").select("card_id,finish,source,result_json")
+    .in("card_id", [...new Set(cards.map(card => card.cardId))])
+  if (error) throw error
+  return cards.map(card => {
+    const checks: CardPriceChecks = { ebay: null, soldcomps: null, errors: {} }
+    for (const row of data ?? []) {
+      if (row.card_id !== card.cardId || row.finish !== card.finish || (row.source !== "ebay" && row.source !== "soldcomps")) continue
+      if (isCardPriceCheck(row.result_json) && row.result_json.summary.kind === (row.source === "ebay" ? "asking" : "sold")) checks[row.source as PriceCheckSource] = row.result_json
+    }
+    return { ...card, ...checks }
+  })
+}

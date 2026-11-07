@@ -49,7 +49,7 @@ export default function BinderOfflinePrep({ collection, scope, isOnline }: Binde
         onProgress: (phase, done, total) => setMessage(`${phase === "prices" ? "Prices (batches of up to 25)" : phase}: ${done}/${total}`),
       })
       setStatus(result)
-      setMessage(result.complete ? "Download verified." : "Download finished with missing evidence. Retry reuses saved images and checks for newer saved prices.")
+      setMessage(result.failedDownloads ? `${result.failedDownloads} downloads failed after retries. Resume keeps completed downloads.` : result.complete ? "Download verified." : "Download finished with missing evidence. Retry reuses saved images and checks for newer saved prices.")
     } catch (error) {
       setMessage(abort.signal.aborted ? "Stopped. Saved data stays on this device. Resume reuses downloaded images." : error instanceof Error ? error.message : "Download failed. Retry to resume.")
       setStatus(await inspect().catch(() => null))

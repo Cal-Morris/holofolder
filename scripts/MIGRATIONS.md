@@ -7,6 +7,7 @@ When you add a migration, use the next free number (`031_…`), keep it idempote
 | File | What it does |
 |---|---|
 | `049_billing_access.sql` | Stripe subscription access, separate permanent licences, fixed grandfather cutoff for existing accounts, staged enforcement, transactional card cap and paid partner/share policies. Apply before enabling billing; enforcement defaults off. |
+| `050_comparison_jobs.sql` | 30-hour comparison reuse and server-only, owner-scoped background comparison jobs. |
 | `048_named_share_account_identity.sql` | Reconciles named sharing with the independently shipped 047 account identity store. Preserves canonical saved usernames and legacy reservations, repoints the named resolver, retains the old claim RPC as a wrapper and empties the copied legacy username table. Requires 045 and 047; applied and verified on the hosted project on 2026-11-07. |
 | `047_account_usernames.sql` | Private account usernames and permanent name reservations, claimed atomically by the authenticated account. Apply before deploying account settings; name saves and existing app flows work without it, username controls report unavailable. |
 | `029_card_price_history_evidence.sql` | Native dated TCGplayer quotes in `card_prices.history_points`, separate from current GBP prices and rolling averages |

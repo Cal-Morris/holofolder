@@ -1,7 +1,7 @@
 import { normalizeEbayItemUrl, type PriceCheckListing } from "@/lib/ebay-listings"
 import type { PriceCheckSummary, SoldComp } from "@/lib/sold-comps"
 
-export const PRICE_CHECK_FRESH_MS = 12 * 60 * 60 * 1000
+export const PRICE_CHECK_FRESH_MS = 30 * 60 * 60 * 1000
 export interface CardPriceCheck {
   summary: PriceCheckSummary
   checkedAt: string

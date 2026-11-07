@@ -48,7 +48,7 @@ async function run() {
     assert.deepEqual((await loadCardPriceChecks("base1-44", "normal", false))?.soldcomps, first?.soldcomps)
     await loadCardPriceChecks("base1-44", "normal", true)
     assert.deepEqual([browseCalls, soldCalls], [1, 1])
-    const stale = { summary: { kind: "sold", currency: "GBP", count: 1, median: 9, low: 9, high: 9 }, checkedAt: new Date(Date.now() - 86400_000).toISOString() }
+    const stale = { summary: { kind: "sold", currency: "GBP", count: 1, median: 9, low: 9, high: 9 }, checkedAt: new Date(Date.now() - 31 * 3600_000).toISOString() }
     rows.set("soldcomps", stale)
     failSold = true
     const partial = await loadCardPriceChecks("base1-44", "normal", true)
