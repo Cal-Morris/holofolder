@@ -18,6 +18,7 @@ import type { CardFinish } from "@/lib/domain/cards"
 import { getPriceDataAgeDays } from "@/lib/price-freshness"
 import { getRisingMomentum } from "@/lib/price-momentum"
 import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
+import ShowBudget from "@/components/show-budget"
 import ShowRevisitForm from "@/components/show-revisit-form"
 import { toRecentCard } from "@/lib/recent-cards"
 import { revisitAskingInput, revisitKey, type RevisitCard } from "@/lib/show-revisit"
@@ -56,6 +57,7 @@ export interface QuickCardCheckProps {
   state: QuickCardState
   getState?: (finish: CardFinish) => QuickCardState
   destinationName?: string
+  budgetKey?: string | null
   savedDeal?: RevisitCard
   revisit?: { cards: RevisitCard[]; error: string | null; save: (entry: RevisitCard) => boolean }
   currency: DisplayCurrency
@@ -96,6 +98,7 @@ export default function QuickCardCheck({
   getState,
   destinationName = "this binder",
   savedDeal,
+  budgetKey,
   revisit,
   currency,
   fxRates: fxRatesProp,
@@ -305,6 +308,7 @@ export default function QuickCardCheck({
         <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
         {/* Show mode (and the Wanted price lookup) is about the asking price, so it opens the keyboard;
             plain Quick shows the price, verdict and Own / Want first, and Asking opens the keyboard on tap. */}
+        {showTools && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
         <DealPriceInput value={input} onChange={setInput} autoFocus={showTools} />
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>

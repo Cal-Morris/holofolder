@@ -8,6 +8,7 @@ import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
 import { allBindersCollection, allBindersWantedEntries, cardsOwnedElsewhere, formatOwnedIn, speciesOwnedElsewhere } from "@/lib/binders/all-binders"
 import { useAllBinders } from "@/hooks/use-all-binders"
+import { showBudgetStorageKey } from "@/lib/show-budget"
 import { revisitStorageKey } from "@/lib/show-revisit"
 import { getQuickCardState as resolveQuickCardState } from "@/lib/quick-card-state"
 import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
@@ -3222,7 +3223,7 @@ export default function BinderApp({
   }, [addToCollection, addWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
   // The deal check is part of every Quick mode; Show mode (and the price lookup) add the hunt list, bundle and tally.
   const quickCardCheck = useMemo(
-    () => ({ currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }),
+    () => ({ currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, huntItems: collection }),
     [activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, pricingPreferences.currency, readOnlyMode, resolvedCollectionOwnerUserId, user?.id],
   )
   // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.

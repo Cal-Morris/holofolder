@@ -36,6 +36,7 @@ import { formatSetHitMeta } from "@/lib/set-search"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { recentToSearchCard, toRecentCard } from "@/lib/recent-cards"
 import { useShowRevisit } from "@/hooks/use-show-revisit"
+import ShowBudget from "@/components/show-budget"
 import ShowRevisit from "@/components/show-revisit"
 import type { RevisitCard } from "@/lib/show-revisit"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
@@ -100,6 +101,7 @@ function readBundle(): QuickBundleEntry[] {
 /** The deal checker: tapping a card opens its price check (asking price → verdict) instead of the card browser. */
 export interface QuickCardCheckOptions {
   destinationName?: string
+  budgetKey?: string | null
   revisitKey?: string | null
   currency: DisplayCurrency
   fxRates?: DisplayFxRates | null
@@ -372,6 +374,7 @@ function QuickMode({
       state={cardCheck.getCardState(checking.card, checking.pokemon)}
       getState={finish => cardCheck.getCardState(checking.card, checking.pokemon, finish)}
       destinationName={cardCheck.destinationName}
+      budgetKey={show?.budgetKey}
       savedDeal={checking.savedDeal}
       revisit={show && cardCheck.revisitKey && !cardCheck.readOnly ? revisit : undefined}
       currency={cardCheck.currency}
@@ -395,6 +398,7 @@ function QuickMode({
     <QuickBundle
       entries={bundle}
       destinationName={show.destinationName}
+      budgetKey={show.budgetKey}
       getCardState={entry => show.getCardState(entry.card, entry.pokemon, entry.finish)}
       currency={show.currency}
       readOnly={show.readOnly}
@@ -533,6 +537,7 @@ function QuickMode({
         ) : show && !trimmed ? (
           <ShowHunt
             recentCards={<>
+              {show.budgetKey && !show.readOnly && <ShowBudget storageKey={show.budgetKey} currency={show.currency} />}
               <ShowRevisit cards={revisit.cards} error={revisit.error} onRemove={entry => { revisit.remove(entry) }} onOpen={entry => {
                 setChecking({ card: recentToSearchCard(entry.card), pokemon: { id: entry.card.dexId, name: entry.card.pokemonName }, finish: entry.card.finish, savedDeal: entry })
               }} />
