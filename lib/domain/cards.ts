@@ -67,6 +67,13 @@ export interface WantedCard {
   set_total?: number
   illustrator?: string
   added_at: string
+  /** Omitted on legacy wants; an empty list explicitly means Unassigned. */
+  wanted_by?: string[]
+}
+
+export function normalizeWantedPeople(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  return [...new Set(value.filter((id): id is string => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)).map(id => id.toLowerCase()))].sort().slice(0, 2)
 }
 
 export interface CollectedPokemon {
