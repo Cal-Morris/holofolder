@@ -21,54 +21,58 @@
   --dock-inset: max(var(--safe-bottom), 0.5rem);
   --dock-bar: 3.375rem;
   --dock-clearance: calc(var(--dock-inset) + var(--dock-bar));
-  /* Paper and charcoal leave the colour to the cards and chosen pocket pages. */
-  --background: oklch(0.974 0.004 90);
-  --foreground: oklch(0.225 0.002 90);
-  --card: oklch(0.994 0.002 90);
+  /* Quiet surfaces keep the artwork in focus; lavender marks the app's controls. */
+  --background: #f7f6fb;
+  --foreground: #15121f;
+  --card: #ffffff;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.255 0.002 90);
-  --primary-foreground: oklch(0.994 0.002 90);
-  --secondary: oklch(0.933 0.004 90);
-  --secondary-foreground: var(--foreground);
-  --muted: oklch(0.941 0.004 90);
-  --muted-foreground: oklch(0.49 0.003 90);
-  --accent: oklch(0.92 0.004 90);
-  --accent-foreground: var(--foreground);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.875 0.004 90);
-  --input: oklch(0.985 0.002 90);
-  --ring: oklch(0.4 0.002 90);
-  --radius: 0.625rem;
+  --primary: #6546bd;
+  --primary-foreground: #ffffff;
+  --secondary: #ede9f7;
+  --secondary-foreground: #4a376e;
+  --muted: #efedf5;
+  --muted-foreground: #696477;
+  --accent: #e7e0f7;
+  --accent-foreground: #38255f;
+  --destructive: #b52c46;
+  --destructive-foreground: #ffffff;
+  --border: #dedbe8;
+  --input: #d2ccdf;
+  --ring: #6546bd;
+  --highlight: #266b46;
+  --highlight-surface: #e0f6e8;
+  --radius: 0.875rem;
 }
 
 .dark {
-  --background: oklch(0.17 0.002 90);
-  --foreground: oklch(0.958 0.004 90);
-  --card: oklch(0.215 0.002 90);
+  --background: #07070a;
+  --foreground: #f4f3f8;
+  --card: #111116;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.94 0.004 90);
-  --primary-foreground: oklch(0.2 0.002 90);
-  --secondary: oklch(0.29 0.002 90);
-  --secondary-foreground: var(--foreground);
-  --muted: oklch(0.27 0.002 90);
-  --muted-foreground: oklch(0.7 0.003 90);
-  --accent: oklch(0.32 0.002 90);
-  --accent-foreground: var(--foreground);
-  --destructive: oklch(0.65 0.2 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.34 0.002 90);
-  --input: oklch(0.25 0.002 90);
-  --ring: oklch(0.75 0.003 90);
+  --primary: #b9a6ff;
+  --primary-foreground: #15121f;
+  --secondary: #211c30;
+  --secondary-foreground: #ded4ff;
+  --muted: #1b1a23;
+  --muted-foreground: #aaa6b8;
+  --accent: #292236;
+  --accent-foreground: #ede7ff;
+  --destructive: #e65570;
+  --destructive-foreground: #ffffff;
+  --border: #ffffff17;
+  --input: #383341;
+  --ring: #b9a6ff;
+  --highlight: #b8ffcf;
+  --highlight-surface: #14241c;
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback", system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", monospace;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -88,6 +92,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-highlight: var(--highlight);
+  --color-highlight-surface: var(--highlight-surface);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

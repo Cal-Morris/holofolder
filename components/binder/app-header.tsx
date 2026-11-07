@@ -114,11 +114,11 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
 
           <div className="order-last hidden w-full items-center gap-1 border-t border-border/40 pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
             {destinations.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => void switchMainView(id === "sets" ? ctx.lastBrowseViewRef.current : id)} aria-pressed={!isSearchOpen && (activeMainView === id || (id === "sets" && activeMainView === "pokemon"))} className={`flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium ${!isSearchOpen && (activeMainView === id || (id === "sets" && activeMainView === "pokemon")) ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
+              <button key={id} onClick={() => void switchMainView(id === "sets" ? ctx.lastBrowseViewRef.current : id)} aria-pressed={!isSearchOpen && (activeMainView === id || (id === "sets" && activeMainView === "pokemon"))} className={`flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium ${!isSearchOpen && (activeMainView === id || (id === "sets" && activeMainView === "pokemon")) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
                 <Icon className="h-3.5 w-3.5" aria-hidden />{label}
               </button>
             ))}
-            <button onClick={isShowModeOn ? openQuickMode : openSearch} aria-label="Search" aria-pressed={isSearchOpen} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground"><SearchIcon className="h-3.5 w-3.5" aria-hidden />Search</button>
+            <button onClick={isShowModeOn ? openQuickMode : openSearch} aria-label="Search" aria-pressed={isSearchOpen} className="flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground"><SearchIcon className="h-3.5 w-3.5" aria-hidden />Search</button>
           </div>
 
           {activeMainView === "binder" && binderDimension === "2d" && (

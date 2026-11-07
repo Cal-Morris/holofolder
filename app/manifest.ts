@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/app",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#f2f5fb",
-    theme_color: "#171a22",
+    background_color: "#07070a",
+    theme_color: "#07070a",
     categories: ["productivity", "entertainment", "utilities"],
     icons: [
       { src: "/app/pwa-holo-cards-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

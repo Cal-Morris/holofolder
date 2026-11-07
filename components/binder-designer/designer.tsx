@@ -18,6 +18,7 @@ const labels: Record<BinderPart,string>={cover:"Front cover",back:"Back cover",s
 const sampleCards: readonly StudioCard[]=FEATURED_CARDS.map(c=>({id:c.id,name:c.name,image:getFeaturedCardImageUrl(c)}))
 export interface DesignerProps { owner: string | null; legacyKey?: string; cards: StudioCard[]; placed: number; wanted: number; occupiedSlots?: number[]; settings: BinderSettings; collectionError?: boolean }
 export default function BinderDesigner({owner,legacyKey,cards,placed,wanted,occupiedSlots,settings,collectionError}: DesignerProps) {
+  useEffect(()=>{document.documentElement.classList.toggle("dark",settings.darkMode)},[settings.darkMode])
   const appearance=useBinderAppearance({owner,settings,legacyKey})
   const initial=useMemo(()=>defaultBinderDesign(settings),[settings])
   const [preset,setPreset]=useState<string|null>(null)

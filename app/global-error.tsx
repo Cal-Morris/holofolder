@@ -12,8 +12,8 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#171a22",
-          color: "#f4f5f8",
+          background: "#07070a",
+          color: "#f4f3f8",
           fontFamily: "system-ui, sans-serif",
           textAlign: "center",
           padding: 24,
@@ -28,7 +28,7 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
           <button
             type="button"
             onClick={() => retry()}
-            style={{ padding: "8px 16px", borderRadius: 6, border: 0, fontSize: 14, marginRight: 8 }}
+            style={{ padding: "10px 18px", minHeight: 40, background: "#b9a6ff", color: "#15121f", borderRadius: 999, border: 0, fontSize: 14, marginRight: 8 }}
           >
             Try again
           </button>

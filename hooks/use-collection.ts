@@ -110,7 +110,6 @@ interface SyncLocalCollectionResult {
 }
 
 interface UseCollectionOptions {
-  showMode?: boolean
   initialUser?: User | null
   initialCollection?: Partial<CollectedPokemon>[]
   initialCollectionOwnerUserId?: string | null
@@ -130,7 +129,6 @@ export interface SaveCollectionOptions {
 
 export function useCollection(options: UseCollectionOptions = {}) {
   const {
-    showMode = false,
     initialUser = null,
     initialCollection = [],
     initialCollectionOwnerUserId = null,
@@ -827,7 +825,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       status,
       collected_at: existingItem?.collected_at ?? new Date().toISOString(),
     })
-    const acquisition = user ? captureAcquisition(existingItem ?? null, nextItem, { showMode, actorId: user.id, ownerId: collectionOwnerUserId, membership: readPushMembership(user.id) }) : undefined
+    const acquisition = user ? captureAcquisition(existingItem ?? null, nextItem, { actorId: user.id, ownerId: collectionOwnerUserId, membership: readPushMembership(user.id) }) : undefined
     const result = await commitItemChange(pokemonId, nextItem, acquisition)
     if ("rolledBack" in result) {
       console.error("[holofolder] Error adding to collection:", { message: extractErrorMessage(result.error), pokemonId, status })
@@ -837,7 +835,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       return { data: nextItem, queued: true, ...("error" in result ? { error: extractErrorMessage(result.error) } : {}) }
     }
     return { data: result.item ?? nextItem }
-  }, [commitItemChange, collection, collectionOwnerUserId, readOnly, showMode, user])
+  }, [commitItemChange, collection, collectionOwnerUserId, readOnly, user])
 
   const removeFromCollection = useCallback(async (pokemonId: number) => {
     if (readOnly) return { error: "Read-only binder" }

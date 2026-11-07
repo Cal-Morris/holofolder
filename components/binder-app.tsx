@@ -267,7 +267,6 @@ export default function BinderApp({
     dismissSyncNotice,
     resolvedCollectionOwnerUserId,
   } = useCollection({
-    showMode: isShowModeOn,
     initialUser,
     initialCollection,
     initialCollectionOwnerUserId,

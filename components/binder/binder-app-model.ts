@@ -38,9 +38,9 @@ export const PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT = 18
 
 export const BINDER_PAGE_QUERY_PARAM = "page"
 
-export const THEME_COLOR_LIGHT = "#f2f5fb"
+export const THEME_COLOR_LIGHT = "#f7f6fb"
 
-export const THEME_COLOR_DARK = "#171a22"
+export const THEME_COLOR_DARK = "#07070a"
 
 export type SlotGlareState = {
   offsetX: number
