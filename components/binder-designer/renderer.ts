@@ -1,12 +1,12 @@
 import * as THREE from "three"
+import { binderCameraFrame } from "@/lib/binder-camera"
 import { createBinderTapTracker, createBinderSwipeTracker } from "@/lib/binder-pointer"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js"
 import { artworkRectangle, binderDimensions, binderSpread, binderTurnPage, pageTurnPoint, binderPocket, BINDER_PAGE, BINDER_LAYERS, type BinderDesign, type BinderPart, type BinderStats, type BinderView, type DesignSurface, type StudioCard } from "@/lib/binder-design"
 
 interface RenderInput { design: BinderDesign; cards: readonly StudioCard[]; stats: BinderStats; page: number; artwork: Record<string, string> }
-const VIEWS: BinderView[] = ["front", "back", "spine", "inside", "detail"]
-export function createBinderRenderer(stage: HTMLDivElement, select: (part: BinderPart) => void, thumbnails: (images: string[]) => void, fail: (message: string) => void, captureThumbnails = true, onPageTurn?: (direction: -1 | 1) => void, onSlotSelect?: (slot: number) => void) {
+export function createBinderRenderer(stage: HTMLDivElement, select: (part: BinderPart) => void, fail: (message: string) => void, onPageTurn?: (direction: -1 | 1) => void, onSlotSelect?: (slot: number) => void) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.enabled = true; renderer.toneMappingExposure=.85
@@ -28,7 +28,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   let hinge = new THREE.Group(), binding: THREE.Mesh<THREE.BufferGeometry, THREE.MeshPhysicalMaterial> | null = null
   let radius = .3, opening = 0, view: BinderView = "front", targets: THREE.Object3D[] = [], textures: THREE.Texture[] = [], generation = 0, disposed = false, visible = true, pending: ReturnType<typeof setTimeout> | undefined
   let openingFrame = 0
-  let capturing = false, frameRequest = 0, displayedPage = 0, latestInput: RenderInput | null = null
+  let frameRequest = 0, displayedPage = 0, latestInput: RenderInput | null = null
   let closedPages = new THREE.Group(), openPages = new THREE.Group()
   let modelRevision = 0
   const spreads = new Map<number, Promise<Spread>>()
@@ -39,7 +39,8 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
 
   let surfaceKeys: string[] = []
   let modelKey = "", printMaterials: THREE.MeshPhysicalMaterial[] = [], baseMaterials: Partial<Record<DesignSurface, THREE.MeshStandardMaterial>> = {}
-  function draw() { if (!disposed && !capturing && visible && !document.hidden) renderer.render(scene, camera) }
+  let zipMaterials: Partial<Record<"teeth" | "tape" | "pull", THREE.MeshStandardMaterial>> = {}
+  function draw() { if (!disposed && visible && !document.hidden) renderer.render(scene, camera) }
   function disposeModel() {
     cancelAnimationFrame(openingFrame);openingFrame=0
     stopTurn()
@@ -117,6 +118,11 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     for(let row=0;row<2;row++) for(let n=0;n<=32;n++) {const v=curve.getPoint(n/32);p.setXYZ(row*33+n,v.x,row?1.75:-1.75,v.z)}
     p.needsUpdate=true;binding.geometry.computeVertexNormals();binding.geometry.computeBoundingSphere()
   }
+  function fitView() {
+    const frame=binderCameraFrame(view,stage.clientWidth,stage.clientHeight,radius)
+    controls.target.set(...frame.target);camera.position.set(...frame.position)
+    fittedDistance=camera.position.distanceTo(controls.target)
+  }
   function setView(next: BinderView, render = true, animate = true) {
     const previousView=view,targetOpening=next==="inside"?-Math.PI:0
     if(render&&next!=="inside")stopTurn()
@@ -138,40 +144,10 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
         }else{applyOpening(targetOpening);closedPages.visible=next!=="inside";openPages.visible=next==="inside";stage.dataset.openingState="settled"}
       }
     }else{applyOpening(targetOpening);closedPages.visible=next!=="inside";openPages.visible=next==="inside"}
-    const distance=Math.max(stage.clientWidth<450?10:8,radius*3+6)
-    controls.target.set(next==="inside"?-1.12:0,0,0)
-    camera.position.set(...(next==="back"?[1,1,-distance]:next==="spine"?[-distance,1,1]:next==="detail"?[5,1,5]:next==="inside"?[-1.12,2.5,distance+1]:[-3.3,1.6,distance]) as [number,number,number])
-    fittedDistance=camera.position.distanceTo(controls.target)
+    fitView()
     controls.update();if(render)draw()
   }
-  async function previews(token: number) {
-    if(!captureThumbnails)return
-    const position=camera.position.clone(),target=controls.target.clone(),aspect=camera.aspect,oldView=view,oldOpening=opening,oldClosedVisible=closedPages.visible,oldOpenVisible=openPages.visible,oldRenderTarget=renderer.getRenderTarget(),oldFittedDistance=fittedDistance
-    const captures=VIEWS.map(v=>({view:v,target:new THREE.WebGLRenderTarget(360,280),buffer:new Uint8Array(360*280*4)}))
-    try {
-      let reads: Promise<unknown>[] = []
-      capturing=true
-      try {
-        for(const capture of captures){
-          setView(capture.view,false);camera.aspect=360/280;camera.updateProjectionMatrix()
-          renderer.setRenderTarget(capture.target);renderer.render(scene,camera)
-        }
-        reads=captures.map(c=>renderer.readRenderTargetPixelsAsync(c.target,0,0,360,280,c.buffer))
-      } finally {
-        renderer.setRenderTarget(oldRenderTarget);setView(oldView,false);opening=oldOpening;hinge.rotation.y=oldOpening;updateBinding(oldOpening);closedPages.visible=oldClosedVisible;openPages.visible=oldOpenVisible;camera.position.copy(position);controls.target.copy(target);camera.aspect=aspect;fittedDistance=oldFittedDistance;camera.updateProjectionMatrix();controls.update();capturing=false;draw()
-      }
-      const completed=await Promise.allSettled(reads)
-      if(disposed||token!==generation)return
-      if(completed.some(r=>r.status==="rejected"))throw new Error("Preview readback failed")
-      const canvas=document.createElement("canvas");canvas.width=360;canvas.height=280
-      const ctx=canvas.getContext("2d")!,data=ctx.createImageData(360,280)
-      thumbnails(captures.map(({buffer})=>{
-        for(let y=0;y<280;y++)data.data.set(buffer.subarray(y*360*4,(y+1)*360*4),(279-y)*360*4)
-        ctx.putImageData(data,0,0);return canvas.toDataURL()
-      }))
-    } catch {if(!disposed&&token===generation)fail("Preview images could not update. The main 3D view and your draft are still available.")}
-    finally {captures.forEach(c=>c.target.dispose())}
-  }
+
   function deform(objects: Deformable[], progress: number) {
     for(const {object,positions} of objects){
       const attribute=object.geometry.attributes.position
@@ -276,7 +252,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     const {group:pageRoot,left,right,leftZ,rightZ}=await cachedSpread(input,input.page)
     if(disposed||token!==generation)return
     const settled=()=>{displayedPage=input.page;latestInput=input;stage.dataset.leftCards=String(left.userData.loadedCardCount??0);stage.dataset.rightCards=String(right.userData.loadedCardCount??0);stage.dataset.currentSpread=`${next.left}-${next.right}`;stage.dataset.currentPage=String(input.page);stage.setAttribute("aria-busy","false")}
-    if(!changing){outgoing.removeFromParent();openPages=pageRoot;root.add(pageRoot);pageRoot.visible=view==="inside";settled();preloadSpreads(input);draw();void previews(token);return}
+    if(!changing){outgoing.removeFromParent();openPages=pageRoot;root.add(pageRoot);pageRoot.visible=view==="inside";settled();preloadSpreads(input);draw();return}
     const forward=next.turnedLeaves>previous.turnedLeaves,front=forward?previous.right:next.right,back=front+1
     const moving=new THREE.Group(),objects:Deformable[]=[];moving.position.set(BINDER_PAGE.hingeX,0,0);pageRoot.add(moving)
     await Promise.all([makeFace(input,front,1,moving,objects,modelRevision),makeFace(input,back,-1,moving,objects,modelRevision)])
@@ -294,7 +270,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
       const t=Math.min(1,(time-active.start)/680),eased=t*t*(3-2*t),progress=active.forward?eased:1-eased
       active.group.position.z=active.rightZ+(active.leftZ-active.rightZ)*progress;deform(active.deform,progress);draw()
       if(t<1&&!document.hidden){frameRequest=requestAnimationFrame(tick);return}
-      active.landing.visible=true;disposeGroup(active.previous);disposeGroup(active.group);turn=null;frameRequest=0;active.settle();draw();void previews(token)
+      active.landing.visible=true;disposeGroup(active.previous);disposeGroup(active.group);turn=null;frameRequest=0;active.settle();draw()
     }
     frameRequest=requestAnimationFrame(tick)
   }
@@ -304,13 +280,14 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     const maps=await Promise.all(surfaces.map((surface,i)=>keys[i]===surfaceKeys[i]&&previousMaps[i]?previousMaps[i]:surfaceTexture(input,surface)))
     if(disposed||token!==generation){maps.forEach(t=>{if(!previousMaps.includes(t))t.dispose()});return}
     previousMaps.forEach(t=>{if(!maps.includes(t))t.dispose()});surfaceKeys=keys
-    const nextKey=JSON.stringify({pageCount:d.pageCount,rows:d.rows,cols:d.cols,pageColor:d.pageColor,pageColors:d.pageColors,zip:d.zip,material:d.material,cards:input.cards})
+    const nextKey=JSON.stringify({pageCount:d.pageCount,rows:d.rows,cols:d.cols,pageColor:d.pageColor,pageColors:d.pageColors,zipType:d.zip.type,material:d.material,cards:input.cards})
     if(nextKey===modelKey && printMaterials.length===4){
       textures.splice(0,4,...maps)
-      printMaterials.forEach((m,i)=>{if(m.map!==maps[i]){m.map=maps[i];m.needsUpdate=true}})
+      printMaterials.forEach((m,i)=>{if(m.map!==maps[i]){m.map=maps[i]}})
       for(const s of ["cover","back","lining"] as const)baseMaterials[s]?.color.set(d.surfaces[s].color)
+      for(const part of ["teeth","tape","pull"] as const)zipMaterials[part]?.color.set(d.zip[part])
       if(input.page!==displayedPage)await updatePages(input,token)
-      else {stopTurn();draw();void previews(token)}
+      else {stopTurn();draw()}
       return
     }
     modelKey=nextKey;textures=[];disposeModel();printMaterials=[];baseMaterials={};textures.push(...maps);hinge=new THREE.Group();hinge.position.x=-1.3;root.add(hinge)
@@ -339,6 +316,8 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
       mesh(closedPages,thinPageGeometry(2.25,3.13,BINDER_LAYERS.backing),new THREE.MeshStandardMaterial({color:d.pageColors[String(leaf*2+1)]??d.pageColor,roughness:.9}),.055,0,z,"pages")
     }
     const tape=leather(d.zip.tape,true),teeth=new THREE.MeshStandardMaterial({color:d.zip.teeth,metalness:d.zip.type==="metal"?.75:.02,roughness:d.zip.type==="metal"?.3:.8})
+    const pullMaterial=new THREE.MeshStandardMaterial({color:d.zip.pull,metalness:.85,roughness:.25})
+    zipMaterials={tape,teeth,pull:pullMaterial}
     // Sewn gussets bridge cover rims to a shared centre zipper seam when closed.
     for(const [parent,x,sign] of [[root,0,-1],[hinge,1.3,1]] as const){
       const seamZ=sign*.003,outer=shape(2.54,3.42,.13).getPoints(32),inner=shape(2.50,3.38,.13).getPoints(32),vertices=[],uv=[],indices=[]
@@ -354,11 +333,11 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
       for(let i=0;i<n;i++){const t=(i+(sign===1?.5:0))/n;matrix.compose(path.getPointAt(t),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),Math.atan2(path.getTangentAt(t).y,path.getTangentAt(t).x)),new THREE.Vector3(1,1,1));inst.setMatrixAt(i,matrix)}
       inst.userData.part="zip";targets.push(inst);parent.add(inst)
     }
-    const pull=mesh(root,geometry(.08,.23,.016,.025),new THREE.MeshStandardMaterial({color:d.zip.pull,metalness:.85,roughness:.25}),1.27,-1.43,0,"zip");pull.rotation.z=.2
-    mesh(root,new THREE.TorusGeometry(.027,.007,8,18),new THREE.MeshStandardMaterial({color:d.zip.pull,metalness:.85,roughness:.25}),1.26,-1.29,0,"zip")
+    const pull=mesh(root,geometry(.08,.23,.016,.025),pullMaterial,1.27,-1.43,0,"zip");pull.rotation.z=.2
+    mesh(root,new THREE.TorusGeometry(.027,.007,8,18),pullMaterial,1.26,-1.29,0,"zip")
     setView(view,true,false);await updatePages(input,token)
   }
-  const resize=()=>{renderer.setSize(stage.clientWidth,stage.clientHeight,false);camera.aspect=stage.clientWidth/stage.clientHeight;camera.updateProjectionMatrix();draw()}
+  const resize=()=>{renderer.setSize(stage.clientWidth,stage.clientHeight,false);camera.aspect=stage.clientWidth/stage.clientHeight;camera.updateProjectionMatrix();fitView();controls.update();draw()}
   const observer=new ResizeObserver(resize);observer.observe(stage)
   const intersection=new IntersectionObserver(e=>{visible=e[0].isIntersecting;draw()});intersection.observe(stage)
   const onVisible=()=>draw();document.addEventListener("visibilitychange",onVisible)
@@ -398,7 +377,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   renderer.domElement.addEventListener("pointerdown",pointerDown,true);document.addEventListener("pointermove",pointerMove);document.addEventListener("pointerup",pointerUp);renderer.domElement.addEventListener("click",click);document.addEventListener("pointercancel",pointerCancel);renderer.domElement.addEventListener("lostpointercapture",lostCapture);renderer.domElement.addEventListener("webglcontextlost",lost)
   resize();setView("front")
   return {
-    update(input: RenderInput){clearTimeout(pending);stopTurn();generation++;pending=setTimeout(()=>{build(input).catch(()=>{stage.setAttribute("aria-busy","false");if(!disposed)fail("The 3D preview could not update. Your draft is still here.")})},100)},
+    update(input: RenderInput){clearTimeout(pending);stopTurn();stage.setAttribute("aria-busy","true");generation++;pending=setTimeout(()=>{build(input).catch(()=>{stage.setAttribute("aria-busy","false");if(!disposed)fail("The 3D preview could not update. Your draft is still here.")})},100)},
     setView, reset(){setView(view)},
     dispose(){disposed=true;generation++;cancelAnimationFrame(openingFrame);cancelAnimationFrame(frameRequest);clearTimeout(pending);observer.disconnect();intersection.disconnect();document.removeEventListener("visibilitychange",onVisible);document.removeEventListener("pointermove",pointerMove);document.removeEventListener("pointerup",pointerUp);document.removeEventListener("pointercancel",pointerCancel);controls.dispose();disposeModel();grain.dispose();environment.dispose();renderer.dispose();renderer.domElement.remove();imageCache.clear()},
   }

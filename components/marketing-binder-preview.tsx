@@ -15,7 +15,6 @@ initialDesign.surfaces.spine.words = "Holo Folder"
 const cards = FEATURED_CARDS.map(card => ({ id: card.id, name: card.name, image: getFeaturedCardImageUrl(card) }))
 const stats = { placed: cards.length, wanted: 0, capacity: initialDesign.pageCount * 9, sample: true, filled: binderFill(cards.map((_, i) => i), initialDesign.pageCount * 9) }
 const artwork = {}
-const noThumbnails = () => {}
 const views: { label: string; view: BinderView }[] = [{ label: "Cover", view: "front" }, { label: "Inside", view: "inside" }, { label: "Spine", view: "spine" }]
 
 export function MarketingBinderPreview() {
@@ -34,7 +33,7 @@ export function MarketingBinderPreview() {
   }, [])
   const select = (part: BinderPart) => setView(part === "pages" || part === "lining" ? "inside" : part === "spine" ? "spine" : "front")
   return <div ref={host} className={styles.preview} role="group" aria-label="Interactive Binder Studio preview">
-    {ready ? <Viewport compact design={design} cards={cards} stats={stats} page={page} artwork={artwork} view={view} onSelect={select} onPageTurn={direction => setPage(current => binderTurnPage(current, design.pageCount, direction))} onThumbnails={noThumbnails} /> : <div className={styles.loading}>A closer look at your binder.</div>}
+    {ready ? <Viewport compact design={design} cards={cards} stats={stats} page={page} artwork={artwork} view={view} onSelect={select} onPageTurn={direction => setPage(current => binderTurnPage(current, design.pageCount, direction))} /> : <div className={styles.loading}>A closer look at your binder.</div>}
     <div className={styles.toolbar}>
       <div>{views.map(item => <button key={item.view} type="button" aria-pressed={view === item.view} onClick={() => setView(item.view)}>{item.label}</button>)}</div>
     </div>
