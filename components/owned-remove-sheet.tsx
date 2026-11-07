@@ -32,7 +32,7 @@ export default function OwnedRemoveSheet({ pokemonName, cardName, onChoose, onCl
         role="dialog"
         aria-modal="true"
         aria-label={`Remove ${pokemonName}`}
-        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-md rounded-t-[1.6rem] border-t border-border/65 bg-card/97 px-4 pb-[calc(var(--dock-clearance)+0.75rem)] pt-3 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] sm:bottom-4 sm:rounded-[1.6rem] sm:border sm:pb-4 dark:border-border/50 dark:bg-background/97"
+        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-md rounded-t-[1.6rem] border-t border-border/65 bg-card/97 px-4 pb-[calc(var(--dock-clearance)+0.75rem)] pt-3 outline-none shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] sm:bottom-4 sm:rounded-[1.6rem] sm:border sm:pb-4 dark:border-border/50"
         onClick={(event) => event.stopPropagation()}
       >
         <div data-sheet-grabber className="-mx-4 -mt-3 px-4 pt-3" {...swipe}>

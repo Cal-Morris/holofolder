@@ -61,6 +61,11 @@ test.describe("offline", () => {
     await goOffline(harness.page)
     await harness.page.reload()
     await expectBinderFromLocalData(harness)
+    await expect(harness.page.locator("body")).toHaveCSS("font-family", /Inter/)
+    await expect.poll(() => harness.page.evaluate(async () => {
+      await document.fonts.ready
+      return [...document.fonts].some(font => font.family === "Inter" && font.status === "loaded")
+    })).toBe(true)
     await harness.expectNoHorizontalOverflow()
   })
 

@@ -90,7 +90,7 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
         role="dialog"
         aria-modal="true"
         aria-label={`Cards illustrated by ${illustrator}`}
-        className="fixed z-[44] flex flex-col overflow-hidden rounded-[1.6rem] border border-border/70 bg-card shadow-[0_28px_80px_-30px_rgba(15,23,42,0.6)] outline-none dark:border-border/50 dark:bg-background"
+        className="fixed z-[44] flex flex-col overflow-hidden rounded-[1.6rem] border border-border/70 bg-card shadow-[0_28px_80px_-30px_rgba(15,23,42,0.6)] outline-none dark:border-border/50"
         style={isDesktop
           ? { left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: "min(calc(100vw - 2rem), 52rem)", maxHeight: "min(85vh, 56rem)" }
           : {

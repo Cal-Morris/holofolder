@@ -60,7 +60,7 @@ export function renderMobileSlotActionBarView(ctx: MobileSlotActionBarContext) {
       className="fixed inset-x-2 bottom-[calc(var(--dock-clearance)+0.5rem)] z-50 px-1 sm:hidden"
       onClick={(event) => event.stopPropagation()}
     >
-      <div className="mx-auto max-w-md rounded-[1.15rem] border border-border/70 bg-card/97 p-2 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.48)] backdrop-blur-xl dark:border-border/50 dark:bg-background/97">
+      <div className="mx-auto max-w-md rounded-[1.15rem] border border-border/70 bg-card/97 p-2 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.48)] backdrop-blur-xl dark:border-border/50">
         <div data-sheet-grabber {...mobileActionsSwipe} className="flex h-4 justify-center"><span aria-hidden="true" className="mt-1 h-1 w-8 rounded-full bg-muted-foreground/30" /></div>
         <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
           <p className="min-w-0 truncate text-xs font-semibold">
