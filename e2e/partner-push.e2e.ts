@@ -74,16 +74,35 @@ test.describe('notification permission', () => {
       Object.defineProperty(navigator, 'userAgent', { value: 'Synthetic desktop notification browser' })
       let permission = 'denied'
       let requests = 0
-      const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', unsubscribe: async () => true, toJSON: () => ({ endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', keys: { p256dh: 'synthetic', auth: 'synthetic' } }) }
+      let subscribed = false
+      const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', unsubscribe: async () => { subscribed = false; return true }, toJSON: () => ({ endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', keys: { p256dh: 'synthetic', auth: 'synthetic' } }) }
       Object.defineProperty(Notification, 'requestPermission', { value: async () => { requests++; return permission } })
-      Object.defineProperty(navigator.serviceWorker, 'getRegistration', { value: async (scope: string) => { if (scope !== '/app') throw new Error('Wrong worker scope'); return ({ active: {}, pushManager: { getSubscription: async () => null, subscribe: async () => subscription } }) } })
+      Object.defineProperty(navigator.serviceWorker, 'getRegistration', { value: async (scope: string) => { if (scope !== '/app') throw new Error('Wrong worker scope'); return ({ active: {}, pushManager: { getSubscription: async () => subscribed ? subscription : null, subscribe: async () => { subscribed = true; return subscription } } }) } })
       Object.assign(window, { pushTest: { requests: () => requests, grant: () => { permission = 'granted' } } })
     })
     let enrolled = false
+    let testsSent = 0
+    let rejectTest = false
+    await page.route('**/app/api/push/test', async route => {
+      expect(enrolled).toBe(true)
+      expect(route.request().postDataJSON()).toEqual({ id: partnership.id })
+      const binding = await page.evaluate(() => new Promise<string | undefined>((resolve, reject) => {
+        const request = indexedDB.open('binderdex-offline', 1)
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const db = request.result
+          const read = db.transaction('records').objectStore('records').get('push:account')
+          read.onsuccess = () => { resolve(read.result?.userId); db.close() }
+        }
+      }))
+      expect(binding).toBe(E2E_USER.id)
+      testsSent++
+      return route.fulfill({ status: rejectTest ? 502 : 200, json: rejectTest ? { error: 'Test notification could not be sent. Your device is still registered; try again.' } : { sent: true } })
+    })
     await page.route('**/app/api/push/subscriptions', async route => {
       if (route.request().method() === 'POST') { enrolled = true; return route.fulfill({ json: { id: partnership.id } }) }
       if (route.request().method() === 'DELETE') return route.fulfill({ status: 204, body: '' })
-      return route.fulfill({ json: { configured: true, devices: [] } })
+      return route.fulfill({ json: { configured: true, devices: enrolled ? [{ id: partnership.id, endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', label: 'This device' }] : [] } })
     })
     await page.reload()
     await page.getByRole('button', { name: 'More', exact: true }).click()
@@ -95,14 +114,29 @@ test.describe('notification permission', () => {
     await expect(enable).toBeVisible()
     const requests = () => page.evaluate(() => (window as unknown as { pushTest: { requests(): number } }).pushTest.requests())
     expect(await requests()).toBe(0)
+    expect(testsSent).toBe(0)
     await enable.click()
     await expect(controls.getByRole('status')).toContainText('Notifications are blocked')
     expect(await requests()).toBe(1)
     expect(enrolled).toBe(false)
+    expect(testsSent).toBe(0)
     await page.evaluate(() => (window as unknown as { pushTest: { grant(): void } }).pushTest.grant())
     await enable.click()
     await expect.poll(() => enrolled).toBe(true)
-    await expect(controls.getByRole('status')).toContainText('This device will hear')
+    await expect(controls.getByRole('status')).toContainText('Test notification sent')
+    expect(testsSent).toBe(1)
+    expect(await requests()).toBe(2)
+    const retry = controls.getByRole('button', { name: 'Send test notification' })
+    await harness.expectMinTapTarget(retry, 36)
+    rejectTest = true
+    await retry.click()
+    await expect(controls.getByRole('status')).toContainText('Test notification could not be sent')
+    await expect(retry).toBeEnabled()
+    expect(testsSent).toBe(2)
+    rejectTest = false
+    await retry.click()
+    await expect(controls.getByRole('status')).toContainText('Test notification sent')
+    expect(testsSent).toBe(3)
     expect(await requests()).toBe(2)
     await harness.expectNoHorizontalOverflow()
   })

@@ -32,6 +32,12 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
     if (available) queueMicrotask(() => { void refresh().catch(error => setMessage(error.message)) })
   }, [refresh, isInstalledApp])
 
+  const sendTest = async (id: string) => {
+    const response = await fetch('/app/api/push/test', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }), signal: AbortSignal.timeout(15_000) })
+    const result = await response.json().catch(() => null)
+    if (!response.ok || result?.sent !== true) throw new Error(result?.error ?? 'Test notification could not be sent. Your device is still registered; try again.')
+    setMessage('Test notification sent. If it does not appear, check your device notification settings.')
+  }
   const enable = async () => {
     // Permission must be requested directly from this tap, before awaiting any other work.
     const permission = Notification.requestPermission()
@@ -47,9 +53,10 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
       const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(decoded, c => c.charCodeAt(0)) })
       const response = await fetch('/app/api/push/subscriptions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...subscription.toJSON(), label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone / iPad' : navigator.platform || 'This device' }) })
       if (!response.ok) { await subscription.unsubscribe(); throw new Error((await response.json()).error ?? 'Could not enable notifications.') }
+      const device = await response.json()
       try { await bindPushAccount(userId) } catch (error) { await clearPushDevice(); throw error }
       await refresh()
-      setMessage('This device will hear when your partner finds a card in Show mode.')
+      await sendTest(device.id)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not enable notifications.') }
     finally { setBusy(false) }
   }
@@ -63,8 +70,14 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not remove device.') }
     finally { setBusy(false) }
   }
+  const retryTest = async (id: string) => {
+    setBusy(true); setMessage(null)
+    try { await sendTest(id) }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Test notification could not be sent. Try again.') }
+    finally { setBusy(false) }
+  }
   if (!userId) return null
-  const current = devices.some(device => device.endpoint === endpoint)
+  const current = devices.find(device => device.endpoint === endpoint)
   return <section aria-label="Partner notifications" className="space-y-3 border-t border-border pt-4">
     <h3 className="font-semibold">Partner notifications</h3>
     <p className="text-sm text-muted-foreground">Hear when your partner adds an owned card or marks one Got in Show mode. Enable this separately on each device.</p>
@@ -72,6 +85,7 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
       : needsInstall ? <p className="text-sm text-muted-foreground">On iPhone or iPad, add Holo Folder to your Home Screen, then enable notifications inside the installed app.</p>
       : !configured ? <p className="text-sm text-muted-foreground">Partner notifications are not available yet.</p>
       : !current && <Button variant="outline" className="min-h-10" disabled={busy} onClick={enable}>Enable on this device</Button>}
+    {current && supported && !needsInstall && configured && <Button variant="outline" className="min-h-10" disabled={busy} onClick={() => void retryTest(current.id)}>Send test notification</Button>}
     <ul className="space-y-2">{devices.map(device => <li key={device.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
       <span className="min-w-0 break-words">{device.label}{device.endpoint === endpoint ? ' · this device' : ''}</span>
       <Button variant="outline" size="sm" className="min-h-9 shrink-0" disabled={busy} onClick={() => void remove(device)} aria-label={`Remove ${device.label}`}>Remove</Button>

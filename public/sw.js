@@ -549,8 +549,9 @@ self.addEventListener('push', event => {
     let payload
     try { payload = event.data?.json() } catch { payload = null }
     const account = await notificationAccount()
-    let preview = null
-    if (account && account === payload?.recipientId && /^[0-9a-f-]{36}$/i.test(payload?.eventId ?? '')) {
+    const isTest = account && account === payload?.recipientId && payload?.kind === 'test'
+    let preview = isTest ? { title: 'Notifications are on', body: 'This device is ready for partner updates.', url: '/app' } : null
+    if (!isTest && account && account === payload?.recipientId && /^[0-9a-f-]{36}$/i.test(payload?.eventId ?? '')) {
       try {
         const response = await fetch(`/app/api/push/events/${payload.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
         if (response.ok) preview = await response.json()
@@ -560,6 +561,7 @@ self.addEventListener('push', event => {
       body: preview ? String(preview.body ?? '').slice(0, 240) : 'Open the app to see your update.',
       icon: '/app/pwa-holo-cards-192.png', badge: '/app/icon-light-32x32.png',
       tag: typeof payload?.tag === 'string' ? payload.tag.slice(0, 100) : 'binderdex-update',
+      ...(isTest ? { renotify: true } : {}),
       data: { url: preview ? notificationDestination(preview.url) : '/app', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null },
     })
   })())
