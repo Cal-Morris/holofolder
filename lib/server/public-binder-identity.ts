@@ -37,7 +37,7 @@ export function identityFailure(error: unknown, field: "Username" | "Binder slug
 }
 
 export async function readAccountUsername(client: SupabaseClient, userId: string) {
-  const { data, error } = await client.from("account_usernames").select("username").eq("user_id", userId).eq("is_active", true).maybeSingle()
+  const { data, error } = await client.from("account_identities").select("username").eq("user_id", userId).maybeSingle()
   if (error) throw error
   return typeof data?.username === "string" ? data.username : null
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { AccountIdentitySettings } from "@/components/account-identity-settings"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
@@ -567,7 +568,7 @@ export default function SettingsModal({
             </div>
           )}
 
-          {effectiveActiveTab === "share" && !isReadOnlyView && isSignedIn && <PublicNameSettings kind="binder" binderId={binderId} binderName={binderName} isOnline={isOnline} onSaved={onPublicIdentityChange} />}
+          {effectiveActiveTab === "share" && !isReadOnlyView && isSignedIn && <PublicNameSettings binderId={binderId} binderName={binderName} isOnline={isOnline} onSaved={onPublicIdentityChange} />}
 
           {effectiveActiveTab === "share" && !isReadOnlyView && (
             <div className="pt-4 border-t border-border space-y-4">
@@ -610,7 +611,7 @@ export default function SettingsModal({
             </div>
           )}
 
-          {effectiveActiveTab === "account" && !isReadOnlyView && isSignedIn && <PublicNameSettings kind="account" isOnline={isOnline} onSaved={onPublicIdentityChange} />}
+          {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (
             <div className="space-y-2">

@@ -16,8 +16,9 @@ export interface ShouldAutoRefreshCollectionInput {
   isVisible?: boolean
 }
 
-export function keepStableUserById<TUser extends { id: string }>(currentUser: TUser | null, nextUser: TUser | null) {
-  return currentUser?.id === nextUser?.id ? currentUser : nextUser
+export function keepStableUserById<TUser extends { id: string; user_metadata?: Record<string, unknown> }>(currentUser: TUser | null, nextUser: TUser | null) {
+  return currentUser?.id === nextUser?.id && JSON.stringify(currentUser?.user_metadata) === JSON.stringify(nextUser?.user_metadata)
+    ? currentUser : nextUser
 }
 
 export function getResolvedCollectionOwner(userId: string | null, resolvedForUserId: string | null, ownerId: string | null) {

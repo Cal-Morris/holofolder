@@ -39,7 +39,7 @@ async function main() {
     const loser = claims.findIndex(result => result.status === "rejected")
     const rejected = claims[loser] as PromiseRejectedResult
     assert.equal(rejected.reason.code, "23505")
-    assert.equal((await admin.query("select username from public.account_usernames where user_id=$1 and is_active", [owners[loser]])).rows[0].username, `${sharedName}-${loser}`)
+    assert.equal((await admin.query("select username from public.account_identities where user_id=$1", [owners[loser]])).rows[0].username, `${sharedName}-${loser}`)
     // Same owner's two binders contend for a slug, including advisory-lock serialization.
     await admin.query("begin")
     await admin.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: owners[0], role: "authenticated" })])
@@ -59,10 +59,11 @@ async function main() {
     // The test owns only these exact synthetic addresses, never real account reservations.
     await admin.query("delete from public.binder_public_slugs where binder_id=any($1::uuid[])", [binders])
     await admin.query("delete from public.binders where id=any($1::uuid[])", [binders])
-    await admin.query("delete from public.account_usernames where username=any($1::text[])", [[sharedName, `${sharedName}-0`, `${sharedName}-1`]])
+    await admin.query("delete from public.account_identities where username=any($1::text[])", [[sharedName, `${sharedName}-0`, `${sharedName}-1`]])
+    await admin.query("delete from public.account_username_reservations where username=any($1::text[])", [[sharedName, `${sharedName}-0`, `${sharedName}-1`]])
     await admin.query("delete from auth.users where email=any($1::text[])", [fixtureEmails])
     assert.equal((await admin.query("select 1 from auth.users where email=any($1::text[])", [fixtureEmails])).rowCount, 0)
-    assert.equal((await admin.query("select 1 from public.account_usernames where username=any($1::text[])", [[sharedName, `${sharedName}-0`, `${sharedName}-1`]])).rowCount, 0)
+    assert.equal((await admin.query("select 1 from public.account_identities where username=any($1::text[])", [[sharedName, `${sharedName}-0`, `${sharedName}-1`]])).rowCount, 0)
     await admin.end()
   }
 }

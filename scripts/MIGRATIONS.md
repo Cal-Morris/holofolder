@@ -6,6 +6,7 @@ When you add a migration, use the next free number (`031_…`), keep it idempote
 
 | File | What it does |
 |---|---|
+| `047_account_usernames.sql` | Private account usernames and permanent name reservations, claimed atomically by the authenticated account. Apply before deploying account settings; name saves and existing app flows work without it, username controls report unavailable. |
 | `029_card_price_history_evidence.sql` | Native dated TCGplayer quotes in `card_prices.history_points`, separate from current GBP prices and rolling averages |
 | `030_tcg_card_illustrators.sql` | Browse by illustrator: partial index on `tcg_cards.illustrator` and `tcg_illustrator_directory()` (name + card count). The app falls back to paging `tcg_cards.illustrator` until it is applied; no backfill needed (the sync already stores `illustrator`) |
 | `031_tcg_name_trigram_search.sql` | Enables `pg_trgm` (in the `extensions` schema) and adds a trigram GIN index on `tcg_cards.name_en`, so card search's `ILIKE '%text%'` uses an index instead of scanning every card. No code change needed; the app works before it is applied |

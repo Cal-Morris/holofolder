@@ -130,3 +130,10 @@ test("collection polling backs off to a safety net while realtime is connected",
   assert.equal(isCollectionAutoRefreshDue({ now: 30_000, lastRefreshAt: 0, isRealtimeConnected: true }), false)
   assert.equal(isCollectionAutoRefreshDue({ now: 60_000, lastRefreshAt: 0, isRealtimeConnected: true }), true)
 })
+
+test('keepStableUserById replaces stale bootstrap metadata with the current session profile', () => {
+  const bootstrap = { id: 'user-1', user_metadata: { display_name: 'Old name' } }
+  const session = { id: 'user-1', user_metadata: { display_name: 'Cal Morris' } }
+  assert.equal(keepStableUserById(bootstrap, session), session)
+  assert.equal(keepStableUserById(session, { ...session, user_metadata: { ...session.user_metadata } }), session)
+})

@@ -1,27 +1,32 @@
-import { isMissingIdentitySchema, normalizeUsername } from "@/lib/public-binder-identity"
-import { IdentityError, identityFailure, identityJson, identitySession, readAccountUsername, requireIdentityOrigin } from "@/lib/server/public-binder-identity"
+import { createClient } from '@/lib/supabase/server'
+import { getSessionUser } from '@/lib/supabase/session-user'
+import { normalizeUsername } from '@/lib/account-identity'
+
+const headers = { 'cache-control': 'private, no-store' }
+const unavailable = () => Response.json({ error: 'Usernames are not available yet. Try again later.' }, { status: 503, headers })
 
 export async function GET() {
   try {
-    const { client, user } = await identitySession()
-    try {
-      return identityJson({ username: await readAccountUsername(client, user.id), available: true })
-    } catch (error) {
-      if (isMissingIdentitySchema(error as { code?: string })) return identityJson({ username: null, available: false })
-      throw error
-    }
-  } catch (error) { return identityFailure(error, "Username") }
+    const client = await createClient()
+    const user = await getSessionUser(client)
+    if (!user) return Response.json({ error: 'Sign in to set your username.' }, { status: 401, headers })
+    const { data, error } = await client.from('account_identities').select('username').eq('user_id', user.id).maybeSingle()
+    if (error) return unavailable()
+    return Response.json({ username: normalizeUsername(data?.username) }, { headers })
+  } catch { return unavailable() }
 }
 
 export async function PATCH(request: Request) {
   try {
-    requireIdentityOrigin(request)
-    const { client } = await identitySession(true)
+    const client = await createClient()
+    const { data: { user }, error: authError } = await client.auth.getUser()
+    if (authError || !user) return Response.json({ error: 'Sign in to set your username.' }, { status: 401, headers })
     const body = await request.json().catch(() => null)
     const username = normalizeUsername(body?.username)
-    if (!username) throw new IdentityError("Use 3–30 letters, numbers or hyphens, starting and ending with a letter or number.", 400)
-    const { data, error } = await client.rpc("set_account_username", { requested_username: username })
-    if (error) throw error
-    return identityJson({ username: data, available: true })
-  } catch (error) { return identityFailure(error, "Username") }
+    if (!username) return Response.json({ error: 'Use 3–30 letters, numbers or hyphens, starting and ending with a letter or number.' }, { status: 400, headers })
+    const { data, error } = await client.rpc('claim_account_username', { p_username: username })
+    if (error?.code === '23505') return Response.json({ error: 'That username is already taken.' }, { status: 409, headers })
+    if (error || data !== username) return unavailable()
+    return Response.json({ username }, { headers })
+  } catch { return unavailable() }
 }

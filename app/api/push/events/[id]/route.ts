@@ -1,3 +1,4 @@
+import { notificationFirstName } from '@/lib/account-identity'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSessionUser } from '@/lib/supabase/session-user'
@@ -22,5 +23,5 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     .returns<{ tcg_sets: { name_en: string | null } | null }>()
   const setName = card?.tcg_sets?.name_en?.trim()
   const cardLabel = setName ? `${event.card_name} (${setName})` : event.card_name
-  return Response.json({ title: `${event.actor_name} found a card`, body: `${cardLabel} was added to ${binder.name}.`, url: `/app?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
+  return Response.json({ title: `${notificationFirstName({ display_name: event.actor_name })} found a card`, body: `${cardLabel} was added to ${binder.name}.`, url: `/app?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
 }

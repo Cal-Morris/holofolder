@@ -1,10 +1,12 @@
+import { normalizeUsername } from "@/lib/account-identity"
+
 function normalizeName(value: unknown, min: number, max: number): string | null {
   if (typeof value !== "string") return null
   const name = value.trim().toLowerCase()
   return name.length >= min && name.length <= max && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name) ? name : null
 }
 
-export const normalizeUsername = (value: unknown) => normalizeName(value, 3, 30)
+export { normalizeUsername }
 export const normalizeBinderSlug = (value: unknown) => normalizeName(value, 1, 60)
 
 export function suggestBinderSlug(name: string): string {
