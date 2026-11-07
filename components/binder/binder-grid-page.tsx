@@ -16,6 +16,7 @@ import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import type { BinderColorTheme } from "@/lib/binder-colors"
 
 export interface BinderGridPageContext {
+  binderSlotImageSizes: string
   binderCardDisplay: BinderCardDisplay
   cardFinishEffectStyle: CSSProperties
   cardFinishGlint: { x: number; y: number; angle: number; }
@@ -148,7 +149,7 @@ const BinderGridSlot = memo(function BinderGridSlot({ pageNumber, actions, ...sl
 })
 
 export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber: number, side: "left" | "right") {
-  const { binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings, slotActions, slotGlareOverlayStyle, user } = ctx
+  const { binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings, slotActions, slotGlareOverlayStyle, user } = ctx
   const pageTheme = getBinderThemeForPage(pageNumber)
   const pageSlots = getPageSlots(pageNumber)
   const isActivePage = pageNumber === currentBinderPage
@@ -236,6 +237,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
               slotLabel={slotLabel}
               status={binderCardDisplay !== "wanted" ? item?.status : undefined}
               cardImage={slotCardImage}
+              imageSizes={binderSlotImageSizes}
               cardName={slotCardName}
               cardFinish={slotCardFinish}
               hasAssignedCard={Boolean(displayCard?.card_id)}

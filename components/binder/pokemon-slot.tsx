@@ -2,12 +2,12 @@
 
 import { Check, Heart, Star, X } from "lucide-react"
 import { type CSSProperties, type TouchEvent as ReactTouchEvent, type SyntheticEvent, memo, useRef, useState } from "react"
+import CardImage from "@/components/card-image"
 import CardFinishShader from "@/components/card-finish-shader"
 import type { CardFinish, SlotStatus } from "@/hooks/use-collection"
 import { loadCardsForPokemon } from "@/hooks/use-tcgdex"
 import { getTouchGestureIntent } from "@/hooks/use-touch-gestures"
 import { getBinderSlotQuickActions } from "@/lib/binder-slot-actions"
-import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatDexNumber, formatPokemonDisplayName, getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
 import type { User } from "@supabase/supabase-js"
@@ -33,8 +33,7 @@ export function getUsableImageSource(value?: string | null) {
 
 /** The image URL a binder slot renders: its card image, else the Pokémon artwork at grid size. */
 export function resolveSlotImageUrl(pokemonId: number, cardImage?: string | null) {
-  const source = getUsableImageSource(cardImage)
-  return (source?.startsWith("https://assets.tcgdex.net/") ? getProxiedThumbnailUrl(source) : toCardImageSrc(source)) || getPokemonOfficialArtworkUrl(pokemonId)
+  return toCardImageSrc(getUsableImageSource(cardImage)) || getPokemonOfficialArtworkUrl(pokemonId)
 }
 
 export function getCardPreviewPose(seed: number) {
@@ -175,6 +174,7 @@ export const PokemonSlot = memo(function PokemonSlot({
   slotLabel,
   status,
   cardImage,
+  imageSizes = "25vw",
   cardName,
   cardFinish = "normal",
   hasAssignedCard,
@@ -203,6 +203,7 @@ export const PokemonSlot = memo(function PokemonSlot({
   isLongPressed: boolean
   slotLabel: string
   status?: SlotStatus
+  imageSizes?: string
   cardImage?: string | null
   cardName?: string | null
   cardFinish?: CardFinish | null
@@ -254,11 +255,10 @@ export const PokemonSlot = memo(function PokemonSlot({
   const cardImageSource = getUsableImageSource(cardImage)
   const fallbackPreviewImage = getPokemonOfficialArtworkUrl(pokemon.id)
   const previewImage = resolveSlotImageUrl(pokemon.id, cardImage)
-  const fullPreviewImage = toCardImageSrc(cardImageSource) || fallbackPreviewImage
   const [failedPreviewImage, setFailedPreviewImage] = useState<string | null>(null)
   const [loadedPreviewImage, setLoadedPreviewImage] = useState<string | null>(null)
-  const didFallbackPreviewImage = failedPreviewImage === fullPreviewImage
-  const previewImageSrc = didFallbackPreviewImage ? fallbackPreviewImage : failedPreviewImage === previewImage ? fullPreviewImage : previewImage
+  const didFallbackPreviewImage = failedPreviewImage === previewImage
+  const previewImageSrc = didFallbackPreviewImage ? fallbackPreviewImage : previewImage
   const isPreviewImageLoaded = loadedPreviewImage === previewImageSrc
   const isVisuallyCollected = isCollected && !isWishlisted
   const previewFitClass = "object-contain"
@@ -427,14 +427,16 @@ export const PokemonSlot = memo(function PokemonSlot({
               borderRadius: TRADING_CARD_CORNER_RADIUS,
             }}
           >
-            <img
+            <CardImage
+              fill
+              sizes={imageSizes}
               key={previewImageSrc}
               src={previewImageSrc}
               alt={cardName || pokemon.name}
               className={`h-full w-full ${didFallbackPreviewImage ? "object-contain p-3 opacity-85" : "object-contain"} ${previewToneClass}`}
               loading="eager"
               fetchPriority={priority ? "high" : "auto"}
-              decoding="sync"
+              decoding="async"
               draggable={false}
               onLoad={() => setLoadedPreviewImage(previewImageSrc)}
               onError={handlePreviewImageError}
@@ -463,14 +465,16 @@ export const PokemonSlot = memo(function PokemonSlot({
               ...(cardPreviewPose ? { transform: cardPreviewPose, transformOrigin: "center center" } : {}),
             }}
           >
-            <img
+            <CardImage
+              fill
+              sizes={imageSizes}
               key={previewImageSrc}
               src={previewImageSrc}
               alt={cardName || pokemon.name}
               className={`h-full w-full ${previewFitClass} ${previewToneClass} group-hover:scale-[1.025] transition-transform duration-150`}
               loading="eager"
               fetchPriority={priority ? "high" : "auto"}
-              decoding="sync"
+              decoding="async"
               draggable={false}
               onLoad={() => setLoadedPreviewImage(previewImageSrc)}
               onError={handlePreviewImageError}

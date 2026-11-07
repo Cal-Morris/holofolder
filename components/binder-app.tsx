@@ -1306,6 +1306,31 @@ export default function BinderApp({
     return () => window.cancelAnimationFrame(frameId)
   }, [selectedPokemon?.id, visiblePagePokemonIds])
 
+  const binderFitSize = useMemo(() => {
+    // Leave room for the active page's 2px outline inside the clipped stage.
+    const outlineClearance = 4
+    const padding = isDesktopViewport ? 16 : 8
+    const gap = 6
+    const pages = isSpreadLayout ? 2 : 1
+    const spreadGap = isSpreadLayout ? (isWideBinderSpread ? 16 : 12) : 0
+    const horizontalChrome = padding * 2 + gap * (settings.binderCols - 1)
+    const verticalChrome = padding * 2 + gap * (settings.binderRows - 1)
+    const slotHeight = Math.min(
+      (binderStageSize.height - outlineClearance - verticalChrome) / settings.binderRows,
+      ((binderStageSize.width - outlineClearance - spreadGap) / pages - horizontalChrome) / settings.binderCols / TRADING_CARD_ASPECT_RATIO,
+    )
+    if (slotHeight <= 0) return null
+
+    return {
+      width: pages * (slotHeight * TRADING_CARD_ASPECT_RATIO * settings.binderCols + horizontalChrome) + spreadGap,
+      height: slotHeight * settings.binderRows + verticalChrome,
+    }
+  }, [binderStageSize, isDesktopViewport, isSpreadLayout, isWideBinderSpread, settings.binderCols, settings.binderRows])
+
+  const binderSlotImageSizes = binderFitSize
+    ? `${Math.ceil((binderFitSize.height - (isDesktopViewport ? 32 : 16) - 6 * (settings.binderRows - 1)) / settings.binderRows * TRADING_CARD_ASPECT_RATIO)}px`
+    : `${100 / (settings.binderCols * (isSpreadLayout ? 2 : 1))}vw`
+
   // Resolve the same printing for the grid and adjacent-page image prefetch.
   const getSlotCardImage = useCallback((pokemonId: number) => {
     const item = collectionByPokemonId.get(pokemonId)
@@ -1334,7 +1359,7 @@ export default function BinderApp({
     let cancelled = false
     const queue: string[] = [...new Set<string>(JSON.parse(adjacentSlotUrls))]
     const warmNext = async () => {
-      while (!cancelled && queue.length > 0) await slotImages.load(queue.shift()!)
+      while (!cancelled && queue.length > 0) await slotImages.load(queue.shift()!, "low", binderSlotImageSizes)
     }
     const timer = window.setTimeout(() => {
       for (let worker = 0; worker < 4; worker += 1) void warmNext()
@@ -1343,7 +1368,7 @@ export default function BinderApp({
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [slotImages, adjacentSlotUrls])
+  }, [slotImages, adjacentSlotUrls, binderSlotImageSizes])
   const offlineCacheWarmupUrls = useMemo(
     () => buildOfflineCacheWarmupUrls({
       collection,
@@ -1395,27 +1420,6 @@ export default function BinderApp({
 
     return "Binder Spread"
   }, [displayedSpreadPages])
-  const binderFitSize = useMemo(() => {
-    // Leave room for the active page's 2px outline inside the clipped stage.
-    const outlineClearance = 4
-    const padding = isDesktopViewport ? 16 : 8
-    const gap = 6
-    const pages = isSpreadLayout ? 2 : 1
-    const spreadGap = isSpreadLayout ? (isWideBinderSpread ? 16 : 12) : 0
-    const horizontalChrome = padding * 2 + gap * (settings.binderCols - 1)
-    const verticalChrome = padding * 2 + gap * (settings.binderRows - 1)
-    const slotHeight = Math.min(
-      (binderStageSize.height - outlineClearance - verticalChrome) / settings.binderRows,
-      ((binderStageSize.width - outlineClearance - spreadGap) / pages - horizontalChrome) / settings.binderCols / TRADING_CARD_ASPECT_RATIO,
-    )
-    if (slotHeight <= 0) return null
-
-    return {
-      width: pages * (slotHeight * TRADING_CARD_ASPECT_RATIO * settings.binderCols + horizontalChrome) + spreadGap,
-      height: slotHeight * settings.binderRows + verticalChrome,
-    }
-  }, [binderStageSize, isDesktopViewport, isSpreadLayout, isWideBinderSpread, settings.binderCols, settings.binderRows])
-
   const navigateToPage = useCallback((page: number, direction: "left" | "right") => {
     if (page < 1 || page > totalBinderPages || page === requestedBinderPage.current) return
     requestedBinderPage.current = page
@@ -1424,9 +1428,9 @@ export default function BinderApp({
       ? [firstPage, firstPage + 1].filter(page => page <= totalBinderPages)
       : [firstPage]
     // Promote destination images, but never hold navigation on a network request or decode.
-    for (const url of slotImageUrlsForPages(pages)) void slotImages.load(url, "high")
+    for (const url of slotImageUrlsForPages(pages)) void slotImages.load(url, "high", binderSlotImageSizes)
     transitionContent(binderPageRef.current, () => setCurrentBinderPage(page), direction)
-  }, [isSpreadLayout, slotImages, slotImageUrlsForPages, transitionContent, totalBinderPages])
+  }, [binderSlotImageSizes, isSpreadLayout, slotImages, slotImageUrlsForPages, transitionContent, totalBinderPages])
 
   const goToNextPage = useCallback(() => {
     if (requestedBinderPage.current < totalBinderPages) {
@@ -3345,7 +3349,7 @@ export default function BinderApp({
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
   const slotActions = useBinderSlotActions({ currentBinderPage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, openCardSelectorForPokemon, registerSlotButtonRef, setCurrentBinderPage, setLongPressedPokemon })
-  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
+  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
   const handleShareWantedList = async (scope: "binder" | "all" = "binder") => {
     const summary = scope === "all" && allBindersWantedDashboard ? allBindersWantedDashboard : wantedDashboard

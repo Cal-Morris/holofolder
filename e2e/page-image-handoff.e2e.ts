@@ -36,7 +36,7 @@ for (const reducedMotion of [false, true]) test(`page turns never wait for image
     await expect(page.locator('[data-binder-page="2"]')).toBeVisible({ timeout: 750 })
     await expect(page.getByRole("status").filter({ hasText: /Loading page/ })).toHaveCount(0)
     await harness.expectHittable(page.locator('button[data-dex-id="17"]'))
-    await expect(page.locator('[data-dex-id="17"] img')).toHaveAttribute("src", /low\.webp/)
+    await expect(page.locator('[data-dex-id="17"] img')).toHaveAttribute("srcset", /high\.webp.*w=/)
     expect(await page.locator('[data-dex-id="17"] img').evaluate((img: HTMLImageElement) => img.complete)).toBe(false)
     await page.screenshot({ path: testInfo.outputPath("02-images-pending.png") })
     await swipe(-80)
@@ -80,23 +80,24 @@ test("failed destination images do not block navigation or a return to the cache
   await harness.expectNoHorizontalOverflow()
 })
 
-test("a missing thumbnail retries the full-size card before falling back to artwork", async ({ harness }) => {
+test("a missing resized image retries the original card before falling back to artwork", async ({ harness }) => {
   const { page } = harness
   // Synthetic image on the seeded owned card.
   const image = "https://assets.tcgdex.net/en/mock/base1/44/high.webp"
   await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: [{ ...SEEDED_COLLECTION[0], card_image: image }] }))
   let failFullSize = false
   await page.route("**/app/api/card-image-proxy**", route => {
-    const source = new URL(route.request().url()).searchParams.get("url") ?? ""
-    if (source.endsWith("/low.webp") || (failFullSize && source === image)) return route.abort()
+    const params = new URL(route.request().url()).searchParams
+    const source = params.get("url") ?? ""
+    if (source === image && (params.has("w") || failFullSize)) return route.abort()
     return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg("Synthetic card", 1) })
   })
   await page.reload({ waitUntil: "domcontentloaded" })
   const slot = page.locator('[data-dex-id="1"] img')
-  await expect(slot).toHaveAttribute("src", /high\.webp/)
+  await expect(slot).toHaveAttribute("src", /high\.webp$/)
   await expect.poll(() => slot.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
   const detail = await harness.openCardDetail()
-  await expect(detail.getByRole("img", { name: "Bulbasaur", exact: true }).first()).toHaveAttribute("src", /high\.webp/)
+  await expect(detail.getByRole("img", { name: "Bulbasaur", exact: true }).first()).toHaveAttribute("src", /high\.webp$/)
   await harness.closeControl(detail).click()
   failFullSize = true
   await page.reload({ waitUntil: "domcontentloaded" })

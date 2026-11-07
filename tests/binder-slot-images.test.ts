@@ -40,3 +40,35 @@ test("page turns reuse and promote pending decodes, retain images and retry fail
     await retry
   } finally { globalThis.Image = original }
 })
+
+test("prefetch selects responsive variants and replaces them when slot sizes change", async () => {
+  const { getCardImageAttributes } = await import("../lib/card-image-loader")
+  const original = globalThis.Image
+  const images: FakeImage[] = []
+  class FakeImage {
+    src = ""
+    sizes = ""
+    srcset = ""
+    removed: string[] = []
+    constructor() { images.push(this) }
+    decode() { return Promise.resolve() }
+    removeAttribute(name: string) { this.removed.push(name) }
+  }
+  globalThis.Image = FakeImage as unknown as typeof Image
+  try {
+    const url = "/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fmock%2F1%2Flow.webp"
+    const cache = new BinderSlotImages()
+    await cache.load(url, "low", "80px")
+    const expected = getCardImageAttributes(url, "80px")
+    assert.equal(images[0].src, expected.src)
+    assert.equal(images[0].srcset, expected.srcSet)
+    assert.equal(images[0].sizes, expected.sizes)
+    await cache.load(url, "high", "120px")
+    assert.deepEqual(images[0].removed, ["srcset", "src"])
+    assert.equal(images[1].sizes, "120px")
+    cache.retain(new Set([url]))
+    assert.deepEqual(images[1].removed, [])
+    cache.retain(new Set())
+    assert.deepEqual(images[1].removed, ["srcset", "src"])
+  } finally { globalThis.Image = original }
+})

@@ -40,6 +40,9 @@ const nextConfig = {
     root: projectRoot,
   },
   images: {
+    // Card scans top out at 600px; smaller candidates match the image proxy's widths.
+    deviceSizes: [600],
+    imageSizes: [96, 160, 240, 320, 480],
     minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       {

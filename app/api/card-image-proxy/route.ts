@@ -32,7 +32,7 @@ export function isAllowedImageUrl(url: URL) {
 }
 
 /** Widths the proxy will resize to (`&w=`). A fixed set keeps the CDN cache small. */
-export const PROXY_IMAGE_WIDTHS = [96, 160, 240, 320, 480] as const
+export const PROXY_IMAGE_WIDTHS = [96, 160, 240, 320, 480, 600] as const
 
 export function parseProxyImageWidth(value: string | null): number | null {
   if (value === null) return null
