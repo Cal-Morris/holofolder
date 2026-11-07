@@ -42,7 +42,7 @@ test.describe("offline writes", () => {
     await expect(detail.getByRole("button", { name: "Holo", exact: true })).toHaveAttribute("aria-pressed", "true")
     await closeDetail(page)
     detail = await openDetail(page, 1)
-    await detail.getByRole("button", { name: "Remove", exact: true }).click()
+    await detail.getByRole("button", { name: "Remove owned card", exact: true }).click()
     await page.getByRole("dialog", { name: /^remove bulbasaur$/i }).getByRole("button", { name: /remove completely/i }).click()
     await expect(page.getByText("Offline · 2 changes to sync")).toBeVisible()
     if (await page.getByRole("dialog", { name: /details$/i }).count()) await closeDetail(page)

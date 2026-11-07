@@ -172,7 +172,7 @@ for (const theme of ["light", "dark"] as const) {
     test("selector scroll survives nested filters and variant dismissal", async ({ harness, hasTouch }) => {
       const { page } = harness
       const detail = await harness.openCardDetail()
-      await detail.getByRole("button", { name: /edit card/i }).click()
+      await detail.getByRole("button", { name: /change owned card/i }).click()
       const selector = page.getByRole("dialog", { name: "Card selector", exact: true })
       const body = scrollBody(selector)
       await expect(selector.getByText("35 of 35 cards")).toBeVisible()
@@ -285,7 +285,7 @@ for (const theme of ["light", "dark"] as const) {
       await harness.closeControl(partner).click()
       await harness.expectScrollUnlocked()
       const detail = await harness.openCardDetail()
-      await detail.getByRole("button", { name: "Remove", exact: true }).click()
+      await detail.getByRole("button", { name: "Remove owned card", exact: true }).click()
       const remove = page.getByRole("dialog", { name: /Remove Bulbasaur/i })
       await expect(remove).toBeVisible()
       for (const name of ["Cancel", "Move back to Wanted", "Remove completely"]) {

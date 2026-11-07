@@ -9,7 +9,7 @@ for (const picker of [false, true]) {
     const cards = Array.from({ length: 80 }, (_, index) => ({ ...MOCK_CARDS[0], id: `scroll-${index}`, localId: String(index) }))
     await page.route("**/app/api/tcgdex-cache**", route => route.fulfill({ json: { cards } }))
     const detail = await harness.openCardDetail()
-    await detail.getByRole("button", { name: picker ? /edit card|add card/i : /all bulbasaur cards/i }).first().click()
+    await detail.getByRole("button", { name: picker ? /change owned card|add owned card/i : /all bulbasaur cards/i }).first().click()
     const dialog = page.getByRole("dialog", { name: picker ? "Card selector" : "All Bulbasaur cards", exact: true })
     await expect(dialog).toBeVisible()
     const scroller = dialog.locator("div.overflow-y-auto").last()

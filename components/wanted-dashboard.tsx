@@ -67,7 +67,7 @@ export type WantedDashboardProps = {
   handleShareWantedList: (scope?: "binder" | "all") => void
   handleGotWantedCard: (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => void
   handleClearWantedCard: (pokemonId: number, wantedCard: WantedCard) => void
-  handlePokemonSelect: (pokemon: PokemonSummary) => void
+  handlePokemonSelect: (pokemon: PokemonSummary, card: WantedCard) => void
   jumpToWantedPokemonPage: (pokemon: PokemonSummary | null) => void
   /** Look up any card's price (not just wanted ones), starting from this search. */
   onCheckAnyCardPrice?: (query: string) => void
@@ -481,7 +481,7 @@ function WantedRow({
   /** Set when the row belongs to another binder (All binders view): shown, but changed from that binder. */
   otherBinderName: string | null
   peopleLabel: string
-  onOpen: (pokemon: PokemonSummary) => void
+  onOpen: (pokemon: PokemonSummary, card: WantedCard) => void
   onGot: WantedDashboardProps["handleGotWantedCard"]
   onMore: (entry: WantedDashboardEntry) => void
 }) {
@@ -498,7 +498,7 @@ function WantedRow({
     <li className="flex items-center gap-2 py-2 pl-2 pr-1.5" data-testid="wanted-row" data-card-id={card.card_id}>
       <button
         type="button"
-        onClick={() => pokemon && onOpen(pokemon)}
+        onClick={() => pokemon && onOpen(pokemon, card)}
         disabled={!pokemon}
         aria-label={`Open ${card.card_name}${card.card_set ? ` from ${card.card_set}` : ""}${priceDropped ? ", price dropped" : ""}`}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl text-left transition active:bg-primary/5"

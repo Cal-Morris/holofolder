@@ -4,7 +4,7 @@ async function openPicker(harness: Harness) {
   const { page } = harness
   await page.locator('button[data-dex-id="7"]').first().click()
   const detail = page.getByRole("dialog", { name: /squirtle details/i })
-  await detail.getByRole("button", { name: "Add card", exact: true }).click()
+  await detail.getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
   const selector = page.getByRole("dialog", { name: /card selector/i })
   await expect(selector).toBeVisible()
   return selector

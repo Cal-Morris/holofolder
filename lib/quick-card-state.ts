@@ -20,7 +20,7 @@ export function getQuickCardState(card: SearchCardResult, item: CollectedPokemon
   const owned = Boolean(item && hasOwnedPrinting(item) && matches(item))
   return {
     owned,
-    wanted: Boolean(item?.wanted_cards.some(entry => matches(entry, false))),
+    wanted: Boolean(item?.wanted_cards.some(entry => matches(entry))),
     ownedElsewhere: lookup?.binders.filter(binder => binder.id !== currentBinderId
       && lookup.collections.get(binder.id)?.some(entry => hasOwnedPrinting(entry) && matches(entry))).map(binder => binder.name) ?? [],
     replacing: item && hasOwnedPrinting(item) && !owned ? item.card_name || item.card_id! : null,

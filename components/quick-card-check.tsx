@@ -31,7 +31,7 @@ import { DealPriceScale } from "@/components/deal-price-scale"
 import UndoSnackbar from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 
-export type QuickCardAction = "bought" | "add-owned" | "want" | "got"
+export type QuickCardAction = "bought" | "add-owned" | "want" | "got" | "remove-wanted"
 
 import type { QuickCardState } from "@/lib/quick-card-state"
 export type { QuickCardState } from "@/lib/quick-card-state"
@@ -68,7 +68,9 @@ export interface QuickCardCheckProps {
   /** Start on this printing (e.g. the finish on the want list) when the card has it. */
   initialFinish?: CardFinish | null
   onBack: () => void
-  onOpenDetails: () => void
+  onRemoveOwned?: () => void
+  onChangeCard?: (mode: "collect" | "wishlist", finish: CardFinish) => void
+  onOpenDetails: (finish: CardFinish) => void
   /** Runs the action; resolves to an undo function, or null when nothing changed. */
   onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
   isInBundle: (key: string) => boolean
@@ -108,6 +110,8 @@ export default function QuickCardCheck({
   initialFinish,
   onBack,
   onOpenDetails,
+  onChangeCard,
+  onRemoveOwned,
   onAction,
   isInBundle,
   onAddToBundle,
@@ -125,7 +129,7 @@ export default function QuickCardCheck({
   const inferred = inferCardFinish(card.rarity, card.variants)
   const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any"), [card.variants, inferred])
   const [finish, setFinish] = useState<CardFinish>(() =>
-    initialFinish && finishChoices.some((choice) => choice.finish === initialFinish) ? initialFinish : finishChoices[0]?.finish ?? inferred)
+    initialFinish ?? finishChoices[0]?.finish ?? inferred)
   const state = getState?.(finish) ?? initialState
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
   const replacementKey = state.replacing ? `${card.id}:${finish}:${state.replacing}` : null
@@ -167,7 +171,7 @@ export default function QuickCardCheck({
   const [busy, setBusy] = useState(false)
   const [undo, setUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
   const run = async (action: QuickCardAction) => {
-    if (busy || (action !== "want" && needsConfirmation)) return
+    if (busy || (action !== "want" && action !== "remove-wanted" && needsConfirmation)) return
     setBusy(true)
     try {
       const revert = await onAction(action, finish)
@@ -178,7 +182,7 @@ export default function QuickCardCheck({
       navigator.vibrate?.(action === "bought" ? [12, 40, 12] : 15)
       const message = action === "bought"
         ? `Bought ${card.name}${askingPrice ? ` for ${money(askingPrice)}` : ""}`
-        : action === "want" ? `${card.name} added to Wanted` : action === "got" ? `Got ${card.name}` : `${card.name} added to your binder`
+        : action === "remove-wanted" ? `${card.name} removed from want list` : action === "want" ? `${card.name} added to Wanted` : action === "got" ? `Got ${card.name}` : `${card.name} added to your binder`
       if (revert || purchaseIds.length > 0) {
         setUndo({
           message,
@@ -205,7 +209,7 @@ export default function QuickCardCheck({
   const statusTone = state.owned
     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
     : state.wanted ? "bg-rose-500/15 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"
-  const bigButton = "flex h-14 min-w-0 items-center justify-center gap-2 rounded-2xl px-3 text-base font-bold disabled:opacity-45"
+  const bigButton = "flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-2xl px-3 text-base font-bold disabled:opacity-45"
 
   return (
     <section aria-label={`Check ${card.name}`} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="quick-card-check">
@@ -239,7 +243,7 @@ export default function QuickCardCheck({
                   <TrendingUp className="h-3 w-3" aria-hidden />Rising
                 </span>
               )}
-              <button type="button" onClick={onOpenDetails} className="flex min-h-12 items-center gap-2 rounded-xl bg-primary/10 px-3 text-sm font-semibold text-primary">
+              <button type="button" onClick={() => onOpenDetails(finish)} className="flex min-h-12 items-center gap-2 rounded-xl bg-primary/10 px-3 text-sm font-semibold text-primary">
                 More details<ExternalLink className="h-3 w-3" aria-hidden />
               </button>
             </div>
@@ -309,6 +313,16 @@ export default function QuickCardCheck({
         {/* Show mode (and the Wanted price lookup) is about the asking price, so it opens the keyboard;
             plain Quick shows the price, verdict and Own / Want first, and Asking opens the keyboard on tap. */}
         {showTools && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
+        {!readOnly && onChangeCard && (state.wanted || state.owned) && <div className="flex flex-col gap-2">
+          {state.wanted && <>
+            <button type="button" disabled={busy} onClick={() => onChangeCard("wishlist", finish)} className="min-h-11 rounded-xl border border-border/70 px-3 py-2 text-sm font-semibold">Change wanted card</button>
+            <button type="button" disabled={busy} onClick={() => void run("remove-wanted")} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove from want list</button>
+          </>}
+          {state.owned && <>
+            <button type="button" disabled={busy} onClick={() => onChangeCard("collect", finish)} className="min-h-11 rounded-xl border border-border/70 px-3 py-2 text-sm font-semibold">Change owned card</button>
+            {onRemoveOwned && <button type="button" disabled={busy} onClick={onRemoveOwned} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove owned card</button>}
+          </>}
+        </div>}
         <DealPriceInput value={input} onChange={setInput} autoFocus={showTools} />
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
@@ -326,8 +340,8 @@ export default function QuickCardCheck({
               <Plus className="h-5 w-5 shrink-0" aria-hidden />{state.owned ? "Owned" : "Own"}
             </button>
           ))}
-          {!readOnly && (
-            <button type="button" disabled={busy || state.wanted || state.owned} onClick={() => void run("want")} aria-label="Want" className={`${bigButton} border border-border/70 bg-card`}>
+          {!readOnly && !state.wanted && (
+            <button type="button" disabled={busy} onClick={() => void run("want")} aria-label="Want" className={`${bigButton} border border-border/70 bg-card`}>
               <Heart className="h-5 w-5 shrink-0" aria-hidden />Want
             </button>
           )}

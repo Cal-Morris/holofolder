@@ -34,7 +34,7 @@ async function pickFromSelector(page: Page, action: "Add card" | "Want card", se
 /** Make Squirtle a wanted slot through the UI: Want card → pick the printing. */
 async function wantSquirtle(page: Page, server: FakeCollectionServer, setName: string, cardId: string) {
   const detail = await openDetail(page)
-  await detail.getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
+  await detail.getByRole("button", { name: /^(add wanted card|add another wanted card)$/i }).click()
   await pickFromSelector(page, "Want card", setName)
   await expect.poll(() => server.rows.get(SQUIRTLE)?.status).toBe("wishlisted")
   expect((server.rows.get(SQUIRTLE)!.wanted_cards as WantedRow[]).map((card) => card.card_id)).toEqual([cardId])
@@ -58,7 +58,7 @@ test.describe("adding a card to a wanted slot", () => {
       await wantSquirtle(page, server, setName, cardId)
 
       const detail = await openDetail(page)
-      await detail.getByRole("button", { name: "Add card", exact: true }).click()
+      await detail.getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
       await pickFromSelector(page, "Add card", setName)
 
       await expect.poll(() => server.rows.get(SQUIRTLE)?.status).toBe("collected")
@@ -73,7 +73,7 @@ test.describe("adding a card to a wanted slot", () => {
       await page.waitForTimeout(500)
       await expect(slot(page).getByText("Owned", { exact: true })).toBeVisible()
       const reopened = await openDetail(page)
-      await expect(reopened.getByRole("button", { name: "Remove", exact: true })).toBeVisible()
+      await expect(reopened.getByRole("button", { name: "Remove owned card", exact: true })).toBeVisible()
       await harness.expectNoHorizontalOverflow()
     })
   }
@@ -85,7 +85,7 @@ test.describe("adding a card to a wanted slot", () => {
     await wantSquirtle(page, server, "30th Celebration", "30th-007")
 
     const detail = await openDetail(page)
-    await detail.getByRole("button", { name: "Add card", exact: true }).click()
+    await detail.getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
     await pickFromSelector(page, "Add card", "30th Classic Collection")
 
     await expect.poll(() => server.rows.get(SQUIRTLE)?.status).toBe("collected")
@@ -101,17 +101,17 @@ test.describe("adding a card to a wanted slot", () => {
 
     // Own the 151 printing, then want the 30th Celebration one as an upgrade.
     let detail = await openDetail(page)
-    await detail.getByRole("button", { name: "Add card", exact: true }).click()
+    await detail.getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
     await pickFromSelector(page, "Add card", "151")
     await expect.poll(() => server.rows.get(SQUIRTLE)?.card_id).toBe("sv03.5-007")
     detail = await openDetail(page)
-    await detail.getByRole("button", { name: /^(want card|add wanted|track wanted)$/i }).click()
+    await detail.getByRole("button", { name: /^(add wanted card|add another wanted card)$/i }).click()
     await pickFromSelector(page, "Want card", "30th Celebration")
     await expect.poll(() => (server.rows.get(SQUIRTLE)?.wanted_cards as WantedRow[] | undefined)?.length).toBe(1)
 
     // Getting the upgrade itself clears it from the wanted list.
     detail = await openDetail(page)
-    await detail.getByRole("button", { name: /^(edit card|add card)$/i }).first().click()
+    await detail.getByRole("button", { name: /^(change owned card|add owned card)$/i }).first().click()
     await pickFromSelector(page, "Add card", "30th Celebration")
     await expect.poll(() => server.rows.get(SQUIRTLE)?.card_id).toBe("30th-007")
     expect(server.rows.get(SQUIRTLE)!.status).toBe("collected")
@@ -127,7 +127,7 @@ test.describe("adding a card to a wanted slot", () => {
 
     const detail = await openDetail(page)
     await setNetwork(page, true)
-    await detail.getByRole("button", { name: "Add card", exact: true }).click()
+    await detail.getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
     await pickFromSelector(page, "Add card", "30th Classic Collection")
     await expect(slot(page).getByText("Owned", { exact: true })).toBeVisible()
     const queued = await page.evaluate(() => JSON.parse(localStorage.getItem("pokemon_collection_pending_ops_v1") ?? "[]"))
@@ -176,7 +176,7 @@ test.describe("sharing the want list", () => {
     await wantSquirtle(page, server, "151", "sv03.5-007")
 
     const detail = await openDetail(page)
-    await detail.getByRole("button", { name: "Add card", exact: true }).click()
+    await detail.getByRole("button", { name: /^(Add owned card|Change owned card)$/, exact: true }).click()
     const selector = page.getByRole("dialog", { name: /card selector/i })
     const first = selector.getByRole("button", { name: /^Add card Squirtle from / }).first()
     await expect(first).toHaveAttribute("aria-label", "Add card Squirtle from 151")
