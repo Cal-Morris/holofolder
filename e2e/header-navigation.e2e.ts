@@ -51,7 +51,7 @@ for (const theme of ["light", "dark"]) {
     const show = page.getByRole("region", { name: "Show mode" })
     await expect(show).toBeVisible()
     await expect(header.getByTestId("header-show-mode")).toHaveCount(0)
-    await expect(show.getByRole("button")).toHaveCount(1)
+    await expect(show.getByRole("button", { name: "Exit show mode", exact: true })).toHaveCount(1)
     await harness.expectNoHorizontalOverflow()
     await page.screenshot({ path: `/tmp/header-after-${info.project.name}-${theme}.png` })
     console.log("header height", info.project.name, theme, (await header.boundingBox())!.height)

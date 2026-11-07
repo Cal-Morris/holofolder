@@ -3479,7 +3479,7 @@ export default function BinderApp({
       ) : null}
 
       {/* One compact connection chip (Show-style copy): offline (+ queued edits), queued edits syncing, or a rollback notice. */}
-      {/* In Show mode the amber banner carries offline/sync state, so only a rollback notice floats (below the banner). */}
+      {/* In Show mode the header carries offline/sync state; rollback notices float below its controls. */}
       {!isOnline ? (
         !isShowModeOn && (
           <TopBannerSlot>
