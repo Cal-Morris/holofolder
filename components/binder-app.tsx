@@ -1399,6 +1399,8 @@ export default function BinderApp({
     return "Binder Spread"
   }, [displayedSpreadPages])
   const binderFitSize = useMemo(() => {
+    // Leave room for the active page's 2px outline inside the clipped stage.
+    const outlineClearance = 4
     const padding = isDesktopViewport ? 16 : 8
     const gap = 6
     const pages = isSpreadLayout ? 2 : 1
@@ -1406,8 +1408,8 @@ export default function BinderApp({
     const horizontalChrome = padding * 2 + gap * (settings.binderCols - 1)
     const verticalChrome = padding * 2 + gap * (settings.binderRows - 1)
     const slotHeight = Math.min(
-      (binderStageSize.height - verticalChrome) / settings.binderRows,
-      ((binderStageSize.width - spreadGap) / pages - horizontalChrome) / settings.binderCols / TRADING_CARD_ASPECT_RATIO,
+      (binderStageSize.height - outlineClearance - verticalChrome) / settings.binderRows,
+      ((binderStageSize.width - outlineClearance - spreadGap) / pages - horizontalChrome) / settings.binderCols / TRADING_CARD_ASPECT_RATIO,
     )
     if (slotHeight <= 0) return null
 
