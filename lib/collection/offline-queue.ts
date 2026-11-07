@@ -1,3 +1,4 @@
+import { mergeQueuedAcquisition, normalizeAcquisition, type AcquisitionIntent } from "@/lib/partner-push"
 // Local-first persistence: the collection snapshot and the queue of pending remote writes,
 // both stored in localStorage so edits survive reloads and offline periods.
 import { writeLocalCollectedIds } from "@/lib/local-collection"
@@ -21,6 +22,7 @@ export type PendingCollectionOperation =
   | {
       id: string
       type: "upsert"
+      acquisition?: AcquisitionIntent
       pokemonId: number
       item: CollectedPokemon
       queuedAt: string
@@ -39,6 +41,7 @@ export type PendingCollectionOperation =
 export type PendingCollectionOperationInput =
   | {
       type: "upsert"
+      acquisition?: AcquisitionIntent
       pokemonId: number
       item: CollectedPokemon
       base?: CollectedPokemon | null
@@ -163,6 +166,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           type: "upsert",
           pokemonId: item.pokemonId,
           item: normalizeCollectionItem(item.item),
+          acquisition: normalizeAcquisition(item.acquisition),
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
           ...parseBase(item),
           ...parseBinderId(item),
@@ -205,6 +209,7 @@ export function queuePendingCollectionOperation(operation: PendingCollectionOper
   const base = replaced ? replaced.base : operation.base
   const nextOperation = {
     ...operation,
+    ...(operation.type === "upsert" ? { acquisition: mergeQueuedAcquisition(base, operation.item, operation.acquisition, replaced?.type === "upsert" ? replaced.acquisition : undefined) } : {}),
     base,
     id: createPendingOperationId(),
     queuedAt: new Date().toISOString(),

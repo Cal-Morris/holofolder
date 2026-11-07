@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { PartnerPushSettings } from "@/components/partner-push-settings"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { PricingPreferencesSettings } from "@/components/pricing-preferences-settings"
@@ -34,6 +35,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 interface SettingsModalProps {
+  initialTab?: SettingsTabId
   backupReady: boolean
   onDownloadBackup: () => Promise<string>
   appearance?: { pageColor: string; pageColors: Record<string, string> }
@@ -80,6 +82,8 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({
+  user,
+  initialTab,
   backupReady,
   onDownloadBackup,
   appearance,
@@ -139,12 +143,13 @@ export default function SettingsModal({
 
   useEffect(() => {
     if (isOpen) {
+      if (initialTab) setActiveTab(initialTab)
       setSelectedBinderColorId(currentPageBinderColorId)
       setPageRangeInput(String(currentBinderPage))
       setCopyMessage(null)
       setBackupMessage(null)
     }
-  }, [currentBinderPage, currentPageBinderColorId, isOpen])
+  }, [currentBinderPage, currentPageBinderColorId, isOpen, initialTab])
 
   useOverlay(isOpen, onClose, { containerRef: dialogRef })
   const swipe = useSwipeToDismiss(dialogRef, onClose, isOpen)
@@ -605,6 +610,8 @@ export default function SettingsModal({
               {backupMessage && <p role="status" className="text-xs text-muted-foreground">{backupMessage}</p>}
             </div>
           )}
+
+          {effectiveActiveTab === "account" && !isReadOnlyView && <PartnerPushSettings userId={user?.id ?? null} isInstalledApp={isInstalledApp} />}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (
             <PricingPreferencesSettings settings={settings} onUpdateSettings={onUpdateSettings} />

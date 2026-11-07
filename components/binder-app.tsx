@@ -32,6 +32,9 @@ import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-t
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
 import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
+import { PartnerPushPrompt } from "@/components/partner-push-prompt"
+import { usePartnerPush } from "@/hooks/use-partner-push"
+import { clearPushDevice } from "@/lib/push-device-client"
 import { useCollection, type CardFinish, type CardLanguage, type CollectedPokemon, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
 import { useBinderAppearance } from "@/hooks/use-binder-appearance"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
@@ -264,6 +267,7 @@ export default function BinderApp({
     dismissSyncNotice,
     resolvedCollectionOwnerUserId,
   } = useCollection({
+    showMode: isShowModeOn,
     initialUser,
     initialCollection,
     initialCollectionOwnerUserId,
@@ -383,7 +387,10 @@ export default function BinderApp({
 
     return buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/(?:app\/)?share\//, ""))
   }, [sharePath])
+  const [pushSettingsRequested, setPushSettingsRequested] = useState(false)
+  usePartnerPush(user?.id ?? null, !readOnlyMode)
   const handleSignOut = useCallback(async () => {
+    await clearPushDevice().catch(() => undefined)
     await signOut()
     router.push("/auth/logout")
   }, [router, signOut])
@@ -3485,6 +3492,7 @@ export default function BinderApp({
       {/* Glass Navigation */}
       {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
       {renderAppHeader()}
+      {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
       {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
       {renderMainContent()}
@@ -3530,6 +3538,7 @@ export default function BinderApp({
 
       {/* Modals */}
       <SettingsModal
+        initialTab={pushSettingsRequested ? "account" : undefined}
         backupReady={!readOnlyMode && !isCollectionLoading && !binderAppearance.loading}
         onDownloadBackup={async () => {
           if (readOnlyMode) throw new Error("Backups are only available in your own binder.")
@@ -3544,7 +3553,7 @@ export default function BinderApp({
         }}
         appearance={binderAppearance.hasSavedDesign ? binderAppearance.design : undefined}
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => { setIsSettingsOpen(false); setPushSettingsRequested(false) }}
         user={user}
         settings={settings}
         onUpdateSettings={updateSettings}

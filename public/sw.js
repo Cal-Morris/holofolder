@@ -515,3 +515,73 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(cacheFirst(request, IMAGE_CACHE, event))
   }
 })
+
+// The account binding contains no subscription keys or collection data. It is cleared before sign-out.
+function notificationAccount() {
+  return new Promise(resolve => {
+    const request = indexedDB.open('binderdex-offline', 1)
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('records')) request.result.createObjectStore('records')
+    }
+    request.onerror = () => resolve(null)
+    request.onblocked = () => resolve(null)
+    request.onsuccess = () => {
+      const db = request.result
+      const transaction = db.transaction('records', 'readonly')
+      const read = transaction.objectStore('records').get('push:account')
+      read.onsuccess = () => resolve(read.result?.userId ?? null)
+      read.onerror = () => resolve(null)
+      transaction.oncomplete = () => db.close()
+    }
+  })
+}
+
+function notificationDestination(value) {
+  try {
+    const url = new URL(value, self.location.origin)
+    if (url.origin !== self.location.origin || (url.pathname !== '/app' && url.pathname !== '/app/') || !/^[0-9a-f-]{36}$/i.test(url.searchParams.get('binder') ?? '')) return '/app'
+    return `/app?binder=${encodeURIComponent(url.searchParams.get('binder'))}`
+  } catch { return '/app' }
+}
+
+self.addEventListener('push', event => {
+  event.waitUntil((async () => {
+    let payload
+    try { payload = event.data?.json() } catch { payload = null }
+    const account = await notificationAccount()
+    let preview = null
+    if (account && account === payload?.recipientId && /^[0-9a-f-]{36}$/i.test(payload?.eventId ?? '')) {
+      try {
+        const response = await fetch(`/app/api/push/events/${payload.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        if (response.ok) preview = await response.json()
+      } catch { /* Offline or signed out: keep the visible notification private. */ }
+    }
+    await self.registration.showNotification(preview ? String(preview.title ?? 'Holo Folder update').slice(0, 160) : 'Holo Folder update', {
+      body: preview ? String(preview.body ?? '').slice(0, 240) : 'Open the app to see your update.',
+      icon: '/app/pwa-holo-cards-192.png', badge: '/app/icon-light-32x32.png',
+      tag: typeof payload?.tag === 'string' ? payload.tag.slice(0, 100) : 'binderdex-update',
+      data: { url: preview ? notificationDestination(preview.url) : '/app', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null },
+    })
+  })())
+})
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  event.waitUntil((async () => {
+    const account = await notificationAccount()
+    let url = '/app'
+    if (account && account === event.notification.data?.recipientId && /^[0-9a-f-]{36}$/i.test(event.notification.data?.eventId ?? '')) {
+      try {
+        const response = await fetch(`/app/api/push/events/${event.notification.data.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        if (response.ok) url = notificationDestination((await response.json()).url)
+      } catch { /* Open the normal authenticated app when the update cannot be verified. */ }
+    }
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const existing = windows.find(client => {
+      const current = new URL(client.url)
+      return current.origin === self.location.origin && /^\/app(?:\/|$)/.test(current.pathname)
+    })
+    if (existing) { await existing.navigate(url); await existing.focus() }
+    else await self.clients.openWindow(url)
+  })())
+})

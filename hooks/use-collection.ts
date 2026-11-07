@@ -1,5 +1,7 @@
 "use client"
 
+import { captureAcquisition, mergeQueuedAcquisition, readPushMembership, writePushMembership, type AcquisitionIntent } from "@/lib/partner-push"
+
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { readLocalCollectedIds, writeLocalCollectedIds } from "@/lib/local-collection"
@@ -108,6 +110,7 @@ interface SyncLocalCollectionResult {
 }
 
 interface UseCollectionOptions {
+  showMode?: boolean
   initialUser?: User | null
   initialCollection?: Partial<CollectedPokemon>[]
   initialCollectionOwnerUserId?: string | null
@@ -127,6 +130,7 @@ export interface SaveCollectionOptions {
 
 export function useCollection(options: UseCollectionOptions = {}) {
   const {
+    showMode = false,
     initialUser = null,
     initialCollection = [],
     initialCollectionOwnerUserId = null,
@@ -193,7 +197,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const { data: partnership, error } = await supabase
       .from("partnerships")
-      .select("owner_user_id")
+      .select("id,owner_user_id,user1_id,user2_id")
       .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
       .limit(1)
       .maybeSingle()
@@ -203,6 +207,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const ownerUserId = partnership?.owner_user_id || currentUser.id
     if (authenticatedUserId.current === currentUser.id) {
       setCollectionOwnerUserId(ownerUserId)
+      const recipientId = partnership?.user1_id === currentUser.id ? partnership.user2_id : partnership?.user1_id
+      writePushMembership(currentUser.id, partnership?.id && recipientId ? { actorId: currentUser.id, ownerId: ownerUserId, partnershipId: partnership.id, recipientId } : null)
       setOwnerResolvedForUserId(currentUser.id)
     }
     return ownerUserId
@@ -557,7 +563,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           const editBinderId = pendingOperationBinderId(edit)
           try {
             if (edit.type === "upsert") {
-              const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { baseFingerprint, binderId: editBinderId }))
+              const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { baseFingerprint, binderId: editBinderId, acquisition: edit.acquisition }))
               removePendingCollectionOperation(edit.id)
               settleLocalItem(edit.pokemonId, savedItem, editBinderId)
             } else {
@@ -581,7 +587,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
               }
               const binderField = editBinderId ? { binderId: editBinderId } : {}
               const merged: PendingCollectionOperation = resolution.action === "write"
-                ? { id: operation.id, type: "upsert", pokemonId: operation.pokemonId, item: resolution.item, base: resolution.base, queuedAt: operation.queuedAt, ...binderField }
+                ? { id: operation.id, type: "upsert", pokemonId: operation.pokemonId, item: resolution.item, base: resolution.base, acquisition: mergeQueuedAcquisition(resolution.base, resolution.item, undefined, operation.type === "upsert" ? operation.acquisition : undefined), queuedAt: operation.queuedAt, ...binderField }
                 : { id: operation.id, type: "delete", pokemonId: operation.pokemonId, base: resolution.base, queuedAt: operation.queuedAt, ...binderField }
               replacePendingCollectionOperation(operation.id, merged)
               operation = merged
@@ -747,13 +753,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
    * older edit of the same Pokémon still queued, the edit is queued instead (and keeps per-Pokémon order).
    * A hard server rejection rolls the edit back; network/server failures and conflicts go to the queue.
    */
-  const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null) => {
+  const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null, acquisition?: AcquisitionIntent) => {
     const existingItem = collection.find((item) => item.pokemon_id === pokemonId) ?? null
     applyLocalCollection(nextItem ? upsertCollectionItem(collection, nextItem) : removeCollectionItem(collection, pokemonId))
 
     const binderField = binderId ? { binderId } : {}
     const edit: PendingCollectionOperationInput = nextItem
-      ? { type: "upsert", pokemonId, item: nextItem, base: existingItem, ...binderField }
+      ? { type: "upsert", pokemonId, item: nextItem, base: existingItem, acquisition, ...binderField }
       : { type: "delete", pokemonId, base: existingItem, ...binderField }
 
     if (!user || !collectionOwnerUserId || isOffline() || hasPendingCollectionOperation(pokemonId, binderId)) {
@@ -764,7 +770,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const baseFingerprint = collectionFingerprint(existingItem)
     try {
       if (nextItem) {
-        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId }))
+        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId, acquisition }))
         settleLocalItem(pokemonId, savedItem)
         void broadcastCollectionChanged()
         return { item: savedItem, queued: false as const }
@@ -821,7 +827,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
       status,
       collected_at: existingItem?.collected_at ?? new Date().toISOString(),
     })
-    const result = await commitItemChange(pokemonId, nextItem)
+    const acquisition = user ? captureAcquisition(existingItem ?? null, nextItem, { showMode, actorId: user.id, ownerId: collectionOwnerUserId, membership: readPushMembership(user.id) }) : undefined
+    const result = await commitItemChange(pokemonId, nextItem, acquisition)
     if ("rolledBack" in result) {
       console.error("[holofolder] Error adding to collection:", { message: extractErrorMessage(result.error), pokemonId, status })
       return { error: extractErrorMessage(result.error) }
@@ -830,7 +837,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       return { data: nextItem, queued: true, ...("error" in result ? { error: extractErrorMessage(result.error) } : {}) }
     }
     return { data: result.item ?? nextItem }
-  }, [commitItemChange, collection, readOnly])
+  }, [commitItemChange, collection, collectionOwnerUserId, readOnly, showMode, user])
 
   const removeFromCollection = useCallback(async (pokemonId: number) => {
     if (readOnly) return { error: "Read-only binder" }
