@@ -1,4 +1,4 @@
-import type { PricedCardFinish } from "../lib/card-pricing"
+import type { PricedCardFinish, PriceSource } from "../lib/card-pricing"
 import type { CardPriceHistoryPoint } from "../lib/card-price-history"
 import type { Page } from "@playwright/test"
 
@@ -7,6 +7,7 @@ import type { Page } from "@playwright/test"
  * None of these amounts are real market data.
  */
 export interface FixturePrice {
+  source?: PriceSource
   history?: CardPriceHistoryPoint[]
   confidence: "high" | "medium" | "low" | "unknown"
   market: number
@@ -61,7 +62,7 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
             sourcePrices: [],
             trendPoints: Object.entries(fixture?.trend ?? {}).map(([label, gbpAmount]) => ({
               label,
-              source: "cardmarket",
+              source: fixture?.source ?? "cardmarket",
               gbpAmount,
               originalAmount: gbpAmount,
               originalCurrency: "GBP",
@@ -69,7 +70,7 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
             buySignal: null,
             originalAmount: null,
             originalCurrency: null,
-            source: fixture ? "cardmarket" : null,
+            source: fixture ? fixture.source ?? "cardmarket" : null,
             variantLabel: null,
             updatedAt: fixture ? updatedAt : null,
             fxDate: null,
@@ -78,8 +79,8 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
               finish: variant.finish, variantKey: variant.finish, variantLabel: variant.finish,
               marketGbpAmount: variant.market, gbpAmount: variant.market,
               confidence: variant.confidence ?? fixture.confidence,
-              source: "cardmarket", sourcePrices: [], updatedAt, fxDate: null,
-              trendPoints: Object.entries(variant.trend ?? {}).map(([label, gbpAmount]) => ({ label, source: "cardmarket", gbpAmount, originalAmount: gbpAmount, originalCurrency: "GBP" })),
+              source: fixture.source ?? "cardmarket", sourcePrices: [], updatedAt, fxDate: null,
+              trendPoints: Object.entries(variant.trend ?? {}).map(([label, gbpAmount]) => ({ label, source: fixture.source ?? "cardmarket", gbpAmount, originalAmount: gbpAmount, originalCurrency: "GBP" })),
             })) ?? [],
           }
         }),

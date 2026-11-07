@@ -63,7 +63,7 @@ function AnalyticsContent({ collection: binderCollection, allBindersCollection =
   const [scope, setScope] = useState<BinderScope>(() => readBinderScope("analytics"))
   const isAllBinders = scope === "all" && allBindersCollection !== null
   const collection = isAllBinders ? allBindersCollection : binderCollection
-  const summary = useMemo(() => buildCollectionAnalytics(collection, pricesByKey, undefined, { countCopies: isAllBinders, source: "cardmarket" }), [collection, isAllBinders, pricesByKey])
+  const summary = useMemo(() => buildCollectionAnalytics(collection, pricesByKey, undefined, { countCopies: isAllBinders }), [collection, isAllBinders, pricesByKey])
   const historyRef = useRef<HTMLElement>(null)
   const [selectedKey, setSelectedKey] = useState("")
   const selected = summary.cards.find(card => card.key === selectedKey) ?? summary.cards[0]

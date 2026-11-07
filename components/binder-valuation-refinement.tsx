@@ -31,7 +31,7 @@ export function BinderValuationRefinement({ cards, collection, isOnline, readOnl
     <div>
       <h3 className="font-medium">Sales-based estimate</h3>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{refined.soldCards ? new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(refined.totalGbp) : "Not enough sold evidence"}</p>
-      <p className="mt-1 text-muted-foreground">{refined.soldCards} sold · {refined.fallbackCards} Cardmarket fallback · {refined.unpricedCards} unpriced</p>
+      <p className="mt-1 text-muted-foreground">{refined.soldCards} sold · {refined.fallbackCards} market fallback · {refined.unpricedCards} unpriced</p>
       {refined.oldestCheck && <p className="mt-1 text-muted-foreground">Oldest used sold check: {formatPriceCheckAge(refined.oldestCheck)}.</p>}
     </div>
   </section>

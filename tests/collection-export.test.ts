@@ -27,13 +27,21 @@ test("buildCollectionCsv lists owned, wanted and card-less owned slots by dex nu
     [getCardPriceKey("base1-58", "en")]: { source: "cardmarket", confidence: "high", marketGbpAmount: 12.5, updatedAt: "2026-10-20T00:00:00Z", variantLabel: "Normal" },
   } as never
   const lines = buildCollectionCsv(collection, prices, NOW).trimEnd().split("\r\n")
-  assert.equal(lines[0], "dex_number,pokemon,list,slot_status,card_id,card_name,set,language,finish,market_gbp,price_source,added")
+  assert.equal(lines[0], "dex_number,pokemon,list,slot_status,card_id,card_name,set,language,finish,market_gbp,price_source,price_basis,added")
   assert.equal(lines.length, 4)
-  assert.equal(lines[1], "1,Bulbasaur,owned,considering,,,,,,,,2026-02-01")
-  assert.equal(lines[2], "25,Pikachu,owned,collected,base1-58,Pikachu,Base Set,en,normal,12.50,cardmarket,2026-01-02")
-  assert.equal(lines[3], "25,Pikachu,wanted,collected,sv03.5-025,Pikachu,151,ja,holo,,,2026-03-04")
+  assert.equal(lines[1], "1,Bulbasaur,owned,considering,,,,,,,,,2026-02-01")
+  assert.equal(lines[2], "25,Pikachu,owned,collected,base1-58,Pikachu,Base Set,en,normal,12.50,cardmarket,exact_finish,2026-01-02")
+  assert.equal(lines[3], "25,Pikachu,wanted,collected,sv03.5-025,Pikachu,151,ja,holo,,,,2026-03-04")
 })
 
 test("collectionCsvFilename is dated", () => {
   assert.equal(collectionCsvFilename(new Date(NOW)), "holofolder-collection-2026-10-22.csv")
+})
+
+
+test("CSV labels generic quotes as finish estimates", () => {
+  // Synthetic catalogue quote with an unverified finish.
+  const collection: CollectedPokemon[] = [{ id: "fixture", pokemon_id: 1, pokemon_name: "Fixture", status: "collected", collected_at: "2026-10-20", card_id: "fixture", card_name: "Fixture", card_finish: "normal", wanted_cards: [] }]
+  const prices = { "fixture::en": { source: "tcgplayer", marketGbpAmount: 5, updatedAt: "2026-10-20T00:00:00Z", variantLabel: null } } as never
+  assert.match(buildCollectionCsv(collection, prices, NOW), /5.00,tcgplayer,finish_estimate/)
 })
