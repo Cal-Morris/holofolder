@@ -1,9 +1,9 @@
 import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
 import { isBillingError } from "@/lib/billing"
 import { randomBytes } from "node:crypto"
-import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
+import { namedSharePath, identityJson, requireIdentityOrigin, IdentityError } from "@/lib/server/public-binder-identity"
 import { buildBinderSharePath } from "@/lib/binder-share"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -30,7 +30,7 @@ async function resolveShareBinder(ownerUserId: string, requested: unknown) {
     return { binderId: await resolveWriteBinderId(createAdminClient(), ownerUserId, requested) }
   } catch (error) {
     if (error instanceof BinderAccessError) {
-      return { response: NextResponse.json({ error: "Binder not found" }, { status: 404 }) }
+      return { response: identityJson({ error: "Binder not found" }, 404) }
     }
     throw error
   }
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
   try {
     const { supabase, user } = await requireSessionUser()
     if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+      return identityJson({ error: "Not authenticated" }, 401)
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(supabase, user.id)
@@ -68,29 +68,31 @@ export async function GET(request: Request) {
     }
 
     if (!data) {
-      return NextResponse.json({ share: null })
+      return identityJson({ share: null })
     }
 
-    return NextResponse.json({
+    return identityJson({
       share: {
         ...data,
-        path: buildBinderSharePath(data.token),
+        path: await namedSharePath(ownerUserId, binder.binderId) ?? buildBinderSharePath(data.token),
       },
     })
   } catch (error) {
+    if (error instanceof IdentityError) return identityJson({ error: error.message }, error.status)
     console.error("[holofolder] Failed to fetch binder share:", error)
-    return NextResponse.json(
+    return identityJson(
       { error: error instanceof Error ? error.message : "Failed to fetch binder share" },
-      { status: 500 },
+      500,
     )
   }
 }
 
 export async function POST(request: Request) {
   try {
+    requireIdentityOrigin(request)
     const { supabase, user } = await requireUser()
     if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+      return identityJson({ error: "Not authenticated" }, 401)
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(supabase, user.id)
@@ -128,27 +130,29 @@ export async function POST(request: Request) {
       throw error
     }
 
-    return NextResponse.json({
+    return identityJson({
       share: {
         ...data,
-        path: buildBinderSharePath(data.token),
+        path: await namedSharePath(ownerUserId, binder.binderId) ?? buildBinderSharePath(data.token),
       },
     })
   } catch (error) {
     if (isBillingError(error)) return billingErrorResponse(error)
+    if (error instanceof IdentityError) return identityJson({ error: error.message }, error.status)
     console.error("[holofolder] Failed to enable binder share:", error)
-    return NextResponse.json(
+    return identityJson(
       { error: error instanceof Error ? error.message : "Failed to enable binder share" },
-      { status: 500 },
+      500,
     )
   }
 }
 
 export async function DELETE(request: Request) {
   try {
+    requireIdentityOrigin(request)
     const { supabase, user } = await requireUser()
     if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+      return identityJson({ error: "Not authenticated" }, 401)
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(supabase, user.id)
@@ -169,19 +173,20 @@ export async function DELETE(request: Request) {
       throw error
     }
 
-    return NextResponse.json({
+    return identityJson({
       share: data
         ? {
             ...data,
-            path: buildBinderSharePath(data.token),
+            path: await namedSharePath(ownerUserId, binder.binderId) ?? buildBinderSharePath(data.token),
           }
         : null,
     })
   } catch (error) {
+    if (error instanceof IdentityError) return identityJson({ error: error.message }, error.status)
     console.error("[holofolder] Failed to disable binder share:", error)
-    return NextResponse.json(
+    return identityJson(
       { error: error instanceof Error ? error.message : "Failed to disable binder share" },
-      { status: 500 },
+      500,
     )
   }
 }

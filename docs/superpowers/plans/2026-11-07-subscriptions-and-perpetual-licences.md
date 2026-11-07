@@ -33,7 +33,7 @@
 
 ### Task 1: Trusted entitlements and permanent licences
 
-**Files:** create `lib/billing.ts`, `lib/server/billing.ts`, `scripts/047_billing_access.sql`, `tests/billing.test.ts`, `tests/billing-access-migration.sql`; modify `scripts/MIGRATIONS.md`. Recheck next free migration number before writing.
+**Files:** create `lib/billing.ts`, `lib/server/billing.ts`, `scripts/049_billing_access.sql`, `tests/billing.test.ts`, `tests/billing-access-migration.sql`; modify `scripts/MIGRATIONS.md`. Recheck next free migration number before writing.
 
 **Interfaces:** `BillingAccess` includes `ownerUserId`, `tier` (`free` or `paid`), `source` (`free`, `subscription`, `perpetual`), `paidThrough`, `savedCardCount`, `cardLimit` and `enforced`. `getBillingAccess(ownerUserId: string): Promise<BillingAccess>` loads server-owned access. `countSavedCards(items: CollectedPokemon[]): number` implements the exact spec count. No raw Stripe IDs need to reach the client.
 
@@ -45,7 +45,7 @@
 
 ### Task 2: Database cap and partner access
 
-**Files:** extend `scripts/047_billing_access.sql`, `tests/billing-access-migration.sql`; modify `lib/server/collection-owner.ts`, `app/api/collection/route.ts`, `app/api/binders/route.ts`, `app/api/settings/route.ts`, `lib/server/binder-appearance.ts`, `lib/server/partner-push.ts`, `workflows/partner-acquisition-push.ts`, `app/api/push/events/[id]/route.ts`, `hooks/use-partner.ts`, and relevant existing collection/partner tests.
+**Files:** extend `scripts/049_billing_access.sql`, `tests/billing-access-migration.sql`; modify `lib/server/collection-owner.ts`, `app/api/collection/route.ts`, `app/api/binders/route.ts`, `app/api/settings/route.ts`, `lib/server/binder-appearance.ts`, `lib/server/partner-push.ts`, `workflows/partner-acquisition-push.ts`, `app/api/push/events/[id]/route.ts`, `hooks/use-partner.ts`, and relevant existing collection/partner tests.
 
 **Interfaces:** shared `BillingAccessError` uses structured `upgrade_required`/`card_limit_reached` codes. Database entitlement and slot-weight functions match Task 1. Partner membership resolution preserves relationship metadata while refusing unpaid owner data access.
 
@@ -106,5 +106,5 @@
 
 - Cal explicitly said `no e2e` during execution. Do not add or run further e2e. Use unit, typecheck, lint, build and database verification, and disclose missing browser/PWA proof.
 - Local port 3287 was occupied; only own temporary servers were started/stopped at 3288 and 3289.
-- Migration 047 applied on hosted Supabase, cutoff `2026-11-07T21:13:57.946Z`: 2 eligible existing accounts and 2 grandfathered perpetual licences verified, enforcement still off pending deployment.
+- Migration 049 applied on hosted Supabase, cutoff `2026-11-07T21:13:57.946Z`: 2 eligible existing accounts and 2 grandfathered perpetual licences verified, enforcement still off pending deployment.
 - Syncaura account identity verified. Holo Folder-only monthly/yearly prices, portal and webhook created; production environment configuration prepared without logging keys.

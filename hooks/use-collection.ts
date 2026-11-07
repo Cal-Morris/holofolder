@@ -178,6 +178,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const lastCollectionAutoRefreshAtRef = useRef(0)
 
   const getSanitizedLocalCollectedIds = useCallback(() => {
+    if (readOnly) return []
     const rawIds = readLocalCollectedIds()
     const wishlistedIds = new Set(
       collection
@@ -191,7 +192,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     return sanitizedIds
-  }, [collection])
+  }, [collection, readOnly])
 
   const resolveCollectionOwnerUserId = useCallback(async (currentUser: User | null) => {
     if (!currentUser) {
@@ -272,6 +273,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [cancelSyncRetry, refreshLocalPendingSyncCount, scheduleSyncRetry])
 
   useEffect(() => {
+    if (readOnly) return
     refreshLocalCollectedCount()
     refreshLocalPendingSyncCount()
 
@@ -284,7 +286,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     window.addEventListener("storage", handleStorage)
     return () => window.removeEventListener("storage", handleStorage)
-  }, [refreshLocalCollectedCount, refreshLocalPendingSyncCount])
+  }, [readOnly, refreshLocalCollectedCount, refreshLocalPendingSyncCount])
 
   useEffect(() => {
     if (readOnly || !user) {

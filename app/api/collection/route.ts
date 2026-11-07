@@ -1,5 +1,6 @@
 import { BillingAccessError, isBillingError } from "@/lib/billing"
 import { billingErrorResponse } from "@/lib/server/billing"
+import { notificationFirstName } from "@/lib/account-identity"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
     const acquisition = intent?.actorId === user.id ? intent : undefined
     const atomic = await saveCollectionWithAcquisition({
       ownerId: ownerUserId, binderId, actorId: user.id,
-      actorName: String(user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Your partner').slice(0, 60),
+      actorName: notificationFirstName(user.user_metadata),
       pokemonId, row, expected: previousRow ?? null, acquisition,
     })
     if (atomic?.conflict) {

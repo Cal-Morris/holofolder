@@ -29,12 +29,32 @@ function allowsNativeGesture(element: Element) {
 let installed = false
 let startX = 0
 let startY = 0
+let allowX = false
+let allowY = false
 
 function onTouchStart(event: TouchEvent) {
   const touch = event.touches[0]
   if (!touch) return
   startX = touch.clientX
   startY = touch.clientY
+  allowX = false
+  allowY = false
+  // Resolve both axes once per gesture, never force style/layout during touchmove.
+  let node = event.target instanceof Element ? event.target : null
+  while (node && node !== document.body && node !== document.documentElement) {
+    if (allowsNativeGesture(node)) {
+      allowX = true
+      allowY = true
+      return
+    }
+    if (node instanceof HTMLElement) {
+      const box = { ...pickOverflow(getComputedStyle(node)), scrollWidth: node.scrollWidth, clientWidth: node.clientWidth, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight }
+      allowX ||= canScrollAlong(box, 1, 0)
+      allowY ||= canScrollAlong(box, 0, 1)
+      if (allowX && allowY) return
+    }
+    node = node.parentElement
+  }
 }
 
 function onTouchMove(event: TouchEvent) {
@@ -43,12 +63,7 @@ function onTouchMove(event: TouchEvent) {
   const touch = event.touches[0]
   const dx = touch.clientX - startX
   const dy = touch.clientY - startY
-  let node = event.target instanceof Element ? event.target : null
-  while (node && node !== document.body && node !== document.documentElement) {
-    if (allowsNativeGesture(node)) return
-    if (node instanceof HTMLElement && canScrollAlong({ ...pickOverflow(getComputedStyle(node)), scrollWidth: node.scrollWidth, clientWidth: node.clientWidth, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight }, dx, dy)) return
-    node = node.parentElement
-  }
+  if (Math.abs(dy) >= Math.abs(dx) ? allowY : allowX) return
   event.preventDefault()
 }
 

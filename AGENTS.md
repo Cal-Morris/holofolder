@@ -131,14 +131,14 @@ See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKI
 
 ## Deployment
 
-- **Ship small, scoped changes by default.** Unless Cal explicitly asks for local-only work, completing a small change includes committing it on its own branch, running the required local checks, pushing the branch, opening a PR, and merging once all required checks and reviews pass. Continue through production deployment verification using the `release-and-deploy` skill. This is standing authorization for those steps; don't stop at "fixed locally" or ask for separate permission to commit, push, open the PR or merge. If a gate fails, fix failures within the task's scope or report the concrete blocker. The verified quota exception below still applies.
+- **Ship small, scoped changes by default.** Unless Cal explicitly asks for local-only work, completing a small change includes committing it on its own branch, pushing the branch, opening a PR, and merging once CI and all required reviews pass. Run focused local checks when useful for the change; a full local test, build or e2e run is not required by default. Run the full e2e suite only when Cal explicitly asks for it. Continue through production deployment verification using the `release-and-deploy` skill. This is standing authorization for those steps; don't stop at "fixed locally" or ask for separate permission to commit, push, open the PR or merge. If a gate fails, fix failures within the task's scope or report the concrete blocker. The verified quota exception below still applies.
 - Vercel deploys `main` to production. Every PR push gets a preview deployment. Both **Typecheck** (GitHub Actions) and **Vercel** must pass before merging. The current GitHub plan does not enforce required checks on this private repo; agents must enforce this release-policy gate.
 - The project is on the **Hobby plan**, which has a daily deployment limit. Every push, rebase and merge costs a deploy. So:
-  - **verify locally first, then push once per PR**
+  - **push once per PR after any focused checks the change needs**
   - don't push "retry" commits
   - only rebase when GitHub says the branch is out of date or conflicting
   - merge one PR at a time
-- **Keep merging when Vercel explicitly reports "Deployment rate limited" or an exhausted account build/deployment quota.** Verify the check details, run all required local checks on the current PR head, and require every other required check and review to pass. Record the quota failure and local validation in the PR, then merge without waiting for the reset or pushing retry commits.
+- **Keep merging when Vercel explicitly reports "Deployment rate limited" or an exhausted account build/deployment quota.** Verify the check details, run `bun run test`, `bun run typecheck`, `bun run lint` and `bun run build` on the current PR head (no full e2e required), and require every other required check and review to pass. Record the quota failure and local validation in the PR, then merge without waiting for the reset or pushing retry commits.
 - A quota-blocked merge is **merged, deployment pending**. After the limit resets, deploy the latest `main` and verify its production deployment; don't redeploy an older PR head.
 - GitHub Actions runs the full-repo **Typecheck** workflow in parallel with Vercel, which skips duplicate type-checking. Don't add other workflows unless the owner asks.
 
@@ -170,7 +170,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
   - Only mirror `assets.tcgdex.net` card images.
   - Stay within the **R2 free tier** (10 GB-month storage, 1M Class A and 10M Class B operations per month) and keep the backfill budgets.
 - **Shared domain types live in `lib/domain/`**, and pricing types in `lib/card-pricing.ts`. Don't redeclare them in hooks or components.
-- **Quality bar:** no new lint warnings, typecheck clean, unit tests for new logic, and e2e for user-visible behaviour.
+- **Quality bar:** no new lint warnings, typecheck clean, unit tests for new logic, and focused e2e coverage where useful for user-visible behaviour. Do not run the full e2e suite unless Cal explicitly asks.
 - **Shared machines:** use your own dev or test port, and don't kill processes you didn't start.
 
 ## Code conventions
@@ -188,12 +188,10 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 ## Definition of done
 
 - [ ] One concern per PR and commit, on a short-lived branch off the latest `main`; independent features use separate branches wherever possible
-- [ ] `bun run test` passes, with new logic covered in `tests/`
-- [ ] `bun run typecheck` is clean and the Typecheck CI check passes on the current PR head
-- [ ] `bun run lint` passes with no new warnings, and the cap is lowered if you removed some
-- [ ] `bun run build` passes
-- [ ] `bun run test:e2e` passes on all 6 projects (3 widths × browser and standalone). UI changes were checked at 375, 390 and 430 with insets.
-- [ ] Overlays use `useOverlay` and pass the overlay e2e expectations
+- [ ] Commit and push, open a PR, and merge once Typecheck, Vercel and required reviews pass
+- [ ] Run focused local checks as needed; no full local test, build or e2e run required by default
+- [ ] New logic has unit coverage in `tests/`; no new lint warnings, and the cap is lowered if warnings were removed
+- [ ] UI changes were checked at 375, 390 and 430 with insets; overlays use `useOverlay` and meet the dismissal requirements
 - [ ] Works offline (or degrades clearly), with no per-user data cached in the service worker
 - [ ] No invented data. Price signals are confidence-gated.
 - [ ] Migrations are numbered, idempotent and listed in `scripts/MIGRATIONS.md`, applied to the target Supabase project and verified. The PR records what was applied.

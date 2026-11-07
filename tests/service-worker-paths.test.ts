@@ -18,9 +18,18 @@ test("offline shell discovers prefixed build assets and lazy chunks", () => {
 
 test("worker leaves Framer marketing navigations alone even with an older broad registration", () => {
   const { listeners } = worker()
-  for (const pathname of ["/", "/pricing", "/application"]) {
+  for (const pathname of ["/", "/pricing", "/application", "/@cal/national"]) {
     let intercepted = false
     listeners.get("fetch")!({ request: { method: "GET", mode: "navigate", url: `https://holofolder.com${pathname}` }, respondWith: () => { intercepted = true } })
     assert.equal(intercepted, false, pathname)
+  }
+})
+
+test("failed named share navigations never reveal the private offline binder", async () => {
+  const { context } = worker()
+  context.fetch = async () => { throw new Error("synthetic offline network") }
+  context.caches = { open: async () => ({ match: async () => "synthetic private binder shell" }) }
+  for (const path of ["/app/u/cal/national", "/app/share/token", "/@cal/national"]) {
+    await assert.rejects(runInContext(`handleNavigation({request:{url:${JSON.stringify(`https://holofolder.com${path}`)}}})`, context), /synthetic offline network/)
   }
 })

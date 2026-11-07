@@ -44,7 +44,6 @@ export interface MainContentContext {
   binderCardDisplay: BinderCardDisplay
   binderDimension: "2d" | "3d"
   binderFitSize: { width: number; height: number; } | null
-  pendingBinderPage: number | null
   binderPageRef: RefObject<HTMLDivElement | null>
   closeBurstScanner: () => void
   onHideBinderValue: () => void
@@ -134,7 +133,7 @@ export interface MainContentContext {
 }
 
 export function renderMainContentView(ctx: MainContentContext) {
-  const { onHideBinderValue, assignWantedCard, pendingBinderPage, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
+  const { onHideBinderValue, assignWantedCard, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
       <input
@@ -170,10 +169,10 @@ export function renderMainContentView(ctx: MainContentContext) {
       )}
 
       {isShowModeOfferVisible && (
-        <section aria-label="At a card show?" className="mb-2 flex shrink-0 items-center gap-2 rounded-2xl border border-amber-400/45 bg-amber-400/12 py-0.5 pl-3 pr-0.5">
-          <Ticket className="h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+        <section aria-label="At a card show?" className="holo-panel mb-2 flex shrink-0 items-center gap-2 rounded-2xl border border-border/60 py-0.5 pl-3 pr-0.5">
+          <Ticket className="h-5 w-5 shrink-0 text-primary" aria-hidden />
           <p className="min-w-0 flex-1 truncate text-sm leading-tight">
-            <span className="font-bold">At a card show?</span>{" "}
+            <span className="font-semibold">At a card show?</span>{" "}
             <span className="text-xs text-muted-foreground">{isOnline ? "Quick search, screen on" : "Offline: Show mode uses saved cards"}</span>
           </p>
           <Button className="h-11 shrink-0 rounded-xl px-3 text-sm font-semibold" onClick={() => setShowMode(true)} aria-label="Turn on Show mode">
@@ -367,7 +366,6 @@ export function renderMainContentView(ctx: MainContentContext) {
           <div ref={setBinderStageRef} className="flex min-h-0 flex-1 touch-pan-y items-center justify-center overflow-hidden overscroll-x-contain">
             <div
               ref={binderPageRef}
-              aria-busy={pendingBinderPage !== null}
               data-page-turn-ms={prefersReducedMotion ? 0 : PAGE_TURN_MS}
               className="relative max-h-full max-w-full"
               style={{
@@ -375,8 +373,7 @@ export function renderMainContentView(ctx: MainContentContext) {
                 height: binderFitSize ? `${binderFitSize.height}px` : "auto",
               }}
             >
-              {pendingBinderPage !== null && <span role="status" className="animate-[fade-in_120ms_ease-out_200ms_both] absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full bg-background/90 px-3 py-1 text-xs text-muted-foreground">Loading page {pendingBinderPage}…</span>}
-              <div inert={pendingBinderPage !== null} className={`grid h-full w-full ${isSpreadLayout ? "grid-cols-2 gap-3 xl:gap-4" : "grid-cols-1"}`}>
+              <div className={`grid h-full w-full ${isSpreadLayout ? "grid-cols-2 gap-3 xl:gap-4" : "grid-cols-1"}`}>
                 {displayedSpreadPages.map((page) => {
                   if (page.kind === "info") {
                     return renderSpreadInfoPage(page.side)

@@ -424,7 +424,7 @@ function QuickMode({
   const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0 && setHits.length === 0
 
   const searchControls = (
-    <div className={`holo-toolbar shrink-0 border-border/50 px-3 ${wideWorkspace ? "border-b py-3" : "border-t pb-[calc(var(--safe-bottom)+0.75rem)] pt-3"}`}>
+    <div className={`holo-panel shrink-0 rounded-3xl border border-border/60 px-3 py-3 ${wideWorkspace ? "mx-3 mb-3" : "mx-3 mb-[calc(var(--safe-bottom)+0.5rem)] mt-2"}`}>
       {show && bundle.length > 0 && (
         <button
           type="button"
@@ -489,7 +489,7 @@ function QuickMode({
   )
 
   return (
-    <div className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm" data-overlay-backdrop onClick={onClose}>
+    <div className="fixed inset-0 z-[55] bg-black/60 sm:backdrop-blur-sm" data-overlay-backdrop onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
@@ -501,7 +501,7 @@ function QuickMode({
         data-keyboard-fit
         className={`mx-auto flex h-[100dvh] w-full ${wideWorkspace ? "max-w-6xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
       >
-        <header {...prepSwipe} className="holo-toolbar flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
+        <header {...prepSwipe} className="holo-panel mx-3 mb-3 flex shrink-0 items-center gap-2 rounded-3xl border border-border/60 px-3 py-2">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold leading-tight">{preparingOffline ? "Prepare offline" : lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
           </div>

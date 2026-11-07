@@ -141,6 +141,8 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
   await target.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort())
   // Synthetic lifetime access keeps existing fixtures on the previously unrestricted tier.
   await target.route("**/app/api/billing", route => route.fulfill({ json: { access: { ownerUserId: E2E_USER.id, tier: "paid", source: "perpetual", paidThrough: null, savedCardCount: 2, cardLimit: null, enforced: true }, canManage: true } }))
+  await target.route("**/app/api/account-identity", route => route.fulfill({ json: { username: null, available: false } }))
+  await target.route("**/app/api/binder-identity**", route => route.fulfill({ json: { username: null, slug: null, canEdit: false, available: false } }))
   await target.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
   await target.route("**/app/api/card-prices**", async (route) => {
     const body = route.request().postDataJSON?.() ?? {}

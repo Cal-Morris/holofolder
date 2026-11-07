@@ -281,7 +281,7 @@ function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnli
     <section aria-label="Hunting" className="flex min-h-0 flex-1 flex-col" data-testid="show-hunt">
       <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         {recentCards}
-        <div data-hunt-controls className="holo-toolbar sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 px-3 pb-2 pt-2">
+        <div data-hunt-controls className="holo-panel sticky top-0 z-10 my-3 space-y-2 rounded-3xl border border-border/60 px-3 py-3">
           <div className="flex flex-wrap items-center gap-2">
             <Target className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />
             <h3 className="min-w-0 flex-1 truncate text-base font-bold">
@@ -377,7 +377,12 @@ const HuntGroupSection = memo(function HuntGroupSection({
   const pokemon = { id: group.pokemonId, name: group.pokemonName }
   const name = formatPokemonDisplayName(group.pokemonName)
   return (
-    <section aria-label={`Hunting ${name}`} className="space-y-1.5">
+    <section
+      aria-label={`Hunting ${name}`}
+      className="space-y-1.5"
+      // Keep offscreen groups out of layout/paint; remember their measured height once visited.
+      style={{ contentVisibility: "auto", containIntrinsicBlockSize: `auto ${3.5 + group.cards.length * 6.4}rem` }}
+    >
       <button type="button" onClick={() => onPickPokemon(pokemon)} aria-label={`${name}: all cards`} className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-1 text-left active:bg-muted">
         <PokemonSprite id={group.pokemonId} />
         <span className="min-w-0 flex-1">

@@ -1,3 +1,4 @@
+import { getBillingAccess } from '@/lib/server/billing'
 import { RetryableError } from 'workflow'
 import { createAdminClient } from '@/lib/supabase/admin'
 import webpush from 'web-push'
@@ -13,9 +14,11 @@ export async function partnerAcquisitionPush(eventId: string) {
 async function recipientDevices(eventId: string) {
   'use step'
   const admin = createAdminClient()
-  const { data: event, error } = await admin.from('partner_acquisitions').select('recipient_id,created_at').eq('id', eventId).maybeSingle()
+  const { data: event, error } = await admin.from('partner_acquisitions').select('recipient_id,created_at,owner_user_id').eq('id', eventId).maybeSingle()
   if (error) throw new Error('Could not read partner update')
   if (!event || Date.now() - Date.parse(event.created_at) > 24 * 60 * 60 * 1000) return [] as string[]
+  const access = await getBillingAccess(event.owner_user_id)
+  if (access.enforced && access.tier !== 'paid') return [] as string[]
   const { data, error: deviceError } = await admin.from('push_subscriptions').select('id').eq('user_id', event.recipient_id)
   if (deviceError) throw new Error('Could not read recipient devices')
   return (data ?? []).map(row => String(row.id))
@@ -34,11 +37,13 @@ async function deliver(eventId: string, subscriptionId: string): Promise<'delive
     return 'skipped'
   }
   const [{ data: event, error: eventError }, { data: subscription, error: subscriptionError }] = await Promise.all([
-    admin.from('partner_acquisitions').select('actor_name,card_name,binder_id,pokemon_id,recipient_id').eq('id', eventId).maybeSingle(),
+    admin.from('partner_acquisitions').select('actor_name,card_name,binder_id,pokemon_id,recipient_id,owner_user_id').eq('id', eventId).maybeSingle(),
     admin.from('push_subscriptions').select('user_id,endpoint,p256dh,auth').eq('id', subscriptionId).maybeSingle(),
   ])
   if (eventError || subscriptionError) throw new Error('Could not read delivery details')
   if (!event || !subscription || subscription.user_id !== event.recipient_id) return 'skipped'
+  const access = await getBillingAccess(event.owner_user_id)
+  if (access.enforced && access.tier !== 'paid') return 'skipped'
   let status = 201
   try {
     await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({

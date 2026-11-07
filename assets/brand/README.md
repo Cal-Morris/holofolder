@@ -1,15 +1,13 @@
-# Holo Folder card marks
+# Holo Folder card mark
 
-`holo-cards-mark.svg` is the editable vector source: a holographic glint card, rose/lilac crescent card and mint/cyan ring card. It uses paths, shapes and gradients, with no embedded raster images or external resources. `holo-cards-master.png` preserves the generated concept reference; the original single-card `holo-card-master.png` also remains unchanged.
+`holo-card-master.png` is the high-resolution framed holo card used in Framer’s header, selected by Cal as the canonical mark. The old three-card SVG and concept image remain as historical sources, but production exports use the framed card only.
 
-Run `node scripts/generate-app-icons.mjs` from the repository root. All production PNG/ICO exports render from the SVG source. The generator exports a transparent SVG/PNG logo, light/dark SVG icons and 32 px favicons, a 16/32/48/64 px ICO, an adaptive SVG, a transparent glass-style SVG, maskable and monochrome SVGs, an opaque 180 px Apple touch icon, regular 192/512/1024 px app icons and separate Android maskable icons. Maskable artwork fits inside the central 80%-diameter safe circle. iOS supplies its own corner mask.
+Run `node scripts/generate-app-icons.mjs` from the repository root. The generator trims transparent margins and exports the same artwork as favicon, opaque dark Apple/PWA icons and a transparent in-app mark. Android maskable versions keep the artwork inside the central 80%-diameter safe circle. The monochrome notification badge is a simplified single-card silhouette with the same central glint.
 
-The public assets are served under `/app`, including `/app/holo-cards-mark.svg`, `/app/holo-cards-light.svg`, `/app/holo-cards-dark.svg`, `/app/holo-cards-glass.svg` and `/app/holo-cards-monochrome.svg`. Framer marketing can use these asset URLs independently of Next app routing. The app manifest retains `/app` launch and scope. New multi-card URLs bypass cached artwork, and old icon URLs remain compatible aliases, with old maskable URLs keeping safe padding.
+Canonical assets use `/app/holofolder-*` URLs to bypass cached older artwork. Older icon URLs remain compatible aliases, including maskable padding. SVG wrappers embed a compact 512 px PNG of the original artwork with no external requests; they are not editable vector recreations. Regular PNG exports render directly from the high-resolution master.
 
-## Appearance support
+The icon background and first-launch app theme are dark, regardless of the system theme. An explicitly saved light app preference still works. Manifest launch and scope remain `/app`. Storage and image-cache identifiers stay unchanged, preserving offline cards and queued edits.
 
-The favicon and adaptive SVG respond to `prefers-color-scheme`. The manifest supplies `any`, `maskable` and `monochrome` purposes for supporting browsers/launchers. The monochrome silhouette provides a tintable alpha mask. The glass SVG is translucent artwork for web/design use, not native Apple Icon Composer layers.
+The OS controls installed icon refresh and tinting. Existing Home Screen installs may retain cached artwork. No native Apple Icon Composer layers or guaranteed Liquid Glass appearance are supplied. Device appearance and offline/browser verification remain pending under Cal’s browser-test pause.
 
-Installed icon selection and theme refresh depend on the browser and OS. Web manifests do not supply native Apple dark/tinted/clear icon layers. Do not advertise guaranteed native Liquid Glass support. Apple touch uses the opaque default; the OS controls Home Screen restyling. Existing installs may keep OS-cached artwork; changing the artwork does not require clearing app data or deleting queued edits. Physical-device appearance needs separate verification.
-
-References: [WebKit SVG icons](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/#svg-icons), [web manifest icon purposes](https://www.w3.org/TR/appmanifest/#purpose-member), [Apple icon appearances](https://developer.apple.com/design/human-interface-guidelines/app-icons).
+For Framer Site Settings → General, replace both light/dark favicons with `public/holofolder-icon-512.png` and the Apple touch icon with `public/holofolder-apple-touch-icon.png`. The header already uses the framed card. These are uploadable local exports; app metadata cannot change the marketing site’s favicon settings.

@@ -8,7 +8,7 @@ async function main() {
   await Promise.all([a.connect(),b.connect()])
   try {
     await a.query(await readFile(new URL('../tests/billing-access-migration.sql',import.meta.url),'utf8'))
-    const migration=await readFile(new URL('./047_billing_access.sql',import.meta.url),'utf8')
+    const migration=await readFile(new URL('./049_billing_access.sql',import.meta.url),'utf8')
     await a.query(migration);await a.query(migration)
     const owner=crypto.randomUUID(),binder=crypto.randomUUID(),other=crypto.randomUUID()
     await a.query('insert into auth.users(id) values($1)',[owner])

@@ -244,13 +244,13 @@ test("Holo Folder branding fits mobile and installed app chrome", async ({ page,
   const manifest = await response.json()
   expect(manifest).toMatchObject({ name: "Holo Folder", short_name: "Holo Folder", start_url: "/app", display: "standalone" })
   expect(manifest.icons).toEqual(expect.arrayContaining([
-    expect.objectContaining({ src: "/app/pwa-holo-cards-maskable-192.png", sizes: "192x192", purpose: "maskable" }),
-    expect.objectContaining({ src: "/app/pwa-holo-cards-maskable-512.png", sizes: "512x512", purpose: "maskable" }),
+    expect.objectContaining({ src: "/app/holofolder-maskable-192.png", sizes: "192x192", purpose: "maskable" }),
+    expect.objectContaining({ src: "/app/holofolder-maskable-512.png", sizes: "512x512", purpose: "maskable" }),
   ]))
-  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/app/apple-touch-icon-holo-cards.png")
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/app/holofolder-apple-touch-icon.png")
   const logo = page.getByRole("link", { name: "Holo Folder", exact: true }).first().locator("img")
   await expect(logo).toBeVisible()
-  await expect(logo).toHaveAttribute("src", "/app/holo-card-mark.png")
+  await expect(logo).toHaveAttribute("src", "/app/holofolder-mark.png")
   await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
   for (const dark of [true, false]) {
     await page.evaluate(enabled => document.documentElement.classList.toggle("dark", enabled), dark)

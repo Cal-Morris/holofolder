@@ -13,12 +13,12 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#07070a",
     categories: ["productivity", "entertainment", "utilities"],
     icons: [
-      { src: "/app/pwa-holo-cards-dark-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/app/pwa-holo-cards-dark-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/app/holo-cards-dark.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
-      { src: "/app/pwa-holo-cards-dark-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-      { src: "/app/pwa-holo-cards-dark-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      { src: "/app/holo-cards-monochrome.svg", sizes: "any", type: "image/svg+xml", purpose: "monochrome" },
+      { src: "/app/holofolder-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/app/holofolder-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/app/holofolder-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/app/holofolder-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/app/holofolder-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/app/holofolder-monochrome.svg", sizes: "any", type: "image/svg+xml", purpose: "monochrome" },
     ],
   }
 }

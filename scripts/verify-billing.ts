@@ -16,7 +16,7 @@ const denied = async (sql: string, values: unknown[]) => {
 }
 try {
   await db.query('begin')
-  const migration = await readFile(new URL('./047_billing_access.sql', import.meta.url), 'utf8')
+  const migration = await readFile(new URL('./049_billing_access.sql', import.meta.url), 'utf8')
   await db.query(migration)
   const before = await db.query('select count(*)::int as count from public.perpetual_licences')
   await db.query("insert into auth.users(id,created_at) values ($1,clock_timestamp()),($2,clock_timestamp())", [user, partner])

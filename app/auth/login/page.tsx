@@ -14,7 +14,7 @@ export default function Page() {
       <div className={styles.frame}>
         <nav className={styles.navigation} aria-label="Sign-in navigation">
           <a href="https://holofolder.com" className={styles.brand}>
-            <Image src="/app/holo-card-mark.png" alt="" width={36} height={36} unoptimized />
+            <Image src="/app/holofolder-mark.png" alt="" width={36} height={36} unoptimized />
             Holo Folder
           </a>
           <Link
