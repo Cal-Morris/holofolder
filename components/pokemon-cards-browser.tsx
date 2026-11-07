@@ -1,8 +1,8 @@
 "use client"
 
+import CardImage from "@/components/card-image"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { toCardImageSrc } from "@/lib/card-image-url"
 import { Check, Heart, Loader2, Plus, Search as SearchIcon, X } from "lucide-react"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
@@ -254,8 +254,7 @@ export default function PokemonCardsBrowser({
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-3">
           {cardDetails && detailState && <section aria-label="Card details" className="mb-4 space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-3">
             <div className="flex items-start gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element -- Same-origin card proxy, cached for offline use. */}
-              {cardDetails.card.image && <img src={toCardImageSrc(cardDetails.card.image) ?? undefined} alt={cardDetails.card.name} className="trading-card w-20 shrink-0 object-contain" />}
+              {cardDetails.card.image && <CardImage sizes="80px" src={cardDetails.card.image} alt={cardDetails.card.name} className="trading-card w-20 shrink-0 object-contain" />}
               <div className="min-w-0">
                 <h3 className="break-words text-base font-bold">{cardDetails.card.name}</h3>
                 <p className="text-xs text-muted-foreground">{cardDetails.card.set.name} · {formatCardNumber(cardDetails.card)}</p>
@@ -324,8 +323,7 @@ export default function PokemonCardsBrowser({
                   >
                     <div className="trading-card relative w-full bg-muted/40">
                       {image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={image} alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`} loading="lazy" className="h-full w-full object-cover" />
+                        <CardImage sizes="(max-width: 639px) 45vw, 180px" src={image} alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`} loading="lazy" className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full items-center justify-center p-2 text-center text-[11px] text-muted-foreground">No image</div>
                       )}

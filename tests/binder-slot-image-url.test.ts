@@ -3,9 +3,9 @@ import assert from "node:assert/strict"
 import { getPokemonOfficialArtworkUrl, resolveSlotImageUrl } from "../components/binder/pokemon-slot"
 import { toCardImageSrc } from "../lib/card-image-url"
 
-test("binder slots use TCGdex thumbnails without changing detail image URLs", () => {
+test("binder slots retain the original scan URL for responsive resizing", () => {
   const image = "https://assets.tcgdex.net/en/base/base1/44/high.webp"
-  assert.equal(resolveSlotImageUrl(1, image), toCardImageSrc(image.replace("high.webp", "low.webp")))
+  assert.equal(resolveSlotImageUrl(1, image), toCardImageSrc(image))
   assert.equal(toCardImageSrc(image), `/app/api/card-image-proxy?url=${encodeURIComponent(image)}`)
 })
 

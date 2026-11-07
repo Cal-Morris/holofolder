@@ -11,7 +11,7 @@ import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-label
 import { toCacheableCardImageUrl } from "@/lib/offline-cache-warmup"
 import { formatDexNumber } from "@/lib/pokemon-catalog"
 import { Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Palette, Star, X } from "lucide-react"
-import NextImage from "next/image"
+import CardImage from "@/components/card-image"
 import { createPortal } from "react-dom"
 import type { CardPriceSnapshot as PricingCardPriceSnapshot, PricedCardFinish } from "@/lib/card-pricing"
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react"
@@ -202,7 +202,9 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
           {isMobileQuickPanel ? <div aria-hidden="true" className="mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30" /> : null}
           <div className="flex items-start gap-3">
             <div className={`relative mt-0.5 flex shrink-0 items-center justify-center overflow-hidden border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${selectedPreviewFrameClass}`}>
-              <img
+              <CardImage
+                fill
+                sizes="(max-width: 639px) 80px, 56px"
                 src={selectedPreviewImage}
                 alt={selectedPreviewAlt}
                 className={`${selectedPreviewImageClass} ${selectedPreviewFit} ${selectedPreviewTone}`}
@@ -387,8 +389,10 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
             <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
               <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
                 {selectedCurrentCardPreview.cardImage ? (
-                  <img
-                    src={toCardImageSrc(selectedCurrentCardPreview.cardImage) ?? undefined}
+                  <CardImage
+                    fill
+                    sizes="40px"
+                    src={selectedCurrentCardPreview.cardImage}
                     alt={selectedCurrentCardPreview.cardName}
                     className="absolute inset-0 h-full w-full object-cover"
                     loading="lazy"
@@ -423,7 +427,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
             return (
             <div key={getWantedCardKey(card)} className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
               <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
-                {image ? <NextImage unoptimized fill sizes="40px" src={image} alt={card.card_name} className="object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">No image</div>}
+                {image ? <CardImage fill sizes="40px" src={image} alt={card.card_name} className="object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">No image</div>}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">

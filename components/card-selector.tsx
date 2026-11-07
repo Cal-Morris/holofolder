@@ -1,5 +1,6 @@
 "use client"
 
+import CardImage from "@/components/card-image"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from "@/lib/camera-frame"
 import { useCameraStream } from "@/hooks/use-camera-stream"
@@ -126,11 +127,13 @@ function inferCardFinish(card: TCGCard): CardFinish {
 
 function CardSelectorImage({
   src,
+  sizes = "(max-width: 639px) 45vw, 180px",
   alt,
   className,
   fallbackClassName = "flex h-full w-full items-center justify-center bg-muted",
 }: {
   src?: string
+  sizes?: string
   alt: string
   className: string
   fallbackClassName?: string
@@ -151,7 +154,8 @@ function CardSelectorImage({
   }
 
   return (
-    <img
+    <CardImage
+      sizes={sizes}
       src={imageSrc}
       alt={alt}
       className={className}
@@ -998,6 +1002,7 @@ export default function CardSelector({
                             >
                               <CardSelectorImage
                                 src={match.card.image}
+                                sizes="56px"
                                 alt={match.card.name}
                                 className="h-20 w-14 shrink-0 rounded-md object-cover bg-muted"
                                 fallbackClassName="flex h-20 w-14 shrink-0 items-center justify-center rounded-md bg-muted"
