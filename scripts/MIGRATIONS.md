@@ -6,6 +6,7 @@ When you add a migration, use the next free number (`031_…`), keep it idempote
 
 | File | What it does |
 |---|---|
+| `048_named_share_account_identity.sql` | Reconciles named sharing with the independently shipped 047 account identity store. Preserves canonical saved usernames and legacy reservations, repoints the named resolver, retains the old claim RPC as a wrapper and empties the copied legacy username table. Requires 045 and 047; applied and verified on the hosted project on 2026-11-07. |
 | `047_account_usernames.sql` | Private account usernames and permanent name reservations, claimed atomically by the authenticated account. Apply before deploying account settings; name saves and existing app flows work without it, username controls report unavailable. |
 | `029_card_price_history_evidence.sql` | Native dated TCGplayer quotes in `card_prices.history_points`, separate from current GBP prices and rolling averages |
 | `030_tcg_card_illustrators.sql` | Browse by illustrator: partial index on `tcg_cards.illustrator` and `tcg_illustrator_directory()` (name + card count). The app falls back to paging `tcg_cards.illustrator` until it is applied; no backfill needed (the sync already stores `illustrator`) |
@@ -55,9 +56,11 @@ When you add a migration, use the next free number (`031_…`), keep it idempote
 | `028_user_pricing_preferences.sql` | `user_settings.pricing_region`, `preferred_currency`, `preferred_card_language` (NULL = automatic from the browser locale). `/api/settings` falls back to the older columns until this is applied |
 
 
+Migration `048` was also applied after `047`; the existing canonical username count was unchanged (one saved account). Legacy claims were empty, and no saved username was reset. The reconciliation verifier covers nonempty legacy claims, already-current canonical names, and deleted-account reservations across repeated application.
+
 Migration `045` was applied to the existing hosted Supabase project on 2026-11-07 before the named-link release. Both new tables have RLS enabled; authenticated users can claim their own names through the RPCs but cannot invoke the public resolver. Service role can resolve enabled shares. No real names were claimed or backfilled.
 
-Verification commands: `bun scripts/verify-named-binder-shares.ts --hosted-rollback` (idempotence, 25 authorization/reservation/resolution/deletion checks and rolled-back EXPLAIN ANALYZE), and `bun scripts/verify-named-binder-concurrency.ts --hosted-concurrency` (temporary synthetic accounts, concurrent claims and cleanup). The second command requires the migration to be applied and briefly persists its synthetic fixtures before removing them.
+Verification commands: `bun scripts/verify-named-binder-shares.ts --hosted-rollback` (idempotence, 29 authorization/reservation/resolution/deletion/reconciliation checks and rolled-back EXPLAIN ANALYZE), and `bun scripts/verify-named-binder-concurrency.ts --hosted-concurrency` (temporary synthetic accounts, concurrent claims and cleanup). The second command requires the migration to be applied and briefly persists its synthetic fixtures before removing them.
 
 ## `user_settings` (from the missing 002/003)
 
