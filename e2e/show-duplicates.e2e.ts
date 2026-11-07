@@ -9,7 +9,7 @@ test.describe("Show duplicate protection", () => {
   test("names the destination and protects an occupied slot before Bought", async ({ harness }) => {
     const { page } = harness
     const writes: unknown[] = []
-    await page.route("**/api/collection**", async route => {
+    await page.route("**/app/api/collection**", async route => {
       writes.push(route.request().postDataJSON())
       await route.fallback()
     })
@@ -18,7 +18,7 @@ test.describe("Show duplicate protection", () => {
       const other = new URL(route.request().url()).searchParams.get("binder_id")?.startsWith("neq.")
       return route.fulfill({ json: other ? [{ ...SEEDED_COLLECTION[0], binder_id: TRADES, card_id: "sv03.5-001", card_name: "Bulbasaur", card_finish: "normal" }] : SEEDED_COLLECTION.map(row => ({ ...row, binder_id: MAIN })) })
     })
-    await page.goto("/e2e-harness?signedIn=1&binders=1")
+    await page.goto("/app/e2e-harness?signedIn=1&binders=1")
     await page.getByRole("button", { name: "Show mode", exact: true }).click()
     await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: "Quick mode" })
