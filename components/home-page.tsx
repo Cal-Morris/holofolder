@@ -55,7 +55,7 @@ export default function HomePage({ signedIn = SIGNED_OUT }: { signedIn?: Promise
     <>
     <main className={styles.home} id="top">
       <header className={styles.header}>
-        <a href="#top" className={styles.brand}><Image className={styles.brandMark} src="/app/holo-card-mark.png" alt="" width={24} height={24} unoptimized />Holo Folder</a>
+        <a href="#top" className={styles.brand}><Image className={styles.brandMark} src="/app/holofolder-mark.png" alt="" width={24} height={24} unoptimized />Holo Folder</a>
         <MarketingNavigation />
         <button type="button" onClick={openAuthOrApp} className={styles.smallButton}><SignedInText signedIn={signedIn} yes="Open app" no="Sign in" /></button>
       </header>

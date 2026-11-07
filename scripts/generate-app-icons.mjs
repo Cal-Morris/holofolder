@@ -3,9 +3,11 @@ import fs from "node:fs"
 import path from "node:path"
 
 const publicDir = path.join(process.cwd(), "public")
-const vector = fs.readFileSync("assets/brand/holo-cards-mark.svg", "utf8")
-const master = await sharp(Buffer.from(vector), { density: 192 }).trim().png().toBuffer()
-const lightBackground = "#f7f5ff"
+// The high-resolution framed card is the same artwork used by Framer's header.
+const master = await sharp("assets/brand/holo-card-master.png").trim().png().toBuffer()
+const svgMaster = await sharp(master).resize(512, 512, { fit: "inside" }).png({ palette: true, effort: 10 }).toBuffer()
+const vector = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><image width="512" height="512" preserveAspectRatio="xMidYMid meet" href="data:image/png;base64,${svgMaster.toString("base64")}"/></svg>`
+const lightBackground = "#07070a"
 const darkBackground = "#07070a"
 
 async function appIcon(size, background, maskable = false) {
@@ -76,7 +78,22 @@ fs.writeFileSync(path.join(publicDir, "holo-cards-light.svg"), vectorIcon(`<rect
 fs.writeFileSync(path.join(publicDir, "holo-cards-dark.svg"), vectorIcon(`<rect width="512" height="512" fill="${darkBackground}"/>`))
 fs.writeFileSync(path.join(publicDir, "holo-cards-maskable.svg"), vectorIcon(`<rect width="512" height="512" fill="${lightBackground}"/>`, "", .56))
 fs.writeFileSync(path.join(publicDir, "holo-cards-glass.svg"), vectorIcon("", ".card-face{fill-opacity:.55}.card-border{fill-opacity:.7}"))
-const monochrome = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><defs><mask id="rear"><rect width="512" height="512" fill="white"/><rect x="135" y="75" width="242" height="352" rx="30" fill="black"/></mask></defs><g fill="none" stroke="black" stroke-width="20" stroke-linejoin="round" mask="url(#rear)"><rect x="91" y="103" width="210" height="300" rx="24" transform="rotate(-15 196 253)"/><rect x="211" y="103" width="210" height="300" rx="24" transform="rotate(15 316 253)"/></g><rect x="151" y="91" width="210" height="320" rx="24" fill="none" stroke="black" stroke-width="20"/><path d="M256 175Q266 241 320 251Q266 261 256 327Q246 261 192 251Q246 241 256 175" fill="black"/></svg>\n'
+const monochrome = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><g transform="rotate(-6 256 256)"><rect x="112" y="56" width="288" height="400" rx="40" fill="none" stroke="black" stroke-width="24"/><path d="M256 142Q266 236 340 250Q266 264 256 358Q246 264 172 250Q246 236 256 142" fill="black"/><path d="M160 405h192" stroke="black" stroke-width="18" stroke-linecap="round"/></g></svg>\n'
 fs.writeFileSync(path.join(publicDir, "holo-cards-monochrome.svg"), monochrome)
 await createIco(path.join(publicDir, "holo-cards-favicon.ico"))
 fs.copyFileSync(path.join(publicDir, "holo-cards-favicon.ico"), path.join(publicDir, "favicon.ico"))
+
+// New canonical URLs bypass cached artwork, old URLs remain compatible aliases.
+for (const [source, destination] of [
+  ["holo-cards-dark-32.png", "holofolder-icon-32.png"],
+  ["holo-cards-dark.svg", "holofolder-icon.svg"],
+  ["holo-cards-favicon.ico", "holofolder-favicon.ico"],
+  ["apple-touch-icon-holo-dark.png", "holofolder-apple-touch-icon.png"],
+  ["pwa-holo-cards-dark-192.png", "holofolder-icon-192.png"],
+  ["pwa-holo-cards-dark-512.png", "holofolder-icon-512.png"],
+  ["pwa-holo-cards-1024.png", "holofolder-icon-1024.png"],
+  ["pwa-holo-cards-dark-maskable-192.png", "holofolder-maskable-192.png"],
+  ["pwa-holo-cards-dark-maskable-512.png", "holofolder-maskable-512.png"],
+  ["holo-cards-monochrome.svg", "holofolder-monochrome.svg"],
+  ["holo-card-mark.png", "holofolder-mark.png"],
+]) fs.copyFileSync(path.join(publicDir, source), path.join(publicDir, destination))
