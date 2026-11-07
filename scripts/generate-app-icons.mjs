@@ -1,40 +1,17 @@
 import sharp from "sharp"
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
 
-const rootDir = process.cwd()
-const publicDir = path.join(rootDir, "public")
+const publicDir = path.join(process.cwd(), "public")
+const master = await sharp("assets/brand/holo-card-master.png").trim().png().toBuffer()
+const lightBackground = "#f7f5ff"
+const darkBackground = "#171a22"
 
-const lightTheme = { bg: "#f7f5ff", stroke: "#433878" }
-const darkTheme = { bg: "#171a22", stroke: "#eee8ff" }
-
-function themedSvg(theme, adaptive = false) {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    :root { --bg: ${theme.bg}; --stroke: ${theme.stroke}; }
-    ${adaptive ? `@media (prefers-color-scheme: dark) { :root { --bg: ${darkTheme.bg}; --stroke: ${darkTheme.stroke}; } }` : ""}
-  </style>
-  <defs>
-    <linearGradient id="holo" x1="92" y1="160" x2="416" y2="390" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#a5b4fc"/><stop offset=".35" stop-color="#f0abfc"/>
-      <stop offset=".65" stop-color="#67e8f9"/><stop offset="1" stop-color="#c4b5fd"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="118" fill="${adaptive ? "var(--bg)" : theme.bg}"/>
-  <path d="M88 180V150C88 133 101 120 118 120H213L245 157H394C411 157 424 170 424 187V357C424 376 409 392 390 392H122C103 392 88 376 88 357V180Z" fill="url(#holo)" stroke="${adaptive ? "var(--stroke)" : theme.stroke}" stroke-width="14" stroke-linejoin="round"/>
-  <rect x="200" y="170" width="126" height="168" rx="16" transform="rotate(9 200 170)" fill="#faf5ff" stroke="${adaptive ? "var(--stroke)" : theme.stroke}" stroke-width="12"/>
-  <path d="M92 234H420L398 365C395 381 382 392 366 392H146C130 392 117 381 114 365L92 234Z" fill="url(#holo)" stroke="${adaptive ? "var(--stroke)" : theme.stroke}" stroke-width="14" stroke-linejoin="round"/>
-  <path d="M262 269L274 295L300 307L274 319L262 345L250 319L224 307L250 295L262 269Z" fill="#fff" stroke="${adaptive ? "var(--stroke)" : theme.stroke}" stroke-width="10" stroke-linejoin="round"/>
-</svg>
-`
-}
-
-function adaptiveSvg() { return themedSvg(lightTheme, true) }
-
-async function rasterizeSvg(svgPath, size, outputPath) {
-  await sharp(fs.readFileSync(svgPath)).resize(size, size).png().toFile(outputPath)
+async function appIcon(size, background) {
+  // Keep the entire card inside Android's maskable safe circle; iOS supplies its own corner mask.
+  const mark = await sharp(master).resize({ width: Math.round(size * .66), height: Math.round(size * .66), fit: "inside" }).png().toBuffer()
+  return sharp({ create: { width: size, height: size, channels: 4, background } })
+    .composite([{ input: mark, gravity: "centre" }]).removeAlpha().png({ palette: true, effort: 10 }).toBuffer()
 }
 
 function createIcoFromPng(pngPath, icoPath) {
@@ -57,22 +34,24 @@ function createIcoFromPng(pngPath, icoPath) {
   fs.writeFileSync(icoPath, Buffer.concat([header, entry, pngBytes]))
 }
 
-fs.writeFileSync(path.join(publicDir, "icon.svg"), adaptiveSvg())
-
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "holofolder-icons-"))
-const lightSvgPath = path.join(tempDir, "icon-light.svg")
-const darkSvgPath = path.join(tempDir, "icon-dark.svg")
-
-try {
-  fs.writeFileSync(lightSvgPath, themedSvg(lightTheme))
-  fs.writeFileSync(darkSvgPath, themedSvg(darkTheme))
-
-  await rasterizeSvg(lightSvgPath, 32, path.join(publicDir, "icon-light-32x32.png"))
-  await rasterizeSvg(darkSvgPath, 32, path.join(publicDir, "icon-dark-32x32.png"))
-  await rasterizeSvg(lightSvgPath, 180, path.join(publicDir, "apple-icon.png"))
-  await rasterizeSvg(lightSvgPath, 192, path.join(publicDir, "pwa-192x192.png"))
-  await rasterizeSvg(lightSvgPath, 512, path.join(publicDir, "pwa-512x512.png"))
-  createIcoFromPng(path.join(publicDir, "icon-light-32x32.png"), path.join(publicDir, "favicon.ico"))
-} finally {
-  fs.rmSync(tempDir, { recursive: true, force: true })
+const outputs = [
+  ["icon-light-32x32.png", 32, lightBackground],
+  ["icon-dark-32x32.png", 32, darkBackground],
+  ["apple-icon.png", 180, lightBackground],
+  ["pwa-192x192.png", 192, lightBackground],
+  ["pwa-512x512.png", 512, lightBackground],
+]
+for (const [name, size, background] of outputs) {
+  fs.writeFileSync(path.join(publicDir, name), await appIcon(size, background))
 }
+// New install URLs bypass OS/browser caches; old URLs keep working for existing bookmarks.
+for (const [source, target] of [["apple-icon.png", "apple-touch-icon-holo-card.png"], ["pwa-192x192.png", "pwa-holo-card-192.png"], ["pwa-512x512.png", "pwa-holo-card-512.png"]]) {
+  fs.copyFileSync(path.join(publicDir, source), path.join(publicDir, target))
+}
+await sharp(master).resize({ width: 96, height: 96, fit: "contain", background: "#00000000" }).png({ palette: true, effort: 10 }).toFile(path.join(publicDir, "holo-card-mark.png"))
+const smallMark = await sharp(master).resize({ width: 128, height: 128, fit: "inside" }).png({ palette: true, effort: 10 }).toBuffer()
+const markMetadata = await sharp(smallMark).metadata()
+const width = Math.round(markMetadata.width / markMetadata.height * 338)
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><style>:root{--bg:${lightBackground}}@media(prefers-color-scheme:dark){:root{--bg:${darkBackground}}}</style><rect width="512" height="512" fill="var(--bg)"/><image x="${(512-width)/2}" y="87" width="${width}" height="338" href="data:image/png;base64,${smallMark.toString("base64")}"/></svg>\n`
+fs.writeFileSync(path.join(publicDir, "icon.svg"), svg)
+createIcoFromPng(path.join(publicDir, "icon-light-32x32.png"), path.join(publicDir, "favicon.ico"))
