@@ -18,5 +18,5 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { data: binder, error: binderError } = await admin.from('binders').select('name').eq('id', event.binder_id).eq('owner_user_id', event.owner_user_id).maybeSingle()
   if (binderError) return Response.json({}, { status: 503, headers })
   if (!binder) return Response.json({}, { status: 404, headers })
-  return Response.json({ title: `${event.actor_name} found a card`, body: `${event.card_name} was added to ${binder.name}.`, url: `/?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
+  return Response.json({ title: `${event.actor_name} found a card`, body: `${event.card_name} was added to ${binder.name}.`, url: `/app?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
 }

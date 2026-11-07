@@ -16,12 +16,12 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
   const refresh = useCallback(async () => {
     if (!userId) return
     await reconcilePushAccount(userId)
-    const response = await fetch('/api/push/subscriptions', { cache: 'no-store' })
+    const response = await fetch('/app/api/push/subscriptions', { cache: 'no-store' })
     if (!response.ok) throw new Error('Could not load your notification devices.')
     const data = await response.json()
     setDevices(Array.isArray(data.devices) ? data.devices : [])
     setConfigured(Boolean(data.configured))
-    const registration = await navigator.serviceWorker?.getRegistration()
+    const registration = await navigator.serviceWorker?.getRegistration('/app')
     const subscription = await registration?.pushManager?.getSubscription()
     setEndpoint(subscription?.endpoint ?? null)
   }, [userId])
@@ -38,14 +38,14 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
     setBusy(true); setMessage(null)
     try {
       if (await permission !== 'granted') throw new Error('Notifications are blocked. Allow them in your device or browser settings, then try again.')
-      const registration = await navigator.serviceWorker.getRegistration()
+      const registration = await navigator.serviceWorker.getRegistration('/app')
       if (!registration?.active) throw new Error('The app is still getting ready. Reload and try again.')
       const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       if (!key || !userId) throw new Error('Partner notifications are not available yet.')
       await clearPushDevice()
       const decoded = atob(key.replaceAll('-', '+').replaceAll('_', '/'))
       const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(decoded, c => c.charCodeAt(0)) })
-      const response = await fetch('/api/push/subscriptions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...subscription.toJSON(), label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone / iPad' : navigator.platform || 'This device' }) })
+      const response = await fetch('/app/api/push/subscriptions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...subscription.toJSON(), label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone / iPad' : navigator.platform || 'This device' }) })
       if (!response.ok) { await subscription.unsubscribe(); throw new Error((await response.json()).error ?? 'Could not enable notifications.') }
       try { await bindPushAccount(userId) } catch (error) { await clearPushDevice(); throw error }
       await refresh()
@@ -57,7 +57,7 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
     setBusy(true); setMessage(null)
     try {
       if (device.endpoint === endpoint) await clearPushDevice()
-      const response = await fetch('/api/push/subscriptions', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: device.id }) })
+      const response = await fetch('/app/api/push/subscriptions', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: device.id }) })
       if (!response.ok) throw new Error('Could not remove this device. Try again when online.')
       await refresh()
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not remove device.') }

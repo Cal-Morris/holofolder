@@ -539,9 +539,9 @@ function notificationAccount() {
 function notificationDestination(value) {
   try {
     const url = new URL(value, self.location.origin)
-    if (url.origin !== self.location.origin || url.pathname !== '/' || !/^[0-9a-f-]{36}$/i.test(url.searchParams.get('binder') ?? '')) return '/'
-    return `/?binder=${encodeURIComponent(url.searchParams.get('binder'))}`
-  } catch { return '/' }
+    if (url.origin !== self.location.origin || (url.pathname !== '/app' && url.pathname !== '/app/') || !/^[0-9a-f-]{36}$/i.test(url.searchParams.get('binder') ?? '')) return '/app'
+    return `/app?binder=${encodeURIComponent(url.searchParams.get('binder'))}`
+  } catch { return '/app' }
 }
 
 self.addEventListener('push', event => {
@@ -552,15 +552,15 @@ self.addEventListener('push', event => {
     let preview = null
     if (account && account === payload?.recipientId && /^[0-9a-f-]{36}$/i.test(payload?.eventId ?? '')) {
       try {
-        const response = await fetch(`/api/push/events/${payload.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        const response = await fetch(`/app/api/push/events/${payload.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
         if (response.ok) preview = await response.json()
       } catch { /* Offline or signed out: keep the visible notification private. */ }
     }
     await self.registration.showNotification(preview ? String(preview.title ?? 'Holo Folder update').slice(0, 160) : 'Holo Folder update', {
       body: preview ? String(preview.body ?? '').slice(0, 240) : 'Open the app to see your update.',
-      icon: '/pwa-holo-card-192.png', badge: '/icon-light-32x32.png',
+      icon: '/app/pwa-holo-card-192.png', badge: '/app/icon-light-32x32.png',
       tag: typeof payload?.tag === 'string' ? payload.tag.slice(0, 100) : 'binderdex-update',
-      data: { url: preview ? notificationDestination(preview.url) : '/', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null },
+      data: { url: preview ? notificationDestination(preview.url) : '/app', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null },
     })
   })())
 })
@@ -569,15 +569,18 @@ self.addEventListener('notificationclick', event => {
   event.notification.close()
   event.waitUntil((async () => {
     const account = await notificationAccount()
-    let url = '/'
+    let url = '/app'
     if (account && account === event.notification.data?.recipientId && /^[0-9a-f-]{36}$/i.test(event.notification.data?.eventId ?? '')) {
       try {
-        const response = await fetch(`/api/push/events/${event.notification.data.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        const response = await fetch(`/app/api/push/events/${event.notification.data.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
         if (response.ok) url = notificationDestination((await response.json()).url)
       } catch { /* Open the normal authenticated app when the update cannot be verified. */ }
     }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    const existing = windows.find(client => new URL(client.url).origin === self.location.origin)
+    const existing = windows.find(client => {
+      const current = new URL(client.url)
+      return current.origin === self.location.origin && /^\/app(?:\/|$)/.test(current.pathname)
+    })
     if (existing) { await existing.navigate(url); await existing.focus() }
     else await self.clients.openWindow(url)
   })())

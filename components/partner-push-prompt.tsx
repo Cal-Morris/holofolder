@@ -11,7 +11,7 @@ export function PartnerPushPrompt({ userId, onOpen }: { userId: string; onOpen()
       if (!('PushManager' in window) || !('Notification' in window) || Notification.permission !== 'default') return
       try {
         if (localStorage.getItem(`binderdex:push-prompt:${userId}`) || !readPushMembership(userId)) return
-        const response = await fetch('/api/push/subscriptions', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        const response = await fetch('/app/api/push/subscriptions', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
         if (active && response.ok && (await response.json()).configured) setVisible(true)
       } catch { /* A prompt is optional when the show has no signal. */ }
     }

@@ -35,11 +35,11 @@ async function run() {
   mock.module('../../lib/supabase/server', () => ({ createClient: async () => ({}) }))
   mock.module('../../lib/supabase/session-user', () => ({ getSessionUser: async () => viewer ? { id: viewer } : null }))
   const { GET } = await import('../../app/api/push/events/[id]/route')
-  const read = () => GET(new Request('https://synthetic.test/api/push/events/' + eventId), { params: Promise.resolve({ id: eventId }) })
+  const read = () => GET(new Request('https://synthetic.test/app/api/push/events/' + eventId), { params: Promise.resolve({ id: eventId }) })
   const response = await read()
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('cache-control'), 'private, no-store')
-  assert.deepEqual(await response.json(), { title: 'Synthetic partner found a card', body: 'Synthetic card was added to Synthetic Trades.', url: `/?binder=${binderId}` })
+  assert.deepEqual(await response.json(), { title: 'Synthetic partner found a card', body: 'Synthetic card was added to Synthetic Trades.', url: `/app?binder=${binderId}` })
   viewer = null
   assert.equal((await read()).status, 401)
   viewer = actor

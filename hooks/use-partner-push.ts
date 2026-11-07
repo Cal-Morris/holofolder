@@ -10,7 +10,7 @@ export function usePartnerPush(userId: string | null, enabled = true) {
     const recover = async () => {
       await reconcilePushAccount(userId).catch(() => undefined)
       if (!stopped && userId && navigator.onLine && document.visibilityState === 'visible') {
-        await fetch('/api/push/recover', { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => undefined)
+        await fetch('/app/api/push/recover', { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => undefined)
       }
     }
     void recover()

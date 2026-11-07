@@ -8,12 +8,12 @@ test.describe('partner acquisition intent', () => {
     const { page } = harness
     await page.route(`${SUPABASE_URL}/rest/v1/partnerships**`, route => route.fulfill({ json: partnership }))
     const writes: Record<string, unknown>[] = []
-    await page.route('**/api/collection', async route => {
+    await page.route('**/app/api/collection', async route => {
       const body = route.request().postDataJSON()
       writes.push(body)
       await route.fulfill({ json: { item: { user_id: E2E_USER.id, pokemon_id: body.pokemonId, pokemon_name: body.pokemonName, card_id: body.cardId, card_name: body.cardName, status: body.status, wanted_cards: body.wantedCards, card_language: body.cardLanguage, card_finish: body.cardFinish } } })
     })
-    await page.route('**/api/push/recover', route => route.fulfill({ json: { started: 0 } }))
+    await page.route('**/app/api/push/recover', route => route.fulfill({ json: { started: 0 } }))
     await page.reload()
     await expect.poll(() => page.evaluate(id => localStorage.getItem(`binderdex:push-membership:v1:${id}`), E2E_USER.id)).toContain(partnership.id)
     await page.getByRole('button', { name: 'Show mode', exact: true }).click()
@@ -42,7 +42,7 @@ test.describe('partner acquisition intent', () => {
   test('device controls explain opt-in and let you revoke a registered device without prompting', async ({ harness }) => {
     const { page } = harness
     let deleted = ''
-    await page.route('**/api/push/subscriptions', async route => {
+    await page.route('**/app/api/push/subscriptions', async route => {
       if (route.request().method() === 'DELETE') {
         deleted = route.request().postDataJSON().id
         return route.fulfill({ status: 204, body: '' })
@@ -76,11 +76,11 @@ test.describe('notification permission', () => {
       let requests = 0
       const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', unsubscribe: async () => true, toJSON: () => ({ endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', keys: { p256dh: 'synthetic', auth: 'synthetic' } }) }
       Object.defineProperty(Notification, 'requestPermission', { value: async () => { requests++; return permission } })
-      Object.defineProperty(navigator.serviceWorker, 'getRegistration', { value: async () => ({ active: {}, pushManager: { getSubscription: async () => null, subscribe: async () => subscription } }) })
+      Object.defineProperty(navigator.serviceWorker, 'getRegistration', { value: async (scope: string) => { if (scope !== '/app') throw new Error('Wrong worker scope'); return ({ active: {}, pushManager: { getSubscription: async () => null, subscribe: async () => subscription } }) } })
       Object.assign(window, { pushTest: { requests: () => requests, grant: () => { permission = 'granted' } } })
     })
     let enrolled = false
-    await page.route('**/api/push/subscriptions', async route => {
+    await page.route('**/app/api/push/subscriptions', async route => {
       if (route.request().method() === 'POST') { enrolled = true; return route.fulfill({ json: { id: partnership.id } }) }
       if (route.request().method() === 'DELETE') return route.fulfill({ status: 204, body: '' })
       return route.fulfill({ json: { configured: true, devices: [] } })
@@ -115,7 +115,7 @@ test.describe('installed Show mode notification prompt', () => {
     const { page } = harness
     await page.addInitScript(() => { Object.defineProperty(Notification, 'permission', { get: () => 'default' }) })
     await page.route(`${SUPABASE_URL}/rest/v1/partnerships**`, route => route.fulfill({ json: partnership }))
-    await page.route('**/api/push/subscriptions', route => route.fulfill({ json: { configured: true, devices: [] } }))
+    await page.route('**/app/api/push/subscriptions', route => route.fulfill({ json: { configured: true, devices: [] } }))
     await page.reload()
     await expect.poll(() => page.evaluate(id => localStorage.getItem(`binderdex:push-membership:v1:${id}`), E2E_USER.id)).toContain(partnership.id)
     await page.getByRole('button', { name: 'Show mode', exact: true }).click()
@@ -147,7 +147,7 @@ test('opening a read-only binder preserves this device’s signed-in notificatio
       }
     })
   }, E2E_USER.id)
-  await page.goto('/e2e-harness?readOnly=1')
+  await page.goto('/app/e2e-harness?readOnly=1')
   await expect(page.getByText('Shared binder', { exact: true })).toBeVisible()
   await expect.poll(() => page.evaluate(() => new Promise<string | undefined>((resolve, reject) => {
     const request = indexedDB.open('binderdex-offline', 1)

@@ -83,3 +83,15 @@
 - Review caught ignored post-claim read failures, now retried, and provider-queued messages arriving after unlink. Push payloads now contain event references only; the worker fetches private preview text through an authenticated endpoint that rechecks the original partnership at display and click time. Without authorization or connectivity, show a generic visible update. A push already accepted by a provider cannot be recalled; Web Push userVisibleOnly still requires a visible notification.
 - Worker tests exercise current authorization, unlink, signout, account change and unsafe destinations. Browser tests exercise original partner intent through an offline purchase/reconnect, remote device removal, denial and user-gesture enrollment, and the installed Show-mode setup prompt.
 - Actual notification delivery to a physical installed phone has not been tested. Automated tests use synthetic devices and never send to registered real devices.
+
+
+## App routing reconciliation
+
+- Rebased the unpublished feature onto routing releases #257 and #258. Framer owns marketing; this feature adds no marketing routes or domain settings.
+- Subscription enrollment/revocation and recovery use `/app/api/push/*`. Device lookup targets the `/app` registration. Signout clears the existing account binding and subscription before attempting an offline-safe remote revoke.
+- Private preview responses and worker notification clicks stay at `/app?binder=…`; generic updates open `/app`. Only app tabs are reused, leaving Framer marketing tabs untouched. Icons use `/app` asset URLs.
+- Preserved `/app?service-worker=1` registration with `/app` scope, the v5 shell cache, legacy origin behavior, stable storage identifiers and queued edits. No VAPID rotation or additional schema change.
+- Added regressions for app API preview paths, unsafe notification destinations, marketing-tab isolation and local signout cleanup while offline. Fresh six-project and production-build verification is required after reconciliation.
+
+- Final routing-scoped validation: 936 unit tests, clean typecheck, lint at the existing 65 warnings, normal production build, and 297 repeated phone/offline cases passed with 9 browser-mode skips and no retries. Fresh review found the setup prompt's root API URL, corrected before the passing focused run.
+- Cal explicitly waived per-PR full e2e in favor of one combined regression sweep after Push/Show releases. Stopped the incomplete sweep: 1,230 passed, 14 failed, 78 skipped, 3 interrupted and 1,543 not run. Home/set-highlight failures include stale root-image URL assertions; not-found expects the old Next homepage instead of Framer. Scan failures remain undiagnosed and are carried into the combined sweep. This is not a full-suite pass.
