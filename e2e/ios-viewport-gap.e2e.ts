@@ -134,7 +134,7 @@ for (const [label, height, gap] of [["short iOS 26 view", 793, 59], ["full-heigh
       expect(await footerBottom(bundle)).toBeLessThanOrEqual(height + 0.5)
     })
 
-    test("a dialog stops above the home indicator", async ({ harness }) => {
+    test("a dialog stops above the dock and home indicator", async ({ harness }) => {
       const { page } = harness
       await fakeScreen(page, 393, 852)
       await reloadAt(harness, 393, height)
@@ -145,7 +145,8 @@ for (const [label, height, gap] of [["short iOS 26 view", 793, 59], ["full-heigh
       await expect(settings).toBeVisible()
       await page.waitForTimeout(400)
       const box = (await settings.boundingBox())!
-      expect(box.y + box.height).toBeCloseTo(height - 16 - (gap ? 0 : harness.insets.bottom), 0)
+      const dock = (await harness.dock().boundingBox())!
+      expect(box.y + box.height).toBeCloseTo(dock.y - 12, 0)
     })
   })
 }
