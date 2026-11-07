@@ -139,6 +139,8 @@ export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
  */
 export async function mockBackends(target: Page | BrowserContext, context: BrowserContext, { signedIn, baseURL }: { signedIn: boolean; baseURL?: string }) {
   await target.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort())
+  await target.route("**/app/api/account-identity", route => route.fulfill({ json: { username: null, available: false } }))
+  await target.route("**/app/api/binder-identity**", route => route.fulfill({ json: { username: null, slug: null, canEdit: false, available: false } }))
   await target.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
   await target.route("**/app/api/card-prices**", async (route) => {
     const body = route.request().postDataJSON?.() ?? {}

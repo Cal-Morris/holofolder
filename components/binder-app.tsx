@@ -110,6 +110,7 @@ interface BinderAppProps {
   initialPriceMode?: boolean
   readOnlyMode?: boolean
   shareViewToken?: string | null
+  initialSharePath?: string | null
   /** The owner's binders and the one this page shows (null before migration 039). */
   initialBinders?: Binder[]
   initialBinderId?: string | null
@@ -125,6 +126,7 @@ export default function BinderApp({
   initialPriceMode = false,
   readOnlyMode = false,
   shareViewToken = null,
+  initialSharePath = null,
   initialBinders = [],
   initialBinderId = null,
 }: BinderAppProps) {
@@ -209,7 +211,9 @@ export default function BinderApp({
   const closeBurstScanner = useCallback(() => setIsBurstScannerOpen(false), [])
   const [isSyncingLocalCollection, setIsSyncingLocalCollection] = useState(false)
   const [localCollectionSyncMessage, setLocalCollectionSyncMessage] = useState<string | null>(null)
-  const [sharePath, setSharePath] = useState<string | null>(shareViewToken ? `/app/share/${shareViewToken}` : null)
+  const [shareIdentityRevision, setShareIdentityRevision] = useState(0)
+  const handlePublicIdentityChange = useCallback(() => setShareIdentityRevision(value => value + 1), [])
+  const [sharePath, setSharePath] = useState<string | null>(initialSharePath ?? (shareViewToken ? `/app/share/${shareViewToken}` : null))
   const [isShareEnabled, setIsShareEnabled] = useState(Boolean(shareViewToken))
   const [isShareLoading, setIsShareLoading] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
@@ -394,7 +398,7 @@ export default function BinderApp({
     if (!sharePath) return null
     if (typeof window === "undefined") return sharePath
 
-    return buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/(?:app\/)?share\//, ""))
+    return buildBinderShareUrl(window.location.origin, sharePath)
   }, [sharePath])
   const [pushSettingsRequested, setPushSettingsRequested] = useState(false)
   usePartnerPush(user?.id ?? null, !readOnlyMode)
@@ -2662,7 +2666,7 @@ export default function BinderApp({
     return () => {
       cancelled = true
     }
-  }, [initialBinderId, readOnlyMode, user])
+  }, [initialBinderId, readOnlyMode, shareIdentityRevision, user])
 
   const handleEnableReadOnlyShare = useCallback(async () => {
     if (readOnlyMode || !user) return
@@ -3538,6 +3542,9 @@ export default function BinderApp({
 
       {/* Modals */}
       <SettingsModal
+        binderId={initialBinderId}
+        binderName={activeBinder?.name}
+        onPublicIdentityChange={handlePublicIdentityChange}
         initialTab={pushSettingsRequested ? "account" : undefined}
         backupReady={!readOnlyMode && !isCollectionLoading && !binderAppearance.loading}
         onDownloadBackup={async () => {

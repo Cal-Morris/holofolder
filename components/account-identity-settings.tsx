@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { accountDisplayName, normalizeDisplayName, normalizeUsername } from '@/lib/account-identity'
 
-export function AccountIdentitySettings({ user, isOnline }: { user: User; isOnline: boolean }) {
+export function AccountIdentitySettings({ user, isOnline, onUsernameSaved }: { user: User; isOnline: boolean; onUsernameSaved?: () => void }) {
   const [name, setName] = useState(() => accountDisplayName(user.user_metadata))
   const [savedName, setSavedName] = useState(name)
   const [namePending, setNamePending] = useState(false)
@@ -76,6 +76,7 @@ export function AccountIdentitySettings({ user, isOnline }: { user: User; isOnli
           setUsername(value)
           setSavedUsername(value)
           setUsernameMessage('Username saved.')
+          onUsernameSaved?.()
         } catch (error) { setUsernameMessage(error instanceof Error ? error.message : 'Could not save your username. Try again.') }
         finally { setUsernamePending(false) }
       }}>
