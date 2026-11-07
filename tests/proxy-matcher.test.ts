@@ -45,3 +45,17 @@ test("worker script can be served from slashless /app without an authenticated s
   assert.equal(response.status, 200)
   assert.equal(response.headers.get("x-middleware-rewrite"), "https://holofolder.com/app/sw.js")
 })
+
+test("public share responses disable browser and CDN storage without loading the visitor's session", async () => {
+  const { NextRequest } = await import("next/server")
+  const { proxy } = await import("../proxy")
+  for (const path of ["/share/synthetic-token", "/u/synthetic-owner/national"]) {
+    const request = new NextRequest(`https://holofolder.com/app${path}`, { nextConfig: { basePath: "/app" } })
+    const response = await proxy(request)
+    assert.equal(response.status, 200)
+    for (const header of ["cache-control", "cdn-cache-control", "vercel-cdn-cache-control"]) {
+      assert.match(response.headers.get(header) ?? "", /no-store/)
+    }
+    assert.equal(response.cookies.getAll().length, 0)
+  }
+})
