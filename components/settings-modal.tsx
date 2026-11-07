@@ -4,6 +4,7 @@ import Link from "next/link"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
+import { PublicNameSettings } from "@/components/public-name-settings"
 import { PricingPreferencesSettings } from "@/components/pricing-preferences-settings"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useShowMode } from "@/hooks/use-show-mode"
@@ -35,6 +36,9 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 interface SettingsModalProps {
+  binderId?: string | null
+  binderName?: string
+  onPublicIdentityChange?: () => void
   initialTab?: SettingsTabId
   backupReady: boolean
   onDownloadBackup: () => Promise<string>
@@ -82,6 +86,9 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({
+  binderId,
+  binderName,
+  onPublicIdentityChange = () => {},
   user,
   initialTab,
   backupReady,
@@ -163,7 +170,7 @@ export default function SettingsModal({
   const hasPageColorOverride = appearance ? Boolean(appearance.pageColors[String(currentBinderPage)]) : Boolean(settings.binderPageColors[String(currentBinderPage)])
   const appearanceColorName = (color: string) => BINDER_COLOR_PRESETS.find(preset => preset.swatch[0].toLowerCase() === color.toLowerCase())?.label ?? "a custom colour"
   const fullShareUrl = sharePath && typeof window !== "undefined"
-    ? buildBinderShareUrl(window.location.origin, sharePath.replace(/^\/(?:app\/)?share\//, ""))
+    ? buildBinderShareUrl(window.location.origin, sharePath)
     : sharePath
 
   const handleCopyShareLink = async () => {
@@ -560,6 +567,8 @@ export default function SettingsModal({
             </div>
           )}
 
+          {effectiveActiveTab === "share" && !isReadOnlyView && isSignedIn && <PublicNameSettings kind="binder" binderId={binderId} binderName={binderName} isOnline={isOnline} onSaved={onPublicIdentityChange} />}
+
           {effectiveActiveTab === "share" && !isReadOnlyView && (
             <div className="pt-4 border-t border-border space-y-4">
               <div className="flex items-center gap-2">
@@ -600,6 +609,8 @@ export default function SettingsModal({
               )}
             </div>
           )}
+
+          {effectiveActiveTab === "account" && !isReadOnlyView && isSignedIn && <PublicNameSettings kind="account" isOnline={isOnline} onSaved={onPublicIdentityChange} />}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (
             <div className="space-y-2">

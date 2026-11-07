@@ -350,7 +350,7 @@ async function handleNavigation(event) {
   const isShellRequest = url.pathname === APP_SHELL_URL
   // Auth routes set cookies and redirect, and share links show someone else's binder: never answer
   // them with the shell (which shows your own binder).
-  const canUseShell = url.origin === self.location.origin && (/^\/app(?:\/|$)/.test(url.pathname) || (LEGACY_BINDER_ORIGIN && APP_ENTRY_PATHS.includes(url.pathname))) && !/^\/(?:app\/)?(?:auth|share)(?:\/|$)/.test(url.pathname)
+  const canUseShell = url.origin === self.location.origin && (/^\/app(?:\/|$)/.test(url.pathname) || (LEGACY_BINDER_ORIGIN && APP_ENTRY_PATHS.includes(url.pathname))) && !/^\/(?:app\/)?(?:auth|share|u)(?:\/|$)/.test(url.pathname)
   const useTimeout = canUseShell && APP_ENTRY_PATHS.includes(url.pathname) && Boolean(await getOfflineAppShell())
 
   try {
