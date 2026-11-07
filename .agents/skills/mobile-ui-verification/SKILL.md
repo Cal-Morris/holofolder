@@ -26,4 +26,4 @@ Holo Folder is mobile-first, and most use is in the installed iPhone PWA. Deskto
 1. Run a production build on your own port, then check each viewport. Use Playwright or Chrome device emulation; for standalone, use `emulateStandalone` from `e2e/fixtures.ts`.
 2. Encode the expectations in e2e (`e2e/mobile-layout.e2e.ts`, `dock.e2e.ts`, `detail-sheet.e2e.ts` and `overlays.e2e.ts` patterns) with `expectMinTapTarget`, `expectWithinSafeViewport`, `expectHittable` and `expectNoHorizontalOverflow`.
 3. For layout changes, include before and after measurements (px or % of screen) in the PR. Screenshots help.
-4. Run `bun run test:e2e`: all 6 projects must pass.
+4. Run only the specs or named tests covering the changed UI across all 6 projects, e.g. `E2E_PORT=<port> bun run test:e2e e2e/mobile-layout.e2e.ts`. Run the full e2e suite only when Cal explicitly asks.
