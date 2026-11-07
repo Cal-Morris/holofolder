@@ -7,10 +7,13 @@ import { checkCompsTargets, runCheckComps, type CheckCompsProgress } from "@/lib
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { collectionCompsTargets } from "@/lib/collection-comps"
 
-export default function CollectionPriceCheck({ collection, kind, isOnline }: {
+export default function CollectionPriceCheck({ collection, kind, isOnline, label, scopeLabel = "this binder", onComplete }: {
   collection: readonly CollectedPokemon[]
   kind: "wanted" | "owned"
   isOnline: boolean
+  label?: string
+  scopeLabel?: string
+  onComplete?: () => void
 }) {
   const targets = useMemo(() => checkCompsTargets(collectionCompsTargets(collection, kind), "collection"), [collection, kind])
   const [progress, setProgress] = useState<CheckCompsProgress | null>(null)
@@ -60,6 +63,7 @@ export default function CollectionPriceCheck({ collection, kind, isOnline }: {
     } catch {
       if (!abort.signal.aborted) setMessage("Couldn't finish checking prices. Try again when you have signal.")
     } finally {
+      onComplete?.()
       if (controller.current === abort) {
         controller.current = null
         if (!abort.signal.aborted) setRunning(false)
@@ -72,9 +76,9 @@ export default function CollectionPriceCheck({ collection, kind, isOnline }: {
       {running && estimate === null ? <button type="button" onClick={stop} aria-label="Stop checking prices" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-muted/70 px-3 text-sm font-semibold">
         <Square className="h-3.5 w-3.5" aria-hidden />Stop
       </button> : <button type="button" onClick={() => void start()} disabled={!isOnline || !targets.length || running} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-muted/70 px-3 text-sm font-semibold disabled:opacity-50">
-        <Receipt className="h-4 w-4" aria-hidden />Check {kind} prices
+        <Receipt className="h-4 w-4" aria-hidden />{label ?? `Check ${kind} prices`}
       </button>}
-      <span className="text-xs text-muted-foreground">{targets.length} eligible printing{targets.length === 1 ? "" : "s"} in this binder</span>
+      <span className="text-sm text-muted-foreground">{targets.length} eligible printing{targets.length === 1 ? "" : "s"} in {scopeLabel}</span>
     </div>
     <p className="text-xs text-muted-foreground">eBay asking prices + sold comps. English, non-jumbo cards; duplicates checked once.</p>
     <p role="status" className="text-xs text-muted-foreground">

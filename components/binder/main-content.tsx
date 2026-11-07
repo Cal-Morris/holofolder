@@ -11,6 +11,7 @@ import { formatCardFinishLabel } from "@/lib/card-labels"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
 import { Ticket, X } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
+import { BinderValue } from "@/components/binder-value"
 import type { BinderSettings } from "@/hooks/use-settings"
 import type { CardScanImageCandidate } from "@/lib/card-scan-evidence"
 import type { AggregatedCardScanMatch, CardScanFrameMatch } from "@/lib/card-scan-matching"
@@ -27,7 +28,7 @@ import type { ChangeEvent, Dispatch, JSX, RefObject, SetStateAction } from "reac
 import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import type { BinderDesign, SurfaceDesign } from "@/lib/binder-design"
 import type { WantedDashboardSummary } from "@/lib/wanted-dashboard"
-import type { AllBindersLookup } from "@/lib/binders/all-binders"
+import { rememberBinderScope, type AllBindersLookup } from "@/lib/binders/all-binders"
 import type { CollectedPokemon, SaveCollectionOptions, WantedCard } from "@/hooks/use-collection"
 import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSummary } from "@/components/binder/binder-app-model"
 
@@ -191,6 +192,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             : "overflow-hidden"
         }`}>
         {viewLoadError ? <p role="alert" className="shrink-0 rounded-2xl border border-border/55 bg-card/70 p-3 text-sm">{viewLoadError}</p> : null}
+        {activeMainView === "binder" && !readOnlyMode && <BinderValue collection={collection} prices={pricesByCardId} loading={isLoadingPrices} onOpen={() => { rememberBinderScope("analytics", "binder"); void switchMainView("analytics") }} />}
         {(activeMainView === "pokemon" || activeMainView === "sets") ? (
           <div role="group" aria-label="Browse perspective" className="flex shrink-0 gap-2 px-1 py-1">
             {(["pokemon", "sets"] as const).map(view => <button key={view} type="button" aria-pressed={activeMainView === view} onClick={() => switchMainView(view)} className={`min-h-9 rounded-full border px-4 text-xs font-semibold ${activeMainView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-card/70"}`}>{view === "pokemon" ? "Pokémon" : "Sets"}</button>)}

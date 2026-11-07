@@ -18,6 +18,6 @@ export async function requestCardPriceCheck(cardId: string, language: string, fi
   const check: unknown = data?.[source]
   if (!(check === null || (isCardPriceCheck(check) && check.summary.kind === (source === "ebay" ? "asking" : "sold")))
     || !data?.errors || typeof data.errors !== "object" || (data.errors[source] !== undefined && typeof data.errors[source] !== "string")) throw new Error("Invalid price check response.")
-  if (check) void pinCardPriceCheck(cardId, exactFinish, source, check)
+  if (check) await pinCardPriceCheck(cardId, exactFinish, source, check)
   return { check, error: data.errors[source] as string | undefined }
 }
