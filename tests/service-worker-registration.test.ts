@@ -97,7 +97,7 @@ test("worker registration covers the slashless app entry without covering market
   const { env } = makeEnv()
   const scoped = { ...env as object, navigator: { serviceWorker: { register: async (url: string, options?: { scope: string }) => { calls.push({ url, scope: options?.scope }) } } } }
   registerServiceWorker({}, scoped as never)
-  assert.deepEqual(calls, [{ url: "/app/sw.js", scope: "/app" }])
+  assert.deepEqual(calls, [{ url: "/app?service-worker=1", scope: "/app" }])
 })
 
 test("new public app registration retires only the previous root binder worker", async () => {
