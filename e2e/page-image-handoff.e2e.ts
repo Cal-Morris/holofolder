@@ -20,7 +20,7 @@ for (const reducedMotion of [false, true]) test(`page handoff keeps complete pre
     if (id > 16) await delayed
     await route.fulfill({ contentType: "image/svg+xml", headers: { "cache-control": "public, max-age=3600" }, body: placeholderSvg(`Synthetic ${id}`, id) })
   })
-  await page.reload()
+  await page.reload({ waitUntil: "domcontentloaded" })
   await expect(page.locator('[data-dex-id="1"] img')).toHaveAttribute("alt", "Synthetic 1")
   await expect.poll(() => page.locator('[data-binder-page] img').evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true)
   const beforeBox = await page.locator("[data-binder-page]").boundingBox()

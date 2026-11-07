@@ -24,7 +24,8 @@ export default defineConfig({
   reporter: process.env.CI ? "line" : [["list"]],
   use: {
     baseURL,
-    trace: "retain-on-failure",
+    trace: process.env.CI ? "on-first-retry" : "off",
+    screenshot: "only-on-failure",
     serviceWorkers: "block",
     launchOptions: executablePath ? { executablePath, args: ["--no-sandbox"] } : { args: ["--no-sandbox"] },
   },
@@ -62,6 +63,8 @@ export default defineConfig({
           HOLOFOLDER_E2E: "1",
           NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54399",
           NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "e2e-anon-key",
+          // Synthetic key: the notification spec mocks PushManager.subscribe.
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: "c3ludGhldGljLWUyZS12YXBpZC1wdWJsaWMta2V5",
         },
       },
 })

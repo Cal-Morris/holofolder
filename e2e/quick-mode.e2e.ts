@@ -38,7 +38,7 @@ async function screenshot(harness: Harness, name: string) {
 test.describe("quick mode", () => {
   test.use({ signedIn: true })
 
-  test("hold Search to open it, jump to a destination, and it stays a single overlay", async ({ harness }) => {
+  test("hold Search to open it, jump to a destination, and it stays a single overlay", { tag: "@smoke" }, async ({ harness }) => {
     const dialog = await longPressSearch(harness)
     // Holding Search must not also open the normal search sheet.
     await expect(harness.page.getByRole("dialog", { name: /search pokemon/i })).toHaveCount(0)
@@ -133,7 +133,7 @@ test.describe("quick mode", () => {
     await expect(harness.dialogs()).toHaveCount(0)
   })
 
-  test("offline it says so and finds cards saved on this device", async ({ harness }) => {
+  test("offline it says so and finds cards saved on this device", { tag: "@smoke" }, async ({ harness }) => {
     const { page } = harness
     // Load the Quick mode chunk while online, as an installed app would have it cached.
     let dialog = await longPressSearch(harness)

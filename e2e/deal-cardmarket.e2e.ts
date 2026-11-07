@@ -28,8 +28,12 @@ async function mockEvidence(harness: Harness, source = "cardmarket", withEvidenc
 
 async function openCheck(harness: Harness, show: boolean) {
   if (show) await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await harness.page.keyboard.press("Control+k")
   const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
+  // A reload can paint the shell before the keyboard listener is attached.
+  await expect(async () => {
+    if (!await dialog.isVisible()) await harness.page.keyboard.press("Control+k")
+    await expect(dialog).toBeVisible({ timeout: 500 })
+  }).toPass({ timeout: 7_500 })
   await dialog.getByRole("searchbox").fill("charmeleon")
   await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charmeleon, 151 / }).first().click()
   const check = dialog.getByTestId("quick-card-check")
