@@ -12,6 +12,7 @@ import { toCacheableCardImageUrl } from "@/lib/offline-cache-warmup"
 import { formatDexNumber } from "@/lib/pokemon-catalog"
 import { Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Palette, Star, X } from "lucide-react"
 import CardImage from "@/components/card-image"
+import CardImageZoom from "@/components/card-image-zoom"
 import { createPortal } from "react-dom"
 import type { CardPriceSnapshot as PricingCardPriceSnapshot, PricedCardFinish } from "@/lib/card-pricing"
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react"
@@ -201,7 +202,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
           <div className="shrink-0" data-sheet-grabber={isMobileQuickPanel ? "" : undefined} {...(isMobileQuickPanel ? quickPanelSwipe : {})}>
           {isMobileQuickPanel ? <div aria-hidden="true" className="mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30" /> : null}
           <div className="flex items-start gap-3">
-            <div className={`relative mt-0.5 flex shrink-0 items-center justify-center overflow-hidden border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${selectedPreviewFrameClass}`}>
+            <CardImageZoom src={selectedPreviewImage} alt={selectedPreviewAlt} disabled={!selectedPreviewIsCard} className={`relative mt-0.5 flex shrink-0 items-center justify-center overflow-hidden border border-border/60 bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${selectedPreviewFrameClass}`}>
               <CardImage
                 fill
                 sizes="(max-width: 639px) 80px, 56px"
@@ -214,7 +215,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   <Check className="w-2.5 h-2.5 text-white" />
                 </div>
               )}
-            </div>
+            </CardImageZoom>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -387,7 +388,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
               ) : null}
           {selectedCurrentCardPreview ? (
             <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
-              <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
+              <CardImageZoom src={selectedCurrentCardPreview.cardImage ?? ""} alt={selectedCurrentCardPreview.cardName} disabled={!selectedCurrentCardPreview.cardImage} className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
                 {selectedCurrentCardPreview.cardImage ? (
                   <CardImage
                     fill
@@ -400,7 +401,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-muted text-[9px] text-muted-foreground">No image</div>
                 )}
-              </div>
+              </CardImageZoom>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current card</p>
@@ -426,9 +427,9 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
             const savedDate = formatCollectedDate(card.added_at)
             return (
             <div key={getWantedCardKey(card)} className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
-              <div className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
+              <CardImageZoom src={image ?? ""} alt={card.card_name} disabled={!image} className="trading-card relative w-10 shrink-0 border border-border/60 bg-muted dark:border-white/10">
                 {image ? <CardImage fill sizes="40px" src={image} alt={card.card_name} className="object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">No image</div>}
-              </div>
+              </CardImageZoom>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Wanted card</p>

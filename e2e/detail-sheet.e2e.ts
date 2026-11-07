@@ -42,7 +42,7 @@ test.describe("card detail actions on phones", () => {
       const dialog = harness.page.getByRole("dialog", { name: /details$/i })
       await expect(dialog).toBeVisible()
       const sheet = (await dialog.boundingBox())!
-      for (const name of [/^(edit|add) card$/i, /^(want card|track wanted|add wanted)$/i, /^next$/i]) {
+      for (const name of [/^(change|add) owned card$/i, /^add (another )?wanted card$/i, /^next$/i]) {
         const button = dialog.getByRole("button", { name }).first()
         await expect(button).toBeVisible()
         const box = (await button.boundingBox())!
