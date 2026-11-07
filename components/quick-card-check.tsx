@@ -70,7 +70,7 @@ export interface QuickCardCheckProps {
   onBack: () => void
   onRemoveOwned?: () => void
   onChangeCard?: (mode: "collect" | "wishlist", finish: CardFinish) => void
-  onOpenDetails: () => void
+  onOpenDetails: (finish: CardFinish) => void
   /** Runs the action; resolves to an undo function, or null when nothing changed. */
   onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
   isInBundle: (key: string) => boolean
@@ -243,7 +243,7 @@ export default function QuickCardCheck({
                   <TrendingUp className="h-3 w-3" aria-hidden />Rising
                 </span>
               )}
-              <button type="button" onClick={onOpenDetails} className="flex min-h-12 items-center gap-2 rounded-xl bg-primary/10 px-3 text-sm font-semibold text-primary">
+              <button type="button" onClick={() => onOpenDetails(finish)} className="flex min-h-12 items-center gap-2 rounded-xl bg-primary/10 px-3 text-sm font-semibold text-primary">
                 More details<ExternalLink className="h-3 w-3" aria-hidden />
               </button>
             </div>

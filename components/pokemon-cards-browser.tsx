@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { toCardImageSrc } from "@/lib/card-image-url"
 import { Check, Heart, Loader2, Plus, Search as SearchIcon, X } from "lucide-react"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
 import { wantedCardKey } from "@/lib/collection/wanted-card-edit"
-import type { WantedCard } from "@/lib/domain/cards"
+import { inferCardFinish, formatCardNumber, type SearchCardResult } from "@/lib/pokemon-card-browse"
+import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
+import UndoSnackbar from "@/components/undo-snackbar"
+import type { QuickCardAction, QuickCardState } from "@/components/quick-card-check"
+import type { CardFinish, WantedCard } from "@/lib/domain/cards"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -29,6 +34,14 @@ export interface PokemonCardsBrowserProps {
   ownedElsewhereByCard?: ReadonlyMap<string, readonly BinderRef[]>
   /** Card to scroll to and highlight (e.g. the hit picked in global search). */
   highlightCardId?: string | null
+  cardDetails?: {
+    card: SearchCardResult
+    finish: CardFinish
+    getState: (finish: CardFinish) => QuickCardState
+    onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
+    onRemoveOwned: () => void
+    onJumpToSlot: (finish: CardFinish) => void
+  }
   isDesktop: boolean
   readOnly?: boolean
   onClose: () => void
@@ -56,6 +69,7 @@ export default function PokemonCardsBrowser({
   collectionItem,
   ownedElsewhereByCard,
   highlightCardId,
+  cardDetails,
   isDesktop,
   readOnly = false,
   onClose,
@@ -73,6 +87,22 @@ export default function PokemonCardsBrowser({
   const [textFilter, setTextFilter] = useState("")
   const [pendingCardId, setPendingCardId] = useState<string | null>(null)
   const displayName = formatPokemonDisplayName(pokemon.name)
+  const [detailFinish, setDetailFinish] = useState<CardFinish>(cardDetails?.finish ?? "normal")
+  const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
+  const [detailUndo, setDetailUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
+  const detailState = cardDetails?.getState(detailFinish)
+  const replacementKey = detailState?.replacing ? `${detailFinish}:${detailState.replacing}` : null
+  const detailChoices = cardDetails ? getCardPickerFinishChoices(cardDetails.card.variants, inferCardFinish(cardDetails.card.rarity, cardDetails.card.variants), "any") : []
+  const runDetailAction = async (action: QuickCardAction) => {
+    if (!cardDetails || pendingCardId || readOnly) return
+    setPendingCardId(cardDetails.card.id)
+    try {
+      const undo = await cardDetails.onAction(action, detailFinish)
+      if (undo) setDetailUndo({ message: action === "remove-wanted" ? "Removed from want list" : action === "want" ? "Added to want list" : "Added to owned", run: undo })
+    } finally {
+      setPendingCardId(null)
+    }
+  }
 
   useOverlay(true, onClose, { containerRef: dialogRef })
   const swipe = useSwipeToDismiss(dialogRef, onClose, !isDesktop)
@@ -121,15 +151,16 @@ export default function PokemonCardsBrowser({
   }, [])
 
   useEffect(() => {
-    if (!highlightCardId || !cards) return
+    if (!highlightCardId || !cards || cardDetails) return
     const frame = window.requestAnimationFrame(() => {
       const target = bodyRef.current?.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(highlightCardId)}"]`)
       target?.scrollIntoView({ block: "center" })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [cards, highlightCardId])
+  }, [cards, highlightCardId, cardDetails])
 
   const runAction = useCallback(async (cardId: string, action: () => void | Promise<void>) => {
+    setDetailUndo(null)
     setPendingCardId(cardId)
     try {
       await action()
@@ -221,6 +252,35 @@ export default function PokemonCardsBrowser({
         </div>
 
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-3">
+          {cardDetails && detailState && <section aria-label="Card details" className="mb-4 space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-start gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element -- Same-origin card proxy, cached for offline use. */}
+              {cardDetails.card.image && <img src={toCardImageSrc(cardDetails.card.image) ?? undefined} alt={cardDetails.card.name} className="trading-card w-20 shrink-0 object-contain" />}
+              <div className="min-w-0">
+                <h3 className="break-words text-base font-bold">{cardDetails.card.name}</h3>
+                <p className="text-xs text-muted-foreground">{cardDetails.card.set.name} · {formatCardNumber(cardDetails.card)}</p>
+                <p className="mt-1 text-xs">{formatCardLanguageLabel(cardDetails.card.language)} · {formatCardFinishLabel(detailFinish)}</p>
+                <p className="mt-1 text-xs font-semibold">{detailState.owned ? "Owned" : "Not owned"} · {detailState.wanted ? "Wanted" : "Not wanted"}</p>
+              </div>
+            </div>
+            {detailChoices.length > 1 && <div role="group" aria-label="Card detail variant" className="flex flex-wrap gap-2">
+              {detailChoices.map(choice => <button key={choice.finish} type="button" aria-pressed={detailFinish === choice.finish} onClick={() => setDetailFinish(choice.finish)} className="min-h-9 rounded-xl border border-border/60 px-3 text-xs font-semibold aria-pressed:bg-primary aria-pressed:text-primary-foreground">{choice.label}</button>)}
+            </div>}
+            <button type="button" onClick={() => cardDetails.onJumpToSlot(detailFinish)} className="min-h-11 w-full rounded-xl border border-primary/30 px-3 py-2 text-sm font-semibold">Jump to binder slot</button>
+            {!readOnly && <>
+              {detailState.replacing && <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input type="checkbox" checked={replacementKey === confirmedReplacement} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} />
+                <span>Replace {detailState.replacing} in this binder</span>
+              </label>}
+              <div className="grid grid-cols-2 gap-2">
+                {detailState.owned
+                  ? <button type="button" disabled={Boolean(pendingCardId)} onClick={cardDetails.onRemoveOwned} className="min-h-11 rounded-xl border border-destructive/30 px-2 py-2 text-sm font-semibold text-destructive">Remove owned card</button>
+                  : <button type="button" disabled={Boolean(pendingCardId) || Boolean(replacementKey && replacementKey !== confirmedReplacement)} onClick={() => void runDetailAction("add-owned")} className="min-h-11 rounded-xl bg-primary px-2 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">Add to owned</button>}
+                <button type="button" disabled={Boolean(pendingCardId)} onClick={() => void runDetailAction(detailState.wanted ? "remove-wanted" : "want")} className={`min-h-11 rounded-xl border px-2 py-2 text-sm font-semibold ${detailState.wanted ? "border-destructive/30 text-destructive" : "border-border/60"}`}>{detailState.wanted ? "Remove from want list" : "Add to want list"}</button>
+              </div>
+            </>}
+          </section>}
+
           {cards === null ? (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading cards…
@@ -345,6 +405,7 @@ export default function PokemonCardsBrowser({
             </>
           )}
         </div>
+        {detailUndo && <UndoSnackbar message={detailUndo.message} onDismiss={() => setDetailUndo(null)} onUndo={() => { const undo = detailUndo; setDetailUndo(null); void undo.run() }} />}
       </div>
     </>
   )

@@ -169,7 +169,7 @@ export default function BinderApp({
   const [ownedRemoveTarget, setOwnedRemoveTarget] = useState<{ id: number; name: string } | null>(null)
   const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
-  const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; nested: boolean } | null>(null)
+  const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; focusedCard?: SearchCardResult; finish?: CardFinish; nested: boolean } | null>(null)
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
   // A set hit tapped in Search or Quick mode; Sets opens on it until he leaves Sets.
   const [setViewRequest, setSetViewRequest] = useState<{ set: TCGSetSummary; key: number } | null>(null)
@@ -1802,7 +1802,7 @@ export default function BinderApp({
       illustrator: card.illustrator,
       added_at: new Date().toISOString(),
     })
-  }, [addWantedCard, getCollectionItem, handleClearWantedCard, readOnlyMode, user])
+  }, [setCardBrowser, addWantedCard, getCollectionItem, handleClearWantedCard, readOnlyMode, user])
 
   const handleBrowseAddCard = useCallback(async (pokemon: { id: number; name: string }, card: TCGCard) => {
     if (readOnlyMode) return
@@ -1827,7 +1827,7 @@ export default function BinderApp({
         cardIds: catalogCardIds(card),
       },
     )
-  }, [addToCollection, getCollectionItem, readOnlyMode, user])
+  }, [setCardBrowser, addToCollection, getCollectionItem, readOnlyMode, user])
 
   const handleGotWantedCard = useCallback(async (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => {
     if (readOnlyMode) return
@@ -2997,7 +2997,7 @@ export default function BinderApp({
   useOverlay(isSearchOpen, closeSearch, { containerRef: searchDialogRef, autoFocus: false })
   useOverlay(isMobileNavExpanded && !isSearchOpen, closeControlsSheet, { containerRef: controlsSheetRef })
   const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel)
-  const closeCardBrowser = useCallback(() => setCardBrowser(null), [])
+  const closeCardBrowser = useCallback(() => setCardBrowser(null), [setCardBrowser])
   const closeIllustratorBrowser = useCallback(() => setIllustratorBrowser(null), [])
   const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet, !isDesktopViewport)
 
@@ -3039,7 +3039,7 @@ export default function BinderApp({
     transitionContent(mainViewRef.current, () => {
       if (request === viewRequestRef.current) setActiveMainView(view)
     })
-  }, [activeMainView, transitionContent])
+  }, [setCardBrowser, activeMainView, transitionContent])
   useEdgeSwipeBack(activeMainView, switchMainView, "binder")
 
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
@@ -3051,7 +3051,7 @@ export default function BinderApp({
 
   const openCardBrowser = useCallback((
     pokemon: { id: number; name: string },
-    options: { highlightCardId?: string | null; fromDetail?: boolean } = {},
+    options: { highlightCardId?: string | null; fromDetail?: boolean; focusedCard?: SearchCardResult; finish?: CardFinish } = {},
   ) => {
     if (options.fromDetail) {
       setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, nested: true })
@@ -3059,9 +3059,9 @@ export default function BinderApp({
     }
     openExclusively(() => {
       setSelectedPokemon(null)
-      setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, nested: false })
+      setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, focusedCard: options.focusedCard, finish: options.finish, nested: false })
     })
-  }, [openExclusively])
+  }, [setCardBrowser, openExclusively])
 
   /** Open every card by an illustrator. From the card detail it stacks one level; otherwise it replaces any overlay. */
   const openIllustratorBrowser = useCallback((name: string, options: { fromDetail?: boolean } = {}) => {
@@ -3186,7 +3186,7 @@ export default function BinderApp({
     }
     if (action === "want") {
       if (getQuickCardState(card, pokemon, finish).wanted) return null
-      await addWantedCard(pokemon.id, pokemon.name, {
+      const result = await addWantedCard(pokemon.id, pokemon.name, {
         card_id: card.id,
         card_name: card.name,
         card_image: card.image,
@@ -3199,16 +3199,16 @@ export default function BinderApp({
         illustrator: card.illustrator,
         added_at: new Date().toISOString(),
       })
-      return undo
+      return result.error && !result.queued ? null : undo
     }
     // Bought, Add owned and Got it all put this printing in the binder and take it off the want list.
     if (getQuickCardState(card, pokemon, finish).owned) return null
-    await addToCollection(pokemon.id, pokemon.name, card.id, card.name, card.image, card.set.name, language, "collected", {
+    const result = await addToCollection(pokemon.id, pokemon.name, card.id, card.name, card.image, card.set.name, language, "collected", {
       cardFinish: finish,
       wantedCards: (previous?.wanted_cards ?? []).filter((wanted) => !(matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === language && (wanted.card_finish ?? "normal") === finish)),
       cardIds: catalogCardIds(card),
     })
-    return undo
+    return result.error && !result.queued ? null : undo
   }, [addToCollection, addWantedCard, editWantedCard, getCollectionItem, getQuickCardState, handleQuickUndo, openExclusively, readOnlyMode, user])
   const handleQuickChangeCard = useCallback((mode: CardSelectorMode, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => {
     const summary = getPokemonSummary(pokemon.id)
@@ -3278,7 +3278,7 @@ export default function BinderApp({
     handlePokemonSelect(pokemon)
   }, [handlePokemonSelect])
   const onQuickSelectCard = useCallback(
-    (card: SearchCardResult, pokemon: { id: number; name: string }) => openCardBrowser(pokemon, { highlightCardId: card.id }),
+    (card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => openCardBrowser(pokemon, { highlightCardId: card.id, focusedCard: card, finish: finish ?? inferCardFinish(card.rarity, card.variants) }),
     [openCardBrowser],
   )
   const onQuickBrowseIllustrator = useCallback((name: string) => openIllustratorBrowser(name), [openIllustratorBrowser])
@@ -3616,6 +3616,26 @@ export default function BinderApp({
           key={`${cardBrowser.pokemon.id}:${cardBrowser.highlightCardId ?? ""}`}
           pokemon={cardBrowser.pokemon}
           highlightCardId={cardBrowser.highlightCardId}
+          cardDetails={cardBrowser.focusedCard ? {
+            card: cardBrowser.focusedCard,
+            finish: cardBrowser.finish ?? "normal",
+            getState: finish => getQuickCardState(cardBrowser.focusedCard!, cardBrowser.pokemon, finish),
+            onAction: (action, finish) => handleQuickCardAction(action, cardBrowser.focusedCard!, cardBrowser.pokemon, finish),
+            onRemoveOwned: () => {
+              closeAllOverlays()
+              setCardBrowser(null)
+              requestOwnedRemoval(cardBrowser.pokemon)
+            },
+            onJumpToSlot: finish => {
+              const pokemon = getPokemonSummary(cardBrowser.pokemon.id)
+              if (!pokemon) return
+              const wanted = getCollectionItem(pokemon.id)?.wanted_cards.find(card => matchesCatalogCardId(cardBrowser.focusedCard!, card.card_id) && (card.card_language ?? "en") === (cardBrowser.focusedCard?.language ?? "en") && (card.card_finish ?? "normal") === finish)
+              closeAllOverlays()
+              setCardBrowser(null)
+              handlePokemonSelect(pokemon)
+              if (wanted) setWantedDetail({ pokemonId: pokemon.id, card: wanted })
+            },
+          } : undefined}
           collectionItem={getCollectionItem(cardBrowser.pokemon.id) ?? null}
           ownedElsewhereByCard={allBinders ? ownedElsewhereByCard : undefined}
           isDesktop={isDesktopViewport}

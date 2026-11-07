@@ -22,3 +22,11 @@
 - Cal explicitly prohibited all e2e, targeted browser verification and browser benchmarks until reauthorized. Browser runners and own server stopped, queued slot cancelled. Final six-project e2e and final layout verification are skipped under that instruction.
 - Partial logs and traces retained in `/tmp/wanted-full-e2e.log`, `/tmp/wanted-repeat.log` and `/tmp/wanted-repeat-results`.
 - No schema, environment or dependency changes required. Release continues with permitted non-browser checks.
+
+## Approved extension: Show card details
+
+- More details retains the selected printing and finish in a focused management section, even before catalogue loading finishes.
+- Add/remove owned and wanted actions share existing exact-printing mutations and Undo. Replacing an owned card requires an explicit checkbox.
+- Jump to binder slot closes the browser and opens the Pokémon slot, retaining a matching wanted printing when present.
+- Independent review caught stale Undo after grid edits and snackbar placement outside the focus trap. Grid edits now clear that Undo, and the snackbar is inside the dialog.
+- Added a regression scenario covering these details actions and navigation. It remains unexecuted under Cal's global browser-test ban.

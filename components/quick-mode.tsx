@@ -137,7 +137,7 @@ export interface QuickModeProps {
   onClose: () => void
   onNavigate: (destination: QuickDestinationId) => void
   onSelectPokemon: (pokemon: PokemonSummary) => void
-  onSelectCard: (card: SearchCardResult, pokemon: { id: number; name: string }) => void
+  onSelectCard: (card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => void
   onBrowseIllustrator: (name: string) => void
   /** Opens Sets on a set hit. Set hits are plain Quick mode only: Show mode and Price check stay in the lookup. */
   onBrowseSet?: (set: TCGSetSummary) => void
@@ -390,7 +390,7 @@ function QuickMode({
         setChecking(null)
         if (!browsing && trimmed) window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
       }}
-      onOpenDetails={() => onSelectCard(checking.card, checking.pokemon)}
+      onOpenDetails={(finish) => onSelectCard(checking.card, checking.pokemon, finish)}
       onRemoveOwned={cardCheck.onRemoveOwned ? () => cardCheck.onRemoveOwned?.(checking.pokemon) : undefined}
       onChangeCard={cardCheck.onChangeCard ? (mode, finish) => cardCheck.onChangeCard?.(mode, checking.card, checking.pokemon, finish) : undefined}
       onAction={(action, finish) => cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
