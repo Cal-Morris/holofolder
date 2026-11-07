@@ -39,6 +39,19 @@ function runtime(account: string | null, response: { ok: boolean; json?: () => P
   return { notifications, destinations, requests, reads: () => reads, dispatch }
 }
 
+test('registration test pushes confirm the bound device and open the app without a private preview', async () => {
+  const app = runtime(person, { ok: false })
+  await app.dispatch('push', { data: { json: () => ({ kind: 'test', recipientId: person, tag: 'holofolder-test' }) } })
+  assert.equal(app.notifications[0].title, 'Notifications are on')
+  assert.equal(app.notifications[0].options.body, 'This device is ready for partner updates.')
+  assert.equal(app.reads(), 0)
+  await app.dispatch('notificationclick', { notification: { close() {}, data: app.notifications[0].options.data } })
+  assert.deepEqual(app.destinations, ['/app'])
+  const signedOut = runtime(null, { ok: false })
+  await signedOut.dispatch('push', { data: { json: () => ({ kind: 'test', recipientId: person }) } })
+  assert.equal(signedOut.notifications[0].title, 'Holo Folder update')
+})
+
 test('worker fetches an authorized preview, constrains click destinations and rechecks membership', async () => {
   const app = runtime(person, { ok: true, json: async () => ({ title: 'Partner got Bulbasaur', body: 'Synthetic card fixture', url: `/app?binder=${binder}` }) })
   await app.dispatch('push', { data: { json: () => ({ recipientId: person, eventId, tag: 'synthetic-event' }) } })
