@@ -63,7 +63,7 @@ function writeStoredSettings(nextSettings: BinderSettings, userId?: string | nul
 }
 
 async function fetchRemoteSettings() {
-  const response = await fetch("/api/settings", {
+  const response = await fetch("/app/api/settings", {
     cache: "no-store",
     credentials: "same-origin",
   })
@@ -172,7 +172,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
 
     if (user) {
       try {
-        const response = await fetch("/api/settings", {
+        const response = await fetch("/app/api/settings", {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

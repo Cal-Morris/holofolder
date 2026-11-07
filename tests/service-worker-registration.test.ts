@@ -91,3 +91,32 @@ test("requestPersistentStorage: false when refused or persist throws", async () 
   assert.equal(await requestPersistentStorage(storageEnv(false, false).env), false)
   assert.equal(await requestPersistentStorage(storageEnv(false, new Error("nope")).env), false)
 })
+
+test("worker registration covers the slashless app entry without covering marketing", () => {
+  const calls: Array<{ url: string; scope?: string }> = []
+  const { env } = makeEnv()
+  const scoped = { ...env as object, navigator: { serviceWorker: { register: async (url: string, options?: { scope: string }) => { calls.push({ url, scope: options?.scope }) } } } }
+  registerServiceWorker({}, scoped as never)
+  assert.deepEqual(calls, [{ url: "/app/sw.js", scope: "/app" }])
+})
+
+test("new public app registration retires only the previous root binder worker", async () => {
+  const retired: string[] = []
+  const registration = (scope: string, scriptURL: string) => ({ scope, active: { scriptURL }, unregister: async () => { retired.push(scope); return true } })
+  const env = {
+    location: { hostname: "holofolder.com" },
+    navigator: { serviceWorker: {
+      register: async () => undefined,
+      getRegistrations: async () => [
+        registration("https://holofolder.com/", "https://holofolder.com/sw.js"),
+        registration("https://holofolder.com/app", "https://holofolder.com/app/sw.js"),
+        registration("https://holofolder.com/other", "https://holofolder.com/other/sw.js"),
+      ],
+    } },
+    setTimeout: () => 0,
+    clearTimeout: () => undefined,
+  }
+  registerServiceWorker({}, env)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(retired, ["https://holofolder.com/"])
+})

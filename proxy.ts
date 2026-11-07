@@ -14,6 +14,7 @@ export async function proxy(request: NextRequest) {
 // The matcher must stay an inline literal: Next.js reads it statically at build time.
 export const config = {
   matcher: [
+    "/",
     '/((?!_next/static|_next/image|\\.well-known/workflow|api/(?:ebay/account-deletion|card-image-proxy|card-prices|tcgdex-cache|tcg-set-slots|tcg-card-search)(?:/)?$|app-shell(?:/)?$|sw\\.js$|manifest\\.webmanifest$|favicon\\.ico$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|txt|xml)$).*)',
   ],
 }

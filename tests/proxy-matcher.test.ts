@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { config } from "../proxy"
 
 // Next.js anchors the matcher to the whole pathname.
-const matcher = new RegExp(`^${config.matcher[0]}$`)
+const matcher = new RegExp(`^${config.matcher[1]}$`)
 const runsProxy = (pathname: string) => matcher.test(pathname)
 
 describe("proxy matcher", () => {

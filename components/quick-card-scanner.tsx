@@ -57,7 +57,7 @@ async function searchCards(query: string, isOnline: boolean, getOfflineCards: ()
   if (!query) return { cards: [] as SearchCardResult[], offline: !isOnline }
   if (!isOnline || (typeof navigator !== "undefined" && navigator.onLine === false)) return { cards: await onDevice(), offline: true }
   try {
-    const response = await fetch(`/api/tcg-card-search?q=${encodeURIComponent(query.toLowerCase())}`)
+    const response = await fetch(`/app/api/tcg-card-search?q=${encodeURIComponent(query.toLowerCase())}`)
     if (!response.ok) throw new Error(`Card search failed (${response.status})`)
     const payload = (await response.json()) as { cards?: SearchCardResult[] }
     return { cards: Array.isArray(payload?.cards) ? payload.cards : [], offline: false }

@@ -1,13 +1,14 @@
+import { appPath } from "@/lib/app-path"
 import { correctedCardSearchQuery, resolveCardSearchQuery } from "@/lib/card-search-query"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 // Offline card search: an index built from what is already on the device (the user's own cards and the card
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
-// with the same query rules as /api/tcg-card-search (name, set name/id, "44/102" numbers, card ids).
+// with the same query rules as /app/api/tcg-card-search (name, set name/id, "44/102" numbers, card ids).
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeLocalId, type SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 
-export const CACHED_CARD_API_PREFIXES = ["/api/tcg-set-slots", "/api/tcgdex-cache", "/api/tcg-card-search"] as const
+export const CACHED_CARD_API_PREFIXES = ["/app/api/tcg-set-slots", "/app/api/tcgdex-cache", "/app/api/tcg-card-search"] as const
 const MAX_CACHED_RESPONSES = 600
 
 type UnknownRecord = Record<string, unknown>
@@ -49,10 +50,10 @@ export function extractCardsFromCachedResponse(url: string, payload: unknown): S
   } catch {
     return []
   }
-  const path = parsedUrl.pathname
+  const path = appPath(parsedUrl.pathname)
   const cards: SearchCardResult[] = []
 
-  if (path.startsWith("/api/tcg-set-slots") && Array.isArray(payload.slots)) {
+  if (path.startsWith("/app/api/tcg-set-slots") && Array.isArray(payload.slots)) {
     for (const slot of payload.slots) {
       if (!isRecord(slot) || typeof slot.dexId !== "number" || !Array.isArray(slot.cards)) continue
       for (const card of slot.cards) {
@@ -60,7 +61,7 @@ export function extractCardsFromCachedResponse(url: string, payload: unknown): S
         if (result) cards.push(result)
       }
     }
-  } else if (path.startsWith("/api/tcgdex-cache") && Array.isArray(payload.cards)) {
+  } else if (path.startsWith("/app/api/tcgdex-cache") && Array.isArray(payload.cards)) {
     const pokemonId = Number(parsedUrl.searchParams.get("pokemonId"))
     if (Number.isInteger(pokemonId) && pokemonId > 0) {
       for (const card of payload.cards) {
@@ -68,7 +69,7 @@ export function extractCardsFromCachedResponse(url: string, payload: unknown): S
         if (result) cards.push(result)
       }
     }
-  } else if ((path.startsWith("/api/tcg-card-search") || path.startsWith("/api/tcg-illustrators")) && Array.isArray(payload.cards)) {
+  } else if ((path.startsWith("/app/api/tcg-card-search") || path.startsWith("/app/api/tcg-illustrators")) && Array.isArray(payload.cards)) {
     for (const card of payload.cards) {
       const result = toSearchCard(card, positiveInts(isRecord(card) ? card.dexIds : null))
       if (result && result.dexIds.length > 0) cards.push(result)
@@ -190,7 +191,7 @@ export async function readCachedCardApiResponses(cacheStorage: CacheStorage | un
     for (const name of names) {
       const cache = await cacheStorage.open(name)
       const requests = (await cache.keys()).filter((request) => {
-        const path = new URL(request.url).pathname
+        const path = appPath(new URL(request.url).pathname)
         return apiPrefixes.some((prefix) => path.startsWith(prefix))
       })
       for (const request of requests.slice(0, MAX_CACHED_RESPONSES - results.length)) {
@@ -216,7 +217,7 @@ export async function buildOfflineCardIndex(collection: CollectedPokemon[], cach
 
 export async function readOfflineSets(cacheStorage?: CacheStorage) {
   // Other card responses contain no set summaries; skip their bodies before reading and parsing JSON.
-  const responses = await readCachedCardApiResponses(cacheStorage, ["/api/tcg-set-slots"])
+  const responses = await readCachedCardApiResponses(cacheStorage, ["/app/api/tcg-set-slots"])
   return responses.flatMap((response) => extractSetsFromCachedResponse(response.url, response.payload))
 }
 

@@ -42,3 +42,7 @@ test("binder links keep the current page and its other parameters", () => {
   assert.equal(binderHref("b2", "https://holofolder.com/?binder=b1&x=1"), "/?binder=b2&x=1")
   assert.equal(binderHref("b2", "http://localhost/e2e-harness?signedIn=1"), "/e2e-harness?signedIn=1&binder=b2")
 })
+
+test("binder links give Next router an unprefixed path", () => {
+  assert.equal(binderHref("b2", "https://holofolder.com/app?binder=b1&x=1"), "/?binder=b2&x=1")
+})

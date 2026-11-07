@@ -46,7 +46,7 @@ async function mockNetwork(context: BrowserContext, page: Page) {
   const guard = <T,>(handler: (route: import("@playwright/test").Route) => T) => (route: import("@playwright/test").Route) =>
     network.offline ? route.abort("internetdisconnected") : handler(route)
 
-  await context.route("**/api/tcg-set-slots**", guard((route) => {
+  await context.route("**/app/api/tcg-set-slots**", guard((route) => {
     const url = new URL(route.request().url())
     const setId = url.searchParams.get("setId")
     const query = (url.searchParams.get("query") ?? "").toLowerCase()
@@ -57,7 +57,7 @@ async function mockNetwork(context: BrowserContext, page: Page) {
     }
     return route.fulfill({ json: { sets: ALL_SETS.filter((set) => set.name.toLowerCase().includes(query)), selectedSet: null, slots: [] } })
   }))
-  await context.route("**/api/card-image-proxy**", guard((route) => {
+  await context.route("**/app/api/card-image-proxy**", guard((route) => {
     const source = new URL(route.request().url()).searchParams.get("url") ?? ""
     // Since #48 the binder's Pokémon artwork goes through the proxy too; only card thumbnails count here.
     if (!source.includes("raw.githubusercontent.com")) network.proxyImages.push(source)
@@ -67,11 +67,11 @@ async function mockNetwork(context: BrowserContext, page: Page) {
   await context.route(/^https:\/\/assets\.tcgdex\.net\//, rawImage)
   // The shared fixture also answers these on the page; override so they fail offline too.
   await page.route(/^https:\/\/assets\.tcgdex\.net\//, rawImage)
-  await context.route("**/api/tcgdex-cache**", guard((route) => {
+  await context.route("**/app/api/tcgdex-cache**", guard((route) => {
     const pokemonId = Number(new URL(route.request().url()).searchParams.get("pokemonId"))
     return route.fulfill({ json: { cards: MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map((card) => ({ ...card, dexIds: undefined })), source: "mirror" } })
   }))
-  await context.route("**/api/tcg-card-search**", guard((route) => route.fulfill({ json: { cards: [] } })))
+  await context.route("**/app/api/tcg-card-search**", guard((route) => route.fulfill({ json: { cards: [] } })))
   const prices = guard((route) => {
     const body = route.request().method() === "GET"
       ? { cards: JSON.parse(new URL(route.request().url()).searchParams.get("cards") ?? "[]") }
@@ -82,8 +82,8 @@ async function mockNetwork(context: BrowserContext, page: Page) {
       historyPoints: [{ date: "2026-09-15", source: "tcgplayer", currency: "USD", amount: 4, lowAmount: 2, finish: "normal", productId: "123" }],
     })) } })
   })
-  await context.route("**/api/card-prices**", prices)
-  await page.route("**/api/card-prices**", prices)
+  await context.route("**/app/api/card-prices**", prices)
+  await page.route("**/app/api/card-prices**", prices)
   return network
 }
 
@@ -208,7 +208,7 @@ test.describe("offline search and card show prep", () => {
     await quick.getByRole("button", { name: "Check download size" }).click()
     await expect(quick.getByRole("status").filter({ hasText: "card images" })).toContainText("3 card images")
     // Price batches fail, then one image is evicted. Saved coverage and other images remain useful.
-    await page.route("**/api/card-prices**", route => route.fulfill({ status: 503, body: "synthetic unavailable" }))
+    await page.route("**/app/api/card-prices**", route => route.fulfill({ status: 503, body: "synthetic unavailable" }))
     await quick.getByRole("button", { name: "Download for offline" }).click()
     await expect(quick.getByRole("status").filter({ hasText: "Couldn't download prices" })).toContainText("Couldn't download prices (503)")
     await expect.poll(() => page.evaluate(async () => (await (await caches.open("binderdex-v1-show-images")).keys()).filter(request => request.url.includes("show1")).length)).toBe(3)
@@ -219,7 +219,7 @@ test.describe("offline search and card show prep", () => {
       }
     })
     await quick.getByRole("button", { name: "Close quick mode" }).click()
-    await expect.poll(() => page.evaluate(async () => Boolean(await caches.match("/app-shell"))), { timeout: 30_000 }).toBe(true)
+    await expect.poll(() => page.evaluate(async () => Boolean(await caches.match("/app/app-shell"))), { timeout: 30_000 }).toBe(true)
     await goOffline(page, network)
     await page.reload()
     await expect(harness.dock()).toBeVisible()
@@ -253,7 +253,7 @@ test.describe("offline search and card show prep", () => {
     await quick.getByRole("checkbox", { name: "Base Set", exact: true }).check()
     let release!: () => void
     const pending = new Promise<void>(resolve => { release = resolve })
-    await context.route("**/api/tcg-set-slots**", async route => { await pending; await route.abort().catch(() => undefined) })
+    await context.route("**/app/api/tcg-set-slots**", async route => { await pending; await route.abort().catch(() => undefined) })
     try {
       await quick.getByRole("button", { name: "Check download size" }).click()
       await expect(quick.getByRole("status").filter({ hasText: "Checking download size…" })).toHaveText("Checking download size…")
@@ -280,7 +280,7 @@ test.describe("offline search and card show prep", () => {
     const network = await mockNetwork(context, page)
     // The search sheet is a lazy chunk (PERF-1): wait until the worker controls the page and has the offline
     // shell, which it only stores after the lazy chunks are cached.
-    await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app-shell"))), { timeout: 30_000 }).toBe(true)
+    await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app/app-shell"))), { timeout: 30_000 }).toBe(true)
     await goOffline(page, network)
     await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: /search pokemon/i })

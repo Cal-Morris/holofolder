@@ -8,12 +8,12 @@ test.describe("3D binder gestures", () => {
   test("preloads neighbours, swipes both ways, pans while zoomed and opens Pokémon details", async ({ harness }) => {
     const { page } = harness
     const design = defaultBinderDesign()
-    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
     // Synthetic artwork and a card on the next spread to verify preloading before navigation.
     const collection = [...SEEDED_COLLECTION, { ...SEEDED_COLLECTION[0], pokemon_id: 18, pokemon_name: "Pidgeot", card_id: "base1-8", card_name: "Pidgeot" }]
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: collection.map(item => ({ ...item, card_image: `https://assets.tcgdex.net/en/base/base1/${item.pokemon_id === 18 ? "8" : "44"}/high.webp` })) }))
     const preload = page.waitForRequest(request => request.url().includes("card-image-proxy") && decodeURIComponent(request.url()).includes("/8/high.webp"))
-    await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
+    await page.goto("/app/e2e-harness?signedIn=1&cardArtwork=1")
     await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), canvas = stage.locator("canvas")
@@ -115,7 +115,7 @@ test.describe("3D binder gestures", () => {
 
   test("taps recover when a multi-touch gesture loses capture and ends outside the canvas", async ({ harness }) => {
     const { page } = harness, design = defaultBinderDesign()
-    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
     await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), canvas = stage.locator("canvas")
@@ -203,18 +203,18 @@ test.describe("3D binder gestures", () => {
 
   test("keeps the current spread visible while adjacent artwork loads and survives rapid turns", async ({ harness }) => {
     const { page } = harness
-    await page.route("**/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: defaultBinderDesign(), revision: 1 } }))
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: defaultBinderDesign(), revision: 1 } }))
     // Synthetic second-spread printing with a deliberately delayed image.
     await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: [...SEEDED_COLLECTION, { ...SEEDED_COLLECTION[0], pokemon_id: 18, card_id: "base1-8", card_image: "https://assets.tcgdex.net/en/base/base1/8/high.webp" }] }))
     let release!: () => void
     const loaded = new Promise<void>(resolve => { release = resolve })
     let requested = false
-    await page.route("**/api/card-image-proxy?**", async route => {
+    await page.route("**/app/api/card-image-proxy?**", async route => {
       if (decodeURIComponent(route.request().url()).includes("/8/high.webp")) { requested = true;await loaded }
       await route.fallback()
     })
     await page.clock.install()
-    await page.goto("/e2e-harness?signedIn=1&cardArtwork=1")
+    await page.goto("/app/e2e-harness?signedIn=1&cardArtwork=1")
     await harness.openViewOptions()
     await page.getByRole("button", { name: "3D", exact: true }).click()
     const stage = page.getByTestId("binder-3d-stage"), preview = page.getByRole("region", { name: "Your 3D National Dex binder" })

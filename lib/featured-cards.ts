@@ -812,7 +812,7 @@ export const FEATURED_CARDS: readonly FeaturedCard[] = [
 ]
 
 export function getFeaturedCardImageUrl(card: FeaturedCard, width?: number): string {
-  const url = `/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+  const url = `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
   return width ? `${url}&w=${width}` : url
 }
 

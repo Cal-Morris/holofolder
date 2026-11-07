@@ -12,7 +12,7 @@ export default function NotFound() {
           <Link href="/" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
             Open binder
           </Link>
-          <Link href="/home" className="rounded-md border border-border px-4 py-2 text-sm font-medium">
+          <Link href="https://holofolder.com" className="rounded-md border border-border px-4 py-2 text-sm font-medium">
             Home
           </Link>
         </div>

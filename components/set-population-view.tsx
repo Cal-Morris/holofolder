@@ -131,7 +131,7 @@ export default function SetPopulationView({
     const controller = new AbortController()
 
     const offlineStore = getOfflineStore()
-    void fetch("/api/tcg-set-slots?recent=1", { signal: controller.signal })
+    void fetch("/app/api/tcg-set-slots?recent=1", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) return null
         return (await response.json().catch(() => null)) as TCGSetSlotsResponse | null
@@ -158,7 +158,7 @@ export default function SetPopulationView({
     const timer = window.setTimeout(async () => {
       const queryString = new URLSearchParams({ query: trimmedQuery }).toString()
       try {
-        const response = await fetch(`/api/tcg-set-slots?${queryString}`, { signal: controller.signal })
+        const response = await fetch(`/app/api/tcg-set-slots?${queryString}`, { signal: controller.signal })
         if (!response.ok) throw new Error(`Set search failed (${response.status})`)
         const payload = await response.json() as TCGSetSlotsResponse
         if (!controller.signal.aborted) setSets(payload.sets)
@@ -185,7 +185,7 @@ export default function SetPopulationView({
       const queryString = new URLSearchParams({ query: set.name, setId: set.id }).toString()
       let payload: TCGSetSlotsResponse
       try {
-        const response = await fetch(`/api/tcg-set-slots?${queryString}`, { signal: controller.signal })
+        const response = await fetch(`/app/api/tcg-set-slots?${queryString}`, { signal: controller.signal })
         const data = await response.json()
         if (!response.ok || !data.selectedSet) throw new Error(data.error || `Could not load ${set.name}`)
         payload = data

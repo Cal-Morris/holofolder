@@ -11,7 +11,7 @@ const cards = [
 
 test("set value and momentum rankings include all cards and separate finishes", async ({ harness }) => {
   const { page } = harness
-  await page.route("**/api/tcg-set-slots**", (route) => {
+  await page.route("**/app/api/tcg-set-slots**", (route) => {
     const selected = new URL(route.request().url()).searchParams.has("setId")
     return route.fulfill({ json: { sets: [set], selectedSet: selected ? set : null, slots: selected ? [{ dexId: 1, pokemonName: "bulbasaur", cards: cards.slice(0, 2) }] : [], cards: selected ? cards : [] } })
   })
@@ -46,8 +46,8 @@ test("set value and momentum rankings include all cards and separate finishes", 
   await page.context().setOffline(true)
   await region.getByRole("button", { name: "Top value", exact: true }).click()
   await expect(page.getByRole("region", { name: "Synthetic set top value cards" }).getByRole("listitem")).toHaveCount(4)
-  await page.route("**/api/tcg-set-slots**", (route) => route.abort("internetdisconnected"))
-  await page.route("**/api/card-prices**", (route) => route.abort("internetdisconnected"))
+  await page.route("**/app/api/tcg-set-slots**", (route) => route.abort("internetdisconnected"))
+  await page.route("**/app/api/card-prices**", (route) => route.abort("internetdisconnected"))
   await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
   await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
   await page.getByRole("button", { name: "Synthetic set", exact: true }).click()

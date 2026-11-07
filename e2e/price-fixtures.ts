@@ -3,7 +3,7 @@ import type { CardPriceHistoryPoint } from "../lib/card-price-history"
 import type { Page } from "@playwright/test"
 
 /**
- * TEST FIXTURES ONLY: synthetic price snapshots served from a mocked /api/card-prices.
+ * TEST FIXTURES ONLY: synthetic price snapshots served from a mocked /app/api/card-prices.
  * None of these amounts are real market data.
  */
 export interface FixturePrice {
@@ -40,7 +40,7 @@ export async function clearCardPriceCache(page: Page) {
 }
 
 export async function mockCardPrices(page: Page, byCardId: Record<string, FixturePrice>) {
-  await page.route("**/api/card-prices**", async (route) => {
+  await page.route("**/app/api/card-prices**", async (route) => {
     const body = route.request().postDataJSON?.() ?? {}
     const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : []
     const updatedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString()

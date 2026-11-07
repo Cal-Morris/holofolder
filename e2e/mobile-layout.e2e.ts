@@ -120,7 +120,7 @@ test("binder controls stay reachable and cards keep their full proportions", asy
   await display.getByRole("button", { name: "2D", exact: true }).click()
   await page.getByRole("button", { name: "Close view options", exact: true }).click()
   await checkSlots()
-  await page.goto("/e2e-harness?cardArtwork=1")
+  await page.goto("/app/e2e-harness?cardArtwork=1")
   await expect(page.locator('button[data-dex-id="1"] img').first()).toHaveCSS("object-fit", "contain")
   for (const viewport of [{ width: 768, height: 667 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport)

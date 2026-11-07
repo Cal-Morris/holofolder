@@ -165,7 +165,7 @@ test.describe("browse by illustrator", () => {
     await expect(harness.dialogs()).toHaveCount(0)
 
     // No signal: the API fails, so the view reads the copy saved in IndexedDB.
-    await harness.page.route("**/api/tcg-illustrators**", (route) => route.abort())
+    await harness.page.route("**/app/api/tcg-illustrators**", (route) => route.abort())
     await setNetwork(harness.page, true)
 
     const offline = await openFromSearch(harness, "arita")
@@ -189,7 +189,7 @@ test.describe("illustrator prices (UK)", () => {
   test("shows each card's price and sorts by price, unpriced cards last", async ({ harness }) => {
     // Synthetic Cardmarket-only quotes (TEST FIXTURE ONLY): Bulbasaur 44 £120, Bulbasaur 166 £45.50, Charmander 46 unpriced.
     const quotes: Record<string, number | null> = { "base1-44": 120, "sv03.5-166": 45.5, "base1-46": null }
-    await harness.page.route("**/api/card-prices**", async (route) => {
+    await harness.page.route("**/app/api/card-prices**", async (route) => {
       const lookups: Array<{ cardId: string; language?: string }> = route.request().postDataJSON()?.cards ?? []
       await route.fulfill({ json: { prices: lookups.map(({ cardId, language }) => {
         const gbp = quotes[cardId] ?? null

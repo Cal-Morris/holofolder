@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto"
 
 /**
- * Pure helpers for the incremental card DB sync (`/api/admin/sync-card-db`).
+ * Pure helpers for the incremental card DB sync (`/app/api/admin/sync-card-db`).
  * Kept free of database / network imports so they can be unit tested directly.
  */
 

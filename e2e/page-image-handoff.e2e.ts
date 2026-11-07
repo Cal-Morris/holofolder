@@ -14,7 +14,7 @@ for (const reducedMotion of [false, true]) test(`page handoff keeps complete pre
   await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: collection }))
   let release!: () => void
   const delayed = new Promise<void>(resolve => { release = resolve })
-  await page.route("**/api/card-image-proxy**", async route => {
+  await page.route("**/app/api/card-image-proxy**", async route => {
     const source = new URL(route.request().url()).searchParams.get("url") ?? ""
     const id = Number(source.match(/swipe\/(\d+)/)?.[1] ?? 1)
     if (id > 16) await delayed
@@ -68,7 +68,7 @@ for (const reducedMotion of [false, true]) test(`page handoff keeps complete pre
 
 test("failed destination images do not block navigation or a return to the cached page", async ({ harness }) => {
   const { page } = harness
-  await page.route("**/api/card-image-proxy**", route => route.abort())
+  await page.route("**/app/api/card-image-proxy**", route => route.abort())
   await page.getByRole("button", { name: "Next binder page", exact: true }).click()
   await expect(page.locator('[data-binder-page="2"]')).toBeVisible()
   await expect(page.locator("[data-page-turn-ms]")).toHaveAttribute("aria-busy", "false")

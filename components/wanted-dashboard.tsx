@@ -1,5 +1,7 @@
 "use client"
 
+import { appPath } from "@/lib/app-path"
+
 import type { User } from "@supabase/supabase-js"
 import { usePartner } from "@/hooks/use-partner"
 import { wantedPeopleLabel } from "@/lib/wanted-people"
@@ -173,7 +175,7 @@ export default function WantedDashboard({
   useEffect(() => {
     if (!pendingBinder || actionsFor) return
     runAfterOverlayHistory(() => {
-      const url = new URL(binderHref(pendingBinder, window.location.href), window.location.origin)
+      const url = new URL(appPath(binderHref(pendingBinder, window.location.href)), window.location.origin)
       url.searchParams.set("view", "wanted")
       rememberLastOpenedBinder(pendingBinder)
       window.location.assign(url.href)

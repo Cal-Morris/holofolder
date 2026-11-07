@@ -6,7 +6,7 @@ import { defaultBinderDesign, type BinderDesign } from "../lib/binder-design"
 function cloud() {
   const state = { design: defaultBinderDesign(), revision: 1, available: true, uploads: new Set<string>(), png: Buffer.alloc(0) }
   const attach = async (context: BrowserContext) => {
-    await context.route("**/api/binder-appearance", async route => {
+    await context.route("**/app/api/binder-appearance", async route => {
       if (!state.available) { await route.abort(); return }
       if (route.request().method() === "PUT") {
         const body = route.request().postDataJSON() as { design: BinderDesign; baseRevision: number }
@@ -16,15 +16,15 @@ function cloud() {
       }
       await route.fulfill({ json: { ownerId: E2E_USER.id, design: state.design, revision: state.revision } })
     })
-    await context.route("**/api/binder-appearance/upload", async route => {
+    await context.route("**/app/api/binder-appearance/upload", async route => {
       const { id } = route.request().postDataJSON() as { id: string }
       if (state.uploads.has(id)) { await route.fulfill({ json: { exists: true } }); return }
       state.uploads.add(id)
       await route.fulfill({ json: { path: `${E2E_USER.id}/${id.slice(7)}`, token: "synthetic-upload-token" } })
     })
     await context.route("**/storage/v1/object/upload/sign/**", route => route.fulfill({ json: { Key: "synthetic-artwork" } }))
-    await context.route("**/api/binder-appearance/artwork?**", route => route.fulfill({ contentType: "image/png", body: state.png }))
-    await context.route("**/api/card-image-proxy?**", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="315" height="440"><rect width="315" height="440" fill="#c8bbc9"/></svg>' }))
+    await context.route("**/app/api/binder-appearance/artwork?**", route => route.fulfill({ contentType: "image/png", body: state.png }))
+    await context.route("**/app/api/card-image-proxy?**", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="315" height="440"><rect width="315" height="440" fill="#c8bbc9"/></svg>' }))
   }
   return { state, attach }
 }
@@ -34,7 +34,7 @@ async function words(page: Page, text: string) {
   await input.fill(text)
 }
 async function ready(page: Page) {
-  await page.goto("/e2e-harness/studio")
+  await page.goto("/app/e2e-harness/studio")
   await expect(page.getByRole("button", { name: "Save appearance", exact: true })).toBeEnabled()
 }
 
@@ -148,7 +148,7 @@ test("accepting an empty account appearance cannot resurrect a discarded pending
   if (info.project.metadata.standalone) await emulateStandalone(page, SAFE_AREA)
   await ready(page)
   await words(page, "Discard this pending draft")
-  await page.route("**/api/binder-appearance", route => route.fulfill({ status: route.request().method() === "PUT" ? 409 : 200, json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
+  await page.route("**/app/api/binder-appearance", route => route.fulfill({ status: route.request().method() === "PUT" ? 409 : 200, json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
   await page.getByRole("button", { name: "Save appearance", exact: true }).click()
   await expect(page.getByRole("status").filter({ hasText: "changed on another device" })).toBeVisible()
   await page.getByRole("button", { name: "Load latest appearance", exact: true }).click()

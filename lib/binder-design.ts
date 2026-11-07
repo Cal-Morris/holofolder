@@ -1,3 +1,4 @@
+import { appPath } from "@/lib/app-path"
 import { BINDER_COLOR_PRESETS } from "@/lib/binder-colors"
 import type { BinderSettings } from "@/lib/settings"
 
@@ -38,7 +39,7 @@ export function isCardArtworkUrl(value: unknown): value is string {
   if (typeof value !== "string") return false
   try {
     const url = new URL(value, "https://binder.local")
-    if (url.origin !== "https://binder.local" || url.pathname !== "/api/card-image-proxy") return false
+    if (url.origin !== "https://binder.local" || !["/api/card-image-proxy", "/app/api/card-image-proxy"].includes(url.pathname)) return false
     const src = new URL(url.searchParams.get("url") || "")
     return src.protocol === "https:" && src.hostname === "assets.tcgdex.net" && !src.username && !src.password && src.port === ""
   } catch { return false }
@@ -63,7 +64,7 @@ export function normalizeBinderDesign(value: unknown, defaults = defaultBinderDe
     version: 1, name: text(v.name, defaults.name),
     surfaces: Object.fromEntries(DESIGN_SURFACES.map(s => {
       const d = object(surfaces[s]), fallback = defaults.surfaces[s]
-      const artwork = typeof d.artwork === "string" && (/^upload:[a-z0-9-]+$/i.test(d.artwork) || isCardArtworkUrl(d.artwork)) ? d.artwork : null
+      const artwork = typeof d.artwork === "string" && (/^upload:[a-z0-9-]+$/i.test(d.artwork) || isCardArtworkUrl(d.artwork)) ? (isCardArtworkUrl(d.artwork) ? appPath(d.artwork) : d.artwork) : null
       return [s, { color: color(d.color, fallback.color), words: text(d.words, fallback.words, 240), artwork, frame: normalizeArtworkFrame(d.frame) }]
     })) as BinderDesign["surfaces"],
     material: v.material === "smooth" ? "smooth" : "pebbled", ink: color(v.ink, defaults.ink),

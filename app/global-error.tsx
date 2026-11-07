@@ -32,7 +32,7 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
           >
             Try again
           </button>
-          <a href="/app-shell" style={{ color: "inherit", fontSize: 14 }}>
+          <a href="/app/app-shell" style={{ color: "inherit", fontSize: 14 }}>
             Open binder
           </a>
         </div>

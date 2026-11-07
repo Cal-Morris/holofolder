@@ -3,11 +3,15 @@
  * (/home, sign-in) register it once the page has loaded and gone idle, so first-visit and signed-out users
  * also get the offline shell without it competing with the page's own loading. Skipped on Save-Data.
  */
-export const SERVICE_WORKER_URL = "/sw.js"
+export const SERVICE_WORKER_URL = "/app/sw.js"
 
 interface RegistrationEnvironment {
+  location?: { hostname: string }
   navigator: {
-    serviceWorker?: { register: (url: string) => Promise<unknown> }
+    serviceWorker?: {
+      register: (url: string, options?: { scope: string }) => Promise<unknown>
+      getRegistrations?: () => Promise<Array<{ scope: string; active?: { scriptURL: string } | null; unregister: () => Promise<boolean> }>>
+    }
     connection?: { saveData?: boolean }
   }
   document?: { readyState: string }
@@ -20,7 +24,14 @@ interface RegistrationEnvironment {
 }
 
 function register(env: RegistrationEnvironment) {
-  env.navigator.serviceWorker?.register(SERVICE_WORKER_URL).catch((error: unknown) => {
+  env.navigator.serviceWorker?.register(SERVICE_WORKER_URL, { scope: "/app" }).then(async () => {
+    // A previous root worker could otherwise keep answering Framer's marketing pages offline.
+    // Keep binder.cal.gg's root registration for its existing installed app and queued edits.
+    if (env.location?.hostname !== "holofolder.com") return
+    for (const registration of await env.navigator.serviceWorker?.getRegistrations?.() ?? []) {
+      if (registration.scope === "https://holofolder.com/" && registration.active?.scriptURL === "https://holofolder.com/sw.js") await registration.unregister()
+    }
+  }).catch((error: unknown) => {
     console.error("[holofolder] Failed to register service worker:", error)
   })
 }

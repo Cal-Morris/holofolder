@@ -165,7 +165,7 @@ test.describe("Show mode finder", () => {
     const requested: string[] = []
     let release!: () => void
     const held = new Promise<void>((resolve) => { release = resolve })
-    await page.route("**/api/card-price-checks?**", async (route) => {
+    await page.route("**/app/api/card-price-checks?**", async (route) => {
       const params = new URL(route.request().url()).searchParams
       const source = params.get("source")
       if (source === "soldcomps") requested.push(params.get("cardId") ?? "")
@@ -201,7 +201,7 @@ test.describe("Show mode finder", () => {
     const { page } = harness
     const checkedAt = new Date().toISOString()
     const requested: string[] = []
-    await page.route("**/api/card-price-checks?**", async (route) => {
+    await page.route("**/app/api/card-price-checks?**", async (route) => {
       const params = new URL(route.request().url()).searchParams
       const source = params.get("source")
       if (source === "soldcomps") requested.push(params.get("cardId") ?? "")

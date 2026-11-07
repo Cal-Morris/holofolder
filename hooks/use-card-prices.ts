@@ -238,7 +238,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
       // Everything shown is fresh: skip the fetch round and the localStorage rewrite below.
       if (plan.fetchBatches.length === 0) return []
 
-      return mapWithConcurrency(plan.fetchBatches, 2, (batch) => cancelled ? Promise.resolve([]) : fetch("/api/card-prices", {
+      return mapWithConcurrency(plan.fetchBatches, 2, (batch) => cancelled ? Promise.resolve([]) : fetch("/app/api/card-prices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

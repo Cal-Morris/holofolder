@@ -3,10 +3,10 @@ import { E2E_USER, SEEDED_COLLECTION, test } from "./fixtures"
 
 // The binder's prerendered HTML is a skeleton of the binder (header, card pockets, dock), not a spinner,
 // so something binder-shaped paints before any JavaScript runs.
-base("/app-shell paints a binder skeleton before JavaScript", async ({ browser }) => {
+base("/app/app-shell paints a binder skeleton before JavaScript", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } })
   const page = await context.newPage()
-  await page.goto("/app-shell")
+  await page.goto("/app/app-shell")
   const skeleton = page.getByTestId("binder-skeleton")
   await expect(skeleton).toBeVisible()
   await expect(skeleton).toHaveAttribute("aria-busy", "true")
@@ -28,7 +28,7 @@ test.describe("binder start", () => {
     }, { snapshot, marker: JSON.stringify({ userId: E2E_USER.id, ownerUserId: E2E_USER.id, binderId: null, binders: [] }) })
     const started = Date.now()
     // The server's collection would take 20 s; the binder has to come from the saved one.
-    await page.goto("/e2e-harness/binder-start?serverDelay=20000", { waitUntil: "commit" })
+    await page.goto("/app/e2e-harness/binder-start?serverDelay=20000", { waitUntil: "commit" })
     await expect(harness.dock()).toBeVisible({ timeout: 15_000 })
     await expect(page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
     expect(Date.now() - started).toBeLessThan(15_000)
@@ -37,7 +37,7 @@ test.describe("binder start", () => {
 
   test("a first visit shows the skeleton until the server's binder arrives, then starts locally next time", async ({ harness }) => {
     const { page } = harness
-    await page.goto("/e2e-harness/binder-start?serverDelay=3000", { waitUntil: "commit" })
+    await page.goto("/app/e2e-harness/binder-start?serverDelay=3000", { waitUntil: "commit" })
     await expect(page.getByTestId("binder-skeleton")).toBeVisible()
     await expect(harness.dock()).toHaveCount(0)
     await expect(harness.dock()).toBeVisible({ timeout: 30_000 })
@@ -45,7 +45,7 @@ test.describe("binder start", () => {
     expect(JSON.parse((await page.evaluate(() => window.localStorage.getItem("binderdex_start_v1"))) ?? "null")).toEqual({ userId: E2E_USER.id, ownerUserId: E2E_USER.id, binderId: null, binders: [] })
     await expect.poll(() => page.evaluate(() => Boolean(window.localStorage.getItem("pokemon_collection_snapshot_v1")))).toBe(true)
 
-    await page.goto("/e2e-harness/binder-start?serverDelay=20000", { waitUntil: "commit" })
+    await page.goto("/app/e2e-harness/binder-start?serverDelay=20000", { waitUntil: "commit" })
     await expect(harness.dock()).toBeVisible({ timeout: 15_000 })
   })
 
@@ -55,7 +55,7 @@ test.describe("binder start", () => {
       window.localStorage.setItem("pokemon_collection_snapshot_v1", snapshot)
       window.localStorage.setItem("binderdex_start_v1", marker)
     }, { snapshot: JSON.stringify({ ownerUserId: "someone-else", savedAt: "x", collection: SEEDED_COLLECTION }), marker: JSON.stringify({ userId: "someone-else", ownerUserId: "someone-else", binderId: null, binders: [] }) })
-    await page.goto("/e2e-harness/binder-start?serverDelay=3000", { waitUntil: "commit" })
+    await page.goto("/app/e2e-harness/binder-start?serverDelay=3000", { waitUntil: "commit" })
     await expect(page.getByTestId("binder-skeleton")).toBeVisible()
     await page.waitForTimeout(1_000)
     await expect(harness.dock()).toHaveCount(0)

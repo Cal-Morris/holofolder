@@ -38,7 +38,7 @@ async function fromDevice<T>(load: (store: NonNullable<ReturnType<typeof getOffl
 export function loadIllustratorDirectory(): Promise<IllustratorLoadResult<IllustratorSummary[]>> {
   directoryPromise ??= (async (): Promise<IllustratorLoadResult<IllustratorSummary[]>> => {
     try {
-      const payload = await fetchJson("/api/tcg-illustrators") as { illustrators?: unknown }
+      const payload = await fetchJson("/app/api/tcg-illustrators") as { illustrators?: unknown }
       if (!isIllustratorDirectory(payload?.illustrators)) throw new Error("Unexpected illustrator directory")
       const directory = buildIllustratorDirectory(payload.illustrators.map((entry) => ({ name: entry.name, count: entry.cardCount })))
       const store = getOfflineStore()
@@ -59,7 +59,7 @@ export async function loadIllustratorCards(name: string, language: CardLanguage 
   const illustrator = cleanIllustratorName(name)
   if (!illustrator) return { data: null, source: "none" }
   try {
-    const payload = await fetchJson(`/api/tcg-illustrators?name=${encodeURIComponent(illustrator)}&language=${encodeURIComponent(language)}`)
+    const payload = await fetchJson(`/app/api/tcg-illustrators?name=${encodeURIComponent(illustrator)}&language=${encodeURIComponent(language)}`)
     if (!isIllustratorCardsResponse(payload)) throw new Error("Unexpected illustrator cards")
     const store = getOfflineStore()
     if (store) void saveIllustratorCards(store, language, payload).catch(() => undefined)

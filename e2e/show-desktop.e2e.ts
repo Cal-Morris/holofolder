@@ -14,7 +14,7 @@ for (const viewport of [{ width: 768, height: 800 }, { width: 1024, height: 768 
       test.skip(test.info().project.name !== "browser-390x844", "desktop context: run once")
       await mockBackends(page, page.context(), { signedIn: true, baseURL })
       await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
-      await page.goto("/e2e-harness?signedIn=1")
+      await page.goto("/app/e2e-harness?signedIn=1")
       await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible({ timeout: 30_000 })
 
       await page.getByRole("button", { name: "Show mode", exact: true }).click()

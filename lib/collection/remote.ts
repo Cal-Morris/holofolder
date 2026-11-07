@@ -1,4 +1,4 @@
-// Remote collection writes through /api/collection, plus error helpers.
+// Remote collection writes through /app/api/collection, plus error helpers.
 import { COLLECTION_FINGERPRINT_VERSION } from "@/lib/collection/sync"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
@@ -47,7 +47,7 @@ export function getCollectionRequestBody(item: CollectedPokemon, binderId: strin
   }
 }
 
-/** A failed /api/collection write. `status` is null for network errors; on 409, `serverItem` is the current row. */
+/** A failed /app/api/collection write. `status` is null for network errors; on 409, `serverItem` is the current row. */
 export class CollectionWriteError extends Error {
   status: number | null
   serverItem: CollectedPokemon | null
@@ -91,7 +91,7 @@ async function toWriteError(response: Response, fallback: string) {
 }
 
 export async function saveRemoteCollectionItem(item: CollectedPokemon, options: RemoteWriteOptions = {}) {
-  const response = await sendCollectionWrite("/api/collection", {
+  const response = await sendCollectionWrite("/app/api/collection", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -115,7 +115,7 @@ export async function deleteRemoteCollectionItem(pokemonId: number, options: Rem
   const params = new URLSearchParams({ pokemonId: String(pokemonId), fingerprintVersion: String(COLLECTION_FINGERPRINT_VERSION) })
   if (options.binderId) params.set("binderId", options.binderId)
   if (options.baseFingerprint !== undefined) params.set("baseFingerprint", options.baseFingerprint)
-  const response = await sendCollectionWrite(`/api/collection?${params.toString()}`, {
+  const response = await sendCollectionWrite(`/app/api/collection?${params.toString()}`, {
     method: "DELETE",
   })
 

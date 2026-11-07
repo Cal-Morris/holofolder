@@ -28,7 +28,7 @@ async function links(comparison: Locator, query: string) {
 for (const surface of ["detail", "analytics", "Show", "Quick"] as const) {
   test(`${surface} has listing links before checks, offline and after saved results`, async ({ harness, context }) => {
     let requests = 0
-    await harness.page.route("**/api/card-price-checks?**", async route => {
+    await harness.page.route("**/app/api/card-price-checks?**", async route => {
       requests++
       // Synthetic empty checks with trusted URLs deliberately different from the fallback.
       const check = { summary: { currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: new Date().toISOString() }
@@ -76,8 +76,8 @@ for (const surface of ["detail", "analytics", "Show", "Quick"] as const) {
 
 test("Pokémon Center identity stays stamped through holo and reverse searches", async ({ harness }) => {
   let requests = 0
-  await harness.page.route("**/api/card-price-checks?**", route => { requests++; return route.abort() })
-  await harness.page.route("**/api/tcg-card-search**", route => route.fulfill({ json: {
+  await harness.page.route("**/app/api/card-price-checks?**", route => { requests++; return route.abort() })
+  await harness.page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: {
     // Synthetic decorated printing with two finishes to exercise switching.
     cards: [{ id: "mep-001~12345", localId: "001~12345", name: "Bulbasaur (Pokémon Center)", set: { id: "mep", name: "MEP Black Star Promos" }, dexIds: [1], variants: { holo: true, reverse: true } }],
     hasMore: false,

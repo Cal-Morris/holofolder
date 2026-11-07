@@ -1,6 +1,7 @@
+import { appPath } from "@/lib/app-path"
 // "Prepare for card show": download chosen sets (coverage data + card thumbnails through the image proxy)
-// so they open offline. The service worker caches what this fetches: /api/tcg-set-slots in its data cache
-// (network-first) and /api/card-image-proxy in its image cache (cache-first).
+// so they open offline. The service worker caches what this fetches: /app/api/tcg-set-slots in its data cache
+// (network-first) and /app/api/card-image-proxy in its image cache (cache-first).
 import type { TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 import { getCardPriceKey, normalizeCardPriceLookups, type CardPriceLookup } from "@/lib/card-pricing"
 
@@ -16,7 +17,7 @@ export const SAVE_FOR_SHOW_HEADERS = { "X-Binderdex-Save": "show" } as const
 
 /** Exactly the URL the Sets view requests when a set is picked (query = set name, then setId). */
 export function getSetSlotsUrl(set: Pick<TCGSetSummary, "id" | "name">) {
-  return `/api/tcg-set-slots?${new URLSearchParams({ query: set.name, setId: set.id }).toString()}`
+  return `/app/api/tcg-set-slots?${new URLSearchParams({ query: set.name, setId: set.id }).toString()}`
 }
 
 /** The low-res thumbnail of a card image, through the image proxy. */
@@ -25,11 +26,11 @@ export function getProxiedThumbnailUrl(image: string | undefined | null) {
   const trimmed = image.trim()
   if (!trimmed) return null
   const low = trimmed.replace(/\/high\.(webp|png|jpg)$/, "/low.$1")
-  if (low.startsWith("/")) return low
+  if (low.startsWith("/")) return appPath(low)
   try {
     const url = new URL(low)
     if (url.protocol !== "https:" && url.protocol !== "http:") return null
-    return `/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`
+    return `/app/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`
   } catch {
     return null
   }
@@ -129,7 +130,7 @@ export async function downloadCardShowPrices(plan: Pick<CardShowPlan, "priceLook
   for (let offset = 0; offset < lookups.length; offset += 25) {
     options.signal?.throwIfAborted()
     const batch = lookups.slice(offset, offset + 25)
-    const response = await fetcher(`/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`, { signal: options.signal, cache: "no-store" })
+    const response = await fetcher(`/app/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`, { signal: options.signal, cache: "no-store" })
     if (!response.ok) throw new Error(`Couldn't download prices (${response.status})`)
     const payload = await response.json()
     if (!Array.isArray(payload?.prices)) throw new Error("The price download was incomplete")
@@ -205,7 +206,7 @@ export async function inspectSavedShowSets(options: {
     const cache = await options.cacheStorage.open(name)
     for (const request of await cache.keys()) {
       const url = new URL(request.url)
-      if (url.pathname !== "/api/tcg-set-slots" || !url.searchParams.has("setId")) continue
+      if (appPath(url.pathname) !== "/app/api/tcg-set-slots" || !url.searchParams.has("setId")) continue
       const response = await cache.match(request)
       const payload = await response?.json().catch(() => null) as TCGSetSlotsResponse | null
       if (!payload?.selectedSet || typeof payload.selectedSet.id !== "string" || typeof payload.selectedSet.name !== "string" || !Array.isArray(payload.slots)) continue

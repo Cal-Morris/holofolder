@@ -6,6 +6,27 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  basePath: "/app",
+  async redirects() {
+    return [{
+      source: "/:path((?!app(?:/|$)|sw\\.js$|api/ebay/account-deletion$).*)",
+      has: [{ type: "host", value: "binder.cal.gg" }],
+      destination: "https://binder.cal.gg/app/:path",
+      basePath: false,
+      permanent: false,
+    }]
+  },
+  async rewrites() {
+    return { beforeFiles: ["/sw.js", "/api/ebay/account-deletion"].map(source => ({
+      source,
+      has: [{ type: "host", value: "binder.cal.gg" }],
+      destination: `https://app.holofolder.com/app${source}`,
+      basePath: false,
+    })) }
+  },
+  async headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Service-Worker-Allowed", value: "/" }, { key: "Cache-Control", value: "no-cache" }] }]
+  },
   allowedDevOrigins: [
     "localhost",
     "10.4.1.154",

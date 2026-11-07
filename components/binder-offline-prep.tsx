@@ -22,7 +22,7 @@ export default function BinderOfflinePrep({ collection, scope, isOnline }: Binde
   const dependencies = async () => {
     const store = getOfflineStore()
     if (!store || !window.caches) throw new Error("Offline storage is unavailable on this device.")
-    return { store, shellReady: Boolean(await caches.match("/app-shell")), cache: await caches.open(BINDER_IMAGE_CACHE), loadPrices: loadPriceEvidence }
+    return { store, shellReady: Boolean(await caches.match("/app/app-shell")), cache: await caches.open(BINDER_IMAGE_CACHE), loadPrices: loadPriceEvidence }
   }
   const inspect = useCallback(async () => {
     await flushCollectionMirror()
