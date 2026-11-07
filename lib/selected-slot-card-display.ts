@@ -35,9 +35,9 @@ function getCurrentCard(item: SelectedSlotDisplayItem | null | undefined): Selec
   }
 }
 
-export function getSelectedSlotCardDisplay(item: SelectedSlotDisplayItem | null | undefined, display: BinderCardDisplay) {
+export function getSelectedSlotCardDisplay(item: SelectedSlotDisplayItem | null | undefined, display: BinderCardDisplay, wantedCard?: WantedCard | null) {
   return {
-    primaryCard: getCurrentCard(getBinderDisplayCard(item, display)),
+    primaryCard: getCurrentCard(wantedCard ?? getBinderDisplayCard(item, display)),
     currentCard: getCurrentCard(getBinderDisplayCard(item, "current")),
   }
 }

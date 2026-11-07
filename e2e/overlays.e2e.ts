@@ -86,7 +86,7 @@ const overlays: OverlaySpec[] = [
     name: "card selector",
     open: async (harness) => {
       const detail = await harness.openCardDetail()
-      const opener = detail.getByRole("button", { name: /edit card|add card/i }).first()
+      const opener = detail.getByRole("button", { name: /change owned card|add owned card/i }).first()
       await opener.click()
       return { dialog: harness.page.getByRole("dialog", { name: /card selector/i }), opener }
     },

@@ -796,13 +796,12 @@ export default function SetPopulationView({
                             variant="outline"
                             size="sm"
                             className="min-h-9 rounded-full px-3 text-[11px]"
-                            disabled={hasWantedSetCard(primaryCard, item)}
                             onClick={(event) => {
                               event.stopPropagation()
                               onWantCard(slot, primaryCard)
                             }}
                           >
-                            Want
+                            {hasWantedSetCard(primaryCard, item) ? "Remove wanted" : "Want"}
                           </Button>
                         </span>
                       ) : null}

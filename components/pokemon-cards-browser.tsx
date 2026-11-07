@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, Heart, Loader2, Plus, Search as SearchIcon, X } from "lucide-react"
+import { matchesCatalogCardId } from "@/lib/card-catalog"
+import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
+import { wantedCardKey } from "@/lib/collection/wanted-card-edit"
+import type { WantedCard } from "@/lib/domain/cards"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -20,7 +24,7 @@ import {
 
 export interface PokemonCardsBrowserProps {
   pokemon: { id: number; name: string }
-  collectionItem?: BrowseCollectionState | null
+  collectionItem?: Omit<BrowseCollectionState, "wanted_cards"> & { wanted_cards?: WantedCard[] } | null
   /** Printings other binders hold, by card id ("In <binder>" badge). */
   ownedElsewhereByCard?: ReadonlyMap<string, readonly BinderRef[]>
   /** Card to scroll to and highlight (e.g. the hit picked in global search). */
@@ -29,7 +33,7 @@ export interface PokemonCardsBrowserProps {
   readOnly?: boolean
   onClose: () => void
   /** Optional secondary actions; the view itself never enters the edit flow. */
-  onWantCard?: (card: TCGCard, isWanted: boolean) => void | Promise<void>
+  onWantCard?: (card: TCGCard, isWanted: boolean, wanted?: WantedCard) => void | Promise<void>
   onAddCard?: (card: TCGCard) => void | Promise<void>
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
   /** The user's pricing region; printing prices are weighted for it. */
@@ -242,6 +246,7 @@ export default function PokemonCardsBrowser({
                 const image = thumbnailUrl(card.image)
                 const isHighlighted = card.id === highlightCardId
                 const isPending = pendingCardId === card.id
+                const wantedPrintings = collectionItem?.wanted_cards?.filter(wanted => matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === (card.language ?? "en")) ?? []
                 return (
                   <li
                     key={card.id}
@@ -296,13 +301,18 @@ export default function PokemonCardsBrowser({
                       ) : null}
                       {showActions ? (
                         <div className="mt-auto grid grid-cols-2 gap-1 pt-1">
-                          {onWantCard ? (
+                          {onWantCard && wantedPrintings.length > 0 ? wantedPrintings.map(wanted => <button
+                            key={wantedCardKey(wanted)} type="button" disabled={isPending}
+                            aria-label={`Remove from want list: ${card.name} ${entry.numberLabel}, ${formatCardLanguageLabel(wanted.card_language)}, ${formatCardFinishLabel(wanted.card_finish)}`}
+                            onClick={() => void runAction(card.id, () => onWantCard(card, true, wanted))}
+                            className="col-span-2 min-h-9 rounded-xl border border-amber-400/50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
+                          >Remove wanted · {formatCardFinishLabel(wanted.card_finish)}</button>) : onWantCard ? (
                             <button
                               type="button"
                               disabled={isPending}
-                              aria-pressed={entry.wanted}
-                              aria-label={`${entry.wanted ? "Unwant" : "Want"} ${card.name} ${entry.numberLabel}`}
-                              onClick={() => void runAction(card.id, () => onWantCard(card, entry.wanted))}
+                              aria-pressed={false}
+                              aria-label={`Want ${card.name} ${entry.numberLabel}`}
+                              onClick={() => void runAction(card.id, () => onWantCard(card, false))}
                               className={`flex h-9 items-center justify-center gap-1 rounded-xl border text-[11px] font-bold disabled:opacity-50 ${
                                 entry.wanted
                                   ? "border-amber-400/50 bg-amber-500/15 text-amber-600 dark:text-amber-300"

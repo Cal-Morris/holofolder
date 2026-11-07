@@ -80,6 +80,7 @@ import {
 } from "@/lib/collection/remote"
 import { isOwnedCollectionItem, planOwnedRemoval, type OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { resolveWantedCardsAfterOwnedAdd } from "@/lib/collection/owned-add"
+import { editWantedCards } from "@/lib/collection/wanted-card-edit"
 import { scopeCollectionQuery, syncCollectionRows } from "@/lib/collection/load"
 import { collectionBaselineRows, createCollectionBaseline, type CollectionSyncBaseline } from "@/lib/collection/delta-sync"
 
@@ -909,11 +910,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
     )
   }, [addToCollection, collection, user])
 
-  const removeWantedCard = useCallback(async (pokemonId: number, cardId: string) => {
+  const editWantedCard = useCallback(async (pokemonId: number, card: WantedCard, replacement: WantedCard | null) => {
     const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
     if (!existingItem) return { error: "Not in collection" }
 
-    const nextWantedCards = existingItem.wanted_cards.filter((card) => card.card_id !== cardId)
+    const nextWantedCards = editWantedCards(existingItem.wanted_cards, card, replacement)
     const existingIsOwned = existingItem.status !== "wishlisted"
 
     if (!existingIsOwned && nextWantedCards.length === 0) {
@@ -1107,7 +1108,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     addToCollection,
     addWantedCard,
     removeFromCollection,
-    removeWantedCard,
+    editWantedCard,
     removeOwnedCard,
     restoreCollectionItem,
     updateStatus,

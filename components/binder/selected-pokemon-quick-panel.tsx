@@ -37,7 +37,8 @@ export interface SelectedPokemonQuickPanelContext {
   handleOpenSelectedSlotScanner: () => void
   handleOpenWishlistSelector: () => void
   handleQuickCollectSelectedPokemon: () => Promise<void>
-  handleRemoveSelectedPokemon: () => Promise<void>
+  handleChangeWantedCard: (card: WantedCard) => void
+  handleClearWantedCard: (pokemonId: number, card: WantedCard) => Promise<void>
   handleSelectedCardFinishChange: (finish: "normal" | "holo" | "reverse_holo" | "double_rare" | "ultra_rare" | "illustration_rare" | "special_illustration_rare" | "secret_rare" | "hyper_rare" | "radiant_rare" | "ace_spec" | "amazing_rare" | "shiny_rare" | "jumbo") => Promise<void>
   handleToggleFavoriteSelectedPokemon: () => Promise<void>
   isCollectionLoading: boolean
@@ -81,11 +82,10 @@ export interface SelectedPokemonQuickPanelContext {
   selectedRangePriceLabel: string | null
   selectedWantedCardPreview: WantedCard
   selectedWantedCards: WantedCard[]
-  wishlisted: boolean
 }
 
 export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPanelContext) {
-  const { selectedComparisonMarketGbp, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleRemoveSelectedPokemon, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards, wishlisted } = ctx
+  const { selectedComparisonMarketGbp, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards } = ctx
   if (!selectedPokemon || isSearchOpen || typeof document === "undefined") {
     return null
   }
@@ -140,8 +140,22 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
   const panelHelperText = readOnlyMode
     ? "This shared binder is read-only. You can browse, search, filter, and view prices, but only the owner can change collection state."
     : collected
-      ? "Add or edit the card for this slot, or remove it to move it back to Wanted if you no longer have it."
-      : "Add card saves your chosen card, Mark owned leaves it cardless, and Wanted card tracks a card without counting it as owned."
+      ? "Owned and wanted cards are managed separately. Removing a wanted card keeps your owned card."
+      : "Add an owned card to fill this slot, or add a wanted card to track what you are looking for."
+
+  const primaryWanted = selectedHasWantedCard ? selectedWantedCardPreview : null
+  const otherWanted = selectedWantedCards.filter(card => !primaryWanted || getWantedCardKey(card) !== getWantedCardKey(primaryWanted))
+  const renderWantedActions = (card: WantedCard) => (
+    <div key={getWantedCardKey(card)} className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-2.5">
+      <p className="text-[10px] font-semibold uppercase text-amber-700 dark:text-amber-300">Wanted card</p>
+      <p className="break-words text-sm font-semibold">{card.card_name}</p>
+      <p className="mb-2 text-xs text-muted-foreground">{[card.card_set, formatCardLanguageLabel(card.card_language), formatCardFinishLabel(card.card_finish)].filter(Boolean).join(" · ")}</p>
+      <div className="grid gap-1.5">
+        <Button onClick={() => handleChangeWantedCard(card)} disabled={isCollectionLoading} variant="secondary" className="min-h-10 h-auto whitespace-normal py-2 text-xs">Change wanted card</Button>
+        <Button onClick={() => void handleClearWantedCard(selectedPokemon.id, card)} disabled={isCollectionLoading} variant="outline" className="min-h-10 h-auto whitespace-normal py-2 text-xs text-destructive">Remove from want list</Button>
+      </div>
+    </div>
+  )
 
   const quickPanel = (
     <>
@@ -233,7 +247,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                 </span>
                 {selectedPrimaryCardPreview?.cardName ? (
                   <span className="rounded-full border border-border/60 bg-background/35 px-2.5 py-1 text-[10px] font-medium text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]">
-                    {selectedPokemonHasAssignedCard ? "Assigned Card" : "Tracked Card"}
+                    {selectedHasWantedCard ? "Wanted printing" : selectedPokemonHasAssignedCard ? "Owned printing" : "Tracked card"}
                   </span>
                 ) : null}
               </div>
@@ -331,118 +345,25 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
           ) : null}
           {/* On phones the actions come first so they are reachable without scrolling past prices. */}
           <div data-testid="detail-actions" className="flex flex-col gap-2.5 max-sm:order-first">
-            <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-              <div className="flex items-center rounded-2xl border border-border/60 bg-background/35 p-1 dark:border-white/10 dark:bg-white/[0.04]">
-                <Button
-                  onClick={handleJumpToPreviousNeeded}
-                  disabled={activeJumpPokemonList.length === 0}
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 rounded-xl gap-1.5 px-3 text-xs hover:bg-background/70 dark:hover:bg-white/[0.05]"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                  <span>Prev</span>
-                </Button>
-                <div className="h-5 w-px bg-border/60 dark:bg-white/10" />
-                <Button
-                  onClick={handleJumpToNextNeeded}
-                  disabled={activeJumpPokemonList.length === 0}
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 rounded-xl gap-1.5 px-3 text-xs hover:bg-background/70 dark:hover:bg-white/[0.05]"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="h-3 w-3" />
-                </Button>
-              </div>
-
-              {!readOnlyMode && collected && selectedPokemon && (
-                <Button
-                  onClick={() => requestOwnedRemoval({ id: selectedPokemon.id, name: selectedPokemon.name })}
-                  disabled={isCollectionLoading}
-                  variant="outline"
-                  size="sm"
-                  aria-haspopup="dialog"
-                  className="h-9 shrink-0 rounded-xl gap-1 border-destructive/25 bg-destructive/8 px-3 text-xs text-destructive shadow-none hover:bg-destructive/12 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                  Remove
-                </Button>
-              )}
-              {!readOnlyMode && !collected && wishlisted && (
-                <Button
-                  onClick={handleRemoveSelectedPokemon}
-                  disabled={isCollectionLoading}
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0 rounded-xl gap-1 border-destructive/25 bg-destructive/8 px-3 text-xs text-destructive shadow-none hover:bg-destructive/12 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                  Clear
-                </Button>
-              )}
+            <div className="flex gap-2">
+              <Button onClick={handleJumpToPreviousNeeded} disabled={!activeJumpPokemonList.length} variant="ghost" className="h-9 gap-1"><ChevronLeft className="h-3 w-3" />Prev</Button>
+              <Button onClick={handleJumpToNextNeeded} disabled={!activeJumpPokemonList.length} variant="ghost" className="h-9 gap-1">Next<ChevronRight className="h-3 w-3" /></Button>
             </div>
-
-            <div className="rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
-            <div className="flex flex-col gap-2">
-              {!readOnlyMode && (
-                <>
-                  {collected ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        onClick={handleOpenCardSelector}
-                        disabled={isCollectionLoading}
-                        variant="default"
-                        size="sm"
-                        className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-sm"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        {selectedPokemonHasAssignedCard ? "Edit card" : "Add card"}
-                      </Button>
-                      <Button
-                        onClick={handleOpenWishlistSelector}
-                        disabled={isCollectionLoading}
-                        variant={collectionItem?.wanted_cards?.length ? "secondary" : "outline"}
-                        size="sm"
-                        className={collectionItem?.wanted_cards?.length
-                          ? "h-11 rounded-xl gap-1.5 px-3 text-xs"
-                          : "h-11 rounded-xl gap-1.5 border-amber-400/25 bg-amber-400/8 px-3 text-xs text-amber-600 shadow-none hover:bg-amber-400/12 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"}
-                      >
-                        <Heart className={`w-3.5 h-3.5 ${collectionItem?.wanted_cards?.length ? "fill-current" : ""}`} />
-                        {collectionItem?.wanted_cards?.length ? "Add wanted" : "Want card"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        onClick={handleOpenCardSelector}
-                        disabled={isCollectionLoading}
-                        variant="secondary"
-                        size="sm"
-                        className="h-11 rounded-xl gap-1.5 px-3 text-xs shadow-sm"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        Add card
-                      </Button>
-                      <Button
-                        onClick={handleOpenWishlistSelector}
-                        disabled={isCollectionLoading}
-                        variant={collectionItem?.wanted_cards?.length ? "secondary" : "outline"}
-                        size="sm"
-                        className={collectionItem?.wanted_cards?.length
-                          ? "h-11 rounded-xl gap-1.5 px-3 text-xs"
-                          : "h-11 rounded-xl gap-1.5 border-amber-400/25 bg-amber-400/8 px-3 text-xs text-amber-600 shadow-none hover:bg-amber-400/12 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"}
-                      >
-                        <Heart className={`w-3.5 h-3.5 ${collectionItem?.wanted_cards?.length ? "fill-current" : ""}`} />
-                        {collectionItem?.wanted_cards?.length ? "Add wanted" : "Track wanted"}
-                      </Button>
-                    </div>
-                  )}
-
-                </>
-              )}
-            </div>
-            </div>
+            {!readOnlyMode && <>
+              {primaryWanted && renderWantedActions(primaryWanted)}
+              <section aria-label="Owned card" className="rounded-2xl border border-border/60 p-2.5">
+                <p className="mb-2 text-xs font-semibold">{collected ? `Owned card${collectionItem?.card_name ? `: ${collectionItem.card_name}` : ""}` : "Owned card"}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={handleOpenCardSelector} disabled={isCollectionLoading} className="min-h-11 h-auto whitespace-normal px-2 py-2 text-xs">{collected ? "Change owned card" : "Add owned card"}</Button>
+                  {collected && <Button onClick={() => requestOwnedRemoval({ id: selectedPokemon.id, name: selectedPokemon.name })} disabled={isCollectionLoading} variant="outline" className="min-h-11 h-auto whitespace-normal px-2 py-2 text-xs text-destructive">Remove owned card</Button>}
+                </div>
+              </section>
+              <Button onClick={handleOpenWishlistSelector} disabled={isCollectionLoading} variant="outline" className="min-h-11 h-auto whitespace-normal py-2 text-xs"><Heart className="h-3.5 w-3.5" />{selectedWantedCards.length ? "Add another wanted card" : "Add wanted card"}</Button>
+              {otherWanted.length > 0 && <details className="rounded-2xl border border-border/60 p-2.5">
+                <summary className="min-h-9 cursor-pointer text-xs font-semibold">{primaryWanted ? "Other wanted cards" : "Wanted cards"} ({otherWanted.length})</summary>
+                <div className="mt-2 space-y-2">{otherWanted.map(renderWantedActions)}</div>
+              </details>}
+            </>}
           </div>
           <details className="group rounded-2xl border border-border/60 p-2.5">
             <summary className="flex min-h-9 cursor-pointer items-center justify-between gap-2 text-xs font-semibold">
@@ -518,7 +439,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
           {!readOnlyMode && selectedPokemonHasAssignedCard ? (
             <div className="rounded-2xl border border-border/60 bg-background/25 p-2 dark:border-white/10 dark:bg-white/[0.03]">
               <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Variant</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Owned card variant</span>
                 <span className="break-words text-[11px] text-muted-foreground">
                   {formatCardFinishLabel(collectionItem?.card_finish)}
                 </span>
@@ -537,7 +458,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                       disabled={isCollectionLoading || isActive}
                       aria-pressed={isActive}
                       aria-label={finishPriceLabel ? `${finishOption.label}, ${finishPriceLabel}` : undefined}
-                      className={`h-8 shrink-0 rounded-xl border px-3 text-[11px] font-semibold transition-colors disabled:pointer-events-none ${
+                      className={`h-9 shrink-0 rounded-xl border px-3 text-[11px] font-semibold transition-colors disabled:pointer-events-none ${
                           isActive
                             ? "border-primary/55 bg-primary text-primary-foreground shadow-sm"
                             : "border-border/60 bg-background/55 text-muted-foreground hover:bg-background/80 hover:text-foreground dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"

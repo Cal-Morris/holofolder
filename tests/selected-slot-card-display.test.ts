@@ -2,6 +2,17 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { getSelectedSlotCardDisplay, getBinderDisplayCard } from "../lib/selected-slot-card-display"
 
+test("an explicitly opened wanted printing overrides the binder display without replacing owned metadata", () => {
+  const first = { card_id: "synthetic-first", card_name: "First", added_at: "2026-01-01" }
+  const tapped = { ...first, card_id: "synthetic-tapped", card_name: "Tapped", card_language: "ja" as const, card_finish: "holo" as const }
+  const item = { card_id: "synthetic-owned", card_name: "Owned", status: "collected" as const, wanted_cards: [first, tapped] }
+  const display = getSelectedSlotCardDisplay(item, "current", tapped)
+  assert.equal(display.primaryCard?.cardId, tapped.card_id)
+  assert.equal(display.primaryCard?.cardLanguage, "ja")
+  assert.equal(display.primaryCard?.cardFinish, "holo")
+  assert.equal(display.currentCard?.cardId, item.card_id)
+})
+
 test("getSelectedSlotCardDisplay follows the selected mode and retains owned metadata", () => {
   const display = getSelectedSlotCardDisplay({
     card_id: "current-1",
