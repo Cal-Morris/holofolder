@@ -54,4 +54,4 @@ description: Change holofolder price providers, normalisation, confidence rules,
    - the empty case
 3. If the change is user-visible, add or extend e2e (`e2e/price-rising.e2e.ts` and `e2e/price-breakout.e2e.ts` patterns, with `mockCardPrices`).
 4. Document the rules in the PR description as a table or list of numbers. Reviewers check rules, not code.
-5. Run the full check suite: `bun run test`, `bun run typecheck`, `bun run lint`, `bun run build` and `bun run test:e2e`.
+5. Run the unit tests for the changed pricing logic and focused e2e specs when useful for user-visible changes. Follow `release-and-deploy` for CI gates and any quota-specific local checks. Run the full e2e suite only when Cal explicitly asks.

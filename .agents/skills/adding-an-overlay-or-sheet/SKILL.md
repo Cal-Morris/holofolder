@@ -43,4 +43,4 @@ Every overlay must use `hooks/use-overlay.ts`. The stack bookkeeping and swipe m
    - scroll is unlocked afterwards
    - a tab switch closes it
 
-   Then run `bun run test:e2e` across all 6 projects, and see `mobile-ui-verification`.
+   Then run only the affected overlay tests across all 6 projects, e.g. `E2E_PORT=<port> bun run test:e2e e2e/overlays.e2e.ts --grep "<overlay name>"`, and see `mobile-ui-verification`. Run the full e2e suite only when Cal explicitly asks.
