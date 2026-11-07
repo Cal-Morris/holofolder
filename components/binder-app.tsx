@@ -3355,14 +3355,7 @@ export default function BinderApp({
     }
   }, [isDesktopActionsOpen])
 
-  const binderIntroStats = [
-    { label: "Collected", value: `${collectionStats.collected}/${collectionStats.total}` },
-    { label: "Completion", value: `${collectionStats.percentage}%` },
-    { label: "Needed", value: String(neededPokemonList.length) },
-    { label: "Perfect", value: String(favoritePokemonList.length) },
-  ]
-
-  const renderSpreadInfoPage = (side: "left" | "right") => renderSpreadInfoPageView({ activeCollectionFilterOption, binderIntroStats, canEditBinder, filteredPokemonList, filteredTotalLabel, getBinderThemeForPage, hasTrackedCards, isDarkMode, isDesktopViewport, isSpreadLayout, selectedGen, settings, totalBinderPages }, side)
+  const renderSpreadInfoPage = (side: "left" | "right") => renderSpreadInfoPageView({ activeCollectionFilterOption, collectionStats, neededCount: neededPokemonList.length, perfectCount: favoritePokemonList.length, canEditBinder, filteredPokemonList, filteredTotalLabel, getBinderThemeForPage, hasTrackedCards, selectedGen, settings, totalBinderPages }, side)
 
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
