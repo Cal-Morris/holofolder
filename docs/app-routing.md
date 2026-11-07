@@ -42,3 +42,9 @@ Reconcile unpublished push notification routes, recovery links, worker registrat
 Production and preview set `NEXT_ENABLE_ADAPTER=0`. The Vercel Next.js adapter currently routes queue deliveries to a nonexistent Pages Router module when `basePath` is set, so Workflow accepts runs but never executes them. This temporarily opts out of that adapter while retaining `/app`. See [the upstream issue and workaround](https://github.com/vercel/workflow/issues/4971). Remove the setting once the adapter fix ships.
 
 The setting requires a fresh deployment. Verify the build log no longer says `Applying modifyConfig from Vercel`, and check a new partner acquisition reaches `partner_push_deliveries` and completes. HTTP route availability alone does not verify queue delivery.
+
+## Marketing sign-in state
+
+Framer's `Code/SessionLabel.tsx` checks `GET /app/api/auth/session` with same-origin credentials and no caching. The endpoint verifies the existing Supabase cookie and returns only `{ signedIn: boolean }`, with `Cache-Control: private, no-store` and `Vary: Cookie`. It needs no CORS or shared token storage. Keep this response uncached in the Framer proxy.
+
+The nav, hero and pricing CTAs retain their `/app/` links and show “Go to dashboard” for a signed-in visitor. Their original labels remain the fallback during loading, offline or on errors. The label rechecks on focus, visibility and page restore so signing in or out in another tab is picked up when returning to marketing. This requires signing in on the public `holofolder.com` origin; cookies from `app.holofolder.com` or `binder.cal.gg` cannot identify a visitor on another hostname.
