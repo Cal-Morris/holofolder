@@ -29,9 +29,9 @@ test("PWA entry and resources are served inside the Framer app boundary", async 
     expect(icon.src).toMatch(/^\/app\//)
     expect((await request.get(icon.src)).status()).toBe(200)
   }
-  const worker = await request.get("/app/sw.js")
+  const worker = await request.get("/app?service-worker=1")
   expect(worker.status()).toBe(200)
-  expect(worker.headers()["service-worker-allowed"]).toBe("/")
+  expect(worker.headers()["content-type"]).toContain("javascript")
   const callback = await request.get("/app/auth/callback", { maxRedirects: 0 })
   expect(new URL(callback.headers().location, "http://localhost").pathname).toBe("/app/auth/error")
 })

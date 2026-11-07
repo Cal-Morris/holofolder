@@ -23,7 +23,7 @@ Analytics and Speed Insights use `/app/_vercel/…`; a Vercel edge rewrite forwa
 
 ## PWA and existing devices
 
-The manifest launches at `/app` and its scope is `/app`. The worker at `/app/sw.js` uses the same scope, with `Service-Worker-Allowed: /` to let the previous root registration on binder.cal.gg update safely, so the slashless entry is controlled. Its navigation handler explicitly checks `/app` or `/app/…`; marketing, auth and public shares cannot fall back to someone's cached binder. The legacy hostname alone retains root/offline-entry fallback for existing installs. Only the static `/app/app-shell` HTML is cached.
+The manifest launches at `/app` and its scope is `/app`. The worker script is served from `/app?service-worker=1`, rewritten to the public `/app/sw.js` before session checks. A slashless script URL naturally permits `/app` scope without a `Service-Worker-Allowed` response header, which Framer drops. The origin's header remains for updates of old binder.cal.gg root registrations. Its navigation handler explicitly checks `/app` or `/app/…`; marketing, auth and public shares cannot fall back to someone's cached binder. The legacy hostname alone retains root/offline-entry fallback for existing installs. Only the static `/app/app-shell` HTML is cached.
 
 After the new worker registers on holofolder.com, the previous root binder worker is unregistered if present, without deleting account storage. binder.cal.gg keeps its legacy root registration.
 

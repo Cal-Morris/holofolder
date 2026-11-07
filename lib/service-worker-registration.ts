@@ -3,7 +3,7 @@
  * (/home, sign-in) register it once the page has loaded and gone idle, so first-visit and signed-out users
  * also get the offline shell without it competing with the page's own loading. Skipped on Save-Data.
  */
-export const SERVICE_WORKER_URL = "/app/sw.js"
+export const SERVICE_WORKER_URL = "/app?service-worker=1"
 
 interface RegistrationEnvironment {
   location?: { hostname: string }

@@ -1,7 +1,14 @@
 import { updateSession } from '@/lib/supabase/middleware'
-import { type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+  // Framer drops Service-Worker-Allowed. A slashless script URL permits /app scope without that header.
+  if (request.nextUrl.pathname === "/" && request.nextUrl.searchParams.get("service-worker") === "1") {
+    const url = request.nextUrl.clone()
+    url.pathname = "/sw.js"
+    url.search = ""
+    return NextResponse.rewrite(url)
+  }
   return await updateSession(request)
 }
 

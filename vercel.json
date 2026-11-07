@@ -40,7 +40,7 @@
     },
     {
       "source": "/app/_vercel/:path*",
-      "destination": "/_vercel/:path*"
+      "destination": "https://app.holofolder.com/_vercel/:path*"
     }
   ]
 }
