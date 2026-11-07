@@ -34,7 +34,10 @@ import { formatCardNumber, type SearchCardResult } from "@/lib/pokemon-card-brow
 import { searchPokemonItems } from "@/lib/pokemon-search-state"
 import { formatSetHitMeta } from "@/lib/set-search"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
-import { toRecentCard } from "@/lib/recent-cards"
+import { recentToSearchCard, toRecentCard } from "@/lib/recent-cards"
+import { useShowRevisit } from "@/hooks/use-show-revisit"
+import ShowRevisit from "@/components/show-revisit"
+import type { RevisitCard } from "@/lib/show-revisit"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import {
   matchQuickDestinations,
@@ -97,6 +100,7 @@ function readBundle(): QuickBundleEntry[] {
 /** The deal checker: tapping a card opens its price check (asking price → verdict) instead of the card browser. */
 export interface QuickCardCheckOptions {
   destinationName?: string
+  revisitKey?: string | null
   currency: DisplayCurrency
   fxRates?: DisplayFxRates | null
   readOnly?: boolean
@@ -191,9 +195,10 @@ function QuickMode({
   cardStanding,
   offlineBinder,
 }: QuickModeProps) {
+  const revisit = useShowRevisit(cardCheck?.revisitKey ?? null)
   const [preparingOffline, setPreparingOffline] = useState(false)
   const [moveSort, setMoveSort] = useState<MomentumSort>("default")
-  const [checking, setChecking] = useState<{ card: SearchCardResult; pokemon: { id: number; name: string }; finish?: CardFinish | null } | null>(null)
+  const [checking, setChecking] = useState<{ card: SearchCardResult; pokemon: { id: number; name: string }; finish?: CardFinish | null; savedDeal?: RevisitCard } | null>(null)
   // Show mode: the Pokémon whose cards are listed (opened from a Pokémon result or a Hunting group).
   const [browsing, setBrowsing] = useState<{ id: number; name: string } | null>(null)
   // `show` is the deal check plus Show mode's extras; plain Quick mode gets only the check itself.
@@ -361,12 +366,14 @@ function QuickMode({
   // A deal check or bundle is open. On wide screens in Show mode it sits beside the results instead of replacing them.
   const checkView = cardCheck && checking ? (
     <QuickCardCheck
-      key={`${checking.card.id}:${checking.card.language ?? "en"}`}
+      key={`${checking.card.id}:${checking.card.language ?? "en"}:${checking.finish ?? "default"}`}
       card={checking.card}
       pokemon={checking.pokemon}
       state={cardCheck.getCardState(checking.card, checking.pokemon)}
       getState={finish => cardCheck.getCardState(checking.card, checking.pokemon, finish)}
       destinationName={cardCheck.destinationName}
+      savedDeal={checking.savedDeal}
+      revisit={show && cardCheck.revisitKey && !cardCheck.readOnly ? revisit : undefined}
       currency={cardCheck.currency}
       fxRates={cardCheck.fxRates}
       pricingRegion={pricingRegion}
@@ -526,6 +533,9 @@ function QuickMode({
         ) : show && !trimmed ? (
           <ShowHunt
             recentCards={<>
+              <ShowRevisit cards={revisit.cards} error={revisit.error} onRemove={entry => { revisit.remove(entry) }} onOpen={entry => {
+                setChecking({ card: recentToSearchCard(entry.card), pokemon: { id: entry.card.dexId, name: entry.card.pokemonName }, finish: entry.card.finish, savedDeal: entry })
+              }} />
               {history.status && <p role="status" className="py-1 text-xs text-muted-foreground">{history.status}</p>}
               <RecentSearches history={history} onSearch={value => { setQuery(value); inputRef.current?.focus({ preventScroll: true }) }} />
               <ShowRecentCards cards={history.cards} shared={history.shared} getCardState={show.getCardState} onPickCard={pickCard} onClear={() => history.clear("card")} />
