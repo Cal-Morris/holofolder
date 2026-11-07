@@ -20,7 +20,7 @@ async function expectUsableBrowser(harness: Harness, name: RegExp) {
 test.describe("all cards for a Pokémon", () => {
   test.use({ signedIn: true })
 
-  test("opens read-only from the card detail, lists every printing newest first and returns to the detail", async ({ harness }) => {
+  test("opens read-only from the card detail, lists every printing newest first and returns to the detail", { tag: "@smoke" }, async ({ harness }) => {
     const detail = await harness.openCardDetail()
     await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
     const dialog = await expectUsableBrowser(harness, /all bulbasaur cards/i)

@@ -24,7 +24,8 @@ export default defineConfig({
   reporter: process.env.CI ? "line" : [["list"]],
   use: {
     baseURL,
-    trace: "retain-on-failure",
+    trace: process.env.CI ? "on-first-retry" : "off",
+    screenshot: "only-on-failure",
     serviceWorkers: "block",
     launchOptions: executablePath ? { executablePath, args: ["--no-sandbox"] } : { args: ["--no-sandbox"] },
   },

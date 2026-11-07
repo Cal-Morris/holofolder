@@ -345,6 +345,7 @@ export class Harness {
 
   /** Tap the backdrop at a point that is outside the dialog, header and dock. */
   async tapBackdrop(dialog: Locator) {
+    await dialog.click({ trial: true })
     const box = (await dialog.boundingBox())!
     const { width, height } = this.viewport
     const candidates = [
@@ -357,7 +358,7 @@ export class Harness {
       if (insideDialog) continue
       const isBackdrop = await this.page.evaluate(({ x, y }) => {
         const element = document.elementFromPoint(x, y) as HTMLElement | null
-        return Boolean(element?.closest("[data-overlay-backdrop]"))
+        return Boolean(element?.matches("[data-overlay-backdrop]"))
       }, point)
       if (isBackdrop) {
         await this.page.mouse.click(point.x, point.y)
