@@ -82,7 +82,7 @@ import { summarizeShowSession } from "@/lib/show-session"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { QuickCardAction } from "@/components/quick-card-check"
 import { clampGlareValue, getPokemonOfficialArtworkUrl, resolveSlotImageUrl } from "@/components/binder/pokemon-slot"
-import { type ActiveMainView, BINDER_PAGE_QUERY_PARAM, type BeforeInstallPromptEvent, COLLECTION_VIEW_FILTERS, type CollectionViewFilter, DEFAULT_SLOT_GLARE_STATE, type DeviceMotionWithPermission, type DeviceOrientationPermissionState, type DeviceOrientationWithPermission, type DisplaySpreadPage, GENERATIONS, type InitialCollectionRow, type MotionGlintStatus, PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT, PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT, PAGE_SCAN_OCR_BASE_CROP_LIMIT, type QuickPanelPosition, type SlotGlareState, THEME_COLOR_DARK, THEME_COLOR_LIGHT, binderShareUrl, combinePriceSummaries, formatCollectedDate, getCollectionItemPriceKey, getDetailArtwork, getDisplayArtworkTone, getKnownCardIllustrator, getPokemonArtwork, getSlotGlareState, getWantedCardKey, sumPriceSnapshots } from "@/components/binder/binder-app-model"
+import { type ActiveMainView, BINDER_PAGE_QUERY_PARAM, type BeforeInstallPromptEvent, COLLECTION_VIEW_FILTERS, type CollectionViewFilter, DEFAULT_SLOT_GLARE_STATE, type DeviceMotionWithPermission, type DeviceOrientationPermissionState, type DeviceOrientationWithPermission, type DisplaySpreadPage, GENERATIONS, type InitialCollectionRow, type MotionGlintStatus, PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT, PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT, PAGE_SCAN_OCR_BASE_CROP_LIMIT, type QuickPanelPosition, type SlotGlareState, THEME_COLOR_DARK, THEME_COLOR_LIGHT, binderShareUrl, combinePriceSummaries, formatCollectedDate, getCollectionItemPriceKey, getDetailArtwork, getDisplayArtworkTone, getKnownCardIllustrator, getPokemonArtwork, getSlotGlareState, getWantedCardKey, summarizeOwnedCardPrices, sumPriceSnapshots } from "@/components/binder/binder-app-model"
 import type { PricedCardFinish } from "@/lib/card-pricing"
 import type { CardPriceCheck } from "@/lib/card-price-checks"
 import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
@@ -1138,30 +1138,27 @@ export default function BinderApp({
       label: (price: CardPriceSnapshot | undefined) => formatRegionalPriceLabel(price, context),
       amount: (amount: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayAmount(amount, context, price),
       range: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayRange(low, high, context, price),
-      totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>) => formatDisplayTotals(gbpTotal, originalTotals, context),
+      totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>, estimatedFinishCount = 0) => {
+        const label = formatDisplayTotals(gbpTotal, originalTotals, context)
+        return label && estimatedFinishCount > 0 ? `${label} · ${estimatedFinishCount} finish estimate${estimatedFinishCount === 1 ? "" : "s"}` : label
+      },
     }
   }, [fxRates, pricingPreferences.currency])
   const filteredPriceSummary = useMemo(
-    () => sumPriceSnapshots(filteredTrackedCards.map((item) => {
-      const priceKey = getCollectionItemPriceKey(item)
-      return priceKey ? pricesByCardId[priceKey] : undefined
-    })),
+    () => summarizeOwnedCardPrices(filteredTrackedCards, pricesByCardId),
     [filteredTrackedCards, pricesByCardId],
   )
   const filteredTotalLabel = useMemo(
-    () => priceFormat.totals(filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals),
-    [priceFormat, filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals],
+    () => priceFormat.totals(filteredPriceSummary.gbpTotal, filteredPriceSummary.originalTotals, filteredPriceSummary.estimatedFinishCount),
+    [priceFormat, filteredPriceSummary],
   )
   const ownedPriceSummary = useMemo(
-    () => sumPriceSnapshots(ownedTrackedCards.map((item) => {
-      const priceKey = getCollectionItemPriceKey(item)
-      return priceKey ? pricesByCardId[priceKey] : undefined
-    })),
+    () => summarizeOwnedCardPrices(ownedTrackedCards, pricesByCardId),
     [ownedTrackedCards, pricesByCardId],
   )
   const ownedTotalLabel = useMemo(
-    () => priceFormat.totals(ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals),
-    [priceFormat, ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals],
+    () => priceFormat.totals(ownedPriceSummary.gbpTotal, ownedPriceSummary.originalTotals, ownedPriceSummary.estimatedFinishCount),
+    [priceFormat, ownedPriceSummary],
   )
   const wantedPriceSummary = useMemo(
     () => sumPriceSnapshots(wantedCardEntries.map(({ card }) => {
@@ -1179,8 +1176,8 @@ export default function BinderApp({
     [ownedPriceSummary, wantedPriceSummary],
   )
   const wantedModeCombinedTotalLabel = useMemo(
-    () => priceFormat.totals(wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals),
-    [priceFormat, wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals],
+    () => priceFormat.totals(wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals, ownedPriceSummary.estimatedFinishCount),
+    [priceFormat, wantedModeCombinedPriceSummary.gbpTotal, wantedModeCombinedPriceSummary.originalTotals, ownedPriceSummary.estimatedFinishCount],
   )
   const wantedDashboard = useMemo(
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),

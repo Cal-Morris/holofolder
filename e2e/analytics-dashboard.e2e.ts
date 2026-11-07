@@ -3,6 +3,40 @@ import { clearCardPriceCache, mockCardPrices } from "./price-fixtures"
 
 test.describe("analytics dashboard", () => {
   test.use({ signedIn: true })
+  test("binder and Analytics include TCGplayer-only exact-finish prices", async ({ harness }) => {
+    const page = harness.page
+    // Synthetic prices from two providers, never live market data.
+    await mockCardPrices(page, {
+      "base1-44": { market: 12, confidence: "high", finishes: [{ finish: "normal", market: 12 }] },
+      "base1-46": { source: "tcgplayer", market: 8, confidence: "medium", finishes: [{ finish: "normal", market: 8 }] },
+    })
+    await page.reload()
+    const value = page.getByRole("button", { name: "View binder value in Analytics" })
+    await expect(value).toContainText("£20.00")
+    await expect(value).toContainText("2 of 2 owned cards priced")
+    await expect(value).toContainText("All price sources")
+    await value.click()
+    const overview = page.getByRole("region", { name: "Collection overview" })
+    await expect(overview.getByText("£20.00", { exact: true })).toBeVisible()
+    await expect(overview.getByText("2 of 2 owned cards priced", { exact: false })).toBeVisible()
+    await harness.expectNoHorizontalOverflow()
+    await page.context().setOffline(true)
+    await expect(overview.getByText("£20.00", { exact: true })).toBeVisible()
+    await page.context().setOffline(false)
+  })
+  test("generic prices are included and marked as finish estimates", async ({ harness }) => {
+    const page = harness.page
+    // Synthetic generic headline quote, no verified finish row.
+    await mockCardPrices(page, { "base1-44": { source: "tcgplayer", market: 12, confidence: "medium" } })
+    await page.reload()
+    const value = page.getByRole("button", { name: "View binder value in Analytics" })
+    await expect(value).toContainText("£12.00")
+    await expect(value).toContainText("Includes 1 finish estimate")
+    await value.click()
+    const overview = page.getByRole("region", { name: "Collection overview" })
+    await expect(overview.getByText("0 exact finish · 1 finish estimate", { exact: false })).toBeVisible()
+    await expect(page.getByRole("region", { name: "Explore collection cards" }).getByText("Finish estimate", { exact: true })).toBeVisible()
+  })
   test("current binder value resets a remembered all-binders Analytics scope", async ({ harness }) => {
     const page = harness.page
     await page.goto("/app/e2e-harness?signedIn=1&binders=1")
@@ -33,7 +67,7 @@ test.describe("analytics dashboard", () => {
     const refinement = page.getByRole("region", { name: "Refine binder valuation" })
     await refinement.getByRole("button", { name: "Refine valuation", exact: true }).click()
     await expect(refinement.getByText("£11.00", { exact: true })).toBeVisible()
-    await expect(refinement.getByText("1 sold · 0 Cardmarket fallback · 1 unpriced", { exact: true })).toBeVisible()
+    await expect(refinement.getByText("1 sold · 0 market fallback · 1 unpriced", { exact: true })).toBeVisible()
     const completedCalls = calls
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
     await page.context().setOffline(true)
@@ -42,7 +76,7 @@ test.describe("analytics dashboard", () => {
     expect(calls).toBe(completedCalls)
     await page.context().setOffline(false)
   })
-  test("binder value leads to a readable Cardmarket valuation without paid checks", async ({ harness }) => {
+  test("binder value leads to a readable market valuation without paid checks", async ({ harness }) => {
     const page = harness.page
     let checks = 0
     await page.route("**/app/api/card-price-checks**", route => { checks++; return route.fulfill({ json: { ebay: null, soldcomps: null, errors: {} } }) })
@@ -56,7 +90,7 @@ test.describe("analytics dashboard", () => {
     await value.click()
     const overview = page.getByRole("region", { name: "Collection overview" })
     await expect(overview.getByRole("heading", { name: "Binder value" })).toBeVisible()
-    await expect(overview.getByText("Cardmarket estimate", { exact: false })).toBeVisible()
+    await expect(overview.getByText("Market estimate", { exact: false })).toBeVisible()
     const amount = overview.getByText("£12.00", { exact: true })
     const geometry = await amount.evaluate(node => ({ font: parseFloat(getComputedStyle(node).fontSize), width: node.parentElement!.getBoundingClientRect().width }))
     expect(geometry.font).toBeGreaterThanOrEqual(32)
@@ -66,7 +100,7 @@ test.describe("analytics dashboard", () => {
     await harness.expectMinTapTarget(refine)
     await refine.click()
     await expect.poll(() => checks).toBeGreaterThan(0)
-    await expect(page.getByText("0 sold · 1 Cardmarket fallback · 1 unpriced", { exact: true })).toBeVisible()
+    await expect(page.getByText("0 sold · 1 market fallback · 1 unpriced", { exact: true })).toBeVisible()
     await page.context().setOffline(true)
     await expect(refine).toBeDisabled()
     await harness.expectNoHorizontalOverflow()

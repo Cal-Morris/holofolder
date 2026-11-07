@@ -14,6 +14,7 @@ export const COLLECTION_CSV_COLUMNS = [
   "finish",
   "market_gbp",
   "price_source",
+  "price_basis",
   "added",
 ] as const
 
@@ -36,7 +37,7 @@ function isoDay(value: string | undefined) {
 
 /**
  * The collection as CSV: one row per owned card, wanted card and owned slot without a card.
- * Prices are the same exact-finish, fresh (≤30 days) GBP market prices the analytics view uses; blank when unknown.
+ * Prices use the same fresh (≤30 days) quotes as Analytics, with generic finish estimates labelled.
  */
 export function buildCollectionCsv(collection: CollectedPokemon[], prices: Record<string, CardPriceSnapshot>, now = Date.now()) {
   const statusByPokemon = new Map(collection.map(item => [item.pokemon_id, item.status]))
@@ -52,11 +53,12 @@ export function buildCollectionCsv(collection: CollectedPokemon[], prices: Recor
     entry.card.card_finish ?? "normal",
     entry.amount === null ? null : entry.amount.toFixed(2),
     entry.amount === null ? null : entry.price?.source,
+    entry.amount === null ? null : entry.estimatedFinish ? "finish_estimate" : "exact_finish",
     isoDay(entry.card.added_at ?? (entry.scope === "owned" ? (entry.card as { collected_at?: string }).collected_at : undefined)),
   ])
   for (const item of collection) {
     if (item.status === "wishlisted" || item.card_id) continue
-    rows.push([item.pokemon_id, item.pokemon_name, "owned", item.status, null, null, null, null, null, null, null, isoDay(item.collected_at)])
+    rows.push([item.pokemon_id, item.pokemon_name, "owned", item.status, null, null, null, null, null, null, null, null, isoDay(item.collected_at)])
   }
   rows.sort((a, b) => Number(a[0]) - Number(b[0]) || String(a[2]).localeCompare(String(b[2])))
   return [COLLECTION_CSV_COLUMNS, ...rows].map(row => row.map(toCsvField).join(",")).join("\r\n") + "\r\n"

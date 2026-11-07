@@ -11,6 +11,7 @@ export interface AnalyticsCard {
   card: Omit<WantedCard, "added_at"> & { added_at?: string }
   price: CardPriceSnapshot | null
   amount: number | null
+  estimatedFinish: boolean
 }
 
 export interface AnalyticsMover extends AnalyticsCard { momentum: PriceMomentum }
@@ -24,7 +25,7 @@ function labelledFinish(label: string | null) {
 
 function quoteFromSource(price: CardPriceSnapshot, source: PriceSource | undefined, finish: string, verifiedRow = false): CardPriceSnapshot | null {
   if (!source) return price
-  const evidence = price.sourcePrices.find(quote => quote.source === source && (verifiedRow || labelledFinish(quote.variantLabel) === finish))
+  const evidence = (price.sourcePrices ?? []).find(quote => quote.source === source && (verifiedRow || labelledFinish(quote.variantLabel) === finish))
   if (!evidence) return price.source === source ? price : null
   return {
     ...price, source, sourcePrices: [evidence],
@@ -33,20 +34,49 @@ function quoteFromSource(price: CardPriceSnapshot, source: PriceSource | undefin
     originalAmount: evidence.originalMarketAmount,
     originalCurrency: evidence.originalCurrency === "GBP" ? null : evidence.originalCurrency,
     updatedAt: evidence.updatedAt, variantLabel: evidence.variantLabel,
-    trendPoints: price.trendPoints.filter(point => point.source === source), buySignal: null,
+    trendPoints: (price.trendPoints ?? []).filter(point => point.source === source), buySignal: null,
   }
 }
 
-function exactQuote(card: AnalyticsCard["card"], snapshot: CardPriceSnapshot | undefined, source?: PriceSource): CardPriceSnapshot | null {
+function usableQuote(price: CardPriceSnapshot | null, now: number) {
+  const amount = price?.marketGbpAmount ?? price?.gbpAmount
+  const age = getPriceDataAgeDays(price?.updatedAt, now)
+  return typeof amount === "number" && Number.isFinite(amount) && amount > 0 && age !== null && age <= CARRY_FORWARD_MAX_DAYS && Date.parse(price?.updatedAt ?? "") <= now
+}
+
+function exactQuote(card: AnalyticsCard["card"], snapshot: CardPriceSnapshot | undefined, source: PriceSource | undefined, now: number): CardPriceSnapshot | null {
   if (!snapshot) return null
   const finish = card.card_finish ?? "normal"
   if (snapshot.finishPrices?.length) {
     const matching = snapshot.finishPrices.filter(price => price.finish === finish && isStandardFinishVariantKey(price.variantKey))
     if (source) return matching.map(price => quoteFromSource(price, source, finish, true)).find(price => price !== null) ?? null
-    return matching.find(price => price.source === snapshot.source) ?? matching[0] ?? null
+    const preferred = [...matching].sort((a, b) => Number(b.source === snapshot.source) - Number(a.source === snapshot.source))
+    return preferred.flatMap(price => [
+      quoteFromSource(price, price.source ?? undefined, finish, true),
+      ...(price.sourcePrices ?? []).filter(quote => quote.source !== price.source).map(quote => quoteFromSource(price, quote.source, finish, true)),
+    ]).find(price => usableQuote(price, now)) ?? null
   }
   if (source && snapshot.source !== source) return quoteFromSource(snapshot, source, finish)
-  return labelledFinish(snapshot.variantLabel) === finish ? quoteFromSource(snapshot, source, finish, true) : null
+  if (source) return labelledFinish(snapshot.variantLabel) === finish ? quoteFromSource(snapshot, source, finish, true) : null
+  const preferred = labelledFinish(snapshot.variantLabel) === finish ? quoteFromSource(snapshot, snapshot.source ?? undefined, finish, true) : null
+  return [preferred, ...(snapshot.sourcePrices ?? []).filter(quote => labelledFinish(quote.variantLabel) === finish).map(quote => quoteFromSource(snapshot, quote.source, finish))]
+    .find(price => usableQuote(price, now)) ?? null
+}
+
+/** Exact finish quotes first; generic card prices are explicitly marked as finish estimates. */
+function getCollectionCardValuation(card: AnalyticsCard["card"], snapshot: CardPriceSnapshot | undefined, now = Date.now(), source?: PriceSource) {
+  const exact = exactQuote(card, snapshot, source, now)
+  if (exact && usableQuote(exact, now)) return { price: exact, amount: exact.marketGbpAmount ?? exact.gbpAmount, estimatedFinish: false }
+  // A special-edition-only quote is not a generic estimate of a standard printing.
+  const specialOnly = snapshot?.finishPrices?.length && snapshot.finishPrices.every(price => !isStandardFinishVariantKey(price.variantKey))
+  if (snapshot && !source && !specialOnly) {
+    const candidates = [quoteFromSource(snapshot, snapshot.source ?? undefined, card.card_finish ?? "normal", true),
+      ...(snapshot.sourcePrices ?? []).map(quote => quoteFromSource(snapshot, quote.source, card.card_finish ?? "normal", true))]
+    const generic = candidates.find(price => usableQuote(price, now) && labelledFinish(price?.variantLabel ?? null) === null
+      && !/(?:1st|first|edition|shadowless|unlimited)/i.test(price?.variantLabel ?? ""))
+    if (generic) return { price: generic, amount: generic.marketGbpAmount ?? generic.gbpAmount, estimatedFinish: true }
+  }
+  return { price: exact, amount: null, estimatedFinish: false }
 }
 
 /**
@@ -60,11 +90,8 @@ export function buildCollectionAnalytics(collection: CollectedPokemon[], prices:
     const key = `${countCopies && scope === "owned" ? `${item.id}:` : ""}${item.pokemon_id}:${scope}:${getCardPriceKey(card.card_id, card.card_language)}:${card.card_finish ?? "normal"}`
     if (seen.has(key)) return
     seen.add(key)
-    const price = exactQuote(card, prices[getCardPriceKey(card.card_id, card.card_language)], source)
-    const rawAmount = price?.marketGbpAmount ?? price?.gbpAmount
-    const age = getPriceDataAgeDays(price?.updatedAt, now)
-    const amount = typeof rawAmount === "number" && Number.isFinite(rawAmount) && rawAmount > 0 && age !== null && age <= CARRY_FORWARD_MAX_DAYS && Date.parse(price?.updatedAt ?? "") <= now ? rawAmount : null
-    cards.push({ key, pokemonId: item.pokemon_id, pokemonName: item.pokemon_name, scope, card, price, amount })
+    const valuation = getCollectionCardValuation(card, prices[getCardPriceKey(card.card_id, card.card_language)], now, source)
+    cards.push({ key, pokemonId: item.pokemon_id, pokemonName: item.pokemon_name, scope, card, ...valuation })
   }
   for (const item of collection) {
     if (item.status !== "wishlisted" && item.card_id) add(item, { ...item, card_id: item.card_id, card_name: item.card_name ?? item.pokemon_name }, "owned")
@@ -76,7 +103,7 @@ export function buildCollectionAnalytics(collection: CollectedPokemon[], prices:
   const falling: AnalyticsMover[] = []
   for (const entry of cards) {
     const timestamp = Date.parse(entry.price?.updatedAt ?? "")
-    if (!Number.isFinite(timestamp) || timestamp > now || entry.amount === null) continue
+    if (!Number.isFinite(timestamp) || timestamp > now || entry.amount === null || entry.estimatedFinish) continue
     const momentum = getRisingMomentum(entry.price, now)
     if (momentum) rising.push({ ...entry, momentum })
     const decline = getFallingMomentum(entry.price, now)
@@ -91,6 +118,7 @@ export function buildCollectionAnalytics(collection: CollectedPokemon[], prices:
     assignedCards: owned.length,
     wantedCards: cards.filter(card => card.scope === "wanted").length,
     pricedCards: priced.length,
+    estimatedFinishCards: priced.filter(card => card.estimatedFinish).length,
     oldestQuoteAt: priced.map(card => card.price!.updatedAt!).sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null,
     staleCards: priced.filter(card => (getPriceDataAgeDays(card.price?.updatedAt, now) ?? 0) > STALE_AFTER_DAYS).length,
     valueGbp: owned.reduce((sum, card) => sum + (card.amount ?? 0), 0),

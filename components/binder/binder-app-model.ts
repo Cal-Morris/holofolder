@@ -1,5 +1,6 @@
+import { buildCollectionAnalytics } from "@/lib/collection-analytics"
 import { type CardPriceSnapshot, getCardPriceKey, type SupportedCurrency } from "@/hooks/use-card-prices"
-import type { CardFinish, CardLanguage, SlotStatus, WantedCard } from "@/hooks/use-collection"
+import type { CardFinish, CardLanguage, SlotStatus, WantedCard, CollectedPokemon } from "@/hooks/use-collection"
 import { peekCardsForPokemon } from "@/hooks/use-tcgdex"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import { toCardImageSrc } from "@/lib/card-image-url"
@@ -178,6 +179,12 @@ export type PriceSummary = {
   gbpTotal: number
   originalTotals: Partial<Record<Exclude<SupportedCurrency, "GBP">, number>>
   unpricedCount: number
+}
+
+/** Binder totals share Analytics' finish matching, provider selection and freshness rules. */
+export function summarizeOwnedCardPrices(collection: CollectedPokemon[], prices: Parameters<typeof buildCollectionAnalytics>[1], now = Date.now()) {
+  const summary = buildCollectionAnalytics(collection, prices, now)
+  return { gbpTotal: summary.valueGbp, originalTotals: {}, unpricedCount: summary.assignedCards - summary.pricedCards, estimatedFinishCount: summary.estimatedFinishCards }
 }
 
 export function sumPriceSnapshots(prices: Array<CardPriceSnapshot | undefined>): PriceSummary {

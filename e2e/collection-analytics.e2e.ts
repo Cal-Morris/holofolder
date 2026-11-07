@@ -133,7 +133,7 @@ test.describe("collection export", () => {
     expect(download.suggestedFilename()).toMatch(/^holofolder-collection-\d{4}-\d{2}-\d{2}\.csv$/)
     const fs = await import("node:fs/promises")
     const lines = (await fs.readFile((await download.path())!, "utf8")).trimEnd().split("\r\n")
-    expect(lines[0]).toBe("dex_number,pokemon,list,slot_status,card_id,card_name,set,language,finish,market_gbp,price_source,added")
+    expect(lines[0]).toBe("dex_number,pokemon,list,slot_status,card_id,card_name,set,language,finish,market_gbp,price_source,price_basis,added")
     expect(lines.length).toBeGreaterThan(1)
     await harness.expectNoHorizontalOverflow()
   })
