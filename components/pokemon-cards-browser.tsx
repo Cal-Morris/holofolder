@@ -1,6 +1,7 @@
 "use client"
 
 import CardImage from "@/components/card-image"
+import CardImageZoom from "@/components/card-image-zoom"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, Heart, Loader2, Plus, Search as SearchIcon, X } from "lucide-react"
@@ -254,7 +255,7 @@ export default function PokemonCardsBrowser({
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-3">
           {cardDetails && detailState && <section aria-label="Card details" className="mb-4 space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-3">
             <div className="flex items-start gap-3">
-              {cardDetails.card.image && <CardImage sizes="80px" src={cardDetails.card.image} alt={cardDetails.card.name} className="trading-card w-20 shrink-0 object-contain" />}
+              {cardDetails.card.image && <CardImageZoom src={cardDetails.card.image} alt={cardDetails.card.name} className="w-20 shrink-0"><CardImage sizes="80px" src={cardDetails.card.image} alt={cardDetails.card.name} className="trading-card w-20 object-contain" /></CardImageZoom>}
               <div className="min-w-0">
                 <h3 className="break-words text-base font-bold">{cardDetails.card.name}</h3>
                 <p className="text-xs text-muted-foreground">{cardDetails.card.set.name} · {formatCardNumber(cardDetails.card)}</p>
