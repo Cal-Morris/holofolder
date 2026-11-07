@@ -6,7 +6,7 @@ const publicDir = path.join(process.cwd(), "public")
 const vector = fs.readFileSync("assets/brand/holo-cards-mark.svg", "utf8")
 const master = await sharp(Buffer.from(vector), { density: 192 }).trim().png().toBuffer()
 const lightBackground = "#f7f5ff"
-const darkBackground = "#171a22"
+const darkBackground = "#07070a"
 
 async function appIcon(size, background, maskable = false) {
   // A square at 56% fits entirely inside Android's 80%-diameter maskable safe circle.
@@ -41,6 +41,10 @@ const outputs = [
   ["holo-cards-light-32.png", 32, lightBackground],
   ["holo-cards-dark-32.png", 32, darkBackground],
   ["apple-touch-icon-holo-cards.png", 180, lightBackground],
+  ["apple-touch-icon-holo-dark.png", 180, darkBackground],
+  ["pwa-holo-cards-dark-192.png", 192, darkBackground],
+  ["pwa-holo-cards-dark-maskable-192.png", 192, darkBackground, true],
+  ["pwa-holo-cards-dark-maskable-512.png", 512, darkBackground, true],
   ["pwa-holo-cards-192.png", 192, lightBackground],
   ["pwa-holo-cards-512.png", 512, lightBackground],
   ["pwa-holo-cards-1024.png", 1024, lightBackground],

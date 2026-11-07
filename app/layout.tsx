@@ -39,7 +39,7 @@ export const metadata: Metadata = {
       { url: "/app/holo-cards-icon.svg", type: "image/svg+xml" },
     ],
     shortcut: "/app/holo-cards-favicon.ico",
-    apple: "/app/apple-touch-icon-holo-cards.png",
+    apple: "/app/apple-touch-icon-holo-dark.png",
   },
   other: {
     "mobile-web-app-capable": "yes",

@@ -86,7 +86,7 @@ export function HuntCardRow({
       onClick={onPick}
       data-standing={standing}
       aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${finishLabel ? `, ${finishLabel}` : ""}${standing === "missing" ? "" : `, ${standing}`}${limit ? `, pay up to ${limit}` : ""}`}
-      className={`flex min-h-[5.5rem] w-full items-center gap-3 rounded-2xl border px-2.5 py-2 text-left active:bg-muted ${tone}`}
+      className={`holo-tile flex min-h-[5.5rem] w-full items-center gap-3 rounded-2xl border px-2.5 py-2 text-left active:bg-muted ${tone}`}
     >
       <span className="trading-card relative w-14 shrink-0 overflow-hidden bg-muted/50">
         {/* eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker */}
@@ -281,7 +281,7 @@ function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnli
     <section aria-label="Hunting" className="flex min-h-0 flex-1 flex-col" data-testid="show-hunt">
       <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         {recentCards}
-        <div data-hunt-controls className="sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 bg-background px-3 pb-2 pt-2">
+        <div data-hunt-controls className="holo-toolbar sticky top-0 z-10 -mx-3 space-y-2 border-b border-border/40 px-3 pb-2 pt-2">
           <div className="flex flex-wrap items-center gap-2">
             <Target className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />
             <h3 className="min-w-0 flex-1 truncate text-base font-bold">

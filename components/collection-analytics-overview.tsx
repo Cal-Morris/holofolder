@@ -33,7 +33,7 @@ export function CollectionAnalyticsOverview({ summary, isAllBinders, isLoadingPr
       <div>
         <h2 className="text-sm text-muted-foreground sm:text-sm">National Dex completion</h2>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0"><p className="text-3xl font-semibold tracking-tight tabular-nums sm:text-5xl">{(summary.ownedSpecies / 1025 * 100).toFixed(1)}<span className="text-lg text-muted-foreground">%</span></p><p className="text-sm tabular-nums">{summary.ownedSpecies} / 1025</p></div>
-        <div role="progressbar" aria-label="National Dex completion" aria-valuenow={summary.ownedSpecies} aria-valuemin={0} aria-valuemax={1025} className="mt-5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-highlight" style={{ width: `${summary.ownedSpecies / 1025 * 100}%` }} /></div>
+        <div role="progressbar" aria-label="National Dex completion" aria-valuenow={summary.ownedSpecies} aria-valuemin={0} aria-valuemax={1025} className="mt-5 h-2 overflow-hidden rounded-full bg-muted"><div className="holo-progress h-full rounded-full bg-highlight" style={{ width: `${summary.ownedSpecies / 1025 * 100}%` }} /></div>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{1025 - summary.ownedSpecies} species to go{isAllBinders ? " across your binders" : " in this binder"}.</p>
       </div>
       <div className="order-first min-w-0">

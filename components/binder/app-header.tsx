@@ -94,13 +94,13 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
     <nav ref={shellNavRef} aria-label="Binder navigation" data-testid="app-header" className="sticky top-0 z-40 mb-1 shrink-0 border-b border-border/40 bg-background pt-[var(--top-inset)]">
       <div data-scroll-blur="card" className="pl-[var(--left-inset)] pr-[var(--right-inset)] sm:px-4">
         {isShowModeOn && (
-          <section aria-label="Show mode" className="flex items-center gap-2 bg-amber-400 px-3 py-1 text-black">
-            <Ticket className="h-4 w-4 shrink-0" aria-hidden />
+          <section aria-label="Show mode" className="holo-panel flex min-h-12 items-center gap-2.5 rounded-2xl border border-primary/20 px-3 py-1 text-foreground">
+            <span className="holo-action flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"><Ticket className="h-4 w-4" aria-hidden /></span>
             <div className="min-w-0 flex-1 text-xs" data-testid="show-mode-banner-text">
               <span className="font-semibold">Show mode on</span>
               {(showStatus || syncStatus) && <span role="status" className="ml-2">{[showStatus, syncStatus].filter(Boolean).join(" · ")}</span>}
             </div>
-            <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-black">Exit</button>
+            <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="min-h-9 shrink-0 rounded-full border border-border bg-card/60 px-3 text-xs font-semibold hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">Exit</button>
           </section>
         )}
         <div className="flex flex-wrap items-center gap-0 py-1 md:gap-2 md:px-3">

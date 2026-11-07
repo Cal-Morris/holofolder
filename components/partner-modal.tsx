@@ -69,7 +69,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
   return (
     <div className="fixed inset-0 z-50">
       <div data-overlay-backdrop className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Partner Mode" className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Partner Mode" className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col holo-panel overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />

@@ -8,6 +8,13 @@ import manifest from "../app/manifest"
 const root = path.join(process.cwd(), "public")
 
 describe("install icon exports", () => {
+  test("installed app icons use an opaque near-black background", async () => {
+    const pngs = (manifest().icons ?? []).filter(icon => icon.type === "image/png").map(icon => icon.src.replace(/^\/app\//, ""))
+    for (const name of [...pngs, "apple-touch-icon-holo-dark.png"]) {
+      const { data } = await sharp(path.join(root, name)).removeAlpha().extract({ left: 0, top: 0, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true })
+      assert.deepEqual([...data], [7, 7, 10], name)
+    }
+  })
   test("every manifest icon exists with its declared size and supported purpose", async () => {
     const icons = manifest().icons ?? []
     assert.ok(icons.some(icon => icon.purpose === "any" && icon.type === "image/svg+xml"))
