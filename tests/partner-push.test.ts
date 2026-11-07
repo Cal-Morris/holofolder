@@ -10,17 +10,33 @@ const partnershipId = '00000000-0000-4000-8000-000000000003'
 const operationId = '00000000-0000-4000-8000-000000000004'
 const membership = { actorId, recipientId, partnershipId, ownerId: actorId }
 const card: CollectedPokemon = { id: 'synthetic-slot', pokemon_id: 1, pokemon_name: 'Fixture', card_id: 'synthetic-card', card_name: 'Synthetic card', card_language: 'en', card_finish: 'normal', status: 'collected', wanted_cards: [], collected_at: '2026-11-07' }
-const intent = () => captureAcquisition(null, card, { showMode: true, actorId, ownerId: actorId, membership }, operationId)!
+const intent = () => captureAcquisition(null, card, { actorId, ownerId: actorId, membership }, operationId)!
 
-test('only a new owned printing acquired in Show mode captures notification intent', () => {
+test('new owned printings capture notification intent in any mode', () => {
  assert.equal(intent().recipientId, recipientId)
  assert.equal(intent().printingKey, ownedPrintingKey(card))
- assert.equal(captureAcquisition(null, card, { showMode: false, actorId, ownerId: actorId, membership }, operationId), undefined)
- assert.equal(captureAcquisition(card, { ...card, status: 'finalized' }, { showMode: true, actorId, ownerId: actorId, membership }, operationId), undefined)
- assert.equal(captureAcquisition(null, { ...card, status: 'wishlisted' }, { showMode: true, actorId, ownerId: actorId, membership }, operationId), undefined)
- assert.equal(captureAcquisition(null, card, { showMode: true, actorId, ownerId: actorId, membership: null }, operationId), undefined)
- assert.equal(captureAcquisition(null, card, { showMode: true, actorId: recipientId, ownerId: actorId, membership }, operationId), undefined)
- assert.ok(captureAcquisition({ ...card, card_id: 'other' }, card, { showMode: true, actorId, ownerId: actorId, membership }, operationId))
+ assert.deepEqual(captureAcquisition(null, card, { actorId, ownerId: actorId, membership }, operationId), intent())
+ assert.equal(captureAcquisition(card, { ...card, status: 'finalized' }, { actorId, ownerId: actorId, membership }, operationId), undefined)
+ assert.equal(captureAcquisition(null, { ...card, status: 'wishlisted' }, { actorId, ownerId: actorId, membership }, operationId), undefined)
+ assert.equal(captureAcquisition(null, card, { actorId, ownerId: actorId, membership: null }, operationId), undefined)
+ assert.equal(captureAcquisition(null, card, { actorId: recipientId, ownerId: actorId, membership }, operationId), undefined)
+ assert.ok(captureAcquisition({ ...card, card_id: 'other' }, card, { actorId, ownerId: actorId, membership }, operationId))
+})
+
+test('acquiring a wanted printing captures notification intent outside Show mode', () => {
+ const wanted = { card_id: card.card_id!, card_name: card.card_name!, added_at: '2026-11-07' }
+ const before: CollectedPokemon = { ...card, card_id: undefined, status: 'wishlisted', wanted_cards: [wanted] }
+ const context = { actorId, ownerId: actorId, membership }
+ const captured = captureAcquisition(before, card, context, operationId)
+ assert.deepEqual(captured, intent())
+ assert.deepEqual(captureAcquisition({ ...before, status: 'collected', card_id: 'old-printing' }, card, context, operationId), captured)
+ assert.equal(captureAcquisition({ ...card, wanted_cards: [wanted] }, card, context, operationId), undefined)
+ assert.equal(captureAcquisition(before, before, context, operationId), undefined)
+ assert.equal(captureAcquisition(before, card, { ...context, membership: null }, operationId), undefined)
+ assert.equal(captureAcquisition(before, card, { ...context, actorId: recipientId }, operationId), undefined)
+ assert.equal(captureAcquisition(before, card, { ...context, ownerId: recipientId }, operationId), undefined)
+ assert.deepEqual(mergeQueuedAcquisition(before, card, undefined, captured), captured)
+ assert.equal(mergeQueuedAcquisition(before, before, undefined, captured), undefined)
 })
 
 test('queue compaction preserves intent for metadata edits and drops undone or superseded acquisitions', () => {
@@ -57,7 +73,6 @@ test('notification intent cannot prevent a collection save when UUID generation 
  const original = crypto.randomUUID
  Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined })
  try {
-  assert.equal(captureAcquisition(null, card, { showMode: false, actorId, ownerId: actorId, membership }), undefined)
-  assert.equal(captureAcquisition(null, card, { showMode: true, actorId, ownerId: actorId, membership }), undefined)
+  assert.equal(captureAcquisition(null, card, { actorId, ownerId: actorId, membership }), undefined)
  } finally { Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: original }) }
 })
