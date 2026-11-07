@@ -1,8 +1,10 @@
+import { BillingAccessError, isBillingError } from "@/lib/billing"
+import { billingErrorResponse } from "@/lib/server/billing"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isSlotStatus, normalizeCardFinish, normalizeCardLanguage } from "@/lib/domain/cards"
-import { resolveCollectionMembership, resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
+import { assertCollectionWriteAccess, resolveCollectionMembership, resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeAcquisition } from "@/lib/partner-push"
 import { saveCollectionWithAcquisition, startPendingPartnerPush } from "@/lib/server/partner-push"
@@ -87,6 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient()
+    await assertCollectionWriteAccess(admin, user.id, body?.binderId)
     const { ownerUserId, memberIds } = await resolveCollectionMembership(admin, user.id)
     const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
     if (binder.response) return binder.response
@@ -136,6 +139,7 @@ export async function POST(request: NextRequest) {
     }
     const { data, error } = await admin.from("pokemon_collection").upsert(row, { onConflict: "binder_id,pokemon_id" }).select("*").single()
 
+    if (isBillingError(error)) throw new BillingAccessError("card_limit_reached")
     if (error) {
       console.error("[holofolder] API collection upsert failed:", error)
       return NextResponse.json({ error: error.message || "Failed to save collection item" }, { status: 500 })
@@ -143,6 +147,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ item: data })
   } catch (error) {
+    if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] API collection POST failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save collection item" },
@@ -170,8 +175,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid collection status" }, { status: 400 })
     }
 
-    const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
+    await assertCollectionWriteAccess(admin, user.id, body?.binderId)
+    const ownerUserId = await resolveOwnerUserId(user.id)
     const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
     if (binder.response) return binder.response
     const { data, error } = await scopeCollectionQuery(admin.from("pokemon_collection").update({ status }), ownerUserId, binder.binderId)
@@ -186,6 +192,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ item: data })
   } catch (error) {
+    if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] API collection PATCH failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to update collection item" },
@@ -206,8 +213,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "pokemonId is required" }, { status: 400 })
     }
 
-    const ownerUserId = await resolveOwnerUserId(user.id)
     const admin = createAdminClient()
+    await assertCollectionWriteAccess(admin, user.id, request.nextUrl.searchParams.get("binderId"))
+    const ownerUserId = await resolveOwnerUserId(user.id)
     const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"))
     if (binder.response) return binder.response
     const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, request.nextUrl.searchParams.get("baseFingerprint"), undefined, !request.nextUrl.searchParams.has("fingerprintVersion"))
@@ -223,6 +231,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] API collection DELETE failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to delete collection item" },

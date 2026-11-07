@@ -1,3 +1,4 @@
+import { readBillingCache } from "@/lib/billing-cache"
 // Boot data for the offline app shell (/app-shell): everything comes from this device, nothing from the network.
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { LOCAL_COLLECTION_SNAPSHOT_KEY } from "@/lib/collection/offline-queue"
@@ -40,7 +41,9 @@ export function readOfflineShellState(storage: StorageLike, cookie: string, user
   const snapshotOwner = typeof snapshot?.ownerUserId === "string" ? snapshot.ownerUserId : null
   // Same rule useCollection applies offline: the device's last saved collection is used even when its owner
   // differs from the signed-in user, because in partner mode the binder belongs to the partner.
-  const snapshotUsable = Boolean(snapshot && Array.isArray(snapshot.collection))
+  const access = snapshotOwner && snapshotOwner !== userId ? readBillingCache(storage, userId, snapshotOwner) : null
+  const permitted = !snapshotOwner || snapshotOwner === userId || Boolean(access && (!access.enforced || access.tier === "paid"))
+  const snapshotUsable = Boolean(permitted && snapshot && Array.isArray(snapshot.collection))
   const collection = snapshotUsable ? normalizeCollectionItems(snapshot!.collection as Partial<CollectedPokemon>[]) : []
   // In partner mode the collection owner differs from the signed-in user; the snapshot remembers it.
   const collectionOwnerUserId = userId ? (snapshotUsable && snapshotOwner ? snapshotOwner : userId) : null

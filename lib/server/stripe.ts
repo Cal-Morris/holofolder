@@ -1,0 +1,18 @@
+import 'server-only'
+import Stripe from 'stripe'
+
+let client: Stripe | undefined
+export function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error('Stripe is not configured')
+  if (/^(sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY) && process.env.VERCEL_ENV !== 'production') throw new Error('Use Stripe test mode outside production')
+  return client ??= new Stripe(process.env.STRIPE_SECRET_KEY, { maxNetworkRetries: 2, timeout: 20000 })
+}
+export function billingPriceIds() {
+  const month = process.env.STRIPE_MONTHLY_PRICE_ID
+  const year = process.env.STRIPE_YEARLY_PRICE_ID
+  if (!month || !year) throw new Error('Subscription prices are not configured')
+  return { month, year }
+}
+export function billingReturnUrl() {
+  return 'https://holofolder.com/app?billing=return'
+}

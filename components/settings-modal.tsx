@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { BillingSettings } from "@/components/billing-settings"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
@@ -601,6 +602,7 @@ export default function SettingsModal({
             </div>
           )}
 
+          {effectiveActiveTab === "account" && !isReadOnlyView && <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />}
           {effectiveActiveTab === "account" && !isReadOnlyView && (
             <div className="space-y-2">
               <Button variant="outline" className="w-full min-h-10 justify-start gap-2" disabled={!backupReady || isBackingUp} onClick={async () => {

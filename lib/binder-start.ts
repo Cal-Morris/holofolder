@@ -1,3 +1,4 @@
+import { readBillingCache } from "@/lib/billing-cache"
 // Local-first binder start: which device data `/` may paint before the server's collection arrives.
 import type { Binder } from "@/lib/binders/model"
 import { collectionSnapshotKey, LEGACY_COLLECTION_SNAPSHOT_KEY } from "@/lib/binders/offline"
@@ -63,6 +64,10 @@ function readSnapshotKey(storage: StorageLike, key: string): { ownerUserId: stri
 export function readLocalBinderStart(storage: StorageLike, cookie: string, userId: string, requestedBinderId: string | null = null): LocalBinderStart | null {
   const marker = readMarker(storage)
   if (!marker || marker.userId !== userId) return null
+  if (marker.ownerUserId !== userId) {
+    const access = readBillingCache(storage, userId, marker.ownerUserId)
+    if (!access || (access.enforced && access.tier !== "paid")) return null
+  }
   if (requestedBinderId && requestedBinderId !== marker.binderId) return null
   // Each binder has its own saved copy; the default binder's is under the original key.
   const isDefault = !marker.binderId || marker.binders.find((binder) => binder.id === marker.binderId)?.isDefault !== false

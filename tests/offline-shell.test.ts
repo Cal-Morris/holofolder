@@ -23,6 +23,7 @@ test("boots the signed-in user's saved collection and settings", () => {
 test("keeps the partner owner from the snapshot", () => {
   const state = readOfflineShellState(storage({
     pokemon_collection_snapshot_v1: { ownerUserId: "owner", collection: [row] },
+    holofolder_billing_v1: { accountId: "partner", access: { ownerUserId: "owner", source: "perpetual", enforced: true } },
   }), "", "partner")
   assert.equal(state.collection.length, 1)
   assert.equal(state.collectionOwnerUserId, "owner")
@@ -44,4 +45,10 @@ test("signed out uses the snapshot and anonymous settings; theme cookie wins", (
   assert.equal(state.collectionOwnerUserId, null)
   assert.equal(state.settings.binderRows, 5)
   assert.equal(state.darkMode, false)
+})
+
+test("another account cannot open a shared snapshot without current scoped access", () => {
+ const state = readOfflineShellState(storage({ pokemon_collection_snapshot_v1: { ownerUserId:"owner", collection:[row] } }), "", "stranger")
+ assert.deepEqual(state.collection, [])
+ assert.equal(state.collectionOwnerUserId, "stranger")
 })

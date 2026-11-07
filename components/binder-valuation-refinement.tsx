@@ -1,5 +1,6 @@
 "use client"
 
+import { useBillingContext } from "@/hooks/use-billing"
 import { useEffect, useMemo, useState } from "react"
 import CollectionPriceCheck from "@/components/collection-price-check"
 import { buildRefinedValuation } from "@/lib/binder-valuation"
@@ -15,16 +16,20 @@ export function BinderValuationRefinement({ cards, collection, isOnline, readOnl
   readOnly: boolean
   isAllBinders: boolean
 }) {
+  const billing = useBillingContext()
+  const premium = billing?.premium !== false
   const [checks, setChecks] = useState<Record<string, CardPriceCheck | null>>({})
   const [revision, setRevision] = useState(0)
   useEffect(() => {
+    if (!premium) return
     let cancelled = false
     const targets = new Map(cards.filter(entry => entry.scope === "owned" && (entry.card.card_language ?? "en") === "en").map(({ card }) => [priceCheckKey(card.card_id, card.card_finish ?? "normal", "soldcomps"), card]))
     void Promise.all([...targets].map(async ([key, card]) => [key, await readPinnedCardPriceCheck(card.card_id, card.card_finish ?? "normal", "soldcomps")] as const))
       .then(entries => { if (!cancelled) setChecks(Object.fromEntries(entries)) })
     return () => { cancelled = true }
-  }, [cards, revision])
+  }, [cards, revision, premium])
   const refined = useMemo(() => buildRefinedValuation(cards, checks), [cards, checks])
+  if (billing && !billing.premium) return null
   return <section aria-label="Refine binder valuation" className="mt-4 space-y-3 rounded-xl bg-muted/40 p-3 text-sm">
     {!readOnly && <CollectionPriceCheck collection={collection} kind="owned" isOnline={isOnline} label="Refine valuation" scopeLabel={isAllBinders ? "all binders" : "this binder"} onComplete={() => setRevision(value => value + 1)} />}
     <p className="text-muted-foreground">Use matching sold prices where the evidence is strong enough. Active eBay listings are supporting evidence.</p>

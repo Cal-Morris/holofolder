@@ -3,6 +3,7 @@
 // The card check (Show mode and plain Quick mode): what you need at a stall, one-handed. Ownership state, the market price for the
 // chosen variant, an asking-price input with a verdict (lib/deal-check.ts), and big Bought / Add owned /
 // Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
+import { useBillingContext } from "@/hooks/use-billing"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Check, ExternalLink, Heart, Layers, Plus, ShoppingBag, TrendingUp, WifiOff } from "lucide-react"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
@@ -119,6 +120,8 @@ export default function QuickCardCheck({
   onAddToBundle,
   showTools = true,
 }: QuickCardCheckProps) {
+  const billing = useBillingContext()
+  const premium = billing?.premium !== false
   const language = card.language ?? "en"
   const lookups = useMemo(() => [{ cardId: card.id, language }], [card.id, language])
   const { pricesByCardId, fxRates: hookRates, isLoading } = useRegionalCardPrices(lookups, true, pricingRegion)
@@ -142,7 +145,7 @@ export default function QuickCardCheck({
   const price = finishPrices[finish as PricedCardFinish] ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
 
   const comparisonKey = bundleKey(card, finish)
-  const soldGuide = buildSoldPriceGuide(soldEvidence?.key === comparisonKey ? soldEvidence.check : null, price?.gbpAmount, finish, thresholds)
+  const soldGuide = buildSoldPriceGuide(premium && soldEvidence?.key === comparisonKey ? soldEvidence.check : null, price?.gbpAmount, finish, thresholds)
   const usesSoldGuide = soldGuide?.referenceGbp != null
 
   const toDisplay = useCallback((gbp: number | null | undefined) => (typeof gbp === "number" && gbp > 0 ? convertGbpForDisplay(gbp, context, snapshot) : null), [context, snapshot])
@@ -357,7 +360,7 @@ export default function QuickCardCheck({
             disabled={inBundle}
             onClick={() => {
               navigator.vibrate?.(10)
-              onAddToBundle({ key, card, pokemon, finish, marketPrice: market?.amount ?? null, currency: moneyCurrency, catalogMarketGbp: price?.gbpAmount ?? null, gbpPerUnit: getGbpPerUnit(moneyCurrency, fxRates, snapshot), soldCheck: soldEvidence?.key === comparisonKey ? soldEvidence.check : undefined })
+              onAddToBundle({ key, card, pokemon, finish, marketPrice: market?.amount ?? null, currency: moneyCurrency, catalogMarketGbp: price?.gbpAmount ?? null, gbpPerUnit: getGbpPerUnit(moneyCurrency, fxRates, snapshot), soldCheck: premium && soldEvidence?.key === comparisonKey ? soldEvidence.check : undefined })
             }}
             aria-label={inBundle ? "In bundle" : "Add to bundle"}
             className={`${bigButton} border border-border/70 bg-card`}

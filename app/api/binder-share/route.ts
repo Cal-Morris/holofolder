@@ -1,3 +1,5 @@
+import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
+import { isBillingError } from "@/lib/billing"
 import { randomBytes } from "node:crypto"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(supabase, user.id)
+    await requirePaidAccess(ownerUserId)
     const body = await request.json().catch(() => null) as { binderId?: unknown } | null
     const binder = await resolveShareBinder(ownerUserId, body?.binderId)
     if (binder.response) return binder.response
@@ -132,6 +135,7 @@ export async function POST(request: Request) {
       },
     })
   } catch (error) {
+    if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] Failed to enable binder share:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to enable binder share" },

@@ -1,5 +1,6 @@
 "use client"
 
+import { useBillingContext } from "@/hooks/use-billing"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Receipt, Square } from "lucide-react"
 import CheckCompsConfirm from "@/components/check-comps-confirm"
@@ -15,6 +16,7 @@ export default function CollectionPriceCheck({ collection, kind, isOnline, label
   scopeLabel?: string
   onComplete?: () => void
 }) {
+  const billing = useBillingContext()
   const targets = useMemo(() => checkCompsTargets(collectionCompsTargets(collection, kind), "collection"), [collection, kind])
   const [progress, setProgress] = useState<CheckCompsProgress | null>(null)
   const [running, setRunning] = useState(false)
@@ -44,6 +46,7 @@ export default function CollectionPriceCheck({ collection, kind, isOnline, label
   }, [stop])
 
   const start = async () => {
+    if (billing && !billing.premium) { billing.upgrade(); return }
     if (!isOnline || controller.current && !controller.current.signal.aborted) return
     const abort = new AbortController()
     controller.current = abort

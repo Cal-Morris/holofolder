@@ -139,6 +139,8 @@ export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
  */
 export async function mockBackends(target: Page | BrowserContext, context: BrowserContext, { signedIn, baseURL }: { signedIn: boolean; baseURL?: string }) {
   await target.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.abort())
+  // Synthetic lifetime access keeps existing fixtures on the previously unrestricted tier.
+  await target.route("**/app/api/billing", route => route.fulfill({ json: { access: { ownerUserId: E2E_USER.id, tier: "paid", source: "perpetual", paidThrough: null, savedCardCount: 2, cardLimit: null, enforced: true }, canManage: true } }))
   await target.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: null, revision: 0 } }))
   await target.route("**/app/api/card-prices**", async (route) => {
     const body = route.request().postDataJSON?.() ?? {}
@@ -217,6 +219,7 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
   await target.route(`${SUPABASE_URL}/**`, async (route) => {
     const request = route.request()
     const url = new URL(request.url())
+    if (url.pathname.endsWith("/rpc/billing_partner_allowed")) return route.fulfill({ json: true })
     if (url.pathname.startsWith("/auth/v1/user")) {
       return signedIn ? route.fulfill({ json: E2E_USER }) : route.fulfill({ status: 401, json: { message: "no session" } })
     }

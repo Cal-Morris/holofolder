@@ -55,7 +55,7 @@ test("waits for the server when the URL asks for another binder or the snapshot 
 })
 
 test("keeps partner mode: the marker remembers the partner as owner", () => {
-  const storage = memoryStorage(snapshot("owner"))
+  const storage = memoryStorage({ ...snapshot("owner"), holofolder_billing_v1: { accountId: "partner", access: { ownerUserId: "owner", source: "perpetual", enforced: true } } })
   writeBinderStartMarker(storage, marker("partner", "owner"))
   assert.equal(readLocalBinderStart(storage, "", "partner")?.collectionOwnerUserId, "owner")
 })
@@ -89,4 +89,12 @@ test("ignores a malformed marker", () => {
 
 test("a storage that throws on write does not break the start", () => {
   assert.doesNotThrow(() => writeBinderStartMarker({ setItem: () => { throw new Error("quota") } }, marker("u1", "u1")))
+})
+
+test("suspended or unknown partner access never paints a cached shared binder", () => {
+ const storage = memoryStorage(snapshot("owner"))
+ writeBinderStartMarker(storage, marker("partner", "owner"))
+ assert.equal(readLocalBinderStart(storage, "", "partner"), null)
+ storage.setItem("holofolder_billing_v1", JSON.stringify({ accountId: "partner", access: { ownerUserId:"owner", source:"free", enforced:true } }))
+ assert.equal(readLocalBinderStart(storage, "", "partner"), null)
 })

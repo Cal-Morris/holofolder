@@ -73,3 +73,5 @@ CREATE POLICY "Users manage their own settings" ON public.user_settings
 ```
 
 Check this against production (`\d public.user_settings`) before relying on it.
+
+| `047_billing_access.sql` | Stripe subscription access, separate permanent licences, fixed grandfather cutoff for existing accounts, staged enforcement, transactional card cap and paid partner/share policies. Apply before enabling billing; enforcement defaults off. |

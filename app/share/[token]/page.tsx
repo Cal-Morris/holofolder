@@ -1,3 +1,4 @@
+import { getBillingAccess } from "@/lib/server/billing"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import Script from "next/script"
@@ -40,6 +41,9 @@ export default async function SharedBinderPage({ params }: SharePageProps) {
   if (!share?.owner_user_id) {
     notFound()
   }
+
+  const access = await getBillingAccess(share.owner_user_id)
+  if (access.enforced && access.tier !== "paid") notFound()
 
   // One link per binder (migration 039); links without a binder show the owner's default binder.
   const shareBinderId = typeof share.binder_id === "string" ? share.binder_id : null

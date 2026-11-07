@@ -17,10 +17,15 @@ async function run() {
   const saved: Record<string, unknown> = {}
   let soldCalls = 0
   let calls = 0
+  let paid = true
   for (const name of ["SUPABASE_SERVICE_ROLE_KEY", "EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET", "SOLDCOMPS_API_KEY"]) process.env[name] = "synthetic"
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://synthetic.supabase.test"
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
+    if (url.pathname.endsWith('/rpc/get_billing_access')) return Response.json({ enforced: true, perpetual: paid, saved_card_count: 2 })
+    if (url.pathname.endsWith('/rpc/billing_partner_allowed')) return Response.json(true)
+    if (url.pathname.endsWith('/partnerships') && !url.searchParams.has('id') && !url.searchParams.has('owner_user_id')) return Response.json(null)
+
     if (url.pathname.includes("/tcg_cards")) {
       if (url.searchParams.get("select") === "raw_json") return Response.json([{ raw_json: { id: "mep-070", variants_detailed: missingFinishEvidence ? [] : [
         { type: "holo", size: "standard", stamp: [stamp], variantId: "synthetic-variant", thirdParty: { tcgplayer: 685563 } },
@@ -61,7 +66,7 @@ async function run() {
   // @ts-expect-error Bun test types are not part of the application's TypeScript environment.
   const { mock } = await import("bun:test")
   mock.module("next/cache", () => ({ cacheLife: () => {} }))
-  mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: "synthetic" } } }) } }) }))
+  mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ from: () => ({ select() { return this }, or() { return this }, limit() { return this }, maybeSingle: async () => ({ data: null, error: null }) }), auth: { getUser: async () => ({ data: { user: { id: "synthetic" } } }) } }) }))
   mock.module("../../lib/supabase/session-user", () => ({ getSessionUser: async () => ({ id: "synthetic" }) }))
   const routes = await import("../../app/api/card-price-checks/route")
   const legacy = await import("../../app/api/ebay/listings/route")
@@ -136,5 +141,10 @@ async function run() {
   assert.ok(base)
   assert.equal(matchesPriceCheckTitle(base.subject, "Tyrunt 070 MEP Holo"), true)
   assert.equal(matchesPriceCheckTitle(base.subject, "Tyrunt 070 Pokemon Center MEP Holo"), false)
+  paid = false
+  const beforeFree = { calls, soldCalls }
+  for (const handler of [routes.GET, routes.POST, legacy.GET]) assert.equal((await handler(request(id))).status, 402)
+  assert.deepEqual({ calls, soldCalls }, beforeFree, "free users cannot spend provider quota or read saved comparisons")
+
 }
 void run().catch(error => { console.error(error); process.exitCode = 1 })

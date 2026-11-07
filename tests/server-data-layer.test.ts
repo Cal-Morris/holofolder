@@ -89,3 +89,17 @@ test("loadBinderBootstrap defaults when nothing is stored and surfaces collectio
   assert.equal(bootstrap.hasStoredSettings, false)
   assert.deepEqual(bootstrap.settings, DEFAULT_BINDER_SETTINGS)
 })
+
+test('suspended shared-binder writes pause, while explicit own-binder writes remain allowed', async () => {
+  const { assertCollectionWriteAccess } = await import('../lib/server/collection-owner')
+  const { client } = fakeClient({
+    partnerships: { data: { owner_user_id: 'owner', user1_id: 'owner', user2_id: 'partner' }, error: null },
+    binders: { data: { owner_user_id: 'partner' }, error: null },
+  })
+  Object.assign(client, { rpc: async () => ({ data: false, error: null }) })
+  await assert.rejects(assertCollectionWriteAccess(client, 'partner', null), { status: 402 })
+  await assert.doesNotReject(assertCollectionWriteAccess(client, 'partner', 'own-binder'))
+  const other = fakeClient({ partnerships: { data: { owner_user_id: 'owner' }, error: null }, binders: { data: { owner_user_id: 'owner' }, error: null } }).client
+  Object.assign(other, { rpc: async () => ({ data: false, error: null }) })
+  await assert.rejects(assertCollectionWriteAccess(other, 'partner', 'shared-binder'), { status: 402 })
+})

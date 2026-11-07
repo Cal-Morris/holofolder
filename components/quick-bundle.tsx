@@ -2,6 +2,7 @@
 
 // Show mode's bundle check: several cards for one asking total ("all three for £20"), judged against their
 // combined market price. "Bought bundle" adds every card as owned and logs the total, split by market price.
+import { useBillingContext } from "@/hooks/use-billing"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft, ShoppingBag, Trash2, X } from "lucide-react"
 import ShowBudget from "@/components/show-budget"
@@ -37,6 +38,8 @@ export interface QuickBundleProps {
 }
 
 export default function QuickBundle({ budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck, onUndoAvailable }: QuickBundleProps) {
+  const billing = useBillingContext()
+  const premium = billing?.premium !== false
   const states = entries.map(entry => getCardState?.(entry))
   const replacementKey = JSON.stringify(entries.map((entry, index) => [entry.key, states[index]?.replacing]))
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
@@ -50,7 +53,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
   const moneyCurrency = entries[0]?.currency ?? currency
   const money = useCallback((amount: number) => formatMoney(amount, moneyCurrency), [moneyCurrency])
   const askingTotal = parseAskingPrice(input)
-  const guide = useMemo(() => buildBundlePriceGuide(entries, moneyCurrency, thresholds), [entries, moneyCurrency, thresholds])
+  const guide = useMemo(() => buildBundlePriceGuide(entries, moneyCurrency, thresholds, undefined, premium), [entries, moneyCurrency, thresholds, premium])
   const pricedEntries = entries.map((entry, index) => ({ ...entry, marketPrice: guide.items[index].marketPrice }))
   const result = checkBundle(pricedEntries, askingTotal, thresholds)
   const controller = useRef<AbortController | null>(null)
@@ -60,6 +63,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
   const [pending, setPending] = useState<Record<string, Partial<Record<PriceCheckSource, boolean>>>>({})
   const [error, setError] = useState<string | null>(null)
   async function checkPrices() {
+    if (!premium) { billing?.upgrade(); return }
     if (checking || busy) return
     if (!navigator.onLine) { setError("Connect to the internet to check prices."); return }
     setError(null)
@@ -180,6 +184,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
                 <span className="block text-[10px] text-muted-foreground">{guide.items[index].source === "sold" ? "Sold reference" : guide.items[index].source === "catalogue" ? "Catalogue reference" : guide.items[index].source === "saved" ? "Saved reference" : "No reference"}</span>
                 <span className="block text-[10px] text-muted-foreground" aria-live="polite">{(["ebay", "soldcomps"] as const).map(source => {
                   const label = source === "ebay" ? "eBay" : "Sold"
+                  if (!premium) return null
                   const check = checks[entry.key]?.[source]
                   return <span key={source} className="mr-2 inline-block">{pending[entry.key]?.[source] ? `${label}: checking…` : checks[entry.key]?.errors[source] ? `${label}: ${checks[entry.key].errors[source]}` : check ? `${label}: ${check.summary.count} matches` : ""}</span>
                 })}</span>
@@ -187,7 +192,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
                 <span className="block truncate text-[11px] text-muted-foreground">
                   {entry.card.set.name} · {formatCardNumber(entry.card)} · {formatCardFinishLabel(entry.finish)}
                 </span>
-                <PriceCheckRecords checks={checks[entry.key]} />
+                {premium && <PriceCheckRecords checks={checks[entry.key]} />}
               </div>
               <span className="text-sm font-bold tabular-nums">{guide.items[index].marketPrice !== null ? money(guide.items[index].marketPrice!) : "No price"}</span>
               <button type="button" onClick={() => onRemove(entry.key)} aria-label={`Remove ${entry.card.name} from bundle`} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
@@ -198,7 +203,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
           {entries.length === 0 && <li className="px-1 py-4 text-center text-sm text-muted-foreground">Add cards with Bundle on each card&apos;s check.</li>}
         </ul>
 
-        <button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
+        <button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{!premium ? "Unlock bundle comparisons" : checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
         <p className="text-[11px] text-muted-foreground">Checks each English card and finish, reuses saved results for 12 hours. {guide.items.filter(item => item.source === "sold").length} of {entries.length} use qualified sold evidence.</p>
         {error ? <p role="status" className="text-xs text-muted-foreground">{error}</p> : null}
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />

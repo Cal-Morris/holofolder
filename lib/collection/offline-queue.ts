@@ -25,6 +25,7 @@ export type PendingCollectionOperation =
       acquisition?: AcquisitionIntent
       pokemonId: number
       item: CollectedPokemon
+      billingPause?: string
       queuedAt: string
       base?: CollectedPokemon | null
       binderId?: string | null
@@ -33,6 +34,7 @@ export type PendingCollectionOperation =
       id: string
       type: "delete"
       pokemonId: number
+      billingPause?: string
       queuedAt: string
       base?: CollectedPokemon | null
       binderId?: string | null
@@ -154,6 +156,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           id: item.id,
           type: "delete",
           pokemonId: item.pokemonId,
+          ...(typeof item.billingPause === "string" ? { billingPause: item.billingPause } : {}),
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
           ...parseBase(item),
           ...parseBinderId(item),
@@ -167,6 +170,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           pokemonId: item.pokemonId,
           item: normalizeCollectionItem(item.item),
           acquisition: normalizeAcquisition(item.acquisition),
+          ...(typeof item.billingPause === "string" ? { billingPause: item.billingPause } : {}),
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
           ...parseBase(item),
           ...parseBinderId(item),

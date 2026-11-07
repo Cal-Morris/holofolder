@@ -89,6 +89,7 @@ test("the offline shell boots a non-default binder from its own copy, with the r
     pokemon_collection_snapshot_v1: { ownerUserId: "owner", binderId: MAIN, collection: [row(1, "base1-44"), row(4, "base1-46")] },
     [`pokemon_collection_snapshot_v1:${TRADES}`]: { ownerUserId: "owner", binderId: TRADES, collection: [row(4, "base1-46")] },
     [DEVICE_BINDERS_KEY]: { ownerUserId: "owner", binders: BINDERS, savedBinderIds: [MAIN, TRADES], savedAt: "x" },
+    holofolder_billing_v1: { accountId: "partner", access: { ownerUserId: "owner", source: "perpetual", enforced: true } },
   })
   const trades = readOfflineBinderBoot(storage, "", "owner", TRADES, null)
   assert.equal(trades.binderId, TRADES)
