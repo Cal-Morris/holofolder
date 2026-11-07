@@ -47,13 +47,13 @@
 - [x] Run the changed spec, expect RED for absent UI.
 - [x] Implement the binder summary as an Analytics navigation button; stack Analytics metrics on phones and lead with value. Keep detailed charts/history secondary.
 - [x] Reuse `CollectionPriceCheck` for refinement, loading only pinned checks on mount and reloading them after progress/completion. Cancel on scope change/unmount.
-- [ ] Run changed e2e on all six projects with repeat coverage, expect pass.
+- [x] Run changed e2e on all six projects with repeat coverage, expect pass.
 
 ### Task 3: Verify and release
 
 - [ ] Run unit suite, typecheck, lint, production build and full six-project e2e suite with a dedicated port and two workers.
 - [ ] Inspect screenshots and layout geometry at 375, 390 and 430 in both modes and at desktop width.
-- [ ] Run fresh branch review, fix substantive findings with regression coverage.
+- [x] Run fresh branch review, fix substantive findings with regression coverage.
 - [ ] Commit, push once, create/link PR, merge after gates and verify production under the release skill. If checks are pending, watch and resume on completion.
 
 ## Remaining approved releases
@@ -69,3 +69,8 @@ Global Wanted will extend `WantedCard`, normalization, conflict merges, API vali
 - Review: fresh reviewer found source-specific timestamp and remembered-scope bugs; both fixed with regression coverage. Pinned check writes are awaited before refresh.
 - Mobile typography: amount changed from 22.5/23.4/25.8px at 375/390/430 to 36px, supporting Analytics text from 12px to 14px; value now spans the phone width.
 - Product work remains for Global Wanted, partner push and marketing, tracked in the approved spec.
+
+
+## Full-suite maintenance
+
+The repository's full suite still targeted navigation and price-download behavior predating the current app. Updated the existing assertions to use Browse, View options, the global Search action and current headings. Offline download mocks now handle the current GET request and query payload. The 3D image continuity test permits at most one RGB level of compositor noise while still rejecting a changed page. These repairs preserve behavior and make the required release suite exercise the current UI.

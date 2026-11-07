@@ -15,9 +15,9 @@ Make binderdex useful at a glance on a phone: know the current binder's estimate
 - VAPID Web Push to the other partner's registered devices when a card is added to the collection or marked Got in Show mode.
 - Improve public marketing pages. This does not add a signed-in home dashboard.
 
-## Proposed product choices
+## Approved product choices
 
-These are builder recommendations, not decisions Cal has explicitly made:
+The following choices were included in the design Cal approved:
 
 - Assign wanted cards per card to You, Partner, or Both. Existing wants have no reliable attribution and remain Unassigned until someone assigns them. Do not infer a person from the collection owner's account.
 - Notifications cover newly acquired owned printings in Show mode, including Got from Wanted. Adding a card to the want list alone does not trigger an acquisition notification.
