@@ -91,19 +91,10 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
   const syncStatus = !isOnline ? offlineChipLabel(ctx.user ? localPendingSyncCount : 0)
     : ctx.user && localPendingSyncCount > 0 ? syncingChipLabel(localPendingSyncCount) : null
   return (
-    <nav ref={shellNavRef} aria-label="Binder navigation" data-testid="app-header" className="sticky top-0 z-40 mb-1 shrink-0 border-b border-border/40 bg-background pt-[var(--top-inset)]">
+    <nav ref={shellNavRef} aria-label="Binder navigation" data-testid="app-header" className={`sticky top-0 z-40 mb-1 shrink-0 border-b pt-[var(--top-inset)] ${isShowModeOn ? "border-amber-400/40 bg-amber-50 dark:bg-amber-950" : "border-border/40 bg-background"}`}>
       <div data-scroll-blur="card" className="pl-[var(--left-inset)] pr-[var(--right-inset)] sm:px-4">
-        {isShowModeOn && (
-          <section aria-label="Show mode" className="holo-panel flex min-h-12 items-center gap-2.5 rounded-2xl border border-primary/20 px-3 py-1 text-foreground">
-            <span className="holo-action flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"><Ticket className="h-4 w-4" aria-hidden /></span>
-            <div className="min-w-0 flex-1 text-xs" data-testid="show-mode-banner-text">
-              <span className="font-semibold">Show mode on</span>
-              {(showStatus || syncStatus) && <span role="status" className="ml-2">{[showStatus, syncStatus].filter(Boolean).join(" · ")}</span>}
-            </div>
-            <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="min-h-9 shrink-0 rounded-full border border-border bg-card/60 px-3 text-xs font-semibold hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">Exit</button>
-          </section>
-        )}
-        <div className="flex flex-wrap items-center gap-0 py-1 md:gap-2 md:px-3">
+        <section aria-label={isShowModeOn ? "Show mode" : undefined} className="flex flex-wrap items-center gap-0 py-1 md:gap-2 md:px-3">
+          {isShowModeOn && <span className="sr-only">Show mode on</span>}
           {activeBinder && !readOnlyMode ? (
             <button type="button" data-testid="binder-switcher-trigger" onClick={() => openExclusively(() => setIsBinderSwitcherOpen(true))} aria-haspopup="dialog" aria-label={`Binders: ${activeBinder.name}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-xl px-1.5 text-left hover:bg-muted/60 xl:flex-none xl:max-w-48">
               <Grid3X3 className="hidden h-4 w-4 shrink-0 text-primary sm:block" aria-hidden />
@@ -137,7 +128,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <SlidersHorizontal className="h-4 w-4" aria-hidden />View
             </Button>
           )}
-          {!isShowModeOn && <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button>}
+          {isShowModeOn ? <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-100 dark:hover:bg-amber-800/60 md:px-2"><Ticket className="hidden h-4 w-4 md:block" aria-hidden /><span className="hidden md:inline">Show ·</span>Exit</button> : <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button>}
           <HeaderMoreMenu message={shareCopyMessage || shareMessage} items={[
             ...(activeMainView === "binder" && binderDimension === "2d" ? [
               { id: "previous-needed", label: `Previous ${activeJumpLabel.toLowerCase()}`, icon: <Sparkles />, onSelect: handleJumpToPreviousNeeded, disabled: activeJumpPokemonList.length === 0 },
@@ -153,7 +144,8 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             { id: "theme", label: isDarkMode ? "Light mode" : "Dark mode", icon: isDarkMode ? <Sun /> : <Moon />, onSelect: toggleDarkMode },
             ...(!readOnlyMode ? [{ id: "auth", label: ctx.user ? "Sign out" : "Sign in", icon: ctx.user ? <LogOut /> : <LogIn />, onSelect: () => { if (ctx.user) void handleSignOut(); else openExclusively(() => setIsAuthOpen(true)) } }] : []),
           ]} />
-        </div>
+          {isShowModeOn && (showStatus || syncStatus) && <div role="status" className="order-last w-full px-1.5 pb-1 text-xs text-amber-900 dark:text-amber-100">{[showStatus, syncStatus].filter(Boolean).join(" · ")}</div>}
+        </section>
       </div>
     </nav>
   )

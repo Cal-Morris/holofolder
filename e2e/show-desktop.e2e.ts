@@ -10,17 +10,20 @@ for (const viewport of [{ width: 768, height: 800 }, { width: 1024, height: 768 
   test.describe(`show mode on desktop ${viewport.width}×${viewport.height}`, () => {
     test.use({ viewport, isMobile: false, hasTouch: false, userAgent: DESKTOP_UA })
 
-    test("the amber bar works with a mouse, header Search opens the finder, and the deal check opens beside the results", async ({ page, baseURL }) => {
+    test("the tinted header works with a mouse, header Search opens the finder, and the deal check opens beside the results", async ({ page, baseURL }) => {
       test.skip(test.info().project.name !== "browser-390x844", "desktop context: run once")
       await mockBackends(page, page.context(), { signedIn: true, baseURL })
       await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
       await page.goto("/app/e2e-harness?signedIn=1")
       await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible({ timeout: 30_000 })
 
+      const header = page.getByTestId("app-header")
+      const before = (await header.boundingBox())!.height
       await page.getByRole("button", { name: "Show mode", exact: true }).click()
       const banner = page.getByRole("region", { name: "Show mode" })
       await expect(banner).toContainText("Show mode on")
-      // The compact status strip leaves search in the primary navigation.
+      expect((await header.boundingBox())!.height).toBe(before)
+      // Search stays in the primary navigation.
       await expect(banner.getByText("Screen stays on")).toBeHidden()
 
       // The header's own Search (desktop nav) opens Show mode's finder, like the phone dock does.
