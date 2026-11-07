@@ -1,5 +1,6 @@
 const PASSWORD_RECOVERY_PATH = "/auth/login?mode=recovery"
-const PRODUCTION_SITE_URL = "https://holofolder.com"
+// Keep the current origin working until the domain cutover is configured.
+const PRODUCTION_SITE_URL = "https://binder.cal.gg"
 
 function normalizeBaseUrl(value?: string | null) {
   if (!value) return null

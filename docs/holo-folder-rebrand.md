@@ -2,14 +2,18 @@
 
 The product is **Holo Folder**, at **https://holofolder.com**. Source, package name, logs, provider user agents, export filenames, public copy, metadata and installed-app branding use the new name. `HOLOFOLDER_E2E=1` enables the test harness; `HOLOFOLDER_TCG_REPO_DIR` configures the local catalog checkout (the previous variable remains accepted).
 
-## Domain cutover
+## Shipping on the existing domain
+
+Ship the branding on **https://binder.cal.gg** now. The domain move is a separate operational step, not a merge gate. Existing auth URL configuration and the production fallback stay on the current origin. eBay verification defaults to its currently registered `https://binder.cal.gg/api/ebay/account-deletion` endpoint. No environment change is needed to ship the rebrand.
+
+## Later domain cutover
 
 This PR does not rename the GitHub repository, local checkout, Vercel project or existing R2 bucket. Cal manages those separately. Complete these steps before releasing the domain change:
 
 1. Attach `holofolder.com` to the existing Vercel project and configure DNS and TLS. The project name can stay as it is.
 2. Set production `NEXT_PUBLIC_SITE_URL=https://holofolder.com`. Keep preview/local redirect URLs appropriate for their environments.
 3. Update Supabase Auth's Site URL and redirect allowlist for `https://holofolder.com/auth/callback`. Keep the old callback available while existing email links are in flight. Update any branded Auth email templates and provider consent labels to Holo Folder. Check magic-link sign-in and password recovery on the new domain.
-4. Update eBay's registered account-deletion endpoint to exactly `https://holofolder.com/api/ebay/account-deletion`, keeping its verification token. The endpoint URL participates in the challenge hash, so the registration and release must match.
+4. Set `EBAY_ACCOUNT_DELETION_ENDPOINT=https://holofolder.com/api/ebay/account-deletion` and update eBay's registered account-deletion endpoint to that exact URL, keeping its verification token. The endpoint URL participates in the challenge hash, so the registration and deployed configuration must match.
 5. Deploy, verify the production commit, then check `/home`, sign-in, recovery, a binder share, `/manifest.webmanifest`, app installation and `/api/card-image-proxy` on the new domain. Arrange the old domain redirect after the transition; preserve paths and queries for share links and auth callbacks.
 
 ## Existing data and installs

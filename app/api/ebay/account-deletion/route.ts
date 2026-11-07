@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto"
 import { verifyEbayNotification } from "@/lib/server/ebay-notifications"
 
-const endpoint = "https://holofolder.com/api/ebay/account-deletion"
 const headers = { "Cache-Control": "no-store" }
 
 export async function GET(request: Request) {
@@ -11,6 +10,8 @@ export async function GET(request: Request) {
   if (!token || !/^[A-Za-z0-9_-]{32,80}$/.test(token)) {
     return Response.json({ error: "eBay verification is not configured" }, { status: 503, headers })
   }
+  // The registered URL participates in the hash; branding alone must not change it.
+  const endpoint = process.env.EBAY_ACCOUNT_DELETION_ENDPOINT || "https://binder.cal.gg/api/ebay/account-deletion"
   const challengeResponse = createHash("sha256").update(challenge).update(token).update(endpoint).digest("hex")
   return Response.json({ challengeResponse }, { headers })
 }

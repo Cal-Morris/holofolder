@@ -4,7 +4,7 @@ This is the canonical guide for AI coding agents (and humans) working on **Holo 
 
 ## What this is
 
-Holo Folder is a mobile-first Pokémon binder tracker, live at https://holofolder.com. It covers:
+Holo Folder is a mobile-first Pokémon binder tracker, currently live at https://binder.cal.gg, with https://holofolder.com planned for the domain cutover. It covers:
 - National Dex binder pages
 - collection and wanted lists
 - card matching and camera scanning

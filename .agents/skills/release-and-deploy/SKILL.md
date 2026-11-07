@@ -5,7 +5,7 @@ description: Use when opening, verifying, merging or deploying a Holo Folder PR 
 
 # Release and deploy
 
-Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (https://holofolder.com). The **Vercel** status check on the PR is the only CI. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
+Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (currently https://binder.cal.gg, later https://holofolder.com). The **Vercel** status check on the PR is the only CI. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
 
 ## Steps
 
@@ -23,7 +23,7 @@ Vercel builds every PR push as a preview, and every merge to `main` as a product
 7. **After merging:**
    - For a quota-blocked merge, report **merged, deployment pending**. After the limit resets, deploy the latest `main`, covering all accumulated merges rather than an older PR head, and verify that exact commit's production deployment.
    - Otherwise, confirm the production deployment for the merge commit succeeded (the commit status on `main`).
-   - After that deployment succeeds, smoke-test: `curl -sI https://holofolder.com` returns 200, and image changes return `x-card-image-source: r2` from `/api/card-image-proxy?url=…`.
+   - After that deployment succeeds, smoke-test: `curl -sI https://binder.cal.gg` returns 200 (use https://holofolder.com after the domain cutover), and image changes return `x-card-image-source: r2` from `/api/card-image-proxy?url=…`.
    - Apply any migrations or env vars the PR called out.
 8. **Env vars** are set in Vercel (Production and Preview) and documented in `.env.example`. A change needs a redeploy to take effect.
 

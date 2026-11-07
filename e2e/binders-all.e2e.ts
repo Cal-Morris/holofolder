@@ -61,11 +61,9 @@ async function searchFor(harness: Harness, text: string) {
 async function openView(harness: Harness, name: "Want list" | "Analytics") {
   const { page } = harness
   if (name === "Want list") return harness.dock().getByRole("button", { name: "Wanted", exact: true }).click()
-  // Analytics lives in the binder view's controls.
   await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
-  const button = page.getByRole("button", { name, exact: true })
-  if (!(await button.isVisible())) await page.getByRole("button", { name: /^(Expand|Open) controls$/ }).click()
-  await button.click()
+  await page.getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Analytics", exact: true }).click()
 }
 
 async function closeSearch(harness: Harness, dialog: import("@playwright/test").Locator) {
