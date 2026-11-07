@@ -144,7 +144,7 @@ export function buildHuntGroups(
   cards: readonly HuntCard[],
   sort: HuntSort,
   filters: HuntFilters = {},
-  momentum: { priceOf: (card: HuntCard) => MomentumPriceInput | null | undefined; now?: number } | null = null,
+  momentum: { priceOf: (card: HuntCard) => MomentumPriceInput | null | undefined; now?: number; stableWantedOrder?: boolean } | null = null,
 ): HuntGroup[] {
   const filtering = Boolean(filters.era || filters.setId || filters.cardIds)
   const groups = new Map<number, HuntGroup>()
@@ -163,9 +163,12 @@ export function buildHuntGroups(
     }
   }
   const list = [...groups.values()]
-  for (const group of list) group.cards.sort(byPriceDesc)
+  // Default browsing must not move the rows underneath a scroll gesture when prices stream in.
+  const stableWantedOrder = sort === "wanted" && momentum?.stableWantedOrder === true
+  if (!stableWantedOrder) for (const group of list) group.cards.sort(byPriceDesc)
   list.sort((a, b) => {
     if (sort === "wanted" && b.cards.length !== a.cards.length) return b.cards.length - a.cards.length
+    if (stableWantedOrder) return a.pokemonId - b.pokemonId
     return (b.topPrice ?? -1) - (a.topPrice ?? -1) || a.pokemonId - b.pokemonId
   })
   if ((sort !== "falling" && sort !== "rising") || !momentum) return list

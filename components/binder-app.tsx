@@ -48,6 +48,7 @@ import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
 import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib/card-scan-evidence"
 import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
+import { activeBinderEffects } from "@/lib/binder-effects"
 import { buildBinderShareUrl } from "@/lib/binder-share"
 import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
 import { getSelectedSlotCardDisplay, getBinderDisplayCard, type BinderCardDisplay } from "@/lib/selected-slot-card-display"
@@ -381,7 +382,8 @@ export default function BinderApp({
   const canEditBinder = !readOnlyMode
   const canFilterCollection = readOnlyMode || Boolean(user)
   const canInstallApp = Boolean(installPromptEvent)
-  const motionGlintEffectsEnabled = settings.binderSlotGlareEnabled || settings.cardFinishEffectsEnabled
+  const binderEffectSettings = useMemo(() => activeBinderEffects(settings, { view: activeMainView, searchOpen: isSearchOpen, quickModeOpen: isQuickModeOpen }), [settings, activeMainView, isSearchOpen, isQuickModeOpen])
+  const motionGlintEffectsEnabled = binderEffectSettings.binderSlotGlareEnabled || binderEffectSettings.cardFinishEffectsEnabled
   const fullShareUrl = useMemo(() => {
     if (!sharePath) return null
     if (typeof window === "undefined") return sharePath
@@ -617,7 +619,7 @@ export default function BinderApp({
     setSlotGlareState(DEFAULT_SLOT_GLARE_STATE)
 
     if (!motionGlintEffectsEnabled) {
-      motionSensorsEnabledRef.current = false
+      // Pausing rendering does not revoke an iOS motion permission already granted.
       setMotionGlintStatus("disabled")
       setMotionGlintMessage(null)
       return
@@ -3358,7 +3360,7 @@ export default function BinderApp({
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
   const slotActions = useBinderSlotActions({ currentBinderPage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, openCardSelectorForPokemon, registerSlotButtonRef, setCurrentBinderPage, setLongPressedPokemon })
-  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
+  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
   const handleShareWantedList = async (scope: "binder" | "all" = "binder") => {
     const summary = scope === "all" && allBindersWantedDashboard ? allBindersWantedDashboard : wantedDashboard

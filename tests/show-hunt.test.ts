@@ -25,6 +25,17 @@ const prices: Record<string, number> = { "sv03.5-166": 40, "me02-001": 1, "sv03.
 const cards = collectHuntCards(items, (card) => prices[card.card_id] ?? null)
 
 describe("show hunt", () => {
+  it("keeps Most wanted groups and cards in place as prices arrive", () => {
+    const pending = collectHuntCards(items, () => null)
+    const refreshed = collectHuntCards(items, card => card.card_id === "me02-001" ? 1000 : 1)
+    const ranking = { priceOf: () => null, stableWantedOrder: true }
+    const order = (source: typeof cards) => buildHuntGroups(items, source, "wanted", {}, ranking).map(group => [group.pokemonId, group.cards.map(card => card.key)])
+    assert.deepEqual(order(pending), order(cards))
+    assert.deepEqual(order(cards), order(refreshed))
+    const filteredOrder = (source: typeof cards) => buildHuntGroups(items, source, "wanted", { setId: "sv03.5" }, ranking).map(group => group.pokemonId)
+    assert.deepEqual(filteredOrder(pending), filteredOrder(cards))
+    assert.notDeepEqual(buildHuntGroups(items, cards, "value").map(group => group.pokemonId), buildHuntGroups(items, refreshed, "value").map(group => group.pokemonId))
+  })
   it("reads set and era from a card id", () => {
     assert.equal(getSetIdFromCardId("sv03.5-006"), "sv03.5")
     assert.equal(getSetIdFromCardId("swsh12pt5-001", "001"), "swsh12pt5")
