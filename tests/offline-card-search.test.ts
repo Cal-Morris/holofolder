@@ -190,12 +190,12 @@ test("card show prep saves price batches and reports unknown cards without inven
   })
   assert.equal(requested.length, 2)
   assert.equal(saved.flat().length, 26)
-  assert.deepEqual(result, { done: 26, total: 26, priced: 25 })
+  assert.deepEqual(result, { done: 26, total: 26, priced: 25, failed: 0 })
 })
 
 test("card show prep cannot claim prices saved when the API or local storage failed", async () => {
   const plan = { priceLookups: [{ cardId: "fixture-1", language: "en" as const }] }
-  await assert.rejects(downloadCardShowPrices(plan, { savePrices: () => {}, fetcher: async () => new Response("down", { status: 503 }) }))
+  assert.equal((await downloadCardShowPrices(plan, { retryDelay: async () => {}, savePrices: () => {}, fetcher: async () => new Response("down", { status: 503 }) })).failed, 1)
   await assert.rejects(downloadCardShowPrices(plan, { savePrices: () => { throw new Error("Storage full") }, fetcher: async () => Response.json({ prices: [{ cardId: "fixture-1", language: "en" }] }) }), /Storage full/)
 })
 
@@ -255,7 +255,7 @@ test("failed estimate samples are retried and failed bodies never count as saved
     return new Response("image", { status: count === 1 ? 503 : 200 })
   }
   const plan = await planCardShowPrep([BASE], { fetcher })
-  assert.deepEqual(plan.sampledImageUrls, [])
+  assert.equal(plan.sampledImageUrls?.length, 2)
   const result = await downloadCardShowImages(plan, { fetcher })
   assert.equal(result.failed, 0)
   assert.equal(result.done, plan.imageUrls.length)
@@ -308,4 +308,15 @@ test("offline index keeps separate language printings of the same card", () => {
 test("offline search resolves exact stamped identities without parsing away their suffix", () => {
   const stamped = { ...card("base1-4-stamped", "Synthetic stamped card", "4"), dexIds: [1] }
   assert.deepEqual(searchOfflineCards([stamped], "base1-4-stamped"), [stamped])
+})
+
+test("show image resume skips durably saved files and awaits each cache write", async () => {
+  const saved = new Map<string, Response>()
+  saved.set("/one", new Response("synthetic image", { headers: { "Content-Type": "image/webp" } }))
+  const cache = { match: async (key: string) => saved.get(key)?.clone(), put: async (key: string, value: Response) => { saved.set(key, value.clone()) } } as unknown as Cache
+  const calls: string[] = []
+  const result = await downloadCardShowImages({ imageUrls: ["/one", "/two"] }, { cache, fetcher: async url => { calls.push(url); return new Response("synthetic image", { headers: { "Content-Type": "image/webp" } }) } })
+  assert.deepEqual(calls, ["/two"])
+  assert.equal(saved.size, 2)
+  assert.equal(result.failed, 0)
 })

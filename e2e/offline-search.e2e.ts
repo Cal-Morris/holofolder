@@ -210,7 +210,8 @@ test.describe("offline search and card show prep", () => {
     // Price batches fail, then one image is evicted. Saved coverage and other images remain useful.
     await page.route("**/app/api/card-prices**", route => route.fulfill({ status: 503, body: "synthetic unavailable" }))
     await quick.getByRole("button", { name: "Download for offline" }).click()
-    await expect(quick.getByRole("status").filter({ hasText: "Couldn't download prices" })).toContainText("Couldn't download prices (503)")
+    await expect(quick.getByRole("status").filter({ hasText: "Download finished" })).toContainText("3 price downloads failed")
+    await expect(quick.getByRole("button", { name: "Resume / retry download" })).toBeVisible()
     await expect.poll(() => page.evaluate(async () => (await (await caches.open("binderdex-v1-show-images")).keys()).filter(request => request.url.includes("show1")).length)).toBe(3)
     await page.evaluate(async () => {
       for (const name of ["binderdex-v1-show-images", "binderdex-v3-images"]) {

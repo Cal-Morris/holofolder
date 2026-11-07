@@ -1,3 +1,5 @@
+import { fetchOfflineResource } from "@/lib/offline-download"
+import { mapWithConcurrency } from "@/lib/card-db-sync-concurrency"
 import { appPath } from "@/lib/app-path"
 // "Prepare for card show": download chosen sets (coverage data + card thumbnails through the image proxy)
 // so they open offline. The service worker caches what this fetches: /app/api/tcg-set-slots in its data cache
@@ -9,6 +11,7 @@ import { getCardPriceKey, normalizeCardPriceLookups, type CardPriceLookup } from
 export const FALLBACK_THUMBNAIL_BYTES = 32 * 1024
 export const ESTIMATE_SAMPLE_SIZE = 3
 export const PREP_CONCURRENCY = 4
+export const SHOW_IMAGE_CACHE = "binderdex-v1-show-images"
 /**
  * Marks thumbnail downloads as card show prep. The service worker then keeps them in its own image
  * cache (`binderdex-v1-show-images`), which everyday browsing can't evict.
@@ -81,14 +84,16 @@ type Fetcher = (input: string, init?: RequestInit) => Promise<Response>
  */
 export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher?: Fetcher; signal?: AbortSignal } = {}): Promise<CardShowPlan> {
   const fetcher = options.fetcher ?? ((input, init) => fetch(input, init))
+  const cache = typeof caches !== "undefined" ? await caches.open(SHOW_IMAGE_CACHE) : null
   const planned: CardShowPlan["sets"] = []
   const priceLookups: CardPriceLookup[] = []
 
   for (const set of sets) {
     const url = getSetSlotsUrl(set)
-    const response = await fetcher(url, { signal: options.signal })
+    const response = await fetchOfflineResource(url, { signal: options.signal, fetcher: fetcher as typeof fetch })
     if (!response.ok) throw new Error(`Couldn't load ${set.name} (${response.status})`)
     const text = await response.text()
+    if (typeof caches !== "undefined") await (await caches.open("binderdex-v4-data")).put(url, new Response(text, { headers: response.headers }))
     const payload = JSON.parse(text) as TCGSetSlotsResponse
     const cards = payload.cards ?? payload.slots.flatMap(slot => slot.cards ?? [])
     priceLookups.push(...cards.map(card => ({ cardId: card.id, language: card.language ?? "en" })))
@@ -99,9 +104,9 @@ export async function planCardShowPrep(sets: TCGSetSummary[], options: { fetcher
   const sampledImageBytes: number[] = []
   const sampledImageUrls: string[] = []
   for (const url of imageUrls.slice(0, ESTIMATE_SAMPLE_SIZE)) {
-    const response = await fetcher(url, { signal: options.signal, headers: SAVE_FOR_SHOW_HEADERS }).catch(() => null)
+    const response = await fetchOfflineResource(url, { signal: options.signal, fetcher: fetcher as typeof fetch, headers: SAVE_FOR_SHOW_HEADERS }).catch(() => null)
     if (response?.ok) {
-      try { sampledImageBytes.push(await responseBytes(response)); sampledImageUrls.push(url) } catch { /* Retry when downloading. */ }
+      try { const copy = response.clone(); sampledImageBytes.push(await responseBytes(response)); await cache?.put(url, copy); sampledImageUrls.push(url) } catch { /* Retry when downloading. */ }
     }
   }
   const dataBytes = planned.reduce((sum, entry) => sum + entry.dataBytes, 0)
@@ -122,25 +127,34 @@ export async function downloadCardShowPrices(plan: Pick<CardShowPlan, "priceLook
   savePrices: (prices: unknown[]) => void | Promise<void>
   fetcher?: Fetcher
   signal?: AbortSignal
-  onProgress?: (progress: { done: number; total: number; priced: number }) => void
+  retryDelay?: (ms: number, signal?: AbortSignal) => Promise<void>
+  onProgress?: (progress: { done: number; total: number; priced: number; failed: number }) => void
 }) {
   const fetcher = options.fetcher ?? fetch
   const lookups = normalizeCardPriceLookups(plan.priceLookups)
-  const progress = { done: 0, total: lookups.length, priced: 0 }
-  for (let offset = 0; offset < lookups.length; offset += 25) {
+  const progress = { done: 0, total: lookups.length, priced: 0, failed: 0 }
+  const batches = Array.from({ length: Math.ceil(lookups.length / 25) }, (_, i) => lookups.slice(i * 25, i * 25 + 25))
+  await mapWithConcurrency(batches, 2, async batch => {
     options.signal?.throwIfAborted()
-    const batch = lookups.slice(offset, offset + 25)
-    const response = await fetcher(`/app/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`, { signal: options.signal, cache: "no-store" })
-    if (!response.ok) throw new Error(`Couldn't download prices (${response.status})`)
-    const payload = await response.json()
-    if (!Array.isArray(payload?.prices)) throw new Error("The price download was incomplete")
-    const requested = new Set(batch.map(card => getCardPriceKey(card.cardId, card.language)))
-    const prices = payload.prices.filter((price: { cardId?: unknown; language?: unknown }) => typeof price?.cardId === "string" && requested.has(getCardPriceKey(price.cardId, price.language)))
+    let prices
+    try {
+      const response = await fetchOfflineResource(`/app/api/card-prices?${new URLSearchParams({ cards: JSON.stringify(batch) })}`, { ...options, fetcher: fetcher as typeof fetch })
+      const payload = await response.json()
+      if (!Array.isArray(payload?.prices)) throw new Error("The price download was incomplete")
+      const requested = new Set(batch.map(card => getCardPriceKey(card.cardId, card.language)))
+      prices = payload.prices.filter((price: { cardId?: unknown; language?: unknown }) => typeof price?.cardId === "string" && requested.has(getCardPriceKey(price.cardId, price.language)))
+    } catch {
+      options.signal?.throwIfAborted()
+      progress.failed += batch.length
+      progress.done += batch.length
+      options.onProgress?.({ ...progress })
+      return
+    }
     await options.savePrices(prices)
     progress.done += batch.length
     progress.priced += prices.filter((price: { marketGbpAmount?: unknown }) => typeof price.marketGbpAmount === "number" && Number.isFinite(price.marketGbpAmount) && price.marketGbpAmount > 0).length
     options.onProgress?.({ ...progress })
-  }
+  })
   return progress
 }
 
@@ -153,10 +167,11 @@ export interface CardShowProgress {
 /** Step 2 (after the user confirms): download the remaining thumbnails, a few at a time. */
 export async function downloadCardShowImages(
   plan: Pick<CardShowPlan, "imageUrls" | "sampledImageUrls">,
-  options: { fetcher?: Fetcher; signal?: AbortSignal; onProgress?: (progress: CardShowProgress) => void; concurrency?: number } = {},
+  options: { fetcher?: Fetcher; signal?: AbortSignal; cache?: Cache; retryDelay?: (ms: number, signal?: AbortSignal) => Promise<void>; onProgress?: (progress: CardShowProgress) => void; concurrency?: number } = {},
 ): Promise<CardShowProgress> {
   const fetcher = options.fetcher ?? ((input, init) => fetch(input, init))
-  const sampled = new Set(plan.sampledImageUrls ?? [])
+  const cache = options.cache ?? (typeof caches !== "undefined" ? await caches.open(SHOW_IMAGE_CACHE) : null)
+  const sampled = new Set(cache ? [] : plan.sampledImageUrls ?? [])
   const urls = plan.imageUrls.filter(url => !sampled.has(url))
   const progress: CardShowProgress = { done: plan.imageUrls.length - urls.length, total: plan.imageUrls.length, failed: 0 }
   options.onProgress?.({ ...progress })
@@ -168,9 +183,12 @@ export async function downloadCardShowImages(
       const url = urls[next]
       next += 1
       try {
-        const response = await fetcher(url, { signal: options.signal, headers: SAVE_FOR_SHOW_HEADERS })
-        if (!response.ok) progress.failed += 1
-        if (response.ok) await response.arrayBuffer()
+        const saved = await cache?.match(url)
+        if (!saved?.ok || !saved.headers.get("content-type")?.startsWith("image/")) {
+          const response = await fetchOfflineResource(url, { ...options, fetcher: fetcher as typeof fetch, headers: SAVE_FOR_SHOW_HEADERS })
+          if (cache && !response.headers.get("content-type")?.startsWith("image/")) throw new Error("Image unavailable")
+          await cache?.put(url, response)
+        }
       } catch {
         if (options.signal?.aborted) return
         progress.failed += 1

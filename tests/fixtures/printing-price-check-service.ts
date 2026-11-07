@@ -114,7 +114,7 @@ async function run() {
   assert.equal(calls, 1)
   assert.equal((await loadCardPriceChecks(id, "holo", true, "soldcomps"))?.soldcomps?.summary.count, 1)
   assert.equal(soldCalls, 1)
-  // Existing zero samples remain fresh for 12 hours; deploying a matcher fix spends no allowance.
+  // Existing zero samples remain fresh for 30 hours; deploying a matcher fix spends no allowance.
   saved["eq.ebay"] = { summary: { kind: "asking", currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: new Date().toISOString(), listings: [] }
   assert.equal((await loadCardPriceChecks(id, "holo", true, "ebay"))?.ebay?.summary.count, 0)
   assert.equal(calls, 1)

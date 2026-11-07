@@ -19,8 +19,8 @@ test("pins are keyed per card, API finish and source; older answers never replac
   assert.equal((await readPinnedCardPriceCheck("sv1-1", "holo", "soldcomps", store))?.checkedAt, hours(1))
   await pinCardPriceCheck("sv1-1", "holo", "ebay", check("soldcomps", hours(0)), store)
   assert.equal(await readPinnedCardPriceCheck("sv1-1", "holo", "ebay", store), null)
-  assert.equal(isPriceCheckFresh(check("soldcomps", hours(11.9)), now), true)
-  assert.equal(isPriceCheckFresh(check("soldcomps", hours(12)), now), false)
+  assert.equal(isPriceCheckFresh(check("soldcomps", hours(29.9)), now), true)
+  assert.equal(isPriceCheckFresh(check("soldcomps", hours(30)), now), false)
   assert.equal(formatPriceCheckAge(hours(3), now), "3 h ago")
 })
 

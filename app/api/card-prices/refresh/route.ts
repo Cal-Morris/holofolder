@@ -2,17 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
-const VERCEL_WORKFLOW_WORLDS = new Set(["vercel", "@workflow/world-vercel"])
-
-function preferManagedVercelWorkflowWorld() {
-  if (process.env.VERCEL !== "1") return
-  if (!process.env.WORKFLOW_TARGET_WORLD || VERCEL_WORKFLOW_WORLDS.has(process.env.WORKFLOW_TARGET_WORLD)) return
-
-  console.warn(
-    `[holofolder] Ignoring WORKFLOW_TARGET_WORLD=${process.env.WORKFLOW_TARGET_WORLD} on Vercel; using managed Vercel Workflow instead.`,
-  )
-  process.env.WORKFLOW_TARGET_WORLD = "vercel"
-}
+import { preferManagedVercelWorkflowWorld } from "@/lib/server/workflow-world"
 
 async function resolveCollectionOwnerUserId(userId: string) {
   const admin = createAdminClient()

@@ -7,7 +7,7 @@ export class PriceCheckRequestError extends Error {
   constructor(message: string, readonly status: number) { super(message) }
 }
 
-// POST: the server returns its saved check while it is under 12 hours old and only then calls the provider
+// POST: the server returns its saved check while it is under 30 hours old and only then calls the provider
 // (claim_card_price_check rate-limits that). Every good answer is pinned on this device for offline reads.
 export async function requestCardPriceCheck(cardId: string, language: string, finish: CardFinish | undefined, source: PriceCheckSource, signal: AbortSignal) {
   const exactFinish = priceCheckFinish(finish)

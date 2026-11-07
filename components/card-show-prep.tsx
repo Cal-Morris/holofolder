@@ -24,8 +24,8 @@ type Phase =
   | { kind: "planned"; plan: CardShowPlan }
   | { kind: "downloading"; plan: CardShowPlan; progress: CardShowProgress }
   | { kind: "prices"; plan: CardShowPlan; done: number; total: number }
-  | { kind: "done"; plan: CardShowPlan; progress: CardShowProgress; priced: number }
-  | { kind: "error"; message: string }
+  | { kind: "done"; plan: CardShowPlan; progress: CardShowProgress; priced: number; failedPrices: number }
+  | { kind: "error"; message: string; plan?: CardShowPlan }
 
 export default function CardShowPrep({ candidateSets, embedded = false }: {
   embedded?: boolean
@@ -115,10 +115,10 @@ export default function CardShowPrep({ candidateSets, embedded = false }: {
         onProgress: next => { if (!controller.signal.aborted) setPhase({ kind: "prices", plan, done: next.done, total: next.total }) },
       })
       if (controller.signal.aborted) return
-      if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress, priced: prices.priced })
+      if (!controller.signal.aborted) setPhase({ kind: "done", plan, progress, priced: prices.priced, failedPrices: prices.failed })
       await inspect()
     } catch (error) {
-      if (!controller.signal.aborted) setPhase({ kind: "error", message: error instanceof Error ? error.message : "Couldn't save prices on this device." })
+      if (!controller.signal.aborted) setPhase({ kind: "error", plan, message: error instanceof Error ? error.message : "Couldn't save prices on this device." })
       await inspect()
     }
   }
@@ -175,13 +175,14 @@ export default function CardShowPrep({ candidateSets, embedded = false }: {
             {phase.kind === "downloading" ? `Downloading ${phase.progress.done}/${phase.progress.total} card images…` : null}
             {phase.kind === "prices" ? `Saving prices ${phase.done}/${phase.total}…` : null}
             {phase.kind === "done"
-              ? `Download finished: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""}, ${phase.priced}/${phase.plan.priceLookups.length} cards priced)`
+              ? `Download finished: ${phase.plan.sets.map((entry) => entry.set.name).join(", ")} (${phase.progress.done - phase.progress.failed}/${phase.progress.total} card images${phase.progress.failed ? `, ${phase.progress.failed} failed` : ""}, ${phase.priced}/${phase.plan.priceLookups.length} cards priced${phase.failedPrices ? `, ${phase.failedPrices} price downloads failed` : ""})`
               : null}
             {phase.kind === "error" ? phase.message : null}
           </div>
 
           {phase.kind === "planned" && <p className="text-xs text-muted-foreground">Estimate covers set data and images. Prices and scanning tools use extra data, including a few MB for the first scan download. Scanning tools are best effort; offline scanning is not guaranteed.</p>}
           <div className="flex flex-wrap gap-2">
+            {((phase.kind === "error" && phase.plan) || (phase.kind === "done" && (phase.progress.failed > 0 || phase.failedPrices > 0))) && <button type="button" disabled={!isOnline || !canStoreOffline} onClick={() => { if (phase.plan) void download(phase.plan) }} className="min-h-9 rounded-full border px-3.5 py-2 text-xs font-semibold">Resume / retry download</button>}
             {phase.kind === "planned" ? (
               <>
                 <button type="button" disabled={!isOnline || !canStoreOffline} onClick={() => void download(phase.plan)} className="min-h-9 rounded-full border border-primary/35 bg-primary/12 px-3.5 py-2 text-xs font-semibold text-foreground">

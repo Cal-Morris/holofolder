@@ -201,7 +201,7 @@ export function renderMainContentView(ctx: MainContentContext) {
           </div>
         ) : null}
         {!readOnlyMode && (activeMainView === "list" || activeMainView === "wanted") && (
-          <CollectionPriceCheck key={activeMainView} collection={collection} kind={activeMainView === "wanted" ? "wanted" : "owned"} isOnline={isOnline} />
+          <CollectionPriceCheck ownerId={user ? resolvedCollectionOwnerUserId ?? null : null} key={activeMainView} collection={collection} kind={activeMainView === "wanted" ? "wanted" : "owned"} isOnline={isOnline} />
         )}
         {activeMainView === "pokemon" ? (
           <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} ownedElsewhere={allBinders ? ownedElsewhereLabel : undefined} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />

@@ -48,9 +48,11 @@ test("binder download reads all saved evidence, retries missing images, then col
   await context.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.fulfill({ json: rows }))
   await context.route("**/app/api/card-price-checks?**", route => {
     if (route.request().method() !== "GET") paidRequests++
-    const id = new URL(route.request().url()).searchParams.get("cardId")!
-    checks.push(id)
-    return route.fulfill({ json: { ebay: id === "synthetic-missing" ? null : check("asking"), soldcomps: id === "synthetic-missing" ? null : check("sold"), errors: {} } })
+    const params = new URL(route.request().url()).searchParams
+    if (!params.has("cards")) return route.fulfill({ json: { ebay: check("asking"), soldcomps: check("sold"), errors: {} } })
+    const cards = JSON.parse(params.get("cards")!)
+    checks.push(...cards.map((card: { cardId: string }) => card.cardId))
+    return route.fulfill({ json: { checks: cards.map((card: { cardId: string; finish: string }) => ({ ...card, ebay: card.cardId === "synthetic-missing" ? null : check("asking"), soldcomps: card.cardId === "synthetic-missing" ? null : check("sold"), errors: {} })) } })
   })
   await context.route("**/app/api/card-prices**", route => {
     const url = new URL(route.request().url())
@@ -72,7 +74,7 @@ test("binder download reads all saved evidence, retries missing images, then col
   await harness.expectMinTapTarget(download, 36)
   await harness.expectWithinSafeViewport(download)
   await download.click()
-  await expect(prep).toContainText("Download finished with missing evidence", { timeout: 30_000 })
+  await expect(prep).toContainText("downloads failed after retries", { timeout: 30_000 })
   await expect(prep).toContainText("Cards 68/68")
   await expect(prep).toContainText("Images 66/68")
   await expect(prep).toContainText("Asking 65/68 · Sold 65/68")
