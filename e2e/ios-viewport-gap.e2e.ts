@@ -45,7 +45,7 @@ test.describe("installed app", () => {
     const bar = await dockBar(harness)
     expect(bar.y + bar.height, "dock sits near the bottom of the view").toBeGreaterThanOrEqual(793 - 12)
     expect(bar.y + bar.height, "dock stays inside the tappable view").toBeLessThanOrEqual(793 + 0.5)
-    for (const name of ["Search", "Binder", "List", "Wanted", "Sets"]) await harness.expectHittable(harness.dock().getByRole("button", { name, exact: true }))
+    for (const name of ["Search", "Binder", "List", "Wanted", "Browse"]) await harness.expectHittable(harness.dock().getByRole("button", { name, exact: true }))
     await harness.expectNoHorizontalOverflow()
   })
 
@@ -101,7 +101,7 @@ for (const [label, height, gap] of [["short iOS 26 view", 793, 59], ["full-heigh
       await reloadAt(harness, 393, height)
       await expect(page.locator("html")).toHaveAttribute("data-ios-viewport-gap", String(gap))
       await page.getByRole("button", { name: "Show mode", exact: true }).click()
-      await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+      await page.getByRole("button", { name: "Search", exact: true }).click()
       const dialog = page.getByRole("dialog", { name: "Quick mode" })
       const expected = 12 + (gap ? 0 : harness.insets.bottom)
       const footerPadding = (scope: ReturnType<Page["getByTestId"]>) =>

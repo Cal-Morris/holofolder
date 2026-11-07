@@ -15,7 +15,7 @@ async function openQuickInShowMode(harness: Harness) {
   if (!(await banner(harness).isVisible())) {
     await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
   }
-  await banner(harness).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.page.getByRole("button", { name: "Search", exact: true }).click()
   await expect(quickDialog(harness)).toBeVisible()
   return quickDialog(harness)
 }

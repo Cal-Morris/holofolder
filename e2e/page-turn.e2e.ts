@@ -220,7 +220,7 @@ test.describe("binder page turn", () => {
     await harness.dock().getByRole("button", { name: "Binder", exact: true }).dispatchEvent("click")
     await expect.poll(() => page.evaluate(() => document.documentElement.hasAttribute("data-binder-motion"))).toBe(false)
     await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toBeVisible()
-    await expect(page.getByRole("heading", { name: "Manage the dex quickly" })).toHaveCount(0)
+    await expect(page.getByRole("heading", { name: "List", exact: true })).toHaveCount(0)
   })
 
   test("older browsers navigate without blanking or stale callbacks", async ({ harness }) => {

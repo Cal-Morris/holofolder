@@ -30,7 +30,6 @@ test.describe("nav chrome transitions", () => {
     const list = harness.dock().getByRole("button", { name: "List", exact: true })
     const property = await list.evaluate((button) => getComputedStyle(button).transitionProperty)
     expect(property).toContain("background-color")
-    expect(property).toContain("box-shadow")
     expect(property).not.toMatch(/scale|transform|filter|backdrop/)
   })
 

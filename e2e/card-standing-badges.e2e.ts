@@ -53,7 +53,7 @@ test.describe("Owned / Wanted badges outside Show mode", () => {
     await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
     const sheet = harness.page.getByRole("dialog", { name: /search pokemon/i })
     await expect(sheet).toBeVisible()
-    await sheet.getByPlaceholder(/Search Pokémon, cards/).fill("bulbasaur")
+    await sheet.getByRole("textbox", { name: "Search Pokémon, cards, sets, artists or dex number" }).fill("bulbasaur")
     const hits = sheet.getByRole("region", { name: "Card results" })
     await expect(hits.locator('button[data-standing="owned"]').filter({ hasText: "Base Set" })).toContainText("Owned")
     await expect(hits.getByRole("button", { name: /^Bulbasaur 166\/165 151, Wanted$/ })).toContainText("Wanted")

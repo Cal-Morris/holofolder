@@ -48,7 +48,7 @@ test.describe("on-screen keyboard", () => {
   test("Show mode search: the search bar rides above the keyboard and settles back when it closes", async ({ harness }) => {
     const { page } = harness
     await page.getByRole("button", { name: "Show mode", exact: true }).click()
-    await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+    await page.getByRole("button", { name: "Search", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: "Quick mode" })
     const search = dialog.getByRole("searchbox")
     await expect(search).toBeVisible()
@@ -88,7 +88,7 @@ test.describe("on-screen keyboard", () => {
     await search.blur()
     await expect(html(page)).not.toHaveAttribute("data-keyboard-open")
     await expect(harness.dock()).toBeVisible()
-    for (const name of ["Search", "Binder", "List", "Wanted", "Sets"]) await harness.expectHittable(harness.dock().getByRole("button", { name, exact: true }))
+    for (const name of ["Search", "Binder", "List", "Wanted", "Browse"]) await harness.expectHittable(harness.dock().getByRole("button", { name, exact: true }))
     await setKeyboard(page, 0)
   })
 
@@ -96,7 +96,7 @@ test.describe("on-screen keyboard", () => {
     const { page } = harness
     await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
     await page.getByRole("button", { name: "Show mode", exact: true }).click()
-    await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+    await page.getByRole("button", { name: "Search", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: "Quick mode" })
     await dialog.getByRole("searchbox").fill("charizard")
     await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
@@ -190,7 +190,7 @@ test.describe("on-screen keyboard", () => {
     const { page } = harness
     await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
     await page.getByRole("button", { name: "Show mode", exact: true }).click()
-    await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+    await page.getByRole("button", { name: "Search", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: "Quick mode" })
     await dialog.getByRole("searchbox").fill("charizard")
     await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
@@ -216,7 +216,7 @@ test.describe("on-screen keyboard", () => {
       const { page } = harness
       await mockCardPrices(page, { "sv03.5-006": { market: 10, confidence: "high" } })
       await page.getByRole("button", { name: "Show mode", exact: true }).click()
-      await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+      await page.getByRole("button", { name: "Search", exact: true }).click()
       const dialog = page.getByRole("dialog", { name: "Quick mode" })
       await dialog.getByRole("searchbox").fill("charizard")
       await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /^Charizard ex, 151 / }).first().click()
@@ -259,7 +259,7 @@ test.describe("on-screen keyboard", () => {
       "sv03.5-007": { market: 4, confidence: "high" },
     })
     await page.getByRole("button", { name: "Show mode", exact: true }).click()
-    await page.getByRole("region", { name: "Show mode" }).getByRole("button", { name: "Search", exact: true }).click()
+    await page.getByRole("button", { name: "Search", exact: true }).click()
     const dialog = page.getByRole("dialog", { name: "Quick mode" })
     for (const [query, name] of [["charizard", /^Charizard ex, 151 /], ["squirtle", /^Squirtle, 151 /]] as const) {
       await dialog.getByRole("searchbox").fill(query)

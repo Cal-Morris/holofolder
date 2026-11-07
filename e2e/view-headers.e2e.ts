@@ -1,7 +1,7 @@
 import { test, expect, type Harness } from "./fixtures"
 
 async function openTab(harness: Harness, tab: "List" | "Sets") {
-  await harness.dock().getByRole("button", { name: tab, exact: true }).click()
+  await harness.dock().getByRole("button", { name: tab === "Sets" ? "Browse" : tab, exact: true }).click()
   await expect(harness.page.getByTestId("view-scroller")).toBeVisible()
 }
 

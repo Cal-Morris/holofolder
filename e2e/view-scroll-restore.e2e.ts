@@ -6,7 +6,7 @@ type Tab = "List" | "Sets" | "Wanted"
 const scrollerId = (tab: Tab) => (tab === "Wanted" ? "wanted-list" : "view-scroller")
 
 async function openTab(harness: Harness, tab: Tab) {
-  await harness.dock().getByRole("button", { name: tab, exact: true }).click()
+  await harness.dock().getByRole("button", { name: tab === "Sets" ? "Browse" : tab, exact: true }).click()
   // Wait for the new view itself, not the outgoing one that is still on screen mid-transition.
   if (tab === "List") await expect(harness.page.getByPlaceholder("Search name, card, set, or dex #")).toBeVisible()
   if (tab === "Sets") await expect(harness.page.getByRole("group", { name: "Browse perspective" })).toBeVisible()

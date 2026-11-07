@@ -27,7 +27,7 @@ test.describe("dock tab view transitions", () => {
   test("List, Wanted, Sets, Pokémon, Binder and Analytics all crossfade like a page turn", async ({ harness }) => {
     const page = harness.page
     const dock = harness.dock()
-    const listHeading = page.getByRole("heading", { name: "Manage the dex quickly" })
+    const listHeading = page.getByRole("heading", { name: "List", exact: true })
     const perspective = (name: string) => page.getByRole("group", { name: "Browse perspective" }).getByRole("button", { name, exact: true })
     const steps: Array<{ name: string; target: () => Locator; arrived: () => Promise<void> }> = [
       { name: "List", target: () => dock.getByRole("button", { name: "List", exact: true }), arrived: () => expect(listHeading).toBeVisible() },
@@ -56,7 +56,7 @@ test.describe("dock tab view transitions", () => {
     const result = await clickAndWatch(harness.dock().getByRole("button", { name: "List", exact: true }))
     expect(result).toMatchObject({ faded: false })
     expect(result.motion).toBeUndefined()
-    await expect(harness.page.getByRole("heading", { name: "Manage the dex quickly" })).toBeVisible()
+    await expect(harness.page.getByRole("heading", { name: "List", exact: true })).toBeVisible()
   })
 
   test.describe("reduced motion", () => {

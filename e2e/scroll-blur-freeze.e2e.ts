@@ -47,9 +47,9 @@ test.describe("sticky blur freezes while scrolling", () => {
 
     const bar = '[data-testid="wanted-list"] [data-scroll-blur]'
     await expect(page.locator("html")).not.toHaveAttribute("data-scrolling")
-    expect(await dockGlass(harness).evaluate((element) => getComputedStyle(element).backdropFilter)).toContain("blur(")
     expect(await backdrop(harness, bar)).toContain("blur(")
 
+    const restingDock = await dockGlass(harness).evaluate(element => getComputedStyle(element).backdropFilter)
     await keepScrolling(harness, "wanted-list")
     await expect(page.locator("html")).toHaveAttribute("data-scrolling")
     expect(await dockGlass(harness).evaluate((element) => getComputedStyle(element).backdropFilter)).toBe("none")
@@ -63,7 +63,7 @@ test.describe("sticky blur freezes while scrolling", () => {
     expect(await page.locator(bar).first().evaluate(alpha)).toBe(1)
 
     await expect(page.locator("html")).not.toHaveAttribute("data-scrolling", { timeout: 5_000 })
-    expect(await dockGlass(harness).evaluate((element) => getComputedStyle(element).backdropFilter)).toContain("blur(")
+    expect(await dockGlass(harness).evaluate((element) => getComputedStyle(element).backdropFilter)).toBe(restingDock)
     expect(await backdrop(harness, bar)).toContain("blur(")
   })
 
@@ -73,10 +73,11 @@ test.describe("sticky blur freezes while scrolling", () => {
     await expect(page.getByPlaceholder("Search name, card, set, or dex #")).toBeVisible()
     const scroller = page.getByTestId("view-scroller")
     await expect.poll(() => scroller.evaluate((element) => element.scrollHeight - element.clientHeight), { timeout: 10_000 }).toBeGreaterThan(200)
+    const restingDock = await dockGlass(harness).evaluate(element => getComputedStyle(element).backdropFilter)
     await keepScrolling(harness, "view-scroller")
     await expect(page.locator("html")).toHaveAttribute("data-scrolling")
     expect(await dockGlass(harness).evaluate((element) => getComputedStyle(element).backdropFilter)).toBe("none")
     await expect(page.locator("html")).not.toHaveAttribute("data-scrolling", { timeout: 5_000 })
-    expect(await dockGlass(harness).evaluate((element) => getComputedStyle(element).backdropFilter)).toContain("blur(")
+    expect(await dockGlass(harness).evaluate((element) => getComputedStyle(element).backdropFilter)).toBe(restingDock)
   })
 })

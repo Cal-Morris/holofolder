@@ -70,7 +70,7 @@ async function seed(harness: Harness) {
 
 async function openScanner(harness: Harness) {
   if (!(await banner(harness).isVisible())) await harness.page.getByRole("button", { name: "Show mode", exact: true }).click()
-  await banner(harness).getByRole("button", { name: "Search", exact: true }).click()
+  await harness.page.getByRole("button", { name: "Search", exact: true }).click()
   const dialog = quickDialog(harness)
   await expect(dialog).toBeVisible()
   const scan = dialog.getByRole("button", { name: "Scan a card" })

@@ -39,23 +39,12 @@ const overlays: OverlaySpec[] = [
     backdrop: true,
   },
   {
-    name: "controls sheet",
+    name: "view options",
     open: async (harness) => {
-      const opener = harness.dock().getByRole("button", { name: /open controls/i })
+      const opener = header(harness.page).getByRole("button", { name: "View", exact: true })
       await opener.click()
-      return { dialog: harness.page.getByRole("dialog", { name: /controls/i }), opener }
+      return { dialog: harness.page.getByRole("dialog", { name: "View options", exact: true }), opener }
     },
-    bottomSheet: true,
-    backdrop: true,
-  },
-  {
-    name: "filter sheet",
-    open: async (harness) => {
-      const opener = harness.dock().getByRole("button", { name: /^filter/i })
-      await opener.click()
-      return { dialog: harness.page.getByRole("dialog", { name: /binder view/i }), opener }
-    },
-    signedIn: true,
     bottomSheet: true,
     backdrop: true,
   },
@@ -73,8 +62,9 @@ const overlays: OverlaySpec[] = [
   {
     name: "sign in",
     open: async (harness) => {
-      const opener = header(harness.page).getByRole("button", { name: /sign in/i })
+      const opener = header(harness.page).getByRole("button", { name: "More", exact: true })
       await opener.click()
+      await harness.page.getByRole("menuitem", { name: "Sign in", exact: true }).click()
       return { dialog: harness.page.getByRole("dialog", { name: /welcome|sign in/i }), opener }
     },
     bottomSheet: false,
@@ -185,7 +175,7 @@ for (const overlay of overlays) {
 }
 
 const dockTabs = ["Binder", "List", "Wanted", "Browse", "Search"] as const
-const binderOverlays = overlays.filter((overlay) => ["card detail", "controls sheet", "filter sheet", "search", "all cards view"].includes(overlay.name))
+const binderOverlays = overlays.filter((overlay) => ["card detail", "view options", "search", "all cards view"].includes(overlay.name))
 
 test.describe("bottom navigation", () => {
   // Signed in so every dock control (including the collection filter) is enabled.
@@ -226,10 +216,10 @@ test.describe("bottom navigation", () => {
     await expect(harness.dialogs()).toHaveCount(1)
   })
 
-  test("opening a dock sheet replaces the card detail", async ({ harness }) => {
+  test("opening view options replaces the card detail", async ({ harness }) => {
     await harness.openCardDetail()
-    await harness.dock().getByRole("button", { name: /open controls/i }).click()
-    await expect(harness.page.getByRole("dialog", { name: /controls/i })).toBeVisible()
+    await header(harness.page).getByRole("button", { name: "View", exact: true }).dispatchEvent("click")
+    await expect(harness.page.getByRole("dialog", { name: "View options", exact: true })).toBeVisible()
     await expect(harness.dialogs()).toHaveCount(1)
   })
 

@@ -19,7 +19,7 @@ test.describe("compact bottom dock", () => {
   for (const tab of ["Binder", "List"] as const) {
     test(`every dock control is a comfortable tap target (${tab})`, async ({ harness }) => {
       await harness.dock().getByRole("button", { name: tab, exact: true }).click()
-      if (tab === "List") await expect(harness.page.getByRole("heading", { name: "Manage the dex quickly" })).toBeVisible()
+      if (tab === "List") await expect(harness.page.getByRole("heading", { name: "List", exact: true })).toBeVisible()
       const buttons = await harness.dock().getByRole("button").all()
       expect(buttons.length).toBeGreaterThanOrEqual(5)
       for (const button of buttons) {
