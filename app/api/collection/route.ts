@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { isSlotStatus, normalizeCardFinish, normalizeCardLanguage } from "@/lib/domain/cards"
 import { resolveCollectionMembership, resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import type { CollectedPokemon } from "@/lib/domain/cards"
+import { normalizeAcquisition } from "@/lib/partner-push"
+import { saveCollectionWithAcquisition, startPendingPartnerPush } from "@/lib/server/partner-push"
 import { validateWantedPeople } from "@/lib/wanted-people"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
 import { matchesCollectionFingerprint } from "@/lib/collection/sync"
@@ -103,10 +105,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid wanted assignment" }, { status: 400 })
     }
 
-    const { data, error } = await admin
-      .from("pokemon_collection")
-      .upsert(
-        {
+    const row = {
           user_id: ownerUserId,
           ...(binderId ? { binder_id: binderId } : {}),
           pokemon_id: pokemonId,
@@ -119,11 +118,23 @@ export async function POST(request: NextRequest) {
           card_finish: normalizeCardFinish(body?.cardFinish),
           wanted_cards: wantedCards,
           status,
-        },
-        { onConflict: "binder_id,pokemon_id" },
-      )
-      .select("*")
-      .single()
+        }
+    const intent = normalizeAcquisition(body?.acquisition)
+    const acquisition = intent?.actorId === user.id ? intent : undefined
+    const atomic = await saveCollectionWithAcquisition({
+      ownerId: ownerUserId, binderId, actorId: user.id,
+      actorName: String(user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Your partner').slice(0, 60),
+      pokemonId, row, expected: previousRow ?? null, acquisition,
+    })
+    if (atomic?.conflict) {
+      const { data: current } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId).eq("pokemon_id", pokemonId).maybeSingle()
+      return NextResponse.json({ error: "Collection item changed on the server", item: current ? normalizeCollectionItem(current) : null }, { status: 409 })
+    }
+    if (atomic) {
+      if (acquisition) await startPendingPartnerPush(user.id).catch(() => undefined)
+      return NextResponse.json({ item: atomic.item })
+    }
+    const { data, error } = await admin.from("pokemon_collection").upsert(row, { onConflict: "binder_id,pokemon_id" }).select("*").single()
 
     if (error) {
       console.error("[holofolder] API collection upsert failed:", error)

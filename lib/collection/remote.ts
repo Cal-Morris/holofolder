@@ -1,4 +1,5 @@
 // Remote collection writes through /app/api/collection, plus error helpers.
+import type { AcquisitionIntent } from "@/lib/partner-push"
 import { COLLECTION_FINGERPRINT_VERSION } from "@/lib/collection/sync"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
@@ -61,6 +62,7 @@ export class CollectionWriteError extends Error {
 }
 
 export interface RemoteWriteOptions {
+  acquisition?: AcquisitionIntent
   /** Fingerprint of the row this edit was based on; the server rejects the write with 409 if it changed. */
   baseFingerprint?: string
   /** The binder the edit belongs to; omitted means the owner's default binder. */
@@ -99,6 +101,7 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
     body: JSON.stringify({
       ...getCollectionRequestBody(item, options.binderId ?? null),
       fingerprintVersion: COLLECTION_FINGERPRINT_VERSION,
+      ...(options.acquisition ? { acquisition: options.acquisition } : {}),
       ...(options.baseFingerprint !== undefined ? { baseFingerprint: options.baseFingerprint } : {}),
     }),
   })

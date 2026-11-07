@@ -185,3 +185,19 @@ test("snapshots remember their binder", () => {
     assert.equal(readLocalCollectionSnapshot()?.binderId, undefined)
   })
 })
+
+// Synthetic acquisition context survives retries independently of queued row IDs.
+test('queued show acquisitions survive metadata edits and reload, and an undo clears the alert intent', () => {
+  withStorage(() => {
+    const acquired = { ...pikachu, card_id: 'synthetic-card', card_finish: 'normal' as const, card_language: 'en' as const }
+    const acquisition = { operationId: '00000000-0000-4000-8000-000000000004', actorId: '00000000-0000-4000-8000-000000000001', recipientId: '00000000-0000-4000-8000-000000000002', partnershipId: '00000000-0000-4000-8000-000000000003', printingKey: 'synthetic-card:en:normal' }
+    queuePendingCollectionOperation({ type: 'upsert', pokemonId: 25, item: acquired, base: pikachu, acquisition })
+    queuePendingCollectionOperation({ type: 'upsert', pokemonId: 25, item: { ...acquired, pokemon_name: 'Renamed' }, base: acquired })
+    const saved = readPendingCollectionOperations()[0]
+    assert.equal(saved.type, 'upsert')
+    if (saved.type === 'upsert') assert.deepEqual(saved.acquisition, acquisition)
+    queuePendingCollectionOperation({ type: 'upsert', pokemonId: 25, item: pikachu, base: acquired })
+    const undone = readPendingCollectionOperations()[0]
+    if (undone.type === 'upsert') assert.equal(undone.acquisition, undefined)
+  })
+})
