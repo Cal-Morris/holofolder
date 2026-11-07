@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { AccountIdentitySettings } from "@/components/account-identity-settings"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
 import { useEffect, useRef, useState } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
@@ -600,6 +601,8 @@ export default function SettingsModal({
               )}
             </div>
           )}
+
+          {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} />}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (
             <div className="space-y-2">
