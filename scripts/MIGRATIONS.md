@@ -21,6 +21,7 @@ When you add a migration, use the next free number (`031_…`), keep it idempote
 | `042_card_price_checks.sql` | Anonymous per-card/finish eBay asking and SaleHistory sold evidence, server-only refresh claims and 12-hour reuse. |
 | `043_binder_history.sql` | Shared per-binder recent searches/cards for the owner and partner. Atomic entry upserts, server timestamps, bounded lists, per-device retry receipts and clear generations prevent stale offline history from returning. RLS reads, authenticated-only RPC writes; no legacy device history is uploaded. Before application, the app keeps scoped history/actions locally and reports shared history unavailable |
 | `044_partner_push.sql` | Individual push subscriptions, private acquisition outbox and delivery claims, plus service-role-only atomic collection save. Apply before enabling VAPID enrollment; old code keeps working. |
+| `046_binder_value_visibility.sql` | Optional saved display preference for the binder value summary, default visible. Additive and compatible with older clients; apply before shipping the new toggle. |
 | `001_create_pokemon_collection.sql` | `pokemon_collection` table (one row per collected Pokémon per user) with RLS |
 | `002`, `003` | **Not in the repo.** These created `user_settings` (see below) and were applied before the repo was tracked |
 | `004_create_tcg_mirror_tables.sql` | TCGdex mirror: `tcg_series`, `tcg_sets`, `tcg_cards`, `tcg_card_dex_ids`, `tcg_card_external_sources`. Also read at runtime by `lib/card-db-sync.ts` (`getSchemaSqlPath`), so don't move or rename it |

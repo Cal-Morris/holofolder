@@ -307,6 +307,13 @@ export default function SettingsModal({
               {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
               <h3 className="font-semibold">Appearance</h3>
             </div>
+            {!isReadOnlyView && <div className="flex items-center justify-between gap-4 border-b border-border/40 py-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Show binder value</p>
+                <p className="text-xs text-muted-foreground">Show the total above your binder. Analytics is always available.</p>
+              </div>
+              <Switch checked={settings.showBinderValue !== false} onCheckedChange={value => onUpdateSettings({ showBinderValue: value })} aria-label="Show binder value" />
+            </div>}
             <div className="flex items-center justify-between gap-4 border-b border-border/40 py-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Dark mode</p>
