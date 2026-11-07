@@ -5,7 +5,7 @@
 // Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
 import { useBillingContext } from "@/hooks/use-billing"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Check, ExternalLink, Heart, Layers, Plus, ShoppingBag, TrendingUp, WifiOff } from "lucide-react"
+import { ArrowLeft, Check, ChevronDown, ExternalLink, Heart, Layers, Plus, ShoppingBag, TrendingUp, WifiOff } from "lucide-react"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { getCardPriceKey } from "@/hooks/use-card-prices"
 import { useShowSession } from "@/hooks/use-show-session"
@@ -17,8 +17,8 @@ import type { DisplayCurrency, PricingRegion } from "@/lib/pricing-region"
 import type { PricedCardFinish } from "@/lib/card-pricing"
 import type { CardFinish } from "@/lib/domain/cards"
 import { getPriceDataAgeDays } from "@/lib/price-freshness"
-import { getRisingMomentum } from "@/lib/price-momentum"
-import { checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
+import { getRisingMomentum, isMomentumEligibleConfidence } from "@/lib/price-momentum"
+import { buildDealPriceBands, checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
 import ShowBudget from "@/components/show-budget"
 import ShowRevisitForm from "@/components/show-revisit-form"
 import { toRecentCard } from "@/lib/recent-cards"
@@ -163,6 +163,8 @@ export default function QuickCardCheck({
   const dataAgeDays = getPriceDataAgeDays(usesSoldGuide ? soldEvidence?.check.checkedAt : price?.updatedAt ?? snapshot?.updatedAt, now)
   const isRising = !usesSoldGuide && Boolean(getRisingMomentum(snapshot, now))
   const cacheAge = formatPriceAge(snapshot?.fetchedAt, now)
+  const referenceUpdatedAt = usesSoldGuide ? soldEvidence?.check.checkedAt : price?.updatedAt ?? snapshot?.updatedAt
+  const referenceAge = formatPriceAge(referenceUpdatedAt ? Date.parse(referenceUpdatedAt) : undefined, now)
 
   const currentSavedDeal = revisit?.cards.find(entry => revisitKey(entry.card) === revisitKey(toRecentCard(card, pokemon, undefined, finish)))
   const initialOffer = currentSavedDeal ?? (savedDeal && (savedDeal.card.finish ?? "normal") === finish ? savedDeal : undefined)
@@ -206,11 +208,14 @@ export default function QuickCardCheck({
   }
 
   const key = bundleKey(card, finish)
+  const priceBands = market ? buildDealPriceBands(market.amount, thresholds) : null
+  const canGuide = usesSoldGuide || isMomentumEligibleConfidence(price?.confidence)
   const verdictEmptyText = market
-    ? `Type the asking price. Pay up to ${money(market.amount * (1 + thresholds.fairPct / 100))}.`
+    ? canGuide ? `Type the asking price. Pay up to ${money(priceBands!.fair.high)}.` : "Thin price data. Enter an asking price for a rough comparison."
     : isOnline
     ? "No market price for this card yet, so no verdict."
     : "This card's price isn't saved on this device, and prices can't be fetched offline. Check again when you have signal."
+  const soldMedian = usesSoldGuide ? null : toDisplay(soldGuide?.median)
   const inBundle = isInBundle(key)
   const thumb = card.image ? toCardImageSrc(card.image.replace(/\/high\.webp$/, "/low.webp")) : null
   const statusLabel = state.owned ? "Owned" : state.wanted ? "Wanted" : "Not in binder"
@@ -222,17 +227,8 @@ export default function QuickCardCheck({
   return (
     <section aria-label={`Check ${card.name}`} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="quick-card-check">
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-3 pb-3 pt-2">
-        <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-sm" aria-label="Acquisition destination">
-          <p className="font-semibold">Adds to {destinationName}</p>
-          {state.ownedElsewhere?.length ? <p>Already owned in {state.ownedElsewhere.join(", ")}</p> : null}
-          {state.otherBindersIncomplete ? <p className="text-xs text-muted-foreground">Other binders haven&apos;t all loaded. Duplicate check is incomplete.</p> : !isOnline ? <p className="text-xs text-muted-foreground">Other binders use saved data and may have changed.</p> : null}
-          {state.replacing && <label className="mt-2 flex min-h-10 items-center gap-2">
-            <input type="checkbox" checked={!needsConfirmation} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} />
-            <span>Replace {state.replacing} in {destinationName}</span>
-          </label>}
-        </div>
         <div className="flex items-start gap-3">
-          <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted/70">
+          <button type="button" onClick={onBack} aria-label="Back to results" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/70">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <span className="trading-card relative w-14 shrink-0 overflow-hidden bg-muted/50">
@@ -240,7 +236,7 @@ export default function QuickCardCheck({
             {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />}
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-lg font-bold leading-tight">{card.name}</h3>
+            <h3 className="text-lg font-bold leading-tight">{card.name}</h3>
             <p className="truncate text-xs text-muted-foreground">
               {card.set.name} · {formatCardNumber(card)}{language !== "en" ? ` · ${language.toUpperCase()}` : ""}
             </p>
@@ -251,11 +247,21 @@ export default function QuickCardCheck({
                   <TrendingUp className="h-3 w-3" aria-hidden />Rising
                 </span>
               )}
-              <button type="button" onClick={() => onOpenDetails(finish)} className="flex min-h-12 items-center gap-2 rounded-xl bg-primary/10 px-3 text-sm font-semibold text-primary">
+              <button type="button" onClick={() => onOpenDetails(finish)} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-primary">
                 More details<ExternalLink className="h-3 w-3" aria-hidden />
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground" aria-label="Acquisition destination">
+          <p className="font-semibold">Adds to {destinationName}</p>
+          {state.ownedElsewhere?.length ? <p>Already owned in {state.ownedElsewhere.join(", ")}</p> : null}
+          {state.otherBindersIncomplete ? <p className="text-xs text-muted-foreground">Other binders haven&apos;t all loaded. Duplicate check is incomplete.</p> : !isOnline ? <p className="text-xs text-muted-foreground">Other binders use saved data and may have changed.</p> : null}
+          {state.replacing && <label className="mt-2 flex min-h-10 items-center gap-2">
+            <input type="checkbox" checked={!needsConfirmation} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} />
+            <span>Replace {state.replacing} in {destinationName}</span>
+          </label>}
         </div>
 
         {finishChoices.length > 0 && (
@@ -275,43 +281,52 @@ export default function QuickCardCheck({
           </div>
         )}
 
-        <div className="rounded-2xl border border-border/60 bg-card px-3 py-2" data-testid="quick-card-market">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {usesSoldGuide ? "Sold reference" : "Market"}{finishChoices.length > 0 ? ` · ${formatCardFinishLabel(finish)}` : ""}
-            </span>
-            <span className="text-2xl font-black tabular-nums" data-testid="quick-card-market-price">
-              {market ? money(market.amount) : isLoading && isOnline ? "…" : isOnline ? "No price" : "Not available offline"}
-            </span>
+        <div className="space-y-2" data-testid="quick-card-market">
+          <div className={`grid gap-2 ${soldMedian ? "grid-cols-3" : "grid-cols-2"}`}>
+            <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-3">
+              <p className="text-xs text-muted-foreground">{usesSoldGuide ? "Sold reference" : "Market"}</p>
+              <p className="mt-1 break-words text-xl font-bold tabular-nums" data-testid="quick-card-market-price">
+                {market ? money(market.amount) : isLoading && isOnline ? "…" : isOnline ? "No price" : "Not available offline"}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{formatCardFinishLabel(finish)}</p>
+            </div>
+            <div className="min-w-0 rounded-2xl border border-border/60 bg-muted/30 p-3">
+              <p className="text-xs text-muted-foreground">Pay up to</p>
+              <p className="mt-1 break-words text-xl font-bold tabular-nums" data-testid="quick-pay-up-to">{canGuide && priceBands ? money(priceBands.fair.high) : "Unknown"}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{canGuide && priceBands ? "Fair price ceiling" : market ? "Thin price data" : "No price guide"}</p>
+            </div>
+            {soldMedian && <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-3">
+              <p className="text-xs text-muted-foreground">Sold median</p>
+              <p className="mt-1 break-words text-xl font-bold tabular-nums">{money(soldMedian.amount)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{soldGuide?.count} sales · Sample only</p>
+            </div>}
           </div>
           {usesSoldGuide ? <p className="text-xs text-muted-foreground">Recent sold median · {soldGuide.count} sales. Catalogue: {toDisplay(price?.gbpAmount) ? money(toDisplay(price?.gbpAmount)!.amount) : "unavailable"}.</p> : null}
-          {(low || high) && (
-            <p className="text-right text-xs tabular-nums text-muted-foreground">
-              {low ? `Low ${money(low.amount)}` : ""}{low && high ? " · " : ""}{high ? `High ${money(high.amount)}` : ""}
-            </p>
-          )}
-          {(cacheAge || !isOnline) && (
-            <p className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground" data-testid="quick-card-cache-age">
-              {!isOnline && <WifiOff className="h-3 w-3" aria-hidden />}
-              {cacheAge ? `${isOnline ? "Updated" : "Offline · saved price from"} ${cacheAge}` : "Offline · no saved price on this device"}
-            </p>
-          )}
+          {(low || high) && <p className="text-xs tabular-nums text-muted-foreground">
+            {low ? `Low ${money(low.amount)}` : ""}{low && high ? " · " : ""}{high ? `High ${money(high.amount)}` : ""}
+          </p>}
+          {(cacheAge || !isOnline) && <p className="flex items-center gap-1 text-[11px] text-muted-foreground" data-testid="quick-card-cache-age">
+            {!isOnline && <WifiOff className="h-3 w-3" aria-hidden />}
+            {cacheAge ? `${isOnline ? "Saved" : "Offline · saved price from"} ${cacheAge}` : "Offline · no saved price on this device"}
+          </p>}
+          <p className="text-[11px] text-muted-foreground">{usesSoldGuide ? "Sold check" : "Provider quote"}: {referenceAge ?? "date unknown"}</p>
         </div>
 
-        <section aria-label="Catalog price sources" className="min-w-0 rounded-2xl border border-border/60 bg-card px-3 py-2">
-          <h4 className="text-sm font-semibold">Catalog price sources · {formatCardFinishLabel(finish)}</h4>
-          <p className="text-xs text-muted-foreground">Catalog quotes and averages, not sold records. Values in GBP, converted from the original source currency shown.</p>
-          <CardPriceEvidence
-            price={finishPrices[finish as PricedCardFinish]}
-            emptyMessage="No catalog evidence saved for this finish."
-          />
-        </section>
+        <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
+        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
+
+        <details className="group min-w-0 rounded-2xl border border-border/60 bg-card px-3">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            Catalog price sources<ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <section aria-label="Catalog price sources" className="min-w-0 pb-3">
+            <p className="text-xs text-muted-foreground">{formatCardFinishLabel(finish)} · Catalog quotes and averages, not sold records. Values in GBP, converted from the original source currency shown.</p>
+            <CardPriceEvidence price={finishPrices[finish as PricedCardFinish]} emptyMessage="No catalog evidence saved for this finish." />
+          </section>
+        </details>
 
         {currentSavedDeal && currentSavedDeal.currency !== moneyCurrency && currentSavedDeal.askingPrice !== null && <p className="text-sm">Saved asking price: {formatMoney(currentSavedDeal.askingPrice, currentSavedDeal.currency)}. Enter a new price to use {moneyCurrency}.</p>}
         {revisit && <ShowRevisitForm key={`revisit:${comparisonKey}`} card={toRecentCard(card, pokemon, undefined, finish)} entry={currentSavedDeal} askingPrice={askingPrice} currency={moneyCurrency} onSave={entry => revisit.save(editedInput === null && !askingPrice && currentSavedDeal ? { ...entry, askingPrice: currentSavedDeal.askingPrice, currency: currentSavedDeal.currency } : entry)} error={revisit.error} />}
-        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
-
-        <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
       </div>
 
       {/* Short screens need room to scroll prices as well as reach the footer controls. */}
