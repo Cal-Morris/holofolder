@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const illustrators = await getMirroredIllustratorDirectory()
     return NextResponse.json({ illustrators }, { headers: PUBLIC_JSON_CACHE_HEADERS })
   } catch (error) {
-    console.error("[binderdex] Illustrator lookup failed:", error)
+    console.error("[holofolder] Illustrator lookup failed:", error)
     return NextResponse.json({ error: "Illustrator data is unavailable right now." }, { status: 500 })
   }
 }

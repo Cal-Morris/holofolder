@@ -257,7 +257,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
           }
           return Array.isArray(payload?.prices) ? payload.prices : []
         }).catch(error => {
-          console.error("[binderdex] Failed to fetch card price batch:", error)
+          console.error("[holofolder] Failed to fetch card price batch:", error)
           return []
         }))
     })
@@ -287,7 +287,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
         setPricesByCardId((current) => mergeCardPriceState(current, updates))
       })
       .catch((error) => {
-        console.error("[binderdex] Failed to fetch card prices:", error)
+        console.error("[holofolder] Failed to fetch card prices:", error)
       })
       .finally(() => {
         if (!cancelled) {

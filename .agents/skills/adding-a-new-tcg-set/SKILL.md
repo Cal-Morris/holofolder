@@ -1,6 +1,6 @@
 ---
 name: adding-a-new-tcg-set
-description: Bring a newly released Pokémon TCG set into binderdex by syncing its TCGdex card data into Postgres and backfilling its card images into the R2 mirror. Use when a set is missing from the Sets view, search or card selector.
+description: Bring a newly released Pokémon TCG set into holofolder by syncing its TCGdex card data into Postgres and backfilling its card images into the R2 mirror. Use when a set is missing from the Sets view, search or card selector.
 ---
 
 # Adding a new TCG set
@@ -13,7 +13,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
 2. **Dry run** (no writes):
    ```sh
    curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" \
-     "https://binder.cal.gg/api/admin/sync-card-db?set=<id>&dryRun=1"
+     "https://holofolder.com/api/admin/sync-card-db?set=<id>&dryRun=1"
    ```
    Check the card count and the dex links in the response.
 3. **Sync it.** Drop `dryRun`, or omit `?set=` to sync everything missing or incomplete, newest first. Repeat the call until the response has `"done": true`. Each call handles `maxSets` sets (default 4, max 12) and returns `remainingSetIds`.
@@ -24,7 +24,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
    - API, resumable:
      ```sh
      curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" \
-       "https://binder.cal.gg/api/admin/mirror-card-images?set=<id>"
+       "https://holofolder.com/api/admin/mirror-card-images?set=<id>"
      ```
      Then call it again with `?cursor=<nextCursor>` until `"done": true`.
    - Local alternative that costs no deploy: `bun run mirror-card-images --set <id>`. Flags: `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb`. It retries 429s and 5xx with backoff, and stops before the budgets.
@@ -37,7 +37,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
    - The set shows in the Sets view and in search.
    - This should return `x-card-image-source: r2` (the first fetch of an un-mirrored image says `tcgdex`):
      ```sh
-     curl -sI "https://binder.cal.gg/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F050%2Fhigh.webp"
+     curl -sI "https://holofolder.com/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F050%2Fhigh.webp"
      ```
 
 ## When code changes are needed

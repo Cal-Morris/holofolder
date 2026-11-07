@@ -1,3 +1,4 @@
+// Holo Folder keeps these cache and message identifiers compatible with existing installs.
 const CACHE_VERSION = "binderdex-v4"
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`
 const DATA_CACHE = `${CACHE_VERSION}-data`

@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const result = await loadEbayListingIndicator(cardId, finish === "reverse_holo" ? "reverse" : finish === "normal" || finish === "holo" ? finish : null)
     return Response.json(result ?? { error: "This exact printing is not supported by the listing lookup yet." }, { status: result ? 200 : 422, headers })
   } catch (error) {
-    console.warn("[binderdex] eBay listings unavailable:", error instanceof Error ? error.message : "Unknown error")
+    console.warn("[holofolder] eBay listings unavailable:", error instanceof Error ? error.message : "Unknown error")
     return Response.json({ error: "eBay listings are temporarily unavailable. Try again later." }, { status: 503, headers })
   }
 }

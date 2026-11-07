@@ -93,10 +93,10 @@ function normalizeCardPriceWorkflowInput(input: string | null | CardPriceWorkflo
 }
 
 async function refreshTrackedCardPrices(ownerUserId: string | null): Promise<CardPriceWorkflowResult> {
-  console.log(`[binderdex] Starting card price refresh${ownerUserId ? ` for owner ${ownerUserId}` : " for all tracked cards"}`)
+  console.log(`[holofolder] Starting card price refresh${ownerUserId ? ` for owner ${ownerUserId}` : " for all tracked cards"}`)
   const lookups = await loadTrackedCardPriceLookups(ownerUserId)
   const batches = chunkCardPriceLookups(lookups, PRICE_REFRESH_BATCH_SIZE)
-  console.log(`[binderdex] Refreshing ${lookups.length} card price lookups in ${batches.length} batches`)
+  console.log(`[holofolder] Refreshing ${lookups.length} card price lookups in ${batches.length} batches`)
   let refreshed = 0
   let cached = 0
   let unpriced = 0
@@ -109,7 +109,7 @@ async function refreshTrackedCardPrices(ownerUserId: string | null): Promise<Car
   }
 
   console.log(
-    `[binderdex] Finished card price refresh: ${refreshed} refreshed, ${cached} cached, ${unpriced} unpriced`,
+    `[holofolder] Finished card price refresh: ${refreshed} refreshed, ${cached} cached, ${unpriced} unpriced`,
   )
 
   return {
@@ -124,7 +124,7 @@ async function refreshTrackedCardPrices(ownerUserId: string | null): Promise<Car
 async function loadTrackedCardPriceLookups(ownerUserId: string | null): Promise<CardPriceLookup[]> {
   "use step"
 
-  console.log(`[binderdex] Loading tracked cards${ownerUserId ? ` for owner ${ownerUserId}` : ""}`)
+  console.log(`[holofolder] Loading tracked cards${ownerUserId ? ` for owner ${ownerUserId}` : ""}`)
   const admin = createAdminClient()
   // Pages past PostgREST's 1000-row cap; the all-users refresh reads every collection row.
   const { data, error } = await fetchAllRows<CollectionPriceRow>((from, to) => {
@@ -173,10 +173,10 @@ async function loadTrackedCardPriceLookups(ownerUserId: string | null): Promise<
 async function refreshCardPriceBatch(lookups: CardPriceLookup[]): Promise<CardPriceBatchCounts> {
   "use step"
 
-  console.log(`[binderdex] Refreshing card price batch with ${lookups.length} lookups`)
+  console.log(`[holofolder] Refreshing card price batch with ${lookups.length} lookups`)
   const { refreshed, cached, unpriced } = await refreshCardPriceLookups(lookups, { force: true })
   console.log(
-    `[binderdex] Finished card price batch: ${refreshed} refreshed, ${cached} cached, ${unpriced} unpriced`,
+    `[holofolder] Finished card price batch: ${refreshed} refreshed, ${cached} cached, ${unpriced} unpriced`,
   )
   return { refreshed, cached, unpriced }
 }

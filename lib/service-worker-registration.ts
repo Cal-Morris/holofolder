@@ -21,7 +21,7 @@ interface RegistrationEnvironment {
 
 function register(env: RegistrationEnvironment) {
   env.navigator.serviceWorker?.register(SERVICE_WORKER_URL).catch((error: unknown) => {
-    console.error("[binderdex] Failed to register service worker:", error)
+    console.error("[holofolder] Failed to register service worker:", error)
   })
 }
 

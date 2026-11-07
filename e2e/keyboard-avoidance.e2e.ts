@@ -143,9 +143,9 @@ test.describe("on-screen keyboard", () => {
     await expect(input).toHaveValue("7.")
     await input.blur()
     if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) {
-      await page.screenshot({ path: "/tmp/binderdex-native-input-dark.png" })
+      await page.screenshot({ path: "/tmp/holofolder-native-input-dark.png" })
       await page.evaluate(() => document.documentElement.classList.remove("dark"))
-      await page.screenshot({ path: "/tmp/binderdex-native-input-light.png" })
+      await page.screenshot({ path: "/tmp/holofolder-native-input-light.png" })
       await page.evaluate(() => document.documentElement.classList.add("dark"))
     }
   })

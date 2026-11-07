@@ -84,7 +84,7 @@ test.describe("multi-set matching", () => {
     const page = harness.page
     await page.getByRole("button", { name: "More", exact: true }).click()
     await page.getByRole("menuitem", { name: "Light mode" }).click()
-    const filters = page.getByRole("group", { name: "Filter by BinderDex state" })
+    const filters = page.getByRole("group", { name: "Filter by Holo Folder state" })
     await filters.getByRole("button", { name: /^Missing from binder/ }).click()
     await expect(page.getByRole("button", { name: "Select mareep", exact: true })).toHaveCount(0)
     await expect(page.getByRole("button", { name: "Select flaaffy", exact: true })).toBeVisible()

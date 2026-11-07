@@ -9,7 +9,7 @@ function preferManagedVercelWorkflowWorld() {
   if (!process.env.WORKFLOW_TARGET_WORLD || VERCEL_WORKFLOW_WORLDS.has(process.env.WORKFLOW_TARGET_WORLD)) return
 
   console.warn(
-    `[binderdex] Ignoring WORKFLOW_TARGET_WORLD=${process.env.WORKFLOW_TARGET_WORLD} on Vercel; using managed Vercel Workflow instead.`,
+    `[holofolder] Ignoring WORKFLOW_TARGET_WORLD=${process.env.WORKFLOW_TARGET_WORLD} on Vercel; using managed Vercel Workflow instead.`,
   )
   process.env.WORKFLOW_TARGET_WORLD = "vercel"
 }
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     // sleeps between passes stored far more workflow data than several short runs.
     return await startCardPriceRefresh({ ownerUserId: null, repeatCount: 1 })
   } catch (error) {
-    console.error("[binderdex] Failed to start scheduled card price refresh workflow:", error)
+    console.error("[holofolder] Failed to start scheduled card price refresh workflow:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to start scheduled price refresh." },
       { status: 500 },
@@ -93,7 +93,7 @@ export async function POST() {
     const ownerUserId = await resolveCollectionOwnerUserId(user.id)
     return await startCardPriceRefresh({ ownerUserId })
   } catch (error) {
-    console.error("[binderdex] Failed to start card price refresh workflow:", error)
+    console.error("[holofolder] Failed to start card price refresh workflow:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to start price refresh." },
       { status: 500 },

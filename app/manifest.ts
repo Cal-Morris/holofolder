@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "BinderDex",
-    short_name: "BinderDex",
+    name: "Holo Folder",
+    short_name: "Holo Folder",
     description: "Pokemon binder tracking with offline-friendly collection lookup, card matching, and app-style navigation.",
     start_url: "/",
     scope: "/",

@@ -1,6 +1,6 @@
 ---
 name: pricing-signal-changes
-description: Change binderdex price providers, normalisation, confidence rules, buy signals, or the Rising and Breakout momentum scoring without inventing data or showing signals on weak evidence. Use for any change under lib/card-pricing.ts, lib/price-*.ts, lib/breakout-cards.ts or the price UI.
+description: Change holofolder price providers, normalisation, confidence rules, buy signals, or the Rising and Breakout momentum scoring without inventing data or showing signals on weak evidence. Use for any change under lib/card-pricing.ts, lib/price-*.ts, lib/breakout-cards.ts or the price UI.
 ---
 
 # Pricing signal changes

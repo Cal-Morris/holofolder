@@ -336,7 +336,7 @@ export default function SettingsModal({
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Lets iPhone tilt data drive the shine when BinderDex is saved to the Home Screen.
+                      Lets iPhone tilt data drive the shine when Holo Folder is saved to the Home Screen.
                     </p>
                   </div>
                 </div>
@@ -471,7 +471,7 @@ export default function SettingsModal({
                 <div>
                   <p className="text-sm font-medium">{isInstalledApp ? "Installed app shell" : "Browser mode"}</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Install BinderDex to keep the shell, card images, and recent lookups cached for poor signal at shows.
+                    Install Holo Folder to keep the shell, card images, and recent lookups cached for poor signal at shows.
                   </p>
                 </div>
                 <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
@@ -496,7 +496,7 @@ export default function SettingsModal({
                 onClick={onInstallApp}
               >
                 <Download className="w-4 h-4" />
-                {canInstallApp ? "Install BinderDex" : "Use Add to Home Screen"}
+                {canInstallApp ? "Install Holo Folder" : "Use Add to Home Screen"}
               </Button>
             )}
             {!canInstallApp && !isInstalledApp && (
@@ -676,7 +676,7 @@ export default function SettingsModal({
           {effectiveActiveTab === "account" && (
           <div className="pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground text-center">
-              BinderDex helps you organize your Pokemon card collection by National Dex number.
+              Holo Folder helps you organize your Pokemon card collection by National Dex number.
             </p>
           </div>
           )}

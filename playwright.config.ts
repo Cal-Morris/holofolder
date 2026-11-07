@@ -59,7 +59,7 @@ export default defineConfig({
         timeout: 300_000,
         reuseExistingServer: !process.env.CI,
         env: {
-          BINDERDEX_E2E: "1",
+          HOLOFOLDER_E2E: "1",
           NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54399",
           NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "e2e-anon-key",
         },

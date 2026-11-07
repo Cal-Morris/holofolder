@@ -1,6 +1,6 @@
 ---
 name: adding-an-overlay-or-sheet
-description: Build a modal, bottom sheet, dialog or popover in binderdex using the shared overlay primitive (useOverlay and useSwipeToDismiss) so it can be dismissed every way, doesn't stack, and works on phones and in the standalone PWA. Use for any new overlay UI.
+description: Build a modal, bottom sheet, dialog or popover in Holo Folder using the shared overlay primitive (useOverlay and useSwipeToDismiss) so it can be dismissed every way, doesn't stack, and works on phones and in the standalone PWA. Use for any new overlay UI.
 ---
 
 # Adding an overlay or sheet

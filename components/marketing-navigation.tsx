@@ -71,10 +71,10 @@ export function MarketingNavigation() {
       {open ? (
         <div className={styles.overlay}>
           <div data-overlay-backdrop className={styles.backdrop} onClick={close} />
-          <div id="marketing-features" ref={panel} role="dialog" aria-modal="true" aria-label="Explore BinderDex" className={styles.panel}>
+          <div id="marketing-features" ref={panel} role="dialog" aria-modal="true" aria-label="Explore Holo Folder" className={styles.panel}>
             <div className={styles.panelHeader} {...swipe}>
               <span className={styles.grabber} aria-hidden="true" />
-              <h2>Explore BinderDex</h2>
+              <h2>Explore Holo Folder</h2>
               <button type="button" aria-label="Close navigation" className={styles.close} onClick={close}><X size={18} /></button>
             </div>
             <div className={styles.links}>

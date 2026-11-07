@@ -47,7 +47,7 @@ function respond(binders: Array<Binder & { slotCount: number }>, extra: Record<s
 }
 
 function failure(label: string, error: unknown) {
-  console.error(`[binderdex] Failed to ${label}:`, error)
+  console.error(`[holofolder] Failed to ${label}:`, error)
   return NextResponse.json({ error: `Failed to ${label}` }, { status: 500 })
 }
 

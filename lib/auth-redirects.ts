@@ -1,5 +1,5 @@
 const PASSWORD_RECOVERY_PATH = "/auth/login?mode=recovery"
-const PRODUCTION_SITE_URL = "https://binder.cal.gg"
+const PRODUCTION_SITE_URL = "https://holofolder.com"
 
 function normalizeBaseUrl(value?: string | null) {
   if (!value) return null

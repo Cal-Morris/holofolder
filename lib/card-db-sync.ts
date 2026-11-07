@@ -231,12 +231,12 @@ function getProjectRoot(projectRoot?: string) {
 }
 
 function getRepoDir() {
-  const configuredRepoDir = process.env.BINDERDEX_TCG_REPO_DIR
+  const configuredRepoDir = process.env.HOLOFOLDER_TCG_REPO_DIR || process.env.BINDERDEX_TCG_REPO_DIR
   if (configuredRepoDir) {
     return configuredRepoDir
   }
 
-  return path.join(os.homedir(), ".cache", "binderdex", "tcgdex-cards-database")
+  return path.join(os.homedir(), ".cache", "holofolder", "tcgdex-cards-database")
 }
 
 function getDataDir() {
@@ -632,7 +632,7 @@ async function fetchJson<T>(url: string, logger?: (message: string) => void): Pr
     const response = await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "binderdex-card-db-sync",
+        "User-Agent": "holofolder-card-db-sync",
       },
     })
 

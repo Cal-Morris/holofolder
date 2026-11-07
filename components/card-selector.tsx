@@ -422,7 +422,7 @@ export default function CardSelector({
           .then(({ recognizeCardTextSignalsFromImage }) => recognizeCardTextSignalsFromImage(proxyUrl, { exhaustive: true }))
           .then((imageSignals) => mergeCardTextSignals([metadataSignals, imageSignals]) ?? metadataSignals)
           .catch((error) => {
-            console.info("[binderdex] Skipping candidate card OCR scan:", error)
+            console.info("[holofolder] Skipping candidate card OCR scan:", error)
             return metadataSignals
           })
       : Promise.resolve(metadataSignals)
@@ -543,7 +543,7 @@ export default function CardSelector({
         scanTextSignalPromises.push(import("@/lib/card-scan-ocr")
           .then(({ recognizeCardTextSignalsFromImage }) => recognizeCardTextSignalsFromImage(previewUrl, { exhaustive: true }))
           .catch((error) => {
-            console.info("[binderdex] Skipping card OCR scan:", error)
+            console.info("[holofolder] Skipping card OCR scan:", error)
             return null
           }))
       }

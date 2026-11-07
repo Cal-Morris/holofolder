@@ -63,7 +63,7 @@ The keyboard checks emulate a 300 px visual-viewport reduction while the All Car
 - `bun run test`: 879 passed, 0 failed.
 - `bun run typecheck`: passed.
 - `bun run lint`: passed, 65 existing warnings, no increase.
-- `bun run build`: passed with `BINDERDEX_E2E=1` and dummy local Supabase configuration.
+- `bun run build`: passed with `HOLOFOLDER_E2E=1` and dummy local Supabase configuration.
 - `E2E_BASE_URL=http://localhost:3317 bunx playwright test --config=playwright.modal-scroll.config.ts --workers=4`: 152 passed, 8 deliberate touch skips, 2.3 minutes.
 - Separate controlled old-CSS/new-CSS mid-grid proof: 3/3 passed.
 

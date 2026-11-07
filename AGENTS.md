@@ -1,10 +1,10 @@
 # AGENTS.md
 
-This is the canonical guide for AI coding agents (and humans) working on **binderdex**. `CLAUDE.md`, `.cursor/rules/` and `.github/copilot-instructions.md` all point here. Task-specific playbooks are in [`.agents/skills/`](.agents/skills/) (one folder per skill, each with a `SKILL.md`).
+This is the canonical guide for AI coding agents (and humans) working on **Holo Folder**. `CLAUDE.md`, `.cursor/rules/` and `.github/copilot-instructions.md` all point here. Task-specific playbooks are in [`.agents/skills/`](.agents/skills/) (one folder per skill, each with a `SKILL.md`).
 
 ## What this is
 
-binderdex is a mobile-first Pokémon binder tracker, live at https://binder.cal.gg. It covers:
+Holo Folder is a mobile-first Pokémon binder tracker, live at https://holofolder.com. It covers:
 - National Dex binder pages
 - collection and wanted lists
 - card matching and camera scanning
@@ -24,7 +24,7 @@ Stack:
 
 | Path | What lives there |
 |---|---|
-| `app/` | Routes and API handlers. `page.tsx` is the binder (server bootstrap via `lib/server/`), plus `home/`, `auth/`, `share/` (read-only binders) and `app-shell/` (static offline shell). `e2e-harness/` is served only when `BINDERDEX_E2E=1`. |
+| `app/` | Routes and API handlers. `page.tsx` is the binder (server bootstrap via `lib/server/`), plus `home/`, `auth/`, `share/` (read-only binders) and `app-shell/` (static offline shell). `e2e-harness/` is served only when `HOLOFOLDER_E2E=1`. |
 | `app/api/` | `collection`, `binders` (create, rename, reorder, delete), `settings`, `binder-share`, `card-prices` (+ `refresh` for the cron and on-demand workflow), `tcgdex-cache`, `tcg-set-slots`, `tcg-card-search`, `card-image-proxy`, and `admin/{sync-card-db,mirror-card-images}`. |
 | `proxy.ts` | Next 16 request proxy (formerly middleware). It refreshes the Supabase session. |
 | `components/` | `binder-app.tsx` is the main client app (binder, list, wanted and sets views, dock, card detail sheet). Modals and secondary views (`settings-modal`, `auth-modal`, `partner-modal`, `card-selector`, `pokemon-cards-browser`, `dex-list-view`, `set-population-view`, `quick-mode`) are `next/dynamic` imports. `quick-mode.tsx` is the one-handed Quick mode palette (hold the dock's Search, Ctrl/Cmd+K, or the Search sheet's button); its destinations and recent searches live in `lib/quick-mode.ts`. Show mode (card shows: header "Show" pill on every view, binder prompt card, amber on-banner with Exit, screen Wake Lock, dock Search opens Quick mode) is a device setting in `lib/show-mode.ts` and `hooks/use-show-mode.ts`. In Show mode, tapping a Quick mode card opens the deal checker (`quick-card-check.tsx`, keypad and verdict in `deal-keypad.tsx`, bundles in `quick-bundle.tsx`): verdict rules and thresholds are pure in `lib/deal-check.ts` (thresholds editable in Settings via `deal-settings.tsx`); the per-show purchase tally lives in `lib/show-session.ts` + `hooks/use-show-session.ts` and syncs to the collection owner's account (`public.show_purchases`, `scripts/041_show_purchases.sql`, owner-or-partner RLS like binders) via `lib/show-purchase-sync.ts` + `hooks/use-show-purchase-sync.ts`: purchases and undos are queued on the device, pushed when online (idempotent on `owner_user_id,client_id`), then the current show's purchases are pulled back (Settings → Clear only resets this device's tally). Show mode's Quick mode opens on the finder: the "Hunting" list (`show-hunt.tsx`: want list grouped by Pokémon, sort, era/set/illustrator filters, pay-up-to per card) and, from a Pokémon result, `show-pokemon-cards.tsx` (wanted first, owned dimmed last); grouping, eras (by set-id prefix) and order are pure in `lib/show-hunt.ts`, prices via `hooks/use-display-card-prices.ts`. Both are bundled into `quick-mode` (not split) so they work offline. Searching in Show mode finds any card (server mirror search by name, set, number or illustrator; offline, the cards cached on the device), wanted first and labelled Wanted / Owned / Not in binder; the want list's search offers "Check price of any card", which opens Quick mode as a lookup-only "Price check" (`lookupOnly`, `initialQuery`) with the same deal checker. Both have a Scan button (`quick-card-scanner.tsx`, bundled into `quick-mode`): the camera (`hooks/use-camera-stream.ts`, shared with `card-selector`) reads the name and collector number on the device (`lib/card-scan-ocr.ts`: native TextDetector, else tesseract.js, which downloads from jsDelivr on first use and is warmed when the scanner opens online), `lib/card-scan-identify.ts` turns the text into a search and only opens the deal checker on one clear match; otherwise the read text is typed into the search with a notice. Offline it matches only cards cached on the device. |
@@ -97,7 +97,7 @@ bun run dev                  # http://localhost:3000
 | `bun run typecheck` | `tsc --noEmit`; must be clean. `next build` also type-checks. |
 | `bun run lint` | ESLint with **`--max-warnings=68`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
 | `bun run build` | Production build |
-| `bun run test:e2e` | Playwright: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `BINDERDEX_E2E=1` |
+| `bun run test:e2e` | Playwright: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `HOLOFOLDER_E2E=1` |
 | `bun run test:e2e:install` | Installs Chromium for Playwright (or set `CHROME_PATH`) |
 | `bun run sync-card-db [--dry-run]` | Full TCGdex → Postgres sync (needs `POSTGRES_URL_NON_POOLING` or `DATABASE_URL`) |
 | `bun run mirror-card-images` | Local, resumable R2 image backfill. Flags: `--set`, `--from`, `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb` |
@@ -141,6 +141,8 @@ See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKI
 See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md).
 
 ## Principles
+
+- Product branding is **Holo Folder** (`holofolder.com`), package and tooling names use `holofolder` / `HOLOFOLDER`. Existing `binderdex` storage keys and service-worker protocols are compatibility identifiers, keep them stable (see `docs/holo-folder-rebrand.md`). Repository, local folder and Vercel project renames are managed separately by Cal.
 
 - **Small, focused PRs and commits, one concern each.** Use a separate short-lived branch off the latest `main` for each independent feature or fix wherever possible. Split unrelated work before committing; keep dependent changes together when needed for a working PR. No drive-by refactors. Say what was verified and what wasn't.
 - **Merge on a green Vercel check or the verified quota exception above.** Real build failures and other unmet checks or reviews still block merging. Admin merge is allowed only when needed to bypass the quota-only Vercel check after every other requirement passes. Never skip hooks.

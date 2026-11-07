@@ -6,8 +6,7 @@
 .header, .hero, .collection, .features, .studio, .footer { max-width: 1240px; margin-inline: auto; }
 .header { min-height: 94px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); }
 .brand { display: inline-flex; align-items: center; gap: 11px; font-weight: 750; font-size: 21px; letter-spacing: -.7px; text-decoration: none; }
-.brandMark { display: grid; grid-template-columns: repeat(3, 5px); gap: 3px; }
-.brandMark i { width: 5px; height: 7px; border: 1px solid currentColor; border-radius: 1px; }
+.brandMark { width: 24px; height: 24px; flex-shrink: 0; color: #a5b4fc; }
 .navigation { display: flex; align-items: center; gap: 30px; font-size: 14px; }
 .navigation a { display: flex; align-items: center; gap: 5px; min-height: 36px; }
 .smallButton { border: 1px solid var(--ink); border-radius: 6px; min-height: 40px; padding: 0 17px; font-size: 14px; }

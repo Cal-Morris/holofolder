@@ -7,7 +7,7 @@ test("buildBinderSharePath builds the read-only share route", () => {
 })
 
 test("buildBinderShareUrl joins the origin and share path", () => {
-  assert.equal(buildBinderShareUrl("https://binder.cal.gg", "abc123"), "https://binder.cal.gg/share/abc123")
-  assert.equal(buildBinderShareUrl("https://binder.cal.gg/", "abc123"), "https://binder.cal.gg/share/abc123")
+  assert.equal(buildBinderShareUrl("https://holofolder.com", "abc123"), "https://holofolder.com/share/abc123")
+  assert.equal(buildBinderShareUrl("https://holofolder.com/", "abc123"), "https://holofolder.com/share/abc123")
   assert.equal(buildBinderShareUrl("http://localhost:3000/some/page", "t"), "http://localhost:3000/share/t")
 })

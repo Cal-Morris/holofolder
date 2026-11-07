@@ -22,7 +22,7 @@ async function jsonFile<T>(file: string): Promise<T> { return JSON.parse(await r
 async function cachedJson<T>(filename: string, url: string): Promise<T> {
   const file = path.join(sourceDir, filename)
   try { if (Date.now() - (await stat(file)).mtimeMs < 86_400_000) return await jsonFile<T>(file) } catch { /* Fetch an absent snapshot. */ }
-  const response = await fetch(url, { headers: { "User-Agent": "BinderDexCatalog/1.0 (+https://binder.cal.gg)", Accept: "application/json" }, signal: AbortSignal.timeout(30_000) })
+  const response = await fetch(url, { headers: { "User-Agent": "HoloFolderCatalog/1.0 (+https://holofolder.com)", Accept: "application/json" }, signal: AbortSignal.timeout(30_000) })
   if (!response.ok) throw new Error(`Catalog source ${filename}: HTTP ${response.status}; no changes applied`)
   const value = await response.json() as T
   await writeFile(file, JSON.stringify(value))

@@ -201,7 +201,7 @@ test("qualified sold guide changes Show mode verdict, plots an overlay and reset
   await overlay.click()
   await expect(chart.getByRole("button", { name: "Hide full sale range" })).toHaveAttribute("aria-pressed", "true")
   await harness.expectNoHorizontalOverflow()
-  if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) await harness.page.screenshot({ path: "/tmp/binderdex-price-comparison-chart.png" })
+  if (test.info().project.name === "standalone-390x844" && test.info().repeatEachIndex === 0) await harness.page.screenshot({ path: "/tmp/holofolder-price-comparison-chart.png" })
   await check.getByRole("radiogroup", { name: "Variant" }).getByRole("radio", { name: /reverse/i }).click()
   await expect(check.getByTestId("quick-card-market-price")).toHaveText("£20.00")
   await expect(check.getByText(/median sold price/)).toHaveCount(0)

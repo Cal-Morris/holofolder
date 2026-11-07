@@ -138,7 +138,7 @@ const navigationLinks = [
 
 test("mobile navigation exposes features and closes by every sheet dismissal", async ({ page, insets }) => {
   const opener = page.getByRole("button", { name: "Open navigation", exact: true })
-  const dialog = page.getByRole("dialog", { name: "Explore BinderDex" })
+  const dialog = page.getByRole("dialog", { name: "Explore Holo Folder" })
   await opener.click()
   await expect(opener).toHaveAttribute("aria-expanded", "true")
   await expect(dialog).toBeVisible()
@@ -166,7 +166,7 @@ test("mobile navigation exposes features and closes by every sheet dismissal", a
   await page.locator("[data-overlay-backdrop]").click({ position: { x: 5, y: 5 } })
   await expect(dialog).toHaveCount(0)
   await opener.click()
-  const header = dialog.getByRole("heading", { name: "Explore BinderDex" }).locator("..")
+  const header = dialog.getByRole("heading", { name: "Explore Holo Folder" }).locator("..")
   const headerBounds = await header.boundingBox()
   const x = headerBounds!.x + 30, y = headerBounds!.y + 20
   await page.mouse.move(x, y)
@@ -180,7 +180,7 @@ test("mobile navigation exposes features and closes by every sheet dismissal", a
 
 test("feature links close navigation and arrive at the matching section", async ({ page }) => {
   const opener = page.getByRole("button", { name: "Open navigation", exact: true })
-  const dialog = page.getByRole("dialog", { name: "Explore BinderDex" })
+  const dialog = page.getByRole("dialog", { name: "Explore Holo Folder" })
   await opener.click()
   await dialog.getByRole("link", { name: /^Card wishlisting/ }).click()
   await expect(dialog).toHaveCount(0)
@@ -200,7 +200,7 @@ test("desktop Features offers the same product navigation", async ({ page }, tes
   await expect(navigation.getByRole("button", { name: "Features", exact: true })).toBeVisible()
   await expect(navigation.getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "#pricing")
   await navigation.getByRole("button", { name: "Features", exact: true }).click()
-  const dialog = page.getByRole("dialog", { name: "Explore BinderDex" })
+  const dialog = page.getByRole("dialog", { name: "Explore Holo Folder" })
   await expect(dialog).toBeVisible()
   await dialog.getByRole("link", { name: /^Price tracking/ }).click()
   await expect(dialog).toHaveCount(0)
@@ -231,4 +231,25 @@ test("homepage offers a compact interactive 3D binder preview", async ({ page })
   await expect(preview.getByRole("button", { name: "Cover", exact: true })).toHaveAttribute("aria-pressed", "true")
   await page.getByRole("link", { name: "Enter the binder studio" }).click()
   await expect(page).toHaveURL(/\/studio$/)
+})
+
+test("Holo Folder branding fits mobile and installed app chrome", async ({ page, request }) => {
+  await expect(page).toHaveTitle("Holo Folder")
+  await expect(page.getByRole("link", { name: "Holo Folder", exact: true })).toHaveCount(2)
+  await expect(page.locator('meta[name="application-name"]')).toHaveAttribute("content", "Holo Folder")
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute("content", "Holo Folder")
+  await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "Holo Folder")
+  const response = await request.get("/manifest.webmanifest")
+  expect(response.ok()).toBe(true)
+  expect(await response.json()).toMatchObject({ name: "Holo Folder", short_name: "Holo Folder", start_url: "/", display: "standalone" })
+  for (const dark of [true, false]) {
+    await page.evaluate(enabled => document.documentElement.classList.toggle("dark", enabled), dark)
+    const wordmark = page.getByRole("link", { name: "Holo Folder", exact: true }).first()
+    await expect(wordmark).toBeVisible()
+    const bounds = await wordmark.boundingBox()
+    expect(bounds!.x).toBeGreaterThanOrEqual(0)
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  await expect(page.locator("body")).not.toContainText(/BinderDex/i)
 })

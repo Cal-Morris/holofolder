@@ -11,7 +11,7 @@ import { loadProjectEnvFiles } from "../lib/load-project-env"
 
 async function source<T>(path: string): Promise<T[]> {
   const response = await fetch(`https://tcgcsv.com/tcgplayer/3/${path}`, {
-    headers: { "User-Agent": "binderdex/1.0.0", Accept: "application/json" }, signal: AbortSignal.timeout(30_000),
+    headers: { "User-Agent": "holofolder/1.0.0", Accept: "application/json" }, signal: AbortSignal.timeout(30_000),
   })
   if (!response.ok) throw new Error(`TCGCSV ${path}: HTTP ${response.status}`)
   const body = await response.json() as { success?: boolean; results?: T[] }

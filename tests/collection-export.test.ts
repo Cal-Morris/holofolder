@@ -35,5 +35,5 @@ test("buildCollectionCsv lists owned, wanted and card-less owned slots by dex nu
 })
 
 test("collectionCsvFilename is dated", () => {
-  assert.equal(collectionCsvFilename(new Date(NOW)), "binderdex-collection-2026-10-22.csv")
+  assert.equal(collectionCsvFilename(new Date(NOW)), "holofolder-collection-2026-10-22.csv")
 })

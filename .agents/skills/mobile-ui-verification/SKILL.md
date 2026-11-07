@@ -1,11 +1,11 @@
 ---
 name: mobile-ui-verification
-description: Verify any binderdex UI change on phones at 375, 390 and 430 px widths, in both a browser tab and standalone PWA mode with safe-area insets, covering tap targets, overflow, the dock and sheets. Use before opening any PR that changes UI.
+description: Verify any holofolder UI change on phones at 375, 390 and 430 px widths, in both a browser tab and standalone PWA mode with safe-area insets, covering tap targets, overflow, the dock and sheets. Use before opening any PR that changes UI.
 ---
 
 # Mobile UI verification
 
-binderdex is mobile-first, and most use is in the installed iPhone PWA. Desktop (`sm:` and up) must not regress, but phones come first.
+Holo Folder is mobile-first, and most use is in the installed iPhone PWA. Desktop (`sm:` and up) must not regress, but phones come first.
 
 ## Checklist
 

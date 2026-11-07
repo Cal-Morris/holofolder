@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make BinderDex easy to manage from both set coverage and fast list workflows, while keeping the binder as the premium visual surface.
+**Goal:** Make Holo Folder easy to manage from both set coverage and fast list workflows, while keeping the binder as the premium visual surface.
 
 **Architecture:** Use the existing mirrored TCGdex tables as the source of truth for set-to-Pokedex mapping. Add a route-backed set coverage API, then layer two client views on top of the existing collection actions: List for fast ownership management, Sets for set-driven dex slot population.
 

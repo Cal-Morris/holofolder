@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }))
     return NextResponse.json({ prices, fx })
   } catch (error) {
-    console.error("[binderdex] Failed to load card prices:", error)
+    console.error("[holofolder] Failed to load card prices:", error)
     return NextResponse.json({ error: "Failed to load card prices." }, { status: 500 })
   }
 }

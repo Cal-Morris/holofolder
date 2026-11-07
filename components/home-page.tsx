@@ -23,7 +23,7 @@ const features = [
   { id: "wishlisting", icon: Heart, title: "Card wishlisting.", text: "Save wanted cards and check card prices with their source evidence. No more trying to remember which version you meant." },
   { id: "sharing", icon: Share2, title: "Share your collection.", text: "Send a read-only link to your collection. They can look through the binder without changing your cards." },
   { id: "partners", icon: Users, title: "Partner collections.", text: "Invite a partner to update the same collection. Your changes stay in sync, so you both know what’s already in the binder." },
-  { id: "offline", icon: Wifi, title: "Offline access.", text: "Install BinderDex on your phone and keep your collection to hand. Offline edits sync when you’re connected again." },
+  { id: "offline", icon: Wifi, title: "Offline access.", text: "Install Holo Folder on your phone and keep your collection to hand. Offline edits sync when you’re connected again." },
 ]
 
 const SIGNED_OUT: Promise<boolean> = Promise.resolve(false)
@@ -54,7 +54,7 @@ export default function HomePage({ signedIn = SIGNED_OUT }: { signedIn?: Promise
     <>
     <main className={styles.home} id="top">
       <header className={styles.header}>
-        <a href="#top" className={styles.brand}><span className={styles.brandMark} aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>BinderDex</a>
+        <a href="#top" className={styles.brand}><svg className={styles.brandMark} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h5l3 3h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="m11.5 9 1.4 3.1 3.1 1.4-3.1 1.4-1.4 3.1-1.4-3.1L7 13.5l3.1-1.4Z"/></svg>Holo Folder</a>
         <MarketingNavigation />
         <button type="button" onClick={openAuthOrApp} className={styles.smallButton}><SignedInText signedIn={signedIn} yes="Open app" no="Sign in" /></button>
       </header>
@@ -113,7 +113,7 @@ export default function HomePage({ signedIn = SIGNED_OUT }: { signedIn?: Promise
       <section id="pricing" className={styles.accessSection} aria-labelledby="pricing-heading">
         <div className={styles.sectionCopy}>
           <h2 id="pricing-heading">Free while<br />we build it.</h2>
-          <p>BinderDex is free during early access.</p>
+          <p>Holo Folder is free during early access.</p>
         </div>
         <article className={styles.accessPlan} aria-label="Early access pricing">
           <h3>Early access</h3>
@@ -133,7 +133,7 @@ export default function HomePage({ signedIn = SIGNED_OUT }: { signedIn?: Promise
         <MarketingBinderPreview />
       </section>
 
-      <footer className={styles.footer}><div><a href="#top" className={styles.brand}>BinderDex</a></div><CardDataAttribution className={styles.attribution} /></footer>
+      <footer className={styles.footer}><div><a href="#top" className={styles.brand}>Holo Folder</a></div><CardDataAttribution className={styles.attribution} /></footer>
     </main>
     <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </>

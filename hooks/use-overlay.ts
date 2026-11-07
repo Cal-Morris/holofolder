@@ -6,7 +6,7 @@ import { useSheetDrag } from "@/hooks/use-sheet-drag"
 import { installTouchScrollGuard, removeTouchScrollGuard } from "@/lib/touch-scroll-guard"
 
 const stack = new OverlayStack()
-const OVERLAY_HISTORY_KEY = "__binderdexOverlay"
+const OVERLAY_HISTORY_KEY = "__holofolderOverlay"
 let scrollLockCount = 0
 let savedBodyOverflow = ""
 let savedHtmlOverflow = ""

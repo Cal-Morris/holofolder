@@ -11,7 +11,7 @@ import styles from "@/components/marketing-binder-preview.module.css"
 const Viewport = dynamic(() => import("@/components/binder-designer/viewport"), { ssr: false, loading: () => <div className={styles.loading}>Opening the binder…</div> })
 const initialDesign = { ...defaultBinderDesign(), rows: 3, cols: 3, pageCount: Math.ceil(FEATURED_CARDS.length / 9), stats: "off" as const }
 initialDesign.surfaces.cover.words = "Favourites"
-initialDesign.surfaces.spine.words = "BinderDex"
+initialDesign.surfaces.spine.words = "Holo Folder"
 const cards = FEATURED_CARDS.map(card => ({ id: card.id, name: card.name, image: getFeaturedCardImageUrl(card) }))
 const stats = { placed: cards.length, wanted: 0, capacity: initialDesign.pageCount * 9, sample: true, filled: binderFill(cards.map((_, i) => i), initialDesign.pageCount * 9) }
 const artwork = {}

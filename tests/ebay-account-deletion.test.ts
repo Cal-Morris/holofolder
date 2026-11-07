@@ -4,7 +4,7 @@ import { generateKeyPairSync, sign } from "node:crypto"
 import { GET, POST } from "../app/api/ebay/account-deletion/route"
 
 // Synthetic credentials and notification, never real eBay account data.
-const endpoint = "https://binder.cal.gg/api/ebay/account-deletion"
+const endpoint = "https://holofolder.com/api/ebay/account-deletion"
 const payload = { metadata: { topic: "MARKETPLACE_ACCOUNT_DELETION", schemaVersion: "1.0", deprecated: false }, notification: { notificationId: "synthetic-notification", eventDate: "2026-10-27T12:00:00Z", publishDate: "2026-10-27T12:00:01Z", publishAttemptCount: 1, data: { userId: "synthetic-user", username: "synthetic", eiasToken: "synthetic" } } }
 
 test("eBay challenge uses the registered endpoint and rejects missing config or challenge", async () => {
@@ -13,7 +13,7 @@ test("eBay challenge uses the registered endpoint and rejects missing config or 
     process.env.EBAY_ACCOUNT_DELETION_VERIFICATION_TOKEN = "synthetic_verification_token_12345678"
     const response = await GET(new Request(`${endpoint}?challenge_code=synthetic-challenge`))
     assert.equal(response.status, 200)
-    assert.deepEqual(await response.json(), { challengeResponse: "72cf8d39554dd3f34ee94783ce0608bb70fbc58df87aed2a87a51ec0cdc6ae58" })
+    assert.deepEqual(await response.json(), { challengeResponse: "30fdc66daac0d72db121cb9603ee6d51c8899f71b79a7cfa609d619296a222cc" })
     assert.equal(response.headers.get("cache-control"), "no-store")
     assert.equal((await GET(new Request(endpoint))).status, 400)
     for (const token of ["", "too-short", "x".repeat(81), "x".repeat(32) + "!"]) {

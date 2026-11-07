@@ -15,14 +15,21 @@ const THEME_COLOR_LIGHT = "#fafafd"
 const THEME_COLOR_DARK = "#171a22"
 
 export const metadata: Metadata = {
-  title: "BinderDex",
+  metadataBase: new URL("https://holofolder.com"),
+  openGraph: {
+    title: "Holo Folder",
+    siteName: "Holo Folder",
+    description: "Your Pokémon card collection, wanted cards and prices, ready for your next show.",
+    type: "website",
+  },
+  title: "Holo Folder",
   description: "Mobile-first Pokemon binder tracking with National Dex positions, collection status, and card matching.",
-  applicationName: "BinderDex",
+  applicationName: "Holo Folder",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "BinderDex",
+    title: "Holo Folder",
   },
   formatDetection: {
     telephone: false,

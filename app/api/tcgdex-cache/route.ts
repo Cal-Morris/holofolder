@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       { headers: PUBLIC_JSON_CACHE_HEADERS },
     )
   } catch (error) {
-    console.error("[binderdex] Failed to load cached TCG cards:", error)
+    console.error("[holofolder] Failed to load cached TCG cards:", error)
     return NextResponse.json(
       {
         error: "Failed to load mirrored cards. Run `bun sync-card-db` to seed the local mirror.",

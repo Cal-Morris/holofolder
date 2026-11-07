@@ -1,6 +1,6 @@
 ---
 name: offline-and-caching
-description: Change binderdex offline behaviour, including the service worker (public/sw.js), the static offline app shell, the IndexedDB offline store, the localStorage collection snapshot and offline write queue, and cache warm-up. Use when touching caching, sync or anything that must work without network.
+description: Change holofolder offline behaviour, including the service worker (public/sw.js), the static offline app shell, the IndexedDB offline store, the localStorage collection snapshot and offline write queue, and cache warm-up. Use when touching caching, sync or anything that must work without network.
 ---
 
 # Offline and caching

@@ -6,7 +6,7 @@ import BinderApp from "@/components/binder-app"
 import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
 
 // BinderApp (signed out, or signed in with ?signedIn=1) with a seeded collection for the Playwright e2e suite (e2e/).
-// Only served when the server runs with BINDERDEX_E2E=1; 404 everywhere else.
+// Only served when the server runs with HOLOFOLDER_E2E=1; 404 everywhere else.
 const E2E_USER_ID = "00000000-0000-4000-8000-0000000000e2"
 // ?partner=1: the signed-in user is the owner's partner, so the collection and binders belong to this owner.
 const E2E_PARTNER_OWNER_ID = "00000000-0000-4000-8000-0000000000e3"
@@ -15,7 +15,7 @@ const E2E_BINDER_IDS = ["e2e00000-0000-4000-8000-000000000001", "e2e00000-0000-4
 export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string; cardArtwork?: string; readOnly?: string; binders?: string; binder?: string; partner?: string }> }) {
   await connection()
 
-  if (process.env.BINDERDEX_E2E !== "1") {
+  if (process.env.HOLOFOLDER_E2E !== "1") {
     notFound()
   }
 
@@ -43,7 +43,7 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
         id: E2E_USER_ID,
         aud: "authenticated",
         role: "authenticated",
-        email: "e2e@binderdex.test",
+        email: "e2e@holofolder.test",
         app_metadata: {},
         user_metadata: {},
         created_at: collectedAt,

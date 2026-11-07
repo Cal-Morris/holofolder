@@ -191,7 +191,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
         }
       } catch (error) {
         console.error(
-          "[binderdex] Error saving settings:",
+          "[holofolder] Error saving settings:",
           error instanceof Error ? error.message : error,
         )
       }

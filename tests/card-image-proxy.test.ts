@@ -37,7 +37,7 @@ test("parseProxyImageWidth only accepts the fixed widths", () => {
 })
 
 test("getOfficialArtworkUrl points at the proxy with a grid width by default", () => {
-  const url = new URL(getOfficialArtworkUrl(25), "https://binder.cal.gg")
+  const url = new URL(getOfficialArtworkUrl(25), "https://holofolder.com")
   assert.equal(url.pathname, "/api/card-image-proxy")
   assert.equal(url.searchParams.get("url"), getOfficialArtworkSourceUrl(25))
   assert.equal(url.searchParams.get("w"), "240")

@@ -77,7 +77,7 @@ test("scorePriceObservationMatch rejects wrong collector numbers even when the n
 test("buildPriceResearchHeaders uses an honest bot user agent", () => {
   const headers = buildPriceResearchHeaders()
 
-  assert.match(headers["User-Agent"], /^BinderDexPriceResearch\/1\.0 /)
+  assert.match(headers["User-Agent"], /^HoloFolderPriceResearch\/1\.0 /)
   assert.doesNotMatch(headers["User-Agent"], /Mozilla|Chrome|Safari/i)
   assert.equal(headers.Accept, "text/html,application/json;q=0.9,*/*;q=0.8")
 })

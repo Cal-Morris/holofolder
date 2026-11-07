@@ -24,7 +24,7 @@ export function useOfflineStoreSync(enabled = true) {
     holdCollectionMirrorUntil(migrateLocalStorageToOfflineStore(window.localStorage, store, {
       snapshot: LOCAL_COLLECTION_SNAPSHOT_KEY,
       pendingOperations: LOCAL_COLLECTION_PENDING_OPS_KEY,
-    }).catch((error) => console.error("[binderdex] IndexedDB migration failed:", error)))
+    }).catch((error) => console.error("[holofolder] IndexedDB migration failed:", error)))
 
     const mirrorPrices = () => {
       let raw: string | null = null

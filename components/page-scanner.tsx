@@ -317,7 +317,7 @@ export default function PageScanner({
             setBurstUsableFrames(frameMatches.length)
           }
         } catch (error) {
-          console.info("[binderdex] Skipping slot sweep frame:", error)
+          console.info("[holofolder] Skipping slot sweep frame:", error)
           previewCandidates.push({ dataUrl: frame.previewUrl, quality: 0 })
           slotFrames.push({ slotIndex: slotSweepSlotIndex, matches: [] })
         }
@@ -417,7 +417,7 @@ export default function PageScanner({
       }))
       advanceSlotSweep(nextCompletedSet)
     } catch (error) {
-      console.error("[binderdex] Error scanning slot sweep:", error)
+      console.error("[holofolder] Error scanning slot sweep:", error)
       const message = error instanceof Error ? error.message : "Could not scan that slot."
       setPageScanError(message)
       setCameraError(message)
@@ -552,7 +552,7 @@ export default function PageScanner({
         page: currentBinderPage,
       })
     } catch (error) {
-      console.error("[binderdex] Error scanning page burst:", error)
+      console.error("[holofolder] Error scanning page burst:", error)
       const message = error instanceof Error ? error.message : "Could not scan that page burst."
       setPageScanError(message)
       setCameraError(message)

@@ -54,7 +54,7 @@ export async function GET() {
     }
 
     if (error) {
-      console.error("[binderdex] API settings fetch failed:", error)
+      console.error("[holofolder] API settings fetch failed:", error)
       return NextResponse.json({ error: error.message || "Failed to load settings" }, { status: 500 })
     }
 
@@ -63,7 +63,7 @@ export async function GET() {
       hasStoredSettings: Boolean(data),
     })
   } catch (error) {
-    console.error("[binderdex] API settings GET failed:", error)
+    console.error("[holofolder] API settings GET failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to load settings" },
       { status: 500 },
@@ -105,7 +105,7 @@ export async function PUT(request: NextRequest) {
       .maybeSingle()
 
     if (existingResult.error) {
-      console.error("[binderdex] API settings existence check failed:", existingResult.error)
+      console.error("[holofolder] API settings existence check failed:", existingResult.error)
       return NextResponse.json(
         { error: existingResult.error.message || "Failed to save settings" },
         { status: 500 },
@@ -132,13 +132,13 @@ export async function PUT(request: NextRequest) {
     }
 
     if (error) {
-      console.error("[binderdex] API settings save failed:", error)
+      console.error("[holofolder] API settings save failed:", error)
       return NextResponse.json({ error: error.message || "Failed to save settings" }, { status: 500 })
     }
 
     return NextResponse.json({ settings: nextSettings })
   } catch (error) {
-    console.error("[binderdex] API settings PUT failed:", error)
+    console.error("[holofolder] API settings PUT failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save settings" },
       { status: 500 },

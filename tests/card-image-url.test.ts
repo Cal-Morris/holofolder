@@ -18,7 +18,7 @@ describe("toCardImageSrc", () => {
   test("keeps same-origin, data, blob and other-host images unchanged", () => {
     assert.equal(toCardImageSrc(" /api/card-image-proxy?url=x "), "/api/card-image-proxy?url=x")
     assert.equal(toCardImageSrc("data:image/png;base64,AA"), "data:image/png;base64,AA")
-    assert.equal(toCardImageSrc("blob:https://binder.cal.gg/1"), "blob:https://binder.cal.gg/1")
+    assert.equal(toCardImageSrc("blob:https://holofolder.com/1"), "blob:https://holofolder.com/1")
     assert.equal(toCardImageSrc("https://example.com/card.png"), "https://example.com/card.png")
   })
 

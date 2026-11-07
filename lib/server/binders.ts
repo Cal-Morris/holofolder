@@ -80,7 +80,7 @@ export async function resolveActiveBinder(
   lastOpenedId?: string | null,
 ) {
   const binders = await listOwnerBinders(client, ownerUserId).catch((error) => {
-    console.error("[binderdex] Failed to list binders:", error)
+    console.error("[holofolder] Failed to list binders:", error)
     return [] as Binder[]
   })
   return { binders, activeBinder: pickActiveBinder(binders, requestedId, lastOpenedId) }
