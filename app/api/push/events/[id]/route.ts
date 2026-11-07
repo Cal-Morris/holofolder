@@ -9,7 +9,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!user) return Response.json({}, { status: 401, headers })
   if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({}, { status: 400, headers })
   const admin = createAdminClient()
-  const { data: event, error } = await admin.from('partner_acquisitions').select('recipient_id,actor_id,owner_user_id,partnership_id,binder_id,card_name,actor_name').eq('id', id).eq('recipient_id', user.id).maybeSingle()
+  const { data: event, error } = await admin.from('partner_acquisitions').select('recipient_id,actor_id,owner_user_id,partnership_id,binder_id,card_id,card_name,actor_name').eq('id', id).eq('recipient_id', user.id).maybeSingle()
   if (error) return Response.json({}, { status: 503, headers })
   if (!event) return Response.json({}, { status: 404, headers })
   const { data: partnership, error: membershipError } = await admin.from('partnerships').select('user1_id,user2_id').eq('id', event.partnership_id).eq('owner_user_id', event.owner_user_id).maybeSingle()
@@ -18,5 +18,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { data: binder, error: binderError } = await admin.from('binders').select('name').eq('id', event.binder_id).eq('owner_user_id', event.owner_user_id).maybeSingle()
   if (binderError) return Response.json({}, { status: 503, headers })
   if (!binder) return Response.json({}, { status: 404, headers })
-  return Response.json({ title: `${event.actor_name} found a card`, body: `${event.card_name} was added to ${binder.name}.`, url: `/app?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
+  const { data: card } = await admin.from('tcg_cards').select('tcg_sets(name_en)').eq('id', event.card_id).maybeSingle()
+    .returns<{ tcg_sets: { name_en: string | null } | null }>()
+  const setName = card?.tcg_sets?.name_en?.trim()
+  const cardLabel = setName ? `${event.card_name} (${setName})` : event.card_name
+  return Response.json({ title: `${event.actor_name} found a card`, body: `${cardLabel} was added to ${binder.name}.`, url: `/app?binder=${encodeURIComponent(event.binder_id)}` }, { headers })
 }
