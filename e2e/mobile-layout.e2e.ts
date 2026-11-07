@@ -3,6 +3,31 @@ import { test, expect, type Harness } from "./fixtures"
 const header = (harness: Harness) => harness.page.locator("nav").first()
 const pager = (harness: Harness) => harness.page.getByTestId("mobile-header-pager")
 
+test("active binder page outline stays inside every clipping container", async ({ harness }) => {
+  const { page } = harness
+  for (const viewport of [harness.viewport, { width: 768, height: 667 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport)
+    await expect.poll(async () => page.locator("[data-binder-page]").evaluateAll(pages => {
+      const activePage = pages.find(element => getComputedStyle(element).boxShadow !== "none")
+      if (!activePage) return -Infinity
+      const rect = activePage.getBoundingClientRect()
+      let clearance = Infinity
+      for (let parent = activePage.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent)
+        const bounds = parent.getBoundingClientRect()
+        if (style.overflowX === "hidden" || style.overflowX === "clip") {
+          clearance = Math.min(clearance, rect.left - bounds.left, bounds.right - rect.right)
+        }
+        if (style.overflowY === "hidden" || style.overflowY === "clip") {
+          clearance = Math.min(clearance, rect.top - bounds.top, bounds.bottom - rect.bottom)
+        }
+      }
+      return clearance
+    }), { message: `the 2px page outline must fit at ${viewport.width}×${viewport.height}` }).toBeGreaterThanOrEqual(1.9)
+    await harness.expectNoHorizontalOverflow()
+  }
+})
+
 test("desktop attribution reserves space below the whole binder", async ({ harness }) => {
   for (const viewport of [{ width: 768, height: 667 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
     await harness.page.setViewportSize(viewport)
