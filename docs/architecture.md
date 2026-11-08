@@ -2,6 +2,41 @@
 
 Holo Folder is a Next.js application with a browser-owned offline working copy and a Supabase-backed shared collection. It is deployed under `/app`; the separate Framer site forwards public app requests to the Vercel origin. See [app-routing.md](app-routing.md) before changing URLs.
 
+
+## System overview
+
+The browser keeps its working copy on the device. Personal data and public catalog/price data have separate authorization and caching rules, even though they live in the same Supabase project.
+
+```mermaid
+flowchart TB
+  subgraph Device["On the device"]
+    UI["BinderApp and feature hooks"]
+    Local["localStorage queues and snapshots<br/>IndexedDB mirror and caches"]
+    SW["Service worker<br/>static shell and public asset caches"]
+    UI <--> Local
+    SW --> UI
+  end
+  UI -->|"/app pages and APIs"| Framer["Framer public proxy"]
+  Framer --> Next["Next.js on Vercel"]
+  subgraph Supabase["Supabase project"]
+    UserData[("Owner and binder data<br/>RLS-protected")]
+    Catalog[("tcg_* catalog")]
+    Prices[("Price evidence and history")]
+  end
+  UI <-->|"RLS reads and realtime"| UserData
+  Next -->|"authenticated, owner-scoped writes"| UserData
+  Next -->|"cached public reads"| Catalog
+  Next --> Prices
+  Import["Catalog CLI / admin sync"] --> Catalog
+  Refresh["Price refresh workflow"] --> Prices
+  Sources["External data and price providers"] --> Import
+  Sources --> Refresh
+  Next <-->|"image proxy reads / fills"| Images["R2 or Blob image mirror"]
+  Next -->|"image cache miss"| Origins["Allowed image origins"]
+```
+
+Service-role/provider credentials stay on the server. On-device data is scoped to the account, collection owner and binder. The service worker caches the static offline shell, not personalized HTML.
+
 ## Ownership and authorization
 
 Three identifiers have different jobs:
@@ -24,6 +59,39 @@ User-scoped Supabase reads rely on row-level security. Routes that use the servi
 
 The static offline route (`app/app-shell/`, `components/offline-app-shell.tsx`) boots from on-device state. Cached user data must be checked against the selected account/owner/binder before display. User-specific HTML is never an offline cache entry.
 
+
+The online path below assumes an authenticated visitor. Signed-out online requests go to sign-in.
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant W as Service worker
+  participant N as Next.js
+  participant D as On-device data
+  participant S as Supabase
+  B->>W: Open /app
+  alt Navigation succeeds
+    W->>N: Request app page
+    N-->>B: Static shell and binder skeleton
+    par Local startup candidate
+      B->>D: Read session, marker and saved binder
+      D-->>B: Matching cached boot, if available
+    and Server startup candidate
+      N->>S: Resolve user, owner, binder and initial data
+      S-->>N: Collection and settings
+      N-->>B: Server boot
+    end
+    Note over B: First startup path wins without remounting.<br/>A local start then uses normal collection sync.
+  else Network fails or stalls
+    W-->>B: Static /app/app-shell
+    B->>D: Load scoped cached binder
+    D-->>B: Saved data and pending edits
+    Note over B: Offline edits queue for later synchronization.
+  end
+```
+
+This race applies to the first boot. A later server boot, such as changing binders or refreshing, uses the server path. Auth and public share navigations are excluded from the worker's binder fallback.
+
 ## Collection writes and recovery
 
 `hooks/use-collection.ts` coordinates the live collection. Domain values and normalizers live in `lib/domain/` and `lib/collection/normalize.ts`.
@@ -35,6 +103,26 @@ The static offline route (`app/app-shell/`, `components/offline-app-shell.tsx`) 
 5. Realtime notifications and visibility/reconnect polling reconcile other screens. `lib/collection/load.ts` pages complete reads and uses delta reads when a valid baseline/count permits them, otherwise falling back to a full read.
 
 Do not replace this with a second optimistic store or an unscoped queue. Collection, show-purchase and binder-history queues have different server contracts; sharing their persistence code without preserving those contracts risks replaying or losing edits.
+
+
+```mermaid
+flowchart TB
+  Edit["Edit a card"] --> Local["Update the view<br/>Persist pending operation with its base"]
+  Local --> Send["Send owner/binder-scoped request"]
+  Send --> API["Authenticate actor<br/>Resolve owner and binder<br/>Validate input"]
+  Send -->|"offline / network error"| Keep["Keep pending edit<br/>Retry after reconnect or backoff"]
+  API --> Save["Check base fingerprint<br/>Use atomic save path when available"]
+  Save -->|"200 saved"| Done["Acknowledge operation<br/>Reconcile saved row"]
+  Save -->|"409 conflict + current row"| Merge["Client three-way merge<br/>against original base"]
+  Merge --> Send
+  Save -->|"401 / 408 / 429 / 5xx"| Keep
+  Keep --> Send
+  API -->|"402 billing pause"| Pause["Keep edit paused<br/>Retry after access changes"]
+  Pause --> Send
+  API -->|"other permanent 4xx"| Reject["Roll back rejected edit<br/>Notify the user"]
+```
+
+The diagram emphasizes recovery paths rather than every HTTP branch. Conflict handling, retryable errors and billing pauses retain the user's pending work; a rejected permanent write is handled separately. Realtime and polling refresh other screens after changes.
 
 ## Catalog, pricing and images
 
