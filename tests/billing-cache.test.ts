@@ -21,3 +21,14 @@ test('legacy cached access remains conservative before its next server refresh',
   storage.setItem('holofolder_billing_v1',JSON.stringify({accountId:'account',access:{ownerUserId:'owner',source:'free',enforced:true,savedCardCount:9}}))
   assert.equal(readBillingCache(storage,'account','owner')?.cardLimit,10)
 })
+test('an offline trial expires without losing saved usage or restarting on another device', () => {
+  const end = '2026-11-15T12:00:00.000Z'
+  writeBillingCache(storage, 'account', resolveBillingAccess('owner', { trial_ends_at: end, enforced: true, free_card_limit: 100, free_binder_limit: 1, saved_card_count: 150 }, Date.parse(end) - 1000))
+  assert.equal(readBillingCache(storage, 'account', 'owner', Date.parse(end) - 1)?.source, 'trial')
+  const expired = readBillingCache(storage, 'account', 'owner', Date.parse(end))
+  assert.equal(expired?.source, 'free')
+  assert.equal(expired?.savedCardCount, 150)
+  assert.equal(expired?.cardLimit, 100)
+  assert.equal(expired?.binderLimit, 1)
+  assert.equal(readBillingCache(storage, 'another-account', 'owner'), null)
+})

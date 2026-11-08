@@ -19,7 +19,7 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
       const result = await response.json()
       if (!response.ok || result.access?.ownerUserId !== ownerId) throw new Error(result.error ?? 'Your plan could not be checked.')
       const row = result.access
-      const access = resolveBillingAccess(ownerId,{ enforced:row.enforced,perpetual:row.source === 'perpetual',status:row.source === 'subscription' ? 'active' : 'none',paid_through:row.paidThrough,saved_card_count:row.savedCardCount,free_card_limit:row.freeCardLimit,free_binder_limit:row.freeBinderLimit })
+      const access = resolveBillingAccess(ownerId,{ enforced:row.enforced,perpetual:row.source === 'perpetual',status:row.source === 'subscription' ? 'active' : 'none',paid_through:row.paidThrough,trial_ends_at:row.trialEndsAt,saved_card_count:row.savedCardCount,free_card_limit:row.freeCardLimit,free_binder_limit:row.freeBinderLimit })
       writeBillingCache(localStorage,accountId,access)
       setRecord({ accountId,access,canManage:result.canManage === true,hasBillingAccount:result.hasBillingAccount === true })
       setError(null)
@@ -53,7 +53,7 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
     finally { setBusy(false) }
   }
   const active = record?.accountId === accountId && record.access.ownerUserId === ownerId ? record : null
-  const access = active ? resolveBillingAccess(active.access.ownerUserId,{perpetual:active.access.source==='perpetual',status:active.access.source==='subscription'?'active':'none',paid_through:active.access.paidThrough,enforced:active.access.enforced,saved_card_count:active.access.savedCardCount,free_card_limit:active.access.freeCardLimit,free_binder_limit:active.access.freeBinderLimit}) : null
+  const access = active ? resolveBillingAccess(active.access.ownerUserId,{perpetual:active.access.source==='perpetual',status:active.access.source==='subscription'?'active':'none',paid_through:active.access.paidThrough,trial_ends_at:active.access.trialEndsAt,enforced:active.access.enforced,saved_card_count:active.access.savedCardCount,free_card_limit:active.access.freeCardLimit,free_binder_limit:active.access.freeBinderLimit}) : null
   return { access, hasBillingAccount: active?.hasBillingAccount ?? false, canManage: active?.canManage ?? accountId === ownerId, loading: Boolean(accountId && !active), error, busy,
     premium: access ? !access.enforced || access.tier === 'paid' : false,
     refresh, upgrade:onUpgrade, checkout:(interval:'month'|'year')=>navigate('checkout',{interval}), portal:()=>navigate('portal') }

@@ -2,6 +2,14 @@
 
 Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £3.99/month and £34.99/year, saving £12.89 against twelve monthly payments. After migration 052, the free allowance is 100 saved entries across all binders, including individual wanted cards, and one binder. One owner's paid access includes their shared partner collection; billing is per owner, never per binder or per person. Paid/lifetime owners can create multiple binders within the existing 20-binder safety ceiling.
 
+## Automatic Premium trial
+
+Migration 056 grants full Premium automatically for 168 hours from the collection owner's `auth.users.created_at`, including their partner. Accounts already less than seven days old get the remaining time, not a fresh trial at deployment. Lifetime licences and active paid subscriptions take precedence. The trial creates no Stripe customer or subscription, needs no payment details and never converts into a charge. Choosing a monthly or annual purchase still opens the existing paid Checkout.
+
+The database uses the trusted signup timestamp for premium checks and returns the expiry to the app. Settings shows the trial terms and local expiry time; the scoped offline billing cache honours the same expiry. After expiry, free limits apply again. Existing cards, wanted entries, binders and queued edits are retained; further growth above the free allowance needs Premium. Partner access follows the owner's plan, so it ends when the owner's trial expires unless paid or lifetime access applies.
+
+Apply `scripts/056_signup_premium_trial.sql` before deploying the updated app. Before application, the app tolerates the missing trial field and uses the existing free/paid/lifetime rules; older clients keep their conservative client gates until updated. Rollback restores `billing_has_paid` from 049 and `get_billing_access` from 052 without deleting user data. Verify with `TRIAL_TEST_DATABASE_URL=… bun scripts/verify-premium-trial.ts --hosted-rollback`; all synthetic fixtures and both migration runs roll back.
+
 ## Pricing cutover, 8 November 2026
 
 The live Stripe audit found no Holo Folder subscriptions or open Checkout sessions before preparing the increase. The existing account `acct_1AHHDjGnHtZtNtvx` and product `prod_VaRpQ69dXzmuF8` are reused. New immutable recurring GBP prices were created with distinct v2 lookup keys. Existing v1 prices, portal configuration `bpc_1UZGvdGnHtZtNtvxOpUSMTxK` and webhook `we_1UZGveGnHtZtNtvxZZuWLWk7` are retained. No charge, subscription migration or unrelated product change is part of the cutover.
