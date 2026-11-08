@@ -56,12 +56,12 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
 5. Run the backfill (resumable), repeating with the returned cursor until `"done": true`:
 
    ```sh
-   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://holofolder.com/api/admin/mirror-card-images"
-   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://holofolder.com/api/admin/mirror-card-images?cursor=<nextCursor>"
+   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://holofolder.com/app/api/admin/mirror-card-images"
+   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://holofolder.com/app/api/admin/mirror-card-images?cursor=<nextCursor>"
    ```
 
    New sets are copied by `POST /api/admin/sync-card-db` (add `?images=0` to skip this).
-6. Verify: `curl -sI "https://holofolder.com/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F001%2Fhigh.webp"` should show `x-card-image-source: r2`. It shows `tcgdex` the first time an image is fetched and while the store is in its cooldown.
+6. Verify: `curl -sI "https://holofolder.com/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F001%2Fhigh.webp"` should show `x-card-image-source: r2`. It shows `tcgdex` the first time an image is fetched and while the store is in its cooldown.
 
 R2 free tier (Standard storage, per month): 10 GB-month storage, 1M Class A ops (PutObject, ListObjects), 10M Class B ops (GetObject, HeadObject), no egress fees. The full mirror is about 40k objects and roughly 2 GB, so it fits comfortably. Usage beyond the free tier is billed, not blocked.
 
