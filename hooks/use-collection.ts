@@ -581,7 +581,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
           const editBinderId = pendingOperationBinderId(edit)
           try {
             if (edit.type === "upsert") {
-              const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { baseFingerprint, binderId: editBinderId, acquisition: edit.acquisition }))
+              const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { baseFingerprint, binderId: editBinderId, acquisition: edit.acquisition, importOnly: edit.importOnly }))
               removePendingCollectionOperation(edit.id)
               settleLocalItem(edit.pokemonId, savedItem, editBinderId)
             } else {
@@ -815,7 +815,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const baseFingerprint = collectionFingerprint(existingItem)
     try {
       if (nextItem) {
-        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId, acquisition }))
+        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId, acquisition, ...(importOnly ? { importOnly: true } : {}) }))
         settleLocalItem(pokemonId, savedItem)
         void broadcastCollectionChanged()
         window.dispatchEvent(new Event("holofolder-refresh-billing"))
