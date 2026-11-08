@@ -6,6 +6,7 @@
  * printings that exist in it, and a finish (Normal, Holo, Reverse or a rarity finish such as IR) is what
  * gets recorded on the slot. "Any" leaves both to the picked card.
  */
+import { isStandardFinishVariantKey, type CardFinishPrice } from "@/lib/card-pricing"
 import type { CardFilters } from "@/hooks/use-tcgdex"
 import type { CardFinish, CardLanguage } from "@/lib/domain/cards"
 import { CARD_PICKER_SORTS, type CardPickerSort } from "@/lib/card-selector-sort"
@@ -103,12 +104,17 @@ export function getCardPickerFinishChoices(
   variants: { normal?: boolean; holo?: boolean; reverse?: boolean; firstEdition?: boolean } | undefined,
   inferredFinish: CardFinish,
   variantChoice: CardPickerVariantChoice,
+  finishPrices: readonly Pick<CardFinishPrice, "finish" | "variantKey" | "gbpAmount">[] = [],
 ): Array<{ finish: CardPickerStandardFinish; label: string }> {
   if (getRecordedFinish(variantChoice) !== null) return []
   if (!(inferredFinish in STANDARD_FINISH_LABELS)) return []
+  // Catalogue flags can omit finishes that providers explicitly quote for the standard printing.
+  const quoted = new Set(finishPrices.filter(price =>
+    isStandardFinishVariantKey(price.variantKey) && Number.isFinite(price.gbpAmount) && (price.gbpAmount ?? 0) > 0,
+  ).map(price => price.finish))
   const finishes: CardPickerStandardFinish[] = []
-  if (variants?.normal || variants?.firstEdition) finishes.push("normal")
-  if (variants?.holo) finishes.push("holo")
-  if (variants?.reverse) finishes.push("reverse_holo")
+  if (variants?.normal || quoted.has("normal")) finishes.push("normal")
+  if (variants?.holo || quoted.has("holo")) finishes.push("holo")
+  if (variants?.reverse || quoted.has("reverse_holo")) finishes.push("reverse_holo")
   return finishes.length > 1 ? finishes.map((finish) => ({ finish, label: STANDARD_FINISH_LABELS[finish] })) : []
 }

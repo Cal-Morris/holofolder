@@ -137,7 +137,7 @@ export default function QuickCardCheck({
   const { logPurchases, removePurchases } = useShowSession()
 
   const inferred = inferCardFinish(card.rarity, card.variants)
-  const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any"), [card.variants, inferred])
+  const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any", snapshot?.finishPrices), [card.variants, inferred, snapshot?.finishPrices])
   const [finish, setFinish] = useState<CardFinish>(() =>
     initialFinish ?? finishChoices[0]?.finish ?? inferred)
   const state = getState?.(finish) ?? initialState
