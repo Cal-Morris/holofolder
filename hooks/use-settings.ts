@@ -17,6 +17,7 @@ const ANON_LOCAL_SETTINGS_KEY = "pokemon_binder_settings:anon"
 const DEFAULT_SETTINGS: BinderSettings = getDefaultBinderSettings()
 
 interface UseSettingsOptions {
+  binderId?: string | null
   initialSettings?: BinderSettings
   initialUser?: { id: string } | null
   settingsOwnerUserId?: string | null
@@ -24,22 +25,30 @@ interface UseSettingsOptions {
   hasRemoteSettings?: boolean
 }
 
-function getLocalSettingsKey(userId?: string | null) {
-  return userId ? `pokemon_binder_settings:${userId}` : ANON_LOCAL_SETTINGS_KEY
+function readStoredValue(key: string) {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+function removeStoredValue(key: string) {
+  try { localStorage.removeItem(key) } catch { /* Storage may be blocked. */ }
 }
 
-function readStoredSettings(userId?: string | null) {
+function getLocalSettingsKey(userId?: string | null, binderId?: string | null) {
+  const base = userId ? `pokemon_binder_settings:${userId}` : ANON_LOCAL_SETTINGS_KEY
+  return binderId ? `${base}:binder:${binderId}` : base
+}
+
+function readStoredSettings(userId?: string | null, binderId?: string | null) {
   if (typeof window === "undefined") {
     return null
   }
 
   const candidateKeys = userId
-    ? [getLocalSettingsKey(userId), LEGACY_LOCAL_SETTINGS_KEY, ANON_LOCAL_SETTINGS_KEY]
+    ? [getLocalSettingsKey(userId, binderId), LEGACY_LOCAL_SETTINGS_KEY, ANON_LOCAL_SETTINGS_KEY]
     : [ANON_LOCAL_SETTINGS_KEY, LEGACY_LOCAL_SETTINGS_KEY]
 
   for (const key of candidateKeys) {
     try {
-      const raw = localStorage.getItem(key)
+      const raw = readStoredValue(key)
       if (!raw) {
         continue
       }
@@ -54,16 +63,17 @@ function readStoredSettings(userId?: string | null) {
   return null
 }
 
-function writeStoredSettings(nextSettings: BinderSettings, userId?: string | null) {
+function writeStoredSettings(nextSettings: BinderSettings, userId?: string | null, binderId?: string | null) {
   if (typeof window === "undefined") {
     return
   }
 
-  setItemMakingRoom(localStorage, getLocalSettingsKey(userId), JSON.stringify(nextSettings))
+  try { setItemMakingRoom(localStorage, getLocalSettingsKey(userId, binderId), JSON.stringify(nextSettings)) }
+  catch { /* Online saves can still succeed with device storage blocked. */ }
 }
 
-async function fetchRemoteSettings() {
-  const response = await fetch("/app/api/settings", {
+async function fetchRemoteSettings(binderId?: string | null) {
+  const response = await fetch(`/app/api/settings${binderId ? `?binderId=${binderId}` : ""}`, {
     cache: "no-store",
     credentials: "same-origin",
   })
@@ -83,6 +93,7 @@ async function fetchRemoteSettings() {
 
 export function useSettings(options: UseSettingsOptions = {}) {
   const {
+    binderId = null,
     initialSettings,
     initialUser = null,
     settingsOwnerUserId = null,
@@ -105,11 +116,13 @@ export function useSettings(options: UseSettingsOptions = {}) {
       return
     }
 
-    const localSettings = readStoredSettings(settingsOwnerUserId ?? user?.id)
+    const localSettings = readStoredSettings(settingsOwnerUserId ?? user?.id, binderId)
 
+    const pending = readStoredValue(`${getLocalSettingsKey(settingsOwnerUserId ?? user?.id, binderId)}:pending`)
+    if (pending && localSettings) { setSettings(localSettings); return }
     if ((settingsOwnerUserId ?? user?.id) && hasRemoteSettings) {
       setSettings(initialResolvedSettings)
-      writeStoredSettings(initialResolvedSettings, settingsOwnerUserId ?? user?.id)
+      writeStoredSettings(initialResolvedSettings, settingsOwnerUserId ?? user?.id, binderId)
       return
     }
 
@@ -119,8 +132,8 @@ export function useSettings(options: UseSettingsOptions = {}) {
     }
 
     setSettings(initialResolvedSettings)
-    writeStoredSettings(initialResolvedSettings, settingsOwnerUserId ?? user?.id)
-  }, [hasRemoteSettings, initialResolvedSettings, readOnly, setSettings, settingsOwnerUserId, user?.id])
+    writeStoredSettings(initialResolvedSettings, settingsOwnerUserId ?? user?.id, binderId)
+  }, [binderId, hasRemoteSettings, initialResolvedSettings, readOnly, setSettings, settingsOwnerUserId, user?.id])
 
   useEffect(() => {
     if (readOnly) {
@@ -144,13 +157,14 @@ export function useSettings(options: UseSettingsOptions = {}) {
 
     const hydrateRemoteSettings = async () => {
       try {
-        const remoteSettings = await fetchRemoteSettings()
+        const remoteSettings = await fetchRemoteSettings(binderId)
         if (cancelled) {
           return
         }
 
+        if (readStoredValue(`${getLocalSettingsKey(settingsOwnerUserId ?? user.id, binderId)}:pending`)) return
         setSettings(remoteSettings)
-        writeStoredSettings(remoteSettings, settingsOwnerUserId ?? user.id)
+        writeStoredSettings(remoteSettings, settingsOwnerUserId ?? user.id, binderId)
       } catch {
         // Keep the local cache if no persisted settings exist yet.
       }
@@ -161,44 +175,81 @@ export function useSettings(options: UseSettingsOptions = {}) {
     return () => {
       cancelled = true
     }
-  }, [hasRemoteSettings, readOnly, setSettings, settingsOwnerUserId, user?.id])
+  }, [binderId, hasRemoteSettings, readOnly, setSettings, settingsOwnerUserId, user?.id])
 
-  const updateSettings = useCallback(async (newSettings: Partial<BinderSettings>) => {
-    if (readOnly) {
-      return
+  const pendingSaves = useRef<Promise<unknown>>(Promise.resolve())
+  const saveRemote = useCallback((updatedSettings: BinderSettings) => {
+    const save = async () => {
+      const pendingKey = `${getLocalSettingsKey(settingsOwnerUserId ?? user?.id, binderId)}:pending`
+      const snapshot = JSON.stringify(updatedSettings)
+      if (JSON.stringify(settingsRef.current) !== snapshot) return
+      const response = await fetch("/app/api/settings", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+        body: JSON.stringify({ ...updatedSettings, binderId }), signal: AbortSignal.timeout(10000),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        if (response.status >= 400 && response.status < 500 && readStoredValue(pendingKey) === snapshot) removeStoredValue(pendingKey)
+        throw new Error(payload?.error ?? "Failed to save settings")
+      }
+      // A newer edit may have been queued while this request was in flight.
+      if (readStoredValue(pendingKey) === snapshot) removeStoredValue(pendingKey)
     }
+    const next = pendingSaves.current.then(save, save)
+    pendingSaves.current = next.catch(() => {})
+    return next
+  }, [binderId, settingsOwnerUserId, user?.id])
 
-    const updatedSettings = { ...settingsRef.current, ...newSettings }
-    setSettings(updatedSettings)
-    writeStoredSettings(updatedSettings, settingsOwnerUserId ?? user?.id)
-
-    if (user) {
-      try {
-        const response = await fetch("/app/api/settings", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "same-origin",
-          body: JSON.stringify(updatedSettings),
-        })
-
-        const payload = await response.json().catch(() => null)
-        if (!response.ok) {
-          throw new Error(
-            typeof payload?.error === "string" && payload.error.length > 0
-              ? payload.error
-              : "Failed to save settings",
-          )
+  useEffect(() => {
+    if (readOnly || !user) return
+    const retry = () => {
+      const raw = readStoredValue(`${getLocalSettingsKey(settingsOwnerUserId ?? user.id, binderId)}:pending`)
+      if (raw && navigator.onLine) {
+        try {
+          void saveRemote(normaliseSettings(JSON.parse(raw), initialResolvedSettings)).catch(async () => {
+            if (readStoredValue(`${getLocalSettingsKey(settingsOwnerUserId ?? user.id, binderId)}:pending`)) return
+            try {
+              const remote = await fetchRemoteSettings(binderId)
+              setSettings(remote)
+              writeStoredSettings(remote, settingsOwnerUserId ?? user.id, binderId)
+            } catch { /* Keep the last device copy if the server cannot be reached. */ }
+          })
         }
-      } catch (error) {
-        console.error(
-          "[holofolder] Error saving settings:",
-          error instanceof Error ? error.message : error,
-        )
+        catch { /* Leave a malformed device entry untouched. */ }
       }
     }
-  }, [readOnly, setSettings, settingsOwnerUserId, user])
+    retry()
+    window.addEventListener("online", retry)
+    return () => window.removeEventListener("online", retry)
+  }, [binderId, initialResolvedSettings, readOnly, saveRemote, setSettings, settingsOwnerUserId, user])
+
+  const updateSettings = useCallback(async (newSettings: Partial<BinderSettings>) => {
+    if (readOnly) return
+    const previous = settingsRef.current
+    const updatedSettings = { ...previous, ...newSettings }
+    setSettings(updatedSettings)
+    writeStoredSettings(updatedSettings, settingsOwnerUserId ?? user?.id, binderId)
+    if (!user) return
+    const pendingKey = `${getLocalSettingsKey(settingsOwnerUserId ?? user.id, binderId)}:pending`
+    let queued = false
+    try { setItemMakingRoom(localStorage, pendingKey, JSON.stringify(updatedSettings)); queued = true } catch { /* Try the cloud when storage is blocked. */ }
+    if (!navigator.onLine) {
+      if (queued) return
+      setSettings(previous)
+      if (newSettings.binderRows !== undefined || newSettings.binderCols !== undefined) throw new Error("Device storage is unavailable. Connect to the internet before changing the layout.")
+      return
+    }
+    try { await saveRemote(updatedSettings) }
+    catch (error) {
+      // Rejected writes roll back; network failures keep the device copy for reconnect.
+      if (!readStoredValue(pendingKey) && settingsRef.current === updatedSettings) {
+        setSettings(previous)
+        writeStoredSettings(previous, settingsOwnerUserId ?? user.id, binderId)
+      }
+      if (newSettings.binderRows !== undefined || newSettings.binderCols !== undefined) throw error
+      console.error("[holofolder] Error saving settings:", error instanceof Error ? error.message : error)
+    }
+  }, [binderId, readOnly, saveRemote, setSettings, settingsOwnerUserId, user])
 
   return { settings, updateSettings }
 }

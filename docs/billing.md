@@ -119,3 +119,9 @@ Migration 049 was applied with enforcement off. Grandfather cutoff `2026-11-07T2
 The unmerged billing file was renumbered from 047 to 049 after parallel account-identity releases allocated 047 and 048. Its SQL content was unchanged and reapplication verified the original cutoff and both grants. Both named and legacy share routes originally used the same premium access check; 053 and its app release remove that requirement.
 
 Framer Home pricing, Terms and Privacy drafts now describe these plans, lifetime access and Stripe processing. Draft screenshots were visually reviewed at desktop, tablet and phone sizes. Publishing requires the Framer project’s explicit publish authorization.
+
+## Custom binder layouts
+
+The six existing layouts (1×1, 2×2, 3×3, 3×4, 4×3 and 4×4) stay free. Premium, trial and lifetime accounts can choose any whole-number row and column counts from 1 to 8 in Settings → Binder. Dimensions belong to the open binder and follow the collection owner's access. Existing custom layouts remain readable after expiry; choosing a different custom layout requires Premium again. Shared links and offline copies keep the saved dimensions. Dense pages scroll inside their frame, with pockets at least 64×90 px and page turning through the header arrows.
+
+Migration `057_custom_binder_layouts.sql` widens the binder constraint and enforces the same custom-layout gate on binder, legacy settings and appearance writes. Apply it before deploying the controls; without it, an 8×8 save fails clearly and stays queued on the device.

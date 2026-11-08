@@ -1,3 +1,7 @@
+import { isBinderGridSize, needsCustomLayoutAccess, withBinderLayout } from "@/lib/binder-layout"
+import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
+import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
+import { isBillingError } from "@/lib/billing"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
@@ -31,7 +35,7 @@ async function resolveSettingsOwnerUserId(userId: string) {
   return resolveCollectionOwnerUserId(createAdminClient(), userId)
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireSessionUser()
     if (!user) {
@@ -63,11 +67,20 @@ export async function GET() {
       return NextResponse.json({ error: error.message || "Failed to load settings" }, { status: 500 })
     }
 
+    const binderId = request.nextUrl.searchParams.get("binderId")
+    let settings = settingsFromRow(data as UserSettingsRow | null)
+    if (binderId) {
+      await resolveWriteBinderId(admin, settingsOwnerUserId, binderId)
+      const binder = await admin.from("binders").select("binder_rows,binder_cols").eq("id", binderId).eq("owner_user_id", settingsOwnerUserId).single()
+      if (binder.error) throw binder.error
+      settings = withBinderLayout(settings, { rows: binder.data.binder_rows, cols: binder.data.binder_cols })
+    }
     return NextResponse.json({
-      settings: settingsFromRow(data as UserSettingsRow | null),
+      settings,
       hasStoredSettings: Boolean(data),
     })
   } catch (error) {
+    if (error instanceof BinderAccessError) return NextResponse.json({ error: error.message }, { status: 404 })
     console.error("[holofolder] API settings GET failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to load settings" },
@@ -88,11 +101,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Invalid settings payload" }, { status: 400 })
     }
 
+    if (!isBinderGridSize(body.binderRows) || !isBinderGridSize(body.binderCols)) {
+      return NextResponse.json({ error: "Choose whole numbers from 1 to 8 for rows and columns" }, { status: 400 })
+    }
     const admin = createAdminClient()
     const settingsOwnerUserId = await resolveSettingsOwnerUserId(user.id)
+    const binderId = body.binderId ? await resolveWriteBinderId(admin, settingsOwnerUserId, body.binderId) : null
     const nextSettings = settingsFromRow({
-      binder_rows: typeof body.binderRows === "number" ? body.binderRows : Number(body.binderRows),
-      binder_cols: typeof body.binderCols === "number" ? body.binderCols : Number(body.binderCols),
+      binder_rows: body.binderRows,
+      binder_cols: body.binderCols,
       binder_color_id: typeof body.binderColorId === "string" ? body.binderColorId : DEFAULT_BINDER_COLOR_ID,
       binder_page_colors: body.binderPageColors && typeof body.binderPageColors === "object" ? body.binderPageColors : {},
       binder_slot_glare_enabled: Boolean(body.binderSlotGlareEnabled),
@@ -106,7 +123,7 @@ export async function PUT(request: NextRequest) {
 
     const existingResult = await admin
       .from("user_settings")
-      .select("user_id")
+      .select("user_id,binder_rows,binder_cols")
       .eq("user_id", settingsOwnerUserId)
       .maybeSingle()
 
@@ -118,6 +135,18 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    const currentBinder = binderId ? await admin.from("binders").select("binder_rows,binder_cols").eq("id", binderId).eq("owner_user_id", settingsOwnerUserId).single() : null
+    if (currentBinder?.error) throw currentBinder.error
+    const previous = withBinderLayout(settingsFromRow(existingResult.data), currentBinder?.data ? { rows: currentBinder.data.binder_rows, cols: currentBinder.data.binder_cols } : null)
+    const layoutChanged = nextSettings.binderRows !== previous.binderRows || nextSettings.binderCols !== previous.binderCols
+    if (needsCustomLayoutAccess({ rows: nextSettings.binderRows, cols: nextSettings.binderCols }, { rows: previous.binderRows, cols: previous.binderCols })) {
+      await requirePaidAccess(settingsOwnerUserId)
+    }
+    if (binderId && layoutChanged) {
+      const { error } = await admin.from("binders").update({ binder_rows: nextSettings.binderRows, binder_cols: nextSettings.binderCols }).eq("id", binderId).eq("owner_user_id", settingsOwnerUserId)
+      if (error?.code === "23514") return NextResponse.json({ error: "Custom layouts are not available yet. Your saved layout is unchanged." }, { status: 503 })
+      if (error) throw error
+    }
     const writeSettings = (row: Record<string, unknown>) => existingResult.data
       ? admin
           .from("user_settings")
@@ -131,7 +160,8 @@ export async function PUT(request: NextRequest) {
           })
 
     // Older clients must not reset a preference they do not know about.
-    const fullRow = typeof body.showBinderValue === "boolean" ? settingsToRow(nextSettings) : withoutBinderValueColumn(settingsToRow(nextSettings))
+    const fullRow: Record<string, unknown> = typeof body.showBinderValue === "boolean" ? settingsToRow(nextSettings) : withoutBinderValueColumn(settingsToRow(nextSettings))
+    if (binderId) { delete fullRow.binder_rows; delete fullRow.binder_cols }
     let { error } = await writeSettings(fullRow)
     if (error && isMissingColumnError(error)) {
       ;({ error } = await writeSettings(withoutBinderValueColumn(fullRow)))
@@ -148,6 +178,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ settings: nextSettings })
   } catch (error) {
+    if (error instanceof BinderAccessError) return NextResponse.json({ error: error.message }, { status: 404 })
+    if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] API settings PUT failed:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save settings" },
