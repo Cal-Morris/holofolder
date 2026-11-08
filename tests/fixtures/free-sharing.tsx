@@ -7,7 +7,7 @@ async function run() {
   const owner = '00000000-0000-4000-8000-000000000001', binderId = '00000000-0000-4000-8000-000000000002'
   let actor: string | null = owner, named = false, wrongBinder = false, collectionError = false
   let share: BinderShareRecord | null = null
-  let pricingSchemaMissing = false
+  let pricingSchemaMissing = false, missingUsername = false
   const binder = { id: binderId, ownerUserId: owner, name: 'Synthetic binder', isDefault: true, sortOrder: 0, color: null, rows: null, cols: null, createdAt: null, updatedAt: null }
   const database = {
     from(table: string) {
@@ -21,6 +21,7 @@ async function run() {
         update(value: Partial<BinderShareRecord>) { if (matches()) share = { ...share!, ...value }; return q },
         async single() { return missingColumn ? { data: null, error: { code: "PGRST204", message: "show_prices column not found" } } : { data: share, error: null } },
         async maybeSingle() {
+          if (table === 'account_identities') return { data: !missingUsername && filters.user_id === owner ? { username: 'synthetic' } : null, error: null }
           return { data: table === 'binders' ? filters.id === binderId && filters.owner_user_id === owner ? { id: binderId } : null : matches() ? share : null, error: null }
         },
       }
@@ -64,8 +65,8 @@ async function run() {
   assert.match(token, /^[A-Za-z0-9_-]{32}$/)
   assert.equal(payload.share.path, `/app/share/${token}`)
   const { default: SharedBinder } = await import('../../components/shared-binder-page')
-  const { default: TokenPage, metadata: tokenMetadata } = await import('../../app/share/[token]/page')
-  const { default: NamedPage, metadata: namedMetadata } = await import('../../app/u/[username]/[binderSlug]/page')
+  const { default: TokenPage, generateMetadata: generateTokenMetadata } = await import('../../app/share/[token]/page')
+  const { default: NamedPage, generateMetadata: generateNamedMetadata } = await import('../../app/u/[username]/[binderSlug]/page')
   actor = owner // Signed-in visitors keep their viewer identity on a read-only share.
   const tokenPage = await TokenPage({ params: Promise.resolve({ token }) })
   const signedInHtml = renderToStaticMarkup(await SharedBinder(tokenPage.props))
@@ -79,9 +80,16 @@ async function run() {
   assert.match(html, /initialPriceMode&quot;:false/)
   assert.match(html, /initialUser&quot;:null/)
   assert.doesNotMatch(html, /private_note|private-owner|wanted_by/)
+  const tokenMetadata = await generateTokenMetadata({ params: Promise.resolve({ token }) })
+  assert.equal(tokenMetadata.title, "@synthetic’s Synthetic binder · Holo Folder")
+  missingUsername = true
+  assert.equal((await generateTokenMetadata({ params: Promise.resolve({ token }) })).title, "Synthetic binder · Holo Folder")
+  missingUsername = false
   assert.deepEqual(tokenMetadata.robots, { index: false, follow: false })
-  assert.deepEqual(namedMetadata.robots, { index: false, follow: false })
   named = true
+  const namedMetadata = await generateNamedMetadata({ params: Promise.resolve({ username: 'synthetic', binderSlug: 'binder' }) })
+  assert.equal(namedMetadata.title, tokenMetadata.title)
+  assert.deepEqual(namedMetadata.robots, { index: false, follow: false })
   const namedPage = await NamedPage({ params: Promise.resolve({ username: 'synthetic', binderSlug: 'binder' }) })
   assert.match(renderToStaticMarkup(await SharedBinder(namedPage.props)), /initialSharePath&quot;:&quot;\/@synthetic\/binder/)
   assert.equal((await api.POST(request('true'))).status, 400)
@@ -98,13 +106,19 @@ async function run() {
   assert.equal(hiddenPrices.share.show_prices, false)
   assert.match(renderToStaticMarkup(await SharedBinder({ share: { ...hiddenPrices.share, show_prices: undefined } })), /pricingEnabled&quot;:false/)
   await assert.rejects(TokenPage({ params: Promise.resolve({ token: 'wrong' }) }), /NOT_FOUND/)
+  await assert.rejects(generateTokenMetadata({ params: Promise.resolve({ token: 'wrong' }) }), /NOT_FOUND/)
+  await assert.rejects(generateNamedMetadata({ params: Promise.resolve({ username: 'invalid/name', binderSlug: 'binder' }) }), /NOT_FOUND/)
   wrongBinder = true
+  await assert.rejects(generateTokenMetadata({ params: Promise.resolve({ token }) }), /NOT_FOUND/)
+  await assert.rejects(generateNamedMetadata({ params: Promise.resolve({ username: 'synthetic', binderSlug: 'binder' }) }), /NOT_FOUND/)
   await assert.rejects(SharedBinder({ share: payload.share }), /NOT_FOUND/)
   wrongBinder = false; collectionError = true
   await assert.rejects(SharedBinder({ share: payload.share }), /NOT_FOUND/)
   collectionError = false
   const disabled = await api.DELETE(new Request(`https://synthetic.test/app/api/binder-share?binderId=${binderId}`, { method: 'DELETE' }))
   assert.equal(disabled.status, 200)
+  await assert.rejects(generateTokenMetadata({ params: Promise.resolve({ token }) }), /NOT_FOUND/)
+  await assert.rejects(generateNamedMetadata({ params: Promise.resolve({ username: 'synthetic', binderSlug: 'binder' }) }), /NOT_FOUND/)
   await assert.rejects(TokenPage({ params: Promise.resolve({ token }) }), /NOT_FOUND/)
   await assert.rejects(NamedPage({ params: Promise.resolve({ username: 'synthetic', binderSlug: 'binder' }) }), /NOT_FOUND/)
   assert.equal((await (await api.POST(request())).json()).share.token, token, 're-enable retains the token')
