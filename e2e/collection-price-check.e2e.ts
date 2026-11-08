@@ -52,7 +52,7 @@ test("wanted checks confirm once, survive leaving and reopening, and reconnect o
   job = { id, status: "completed", progress: { total: 65, done: 65, checked: 60, fresh: 4, failed: 1, stopped: {} } }
   await page.reload()
   await harness.dock().getByRole("button", { name: "Wanted", exact: true }).click()
-  await expect(batch).toContainText("60 checked, 4 already fresh, 1 incomplete")
+  await expect(batch).toContainText("60 checked, 4 already saved, 1 incomplete")
   expect(starts).toBe(1)
   expect(directChecks).toBe(0)
   await harness.expectNoHorizontalOverflow()

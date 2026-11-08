@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { normalizeComparisonTargets, countComparisonResult } from "@/lib/comparison-jobs"
 import { isPriceCheckFresh } from "@/lib/card-price-check-cache"
 
-test("a saved comparison is reused through the next day, but expires at 30 hours", () => {
+test("manual refresh cooldown ends at 30 hours without expiring saved data", () => {
   const now = Date.parse("2026-11-07T18:00:00Z")
   assert.equal(isPriceCheckFresh({ checkedAt: "2026-11-06T12:00:01Z" }, now), true)
   assert.equal(isPriceCheckFresh({ checkedAt: "2026-11-06T12:00:00Z" }, now), false)

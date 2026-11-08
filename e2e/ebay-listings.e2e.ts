@@ -308,23 +308,60 @@ test("fair market bands, quick eBay link and individually verifiable source reco
   await harness.expectNoHorizontalOverflow()
 })
 
-test("a saved check shows again without a request and is not re-requested while under 30 hours old", async ({ harness }) => {
+test("an old saved check survives reload and offline, only explicit refresh requests new evidence", async ({ harness }) => {
   let requests = 0
+  const oldDate = "2025-01-01T12:00:00Z"
   await harness.page.route("**/app/api/card-price-checks?**", async route => {
     requests++
-    const fixture = qualifyingFixture()
-    await route.fulfill({ json: { ...fixture, ebay: { ...fixture.ebay, checkedAt: new Date().toISOString() } } })
+    expect(new URL(route.request().url()).searchParams.get("refresh")).toBe(requests > 2 ? "true" : null)
+    await route.fulfill({ json: { ...comparisonFixture,
+      ebay: { ...comparisonFixture.ebay, checkedAt: oldDate },
+      soldcomps: { ...comparisonFixture.soldcomps, checkedAt: oldDate },
+    } })
   })
   let detail = await harness.openCardDetail()
   await detail.getByRole("button", { name: "Check prices", exact: true }).click()
-  await expect(detail.getByText(/£9.80.*median sold price/)).toBeVisible()
+  await expect(detail.getByText(/£9.00.*median sold price/)).toBeVisible()
   expect(requests).toBe(2)
   await harness.page.reload()
   detail = await harness.openCardDetail()
   const comparison = detail.getByRole("region", { name: "Price comparisons" })
-  await expect(comparison.getByText(/£9.80.*median sold price/)).toBeVisible()
-  await expect(comparison.getByTestId("price-check-age-soldcomps")).toContainText(/Checked (just now|1 min ago)/)
-  await comparison.getByRole("button", { name: "Check prices", exact: true }).click()
-  await expect(comparison.getByText("Showing saved checks from the last 30 hours.")).toBeVisible()
+  await expect(comparison.getByText(/£9.00.*median sold price/)).toBeVisible()
+  await expect(comparison.getByTestId("price-check-age-soldcomps")).toContainText("Last checked on 01/01/2025")
+  await expect(comparison.getByTestId("price-check-age-soldcomps")).toContainText("older snapshot")
   expect(requests).toBe(2)
+  const refresh = comparison.getByRole("button", { name: "Refresh prices", exact: true })
+  await harness.expectMinTapTarget(refresh)
+  await harness.expectNoHorizontalOverflow()
+  await harness.page.context().setOffline(true)
+  await refresh.click()
+  await expect(comparison.getByText("Connect to the internet to check prices.")).toBeVisible()
+  await expect(comparison.getByText(/£9.00.*median sold price/)).toBeVisible()
+  expect(requests).toBe(2)
+  await harness.page.context().setOffline(false)
+  await refresh.click()
+  await expect(refresh).toBeEnabled()
+  expect(requests).toBe(4)
+})
+
+test("a saved source can be refreshed when the other provider is unavailable", async ({ harness }) => {
+  let soldRefreshes = 0
+  await harness.page.route("**/app/api/card-price-checks?**", async route => {
+    const params = new URL(route.request().url()).searchParams
+    if (params.get("source") === "soldcomps" && params.get("refresh") === "true") soldRefreshes++
+    await route.fulfill({ json: { ebay: null,
+      soldcomps: { ...comparisonFixture.soldcomps, checkedAt: "2025-01-01T12:00:00Z" },
+      errors: { ebay: "eBay is not configured." },
+    } })
+  })
+  const detail = await harness.openCardDetail()
+  const comparison = detail.getByRole("region", { name: "Price comparisons" })
+  await comparison.getByRole("button", { name: "Check prices", exact: true }).click()
+  await expect(comparison.getByText(/£9.00.*median sold price/)).toBeVisible()
+  const refresh = comparison.getByRole("button", { name: "Refresh prices", exact: true })
+  await expect(refresh).toBeVisible()
+  await refresh.click()
+  await expect(refresh).toBeEnabled()
+  expect(soldRefreshes).toBe(1)
+  await harness.expectNoHorizontalOverflow()
 })

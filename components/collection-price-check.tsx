@@ -60,7 +60,7 @@ export function BackgroundPriceCheck({ targets, kind, ownerId, isOnline, label, 
     <p className="text-xs text-muted-foreground">eBay asking prices + sold comps. English, non-jumbo cards; duplicates checked once. We’ll notify you when finished if notifications are enabled.</p>
     <p role="status" className="text-xs text-muted-foreground">
       {message ?? (!isOnline ? running ? "Offline. Checks continue on the server." : "Connect to check prices." : running ? `Checking ${progress?.done ?? 0}/${progress?.total ?? targets.length} in background… You can close the app.` : job?.status === "completed" ? "Finished. Checks saved on the server; Prepare for a show downloads them onto this device." : job?.status === "cancelled" ? "Stopped. Completed checks are saved." : job?.status === "failed" ? "Check interrupted on the server. Retry to reuse completed checks." : null)}
-      {progress && <> {progress.checked} checked, {progress.fresh} already fresh, {progress.failed} incomplete. {Object.values(progress.stopped).join(" ")}</>}
+      {progress && <> {progress.checked} checked, {progress.fresh} already saved, {progress.failed} incomplete. {Object.values(progress.stopped).join(" ")}</>}
     </p>
     {running && estimate === null && <progress aria-label="Prices checked" value={progress?.done ?? 0} max={progress?.total || targets.length || 1} className="h-1 w-full accent-primary" />}
     {estimate !== null && <CheckCompsConfirm cardsNeedingSoldcomps={estimate} onConfirm={() => void start(true)} onCancel={cancelConfirmation} />}
