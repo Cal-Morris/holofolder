@@ -129,3 +129,15 @@ test("the IndexedDB copy is per binder; pending edits stay in the default record
   assert.equal(trades?.binderId, TRADES)
   assert.deepEqual(trades?.pendingOperations, [])
 })
+
+test("offline boot keeps each binder's own custom layout and queued device dimensions", () => {
+  const storage = memoryStorage({
+    pokemon_collection_snapshot_v1: { ownerUserId: "owner", binderId: MAIN, collection: [row(1, "base1-44")] },
+    [`pokemon_collection_snapshot_v1:${TRADES}`]: { ownerUserId: "owner", binderId: TRADES, collection: [row(4, "base1-46")] },
+    [`pokemon_binder_settings:owner:binder:${TRADES}`]: { binderRows: 8, binderCols: 7 },
+  })
+  rememberDeviceBinders(storage, "owner", BINDERS.map(binder => ({ ...binder, rows: 2, cols: 2 })))
+  assert.equal(readOfflineBinderBoot(storage, "", "owner", MAIN, null).settings.binderRows, 2)
+  assert.equal(readOfflineBinderBoot(storage, "", "owner", TRADES, null).settings.binderRows, 8)
+  assert.equal(readOfflineBinderBoot(storage, "", "owner", TRADES, null).settings.binderCols, 7)
+})

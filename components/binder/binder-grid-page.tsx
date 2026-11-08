@@ -153,6 +153,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
   const pageTheme = getBinderThemeForPage(pageNumber)
   const pageSlots = getPageSlots(pageNumber)
   const isActivePage = pageNumber === currentBinderPage
+  const scrollable = settings.binderRows > 4 || settings.binderCols > 4
 
   return (
     <div
@@ -178,84 +179,88 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
           Page {pageNumber}
         </div>
       )}
-      <div
-        className="absolute inset-0 p-2 sm:p-4"
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${settings.binderRows}, minmax(0, 1fr))`,
-          gap: "0.375rem",
-        }}
-      >
-        {pageSlots.map((pokemon, index) => {
-          const row = Math.floor(index / settings.binderCols)
-          const col = index % settings.binderCols
-          const rowLetter = String.fromCharCode(65 + row)
-          const slotLabel = `${rowLetter}${col + 1}`
+      <div className="absolute inset-0 overflow-auto overscroll-contain" role={scrollable ? "region" : undefined} aria-label={scrollable ? `Scrollable binder page ${pageNumber}` : undefined} tabIndex={scrollable ? 0 : undefined}>
+        <div
+          className="relative h-full w-full p-2 sm:p-4"
+          style={{
+            minWidth: scrollable ? settings.binderCols * 64 + (settings.binderCols - 1) * 6 + (isDesktopViewport ? 32 : 16) : undefined,
+            minHeight: scrollable ? settings.binderRows * 90 + (settings.binderRows - 1) * 6 + (isDesktopViewport ? 32 : 16) : undefined,
+            display: "grid",
+            gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${settings.binderRows}, minmax(0, 1fr))`,
+            gap: "0.375rem",
+          }}
+        >
+          {pageSlots.map((pokemon, index) => {
+            const row = Math.floor(index / settings.binderCols)
+            const col = index % settings.binderCols
+            const rowLetter = String.fromCharCode(65 + row)
+            const slotLabel = `${rowLetter}${col + 1}`
 
-          if (!pokemon) {
-            return (
-              <div
-                key={`slot-${pageNumber}-${index}`}
-                className="relative h-full w-full overflow-hidden border border-white/55 bg-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-10px_18px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/[0.03] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-10px_18px_rgba(0,0,0,0.24)]"
-                style={{ borderRadius: TRADING_CARD_CORNER_RADIUS }}
-              >
+            if (!pokemon) {
+              return (
                 <div
-                  className="absolute inset-[3px] border border-black/6 dark:border-white/8"
-                  style={{ borderRadius: TRADING_CARD_INNER_CORNER_RADIUS }}
-                />
-                <div className="absolute inset-x-[7px] top-[7px] h-px bg-white/65 dark:bg-white/10" />
-                {settings.binderSlotGlareEnabled ? (
-                  <BinderSlotGlare
-                    glareStyle={slotGlareOverlayStyle}
-                    innerRadius={TRADING_CARD_INNER_CORNER_RADIUS}
+                  key={`slot-${pageNumber}-${index}`}
+                  className="relative h-full w-full overflow-hidden border border-white/55 bg-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-10px_18px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/[0.03] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-10px_18px_rgba(0,0,0,0.24)]"
+                  style={{ borderRadius: TRADING_CARD_CORNER_RADIUS }}
+                >
+                  <div
+                    className="absolute inset-[3px] border border-black/6 dark:border-white/8"
+                    style={{ borderRadius: TRADING_CARD_INNER_CORNER_RADIUS }}
                   />
-                ) : null}
-              </div>
+                  <div className="absolute inset-x-[7px] top-[7px] h-px bg-white/65 dark:bg-white/10" />
+                  {settings.binderSlotGlareEnabled ? (
+                    <BinderSlotGlare
+                      glareStyle={slotGlareOverlayStyle}
+                      innerRadius={TRADING_CARD_INNER_CORNER_RADIUS}
+                    />
+                  ) : null}
+                </div>
+              )
+            }
+
+            const isCurrentCollected = isCollected(pokemon.id)
+            const isSelected = selectedPokemon?.id === pokemon.id
+            const isLongPressed = longPressedPokemon?.id === pokemon.id
+            const item = getCollectionItem(pokemon.id)
+            const isCurrentWishlisted = binderCardDisplay !== "current" && (item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length))
+            const displayCard = getBinderDisplayCard(item, binderCardDisplay)
+            const slotCardImage = getSlotCardImage(pokemon.id)
+            const slotCardName = displayCard?.card_name
+            const slotCardFinish = displayCard?.card_finish
+            const itemPriceKey = getCollectionItemPriceKey(displayCard)
+
+            return (
+              <BinderGridSlot
+                key={`${pageNumber}-${pokemon.id}`}
+                pokemon={pokemon}
+                isCollected={binderCardDisplay !== "wanted" && isCurrentCollected}
+                isWishlisted={isCurrentWishlisted}
+                isSelected={isSelected}
+                isLongPressed={isLongPressed}
+                slotLabel={slotLabel}
+                status={binderCardDisplay !== "wanted" ? item?.status : undefined}
+                cardImage={slotCardImage}
+                imageSizes={binderSlotImageSizes}
+                cardName={slotCardName}
+                cardFinish={slotCardFinish}
+                hasAssignedCard={Boolean(displayCard?.card_id)}
+                priceLabel={isPriceMode && itemPriceKey ? priceFormat.label(pricesByCardId[itemPriceKey]) : null}
+                showPriceMode={isPriceMode}
+                readOnly={readOnlyMode}
+                showBinderSlotGlare={settings.binderSlotGlareEnabled}
+                showCardFinishEffects={settings.cardFinishEffectsEnabled}
+                binderSlotGlareStyle={slotGlareOverlayStyle}
+                cardFinishEffectStyle={cardFinishEffectStyle}
+                cardFinishGlint={cardFinishGlint}
+                pageNumber={pageNumber}
+                actions={slotActions}
+                user={user}
+                priority
+              />
             )
-          }
-
-          const isCurrentCollected = isCollected(pokemon.id)
-          const isSelected = selectedPokemon?.id === pokemon.id
-          const isLongPressed = longPressedPokemon?.id === pokemon.id
-          const item = getCollectionItem(pokemon.id)
-          const isCurrentWishlisted = binderCardDisplay !== "current" && (item?.status === "wishlisted" || Boolean(item?.wanted_cards?.length))
-          const displayCard = getBinderDisplayCard(item, binderCardDisplay)
-          const slotCardImage = getSlotCardImage(pokemon.id)
-          const slotCardName = displayCard?.card_name
-          const slotCardFinish = displayCard?.card_finish
-          const itemPriceKey = getCollectionItemPriceKey(displayCard)
-
-          return (
-            <BinderGridSlot
-              key={`${pageNumber}-${pokemon.id}`}
-              pokemon={pokemon}
-              isCollected={binderCardDisplay !== "wanted" && isCurrentCollected}
-              isWishlisted={isCurrentWishlisted}
-              isSelected={isSelected}
-              isLongPressed={isLongPressed}
-              slotLabel={slotLabel}
-              status={binderCardDisplay !== "wanted" ? item?.status : undefined}
-              cardImage={slotCardImage}
-              imageSizes={binderSlotImageSizes}
-              cardName={slotCardName}
-              cardFinish={slotCardFinish}
-              hasAssignedCard={Boolean(displayCard?.card_id)}
-              priceLabel={isPriceMode && itemPriceKey ? priceFormat.label(pricesByCardId[itemPriceKey]) : null}
-              showPriceMode={isPriceMode}
-              readOnly={readOnlyMode}
-              showBinderSlotGlare={settings.binderSlotGlareEnabled}
-              showCardFinishEffects={settings.cardFinishEffectsEnabled}
-              binderSlotGlareStyle={slotGlareOverlayStyle}
-              cardFinishEffectStyle={cardFinishEffectStyle}
-              cardFinishGlint={cardFinishGlint}
-              pageNumber={pageNumber}
-              actions={slotActions}
-              user={user}
-              priority
-            />
-          )
-        })}
+          })}
+        </div>
       </div>
     </div>
   )

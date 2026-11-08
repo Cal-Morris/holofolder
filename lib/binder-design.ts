@@ -1,4 +1,5 @@
 import { appPath } from "@/lib/app-path"
+import { isBinderGridSize } from "@/lib/binder-layout"
 import { BINDER_COLOR_PRESETS } from "@/lib/binder-colors"
 import type { BinderSettings } from "@/lib/settings"
 
@@ -69,7 +70,7 @@ export function normalizeBinderDesign(value: unknown, defaults = defaultBinderDe
     })) as BinderDesign["surfaces"],
     material: v.material === "smooth" ? "smooth" : "pebbled", ink: color(v.ink, defaults.ink),
     font: v.font === "serif" || v.font === "monospace" ? v.font : "sans-serif", textSize: number(v.textSize, 60, 20, 150),
-    pageCount: Math.round(number(v.pageCount, defaults.pageCount, 1, 1025)), rows: Math.round(number(v.rows, defaults.rows, 1, 4)), cols: Math.round(number(v.cols, defaults.cols, 1, 4)),
+    pageCount: Math.round(number(v.pageCount, defaults.pageCount, 1, 1025)), rows: isBinderGridSize(v.rows) ? v.rows : defaults.rows, cols: isBinderGridSize(v.cols) ? v.cols : defaults.cols,
     pageColor: color(v.pageColor, defaults.pageColor), pageColors,
     zip: { teeth: color(zip.teeth, defaults.zip.teeth), tape: color(zip.tape, defaults.zip.tape), pull: color(zip.pull, defaults.zip.pull), type: zip.type === "nylon" ? "nylon" : "metal" },
     stats: v.stats === "off" || v.stats === "full" ? v.stats : "compact",
