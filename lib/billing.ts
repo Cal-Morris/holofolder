@@ -48,7 +48,7 @@ export class BillingAccessError extends Error {
   constructor(public code: 'upgrade_required' | 'card_limit_reached' | 'binder_limit_reached' = 'upgrade_required') {
     super(code === 'card_limit_reached' ? 'You have reached your free entry allowance. Upgrade to save more. Your changes are kept on this device.'
       : code === 'binder_limit_reached' ? 'Your free plan includes one binder. Upgrade to create more binders.'
-      : 'Upgrade to Holo Folder for sharing, partner mode and price comparisons.')
+      : 'Upgrade to Holo Folder for more cards and binders, partner mode and price comparisons.')
   }
 }
 export function isBillingError(error: unknown): boolean {

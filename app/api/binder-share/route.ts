@@ -1,5 +1,3 @@
-import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
-import { isBillingError } from "@/lib/billing"
 import { randomBytes } from "node:crypto"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
@@ -96,7 +94,6 @@ export async function POST(request: Request) {
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(supabase, user.id)
-    await requirePaidAccess(ownerUserId)
     const body = await request.json().catch(() => null) as { binderId?: unknown } | null
     const binder = await resolveShareBinder(ownerUserId, body?.binderId)
     if (binder.response) return binder.response
@@ -137,7 +134,6 @@ export async function POST(request: Request) {
       },
     })
   } catch (error) {
-    if (isBillingError(error)) return billingErrorResponse(error)
     if (error instanceof IdentityError) return identityJson({ error: error.message }, error.status)
     console.error("[holofolder] Failed to enable binder share:", error)
     return identityJson(
