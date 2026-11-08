@@ -29,6 +29,7 @@ describe("proxy matcher", () => {
       "/api/tcgdex-cache",
       "/api/tcg-set-slots",
       "/api/tcg-card-search",
+      "/api/docs-search",
       "/api/ebay/account-deletion",
       "/.well-known/workflow/v1/step",
     ]) {

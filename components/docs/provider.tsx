@@ -1,14 +1,29 @@
 'use client'
-import type { ComponentProps, ReactNode } from 'react'
-import { RootProvider } from 'fumadocs-ui/provider/next'
+
+import { useSyncExternalStore, type ComponentProps, type ReactNode } from 'react'
+import { useParams, usePathname } from 'next/navigation'
+import { FrameworkProvider } from 'fumadocs-core/framework'
+import { RootProvider } from 'fumadocs-ui/provider/base'
 import { docsHref } from '@/lib/docs-routing'
-export function DocsLink({ prefetch: _prefetch, onClick, ...props }: ComponentProps<'a'> & { prefetch?: boolean }) {
-  return <a {...props} onClick={event => {
-    // Keep public /docs links on Framer, but support opening the Next origin directly.
-    if (props.href) event.currentTarget.href = docsHref(props.href, window.location.pathname)
-    onClick?.(event)
-  }} />
+
+const subscribe = () => () => {}
+const docsRouter = {
+  push: (href: string) => { window.location.assign(docsHref(href, window.location.pathname)) },
+  refresh: () => { window.location.reload() },
 }
+const useDocsRouter = () => docsRouter
+
+export function DocsLink({ prefetch: _prefetch, href, ...props }: ComponentProps<'a'> & { prefetch?: boolean }) {
+  const pathname = useSyncExternalStore(subscribe, () => window.location.pathname, () => '')
+  return <a {...props} href={href ? docsHref(href, pathname) : href} />
+}
+
 export function DocsProvider({ children }: { children: ReactNode }) {
-  return <RootProvider components={{ Link: DocsLink }} theme={{ enabled: false }} search={{ enabled: false }}>{children}</RootProvider>
+  return <FrameworkProvider Link={DocsLink} usePathname={usePathname} useParams={useParams} useRouter={useDocsRouter}>
+    <RootProvider theme={{ enabled: false }} search={{ options: { api: '/app/api/docs-search' }, links: [
+      ['Connect an AI assistant', '/docs/mcp'],
+      ['Create an API key', '/docs/api-keys'],
+      ['Explore the API', '/docs/reference'],
+    ] }}>{children}</RootProvider>
+  </FrameworkProvider>
 }

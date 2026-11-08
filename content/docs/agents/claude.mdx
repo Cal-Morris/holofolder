@@ -1,0 +1,33 @@
+---
+title: Claude
+description: Connect Holo Folder to Claude and Claude Code.
+---
+
+Use Holo Folder's remote MCP server with OAuth. You sign in through your browser and choose the permissions Claude receives.
+
+## Claude Code
+
+Add the HTTP server from your terminal:
+
+```sh title="Terminal"
+claude mcp add --transport http holofolder \
+  https://holofolder.com/app/mcp
+```
+
+Open Claude Code and run `/mcp`. Select Holo Folder and follow the browser authentication flow. Sign in, review the consent screen, and return to Claude Code after approving.
+
+## Claude custom connector
+
+Where your Claude plan and workspace allow custom connectors, open **Customize → Connectors**, choose **Add custom connector**, name it **Holo Folder**, and enter:
+
+```text title="Remote MCP server URL"
+https://holofolder.com/app/mcp
+```
+
+Choose OAuth sign-in. If asked how Claude should identify itself, select **Register automatically**, then complete the sign-in flow. Team and Enterprise workspaces may need an owner to add the connector first. This is a remote connection, so you don't need to configure a local command or install an MCP bridge.
+
+## Check the connection
+
+Ask Claude to “List my Holo Folder binders without making any changes.” If tools are unavailable, open the client's MCP or connector controls and check whether the server needs authentication.
+
+[Connection and permission details](/docs/mcp) · [Claude Code's official MCP guide](https://code.claude.com/docs/en/mcp) · [Claude's custom connector guide](https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp)

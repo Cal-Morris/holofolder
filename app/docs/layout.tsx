@@ -1,15 +1,29 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { Metadata } from 'next'
+import { ArrowUpRight, Bot, Layers3 } from 'lucide-react'
 import { DocsLayout } from 'fumadocs-ui/layouts/docs'
 import { DocsLink, DocsProvider } from '@/components/docs/provider'
 import { docsSource } from '@/lib/docs-source'
 import './docs.css'
-export const metadata: Metadata = { title: { template: '%s · Holo Folder Docs', default: 'Holo Folder Docs' }, robots: { index: true, follow: true } }
-export default function DocumentationLayout({ children }: { children: ReactNode }) {
+
+export const metadata: Metadata = {
+  title: { template: '%s · Holo Folder Developers', default: 'Holo Folder Developers' },
+  robots: { index: true, follow: true },
+}
+
+export default async function DocumentationLayout({ children }: { children: ReactNode }) {
+  const source = await docsSource
   return <div className="holo-docs"><DocsProvider>
-    <header className="docs-header"><DocsLink href="/docs" className="docs-brand">Holo Folder <span>Developers</span></DocsLink><a href="/app">Open app</a></header>
-    <div className="docs-frame"><nav className="docs-navigation" aria-label="Documentation">{docsSource.getPages().map(page => <DocsLink key={page.url} href={page.url}>{page.data.title}</DocsLink>)}</nav>
-      <DocsLayout tree={docsSource.pageTree} nav={{ enabled: false }} sidebar={{ enabled: false }} searchToggle={{ enabled: false }} themeSwitch={{ enabled: false }}>{children}</DocsLayout>
-    </div>
+    <DocsLayout tree={source.pageTree} tabs={false}
+      containerProps={{ style: { '--fd-docs-row-1': 'calc(env(safe-area-inset-top, 0px) + var(--fd-banner-height, 0px))' } as CSSProperties }} themeSwitch={{ enabled: false }}
+      nav={{ title: <span className="docs-brand"><span className="docs-brand-icon"><Layers3 size={19} /></span><span>Holo Folder <span className="docs-brand-label">Developers</span></span></span>, url: '/docs' }}
+      links={[
+        { text: 'AI & agents', url: '/docs/mcp' },
+        { text: 'API explorer', url: '/docs/reference' },
+        { type: 'button', text: 'Open app', url: '/app', external: true, icon: <ArrowUpRight size={14} /> },
+      ]}
+      sidebar={{ collapsible: false, defaultOpenLevel: 1, banner: <DocsLink href="/docs/mcp" className="docs-agent-link"><Bot size={19} /><span><strong>Connect an AI assistant</strong><span>Your collection, in your tools</span></span><ArrowUpRight size={14} /></DocsLink>, footer: <a className="docs-marketing-link" href="https://holofolder.com">Back to Holo Folder <ArrowUpRight size={13} /></a> }}>
+      {children}
+    </DocsLayout>
   </DocsProvider></div>
 }

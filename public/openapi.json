@@ -7,11 +7,8 @@
   },
   "servers": [
     {
-      "url": "https://holofolder.com/api/v1"
-    },
-    {
       "url": "https://holofolder.com/app/api/v1",
-      "description": "Existing /app path"
+      "description": "Holo Folder production API"
     }
   ],
   "components": {
@@ -27,8 +24,11 @@
     "/cards": {
       "get": {
         "operationId": "list_cards",
-        "summary": "Browse and search the card catalog with pagination.",
-        "description": "Browse and search the card catalog with pagination.\n\nPermissions: catalog:read.",
+        "summary": "Search cards",
+        "description": "Browse and search the card catalog with pagination.\n\nRequired permissions: `catalog:read`. MCP tool: `list_cards`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -161,8 +161,11 @@
     "/cards/{id}": {
       "get": {
         "operationId": "get_card",
-        "summary": "Look up a card by its exact identifier.",
-        "description": "Look up a card by its exact identifier.\n\nPermissions: catalog:read.",
+        "summary": "Get card",
+        "description": "Look up a card by its exact identifier.\n\nRequired permissions: `catalog:read`. MCP tool: `get_card`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -238,8 +241,11 @@
     "/sets": {
       "get": {
         "operationId": "list_sets",
-        "summary": "List card sets.",
-        "description": "List card sets.\n\nPermissions: catalog:read.",
+        "summary": "List sets",
+        "description": "List card sets.\n\nRequired permissions: `catalog:read`. MCP tool: `list_sets`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -334,8 +340,11 @@
     "/sets/{id}": {
       "get": {
         "operationId": "get_set",
-        "summary": "Look up a card set.",
-        "description": "Look up a card set.\n\nPermissions: catalog:read.",
+        "summary": "Get set",
+        "description": "Look up a card set.\n\nRequired permissions: `catalog:read`. MCP tool: `get_set`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -411,8 +420,11 @@
     "/series": {
       "get": {
         "operationId": "list_series",
-        "summary": "List card series.",
-        "description": "List card series.\n\nPermissions: catalog:read.",
+        "summary": "List series",
+        "description": "List card series.\n\nRequired permissions: `catalog:read`. MCP tool: `list_series`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -497,8 +509,11 @@
     "/series/{id}": {
       "get": {
         "operationId": "get_series",
-        "summary": "Look up a card series.",
-        "description": "Look up a card series.\n\nPermissions: catalog:read.",
+        "summary": "Get series",
+        "description": "Look up a card series.\n\nRequired permissions: `catalog:read`. MCP tool: `get_series`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -574,8 +589,11 @@
     "/languages": {
       "get": {
         "operationId": "list_languages",
-        "summary": "List supported card languages.",
-        "description": "List supported card languages.\n\nPermissions: catalog:read.",
+        "summary": "List languages",
+        "description": "List supported card languages.\n\nRequired permissions: `catalog:read`. MCP tool: `list_languages`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -622,8 +640,11 @@
     "/pokemon": {
       "get": {
         "operationId": "list_pokemon",
-        "summary": "List Pokédex entries.",
-        "description": "List Pokédex entries.\n\nPermissions: catalog:read.",
+        "summary": "List pokemon",
+        "description": "List Pokédex entries.\n\nRequired permissions: `catalog:read`. MCP tool: `list_pokemon`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -699,8 +720,11 @@
     "/pokemon/{id}": {
       "get": {
         "operationId": "get_pokemon",
-        "summary": "Look up a Pokédex entry.",
-        "description": "Look up a Pokédex entry.\n\nPermissions: catalog:read.",
+        "summary": "Get pokemon",
+        "description": "Look up a Pokédex entry.\n\nRequired permissions: `catalog:read`. MCP tool: `get_pokemon`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -757,8 +781,11 @@
     "/illustrators": {
       "get": {
         "operationId": "list_illustrators",
-        "summary": "List card illustrators.",
-        "description": "List card illustrators.\n\nPermissions: catalog:read.",
+        "summary": "List illustrators",
+        "description": "List card illustrators.\n\nRequired permissions: `catalog:read`. MCP tool: `list_illustrators`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -834,8 +861,11 @@
     "/binders": {
       "get": {
         "operationId": "list_binders",
-        "summary": "List your accessible binders with slot counts.",
-        "description": "List your accessible binders with slot counts.\n\nPermissions: binders:read.",
+        "summary": "List binders",
+        "description": "List your accessible binders with slot counts.\n\nRequired permissions: `binders:read`. MCP tool: `list_binders`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -880,8 +910,11 @@
       },
       "post": {
         "operationId": "create_binder",
-        "summary": "Create a named binder.",
-        "description": "Create a named binder.\n\nPermissions: binders:write.",
+        "summary": "Create binder",
+        "description": "Create a named binder.\n\nRequired permissions: `binders:write`. MCP tool: `create_binder`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -961,8 +994,11 @@
     "/binders/{id}": {
       "patch": {
         "operationId": "update_binder",
-        "summary": "Rename a binder.",
-        "description": "Rename a binder.\n\nPermissions: binders:write.",
+        "summary": "Update binder",
+        "description": "Rename a binder.\n\nRequired permissions: `binders:write`. MCP tool: `update_binder`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1040,8 +1076,11 @@
       },
       "delete": {
         "operationId": "delete_binder",
-        "summary": "Delete a binder. Populated binders need explicit confirmation.",
-        "description": "Delete a binder. Populated binders need explicit confirmation.\n\nPermissions: binders:write.",
+        "summary": "Delete binder",
+        "description": "Delete a binder. Populated binders need explicit confirmation.\n\nRequired permissions: `binders:write`. MCP tool: `delete_binder`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1117,8 +1156,11 @@
     "/binders/order": {
       "put": {
         "operationId": "reorder_binders",
-        "summary": "Reorder all your binders.",
-        "description": "Reorder all your binders.\n\nPermissions: binders:write.",
+        "summary": "Reorder binders",
+        "description": "Reorder all your binders.\n\nRequired permissions: `binders:write`. MCP tool: `reorder_binders`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1192,8 +1234,11 @@
     "/collection": {
       "get": {
         "operationId": "list_collection",
-        "summary": "Read a binder collection and wanted printings with update fingerprints.",
-        "description": "Read a binder collection and wanted printings with update fingerprints.\n\nPermissions: collection:read.",
+        "summary": "List collection",
+        "description": "Read a binder collection and wanted printings with update fingerprints.\n\nRequired permissions: `collection:read`. MCP tool: `list_collection`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1282,8 +1327,11 @@
       },
       "post": {
         "operationId": "save_collection_item",
-        "summary": "Save an owned slot and wanted printings using its previous fingerprint.",
-        "description": "Save an owned slot and wanted printings using its previous fingerprint.\n\nPermissions: collection:write.",
+        "summary": "Save collection item",
+        "description": "Save an owned slot and wanted printings using its previous fingerprint.\n\nRequired permissions: `collection:write`. MCP tool: `save_collection_item`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1591,8 +1639,11 @@
     "/collection/{pokemonId}": {
       "delete": {
         "operationId": "delete_collection_item",
-        "summary": "Remove a binder slot only if its fingerprint still matches.",
-        "description": "Remove a binder slot only if its fingerprint still matches.\n\nPermissions: collection:write.",
+        "summary": "Delete collection item",
+        "description": "Remove a binder slot only if its fingerprint still matches.\n\nRequired permissions: `collection:write`. MCP tool: `delete_collection_item`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1678,8 +1729,11 @@
     "/settings": {
       "get": {
         "operationId": "get_settings",
-        "summary": "Read persisted binder settings.",
-        "description": "Read persisted binder settings.\n\nPermissions: settings:read.",
+        "summary": "Get settings",
+        "description": "Read persisted binder settings.\n\nRequired permissions: `settings:read`. MCP tool: `get_settings`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1735,8 +1789,11 @@
       },
       "put": {
         "operationId": "update_settings",
-        "summary": "Replace persisted collection settings and optionally a binder layout.",
-        "description": "Replace persisted collection settings and optionally a binder layout.\n\nPermissions: settings:write.",
+        "summary": "Update settings",
+        "description": "Replace persisted collection settings and optionally a binder layout.\n\nRequired permissions: `settings:write`. MCP tool: `update_settings`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -1909,8 +1966,11 @@
     "/prices/query": {
       "post": {
         "operationId": "get_prices",
-        "summary": "Read existing price evidence without contacting providers.",
-        "description": "Read existing price evidence without contacting providers.\n\nPermissions: prices:read.",
+        "summary": "Get prices",
+        "description": "Read existing price evidence without contacting providers.\n\nRequired permissions: `prices:read`. MCP tool: `get_prices`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2010,8 +2070,11 @@
     "/prices/refresh": {
       "post": {
         "operationId": "refresh_prices",
-        "summary": "Refresh a bounded batch of card prices with existing provider cooldowns.",
-        "description": "Refresh a bounded batch of card prices with existing provider cooldowns.\n\nPermissions: prices:refresh.",
+        "summary": "Refresh prices",
+        "description": "Refresh a bounded batch of card prices with existing provider cooldowns.\n\nRequired permissions: `prices:refresh`. MCP tool: `refresh_prices`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2107,8 +2170,11 @@
     "/price-checks/{id}": {
       "get": {
         "operationId": "get_price_checks",
-        "summary": "Read existing exact-printing market comparisons.",
-        "description": "Read existing exact-printing market comparisons.\n\nPermissions: prices:read.",
+        "summary": "Get price checks",
+        "description": "Read existing exact-printing market comparisons.\n\nRequired permissions: `prices:read`. MCP tool: `get_price_checks`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2190,8 +2256,11 @@
       },
       "post": {
         "operationId": "refresh_price_checks",
-        "summary": "Refresh exact-printing market comparisons within provider limits.",
-        "description": "Refresh exact-printing market comparisons within provider limits.\n\nPermissions: prices:refresh.",
+        "summary": "Refresh price checks",
+        "description": "Refresh exact-printing market comparisons within provider limits.\n\nRequired permissions: `prices:refresh`. MCP tool: `refresh_price_checks`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2280,8 +2349,11 @@
     "/comparison-jobs/{id}": {
       "get": {
         "operationId": "get_comparison_job",
-        "summary": "Read a background comparison job.",
-        "description": "Read a background comparison job.\n\nPermissions: prices:read.",
+        "summary": "Get comparison job",
+        "description": "Read a background comparison job.\n\nRequired permissions: `prices:read`. MCP tool: `get_comparison_job`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2337,8 +2409,11 @@
       },
       "delete": {
         "operationId": "cancel_comparison_job",
-        "summary": "Cancel your accessible comparison job.",
-        "description": "Cancel your accessible comparison job.\n\nPermissions: prices:refresh.",
+        "summary": "Cancel comparison job",
+        "description": "Cancel your accessible comparison job.\n\nRequired permissions: `prices:refresh`. MCP tool: `cancel_comparison_job`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2410,8 +2485,11 @@
     "/comparison-jobs/inspect": {
       "post": {
         "operationId": "inspect_comparison_job",
-        "summary": "Estimate comparison work and inspect existing jobs before starting.",
-        "description": "Estimate comparison work and inspect existing jobs before starting.\n\nPermissions: prices:read.",
+        "summary": "Inspect comparison job",
+        "description": "Estimate comparison work and inspect existing jobs before starting.\n\nRequired permissions: `prices:read`. MCP tool: `inspect_comparison_job`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2504,8 +2582,11 @@
     "/comparison-jobs": {
       "post": {
         "operationId": "start_comparison_job",
-        "summary": "Start bounded background comparisons. Costly requests require confirmation.",
-        "description": "Start bounded background comparisons. Costly requests require confirmation.\n\nPermissions: prices:refresh.",
+        "summary": "Start comparison job",
+        "description": "Start bounded background comparisons. Costly requests require confirmation.\n\nRequired permissions: `prices:refresh`. MCP tool: `start_comparison_job`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2613,8 +2694,11 @@
     "/prices/{id}/history": {
       "get": {
         "operationId": "get_price_history",
-        "summary": "Read all recorded price evidence with bounded keyset pagination.",
-        "description": "Read all recorded price evidence with bounded keyset pagination.\n\nPermissions: prices:read.",
+        "summary": "Get price history",
+        "description": "Read all recorded price evidence with bounded keyset pagination.\n\nRequired permissions: `prices:read`. MCP tool: `get_price_history`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2709,8 +2793,11 @@
     "/analytics": {
       "get": {
         "operationId": "get_collection_analytics",
-        "summary": "Read collection activity and available card price history.",
-        "description": "Read collection activity and available card price history.\n\nPermissions: collection:read, prices:read.",
+        "summary": "Get collection analytics",
+        "description": "Read collection activity and available card price history.\n\nRequired permissions: `collection:read`, `prices:read`. MCP tool: `get_collection_analytics`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2795,8 +2882,11 @@
     "/imports/resolve": {
       "post": {
         "operationId": "resolve_import",
-        "summary": "Resolve import identities against actual catalog records without changing the collection.",
-        "description": "Resolve import identities against actual catalog records without changing the collection.\n\nPermissions: catalog:read.",
+        "summary": "Resolve import",
+        "description": "Resolve import identities against actual catalog records without changing the collection.\n\nRequired permissions: `catalog:read`. MCP tool: `resolve_import`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -2872,8 +2962,11 @@
     "/deals/check": {
       "post": {
         "operationId": "check_deal",
-        "summary": "Evaluate an asking price using existing saved market evidence.",
-        "description": "Evaluate an asking price using existing saved market evidence.\n\nPermissions: prices:read.",
+        "summary": "Check deal",
+        "description": "Evaluate an asking price using existing saved market evidence.\n\nRequired permissions: `prices:read`. MCP tool: `check_deal`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3014,8 +3107,11 @@
     "/sets/{id}/slots": {
       "get": {
         "operationId": "get_set_slots",
-        "summary": "Read paginated Pokédex slots for a set. Use the card list for full printing details.",
-        "description": "Read paginated Pokédex slots for a set. Use the card list for full printing details.\n\nPermissions: catalog:read.",
+        "summary": "Get set slots",
+        "description": "Read paginated Pokédex slots for a set. Use the card list for full printing details.\n\nRequired permissions: `catalog:read`. MCP tool: `get_set_slots`.",
+        "tags": [
+          "Catalog"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3110,8 +3206,11 @@
     "/listings/{id}": {
       "get": {
         "operationId": "get_listings",
-        "summary": "Read current eBay listings. May contact the provider.",
-        "description": "Read current eBay listings. May contact the provider.\n\nPermissions: prices:refresh.",
+        "summary": "Get listings",
+        "description": "Read current eBay listings. May contact the provider.\n\nRequired permissions: `prices:refresh`. MCP tool: `get_listings`.",
+        "tags": [
+          "Prices and insights"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3182,8 +3281,11 @@
     "/identity": {
       "get": {
         "operationId": "get_identity",
-        "summary": "Read your account username and display name.",
-        "description": "Read your account username and display name.\n\nPermissions: settings:read.",
+        "summary": "Get identity",
+        "description": "Read your account username and display name.\n\nRequired permissions: `settings:read`. MCP tool: `get_identity`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3228,8 +3330,11 @@
       },
       "patch": {
         "operationId": "update_identity",
-        "summary": "Update your own public username or display name.",
-        "description": "Update your own public username or display name.\n\nPermissions: settings:write.",
+        "summary": "Update identity",
+        "description": "Update your own public username or display name.\n\nRequired permissions: `settings:write`. MCP tool: `update_identity`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3301,8 +3406,11 @@
     "/binders/{binderId}/identity": {
       "get": {
         "operationId": "get_binder_identity",
-        "summary": "Read the public identity assigned to an accessible binder.",
-        "description": "Read the public identity assigned to an accessible binder.\n\nPermissions: binders:read.",
+        "summary": "Get binder identity",
+        "description": "Read the public identity assigned to an accessible binder.\n\nRequired permissions: `binders:read`. MCP tool: `get_binder_identity`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3358,8 +3466,11 @@
       },
       "patch": {
         "operationId": "update_binder_identity",
-        "summary": "Set a public slug on a binder you own.",
-        "description": "Set a public slug on a binder you own.\n\nPermissions: sharing:manage.",
+        "summary": "Update binder identity",
+        "description": "Set a public slug on a binder you own.\n\nRequired permissions: `sharing:manage`. MCP tool: `update_binder_identity`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3439,8 +3550,11 @@
     "/binders/{binderId}/sharing": {
       "get": {
         "operationId": "get_sharing",
-        "summary": "Read sharing state. Only the collection owner may access share tokens.",
-        "description": "Read sharing state. Only the collection owner may access share tokens.\n\nPermissions: sharing:manage.",
+        "summary": "Get sharing",
+        "description": "Read sharing state. Only the collection owner may access share tokens.\n\nRequired permissions: `sharing:manage`. MCP tool: `get_sharing`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3496,8 +3610,11 @@
       },
       "put": {
         "operationId": "update_sharing",
-        "summary": "Enable or disable sharing on a binder you own, with explicit price disclosure.",
-        "description": "Enable or disable sharing on a binder you own, with explicit price disclosure.\n\nPermissions: sharing:manage.",
+        "summary": "Update sharing",
+        "description": "Enable or disable sharing on a binder you own, with explicit price disclosure.\n\nRequired permissions: `sharing:manage`. MCP tool: `update_sharing`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3578,8 +3695,11 @@
     "/appearance": {
       "get": {
         "operationId": "get_appearance",
-        "summary": "Read the collection binder appearance and revision.",
-        "description": "Read the collection binder appearance and revision.\n\nPermissions: binders:read.",
+        "summary": "Get appearance",
+        "description": "Read the collection binder appearance and revision.\n\nRequired permissions: `binders:read`. MCP tool: `get_appearance`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3624,8 +3744,11 @@
       },
       "put": {
         "operationId": "update_appearance",
-        "summary": "Save a binder appearance only if its revision still matches.",
-        "description": "Save a binder appearance only if its revision still matches.\n\nPermissions: binders:write.",
+        "summary": "Update appearance",
+        "description": "Save a binder appearance only if its revision still matches.\n\nRequired permissions: `binders:write`. MCP tool: `update_appearance`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3702,8 +3825,11 @@
     "/partners": {
       "get": {
         "operationId": "list_partners",
-        "summary": "Read your current partnership and paginated invitations.",
-        "description": "Read your current partnership and paginated invitations.\n\nPermissions: partners:manage.",
+        "summary": "List partners",
+        "description": "Read your current partnership and paginated invitations.\n\nRequired permissions: `partners:manage`. MCP tool: `list_partners`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3768,8 +3894,11 @@
       },
       "delete": {
         "operationId": "disconnect_partner",
-        "summary": "Disconnect your partnership. This removes your access to a partner-owned collection.",
-        "description": "Disconnect your partnership. This removes your access to a partner-owned collection.\n\nPermissions: partners:manage.",
+        "summary": "Disconnect partner",
+        "description": "Disconnect your partnership. This removes your access to a partner-owned collection.\n\nRequired permissions: `partners:manage`. MCP tool: `disconnect_partner`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3830,8 +3959,11 @@
     "/partners/invites": {
       "post": {
         "operationId": "invite_partner",
-        "summary": "Invite a partner. Repeating a pending invitation does not create another.",
-        "description": "Invite a partner. Repeating a pending invitation does not create another.\n\nPermissions: partners:manage.",
+        "summary": "Invite partner",
+        "description": "Invite a partner. Repeating a pending invitation does not create another.\n\nRequired permissions: `partners:manage`. MCP tool: `invite_partner`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3901,8 +4033,11 @@
     "/partners/invites/{inviteId}/accept": {
       "post": {
         "operationId": "accept_partner_invite",
-        "summary": "Accept an invitation addressed to your verified account email.",
-        "description": "Accept an invitation addressed to your verified account email.\n\nPermissions: partners:manage.",
+        "summary": "Accept partner invite",
+        "description": "Accept an invitation addressed to your verified account email.\n\nRequired permissions: `partners:manage`. MCP tool: `accept_partner_invite`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -3974,8 +4109,11 @@
     "/partners/invites/{inviteId}/reject": {
       "post": {
         "operationId": "reject_partner_invite",
-        "summary": "Reject an invitation addressed to your account.",
-        "description": "Reject an invitation addressed to your account.\n\nPermissions: partners:manage.",
+        "summary": "Reject partner invite",
+        "description": "Reject an invitation addressed to your account.\n\nRequired permissions: `partners:manage`. MCP tool: `reject_partner_invite`.",
+        "tags": [
+          "Account"
+        ],
         "security": [
           {
             "apiKey": []
@@ -4047,8 +4185,11 @@
     "/show-purchases": {
       "get": {
         "operationId": "list_show_purchases",
-        "summary": "Read paginated account show purchases.",
-        "description": "Read paginated account show purchases.\n\nPermissions: collection:read.",
+        "summary": "List show purchases",
+        "description": "Read paginated account show purchases.\n\nRequired permissions: `collection:read`. MCP tool: `list_show_purchases`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -4123,8 +4264,11 @@
       },
       "post": {
         "operationId": "add_show_purchase",
-        "summary": "Record a purchase once using a client-generated purchase ID.",
-        "description": "Record a purchase once using a client-generated purchase ID.\n\nPermissions: collection:write.",
+        "summary": "Add show purchase",
+        "description": "Record a purchase once using a client-generated purchase ID.\n\nRequired permissions: `collection:write`. MCP tool: `add_show_purchase`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -4285,8 +4429,11 @@
     "/show-purchases/{clientId}": {
       "delete": {
         "operationId": "remove_show_purchase",
-        "summary": "Undo a purchase from your accessible collection account.",
-        "description": "Undo a purchase from your accessible collection account.\n\nPermissions: collection:write.",
+        "summary": "Remove show purchase",
+        "description": "Undo a purchase from your accessible collection account.\n\nRequired permissions: `collection:write`. MCP tool: `remove_show_purchase`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -4358,8 +4505,11 @@
     "/artwork/uploads": {
       "post": {
         "operationId": "prepare_artwork_upload",
-        "summary": "Create a signed private R2 upload URL and artworkRef for the appearance design. Send the returned headers and exact file bytes.",
-        "description": "Create a signed private R2 upload URL and artworkRef for the appearance design. Send the returned headers and exact file bytes.\n\nPermissions: binders:write.",
+        "summary": "Prepare artwork upload",
+        "description": "Create a signed private R2 upload URL and artworkRef for the appearance design. Send the returned headers and exact file bytes.\n\nRequired permissions: `binders:write`. MCP tool: `prepare_artwork_upload`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []
@@ -4443,8 +4593,11 @@
     "/artwork/{id}": {
       "get": {
         "operationId": "get_artwork",
-        "summary": "Get a five-minute download URL for your private binder artwork.",
-        "description": "Get a five-minute download URL for your private binder artwork.\n\nPermissions: binders:read.",
+        "summary": "Get artwork",
+        "description": "Get a five-minute download URL for your private binder artwork.\n\nRequired permissions: `binders:read`. MCP tool: `get_artwork`.",
+        "tags": [
+          "Collection"
+        ],
         "security": [
           {
             "apiKey": []

@@ -1,0 +1,32 @@
+---
+title: ChatGPT
+description: Connect your collection through a custom MCP connection.
+---
+
+ChatGPT can connect to Holo Folder where your account and workspace support custom remote MCP servers. Availability and setup controls depend on your plan and workspace permissions.
+
+<Callout title="Check your workspace first">
+OpenAI currently documents custom MCP connections for Business and Enterprise/Edu workspaces on ChatGPT web. A workspace admin may need to create the connection or grant permission. Check [OpenAI's current availability guide](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt) if the controls below are missing.
+</Callout>
+
+## Create the connection
+
+In a workspace where you can create custom MCP connections, open the custom plugin or app creation controls. Current interfaces may use **Create plugins with MCPs**; legacy interfaces use **Settings → Apps → Create**.
+
+Use these connection details:
+
+| Setting | Value |
+| --- | --- |
+| Name | Holo Folder |
+| MCP server URL | `https://holofolder.com/app/mcp` |
+| Authentication | OAuth |
+
+Create the connection and complete Holo Folder's browser sign-in. Review the client and permissions on the consent screen before approving. No personal REST API key is needed.
+
+## Use it in a conversation
+
+Enable the connection for your conversation using ChatGPT's available app or tool controls. Ask “Show my Holo Folder binders, then help me browse my wanted cards. Don't change anything.”
+
+If the connection needs to be made available to other workspace members, follow your workspace's app review and publication process.
+
+[Connection and permission details](/docs/mcp) · [OpenAI's official custom MCP guide](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)

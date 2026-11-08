@@ -30,6 +30,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
-    '/((?!api/v1(?:/|$)|mcp(?:/|$)|\\.well-known/oauth-protected-resource(?:/|$)|docs(?:/|$)|_next/static|_next/image|\\.well-known/workflow|api/(?:ebay/account-deletion|card-image-proxy|card-prices|tcgdex-cache|tcg-set-slots|tcg-card-search)(?:/)?$|app-shell(?:/)?$|sw\\.js$|manifest\\.webmanifest$|favicon\\.ico$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|txt|xml)$).*)',
+    '/((?!api/v1(?:/|$)|mcp(?:/|$)|\\.well-known/oauth-protected-resource(?:/|$)|docs(?:/|$)|_next/static|_next/image|\\.well-known/workflow|api/(?:docs-search|ebay/account-deletion|card-image-proxy|card-prices|tcgdex-cache|tcg-set-slots|tcg-card-search)(?:/)?$|app-shell(?:/)?$|sw\\.js$|manifest\\.webmanifest$|favicon\\.ico$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|txt|xml)$).*)',
   ],
 }

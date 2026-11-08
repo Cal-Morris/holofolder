@@ -1,0 +1,32 @@
+---
+title: Codex
+description: Give your coding agent access to Holo Folder.
+---
+
+Use the Codex CLI's remote MCP support to connect through OAuth.
+
+## Add Holo Folder
+
+```sh title="Terminal"
+codex mcp add holofolder --url https://holofolder.com/app/mcp
+codex mcp login holofolder
+```
+
+Complete the browser sign-in, review the consent screen and approve the permissions you want to grant.
+
+## Configure it manually
+
+If you manage MCP servers in `~/.codex/config.toml`, add:
+
+```toml title="~/.codex/config.toml"
+[mcp_servers.holofolder]
+url = "https://holofolder.com/app/mcp"
+```
+
+Then run `codex mcp login holofolder` to authorise the connection. The CLI and compatible editor environments can use the configured server; check your environment's MCP controls if it maintains a separate configuration.
+
+## Check the connection
+
+Ask “Use Holo Folder to list my binders. Do not change anything.” The agent should use the connected tools rather than ask for a personal API key.
+
+[Connection and permission details](/docs/mcp) · [Official MCP setup guide](https://developers.openai.com/codex/mcp/)

@@ -1,1 +1,4 @@
-{"title": "Holo Folder Developers", "pages": ["index", "api-keys", "mcp", "contracts", "reference"]}
+{
+  "title": "Developers",
+  "pages": ["---Get started---", "index", "api-keys", "contracts", "---AI & agents---", "mcp", "...agents", "---API explorer---", "...reference"]
+}
