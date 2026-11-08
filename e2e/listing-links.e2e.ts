@@ -97,3 +97,42 @@ test("Pokémon Center identity stays stamped through holo and reverse searches",
   expect(requests).toBe(0)
   await harness.expectNoHorizontalOverflow()
 })
+
+
+test("Classic Collection links use printed numbers before checks, after old saved results and offline", async ({ harness, context }) => {
+  let requests = 0
+  await harness.page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: {
+    // Real catalog identity, synthetic search response and empty comparison samples.
+    cards: [{ id: "30th-c-018", localId: "018", name: "Gengar", set: { id: "30th-c", name: "30th Classic Collection" }, dexIds: [94], variants: { holo: true } }], hasMore: false,
+  } }))
+  await harness.page.route("**/app/api/card-price-checks?**", route => {
+    requests++
+    const check = { summary: { currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: new Date().toISOString(), searchUrl: "https://www.ebay.co.uk/sch/i.html?_nkw=Gengar+018+30th+Classic+Collection" }
+    return route.fulfill({ json: {
+      ebay: { ...check, summary: { ...check.summary, kind: "asking" } },
+      soldcomps: { ...check, summary: { ...check.summary, kind: "sold" } }, errors: {},
+    } })
+  })
+  await harness.page.keyboard.press("Control+k")
+  const dialog = harness.page.getByRole("dialog", { name: "Quick mode" })
+  await dialog.getByRole("searchbox").fill("gengar")
+  await dialog.getByRole("region", { name: "Cards" }).getByRole("button", { name: /Gengar/ }).first().click()
+  const check = dialog.getByTestId("quick-card-check")
+  await check.getByRole("textbox", { name: /price/i }).press("Enter")
+  const comparison = check.getByRole("region", { name: "Price comparisons" })
+  const query = "Gengar 94/102 30th Classic Collection holo -reverse"
+  await links(comparison, query)
+  expect(requests).toBe(0)
+  await comparison.getByRole("button", { name: "Check prices", exact: true }).click()
+  await expect(comparison.getByRole("button", { name: "Refresh prices", exact: true })).toBeEnabled()
+  expect(requests).toBe(2)
+  await links(comparison, query)
+  await context.setOffline(true)
+  await links(comparison, query)
+  for (const link of await comparison.getByRole("link").all()) {
+    await harness.expectMinTapTarget(link)
+    await link.scrollIntoViewIfNeeded()
+    await harness.expectHittable(link)
+  }
+  await harness.expectNoHorizontalOverflow()
+})
