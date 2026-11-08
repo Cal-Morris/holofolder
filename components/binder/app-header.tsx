@@ -52,6 +52,7 @@ export interface AppHeaderContext {
   isSpreadLayout: boolean
   lastBrowseViewRef: RefObject<"sets" | "pokemon">
   localPendingSyncCount: number
+  onJoin: () => void
   openExclusively: (open: () => void) => void
   openQuickMode: () => void
   openSearch: () => void
@@ -78,7 +79,7 @@ export interface AppHeaderContext {
 }
 
 export function renderAppHeaderView(ctx: AppHeaderContext) {
-  const { activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderDimension, canGoToNextVisiblePage, canGoToPreviousVisiblePage, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, localPendingSyncCount, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages } = ctx
+  const { activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderDimension, canGoToNextVisiblePage, canGoToPreviousVisiblePage, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, localPendingSyncCount, onJoin, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages } = ctx
   const destinations = [
     { id: "binder", label: "Binder", icon: Grid3X3 },
     { id: "list", label: "List", icon: ListChecks },
@@ -101,7 +102,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <span className="truncate text-sm font-semibold">{activeBinder.name}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
             </button>
-          ) : <span className="min-w-0 flex-1 truncate px-1.5 text-sm font-semibold xl:flex-none">{readOnlyMode ? "Shared binder" : "Holo Folder"}</span>}
+          ) : <span className={`min-w-0 flex-1 truncate text-sm font-semibold xl:flex-none ${ctx.user ? "px-1.5" : "md:px-1.5"}`}>{readOnlyMode ? "Shared binder" : "Holo Folder"}</span>}
 
           <div className="order-last hidden w-full items-center gap-1 border-t border-border/40 pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
             {destinations.map(({ id, label, icon: Icon }) => (
@@ -114,22 +115,23 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
 
           {activeMainView === "binder" && binderDimension === "2d" && (
             <div data-testid="mobile-header-pager" className="flex shrink-0 items-center">
-              <Button variant="ghost" size="icon" className="h-11 w-11" onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className={`h-11 ${ctx.user ? "w-11" : "w-9 md:w-11"}`} onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}><ChevronLeft className="h-4 w-4" /></Button>
               <input type="number" min={1} max={totalBinderPages} value={pageInputValue} onChange={e => setPageInputValue(e.target.value)} onBlur={commitPageInput} onKeyDown={e => {
                 if (e.key === "Enter") { commitPageInput(); e.currentTarget.blur() }
                 else if (e.key === "Escape") { setPageInputValue(String(currentBinderPage)); e.currentTarget.blur() }
-              }} inputMode="numeric" aria-label="Binder page number" className="h-11 w-11 rounded-lg bg-transparent text-center text-base font-semibold tabular-nums" />
+              }} inputMode="numeric" aria-label="Binder page number" className={`h-11 rounded-lg bg-transparent text-center text-base font-semibold tabular-nums ${ctx.user ? "w-11" : "w-9 md:w-11"}`} />
               <span className="hidden pr-1 text-xs tabular-nums text-muted-foreground sm:inline">/ {totalBinderPages}</span>
-              <Button variant="ghost" size="icon" className="h-11 w-11" onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className={`h-11 ${ctx.user ? "w-11" : "w-9 md:w-11"}`} onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           )}
           {activeMainView !== "pokemon" && activeMainView !== "analytics" && (
-            <Button variant="ghost" className="h-11 gap-1.5 rounded-xl px-2 text-xs" onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileNavExpanded(true) })} aria-haspopup="dialog" aria-expanded={isMobileNavExpanded}>
-              <SlidersHorizontal className="h-4 w-4" aria-hidden />View
+            <Button variant="ghost" aria-label="View" className="h-11 min-w-9 gap-1.5 rounded-xl px-2 text-xs" onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileNavExpanded(true) })} aria-haspopup="dialog" aria-expanded={isMobileNavExpanded}>
+              <SlidersHorizontal className="h-4 w-4" aria-hidden /><span className={ctx.user ? undefined : "hidden md:inline"}>View</span>
             </Button>
           )}
-          {isShowModeOn ? <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-100 dark:hover:bg-amber-800/60 md:px-2"><Ticket className="hidden h-4 w-4 md:block" aria-hidden /><span className="hidden md:inline">Show ·</span>Exit</button> : <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button>}
+          {!ctx.user ? <Button type="button" className="h-11 rounded-xl px-2 text-xs" onClick={onJoin}>Join now</Button> : isShowModeOn ? <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-100 dark:hover:bg-amber-800/60 md:px-2"><Ticket className="hidden h-4 w-4 md:block" aria-hidden /><span className="hidden md:inline">Show ·</span>Exit</button> : <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button>}
           <HeaderMoreMenu message={shareCopyMessage || shareMessage} items={[
+            ...(!ctx.user ? [{ id: "show-mode", label: isShowModeOn ? "Exit show mode" : "Show mode", icon: <Ticket />, onSelect: () => setShowMode(!isShowModeOn) }] : []),
             ...(!readOnlyMode ? [{ id: "studio", label: "Binder Studio", icon: <Paintbrush />, href: "/studio" }] : []),
             ...(activeMainView === "binder" && binderDimension === "2d" ? [
               { id: "previous-needed", label: `Previous ${activeJumpLabel.toLowerCase()}`, icon: <Sparkles />, onSelect: handleJumpToPreviousNeeded, disabled: activeJumpPokemonList.length === 0 },

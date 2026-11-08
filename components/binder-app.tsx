@@ -142,6 +142,7 @@ export default function BinderApp({
   const [isDarkMode, setIsDarkMode] = useState(initialDarkMode)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [authInitialMode, setAuthInitialMode] = useState<"sign-in" | "sign-up">("sign-in")
   const [isPartnerOpen, setIsPartnerOpen] = useState(false)
   const [isBinderSwitcherOpen, setIsBinderSwitcherOpen] = useState(false)
   const [binders, setBinders] = useState<Binder[]>(initialBinders)
@@ -420,7 +421,7 @@ export default function BinderApp({
     setPushSettingsRequested(true)
     runAfterOverlayHistory(() => setIsSettingsOpen(true))
   }, [setIsSettingsOpen, setPushSettingsRequested, setSelectedPokemon])
-  const billing = useBilling(user?.id ?? null, resolvedCollectionOwnerUserId, requestUpgrade)
+  const billing = useBilling(readOnlyMode ? null : user?.id ?? null, resolvedCollectionOwnerUserId, requestUpgrade)
   useEffect(() => {
     const upgrade = () => requestUpgrade()
     const signIn = () => { closeAllOverlays(); runAfterOverlayHistory(() => setIsAuthOpen(true)) }
@@ -3452,7 +3453,7 @@ export default function BinderApp({
     </div>
   )
 
-  const renderAppHeader = () => renderAppHeaderView({ activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
+  const renderAppHeader = () => renderAppHeaderView({ activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
   const renderMainContent = () => renderMainContentView({ pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
@@ -3661,7 +3662,7 @@ export default function BinderApp({
         motionGlintMessage={motionGlintMessage}
         onRequestMotionGlint={handleRequestMotionGlint}
       />
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <AuthModal isOpen={isAuthOpen} initialMode={authInitialMode} onClose={() => { setIsAuthOpen(false); setAuthInitialMode("sign-in") }} />
       {isBinderSwitcherOpen && activeBinder && (
         <BinderSwitcherSheet
           binders={binders}
