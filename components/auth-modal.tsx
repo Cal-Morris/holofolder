@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 interface AuthModalProps {
   isOpen: boolean
   initialMode?: PasswordMode
+  returnTo?: string
   onClose: () => void
 }
 
@@ -19,7 +20,7 @@ type AuthMethod = "magic-link" | "password"
 type PasswordMode = "sign-in" | "sign-up"
 type SuccessState = "magic-link" | "password-signup" | "password-reset" | null
 
-export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, initialMode = "sign-in", returnTo, onClose }: AuthModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -55,7 +56,7 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: getMagicLinkRedirectUrl(),
+          emailRedirectTo: getMagicLinkRedirectUrl(returnTo),
         },
       })
 
@@ -87,7 +88,7 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
           email,
           password,
           options: {
-            emailRedirectTo: getMagicLinkRedirectUrl(),
+            emailRedirectTo: getMagicLinkRedirectUrl(returnTo),
           },
         })
 

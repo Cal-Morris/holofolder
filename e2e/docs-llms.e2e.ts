@@ -25,7 +25,7 @@ test('full agent docs contain guides and exact endpoint contracts without JSX', 
   expect(text).toContain('Authorization: Bearer hf_YOUR_KEY_ID.YOUR_SECRET')
   expect(text).toContain('Choose your connection')
   expect(text).toContain('- [AI & agents](https://holofolder.com/app/docs/markdown/mcp)')
-  expect(text).not.toMatch(/<\/?(?:Card|Cards|Callout|DocsLink|div|p)\b|import .*from|\[object Object\]/)
+  expect(text).not.toMatch(/<\/?(?:Card|Cards|Callout|DocsLink|DocsApiKeys|div|p)\b|import .*from|\[object Object\]/)
   for (const operation of operations) expect(text).toContain(`"operationId": "${operation.operationId}"`)
   const alias = await request.get('/app/llms-full.txt')
   expect(await alias.text()).toBe(text)
