@@ -20,9 +20,9 @@ function cloud() {
       const { id } = route.request().postDataJSON() as { id: string }
       if (state.uploads.has(id)) { await route.fulfill({ json: { exists: true } }); return }
       state.uploads.add(id)
-      await route.fulfill({ json: { path: `${E2E_USER.id}/${id.slice(7)}`, token: "synthetic-upload-token" } })
+      await route.fulfill({ json: { signedUploadUrl: `https://synthetic.r2.cloudflarestorage.com/private/${id.slice(7)}`, method: "PUT", headers: { "Content-Type": "image/png", "If-None-Match": "*" } } })
     })
-    await context.route("**/storage/v1/object/upload/sign/**", route => route.fulfill({ json: { Key: "synthetic-artwork" } }))
+    await context.route("https://synthetic.r2.cloudflarestorage.com/**", route => route.fulfill({ status: 200 }))
     await context.route("**/app/api/binder-appearance/artwork?**", route => route.fulfill({ contentType: "image/png", body: state.png }))
     await context.route("**/app/api/card-image-proxy?**", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="315" height="440"><rect width="315" height="440" fill="#c8bbc9"/></svg>' }))
   }
@@ -48,6 +48,7 @@ test("two independent devices share artwork, placement and coordinated appearanc
   await words(page, "Shared favourites")
   backend.state.png = Buffer.from(await page.evaluate(() => { const c = document.createElement("canvas"); c.width = 300; c.height = 400; const x = c.getContext("2d")!; x.fillStyle = "#aa2244"; x.fillRect(0, 0, 300, 400); return c.toDataURL("image/png").split(",")[1] }), "base64")
   await page.getByLabel("Upload artwork", { exact: true }).setInputFiles({ name: "synthetic.png", mimeType: "image/png", buffer: backend.state.png })
+  await page.locator("summary").filter({ hasText: /^Adjust artwork/ }).click()
   await expect(page.getByLabel("Artwork zoom", { exact: true })).toBeVisible()
   await page.getByLabel("Artwork zoom", { exact: true }).fill("2")
   await page.getByLabel("Horizontal placement", { exact: true }).fill("0.4")

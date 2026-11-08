@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
+async function changePartner(action: string, input: Record<string, unknown> = {}) {
+  const response = await fetch('/app/api/partners', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...input }) })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error?.message ?? 'Could not update the partnership.')
+}
+
 export interface Partner {
   id: string
   email: string
@@ -153,95 +159,49 @@ export function usePartner({ user }: UsePartnerOptions) {
     if (!user) return { error: "Not logged in" }
 
     try {
-      const { error } = await supabase.from("partner_invites").insert({
-        inviter_id: user.id,
-        inviter_email: user.email ?? null,
-        invitee_email: email,
-        status: "pending",
-      })
-
-      if (error) throw error
+      await changePartner('invite', { email })
       await loadPartnerData(user)
       return { success: true }
-    } catch (err: any) {
-      return { error: err.message }
+    } catch (err: unknown) {
+      return { error: err instanceof Error ? err.message : "Could not update the partnership." }
     }
-  }, [user, supabase, loadPartnerData])
+  }, [user, loadPartnerData])
 
   const acceptInvite = useCallback(async (inviteId: string) => {
     if (!user) return { error: "Not logged in" }
 
     try {
-      const { data: invite } = await supabase
-        .from("partner_invites")
-        .select("*")
-        .eq("id", inviteId)
-        .single()
-
-      if (!invite) throw new Error("Invite not found")
-
-      // Create partnership
-      const userIds = [invite.inviter_id, user.id].sort()
-      const { error: partnershipError } = await supabase.from("partnerships").upsert({
-        user1_id: userIds[0],
-        user2_id: userIds[1],
-        owner_user_id: invite.inviter_id,
-      }, {
-        onConflict: "user1_id,user2_id",
-      })
-
-      if (partnershipError) throw partnershipError
-
-      // Update invite status
-      const { error: inviteError } = await supabase
-        .from("partner_invites")
-        .update({ status: "accepted" })
-        .eq("id", inviteId)
-
-      if (inviteError) throw inviteError
-
+      await changePartner('accept', { inviteId })
       await loadPartnerData(user)
       return { success: true }
-    } catch (err: any) {
-      return { error: err.message }
+    } catch (err: unknown) {
+      return { error: err instanceof Error ? err.message : "Could not update the partnership." }
     }
-  }, [user, supabase, loadPartnerData])
+  }, [user, loadPartnerData])
 
   const rejectInvite = useCallback(async (inviteId: string) => {
     if (!user) return { error: "Not logged in" }
 
     try {
-      const { error } = await supabase
-        .from("partner_invites")
-        .update({ status: "rejected" })
-        .eq("id", inviteId)
-
-      if (error) throw error
-
+      await changePartner('reject', { inviteId })
       await loadPartnerData(user)
       return { success: true }
-    } catch (err: any) {
-      return { error: err.message }
+    } catch (err: unknown) {
+      return { error: err instanceof Error ? err.message : "Could not update the partnership." }
     }
-  }, [user, supabase, loadPartnerData])
+  }, [user, loadPartnerData])
 
   const removePartner = useCallback(async () => {
     if (!user || !partner) return { error: "No partner to remove" }
 
     try {
-      const { error } = await supabase
-        .from("partnerships")
-        .delete()
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-
-      if (error) throw error
-
+      await changePartner('disconnect')
       setPartner(null)
       return { success: true }
-    } catch (err: any) {
-      return { error: err.message }
+    } catch (err: unknown) {
+      return { error: err instanceof Error ? err.message : "Could not update the partnership." }
     }
-  }, [user, partner, supabase])
+  }, [user, partner])
 
   return {
     partner,

@@ -1,3 +1,4 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
 export async function POST() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await getFirstPartyUser(supabase)
 
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })

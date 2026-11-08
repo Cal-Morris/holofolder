@@ -1,10 +1,13 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import { appRedirectUrl } from "@/lib/auth-redirects"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { normalizeBinderDesign, type BinderDesign } from "@/lib/binder-design"
-import { BINDER_ARTWORK_BUCKET, MAX_BINDER_ARTWORK_BYTES, binderArtworkPath } from "@/lib/binder-appearance"
+import { MAX_BINDER_ARTWORK_BYTES } from "@/lib/binder-appearance"
+
+import { privateArtworkStore, type createPrivateArtworkStore } from "@/lib/server/binder-artwork-r2"
 
 export class AppearanceError extends Error {
   constructor(message: string, public status: number, public code?: string) { super(message) }
@@ -33,7 +36,7 @@ export function requireExpectedAppearanceOwner(request: Request, ownerId: string
 // getUser() so a session revoked on the server is rejected straight away.
 export async function requireAppearanceOwner(request: Request, { readOnly = false }: { readOnly?: boolean } = {}) {
   const client = await createClient()
-  const user = readOnly ? await getSessionUser(client) : (await client.auth.getUser()).data.user
+  const user = readOnly ? await getSessionUser(client) : (await getFirstPartyUser(client)).data.user
   if (!user) throw new AppearanceError("Not authenticated", 401)
   const admin = createAdminClient()
   const ownerId = await resolveCollectionOwnerUserId(admin, user.id)
@@ -45,11 +48,14 @@ export async function readAppearance(admin: ReturnType<typeof createAdminClient>
   checkAppearanceDatabaseError(error)
   return { ownerId, design: data ? normalizeBinderDesign(data.design) : null, revision: data ? Number(data.revision) : 0 }
 }
-export async function loadBinderArtwork(admin: ReturnType<typeof createAdminClient>, ownerId: string, id: string) {
-  const { data, error } = await admin.storage.from(BINDER_ARTWORK_BUCKET).download(binderArtworkPath(ownerId, id))
-  if (error || !data) throw new AppearanceError("Artwork is missing. Re-upload it before saving.", 400)
-  if (!data.size || data.size > MAX_BINDER_ARTWORK_BYTES) throw new AppearanceError("Choose an image under 5 MB.", 400)
-  const bytes = Buffer.from(await data.arrayBuffer())
+export function requireArtworkStore() {
+  try { return privateArtworkStore() }
+  catch { throw new AppearanceError("Artwork storage is unavailable. Your device draft is safe.", 503) }
+}
+export async function loadBinderArtwork(_admin: ReturnType<typeof createAdminClient>, ownerId: string, id: string, store: ReturnType<typeof createPrivateArtworkStore> = requireArtworkStore()) {
+  const bytes = await store.read(ownerId, id)
+  if (!bytes) throw new AppearanceError("Artwork is missing. Re-upload it before saving.", 400)
+  if (!bytes.length || bytes.length > MAX_BINDER_ARTWORK_BYTES) throw new AppearanceError("Choose an image under 5 MB.", 400)
   const { default: sharp } = await import("sharp")
   let metadata
   try { metadata = await sharp(bytes, { limitInputPixels: 24_000_000 }).metadata() }

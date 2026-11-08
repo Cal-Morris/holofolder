@@ -1,0 +1,2205 @@
+---
+title: API reference
+description: REST operations and their MCP equivalents.
+---
+
+This reference is generated from the same operation schemas used by the REST API and MCP. The feature remains in development until production verification is complete.
+
+[Download OpenAPI](/app/openapi.json)
+
+| Method | Path | MCP tool | Permission |
+| --- | --- | --- | --- |
+| GET | `/cards` | `list_cards` | `catalog:read` |
+| GET | `/cards/{id}` | `get_card` | `catalog:read` |
+| GET | `/sets` | `list_sets` | `catalog:read` |
+| GET | `/sets/{id}` | `get_set` | `catalog:read` |
+| GET | `/series` | `list_series` | `catalog:read` |
+| GET | `/series/{id}` | `get_series` | `catalog:read` |
+| GET | `/languages` | `list_languages` | `catalog:read` |
+| GET | `/pokemon` | `list_pokemon` | `catalog:read` |
+| GET | `/pokemon/{id}` | `get_pokemon` | `catalog:read` |
+| GET | `/illustrators` | `list_illustrators` | `catalog:read` |
+| GET | `/binders` | `list_binders` | `binders:read` |
+| POST | `/binders` | `create_binder` | `binders:write` |
+| PATCH | `/binders/{id}` | `update_binder` | `binders:write` |
+| PUT | `/binders/order` | `reorder_binders` | `binders:write` |
+| DELETE | `/binders/{id}` | `delete_binder` | `binders:write` |
+| GET | `/collection` | `list_collection` | `collection:read` |
+| POST | `/collection` | `save_collection_item` | `collection:write` |
+| DELETE | `/collection/{pokemonId}` | `delete_collection_item` | `collection:write` |
+| GET | `/settings` | `get_settings` | `settings:read` |
+| POST | `/prices/query` | `get_prices` | `prices:read` |
+| PUT | `/settings` | `update_settings` | `settings:write` |
+| POST | `/prices/refresh` | `refresh_prices` | `prices:refresh` |
+| GET | `/price-checks/{id}` | `get_price_checks` | `prices:read` |
+| POST | `/price-checks/{id}` | `refresh_price_checks` | `prices:refresh` |
+| GET | `/comparison-jobs/{id}` | `get_comparison_job` | `prices:read` |
+| POST | `/comparison-jobs/inspect` | `inspect_comparison_job` | `prices:read` |
+| POST | `/comparison-jobs` | `start_comparison_job` | `prices:refresh` |
+| DELETE | `/comparison-jobs/{id}` | `cancel_comparison_job` | `prices:refresh` |
+| GET | `/prices/{id}/history` | `get_price_history` | `prices:read` |
+| GET | `/analytics` | `get_collection_analytics` | `collection:read`, `prices:read` |
+| POST | `/imports/resolve` | `resolve_import` | `catalog:read` |
+| POST | `/deals/check` | `check_deal` | `prices:read` |
+| GET | `/sets/{id}/slots` | `get_set_slots` | `catalog:read` |
+| GET | `/listings/{id}` | `get_listings` | `prices:refresh` |
+| GET | `/identity` | `get_identity` | `settings:read` |
+| PATCH | `/identity` | `update_identity` | `settings:write` |
+| GET | `/binders/{binderId}/identity` | `get_binder_identity` | `binders:read` |
+| PATCH | `/binders/{binderId}/identity` | `update_binder_identity` | `sharing:manage` |
+| GET | `/binders/{binderId}/sharing` | `get_sharing` | `sharing:manage` |
+| PUT | `/binders/{binderId}/sharing` | `update_sharing` | `sharing:manage` |
+| GET | `/appearance` | `get_appearance` | `binders:read` |
+| PUT | `/appearance` | `update_appearance` | `binders:write` |
+| GET | `/partners` | `list_partners` | `partners:manage` |
+| POST | `/partners/invites` | `invite_partner` | `partners:manage` |
+| POST | `/partners/invites/{inviteId}/accept` | `accept_partner_invite` | `partners:manage` |
+| POST | `/partners/invites/{inviteId}/reject` | `reject_partner_invite` | `partners:manage` |
+| DELETE | `/partners` | `disconnect_partner` | `partners:manage` |
+| GET | `/show-purchases` | `list_show_purchases` | `collection:read` |
+| POST | `/show-purchases` | `add_show_purchase` | `collection:write` |
+| DELETE | `/show-purchases/{clientId}` | `remove_show_purchase` | `collection:write` |
+| POST | `/artwork/uploads` | `prepare_artwork_upload` | `binders:write` |
+| GET | `/artwork/{id}` | `get_artwork` | `binders:read` |
+
+## list_cards
+
+Browse and search the card catalog with pagination.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    },
+    "q": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "set": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "series": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "illustrator": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "pokemon": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9999
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## get_card
+
+Look up a card by its exact identifier.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## list_sets
+
+List card sets.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    },
+    "series": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## get_set
+
+Look up a card set.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## list_series
+
+List card series.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## get_series
+
+Look up a card series.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## list_languages
+
+List supported card languages.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+## list_pokemon
+
+List Pokédex entries.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "q": {
+      "type": "string",
+      "maxLength": 80
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## get_pokemon
+
+Look up a Pokédex entry.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^\\d{1,4}$"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## list_illustrators
+
+List card illustrators.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "q": {
+      "type": "string",
+      "maxLength": 80
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## list_binders
+
+List your accessible binders with slot counts.
+
+Required permissions: binders:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+## create_binder
+
+Create a named binder.
+
+Required permissions: binders:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 100
+    }
+  },
+  "required": [
+    "name",
+    "idempotencyKey"
+  ],
+  "additionalProperties": false
+}
+```
+
+## update_binder
+
+Rename a binder.
+
+Required permissions: binders:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    }
+  },
+  "required": [
+    "id",
+    "name"
+  ],
+  "additionalProperties": false
+}
+```
+
+## reorder_binders
+
+Reorder all your binders.
+
+Required permissions: binders:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "order": {
+      "minItems": 1,
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      }
+    }
+  },
+  "required": [
+    "order"
+  ],
+  "additionalProperties": false
+}
+```
+
+## delete_binder
+
+Delete a binder. Populated binders need explicit confirmation.
+
+Required permissions: binders:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "confirm": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## list_collection
+
+Read a binder collection and wanted printings with update fingerprints.
+
+Required permissions: collection:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "collected",
+        "finalized",
+        "considering",
+        "wishlisted"
+      ]
+    }
+  },
+  "required": [
+    "binderId"
+  ],
+  "additionalProperties": false
+}
+```
+
+## save_collection_item
+
+Save an owned slot and wanted printings using its previous fingerprint.
+
+Required permissions: collection:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "pokemonId": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "pokemonName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "collected",
+        "finalized",
+        "considering",
+        "wishlisted"
+      ]
+    },
+    "cardId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cardName": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cardImage": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 2048
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cardSet": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cardLanguage": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    },
+    "cardFinish": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "holo",
+        "reverse_holo",
+        "double_rare",
+        "ultra_rare",
+        "illustration_rare",
+        "special_illustration_rare",
+        "secret_rare",
+        "hyper_rare",
+        "radiant_rare",
+        "ace_spec",
+        "amazing_rare",
+        "shiny_rare",
+        "jumbo"
+      ]
+    },
+    "wantedCards": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "card_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "card_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "card_image": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "card_set": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "card_language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr",
+              "de",
+              "es",
+              "it",
+              "pt-br",
+              "ja",
+              "ko"
+            ]
+          },
+          "card_finish": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "holo",
+              "reverse_holo",
+              "double_rare",
+              "ultra_rare",
+              "illustration_rare",
+              "special_illustration_rare",
+              "secret_rare",
+              "hyper_rare",
+              "radiant_rare",
+              "ace_spec",
+              "amazing_rare",
+              "shiny_rare",
+              "jumbo"
+            ]
+          },
+          "rarity": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "local_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "set_total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99999
+          },
+          "illustrator": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "wanted_by": {
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        },
+        "required": [
+          "card_id",
+          "card_name",
+          "added_at"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "baseFingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30000
+    },
+    "acquisition": {
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "actorId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "partnershipId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "recipientId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "printingKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "operationId",
+        "actorId",
+        "partnershipId",
+        "recipientId",
+        "printingKey"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "binderId",
+    "pokemonId",
+    "pokemonName",
+    "status",
+    "wantedCards",
+    "baseFingerprint"
+  ],
+  "additionalProperties": false
+}
+```
+
+## delete_collection_item
+
+Remove a binder slot only if its fingerprint still matches.
+
+Required permissions: collection:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "pokemonId": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "baseFingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30000
+    }
+  },
+  "required": [
+    "binderId",
+    "pokemonId",
+    "baseFingerprint"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_settings
+
+Read persisted binder settings.
+
+Required permissions: settings:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## get_prices
+
+Read existing price evidence without contacting providers.
+
+Required permissions: prices:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "cards": {
+      "minItems": 1,
+      "maxItems": 25,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cardId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr",
+              "de",
+              "es",
+              "it",
+              "pt-br",
+              "ja",
+              "ko"
+            ]
+          },
+          "finish": {
+            "type": "string",
+            "maxLength": 50
+          }
+        },
+        "required": [
+          "cardId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "cards"
+  ],
+  "additionalProperties": false
+}
+```
+
+## update_settings
+
+Replace persisted collection settings and optionally a binder layout.
+
+Required permissions: settings:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "baseFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "binderRows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8
+    },
+    "binderCols": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8
+    },
+    "binderColorId": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "binderPageColors": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "maxLength": 10
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 100
+      }
+    },
+    "binderSlotGlareEnabled": {
+      "type": "boolean"
+    },
+    "cardFinishEffectsEnabled": {
+      "type": "boolean"
+    },
+    "darkMode": {
+      "type": "boolean"
+    },
+    "showBinderValue": {
+      "type": "boolean"
+    },
+    "pricingRegion": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "UK",
+            "EU",
+            "US",
+            "JP"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "preferredCurrency": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "GBP",
+            "EUR",
+            "USD",
+            "JPY"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "preferredCardLanguage": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "en",
+            "fr",
+            "de",
+            "es",
+            "it",
+            "pt-br",
+            "ja",
+            "ko"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "baseFingerprint",
+    "binderRows",
+    "binderCols",
+    "binderColorId",
+    "binderPageColors",
+    "binderSlotGlareEnabled",
+    "cardFinishEffectsEnabled",
+    "darkMode",
+    "showBinderValue",
+    "pricingRegion",
+    "preferredCurrency",
+    "preferredCardLanguage"
+  ],
+  "additionalProperties": false
+}
+```
+
+## refresh_prices
+
+Refresh a bounded batch of card prices with existing provider cooldowns.
+
+Required permissions: prices:refresh.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "cards": {
+      "minItems": 1,
+      "maxItems": 5,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cardId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "fr",
+              "de",
+              "es",
+              "it",
+              "pt-br",
+              "ja",
+              "ko"
+            ]
+          }
+        },
+        "required": [
+          "cardId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "cards"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_price_checks
+
+Read existing exact-printing market comparisons.
+
+Required permissions: prices:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "finish": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "holo",
+        "reverse_holo",
+        "any"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "ebay",
+        "soldcomps"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## refresh_price_checks
+
+Refresh exact-printing market comparisons within provider limits.
+
+Required permissions: prices:refresh.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "finish": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "holo",
+        "reverse_holo",
+        "any"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "ebay",
+        "soldcomps"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_comparison_job
+
+Read a background comparison job.
+
+Required permissions: prices:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## inspect_comparison_job
+
+Estimate comparison work and inspect existing jobs before starting.
+
+Required permissions: prices:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "cards": {
+      "minItems": 1,
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cardId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "finish": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "holo",
+              "reverse_holo",
+              "any"
+            ]
+          }
+        },
+        "required": [
+          "cardId",
+          "finish"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "cards"
+  ],
+  "additionalProperties": false
+}
+```
+
+## start_comparison_job
+
+Start bounded background comparisons. Costly requests require confirmation.
+
+Required permissions: prices:refresh.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "cards": {
+      "minItems": 1,
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cardId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "finish": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "holo",
+              "reverse_holo",
+              "any"
+            ]
+          }
+        },
+        "required": [
+          "cardId",
+          "finish"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "confirmed": {
+      "type": "boolean"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 100
+    }
+  },
+  "required": [
+    "cards",
+    "confirmed",
+    "idempotencyKey"
+  ],
+  "additionalProperties": false
+}
+```
+
+## cancel_comparison_job
+
+Cancel your accessible comparison job.
+
+Required permissions: prices:refresh.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_price_history
+
+Read all recorded price evidence with bounded keyset pagination.
+
+Required permissions: prices:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_collection_analytics
+
+Read collection activity and available card price history.
+
+Required permissions: collection:read, prices:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "beforeId": {
+      "type": "string",
+      "maxLength": 30
+    },
+    "cardId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## resolve_import
+
+Resolve import identities against actual catalog records without changing the collection.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "lookups": {
+      "minItems": 1,
+      "maxItems": 25,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {}
+      }
+    }
+  },
+  "required": [
+    "lookups"
+  ],
+  "additionalProperties": false
+}
+```
+
+## check_deal
+
+Evaluate an asking price using existing saved market evidence.
+
+Required permissions: prices:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "cardId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    },
+    "askingPrice": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10000000
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "GBP",
+        "EUR",
+        "USD",
+        "JPY"
+      ]
+    },
+    "region": {
+      "type": "string",
+      "enum": [
+        "UK",
+        "EU",
+        "US",
+        "JP"
+      ]
+    },
+    "finish": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "holo",
+        "reverse_holo"
+      ]
+    },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "greatPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fairPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "walkAwayPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "required": [
+        "greatPct",
+        "fairPct",
+        "walkAwayPct"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "cardId",
+    "askingPrice",
+    "currency"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_set_slots
+
+Read paginated Pokédex slots for a set. Use the card list for full printing details.
+
+Required permissions: catalog:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_listings
+
+Read current eBay listings. May contact the provider.
+
+Required permissions: prices:refresh.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "finish": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "holo",
+        "reverse_holo"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_identity
+
+Read your account username and display name.
+
+Required permissions: settings:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+## update_identity
+
+Update your own public username or display name.
+
+Required permissions: settings:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 60
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## get_binder_identity
+
+Read the public identity assigned to an accessible binder.
+
+Required permissions: binders:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "binderId"
+  ],
+  "additionalProperties": false
+}
+```
+
+## update_binder_identity
+
+Set a public slug on a binder you own.
+
+Required permissions: sharing:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    }
+  },
+  "required": [
+    "binderId",
+    "slug"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_sharing
+
+Read sharing state. Only the collection owner may access share tokens.
+
+Required permissions: sharing:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "binderId"
+  ],
+  "additionalProperties": false
+}
+```
+
+## update_sharing
+
+Enable or disable sharing on a binder you own, with explicit price disclosure.
+
+Required permissions: sharing:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "binderId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "showPrices": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "binderId",
+    "enabled"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_appearance
+
+Read the collection binder appearance and revision.
+
+Required permissions: binders:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+## update_appearance
+
+Save a binder appearance only if its revision still matches.
+
+Required permissions: binders:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "baseRevision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740990
+    },
+    "design": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "baseRevision",
+    "design"
+  ],
+  "additionalProperties": false
+}
+```
+
+## list_partners
+
+Read your current partnership and paginated invitations.
+
+Required permissions: partners:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## invite_partner
+
+Invite a partner. Repeating a pending invitation does not create another.
+
+Required permissions: partners:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "maxLength": 254,
+      "format": "email",
+      "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+    }
+  },
+  "required": [
+    "email"
+  ],
+  "additionalProperties": false
+}
+```
+
+## accept_partner_invite
+
+Accept an invitation addressed to your verified account email.
+
+Required permissions: partners:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "inviteId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "inviteId"
+  ],
+  "additionalProperties": false
+}
+```
+
+## reject_partner_invite
+
+Reject an invitation addressed to your account.
+
+Required permissions: partners:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "inviteId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "inviteId"
+  ],
+  "additionalProperties": false
+}
+```
+
+## disconnect_partner
+
+Disconnect your partnership. This removes your access to a partner-owned collection.
+
+Required permissions: partners:manage.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
+```
+
+## list_show_purchases
+
+Read paginated account show purchases.
+
+Required permissions: collection:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 1024
+    },
+    "since": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## add_show_purchase
+
+Record a purchase once using a client-generated purchase ID.
+
+Required permissions: collection:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "clientId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "cardId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "cardName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "pt-br",
+        "ja",
+        "ko"
+      ]
+    },
+    "finish": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "holo",
+        "reverse_holo",
+        "double_rare",
+        "ultra_rare",
+        "illustration_rare",
+        "special_illustration_rare",
+        "secret_rare",
+        "hyper_rare",
+        "radiant_rare",
+        "ace_spec",
+        "amazing_rare",
+        "shiny_rare",
+        "jumbo"
+      ]
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 9999999999,
+      "multipleOf": 0.01
+    },
+    "marketPrice": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 9999999999,
+          "multipleOf": 0.01
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "GBP",
+        "EUR",
+        "USD",
+        "JPY"
+      ]
+    },
+    "boughtAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "bundleId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "clientId",
+    "cardId",
+    "cardName",
+    "price",
+    "currency",
+    "boughtAt"
+  ],
+  "additionalProperties": false
+}
+```
+
+## remove_show_purchase
+
+Undo a purchase from your accessible collection account.
+
+Required permissions: collection:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "clientId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "clientId"
+  ],
+  "additionalProperties": false
+}
+```
+
+## prepare_artwork_upload
+
+Create a signed private R2 upload URL and artworkRef for the appearance design. Send the returned headers and exact file bytes.
+
+Required permissions: binders:write.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "mimeType": {
+      "type": "string",
+      "enum": [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    },
+    "size": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 5242880
+    }
+  },
+  "required": [
+    "id",
+    "mimeType",
+    "size"
+  ],
+  "additionalProperties": false
+}
+```
+
+## get_artwork
+
+Get a five-minute download URL for your private binder artwork.
+
+Required permissions: binders:read.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": false
+}
+```

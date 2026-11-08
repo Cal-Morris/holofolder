@@ -32,6 +32,13 @@ export function userFromClaims(claims: JwtPayload): User {
  */
 export async function getSessionUser(client: AnySupabaseClient): Promise<User | null> {
   const { data, error } = await client.auth.getClaims()
-  if (error || !data?.claims?.sub) return null
+  if (error || !data?.claims?.sub || data.claims.client_id) return null
   return userFromClaims(data.claims)
+}
+
+/** Website writes must not accept an OAuth token placed in the session cookie. */
+export async function getFirstPartyUser(client: AnySupabaseClient) {
+  const { data, error } = await client.auth.getClaims()
+  if (error || !data?.claims?.sub || data.claims.client_id) return { data: { user: null }, error: null }
+  return client.auth.getUser()
 }

@@ -1,0 +1,119 @@
+// Synthetic hosted verification, all fixture and DDL changes are rolled back.
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import pg from 'pg'
+async function main() {
+if (!process.argv.includes('--hosted-rollback')) throw new Error('Pass --hosted-rollback to verify without persisting changes.')
+const url = new URL(process.env.POSTGRES_URL_NON_POOLING!); url.searchParams.delete('sslmode')
+const db = new pg.Client({ connectionString: url.toString(), ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 })
+await db.connect()
+try {
+ await db.query('BEGIN')
+ const sql=await readFile(new URL('./059_developer_access.sql',import.meta.url),'utf8')
+ await db.query(sql);await db.query(sql)
+ const oauthSql=await readFile(new URL('./060_mcp_oauth_grants.sql',import.meta.url),'utf8')
+ await db.query(oauthSql);await db.query(oauthSql)
+ const ordinary={user_id:crypto.randomUUID(),claims:{sub:crypto.randomUUID(),role:'authenticated',aud:'authenticated'}}
+ assert.deepEqual((await db.query('SELECT public.developer_access_token_hook($1) AS result',[ordinary])).rows[0].result,{claims:ordinary.claims})
+ assert.equal((await db.query("SELECT pg_has_role('authenticator','holo_mcp','MEMBER') AS member")).rows[0].member,false)
+ const mutationSql=await readFile(new URL('./061_developer_mutations.sql',import.meta.url),'utf8')
+ await db.query(mutationSql);await db.query(mutationSql)
+ const managementSql=await readFile(new URL('./062_developer_management.sql',import.meta.url),'utf8')
+ await db.query(managementSql);await db.query(managementSql)
+ const retentionSql=await readFile(new URL('./063_developer_retention.sql',import.meta.url),'utf8')
+ await db.query(retentionSql);await db.query(retentionSql)
+ const resourceSql=await readFile(new URL('./064_mcp_resource_boundary.sql',import.meta.url),'utf8')
+ await db.query(resourceSql);await db.query(resourceSql)
+ const atomicOperationsSql=await readFile(new URL('./065_developer_atomic_operations.sql',import.meta.url),'utf8')
+ await db.query(atomicOperationsSql);await db.query(atomicOperationsSql)
+ const recoverySql=await readFile(new URL('./066_mcp_revocation_recovery.sql',import.meta.url),'utf8')
+ await db.query(recoverySql);await db.query(recoverySql)
+ const actor=crypto.randomUUID(), key=crypto.randomUUID()
+ await db.query('INSERT INTO auth.users(id) VALUES($1)',[actor])
+ await db.query("INSERT INTO public.perpetual_licences(owner_user_id,source) VALUES($1,'manual')",[actor])
+ const retry=[actor,actor,'Synthetic API binder','synthetic-retry-key','b'.repeat(64)]
+ const first=(await db.query('SELECT public.developer_create_binder($1,$2,$3,$4,$5) AS result',retry)).rows[0].result
+ assert.deepEqual((await db.query('SELECT public.developer_create_binder($1,$2,$3,$4,$5) AS result',retry)).rows[0].result,first)
+ assert.equal((await db.query("SELECT count(*)::int AS n FROM public.binders WHERE owner_user_id=$1 AND name='Synthetic API binder'",[actor])).rows[0].n,1)
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query('SELECT public.developer_create_binder($1,$2,$3,$4,$5)',[...retry.slice(0,4),'c'.repeat(64)]),/idempotency_conflict/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) VALUES($1,$2,1,'Synthetic card','collected')",[actor,first.id])
+ const expected=(await db.query('SELECT to_jsonb(p) AS row FROM public.pokemon_collection p WHERE binder_id=$1',[first.id])).rows[0].row
+ await db.query("UPDATE public.pokemon_collection SET status='finalized' WHERE binder_id=$1",[first.id])
+ assert.equal((await db.query('SELECT public.developer_delete_collection($1,$1,$2,1,$3) AS result',[actor,first.id,expected])).rows[0].result.conflict,true)
+ const current=(await db.query('SELECT to_jsonb(p) AS row FROM public.pokemon_collection p WHERE binder_id=$1',[first.id])).rows[0].row
+ assert.equal((await db.query('SELECT public.developer_delete_collection($1,$1,$2,1,$3) AS result',[actor,first.id,current])).rows[0].result.deleted,true)
+ const recipient=crypto.randomUUID(),stranger=crypto.randomUUID()
+ await db.query("UPDATE auth.users SET email=$2,email_confirmed_at=now() WHERE id=$1",[actor,`synthetic-${actor}@example.invalid`])
+ await db.query("INSERT INTO auth.users(id,email,email_confirmed_at) VALUES($1,$2,now()),($3,$4,now())",[recipient,`synthetic-${recipient}@example.invalid`,stranger,`synthetic-${stranger}@example.invalid`])
+ const action=async(who:string,kind:string,email:string|null=null,invite:string|null=null)=>(await db.query('SELECT public.developer_partner_action($1,$2,$3,$4) AS result',[who,kind,email,invite])).rows[0].result
+ const invitation=await action(actor,'invite',`synthetic-${recipient}@example.invalid`)
+ assert.deepEqual(await action(actor,'invite',`synthetic-${recipient}@example.invalid`),invitation)
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(action(stranger,'accept',null,invitation.id),/Invite not found/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ const joined=await action(recipient,'accept',null,invitation.id)
+ assert.deepEqual(await action(recipient,'accept',null,invitation.id),joined)
+ assert.equal((await db.query('SELECT owner_user_id FROM public.partnerships WHERE id=$1',[joined.id])).rows[0].owner_user_id,actor)
+ const binderIds=(await db.query('SELECT id FROM public.binders WHERE owner_user_id=$1 ORDER BY id',[actor])).rows.map(row=>row.id).reverse()
+ await db.query('SELECT public.developer_reorder_binders($1,$2,$3)',[recipient,actor,binderIds])
+ assert.deepEqual((await db.query('SELECT id FROM public.binders WHERE owner_user_id=$1 ORDER BY sort_order',[actor])).rows.map(row=>row.id),binderIds)
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query('SELECT public.developer_reorder_binders($1,$2,$3)',[stranger,actor,binderIds]),/Collection access denied/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ const comparison=[actor,actor,'synthetic-scope',[],{},'synthetic-comparison-key','d'.repeat(64)]
+ const job=(await db.query('SELECT public.developer_create_comparison_job($1,$2,$3,$4,$5,$6,$7) AS result',comparison)).rows[0].result
+ assert.equal(job.created,true)
+ const replay=(await db.query('SELECT public.developer_create_comparison_job($1,$2,$3,$4,$5,$6,$7) AS result',comparison)).rows[0].result
+ assert.equal(replay.created,false);assert.equal(replay.job.id,job.job.id)
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query('SELECT public.developer_create_comparison_job($1,$2,$3,$4,$5,$6,$7)',[...comparison.slice(0,6),'e'.repeat(64)]),/idempotency_conflict/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ await action(recipient,'disconnect')
+ assert.equal((await db.query('SELECT count(*)::int AS n FROM public.partnerships WHERE id=$1',[joined.id])).rows[0].n,0)
+ await db.query("INSERT INTO public.developer_idempotency(actor_id,operation,request_key,input_digest,result,expires_at) VALUES($1,'synthetic_expired','synthetic-expired-key',$2,'{}',now()-interval '1 day')",[actor,'a'.repeat(64)])
+ await db.query('SELECT public.consume_developer_budget($1,10)',[`synthetic-retention:${actor}`])
+ assert.equal((await db.query("SELECT count(*)::int AS n FROM public.developer_idempotency WHERE actor_id=$1 AND operation='synthetic_expired'",[actor])).rows[0].n,0,'Expired idempotency metadata must be cleaned on ordinary API traffic')
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query("INSERT INTO auth.oauth_authorizations(authorization_id,client_id,redirect_uri,scope,resource,code_challenge,code_challenge_method,response_type,expires_at) VALUES($1,$2,'https://synthetic.invalid/callback','email','https://wrong-resource.invalid',$3,'s256','code',now()+interval '5 minutes')",[crypto.randomUUID(),crypto.randomUUID(),'a'.repeat(43)]),/MCP authorization requires its exact resource/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ const settingsRow={binder_color_id:'synthetic',binder_page_colors:{},binder_slot_glare_enabled:true,card_finish_effects_enabled:true,dark_mode:false,show_binder_value:true,pricing_region:null,preferred_currency:null,preferred_card_language:null,layout_rows:4,layout_cols:4}
+ const initialSettings=(await db.query('SELECT to_jsonb(s) AS row FROM public.user_settings s WHERE user_id=$1',[actor])).rows[0]?.row??null
+ const initialLayout=(await db.query("SELECT jsonb_build_object('binder_rows',binder_rows,'binder_cols',binder_cols) AS layout FROM public.binders WHERE id=$1",[first.id])).rows[0].layout
+ assert.equal((await db.query('SELECT public.developer_save_settings($1,$1,$2,$3,$4,$5) AS result',[actor,first.id,initialSettings,initialLayout,settingsRow])).rows[0].result.conflict,false)
+ const savedSettings=(await db.query('SELECT to_jsonb(s) AS row FROM public.user_settings s WHERE user_id=$1',[actor])).rows[0].row
+ await db.query('UPDATE public.user_settings SET dark_mode=true WHERE user_id=$1',[actor])
+ assert.equal((await db.query('SELECT public.developer_save_settings($1,$1,$2,$3,$4,$5) AS result',[actor,first.id,savedSettings,{binder_rows:4,binder_cols:4},{...settingsRow,layout_rows:5}])).rows[0].result.conflict,true)
+ assert.equal((await db.query('SELECT binder_rows FROM public.binders WHERE id=$1',[first.id])).rows[0].binder_rows,4)
+ assert.equal((await db.query('SELECT dark_mode FROM public.user_settings WHERE user_id=$1',[actor])).rows[0].dark_mode,true)
+ const lastBinder=(await db.query('SELECT public.developer_delete_binder($1,$1,$2,false) AS result',[actor,first.id])).rows[0].result
+ assert.equal(lastBinder.reason,'last-binder')
+ const spare=(await db.query('SELECT public.developer_create_binder($1,$1,$2,$3,$4) AS result',[actor,'Synthetic deletion binder','synthetic-delete-binder','f'.repeat(64)])).rows[0].result
+ await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) VALUES($1,$2,2,'Synthetic retained card','collected')",[actor,spare.id])
+ assert.equal((await db.query('SELECT public.developer_delete_binder($1,$1,$2,false) AS result',[actor,spare.id])).rows[0].result.reason,'needs-confirmation')
+ assert.equal((await db.query('SELECT public.developer_delete_binder($1,$1,$2,true) AS result',[actor,spare.id])).rows[0].result.ok,true)
+ const values=[key,actor,'Synthetic test key','a'.repeat(64),['catalog:read'],90]
+ await db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',values)
+ assert.equal((await db.query('SELECT count(*)::int AS n FROM public.developer_api_keys WHERE actor_id=$1',[actor])).rows[0].n,1)
+ const budgets=(await db.query("SELECT public.consume_developer_budget($1,10) AS budget FROM generate_series(1,11)",[actor])).rows.map(row=>row.budget.allowed)
+ assert.deepEqual(budgets,[...Array(10).fill(true),false])
+ for(let n=1;n<10;n++) await db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',[crypto.randomUUID(),...values.slice(1)])
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',[crypto.randomUUID(),...values.slice(1)]),/key_limit_reached/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ await db.query("SELECT set_config('request.jwt.claims',$1,true)",[JSON.stringify({sub:actor,role:'authenticated'})])
+ await db.query('SET LOCAL ROLE authenticated')
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query('SELECT * FROM public.developer_api_keys'),/permission denied/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query('SELECT public.consume_developer_budget($1,10)',[actor]),/permission denied/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ await db.query('RESET ROLE')
+ const plan=await db.query('EXPLAIN (ANALYZE,BUFFERS) SELECT id FROM public.developer_api_keys WHERE actor_id=$1',[actor]);assert.ok(plan.rows.length)
+ console.log('PASS: key and OAuth migration twice, unchanged first-party claims, MCP DB impersonation denied;, personal key insertion, ten-key cap, shared limit exhaustion, private table/RPC denial and actor lookup EXPLAIN; all rolled back.')
+} finally {await db.query('ROLLBACK');await db.end()}
+
+}
+main().catch(error => { console.error(error instanceof Error ? error.name==='AssertionError'?error.stack:error.message : "Verification failed"); process.exitCode = 1 })

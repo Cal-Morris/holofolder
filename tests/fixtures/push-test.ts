@@ -9,7 +9,7 @@ async function run() {
   const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/synthetic', p256dh: 'synthetic-public-key', auth: 'synthetic-auth' }
   // @ts-expect-error Bun types are deliberately absent from the application.
   const { mock } = await import('bun:test')
-  mock.module('../../lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: signedIn ? { id: person } : null } }) } }) }))
+  mock.module('../../lib/supabase/server', () => ({ createClient: async () => ({ auth: { getClaims: async () => ({data:signedIn?{claims:{sub:person}}:null,error:null}), getUser: async () => ({ data: { user: signedIn ? { id: person } : null } }) } }) }))
   mock.module('../../lib/supabase/admin', () => ({ createAdminClient: () => ({ from: (table: string) => {
     assert.equal(table, 'push_subscriptions')
     const query = { select: () => query, eq: (key: string, value: string) => { filters[key] = value; return query }, maybeSingle: async () => ({ data: exists ? subscription : null, error: null }) }

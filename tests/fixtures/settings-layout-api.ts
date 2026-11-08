@@ -25,7 +25,7 @@ async function run() {
     }
     return query
   } }
-  mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: "partner" } } }) } }) }))
+  mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: { getClaims: async () => ({data:{claims:{sub:"partner"}},error:null}), getUser: async () => ({ data: { user: { id: "partner" } } }) } }) }))
   mock.module("../../lib/supabase/admin", () => ({ createAdminClient: () => admin }))
   mock.module("../../lib/server/collection-owner", () => ({ resolveCollectionOwnerUserId: async () => "owner" }))
   const { BinderAccessError } = await import("../../lib/server/binders")

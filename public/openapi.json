@@ -1,0 +1,4503 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Holo Folder API",
+    "version": "1.0.0",
+    "description": "Premium/lifetime data API. MCP uses OAuth separately. Card image fields are R2-only."
+  },
+  "servers": [
+    {
+      "url": "https://holofolder.com/api/v1"
+    },
+    {
+      "url": "https://holofolder.com/app/api/v1",
+      "description": "Existing /app path"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Holo Folder personal API key"
+      }
+    }
+  },
+  "paths": {
+    "/cards": {
+      "get": {
+        "operationId": "list_cards",
+        "summary": "Browse and search the card catalog with pagination.",
+        "description": "Browse and search the card catalog with pagination.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "set",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "series",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "illustrator",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "pokemon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9999
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/cards/{id}": {
+      "get": {
+        "operationId": "get_card",
+        "summary": "Look up a card by its exact identifier.",
+        "description": "Look up a card by its exact identifier.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/sets": {
+      "get": {
+        "operationId": "list_sets",
+        "summary": "List card sets.",
+        "description": "List card sets.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          },
+          {
+            "name": "series",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/sets/{id}": {
+      "get": {
+        "operationId": "get_set",
+        "summary": "Look up a card set.",
+        "description": "Look up a card set.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/series": {
+      "get": {
+        "operationId": "list_series",
+        "summary": "List card series.",
+        "description": "List card series.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/series/{id}": {
+      "get": {
+        "operationId": "get_series",
+        "summary": "Look up a card series.",
+        "description": "Look up a card series.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/languages": {
+      "get": {
+        "operationId": "list_languages",
+        "summary": "List supported card languages.",
+        "description": "List supported card languages.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/pokemon": {
+      "get": {
+        "operationId": "list_pokemon",
+        "summary": "List Pokédex entries.",
+        "description": "List Pokédex entries.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/pokemon/{id}": {
+      "get": {
+        "operationId": "get_pokemon",
+        "summary": "Look up a Pokédex entry.",
+        "description": "Look up a Pokédex entry.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,4}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/illustrators": {
+      "get": {
+        "operationId": "list_illustrators",
+        "summary": "List card illustrators.",
+        "description": "List card illustrators.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/binders": {
+      "get": {
+        "operationId": "list_binders",
+        "summary": "List your accessible binders with slot counts.",
+        "description": "List your accessible binders with slot counts.\n\nPermissions: binders:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "post": {
+        "operationId": "create_binder",
+        "summary": "Create a named binder.",
+        "description": "Create a named binder.\n\nPermissions: binders:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/binders/{id}": {
+      "patch": {
+        "operationId": "update_binder",
+        "summary": "Rename a binder.",
+        "description": "Rename a binder.\n\nPermissions: binders:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_binder",
+        "summary": "Delete a binder. Populated binders need explicit confirmation.",
+        "description": "Delete a binder. Populated binders need explicit confirmation.\n\nPermissions: binders:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/binders/order": {
+      "put": {
+        "operationId": "reorder_binders",
+        "summary": "Reorder all your binders.",
+        "description": "Reorder all your binders.\n\nPermissions: binders:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  }
+                },
+                "required": [
+                  "order"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/collection": {
+      "get": {
+        "operationId": "list_collection",
+        "summary": "Read a binder collection and wanted printings with update fingerprints.",
+        "description": "Read a binder collection and wanted printings with update fingerprints.\n\nPermissions: collection:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "binderId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "collected",
+                "finalized",
+                "considering",
+                "wishlisted"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "post": {
+        "operationId": "save_collection_item",
+        "summary": "Save an owned slot and wanted printings using its previous fingerprint.",
+        "description": "Save an owned slot and wanted printings using its previous fingerprint.\n\nPermissions: collection:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "binderId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "pokemonId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "pokemonName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "collected",
+                      "finalized",
+                      "considering",
+                      "wishlisted"
+                    ]
+                  },
+                  "cardId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cardName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cardImage": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2048
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cardSet": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cardLanguage": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "fr",
+                      "de",
+                      "es",
+                      "it",
+                      "pt-br",
+                      "ja",
+                      "ko"
+                    ]
+                  },
+                  "cardFinish": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "holo",
+                      "reverse_holo",
+                      "double_rare",
+                      "ultra_rare",
+                      "illustration_rare",
+                      "special_illustration_rare",
+                      "secret_rare",
+                      "hyper_rare",
+                      "radiant_rare",
+                      "ace_spec",
+                      "amazing_rare",
+                      "shiny_rare",
+                      "jumbo"
+                    ]
+                  },
+                  "wantedCards": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "card_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "card_name": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "card_image": {
+                          "type": "string",
+                          "maxLength": 2048
+                        },
+                        "card_set": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "card_language": {
+                          "type": "string",
+                          "enum": [
+                            "en",
+                            "fr",
+                            "de",
+                            "es",
+                            "it",
+                            "pt-br",
+                            "ja",
+                            "ko"
+                          ]
+                        },
+                        "card_finish": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "holo",
+                            "reverse_holo",
+                            "double_rare",
+                            "ultra_rare",
+                            "illustration_rare",
+                            "special_illustration_rare",
+                            "secret_rare",
+                            "hyper_rare",
+                            "radiant_rare",
+                            "ace_spec",
+                            "amazing_rare",
+                            "shiny_rare",
+                            "jumbo"
+                          ]
+                        },
+                        "rarity": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "local_id": {
+                          "type": "string",
+                          "maxLength": 50
+                        },
+                        "set_total": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 99999
+                        },
+                        "illustrator": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "added_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "wanted_by": {
+                          "maxItems": 2,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        }
+                      },
+                      "required": [
+                        "card_id",
+                        "card_name",
+                        "added_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "baseFingerprint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30000
+                  },
+                  "acquisition": {
+                    "type": "object",
+                    "properties": {
+                      "operationId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "actorId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "partnershipId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "recipientId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "printingKey": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      }
+                    },
+                    "required": [
+                      "operationId",
+                      "actorId",
+                      "partnershipId",
+                      "recipientId",
+                      "printingKey"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "binderId",
+                  "pokemonId",
+                  "pokemonName",
+                  "status",
+                  "wantedCards",
+                  "baseFingerprint"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/collection/{pokemonId}": {
+      "delete": {
+        "operationId": "delete_collection_item",
+        "summary": "Remove a binder slot only if its fingerprint still matches.",
+        "description": "Remove a binder slot only if its fingerprint still matches.\n\nPermissions: collection:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pokemonId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "binderId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "baseFingerprint": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30000
+                  }
+                },
+                "required": [
+                  "binderId",
+                  "baseFingerprint"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "operationId": "get_settings",
+        "summary": "Read persisted binder settings.",
+        "description": "Read persisted binder settings.\n\nPermissions: settings:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "binderId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "put": {
+        "operationId": "update_settings",
+        "summary": "Replace persisted collection settings and optionally a binder layout.",
+        "description": "Replace persisted collection settings and optionally a binder layout.\n\nPermissions: settings:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "baseFingerprint": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "binderId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "binderRows": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "binderCols": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "binderColorId": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "binderPageColors": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 10
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "binderSlotGlareEnabled": {
+                    "type": "boolean"
+                  },
+                  "cardFinishEffectsEnabled": {
+                    "type": "boolean"
+                  },
+                  "darkMode": {
+                    "type": "boolean"
+                  },
+                  "showBinderValue": {
+                    "type": "boolean"
+                  },
+                  "pricingRegion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "UK",
+                          "EU",
+                          "US",
+                          "JP"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "preferredCurrency": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "GBP",
+                          "EUR",
+                          "USD",
+                          "JPY"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "preferredCardLanguage": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "en",
+                          "fr",
+                          "de",
+                          "es",
+                          "it",
+                          "pt-br",
+                          "ja",
+                          "ko"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "baseFingerprint",
+                  "binderRows",
+                  "binderCols",
+                  "binderColorId",
+                  "binderPageColors",
+                  "binderSlotGlareEnabled",
+                  "cardFinishEffectsEnabled",
+                  "darkMode",
+                  "showBinderValue",
+                  "pricingRegion",
+                  "preferredCurrency",
+                  "preferredCardLanguage"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/prices/query": {
+      "post": {
+        "operationId": "get_prices",
+        "summary": "Read existing price evidence without contacting providers.",
+        "description": "Read existing price evidence without contacting providers.\n\nPermissions: prices:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "cards": {
+                    "minItems": 1,
+                    "maxItems": 25,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "language": {
+                          "type": "string",
+                          "enum": [
+                            "en",
+                            "fr",
+                            "de",
+                            "es",
+                            "it",
+                            "pt-br",
+                            "ja",
+                            "ko"
+                          ]
+                        },
+                        "finish": {
+                          "type": "string",
+                          "maxLength": 50
+                        }
+                      },
+                      "required": [
+                        "cardId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "cards"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/prices/refresh": {
+      "post": {
+        "operationId": "refresh_prices",
+        "summary": "Refresh a bounded batch of card prices with existing provider cooldowns.",
+        "description": "Refresh a bounded batch of card prices with existing provider cooldowns.\n\nPermissions: prices:refresh.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "cards": {
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "language": {
+                          "type": "string",
+                          "enum": [
+                            "en",
+                            "fr",
+                            "de",
+                            "es",
+                            "it",
+                            "pt-br",
+                            "ja",
+                            "ko"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "cardId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "cards"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/price-checks/{id}": {
+      "get": {
+        "operationId": "get_price_checks",
+        "summary": "Read existing exact-printing market comparisons.",
+        "description": "Read existing exact-printing market comparisons.\n\nPermissions: prices:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "finish",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "normal",
+                "holo",
+                "reverse_holo",
+                "any"
+              ]
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ebay",
+                "soldcomps"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "post": {
+        "operationId": "refresh_price_checks",
+        "summary": "Refresh exact-printing market comparisons within provider limits.",
+        "description": "Refresh exact-printing market comparisons within provider limits.\n\nPermissions: prices:refresh.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "finish": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "holo",
+                      "reverse_holo",
+                      "any"
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "ebay",
+                      "soldcomps"
+                    ]
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/comparison-jobs/{id}": {
+      "get": {
+        "operationId": "get_comparison_job",
+        "summary": "Read a background comparison job.",
+        "description": "Read a background comparison job.\n\nPermissions: prices:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "cancel_comparison_job",
+        "summary": "Cancel your accessible comparison job.",
+        "description": "Cancel your accessible comparison job.\n\nPermissions: prices:refresh.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/comparison-jobs/inspect": {
+      "post": {
+        "operationId": "inspect_comparison_job",
+        "summary": "Estimate comparison work and inspect existing jobs before starting.",
+        "description": "Estimate comparison work and inspect existing jobs before starting.\n\nPermissions: prices:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "cards": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "finish": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "holo",
+                            "reverse_holo",
+                            "any"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "cardId",
+                        "finish"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "cards"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/comparison-jobs": {
+      "post": {
+        "operationId": "start_comparison_job",
+        "summary": "Start bounded background comparisons. Costly requests require confirmation.",
+        "description": "Start bounded background comparisons. Costly requests require confirmation.\n\nPermissions: prices:refresh.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "cards": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "finish": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "holo",
+                            "reverse_holo",
+                            "any"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "cardId",
+                        "finish"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "cards",
+                  "confirmed"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/prices/{id}/history": {
+      "get": {
+        "operationId": "get_price_history",
+        "summary": "Read all recorded price evidence with bounded keyset pagination.",
+        "description": "Read all recorded price evidence with bounded keyset pagination.\n\nPermissions: prices:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/analytics": {
+      "get": {
+        "operationId": "get_collection_analytics",
+        "summary": "Read collection activity and available card price history.",
+        "description": "Read collection activity and available card price history.\n\nPermissions: collection:read, prices:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "beforeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 30
+            }
+          },
+          {
+            "name": "cardId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/imports/resolve": {
+      "post": {
+        "operationId": "resolve_import",
+        "summary": "Resolve import identities against actual catalog records without changing the collection.",
+        "description": "Resolve import identities against actual catalog records without changing the collection.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "lookups": {
+                    "minItems": 1,
+                    "maxItems": 25,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "lookups"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/deals/check": {
+      "post": {
+        "operationId": "check_deal",
+        "summary": "Evaluate an asking price using existing saved market evidence.",
+        "description": "Evaluate an asking price using existing saved market evidence.\n\nPermissions: prices:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "cardId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "language": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "fr",
+                      "de",
+                      "es",
+                      "it",
+                      "pt-br",
+                      "ja",
+                      "ko"
+                    ]
+                  },
+                  "askingPrice": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 10000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "GBP",
+                      "EUR",
+                      "USD",
+                      "JPY"
+                    ]
+                  },
+                  "region": {
+                    "type": "string",
+                    "enum": [
+                      "UK",
+                      "EU",
+                      "US",
+                      "JP"
+                    ]
+                  },
+                  "finish": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "holo",
+                      "reverse_holo"
+                    ]
+                  },
+                  "thresholds": {
+                    "type": "object",
+                    "properties": {
+                      "greatPct": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "fairPct": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "walkAwayPct": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1000
+                      }
+                    },
+                    "required": [
+                      "greatPct",
+                      "fairPct",
+                      "walkAwayPct"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "cardId",
+                  "askingPrice",
+                  "currency"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/sets/{id}/slots": {
+      "get": {
+        "operationId": "get_set_slots",
+        "summary": "Read paginated Pokédex slots for a set. Use the card list for full printing details.",
+        "description": "Read paginated Pokédex slots for a set. Use the card list for full printing details.\n\nPermissions: catalog:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "fr",
+                "de",
+                "es",
+                "it",
+                "pt-br",
+                "ja",
+                "ko"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/listings/{id}": {
+      "get": {
+        "operationId": "get_listings",
+        "summary": "Read current eBay listings. May contact the provider.",
+        "description": "Read current eBay listings. May contact the provider.\n\nPermissions: prices:refresh.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "finish",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "normal",
+                "holo",
+                "reverse_holo"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/identity": {
+      "get": {
+        "operationId": "get_identity",
+        "summary": "Read your account username and display name.",
+        "description": "Read your account username and display name.\n\nPermissions: settings:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "patch": {
+        "operationId": "update_identity",
+        "summary": "Update your own public username or display name.",
+        "description": "Update your own public username or display name.\n\nPermissions: settings:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 60
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "additionalProperties": false,
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/binders/{binderId}/identity": {
+      "get": {
+        "operationId": "get_binder_identity",
+        "summary": "Read the public identity assigned to an accessible binder.",
+        "description": "Read the public identity assigned to an accessible binder.\n\nPermissions: binders:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "binderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "patch": {
+        "operationId": "update_binder_identity",
+        "summary": "Set a public slug on a binder you own.",
+        "description": "Set a public slug on a binder you own.\n\nPermissions: sharing:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "binderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "required": [
+                  "slug"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/binders/{binderId}/sharing": {
+      "get": {
+        "operationId": "get_sharing",
+        "summary": "Read sharing state. Only the collection owner may access share tokens.",
+        "description": "Read sharing state. Only the collection owner may access share tokens.\n\nPermissions: sharing:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "binderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "put": {
+        "operationId": "update_sharing",
+        "summary": "Enable or disable sharing on a binder you own, with explicit price disclosure.",
+        "description": "Enable or disable sharing on a binder you own, with explicit price disclosure.\n\nPermissions: sharing:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "binderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "showPrices": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/appearance": {
+      "get": {
+        "operationId": "get_appearance",
+        "summary": "Read the collection binder appearance and revision.",
+        "description": "Read the collection binder appearance and revision.\n\nPermissions: binders:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "put": {
+        "operationId": "update_appearance",
+        "summary": "Save a binder appearance only if its revision still matches.",
+        "description": "Save a binder appearance only if its revision still matches.\n\nPermissions: binders:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "baseRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740990
+                  },
+                  "design": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "baseRevision",
+                  "design"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/partners": {
+      "get": {
+        "operationId": "list_partners",
+        "summary": "Read your current partnership and paginated invitations.",
+        "description": "Read your current partnership and paginated invitations.\n\nPermissions: partners:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "disconnect_partner",
+        "summary": "Disconnect your partnership. This removes your access to a partner-owned collection.",
+        "description": "Disconnect your partnership. This removes your access to a partner-owned collection.\n\nPermissions: partners:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false,
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/partners/invites": {
+      "post": {
+        "operationId": "invite_partner",
+        "summary": "Invite a partner. Repeating a pending invitation does not create another.",
+        "description": "Invite a partner. Repeating a pending invitation does not create another.\n\nPermissions: partners:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  }
+                },
+                "required": [
+                  "email"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/partners/invites/{inviteId}/accept": {
+      "post": {
+        "operationId": "accept_partner_invite",
+        "summary": "Accept an invitation addressed to your verified account email.",
+        "description": "Accept an invitation addressed to your verified account email.\n\nPermissions: partners:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "inviteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/partners/invites/{inviteId}/reject": {
+      "post": {
+        "operationId": "reject_partner_invite",
+        "summary": "Reject an invitation addressed to your account.",
+        "description": "Reject an invitation addressed to your account.\n\nPermissions: partners:manage.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "inviteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/show-purchases": {
+      "get": {
+        "operationId": "list_show_purchases",
+        "summary": "Read paginated account show purchases.",
+        "description": "Read paginated account show purchases.\n\nPermissions: collection:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      },
+      "post": {
+        "operationId": "add_show_purchase",
+        "summary": "Record a purchase once using a client-generated purchase ID.",
+        "description": "Record a purchase once using a client-generated purchase ID.\n\nPermissions: collection:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "cardId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "cardName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "language": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "fr",
+                      "de",
+                      "es",
+                      "it",
+                      "pt-br",
+                      "ja",
+                      "ko"
+                    ]
+                  },
+                  "finish": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "holo",
+                      "reverse_holo",
+                      "double_rare",
+                      "ultra_rare",
+                      "illustration_rare",
+                      "special_illustration_rare",
+                      "secret_rare",
+                      "hyper_rare",
+                      "radiant_rare",
+                      "ace_spec",
+                      "amazing_rare",
+                      "shiny_rare",
+                      "jumbo"
+                    ]
+                  },
+                  "price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 9999999999,
+                    "multipleOf": 0.01
+                  },
+                  "marketPrice": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 9999999999,
+                        "multipleOf": 0.01
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "GBP",
+                      "EUR",
+                      "USD",
+                      "JPY"
+                    ]
+                  },
+                  "boughtAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "bundleId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "cardId",
+                  "cardName",
+                  "price",
+                  "currency",
+                  "boughtAt"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/show-purchases/{clientId}": {
+      "delete": {
+        "operationId": "remove_show_purchase",
+        "summary": "Undo a purchase from your accessible collection account.",
+        "description": "Undo a purchase from your accessible collection account.\n\nPermissions: collection:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/artwork/uploads": {
+      "post": {
+        "operationId": "prepare_artwork_upload",
+        "summary": "Create a signed private R2 upload URL and artworkRef for the appearance design. Send the returned headers and exact file bytes.",
+        "description": "Create a signed private R2 upload URL and artworkRef for the appearance design. Send the returned headers and exact file bytes.\n\nPermissions: binders:write.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "mimeType": {
+                    "type": "string",
+                    "enum": [
+                      "image/png",
+                      "image/jpeg",
+                      "image/webp"
+                    ]
+                  },
+                  "size": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5242880
+                  }
+                },
+                "required": [
+                  "id",
+                  "mimeType",
+                  "size"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/artwork/{id}": {
+      "get": {
+        "operationId": "get_artwork",
+        "summary": "Get a five-minute download URL for your private binder artwork.",
+        "description": "Get a five-minute download URL for your private binder artwork.\n\nPermissions: binders:read.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    }
+  }
+}

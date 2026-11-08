@@ -8,6 +8,7 @@ const eslintConfig = defineConfig([
   globalIgnores([
     ".cache/**",
     ".next/**",
+    ".source/**", ".superpowers/**",
     ".swc/**",
     ".vercel/**",
     ".worktrees/**",

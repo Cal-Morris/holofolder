@@ -5,7 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "lint": "eslint . --max-warnings=59",
+    "lint": "eslint . --max-warnings=55",
     "sync-card-db": "bun scripts/sync-card-db.ts",
     "sync-card-prices": "bun scripts/sync-card-prices.ts",
     "sync-card-supplements": "bun scripts/sync-card-supplements.ts",
@@ -23,11 +23,13 @@
     "scan:secrets": "gitleaks git --log-opts=--all --redact --ignore-gitleaks-allow --no-banner"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
     "@next/third-parties": "16.4.5",
     "@radix-ui/react-slot": "1.2.4",
     "@radix-ui/react-switch": "1.2.6",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.1",
+    "@types/mdx": "2.0.14",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.1",
     "@vercel/speed-insights": "^2.0.0",
@@ -35,6 +37,9 @@
     "aws4fetch": "^1.0.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fumadocs-core": "16.18.3",
+    "fumadocs-mdx": "15.5.2",
+    "fumadocs-ui": "16.18.3",
     "lucide-react": "^1.16.0",
     "next": "16.4.5",
     "react": "19.3.1",
@@ -47,9 +52,11 @@
     "tesseract.js": "^7.0.0",
     "three": "^0.186.1",
     "web-push": "3.6.7",
-    "workflow": "4.5.0"
+    "workflow": "4.5.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
     "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^25.9.1",

@@ -28,7 +28,7 @@ async function run() {
   // @ts-expect-error Bun types are deliberately absent from the application.
   const { mock } = await import('bun:test')
   mock.module('../../lib/supabase/server', () => ({ createClient: async () => client }))
-  mock.module('../../lib/supabase/session-user', () => ({ getSessionUser: async () => signedIn ? user : null }))
+  mock.module('../../lib/supabase/session-user', () => ({ getFirstPartyUser: async (client: {auth:{getUser:()=>Promise<unknown>}}) => client.auth.getUser(), getSessionUser: async () => signedIn ? user : null }))
   const { GET, PATCH } = await import('../../app/api/account-identity/route')
   const save = (body: unknown) => PATCH(new Request('https://synthetic.test/app/api/account-identity', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
   assert.deepEqual(await (await GET()).json(), { username: null })

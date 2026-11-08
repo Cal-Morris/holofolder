@@ -1,3 +1,4 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSessionUser } from '@/lib/supabase/session-user'
@@ -19,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getFirstPartyUser(supabase)
   if (!user) return Response.json({ error: 'Sign in to enable notifications.' }, { status: 401, headers })
   if (!pushConfigured()) return Response.json({ error: 'Partner notifications are not available yet.' }, { status: 503, headers })
   const raw = await request.text()
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getFirstPartyUser(supabase)
   if (!user) return Response.json({ error: 'Sign in to manage notifications.' }, { status: 401, headers })
   const body = await request.json().catch(() => null)
   if (!body || (!uuid(body.id) && typeof body.endpoint !== 'string')) return Response.json({ error: 'Choose a registered device.' }, { status: 400, headers })
@@ -49,7 +50,7 @@ export async function DELETE(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const { data: { user } } = await (await createClient()).auth.getUser()
+  const { data: { user } } = await getFirstPartyUser(await createClient())
   if (!user) return Response.json({ error: 'Sign in to manage notifications.' }, { status: 401, headers })
   const body = await request.json().catch(() => null)
   if (!body || typeof body.endpoint !== 'string' || !body.endpoint || body.endpoint.length > 2048 || typeof body.showMode !== 'boolean') {

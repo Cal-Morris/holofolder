@@ -1,0 +1,25 @@
+---
+title: MCP connections
+description: Connect an AI client through OAuth.
+---
+
+Add this remote Streamable HTTP server URL to your MCP client:
+
+```text
+https://holofolder.com/app/mcp
+```
+
+Choose OAuth when prompted. Compatible clients discover registration and authorization from the server's authentication challenge. No API key or manually configured client secret is needed.
+
+
+## Connecting
+
+The client opens Holo Folder's sign-in and consent screen. Check the client name and redirect host, review what it can read or change, and approve or deny the request.
+
+MCP uses the OAuth token directly. Do not paste a REST API key into an MCP connection.
+
+## Control access
+
+Connections start with read permissions. Writes, sharing and partner changes need explicit approval. You can revoke a connected client from developer settings. Revoked connections must authorize again; reconnecting must not restore access to their old tokens.
+
+MCP has the same paid-access requirements, data permissions and provider limits as the raw API.

@@ -1,3 +1,4 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import { randomBytes } from "node:crypto"
 import { createClient } from "@/lib/supabase/server"
 import { getSessionUser } from "@/lib/supabase/session-user"
@@ -9,7 +10,7 @@ import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
 
 async function requireUser() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getFirstPartyUser(supabase)
   return { supabase, user }
 }
 

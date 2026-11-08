@@ -1,0 +1,22 @@
+@reference "tailwindcss";
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+.holo-docs { min-height: 100dvh; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); background: var(--color-fd-background); color: var(--color-fd-foreground); }
+.docs-header { min-height: 72px; max-width: 1400px; margin: auto; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--color-fd-border); }
+.docs-header a, .docs-navigation a { display: inline-flex; align-items: center; min-height: 40px; overflow-wrap: anywhere; }
+.docs-brand { font-weight: 700; gap: 12px; flex-wrap: wrap; }
+.docs-brand span { color: var(--color-fd-muted-foreground); font-size: 13px; font-weight: 400; }
+.docs-frame { display: grid; grid-template-columns: 220px minmax(0, 1fr); max-width: 1400px; margin: auto; }
+.docs-navigation { display: flex; flex-direction: column; padding: 24px; gap: 4px; border-right: 1px solid var(--color-fd-border); }
+.docs-navigation a { padding: 4px 8px; border-radius: 6px; color: var(--color-fd-muted-foreground); font-size: 14px; }
+.docs-navigation a:hover { color: var(--color-fd-foreground); background: var(--color-fd-muted); }
+.docs-frame > :last-child { min-width: 0; }
+.holo-docs #nd-page { width: 100%; min-width: 0; padding: 32px 24px; }
+.holo-docs pre { max-width: 100%; overflow-x: auto; }
+@media (max-width: 767px) {
+  .docs-header { padding: 12px 16px; }
+  .docs-frame { grid-template-columns: minmax(0, 1fr); }
+  .docs-navigation { flex-direction: row; flex-wrap: wrap; padding: 12px 16px; gap: 4px 12px; border-right: 0; border-bottom: 1px solid var(--color-fd-border); }
+  .holo-docs #nd-page { padding: 24px 20px; }
+}

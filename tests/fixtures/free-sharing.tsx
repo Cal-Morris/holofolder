@@ -37,7 +37,7 @@ async function run() {
   const { mock } = await import('bun:test')
   mock.module('../../lib/supabase/server', () => ({ createClient: async () => client }))
   mock.module('../../lib/supabase/admin', () => ({ createAdminClient: () => database }))
-  mock.module('../../lib/supabase/session-user', () => ({ getSessionUser: async () => actor ? { id: actor } : null }))
+  mock.module('../../lib/supabase/session-user', () => ({ getFirstPartyUser: async (client: {auth:{getUser:()=>Promise<unknown>}}) => client.auth.getUser(), getSessionUser: async () => actor ? { id: actor } : null }))
   mock.module('../../lib/server/collection-owner', () => ({ resolveCollectionOwnerUserId: async (_client: unknown, id: string) => id }))
   const identity = await import('../../lib/server/public-binder-identity')
   mock.module('../../lib/server/public-binder-identity', () => ({

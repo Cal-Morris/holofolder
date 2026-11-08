@@ -31,7 +31,7 @@ async function run() {
   // @ts-expect-error Bun module mocks are confined to this subprocess.
   const { mock } = await import('bun:test')
   mock.module('../../lib/supabase/server', () => ({
-    createClient: async () => ({ auth: { getUser: async () => ({ data: { user: signedIn ? { id: owner } : null } }) } }),
+    createClient: async () => ({ auth: { getClaims: async () => ({data: signedIn ? {claims:{sub:owner}} : null,error:null}), getUser: async () => ({ data: { user: signedIn ? { id: owner } : null } }) } }),
   }))
   mock.module('../../lib/supabase/admin', () => ({ createAdminClient: () => admin }))
   mock.module('../../lib/server/collection-owner', () => ({ resolveCollectionOwnerUserId: async () => owner }))

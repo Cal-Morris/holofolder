@@ -1,5 +1,7 @@
 "use client"
 
+import dynamic from "next/dynamic"
+
 import { BinderLayoutSettings } from "@/components/binder-layout-settings"
 import { OverlayLink } from "@/components/overlay-link"
 import { CollectionImport, type CollectionImportProps } from "@/components/collection-import"
@@ -22,6 +24,8 @@ import { BINDER_COLOR_PRESETS, type BinderColorId } from "@/lib/binder-colors"
 import { buildBinderShareUrl } from "@/lib/binder-share"
 import type { User } from "@supabase/supabase-js"
 
+
+const DeveloperSettings = dynamic(() => import("@/components/developer-settings"), { loading: () => <p className="text-sm text-muted-foreground">Loading developer access…</p> })
 
 type SettingsTabId = "binder" | "display" | "share" | "account"
 
@@ -594,6 +598,7 @@ export default function SettingsModal({
           )}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />}
+          {effectiveActiveTab === "account" && !isReadOnlyView && user && <DeveloperSettings key={`developer-${user.id}`} isOnline={isOnline} />}
           {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />}
           {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />}
 

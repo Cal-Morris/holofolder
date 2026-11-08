@@ -1,0 +1,35 @@
+---
+title: API keys
+description: Personal credentials for the REST API.
+---
+
+Create a key in the app's developer settings. Choose a name, permissions and expiry. The full secret is shown once, so store it securely.
+
+Keys expire after 30, 90 or 365 days, with 90 days as the default. Each account can have up to ten active keys. You can revoke a key at any time. Rotation creates a new key; existing secrets cannot be recovered.
+
+## Authentication
+
+Send the key in the `Authorization` header:
+
+```http
+Authorization: Bearer hf_YOUR_KEY_ID.YOUR_SECRET
+```
+
+Never put a key in a URL, browser bundle or public repository. The REST API does not accept browser cookies or MCP OAuth tokens as substitutes.
+
+## First request
+
+```sh
+export HOLOFOLDER_API_KEY='hf_YOUR_KEY_ID.YOUR_SECRET'
+curl --fail-with-body \
+  -H "Authorization: Bearer $HOLOFOLDER_API_KEY" \
+  'https://holofolder.com/app/api/v1/cards?limit=10'
+```
+
+Use the returned `nextCursor` with the same filters to continue. The public `/api/v1` alias serves the same contract when the marketing site's API forward is published. [OpenAPI JSON](/app/openapi.json) describes every operation.
+
+## Permissions
+
+Read access is the default. Collection, binder and settings writes must be selected explicitly. Sharing and partner management have separate permissions.
+
+Revocation is checked on every request. A valid key cannot override an expired subscription, a missing permission or changed partner membership.
