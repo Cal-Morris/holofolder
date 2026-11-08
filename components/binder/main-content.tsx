@@ -9,7 +9,7 @@ import { PAGE_TURN_MS } from "@/lib/binder-page-turn"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
-import { Ticket, X } from "lucide-react"
+import { LoaderCircle, Ticket, X } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
 import { BinderValue } from "@/components/binder-value"
 import type { BinderSettings } from "@/hooks/use-settings"
@@ -33,6 +33,8 @@ import type { CollectedPokemon, SaveCollectionOptions, WantedCard } from "@/hook
 import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSummary } from "@/components/binder/binder-app-model"
 
 export interface MainContentContext {
+  pendingBinderPage: number | null
+  cancelPageNavigation: () => void
   assignWantedCard: (pokemonId: number, pokemonName: string, card: WantedCard, people: string[]) => void
   activeJumpLabel: "Needed" | "Perfect" | "Upgrade" | "Wanted"
   activeMainView: ActiveMainView
@@ -133,7 +135,7 @@ export interface MainContentContext {
 }
 
 export function renderMainContentView(ctx: MainContentContext) {
-  const { onHideBinderValue, assignWantedCard, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
+  const { pendingBinderPage, cancelPageNavigation, onHideBinderValue, assignWantedCard, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
       <input
@@ -363,7 +365,14 @@ export function renderMainContentView(ctx: MainContentContext) {
           )}
 
           {/* Binder Grid */}
-          <div ref={setBinderStageRef} className="flex min-h-0 flex-1 touch-pan-y items-center justify-center overflow-hidden overscroll-x-contain">
+          <div ref={setBinderStageRef} className="relative flex min-h-0 flex-1 touch-pan-y items-center justify-center overflow-hidden overscroll-x-contain">
+            {pendingBinderPage !== null && (
+              <div role="status" aria-label="Page loading" className="pointer-events-none absolute left-1/2 top-2 z-20 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-background px-3 py-1 text-sm shadow-lg">
+                <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                <span>Opening page {pendingBinderPage}…</span>
+                <button type="button" aria-label="Cancel page change" onClick={cancelPageNavigation} className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" aria-hidden="true" /></button>
+              </div>
+            )}
             <div
               ref={binderPageRef}
               data-page-turn-ms={prefersReducedMotion ? 0 : PAGE_TURN_MS}
