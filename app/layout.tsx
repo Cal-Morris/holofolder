@@ -8,23 +8,18 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css"
 import { IOS_VIEWPORT_GAP_SCRIPT } from "@/lib/ios-viewport-gap"
 import { KEYBOARD_INSET_SCRIPT } from "@/lib/keyboard-inset"
+import { socialMetadata } from "@/lib/social-metadata"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" })
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap" })
 const THEME_COLOR_DARK = "#07070a"
 
 export const metadata: Metadata = {
+  ...socialMetadata,
   metadataBase: new URL("https://holofolder.com"),
   // Framer serves the searchable marketing site; app and account pages stay out of search.
   robots: { index: false, follow: true },
-  openGraph: {
-    title: "Holo Folder",
-    siteName: "Holo Folder",
-    description: "Your Pokémon card collection, wanted cards and prices, ready for your next show.",
-    type: "website",
-  },
   title: "Holo Folder",
-  description: "Mobile-first Pokemon binder tracking with National Dex positions, collection status, and card matching.",
   applicationName: "Holo Folder",
   manifest: "/app/manifest.webmanifest",
   appleWebApp: {
