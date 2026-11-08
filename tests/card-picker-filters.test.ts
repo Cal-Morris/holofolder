@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { getActiveFilterChips, getRecordedFinish, getVariantFilter } from "../lib/card-picker-filters"
+import { getActiveFilterChips, getCardPickerFinishChoices, getRecordedFinish, getVariantFilter } from "../lib/card-picker-filters"
 
 describe("card picker filters", () => {
   test("variant choices narrow printings and/or set the recorded finish", () => {
@@ -34,5 +34,38 @@ describe("card picker finish choices", () => {
     assert.deepEqual(getCardPickerFinishChoices({ holo: true, reverse: true }, "illustration_rare", "any"), [])
     assert.deepEqual(getCardPickerFinishChoices({ normal: true, reverse: true }, "reverse_holo", "normal"), [])
     assert.equal(getCardPickerFinishChoices({ normal: true, reverse: true }, "reverse_holo", "first_edition").length, 2)
+  })
+})
+
+// Synthetic finish quotes: catalogue flags can omit a provider-confirmed reverse printing.
+describe("provider-confirmed picker finishes", () => {
+  const quotes = [
+    { finish: "normal" as const, variantKey: "normal", gbpAmount: 1 },
+    { finish: "reverse_holo" as const, variantKey: "reverse-holofoil", gbpAmount: 2 },
+  ]
+
+  test("fills missing catalogue finishes from explicit standard printing quotes", () => {
+    assert.deepEqual(getCardPickerFinishChoices({ normal: true, reverse: false }, "normal", "any", quotes).map(c => c.finish), ["normal", "reverse_holo"])
+    assert.deepEqual(getCardPickerFinishChoices(undefined, "normal", "any", quotes).map(c => c.finish), ["normal", "reverse_holo"])
+    assert.deepEqual(getCardPickerFinishChoices({ holo: true }, "holo", "any", quotes.slice(1)).map(c => c.finish), ["holo", "reverse_holo"])
+  })
+
+  test("does not treat first edition as a non-holo printing", () => {
+    assert.deepEqual(getCardPickerFinishChoices({ holo: true, firstEdition: true }, "holo", "any"), [])
+  })
+
+  test("ignores special printing quotes and invalid or missing amounts", () => {
+    for (const quote of [
+      { ...quotes[1], variantKey: "1st-edition-reverse-holofoil" },
+      ...[0, -1, NaN, Infinity, null].map(gbpAmount => ({ ...quotes[1], gbpAmount })),
+    ]) {
+      assert.deepEqual(getCardPickerFinishChoices({ normal: true }, "normal", "any", [quote]), [])
+    }
+  })
+
+  test("keeps explicit filters, special rarities and single-finish cards unchanged", () => {
+    assert.deepEqual(getCardPickerFinishChoices({ normal: true }, "normal", "reverse_holo", quotes), [])
+    assert.deepEqual(getCardPickerFinishChoices({ holo: true }, "illustration_rare", "any", quotes), [])
+    assert.deepEqual(getCardPickerFinishChoices({ normal: true }, "normal", "any", quotes.slice(0, 1)), [])
   })
 })

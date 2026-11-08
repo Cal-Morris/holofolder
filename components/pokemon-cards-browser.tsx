@@ -95,7 +95,6 @@ export default function PokemonCardsBrowser({
   const [detailUndo, setDetailUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
   const detailState = cardDetails?.getState(detailFinish)
   const replacementKey = detailState?.replacing ? `${detailFinish}:${detailState.replacing}` : null
-  const detailChoices = cardDetails ? getCardPickerFinishChoices(cardDetails.card.variants, inferCardFinish(cardDetails.card.rarity, cardDetails.card.variants), "any") : []
   const runDetailAction = async (action: QuickCardAction) => {
     if (!cardDetails || pendingCardId || readOnly) return
     setPendingCardId(cardDetails.card.id)
@@ -142,6 +141,8 @@ export default function PokemonCardsBrowser({
     [allEntries],
   )
   const { pricesByCardId } = useRegionalCardPrices(priceLookups, pricingEnabled && priceLookups.length > 0, pricingRegion)
+  const detailSnapshot = cardDetails ? pricesByCardId[getCardPriceKey(cardDetails.card.id, cardDetails.card.language ?? "en")] : undefined
+  const detailChoices = cardDetails ? getCardPickerFinishChoices(cardDetails.card.variants, inferCardFinish(cardDetails.card.rarity, cardDetails.card.variants), "any", detailSnapshot?.finishPrices) : []
   const highlightCards = useMemo(() => allEntries.map((entry) => ({
     id: entry.card.id, language: entry.card.language, name: entry.card.name,
     numberLabel: entry.numberLabel, setName: entry.card.set.name, image: entry.card.image, rarity: entry.card.rarity,
