@@ -36,3 +36,12 @@ test('negative scenarios do not substitute for successful coverage or corrupt la
  assert.equal(row.verified,true);assert.equal(row.medianMs,100)
  assert.equal(summarizeApiPerformance([{...success,assertionsPassed:false}]).find(row=>row.operation==='list_cards')?.verified,false)
 })
+
+
+test('UI-only job starts require an asserted 403 and cannot pass with an arbitrary denial',()=>{
+ const denied:ApiPerformanceSample={operation:'start_comparison_job',phase:'first',status:403,expectedStatus:403,assertionsPassed:true,clientMs:10,serverMs:null,authMs:null,operationMs:null,bytes:1}
+ assert.equal(summarizeApiPerformance([denied]).find(row=>row.operation===denied.operation)?.verified,true)
+ assert.equal(summarizeApiPerformance([{...denied,status:401,expectedStatus:401}]).find(row=>row.operation===denied.operation)?.verified,false)
+ assert.equal(summarizeApiPerformance([{...denied,assertionsPassed:false}]).find(row=>row.operation===denied.operation)?.verified,false)
+ assert.equal(summarizeApiPerformance([{...denied,operation:'list_cards'}]).find(row=>row.operation==='list_cards')?.verified,false)
+})

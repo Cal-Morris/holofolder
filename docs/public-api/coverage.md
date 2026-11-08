@@ -14,7 +14,7 @@ The operation registry in `lib/developer-api/operations.ts` defines the REST sch
 | Appearance and uploaded artwork | get_appearance, update_appearance, prepare_artwork_upload, get_artwork | revision checks, real private R2 MIME/size/overwrite/signature tests, six phone/PWA configurations |
 | Partners and invitations | list_partners, invite_partner, accept_partner_invite, reject_partner_invite, disconnect_partner | real recipient denial, retry, ownership and disconnect SQL proof; UI uses the same transactional actions |
 | Saved prices, refreshes and comparison evidence | get_prices, refresh_prices, get_price_checks, refresh_price_checks | existing provider confidence, currency, finish and cooldown suites |
-| Background comparison jobs | inspect_comparison_job, start_comparison_job, get_comparison_job, cancel_comparison_job | existing job fixtures and hosted start-once/idempotency SQL proof |
+| Background comparison jobs | inspect_comparison_job, start_comparison_job, get_comparison_job, cancel_comparison_job | app-only start denial, seeded inert job read/cancel, existing UI job fixtures and hosted idempotency SQL proof |
 | Activity and historical price evidence | get_collection_analytics, get_price_history | existing analytics tests, 1001 synthetic history records paginated exactly once |
 | Import identity resolution | resolve_import | existing exact catalog identity resolution and bounded batch schemas |
 | Listings and deal evaluation | get_listings, check_deal | existing listing/deal/FX/confidence suites; no invented prices |

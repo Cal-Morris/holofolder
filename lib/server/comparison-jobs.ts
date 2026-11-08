@@ -1,3 +1,4 @@
+import { DeveloperAccessError } from '@/lib/developer-api/permissions'
 import { createHash } from "node:crypto"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { PRICE_CHECK_SOURCES } from "@/lib/card-price-check-cache"
@@ -55,7 +56,12 @@ export async function checkComparisonTarget(target: ComparisonTarget, stopped: C
     if (saved[source]) continue
     allFresh = false
     if (stopped[source]) { failed = true; continue }
-    const result = await loadCardPriceChecks(target.cardId, target.finish, true, source)
+    let result
+    try { result = await loadCardPriceChecks(target.cardId, target.finish, true, source) }
+    catch (error) {
+      if (error instanceof DeveloperAccessError && [429, 503].includes(error.status)) return { result: "failed", stopped: {}, retryable: true }
+      throw error
+    }
     const error = result?.errors[source]
     if (error && /allowance used up|not configured/i.test(error)) nextStopped[source] = error
     if (!result?.[source]) {

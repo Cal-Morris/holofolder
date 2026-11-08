@@ -27,7 +27,7 @@ function median(values:number[]) {
 export function summarizeApiPerformance(samples:readonly ApiPerformanceSample[]) {
  return DEVELOPER_OPERATIONS.map(operation=>{
   const measured=samples.filter(sample=>sample.operation===operation.name)
-  const primary=measured.filter(sample=>(sample.scenario??'default')==='default'&&sample.status>=200&&sample.status<300&&sample.assertionsPassed!==false)
+  const primary=measured.filter(sample=>(sample.scenario??'default')==='default'&&((sample.status>=200&&sample.status<300)||(operation.name==='start_comparison_job'&&sample.status===403&&sample.expectedStatus===403&&sample.assertionsPassed===true))&&sample.assertionsPassed!==false)
   const repeat=primary.filter(sample=>sample.phase==='repeat')
   const selected=repeat.length?repeat:primary
   const serverMedianMs=median(selected.flatMap(sample=>sample.serverMs===null?[]:[sample.serverMs]))

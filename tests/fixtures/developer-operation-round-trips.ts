@@ -29,6 +29,8 @@ async function main() {
   if(url.pathname.endsWith('/collection_activity')||url.pathname.endsWith('/card_price_history'))return Response.json([])
   throw new Error('Unexpected dependency '+url.pathname)
  }
+ let priceChecks=0
+ mock.module('../../lib/server/card-price-checks',()=>({loadSavedCardPriceChecks:async()=>[],loadCardPriceChecks:async()=>{priceChecks++;return {ebay:null,soldcomps:null,errors:{}}}}))
  const {executeDeveloperOperation}=await import('../../lib/server/operations/developer-dispatch')
  const context:OperationContext={principal:{actorId:owner,credentialId:createHash('sha256').update('synthetic').digest('hex'),permissions:['binders:read','settings:read','collection:read'],transport:'rest'},ownerUserId:owner,memberIds:[owner],requestId:'synthetic'}
  const listed=await executeDeveloperOperation(context,'list_binders',{}) as {binders:Array<{slotCount:number}>}
@@ -41,6 +43,17 @@ async function main() {
  calls.length=0
  await executeDeveloperOperation(context,'get_collection_analytics',{cardId:'base1-1'})
  assert.equal(calls.length,2,'activity and history require two parallel reads')
+ for(const transport of ['rest','mcp'] as const) {
+  const ctx={...context,principal:{...context.principal,transport}}
+  for(const [operation,input] of [['refresh_price_checks',{id:'base1-1',source:'soldcomps'}],['refresh_price_checks',{id:'base1-1'}],['start_comparison_job',{cards:[],confirmed:true}]] as const) {
+   const previous:number=calls.length
+   await assert.rejects(executeDeveloperOperation(ctx,operation,input),error=>{const value=error as {status:number;code:string};return value.status===403&&value.code==='ui_only'})
+   assert.equal(calls.length,previous,'UI-only work must be denied before dependencies')
+  }
+  await executeDeveloperOperation(ctx,'get_price_checks',{id:'base1-1',source:'soldcomps'})
+  await executeDeveloperOperation(ctx,'refresh_price_checks',{id:'base1-1',source:'ebay'})
+ }
+ assert.equal(priceChecks,4,'REST and MCP may read saved sold evidence and refresh only eBay')
  console.log('passed')
 }
 main().catch(error=>{console.error(error);process.exitCode=1})

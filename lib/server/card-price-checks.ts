@@ -1,3 +1,5 @@
+import { consumePriceCheckProviderLimit } from '@/lib/server/price-check-limits'
+import { DeveloperAccessError } from '@/lib/developer-api/permissions'
 import { getClassicCollectionPrinting } from "@/lib/classic-collection-printing"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { fetchEbayListingIndicator, loadPriceCheckSubject } from "@/lib/server/ebay-listings"
@@ -9,6 +11,7 @@ import type { PriceSubject } from "@/lib/price-intelligence"
 async function fetchSoldComps(subject: PriceSubject, query: string) {
   const url = new URL("https://www.soldcomps.io/v1/sold")
   url.search = new URLSearchParams({ q: query, site: "EBAY_GB", days: "90" }).toString()
+  await consumePriceCheckProviderLimit("soldcomps")
   const response = await fetch(url, { headers: { Authorization: `Bearer ${process.env.SOLDCOMPS_API_KEY}` }, cache: "no-store", signal: AbortSignal.timeout(30_000) })
   if (!response.ok) throw new Error(response.status === 402 ? "Sold comps monthly allowance used up." : "Sold comps are temporarily unavailable.")
   const data: unknown = await response.json()
@@ -50,6 +53,7 @@ export async function loadCardPriceChecks(cardId: string, finish: string, refres
       if (error) throw new Error("Price check could not be saved. Try again later.")
       result[source] = checked
     } catch (error) {
+      if (error instanceof DeveloperAccessError) throw error
       // Upstream helpers expose fixed messages/statuses, never response bodies or credentials.
       result.errors[source] = error instanceof Error ? error.message : "Price check unavailable."
     }
