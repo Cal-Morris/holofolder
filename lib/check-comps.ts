@@ -13,7 +13,7 @@ import type { CardPriceCheck, PriceCheckSource } from "@/lib/card-price-checks"
 import type { CardFinish } from "@/lib/domain/cards"
 
 export const CHECK_COMPS_CONCURRENCY = 2
-/** Most cards one run will check; the list is expected to come most-valuable first. */
+/** Most stale cards one Show run will check; the list is expected to come most-valuable first. */
 export const CHECK_COMPS_MAX_CARDS = 60
 const BACKOFF_MS = [2_000, 8_000, 20_000]
 /** Runs needing this many sold comps calls or more ask confirmSpend before starting. */
@@ -58,7 +58,7 @@ export function checkCompsTargets<T extends CheckCompsTarget>(targets: readonly 
  *  list, then any extra hunt cards. Callers pass each list most-valuable first. */
 export function showCompsTargets(wanted: readonly CheckCompsTarget[], hunt: readonly CheckCompsTarget[] = []) {
   const exact = (target: CheckCompsTarget) => target.finish === "normal" || target.finish === "holo" || target.finish === "reverse_holo"
-  return checkCompsTargets([...wanted.filter(exact), ...wanted.filter(target => !exact(target)), ...hunt])
+  return checkCompsTargets([...wanted.filter(exact), ...wanted.filter(target => !exact(target)), ...hunt], "collection")
 }
 
 export function warmShowComps(input: { wanted: readonly CheckCompsTarget[]; hunt?: readonly CheckCompsTarget[] }, options: Parameters<typeof runCheckComps>[1]): Promise<CheckCompsOutcome> {
@@ -82,7 +82,7 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
   const readPinned = options.readPinned ?? readPinnedCardPriceCheck
   const sleep = options.sleep ?? wait
   const now = options.now ?? Date.now
-  const queue = checkCompsTargets(targets, options.scope)
+  const queue: CheckCompsTarget[] = []
   const progress: CheckCompsProgress = { done: 0, total: queue.length, fresh: 0, checked: 0, failed: 0, stopped: {} }
   const report = () => onProgress?.({ ...progress, stopped: { ...progress.stopped } })
   let cursor = 0
@@ -90,10 +90,17 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
 
   // Soft gate: estimate sold comps calls (cards without a fresh pinned sold check); ask before a big run.
   let needed = 0
-  for (const target of queue) {
+  for (const target of checkCompsTargets(targets, "collection")) {
     if (signal.aborted) break
-    if (!isPriceCheckFresh(await readPinned(target.cardId, target.finish, "soldcomps"), now())) needed += 1
+    const soldFresh = isPriceCheckFresh(await readPinned(target.cardId, target.finish, "soldcomps"), now())
+    // Fresh cards must not occupy the next batch's slots.
+    if (options.scope !== "collection" && soldFresh
+      && isPriceCheckFresh(await readPinned(target.cardId, target.finish, "ebay"), now())) continue
+    queue.push(target)
+    if (!soldFresh) needed += 1
+    if (options.scope !== "collection" && queue.length === CHECK_COMPS_MAX_CARDS) break
   }
+  progress.total = queue.length
   if (signal.aborted) return { ok: false, refused: { reason: "cancelled", needed }, progress }
   if (needed >= CHECK_COMPS_CONFIRM_AT && options.confirmSpend
     && !(await options.confirmSpend({ cardsNeedingSoldcomps: needed }))) {
