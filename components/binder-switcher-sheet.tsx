@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState, type FormEvent } from "react"
+import { OverlayLink } from "@/components/overlay-link"
 import { createPortal } from "react-dom"
-import { ArrowDown, ArrowUp, Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react"
+import { ArrowDown, ArrowUp, Check, Loader2, Paintbrush, Pencil, Plus, Trash2, X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { BINDER_NAME_MAX_LENGTH, MAX_BINDERS_PER_OWNER, type Binder } from "@/lib/binders/model"
 import { moveBinder } from "@/lib/binders/manage"
@@ -197,6 +198,10 @@ export default function BinderSwitcherSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--dock-clearance)+0.75rem)] sm:pb-4">
+          {canManage && <OverlayLink href="/studio" onClose={onClose} className="mb-3 flex min-h-14 items-center gap-3 rounded-xl border border-border/60 holo-tile px-3 py-2.5 hover:bg-muted/70">
+            <Paintbrush className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+            <span className="min-w-0"><span className="block text-sm font-semibold">Binder Studio</span><span className="block text-xs text-muted-foreground">Customise your binder’s appearance</span></span>
+          </OverlayLink>}
           {!isOnline && canManage && (
             <p className="mb-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
               {offlineBinderIds && offlineBinderIds.size > 0
