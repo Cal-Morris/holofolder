@@ -1,8 +1,13 @@
 'use client'
 import { useBillingContext } from '@/hooks/use-billing'
 import { Button } from '@/components/ui/button'
+import { useEffect } from 'react'
+import { useTrackCollectorEvent } from '@/components/collector-funnel'
 export function BillingSettings({ signedIn, onSignIn }: { signedIn:boolean;onSignIn:()=>void }) {
   const billing = useBillingContext()
+  const track = useTrackCollectorEvent()
+  const accountId = signedIn && billing?.canManage && billing.access?.tier === 'free' ? billing.access.ownerUserId : null
+  useEffect(() => { if (accountId) void track('upgrade_viewed', accountId) }, [accountId,track])
   if (!billing) return null
   const { access,busy } = billing
   return <section aria-label="Holo Folder plan" className="space-y-3 rounded-2xl border border-border bg-card p-4">

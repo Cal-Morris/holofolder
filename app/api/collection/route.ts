@@ -1,4 +1,5 @@
 import { BillingAccessError, isBillingError } from "@/lib/billing"
+import { scheduleCollectorTracking, recordCollectorSave } from "@/lib/server/collector-funnel"
 import { billingErrorResponse } from "@/lib/server/billing"
 import { notificationFirstName } from "@/lib/account-identity"
 import { NextRequest, NextResponse } from "next/server"
@@ -136,6 +137,8 @@ export async function POST(request: NextRequest) {
     }
     if (atomic) {
       if (acquisition) await startPendingPartnerPush(user.id).catch(() => undefined)
+      const at = new Date().toISOString()
+      scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, body?.origin === "import" ? "import" : "manual", at))
       return NextResponse.json({ item: atomic.item })
     }
     const { data, error } = await admin.from("pokemon_collection").upsert(row, { onConflict: "binder_id,pokemon_id" }).select("*").single()
@@ -146,6 +149,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message || "Failed to save collection item" }, { status: 500 })
     }
 
+    const at = new Date().toISOString()
+    scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, body?.origin === "import" ? "import" : "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
     if (isBillingError(error)) return billingErrorResponse(error)
@@ -191,6 +196,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message || "Failed to update collection item" }, { status: 500 })
     }
 
+    const at = new Date().toISOString()
+    scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
     if (isBillingError(error)) return billingErrorResponse(error)

@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getBillingAccess } from '@/lib/server/billing'
 import { getStripe, billingPriceIds, billingReturnUrl } from '@/lib/server/stripe'
 import { isHoloSubscription, paidInvoiceThrough } from '@/lib/billing-subscription'
+import { scheduleCollectorTracking, observeCollectorAccount, recordCollectorEvent } from '@/lib/server/collector-funnel'
+import { recordCollectorPayments, recordCollectorCancellation } from '@/lib/server/collector-payments'
 
 async function withBillingLock<T>(ownerId: string, action: (token: string) => Promise<T>): Promise<T> {
   const admin = createAdminClient(), token = crypto.randomUUID()
@@ -78,6 +80,11 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
       line_items: [{ price, quantity: 1 }], success_url: billingReturnUrl(), cancel_url: billingReturnUrl(),
     }, { idempotencyKey: `holofolder-checkout:${ownerId}:${interval}:${token}` })
     if (!session.url) throw new Error('Checkout could not be opened')
+    scheduleCollectorTracking(async () => {
+      const at = new Date(session.created * 1000).toISOString()
+      await observeCollectorAccount(ownerId,true,at)
+      await recordCollectorEvent({actorId:ownerId,ownerId,name:'checkout_created',key:`checkout:${session.id}`,at})
+    })
     return session.url
   })
 }
@@ -101,5 +108,12 @@ export async function handleBillingEvent(event: Stripe.Event) {
   if (prior) return
   const { data: account, error } = await admin.from('billing_accounts').select('owner_user_id').eq('stripe_customer_id',customer).maybeSingle()
   if (error) throw new Error('Event account could not be checked')
-  if (account) await reconcileBilling(account.owner_user_id,event.id)
+  if (account) {
+    await reconcileBilling(account.owner_user_id,event.id)
+    if (event.type === 'invoice.paid') scheduleCollectorTracking(() => recordCollectorPayments(account.owner_user_id,customer))
+    if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+      const subscriptionId = (event.data.object as Stripe.Subscription).id
+      scheduleCollectorTracking(() => recordCollectorCancellation(account.owner_user_id,subscriptionId,event.created))
+    }
+  }
 }

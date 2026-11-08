@@ -3,6 +3,7 @@
 import { appPath } from "@/lib/app-path"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { createBinderBackup, downloadBinderBackup } from "@/lib/binder-backup"
+import { useCollectorAppOpen } from "@/components/collector-funnel"
 import type { Binder } from "@/lib/binders/model"
 import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
@@ -404,6 +405,7 @@ export default function BinderApp({
     return buildBinderShareUrl(window.location.origin, sharePath)
   }, [sharePath])
   const [pushSettingsRequested, setPushSettingsRequested] = useState(false)
+  useCollectorAppOpen(user?.id ?? null, !readOnlyMode)
   const requestUpgrade = useCallback(() => {
     closeAllOverlays()
     setSelectedPokemon(null)
