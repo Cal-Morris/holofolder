@@ -206,6 +206,9 @@ UI craft skills from [Emil Kowalski](.agents/skills/EMIL-SOURCE.md) are vendored
 
 | Skill | Use it when |
 |---|---|
+| [repo-health](.agents/skills/repo-health/SKILL.md) | A read-only sitrep, current repo health or publication readiness |
+| [docs-and-architecture](.agents/skills/docs-and-architecture/SKILL.md) | README/guide upkeep, documentation drift or diagrams of current internals |
+| [dependency-maintenance](.agents/skills/dependency-maintenance/SKILL.md) | Dependency upgrades/removals, security alerts or native-library verification |
 | [adding-a-new-tcg-set](.agents/skills/adding-a-new-tcg-set/SKILL.md) | A new set is released: sync it and back-fill its images |
 | [adding-a-db-migration](.agents/skills/adding-a-db-migration/SKILL.md) | Changing the Supabase schema |
 | [adding-an-overlay-or-sheet](.agents/skills/adding-an-overlay-or-sheet/SKILL.md) | Adding any modal, sheet or popover |
