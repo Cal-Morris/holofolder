@@ -103,7 +103,8 @@ bun run dev                  # http://localhost:3000/app
 | `bun run typecheck` | `next typegen && tsrs --noEmit`; checks the full repo with the pinned Rust checker. `bun run typecheck:tsc` compares reference diagnostics. Local builds also type-check; Vercel relies on Typecheck CI. |
 | `bun run lint` | ESLint with **`--max-warnings=59`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
 | `bun run build` | Production build |
-| `bun run test:e2e` | Playwright: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `HOLOFOLDER_E2E=1` |
+| `bun run test:e2e` | Playwright at 390×844 in browser and standalone mode: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `HOLOFOLDER_E2E=1` |
+| `bun run test:e2e:matrix <spec>` | Affected specs across all six phone projects (375, 390 and 430 px, browser and standalone). Required for UI changes |
 | `bun run test:e2e:install` | Installs Chromium for Playwright (or set `CHROME_PATH`) |
 | `bun run sync-card-db [--dry-run]` | Full TCGdex → Postgres sync (needs `POSTGRES_URL_NON_POOLING` or `DATABASE_URL`) |
 | `bun run mirror-card-images` | Local, resumable R2 image backfill. Flags: `--set`, `--from`, `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb` |

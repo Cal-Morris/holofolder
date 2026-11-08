@@ -2,6 +2,15 @@
 
 Use synthetic data and your own local server port. Never point the e2e harness at production services or use real payment/provider credentials. Normal `bun run test:e2e` configures a local harness server automatically; `E2E_BASE_URL` uses a server you start yourself.
 
+## Choose the test scope
+
+- `bun run test:e2e:smoke`: the small card-browser and Quick mode smoke selection in browser and standalone mode at 390×844.
+- `bun run test:e2e e2e/<affected>.e2e.ts`: affected scenarios in those same two representative projects.
+- `bun run test:e2e:matrix e2e/<affected>.e2e.ts`: affected scenarios across all six phone projects (375, 390 and 430 px, browser and standalone). Use this for UI, safe-area, overlay and offline changes.
+- `bun run test:e2e --project=standalone-375x667 e2e/<affected>.e2e.ts`: one explicit project when investigating a failure.
+
+Every scenario remains available. The default runs each scenario twice rather than six times; it does not replace the full viewport verification required for UI changes. Bare `test:e2e` runs all scenarios on the two defaults; bare `test:e2e:matrix` runs all scenarios on all six projects. Run either complete suite only when explicitly requested.
+
 ## Persistent local e2e server
 
 For repeated test runs, use a persistent local server running a production build on your own port. Set these synthetic test values in **both terminals**, overriding any real values in `.env.local`:

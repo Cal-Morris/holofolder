@@ -32,6 +32,7 @@ export default defineConfig({
   projects: viewports.flatMap((viewport) => [
     {
       name: `browser-${viewport.name}`,
+      default: viewport.width === 390,
       use: {
         ...iphone,
         browserName: "chromium" as const,
@@ -43,6 +44,7 @@ export default defineConfig({
     },
     {
       name: `standalone-${viewport.name}`,
+      default: viewport.width === 390,
       use: {
         ...iphone,
         browserName: "chromium" as const,
