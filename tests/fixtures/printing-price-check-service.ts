@@ -48,6 +48,7 @@ async function run() {
       return Response.json(true)
     }
     if (url.pathname.includes("/card_price_checks")) {
+      if (url.searchParams.get("select") === "source,result_json") return Response.json(Object.entries(saved).map(([source,result_json])=>({source:source.slice(3),result_json})))
       assert.equal(url.searchParams.get("card_id"), `eq.${id}`)
       assert.equal(url.searchParams.get("finish"), "eq.holo")
       const source = url.searchParams.get("source")!

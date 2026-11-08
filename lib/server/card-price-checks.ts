@@ -20,21 +20,27 @@ async function fetchSoldComps(subject: PriceSubject, query: string) {
 }
 
 export async function loadCardPriceChecks(cardId: string, finish: string, refresh: boolean, onlySource?: PriceCheckSource, forceRefresh = false): Promise<CardPriceChecks | null> {
-  const lookup = await loadPriceCheckSubject(cardId, finish === "reverse_holo" ? "reverse" : finish === "normal" || finish === "holo" ? finish : null)
-  if (!lookup) return null
   const db = createAdminClient()
+  const sources: PriceCheckSource[] = onlySource ? [onlySource] : ["ebay", "soldcomps"]
+  const [lookup, saved] = await Promise.all([
+    loadPriceCheckSubject(cardId, finish === "reverse_holo" ? "reverse" : finish === "normal" || finish === "holo" ? finish : null),
+    db.from("card_price_checks").select("source,result_json").eq("card_id", cardId).eq("finish", finish).in("source", sources),
+  ])
+  if (!lookup) return null
+  if (saved.error) throw new Error("Saved price checks are unavailable.")
   const result: CardPriceChecks = { ebay: null, soldcomps: null, errors: {} }
-  const read = async (source: PriceCheckSource) => {
-    const { data, error } = await db.from("card_price_checks").select("result_json").eq("card_id", cardId).eq("finish", finish).eq("source", source).maybeSingle()
-    if (error) throw new Error("Saved price checks are unavailable.")
-    const value = data?.result_json
+  const normalize = (source: PriceCheckSource, value: unknown) => {
     if (!isCardPriceCheck(value) || value.summary.kind !== (source === "ebay" ? "asking" : "sold")) return null
     // Correct catalog-position links as well as older checks without links, without spending credits.
     return value.searchUrl && !getClassicCollectionPrinting(cardId) ? value : { ...value, searchUrl: source === "ebay" ? ebayOpenListingsUrl(lookup.query) : ebaySoldListingsUrl(lookup.query) }
   }
-  const sources: PriceCheckSource[] = onlySource ? [onlySource] : ["ebay", "soldcomps"]
+  const read = async (source: PriceCheckSource) => {
+    const { data, error } = await db.from("card_price_checks").select("result_json").eq("card_id", cardId).eq("finish", finish).eq("source", source).maybeSingle()
+    if (error) throw new Error("Saved price checks are unavailable.")
+    return normalize(source, data?.result_json)
+  }
   await Promise.all(sources.map(async source => {
-    result[source] = await read(source)
+    result[source] = normalize(source, saved.data?.find(row => row.source === source)?.result_json)
     if (!refresh || (result[source] && (!forceRefresh || Date.now() - Date.parse(result[source].checkedAt) < PRICE_CHECK_FRESH_MS))) return
     if (source === "ebay" ? !process.env.EBAY_CLIENT_ID || !process.env.EBAY_CLIENT_SECRET : !process.env.SOLDCOMPS_API_KEY) {
       result.errors[source] = `${source === "ebay" ? "eBay" : "Sold comps"} is not configured.`

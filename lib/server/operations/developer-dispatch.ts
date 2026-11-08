@@ -21,7 +21,8 @@ import {decodePage,encodeCursor,paginateEntries} from '@/lib/developer-api/pagin
 import {normalizeCardLanguage,CARD_LANGUAGES} from '@/lib/domain/cards'
 import {collectionFingerprint} from '@/lib/collection/sync'
 import {normalizeCollectionItem} from '@/lib/collection/normalize'
-import {resolveWriteBinderId} from '@/lib/server/binders'
+import {resolveWriteBinderId, BinderAccessError} from '@/lib/server/binders'
+import {isBinderId} from '@/lib/binders/model'
 import {sanitizeDeveloperImages} from '@/lib/server/developer-image-fields'
 import {listCatalogCards,getCatalogCard,listCatalogGroups,getCatalogGroup} from './catalog'
 import {listBinders,createBinder,updateBinder,deleteBinder} from './binders'
@@ -89,11 +90,14 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
   case 'update_binder':case 'reorder_binders': return unwrap(await updateBinder(operationRequest(input,'PATCH'),identity,context.ownerUserId))
   case 'delete_binder': {const request=operationRequest({...input,confirm:input.confirm?'1':'0'},'DELETE');return unwrap(await deleteBinder(request,identity,context.ownerUserId))}
   case 'list_collection': {
-   const admin=createAdminClient(),binder=await resolveWriteBinderId(admin,context.ownerUserId,input.binderId),page=decodePage(params)
-   let query=admin.from('pokemon_collection').select('*').eq('user_id',context.ownerUserId).eq('binder_id',binder).order('pokemon_id').limit(page.limit+1)
+   if(!isBinderId(input.binderId))throw new BinderAccessError()
+   const admin=createAdminClient(),page=decodePage(params)
+   let query=admin.from('pokemon_collection').select('*').eq('user_id',context.ownerUserId).eq('binder_id',input.binderId).order('pokemon_id').limit(page.limit+1)
    if(page.after) {if(!/^\d{1,6}$/.test(page.after))throw new DeveloperAccessError('invalid_cursor','Invalid collection cursor.',400);query=query.gt('pokemon_id',Number(page.after))}
    if(input.status) query=query.eq('status',input.status)
-   const {data,error}=await query;if(error)throw new Error('Collection read unavailable')
+   // Both reads are owner-scoped; no row is returned until binder access succeeds.
+   const [, {data,error}]=await Promise.all([resolveWriteBinderId(admin,context.ownerUserId,input.binderId),query])
+   if(error)throw new Error('Collection read unavailable')
    const rows=data??[];return {data:await sanitizeImages(rows.slice(0,page.limit)),nextCursor:rows.length>page.limit?encodeCursor(String(rows[page.limit-1].pokemon_id),params):null,absentFingerprint:collectionFingerprint(null)}
   }
   case 'save_collection_item': return sanitizeImages(await unwrap(await saveCollectionItem(operationRequest(input),await actor(context),true,context)))

@@ -18,6 +18,7 @@ async function run() {
     if (url.pathname.includes("/tcg_cards")) return Response.json([{ id, name_en: "Gengar", local_id: "018", set_id: "30th-c", external_ids_json: {}, tcg_sets: { name_en: "30th Classic Collection", official_card_count: 30 } }])
     if (url.pathname.includes("/rpc/claim_card_price_check")) return Response.json(true)
     if (url.pathname.includes("/card_price_checks")) {
+      if (url.searchParams.get("select") === "source,result_json") return Response.json([...rows].map(([source,result_json])=>({source,result_json})))
       const source = url.searchParams.get("source")!.slice(3)
       if (init?.method === "PATCH") { rows.set(source, JSON.parse(String(init.body)).result_json); return new Response(null, { status: 204 }) }
       return Response.json(rows.has(source) ? [{ result_json: rows.get(source) }] : [])
