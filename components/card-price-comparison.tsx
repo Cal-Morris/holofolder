@@ -4,7 +4,7 @@ import { useBillingContext } from "@/hooks/use-billing"
 import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { requestCardPriceCheck } from "@/lib/card-price-check-client"
-import { formatPriceCheckAge, isPriceCheckFresh, readPinnedCardPriceChecks } from "@/lib/card-price-check-cache"
+import { isPriceCheckFresh, readPinnedCardPriceChecks } from "@/lib/card-price-check-cache"
 import { PriceCheckRecords } from "@/components/price-check-records"
 import { DealPriceScale } from "@/components/deal-price-scale"
 import { Button } from "@/components/ui/button"
@@ -31,7 +31,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   const onSoldCheckRef = useRef(onSoldCheck)
   useEffect(() => { onSoldCheckRef.current = onSoldCheck })
   // Show the last check saved on this device straight away (works offline, costs no request); "Check prices"
-  // only goes to the network for a source whose saved check is 30 hours old or more.
+  // reuses saved server checks; only "Refresh prices" can spend credits again.
   useEffect(() => {
     if (language !== "en" || finish === "jumbo" || !premium) return
     let cancelled = false
@@ -50,9 +50,9 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   const loading = pending.ebay || pending.soldcomps
   const guide = buildSoldPriceGuide(result?.soldcomps, catalogMarketGbp, finish, givenThresholds ?? savedThresholds)
 
-  async function checkSource(source: PriceCheckSource, signal: AbortSignal) {
+  async function checkSource(source: PriceCheckSource, signal: AbortSignal, refresh: boolean) {
     try {
-      const { check, error } = await requestCardPriceCheck(cardId, language, finish, source, signal)
+      const { check, error } = await requestCardPriceCheck(cardId, language, finish, source, signal, refresh)
       if (signal.aborted) return
       setResult(previous => ({ ebay: null, soldcomps: null, ...previous, [source]: check, errors: { ...previous?.errors, [source]: error } }))
       if (source === "soldcomps" && check) onSoldCheck?.(check)
@@ -63,17 +63,17 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
     } finally { if (!signal.aborted) setPending(previous => ({ ...previous, [source]: false })) }
   }
 
-  async function checkPrices() {
+  async function checkPrices(refresh = false) {
     if (loading) return
     if (!navigator.onLine) { setError("Connect to the internet to check prices."); return }
     setError(null)
     setResult(previous => ({ ebay: null, soldcomps: null, ...previous, errors: {} }))
-    const stale = (["ebay", "soldcomps"] as const).filter(source => !isPriceCheckFresh(result?.[source]))
+    const stale = (["ebay", "soldcomps"] as const).filter(source => refresh ? !isPriceCheckFresh(result?.[source]) : !result?.[source])
     if (stale.length === 0) { setError("Showing saved checks from the last 30 hours."); return }
     setPending({ ebay: stale.includes("ebay"), soldcomps: stale.includes("soldcomps") })
     const controller = new AbortController()
     requestController.current = controller
-    await Promise.all(stale.map(source => checkSource(source, controller.signal)))
+    await Promise.all(stale.map(source => checkSource(source, controller.signal, refresh)))
   }
 
   if (billing && !billing.premium) return <section aria-label="Price comparisons" className="mt-2 rounded-xl border p-3"><p className="text-sm">Sold comps are included with Holo Folder Premium.</p><Button className="mt-2 min-h-11 w-full" onClick={billing.upgrade}>Unlock price comparisons</Button></section>
@@ -81,18 +81,18 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   return (
     <section aria-label="Price comparisons" className="mt-2 rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 text-xs">
       <p className="font-semibold">eBay listings + sold comps</p>
-      <p className="mt-1 text-muted-foreground">Manual checks · saved for 30 hours</p>
+      <p className="mt-1 text-muted-foreground">Manual checks · saved permanently · refresh manually</p>
       <div className="flex flex-wrap gap-x-4">
         <a href={openUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View open listings ↗</a>
         <a href={soldUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View sold listings ↗</a>
       </div>
       {error ? <p role="status" className="mt-2 text-muted-foreground">{error}</p> : null}
-      <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices()} disabled={loading}>{loading ? "Checking prices…" : "Check prices"}</Button>
+      <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices(Boolean(result?.ebay || result?.soldcomps))} disabled={loading}>{loading ? "Checking prices…" : result?.ebay || result?.soldcomps ? "Refresh prices" : "Check prices"}</Button>
       {result ? <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1" aria-live="polite">
         {(["ebay", "soldcomps"] as const).map(source => <div key={source}>
           {pending[source] ? <p role="status">Checking {source === "ebay" ? "eBay" : "sold comps"}…</p> : null}
           {result[source]?.summary.count ? <p><strong>{formatGbpAmount(result[source]!.summary.median)}</strong> median {source === "ebay" ? "asking" : "sold"} price · {result[source]!.summary.count} matched {source === "ebay" ? "listings" : "sales"}</p> : result[source] ? <p>No matching {source === "ebay" ? "listings" : "sales"} in the search sample.</p> : null}
-          {result[source] && !pending[source] ? <p className="text-muted-foreground" data-testid={`price-check-age-${source}`}>Checked {formatPriceCheckAge(result[source]!.checkedAt)}{isPriceCheckFresh(result[source]) ? "" : " · tap Check prices to refresh"}</p> : null}
+          {result[source] && !pending[source] ? <p className="text-muted-foreground" data-testid={`price-check-age-${source}`}>Last checked on <time dateTime={result[source]!.checkedAt}>{new Date(result[source]!.checkedAt).toLocaleDateString("en-GB")}</time>{isPriceCheckFresh(result[source]) ? "" : " · older snapshot"}</p> : null}
           {result.errors[source] ? <p role="status" className="text-muted-foreground">{result.errors[source]}{result[source] ? " Showing the saved check." : ""}</p> : null}
         </div>)}
       </div> : null}
@@ -108,7 +108,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
             const check = result[source]
             return check ? <div key={source}>
               <p>{source === "ebay" ? "eBay UK asking prices" : "SaleHistory UK sold comps"} · Range {formatGbpAmount(check.summary.low)} to {formatGbpAmount(check.summary.high)}. Postage excluded.</p>
-              <p>Saved {new Date(check.checkedAt).toLocaleString("en-GB")}. Conditions{exactFinish === "any" ? " and finishes" : ""} vary{source === "soldcomps" ? "; sales from the last 90 days, hidden offers excluded" : "; current asking snapshot, not historical asking prices"}.</p>
+              <p>Last checked on {new Date(check.checkedAt).toLocaleString("en-GB")}. Conditions{exactFinish === "any" ? " and finishes" : ""} vary{source === "soldcomps" ? "; sales from the last 90 days, hidden offers excluded" : "; current asking snapshot, not historical asking prices"}.</p>
             </div> : null
           })}
           <p>Fair / expected is centred on the market reference using your Fair tolerance. Green marks bargains; amber and red mark prices above market. Purple outlines agreement with the catalogue fair range. Only qualified sold evidence changes the guide.</p>

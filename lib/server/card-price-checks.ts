@@ -15,7 +15,7 @@ async function fetchSoldComps(subject: PriceSubject, query: string) {
   return { ...summarizeSoldComps(subject, (data as { items: unknown[] }).items), checkedAt: new Date().toISOString(), searchUrl: ebaySoldListingsUrl(query) }
 }
 
-export async function loadCardPriceChecks(cardId: string, finish: string, refresh: boolean, onlySource?: PriceCheckSource): Promise<CardPriceChecks | null> {
+export async function loadCardPriceChecks(cardId: string, finish: string, refresh: boolean, onlySource?: PriceCheckSource, forceRefresh = false): Promise<CardPriceChecks | null> {
   const lookup = await loadPriceCheckSubject(cardId, finish === "reverse_holo" ? "reverse" : finish === "normal" || finish === "holo" ? finish : null)
   if (!lookup) return null
   const db = createAdminClient()
@@ -31,7 +31,7 @@ export async function loadCardPriceChecks(cardId: string, finish: string, refres
   const sources: PriceCheckSource[] = onlySource ? [onlySource] : ["ebay", "soldcomps"]
   await Promise.all(sources.map(async source => {
     result[source] = await read(source)
-    if (!refresh || (result[source] && Date.now() - Date.parse(result[source].checkedAt) < PRICE_CHECK_FRESH_MS)) return
+    if (!refresh || (result[source] && (!forceRefresh || Date.now() - Date.parse(result[source].checkedAt) < PRICE_CHECK_FRESH_MS))) return
     if (source === "ebay" ? !process.env.EBAY_CLIENT_ID || !process.env.EBAY_CLIENT_SECRET : !process.env.SOLDCOMPS_API_KEY) {
       result.errors[source] = `${source === "ebay" ? "eBay" : "Sold comps"} is not configured.`
       return

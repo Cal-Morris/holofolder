@@ -7,11 +7,12 @@ export class PriceCheckRequestError extends Error {
   constructor(message: string, readonly status: number) { super(message) }
 }
 
-// POST: the server returns its saved check while it is under 30 hours old and only then calls the provider
-// (claim_card_price_check rate-limits that). Every good answer is pinned on this device for offline reads.
-export async function requestCardPriceCheck(cardId: string, language: string, finish: CardFinish | undefined, source: PriceCheckSource, signal: AbortSignal) {
+// Reuse saved checks indefinitely; only the explicit refresh action may replace one.
+// Every good answer is pinned on this device for offline reads.
+export async function requestCardPriceCheck(cardId: string, language: string, finish: CardFinish | undefined, source: PriceCheckSource, signal: AbortSignal, refresh = false) {
   const exactFinish = priceCheckFinish(finish)
   const params = new URLSearchParams({ cardId, language, finish: exactFinish, source })
+  if (refresh) params.set("refresh", "true")
   const response = await fetch(`/app/api/card-price-checks?${params}`, { method: "POST", cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]) })
   const data = await response.json().catch(() => null)
   if (!response.ok) throw new PriceCheckRequestError(typeof data?.error === "string" ? data.error : "Price check unavailable.", response.status)

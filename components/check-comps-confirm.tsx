@@ -48,7 +48,7 @@ export default function CheckCompsConfirm({
         <p id="check-comps-confirm-title" className="mb-4 text-sm font-semibold leading-snug">
           {title}
         </p>
-        <p className="mb-4 text-xs text-muted-foreground">Up to {n} sold comps lookups use the provider allowance. eBay asking prices are checked too. Checks under 30 hours old are reused.</p>
+        <p className="mb-4 text-xs text-muted-foreground">Up to {n} sold comps lookups use the provider allowance. eBay asking prices are checked too. Saved checks are reused regardless of age.</p>
         <div className="flex flex-col gap-2">
           <button
             type="button"

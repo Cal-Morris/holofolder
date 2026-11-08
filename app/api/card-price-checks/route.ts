@@ -29,7 +29,7 @@ async function handle(request: Request, refresh: boolean) {
     if (source !== null && source !== "ebay" && source !== "soldcomps") return Response.json({ error: "Invalid price source." }, { status: 400, headers })
     if (!isPriceCheckCardId(cardId) || !["normal", "holo", "reverse_holo", "any"].includes(finish)) return Response.json({ error: "Invalid card or finish." }, { status: 400, headers })
     if ((url.searchParams.get("language") ?? "en") !== "en") return Response.json({ error: "Price comparisons currently support English cards only." }, { status: 422, headers })
-    const result = await loadCardPriceChecks(cardId, finish, refresh, source ?? undefined)
+    const result = await loadCardPriceChecks(cardId, finish, refresh, source ?? undefined, refresh && url.searchParams.get("refresh") === "true")
     return Response.json(result ?? { error: "This exact printing is not supported yet." }, { status: result ? 200 : 422, headers })
   } catch (error) {
     if (isBillingError(error)) return billingErrorResponse(error)

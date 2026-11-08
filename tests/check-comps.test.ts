@@ -30,8 +30,8 @@ test("targets skip non-English and jumbo cards, dedupe, and cap the run", () => 
   assert.deepEqual(checkCompsTargets([{ cardId: "a" }, { cardId: "a" }, { cardId: "b", language: "ja" }, { cardId: "c", finish: "jumbo" }]).map(t => t.cardId), ["a"])
 })
 
-test("fresh pins make no request; stale ones refresh with bounded concurrency", async () => {
-  const pins = new Map<string, CardPriceCheck>([["fresh:soldcomps", check("soldcomps", hours(2))], ["fresh:ebay", check("ebay", hours(2))], ["stale:soldcomps", check("soldcomps", hours(30))]])
+test("saved pins never refresh, including old checks, and missing sources use bounded concurrency", async () => {
+  const pins = new Map<string, CardPriceCheck>([["fresh:soldcomps", check("soldcomps", hours(2))], ["fresh:ebay", check("ebay", hours(2))], ["stale:soldcomps", check("soldcomps", hours(24 * 365))]])
   const calls: string[] = []
   let active = 0, peak = 0
   const outcome = await runCheckComps([{ cardId: "fresh" }, { cardId: "stale" }, { cardId: "new" }], {
@@ -48,8 +48,9 @@ test("fresh pins make no request; stale ones refresh with bounded concurrency", 
   assert.ok(outcome.ok)
   const result = outcome.progress
   assert.deepEqual(calls.filter(c => c.startsWith("fresh")), [])
+  assert.equal(calls.includes("stale:soldcomps"), false)
   assert.ok(peak <= CHECK_COMPS_CONCURRENCY)
-  assert.deepEqual({ done: result.done, fresh: result.fresh, checked: result.checked, failed: result.failed }, { done: 2, fresh: 0, checked: 2, failed: 0 })
+  assert.deepEqual({ done: result.done, fresh: result.fresh, checked: result.checked, failed: result.failed }, { done: 2, fresh: 1, checked: 1, failed: 0 })
 })
 
 test("429 backs the batch off and retries; an exhausted allowance stops that source", async () => {

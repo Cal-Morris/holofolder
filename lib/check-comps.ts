@@ -1,19 +1,12 @@
-// The comps warm engine: bake sold comps + eBay asking checks for a list of cards (the want list, then
-// optionally the rest of Show's hunt list) the morning of a show, so each card's last-known check is on
-// this device. UI entry points (Prepare for card show, a Show "Check comps" button) call
-// warmShowComps / useShowCompsWarm. Gentle on the provider allowance by design:
-// cards whose pinned check is under 30 hours old are skipped without a request, the server skips any it
-// already checked in the last 30 hours, only a couple of requests run at once, a 429/503 backs the whole
-// batch off, and an exhausted or unconfigured source stops being asked for the rest of the batch.
-// Soft gate: before any request, a run counts the cards that would need a sold comps call; at
-// CHECK_COMPS_CONFIRM_AT or more it asks confirmSpend first (Show passes one; Prepare doesn't).
+// Warm missing comparisons for Show and offline use. Saved checks never expire; only the card's
+// explicit refresh action replaces them. Requests are bounded and back off on provider failures.
 import { requestCardPriceCheck, PriceCheckRequestError } from "@/lib/card-price-check-client"
-import { isPriceCheckFresh, priceCheckFinish, PRICE_CHECK_SOURCES, readPinnedCardPriceCheck } from "@/lib/card-price-check-cache"
+import { priceCheckFinish, PRICE_CHECK_SOURCES, readPinnedCardPriceCheck } from "@/lib/card-price-check-cache"
 import type { CardPriceCheck, PriceCheckSource } from "@/lib/card-price-checks"
 import type { CardFinish } from "@/lib/domain/cards"
 
 export const CHECK_COMPS_CONCURRENCY = 2
-/** Most stale cards one Show run will check; the list is expected to come most-valuable first. */
+/** Most unchecked cards one Show run will check; the list is expected to come most-valuable first. */
 export const CHECK_COMPS_MAX_CARDS = 60
 const BACKOFF_MS = [2_000, 8_000, 20_000]
 /** Runs needing this many sold comps calls or more ask confirmSpend before starting. */
@@ -23,9 +16,9 @@ export interface CheckCompsTarget { cardId: string; language?: string | null; fi
 export interface CheckCompsProgress {
   done: number
   total: number
-  /** Cards with a check that was already under 30 hours old (no provider call). */
+  /** Cards with a check that was already saved (no provider call). */
   fresh: number
-  /** Cards that now have a check under 30 hours old on this device (the server may have had it already). */
+  /** Cards that now have a check saved on this device (the server may have had it already). */
   checked: number
   failed: number
   /** Set when a source stopped for the rest of the run (allowance used up, not configured). */
@@ -88,14 +81,14 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
   let cursor = 0
   let pausedUntil = 0
 
-  // Soft gate: estimate sold comps calls (cards without a fresh pinned sold check); ask before a big run.
+  // Soft gate: estimate sold comps calls (cards without a saved pinned sold check); ask before a big run.
   let needed = 0
   for (const target of checkCompsTargets(targets, "collection")) {
     if (signal.aborted) break
-    const soldFresh = isPriceCheckFresh(await readPinned(target.cardId, target.finish, "soldcomps"), now())
-    // Fresh cards must not occupy the next batch's slots.
+    const soldFresh = Boolean(await readPinned(target.cardId, target.finish, "soldcomps"))
+    // Saved cards must not occupy the next batch's slots.
     if (options.scope !== "collection" && soldFresh
-      && isPriceCheckFresh(await readPinned(target.cardId, target.finish, "ebay"), now())) continue
+      && Boolean(await readPinned(target.cardId, target.finish, "ebay"))) continue
     queue.push(target)
     if (!soldFresh) needed += 1
     if (options.scope !== "collection" && queue.length === CHECK_COMPS_MAX_CARDS) break
@@ -110,7 +103,7 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
 
   async function checkOne(target: CheckCompsTarget, source: PriceCheckSource): Promise<"fresh" | "checked" | "failed"> {
     const pinned = await readPinned(target.cardId, target.finish, source)
-    if (isPriceCheckFresh(pinned, now())) return "fresh"
+    if (pinned) return "fresh"
     if (progress.stopped[source]) return "failed"
     for (let attempt = 0; ; attempt++) {
       if (pausedUntil > now()) await sleep(pausedUntil - now(), signal)
@@ -118,8 +111,8 @@ export async function runCheckComps(targets: readonly CheckCompsTarget[], option
       try {
         const { check, error } = await request(target.cardId, target.language ?? "en", target.finish ?? undefined, source, signal)
         if (error && STOP_PATTERN.test(error)) progress.stopped[source] = error
-        // A still-stale answer (cooling down, allowance used up) leaves the old check showing; count it as failed.
-        return isPriceCheckFresh(check, now()) ? "checked" : "failed"
+        // A saved answer is usable regardless of age.
+        return check ? "checked" : "failed"
       } catch (error) {
         if (signal.aborted) return "failed"
         const status = error instanceof PriceCheckRequestError ? error.status : 0

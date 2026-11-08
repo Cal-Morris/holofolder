@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { checkComparisonTarget, estimateComparisonSpend } from "../../lib/server/comparison-jobs"
 import { loadCardPriceChecks } from "../../lib/server/card-price-checks"
 
 // Synthetic isolated provider calls, never real market data or credentials.
@@ -15,8 +16,9 @@ async function run() {
     if (url.pathname.includes("/tcg_cards")) return json([{ id: "base1-44", name_en: "Bulbasaur", local_id: "44", set_id: "base1", external_ids_json: {}, tcg_sets: { name_en: "Base Set" } }])
     if (url.pathname.includes("/rpc/claim_card_price_check")) return json(claim)
     if (url.pathname.includes("/card_price_checks")) {
-      const source = url.searchParams.get("source")!.slice(3)
+      const source = url.searchParams.get("source")?.slice(3) ?? ""
       if (init?.method === "PATCH") { rows.set(source, JSON.parse(String(init.body)).result_json); return new Response(null, { status: 204 }) }
+      if (url.searchParams.get("select") !== "result_json") return json([...rows].map(([source, value]) => ({ card_id: "base1-44", finish: "normal", source, result_json: value, checked_at: (value as { checkedAt: string }).checkedAt })))
       return json(rows.has(source) ? [{ result_json: rows.get(source) }] : [])
     }
     if (url.pathname.includes("/oauth2/token")) return json({ access_token: "synthetic-token", expires_in: 7200 })
@@ -47,17 +49,34 @@ async function run() {
     assert.equal(first?.soldcomps?.sales?.[0].url, "https://www.ebay.co.uk/itm/123456789013")
     assert.deepEqual((await loadCardPriceChecks("base1-44", "normal", false))?.soldcomps, first?.soldcomps)
     await loadCardPriceChecks("base1-44", "normal", true)
-    assert.deepEqual([browseCalls, soldCalls], [1, 1])
-    const stale = { summary: { kind: "sold", currency: "GBP", count: 1, median: 9, low: 9, high: 9 }, checkedAt: new Date(Date.now() - 31 * 3600_000).toISOString() }
+    await loadCardPriceChecks("base1-44", "normal", true, "soldcomps", true)
+    assert.deepEqual([browseCalls, soldCalls], [1, 1], "manual refresh still respects the cooldown")
+    const stale = { summary: { kind: "sold", currency: "GBP", count: 1, median: 9, low: 9, high: 9 }, checkedAt: new Date(Date.now() - 365 * 24 * 3600_000).toISOString() }
+    rows.set("soldcomps", stale)
+    const reused = await loadCardPriceChecks("base1-44", "normal", true)
+    assert.equal(reused?.soldcomps?.checkedAt, stale.checkedAt)
+    assert.deepEqual([browseCalls, soldCalls], [1, 1], "old saved checks never spend credits without explicit refresh")
+    const refreshed = await loadCardPriceChecks("base1-44", "normal", true, "soldcomps", true)
+    assert.notEqual(refreshed?.soldcomps?.checkedAt, stale.checkedAt)
+    assert.equal(soldCalls, 2, "explicit refresh requests a new check")
     rows.set("soldcomps", stale)
     failSold = true
-    const partial = await loadCardPriceChecks("base1-44", "normal", true)
+    const partial = await loadCardPriceChecks("base1-44", "normal", true, "soldcomps", true)
     assert.equal(partial?.soldcomps?.checkedAt, stale.checkedAt)
     assert.match(partial!.errors.soldcomps!, /allowance/)
     assert.deepEqual(rows.get("soldcomps"), stale)
     claim = false
     await loadCardPriceChecks("base1-44", "normal", true)
-    assert.equal(soldCalls, 2)
+    assert.equal(soldCalls, 3)
+    rows.set("ebay", { ...stale, summary: { ...stale.summary, kind: "asking" } })
+    const target = { cardId: "base1-44", finish: "normal" as const, language: "en" as const }
+    assert.equal(await estimateComparisonSpend([target]), 0, "old shared checks do not count towards credit estimates")
+    assert.equal((await checkComparisonTarget(target, {})).result, "fresh", "background jobs reuse old shared checks")
+    assert.deepEqual([browseCalls, soldCalls], [1, 3])
+    const empty = { ...stale, summary: { ...stale.summary, count: 0, low: null, median: null, high: null } }
+    rows.set("soldcomps", empty)
+    assert.equal((await loadCardPriceChecks("base1-44", "normal", true))?.soldcomps?.summary.count, 0)
+    assert.equal(soldCalls, 3, "an old empty search also remains saved")
   } finally {
     globalThis.fetch = originalFetch
     names.forEach((name, i) => { if (originalEnv[i] === undefined) delete process.env[name]; else process.env[name] = originalEnv[i] })
