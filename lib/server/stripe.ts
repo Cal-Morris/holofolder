@@ -1,5 +1,6 @@
 import 'server-only'
 import Stripe from 'stripe'
+import { appPath } from '@/lib/app-path'
 import { recognizedBillingPriceIds } from '@/lib/billing-subscription'
 
 let client: Stripe | undefined
@@ -18,5 +19,9 @@ export function billingRecognizedPriceIds() {
   return recognizedBillingPriceIds(billingPriceIds(), process.env.STRIPE_LEGACY_PRICE_IDS)
 }
 export function billingReturnUrl() {
-  return 'https://holofolder.com/app?billing=return'
+  const site = process.env.NEXT_PUBLIC_SITE_URL
+  if (!site) throw new Error('Set NEXT_PUBLIC_SITE_URL for billing return URLs')
+  const url = new URL(appPath('/'), site)
+  url.search = 'billing=return'
+  return url.toString()
 }

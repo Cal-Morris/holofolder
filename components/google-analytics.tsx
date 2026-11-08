@@ -6,9 +6,10 @@ import { sendGoogleEvent, type GoogleEvents } from "@/lib/google-analytics"
 
 const AnalyticsEnabled = createContext(false)
 
-export function GoogleAnalyticsProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
-  return <AnalyticsEnabled.Provider value={enabled}>
-    {enabled && <GoogleAnalytics gaId="G-3Z12777BKD" />}
+export function GoogleAnalyticsProvider({ enabled, gaId, children }: { enabled: boolean; gaId?: string; children: ReactNode }) {
+  const active = enabled && Boolean(gaId)
+  return <AnalyticsEnabled.Provider value={active}>
+    {active && gaId && <GoogleAnalytics gaId={gaId} />}
     {children}
   </AnalyticsEnabled.Provider>
 }
