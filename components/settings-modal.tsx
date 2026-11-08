@@ -4,6 +4,7 @@ import { BinderLayoutSettings } from "@/components/binder-layout-settings"
 import { OverlayLink } from "@/components/overlay-link"
 import { CollectionImport, type CollectionImportProps } from "@/components/collection-import"
 import { BillingSettings } from "@/components/billing-settings"
+import { AccountPasskeys } from "@/components/account-passkeys"
 import { AccountIdentitySettings } from "@/components/account-identity-settings"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
 import { useEffect, useRef, useState } from "react"
@@ -593,6 +594,7 @@ export default function SettingsModal({
           )}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />}
+          {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />}
           {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (
