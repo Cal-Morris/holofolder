@@ -81,6 +81,7 @@ export function LoginForm() {
         email,
         options: {
           emailRedirectTo: getMagicLinkRedirectUrl(),
+          shouldCreateUser: true,
         },
       })
 
@@ -213,20 +214,20 @@ export function LoginForm() {
       ? 'We sent you a password reset link.'
       : success === 'password-signup'
         ? 'We sent you a confirmation link to finish creating your account.'
-        : 'We sent you a magic link to sign in.'
+        : 'We sent you a secure link to open your binder.'
 
   return (
     <>
       <div className={styles.header}>
         <h1 className={styles.heading}>
-          {recoveryMode ? 'Set a new password' : success ? successTitle : 'Sign in to Holo Folder'}
+          {recoveryMode ? 'Set a new password' : success ? successTitle : authMethod === 'magic-link' ? 'Start your binder' : passwordMode === 'sign-up' ? 'Create account' : 'Sign in to Holo Folder'}
         </h1>
         <p className={styles.intro}>
           {recoveryMode
             ? 'Choose a password for your Holo Folder account.'
             : success
               ? successMessage
-              : 'Use a magic link or sign in with a password.'}
+              : authMethod === 'magic-link' ? 'Create an account or sign in with your email.' : 'Use your password, or create a new account.'}
         </p>
       </div>
 
@@ -293,7 +294,7 @@ export function LoginForm() {
                   ? 'Open the reset email and choose a new password.'
                   : success === 'password-signup'
                     ? 'Open the confirmation email to finish setting up password sign-in.'
-                    : 'Click the link in your email to sign in. You can close this window.'}
+                    : 'Open the link to finish creating your account or sign in. You can close this window.'}
               </p>
             </div>
             <Button
@@ -309,7 +310,6 @@ export function LoginForm() {
           </div>
         ) : (
           <div className="space-y-4">
-            <PasskeySignIn disabled={isLoading} onSuccess={() => { router.push('/'); router.refresh() }} />
             {error && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center">
                 {error}
@@ -371,11 +371,11 @@ export function LoginForm() {
                   className="w-full h-12 rounded-xl font-semibold text-base"
                   disabled={isLoading}
                 >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send magic link'}
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continue with email'}
                 </Button>
 
                 <p className="text-xs text-center text-muted-foreground pt-2">
-                  No password needed. We&apos;ll email you a secure link.
+                  New here? We’ll create your account. Already collecting? We’ll sign you in.
                 </p>
               </form>
             ) : (
@@ -491,6 +491,7 @@ export function LoginForm() {
                 </p>
               </div>
             )}
+            {!(authMethod === 'password' && passwordMode === 'sign-up') && <PasskeySignIn disabled={isLoading} onSuccess={() => { router.push('/'); router.refresh() }} />}
           </div>
         )}
       </div>

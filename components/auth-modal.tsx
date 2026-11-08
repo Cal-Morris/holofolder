@@ -56,6 +56,7 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
         email,
         options: {
           emailRedirectTo: getMagicLinkRedirectUrl(),
+          shouldCreateUser: true,
         },
       })
 
@@ -162,7 +163,7 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
       ? "We sent you a password reset link."
       : success === "password-signup"
         ? "We sent you a confirmation link to finish creating your account."
-        : "We sent you a magic link to sign in."
+        : "We sent you a secure link to open your binder."
 
   const isSignUp = authMethod === "password" && passwordMode === "sign-up"
 
@@ -188,10 +189,10 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
               <Sparkles className="w-7 h-7 text-primary-foreground" />
             </div>
             <h2 className="text-2xl font-bold tracking-tight">
-              {success ? successTitle : isSignUp ? "Create account" : "Welcome"}
+              {success ? successTitle : isSignUp ? "Create account" : authMethod === "magic-link" ? "Start your binder" : "Welcome"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {success ? successMessage : isSignUp ? "Start your own binder and sync it across devices" : "Sign in to sync your collection across devices"}
+              {success ? successMessage : isSignUp ? "Start your own binder and sync it across devices" : authMethod === "magic-link" ? "Create an account or sign in with your email" : "Sign in to sync your collection across devices"}
             </p>
           </div>
         </div>
@@ -212,7 +213,7 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
                     ? "Open the reset email and choose a new password."
                     : success === "password-signup"
                       ? "Open the confirmation email to finish setting up password sign-in."
-                      : "Click the link in your email to sign in. You can close this window."}
+                      : "Open the link to finish creating your account or sign in. You can close this window."}
                 </p>
               </div>
               <Button
@@ -228,7 +229,6 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
             </div>
           ) : (
             <div className="space-y-4">
-              {!isSignUp && <PasskeySignIn disabled={isLoading} onSuccess={closeAndReload} />}
               {error && (
                 <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-3 text-center text-sm text-destructive">
                   {error}
@@ -290,11 +290,11 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
                     className="h-12 w-full rounded-2xl font-semibold text-base shadow-lg shadow-primary/20 transition-shadow hover:shadow-primary/30"
                     disabled={isLoading}
                   >
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send magic link"}
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue with email"}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
-                    No password needed. We&apos;ll email you a secure link.
+                    New here? We’ll create your account. Already collecting? We’ll sign you in.
                   </p>
                 </form>
               ) : (
@@ -402,6 +402,7 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
                   </p>
                 </div>
               )}
+              {!isSignUp && <PasskeySignIn disabled={isLoading} onSuccess={closeAndReload} />}
             </div>
           )}
         </div>

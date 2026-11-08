@@ -15,21 +15,15 @@ test.describe("show mode", () => {
 
   test("the header shows the active mode without an extra row, and Exit turns it off", async ({ harness }) => {
     const { page } = harness
-    const card = offer(harness)
-    await expect(card).toBeVisible()
-    await expect(card).toContainText("At a card show?")
-    const turnOn = card.getByRole("button", { name: "Turn on Show mode" })
+    await expect(offer(harness)).toHaveCount(0)
+    const turnOn = headerButton(harness)
     await harness.expectWithinSafeViewport(turnOn)
-    await harness.expectHittable(turnOn)
     await harness.expectMinTapTarget(turnOn, 44)
-    await harness.expectNoHorizontalOverflow()
-    await screenshot(harness, "show-mode-offer")
 
     const header = page.getByTestId("app-header")
     const before = (await header.boundingBox())!
     const background = await header.evaluate(el => getComputedStyle(el).backgroundColor)
     await turnOn.click()
-    await expect(card).toHaveCount(0)
     const on = banner(harness)
     await expect(on).toContainText("Show mode on")
     expect((await header.boundingBox())!.height).toBe(before.height)
@@ -140,9 +134,8 @@ test.describe("show mode", () => {
     await expect(banner(harness)).toBeVisible()
   })
 
-  test("Not now hides the offer for good, offline too", async ({ harness }) => {
+  test("the binder stays free of promotions offline too", async ({ harness }) => {
     const { page } = harness
-    await offer(harness).getByRole("button", { name: "Not now" }).click()
     await expect(offer(harness)).toHaveCount(0)
     await page.reload()
     await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()

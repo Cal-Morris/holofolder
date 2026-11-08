@@ -30,7 +30,7 @@ for (const entry of ["More", "Binders", "Settings"] as const) {
     await expect(back).toHaveAttribute("href", "/app")
     await back.click()
     await expect(page).toHaveURL(/\/app\/auth\/login$/)
-    await expect(page.getByRole("heading", { name: "Sign in to Holo Folder" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Start your binder" })).toBeVisible()
   })
 }
 

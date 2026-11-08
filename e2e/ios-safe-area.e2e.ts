@@ -92,16 +92,12 @@ test("the More menu holds the extra header actions as full-size rows", async ({ 
   await expect(harness.page.getByRole("button", { name: "Close view options", exact: true })).toBeVisible()
 })
 
-test("the show offer is a single slim strip", async ({ harness }, testInfo) => {
+test("the binder does not spend safe-area space on a show promotion", async ({ harness }, testInfo) => {
   test.skip(!testInfo.project.metadata?.standalone, "installed-app layout only")
   const offer = harness.page.getByRole("region", { name: "At a card show?" })
-  await expect(offer).toBeVisible()
-  expect((await offer.boundingBox())!.height, "one row").toBeLessThanOrEqual(52)
-  await harness.expectMinTapTarget(offer.getByRole("button", { name: "Not now" }), MIN_TARGET)
-  await offer.getByRole("button", { name: "Not now" }).click()
   await expect(offer).toHaveCount(0)
   await harness.page.reload()
   await expect(harness.dock()).toBeVisible()
   await expect(harness.page.locator('button[data-dex-id="1"]').first()).toBeVisible()
-  await expect(offer, "dismissal is remembered").toHaveCount(0)
+  await expect(offer).toHaveCount(0)
 })
