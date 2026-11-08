@@ -5,7 +5,7 @@ description: Use when opening, verifying, merging or deploying a Holo Folder PR 
 
 # Release and deploy
 
-Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (the public app is https://holofolder.com/app; binder.cal.gg is a legacy hostname). GitHub Actions runs **Typecheck** in parallel, generating Next route types before checking the full repository with the pinned `tsrs` checker. Vercel skips its duplicate type check. Both checks must pass before merging; the current GitHub plan cannot enforce required checks on this private repo, so agents enforce this release policy. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
+Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (the public app is https://holofolder.com/app; binder.cal.gg is a legacy hostname). GitHub Actions runs **Typecheck** in parallel: it generates Next route types, checks the full repository with the pinned `tsrs` checker, runs the unit suite and enforces the lint warning ratchet. Vercel skips its duplicate type check. Both checks must pass before merging; the current GitHub plan cannot enforce required checks on this private repo, so agents enforce this release policy. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
 
 ## Steps
 

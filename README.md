@@ -35,7 +35,7 @@ The database schema lives in `scripts/NNN_*.sql`. Follow [scripts/MIGRATIONS.md]
 
 E2E tips: set `E2E_PORT` to use another port, or `E2E_BASE_URL` to test an already running server.
 
-GitHub Actions runs the **Typecheck** check on pull requests and `main`, in parallel with Vercel. Both checks must pass before merging. Vercel skips its duplicate TypeScript pass; local builds still check types. GitHub's current plan does not enforce required checks on this private repository, so this is a release-policy gate.
+GitHub Actions runs unit tests, the lint warning ratchet and full-repository typechecking within the existing **Typecheck** check on pull requests and `main`, in parallel with Vercel. Both checks must pass before merging. Vercel skips its duplicate TypeScript pass; local builds still check types. GitHub's current plan does not enforce required checks on this private repository, so this is a release-policy gate.
 
 `tsrs` is pinned to `0.23.0-ts7.1.0-beta` and uses its default checker settings. It is experimental; compare unexpected diagnostics with `bun run typecheck:tsc`. TypeScript 6 remains installed for the editor, ESLint and other compiler-API integrations.
 
