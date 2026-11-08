@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 
 interface AuthModalProps {
   isOpen: boolean
+  initialMode?: PasswordMode
   onClose: () => void
 }
 
@@ -17,7 +18,7 @@ type AuthMethod = "magic-link" | "password"
 type PasswordMode = "sign-in" | "sign-up"
 type SuccessState = "magic-link" | "password-signup" | "password-reset" | null
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: AuthModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -26,7 +27,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<SuccessState>(null)
   const [authMethod, setAuthMethod] = useState<AuthMethod>("password")
-  const [passwordMode, setPasswordMode] = useState<PasswordMode>("sign-in")
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>(initialMode)
 
   const supabase = createClient()
 
@@ -35,7 +36,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError(null)
     setSuccess(null)
     setIsLoading(false)
-  }, [isOpen])
+    setAuthMethod("password")
+    setPasswordMode(initialMode)
+  }, [isOpen, initialMode])
 
   const closeAndReload = () => {
     onClose()
@@ -160,18 +163,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         ? "We sent you a confirmation link to finish creating your account."
         : "We sent you a magic link to sign in."
 
+  const isSignUp = authMethod === "password" && passwordMode === "sign-up"
+
   return (
     <div
       data-overlay-backdrop
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={success ? successTitle : "Welcome, sign in"} className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-sm flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85vh,44rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={success ? successTitle : isSignUp ? "Create account" : "Welcome, sign in"} className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-sm flex-col overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(85vh,44rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div className="relative shrink-0 px-6 pt-6 pb-4 sm:px-6 sm:pt-6 sm:pb-4">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
           <button
             onClick={onClose}
-            aria-label="Close sign in"
+            aria-label={isSignUp ? "Close create account" : "Close sign in"}
             className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/60 transition-colors"
           >
             <X className="w-4 h-4 text-muted-foreground" />
@@ -182,10 +187,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <Sparkles className="w-7 h-7 text-primary-foreground" />
             </div>
             <h2 className="text-2xl font-bold tracking-tight">
-              {success ? successTitle : "Welcome"}
+              {success ? successTitle : isSignUp ? "Create account" : "Welcome"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {success ? successMessage : "Sign in to sync your collection across devices"}
+              {success ? successMessage : isSignUp ? "Start your own binder and sync it across devices" : "Sign in to sync your collection across devices"}
             </p>
           </div>
         </div>
@@ -391,7 +396,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <p className="text-xs text-center text-muted-foreground">
                     {passwordMode === "sign-in"
                       ? "Use this if magic links are throttled or you want a normal sign-in."
-                      : "New password accounts may still require an email confirmation, depending on your Supabase settings."}
+                      : "We may email you a link to confirm your account."}
                   </p>
                 </div>
               )}
