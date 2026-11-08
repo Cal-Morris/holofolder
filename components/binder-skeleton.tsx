@@ -9,16 +9,16 @@ export function BinderSkeleton() {
     >
       <span className="sr-only">Opening your binder…</span>
       <div className="mb-4 flex items-center justify-between" aria-hidden="true">
-        <div className="h-6 w-32 animate-pulse rounded-md bg-muted" />
-        <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
+        <div className="h-6 w-32 rounded-md bg-muted" />
+        <div className="h-9 w-9 rounded-full bg-muted" />
       </div>
       <div className="mx-auto grid w-full max-w-md flex-1 grid-cols-3 content-start gap-2 rounded-2xl border border-border/50 bg-card/60 p-2" aria-hidden="true">
         {Array.from({ length: 9 }, (_, index) => (
-          <div key={index} className="aspect-[63/88] animate-pulse rounded-lg bg-muted/70" />
+          <div key={index} className="holo-loading aspect-[63/88] rounded-lg" />
         ))}
       </div>
       <div
-        className="fixed inset-x-2 bottom-[var(--dock-inset)] mx-auto h-[var(--dock-bar)] max-w-md animate-pulse rounded-2xl bg-muted/80 sm:hidden"
+        className="fixed inset-x-2 bottom-[var(--dock-inset)] mx-auto h-[var(--dock-bar)] max-w-md rounded-2xl bg-muted/80 sm:hidden"
         aria-hidden="true"
       />
     </main>
