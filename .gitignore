@@ -23,3 +23,7 @@ tsconfig.tsbuildinfo
 /blob-report/
 .env*
 !.env.example
+
+# Private scanner reports and browser/session diagnostics
+gitleaks-report.*
+*.har
