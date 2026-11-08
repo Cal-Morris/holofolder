@@ -1,3 +1,4 @@
+import { isBinderGridSize } from "@/lib/binder-layout"
 import { DESIGN_SURFACES, isCardArtworkUrl, normalizeBinderDesign, type BinderDesign } from "@/lib/binder-design"
 
 export const BINDER_ARTWORK_BUCKET = "binder-artwork"
@@ -20,6 +21,7 @@ export function parseBinderAppearance(value: unknown): { design: BinderDesign; b
   if (!body.design || typeof body.design !== "object" || Array.isArray(body.design)) throw new Error("Invalid binder design")
   const input = body.design as Record<string, unknown>
   if (input.version !== 1 || !input.surfaces || typeof input.surfaces !== "object" || Array.isArray(input.surfaces)) throw new Error("Invalid binder design")
+  if (!isBinderGridSize(input.rows) || !isBinderGridSize(input.cols)) throw new Error("Choose whole numbers from 1 to 8 for rows and columns")
   for (const surface of DESIGN_SURFACES) {
     const entry = (input.surfaces as Record<string, unknown>)[surface]
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error("Invalid binder surface")

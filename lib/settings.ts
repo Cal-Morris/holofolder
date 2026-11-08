@@ -1,6 +1,7 @@
 // Binder settings: one set of defaults and one mapping between the `user_settings`
 // row (snake_case) and the BinderSettings shape used by pages, API routes and the hook.
 import { DEFAULT_BINDER_COLOR_ID, type BinderColorId } from "@/lib/binder-colors"
+import { isBinderGridSize } from "@/lib/binder-layout"
 import type { CardLanguage } from "@/lib/card-pricing"
 import {
   normalizeDisplayCurrency,
@@ -93,7 +94,7 @@ export function getDefaultBinderSettings(): BinderSettings {
 }
 
 function readGridSize(value: unknown, fallback: number) {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback
+  return isBinderGridSize(value) ? value : fallback
 }
 
 function readPageColors(value: unknown, fallback: Record<string, BinderColorId>) {

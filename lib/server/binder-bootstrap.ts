@@ -1,3 +1,4 @@
+import { withBinderLayout } from "@/lib/binder-layout"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { loadCollectionRows } from "@/lib/collection/load"
 import { settingsFromRow, type BinderSettings, type UserSettingsRow } from "@/lib/settings"
@@ -19,13 +20,14 @@ export interface BinderBootstrap {
  * No binder id: every row of the owner (single-binder layout, before migration 039).
  */
 export async function loadBinderBootstrap(client: AnySupabaseClient, ownerUserId: string, binderId: string | null = null): Promise<BinderBootstrap> {
-  const [collectionResult, settingsResult] = await Promise.all([
+  const [collectionResult, settingsResult, binderResult] = await Promise.all([
     loadCollectionRows(client, ownerUserId, binderId),
     client
       .from("user_settings")
       .select("*")
       .eq("user_id", ownerUserId)
       .maybeSingle(),
+    binderId ? client.from("binders").select("binder_rows,binder_cols").eq("owner_user_id", ownerUserId).eq("id", binderId).maybeSingle() : null,
   ])
 
   const settingsRow = (settingsResult?.data ?? null) as UserSettingsRow | null
@@ -34,7 +36,7 @@ export async function loadBinderBootstrap(client: AnySupabaseClient, ownerUserId
     collection: collectionResult.data ?? [],
     collectionError: collectionResult.error ?? null,
     settingsRow,
-    settings: settingsFromRow(settingsRow),
+    settings: withBinderLayout(settingsFromRow(settingsRow), binderResult?.data ? { rows: binderResult.data.binder_rows, cols: binderResult.data.binder_cols } : null),
     hasStoredSettings: Boolean(settingsRow),
   }
 }

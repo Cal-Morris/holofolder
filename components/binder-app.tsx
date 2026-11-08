@@ -362,6 +362,7 @@ export default function BinderApp({
     localPendingSyncCount,
   })
   const { settings, updateSettings: updateLegacySettings } = useSettings({
+    binderId: initialBinderId,
     initialSettings,
     initialUser,
     settingsOwnerUserId: initialCollectionOwnerUserId,
@@ -374,13 +375,16 @@ export default function BinderApp({
     enabled: Boolean(user && resolvedCollectionOwnerUserId) && !readOnlyMode,
     legacyKey: user && resolvedCollectionOwnerUserId ? `owner:${user.id}:${resolvedCollectionOwnerUserId}` : undefined,
   })
-  const updateSettings = useCallback((updates: Partial<BinderSettings>, appearancePageColors?: Record<string, string>) => {
-    updateLegacySettings(updates)
+  const updateSettings = useCallback(async (updates: Partial<BinderSettings>, appearancePageColors?: Record<string, string>) => {
+    await updateLegacySettings(updates)
+    if (initialBinderId && (updates.binderRows !== undefined || updates.binderCols !== undefined)) {
+      setBinders(current => current.map(binder => binder.id === initialBinderId ? { ...binder, rows: updates.binderRows ?? binder.rows, cols: updates.binderCols ?? binder.cols } : binder))
+    }
     if (!binderAppearance.hasSavedDesign || readOnlyMode) return
-    if (updates.binderColorId === undefined && updates.binderPageColors === undefined && updates.binderRows === undefined && updates.binderCols === undefined) return
+    if (updates.binderColorId === undefined && updates.binderPageColors === undefined && (initialBinderId || (updates.binderRows === undefined && updates.binderCols === undefined))) return
     const design = binderAppearance.design
-    const rows = updates.binderRows ?? design.rows
-    const cols = updates.binderCols ?? design.cols
+    const rows = initialBinderId ? design.rows : updates.binderRows ?? design.rows
+    const cols = initialBinderId ? design.cols : updates.binderCols ?? design.cols
     let pageColors = appearancePageColors ?? design.pageColors
     if (appearancePageColors === undefined && updates.binderPageColors !== undefined) {
       pageColors = Object.keys(updates.binderPageColors).length === 0 ? {} : { ...design.pageColors }
@@ -391,7 +395,7 @@ export default function BinderApp({
         if (color !== settings.binderPageColors[page] || pageColors[page] === undefined) pageColors[page] = getBinderColorPreset(color).swatch[0]
       }
     }
-    void binderAppearance.save({
+    await binderAppearance.save({
       ...design,
       rows,
       cols,
@@ -399,7 +403,7 @@ export default function BinderApp({
       pageColor: updates.binderColorId === undefined ? design.pageColor : getBinderColorPreset(updates.binderColorId).swatch[0],
       pageColors,
     }, binderAppearance.uploads).catch(() => {})
-  }, [updateLegacySettings, binderAppearance, readOnlyMode, settings.binderPageColors])
+  }, [initialBinderId, updateLegacySettings, binderAppearance, readOnlyMode, settings.binderPageColors])
   const { fetchCardsForPokemon } = useTCGdex()
 
   const canEditBinder = !readOnlyMode
@@ -1340,6 +1344,9 @@ export default function BinderApp({
   const binderFitSize = useMemo(() => {
     // Leave room for the active page's 2px outline inside the clipped stage.
     const outlineClearance = 4
+    if (!isDesktopViewport && (settings.binderRows > 4 || settings.binderCols > 4)) {
+      return { width: Math.max(1, binderStageSize.width - outlineClearance), height: Math.max(1, binderStageSize.height - outlineClearance) }
+    }
     const padding = isDesktopViewport ? 16 : 8
     const gap = 6
     const pages = isSpreadLayout ? 2 : 1
@@ -1359,7 +1366,7 @@ export default function BinderApp({
   }, [binderStageSize, isDesktopViewport, isSpreadLayout, isWideBinderSpread, settings.binderCols, settings.binderRows])
 
   const binderSlotImageSizes = binderFitSize
-    ? `${Math.ceil((binderFitSize.height - (isDesktopViewport ? 32 : 16) - 6 * (settings.binderRows - 1)) / settings.binderRows * TRADING_CARD_ASPECT_RATIO)}px`
+    ? `${Math.max(settings.binderRows > 4 || settings.binderCols > 4 ? 64 : 0, Math.ceil((binderFitSize.height - (isDesktopViewport ? 32 : 16) - 6 * (settings.binderRows - 1)) / settings.binderRows * TRADING_CARD_ASPECT_RATIO))}px`
     : `${100 / (settings.binderCols * (isSpreadLayout ? 2 : 1))}vw`
 
   // Resolve the same printing for the grid and adjacent-page image prefetch.
@@ -1597,8 +1604,8 @@ export default function BinderApp({
   })
   const setBinderStageRef = useCallback((node: HTMLDivElement | null) => {
     binderStageRef.current = node
-    binderRef(node)
-  }, [binderRef])
+    binderRef(settings.binderRows > 4 || settings.binderCols > 4 ? null : node)
+  }, [binderRef, settings.binderRows, settings.binderCols])
 
   const handleOpenCardSelector = () => {
     if (!selectedPokemon) return

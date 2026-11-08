@@ -1,13 +1,18 @@
 # Database migrations
 
-The Supabase schema is defined by the numbered SQL files in this folder. There is no migration runner: apply them by hand (Supabase SQL editor or `psql`) in numeric order. Every file uses `IF NOT EXISTS` / `DROP … IF EXISTS` guards, so re-running one that is already applied is meant to be harmless, but keep a note of what production has had applied.
+The Supabase schema is defined by the numbered SQL files in this folder. There is no migration runner: apply them by hand (Supabase SQL editor or `psql`) in numeric order. Keep a record of applied files. Older scripts include one-time policy creation and data backfills; do not replay the full sequence against an existing project. Individual scripts document whether they are safe to rerun.
 
-When you add a migration, use the next free number (`031_…`), keep it idempotent, and add a row below.
+For a fresh project, apply `001`, create the reconstructed `user_settings` table below before `012`, then continue the numbered files in order. Use psql autocommit for `CONCURRENTLY` statements in `034`, `035`, `039` and `051`. Run `048` as one transaction (`psql --single-transaction -f scripts/048_named_share_account_identity.sql`), because it locks the identity tables while reconciling names. The optional `scripts/legacy/034_tcgdex_cache_jobs_index.sql` is only for existing projects with the retired cache-job table; fresh installs skip it.
+
+The fresh-install corrections in `016`, `033` and `036` affect historical source scripts only. Existing projects do not need a new migration and must not replay old backfills or reset policies. No hosted schema change is required.
+
+When you add a migration, use the next free number, keep it idempotent, and add a row below.
 
 | File | What it does |
 |---|---|
 | `055_share_pricing.sql` | Adds pricing opt-in, defaults existing and new links to off, and returns the preference from the named resolver. Apply before deployment; missing read settings hide prices. |
 | `056_signup_premium_trial.sql` | Automatic full Premium for 168 hours from the collection owner's trusted signup time, including partner access. No payment details, Stripe subscription or renewal. Existing paid and lifetime access takes precedence; expiry preserves saved data. Additive access field, older clients remain conservative until updated. |
+| `057_custom_binder_layouts.sql` | Allow binder grids through 8×8; enforce premium for new custom dimensions on binders, legacy settings and appearances, retaining saved layouts after expiry. Apply before deploying the custom-layout controls. |
 | `054_collector_funnel.sql` | Private first-touch account records and deduplicated best-effort funnel events with auth-user cascades. Service-role-only RPC/read/write access. Telemetry stays disabled until privacy publication and explicit production enablement. Retention/rollback: `docs/collector-funnel.md`. |
 | `053_free_binder_sharing.sql` | Makes read-only sharing free by removing only the two paid-share restrictive policies. Owner-only RLS stays intact. Apply before the app release; older code retains its paid gates until updated. Rollback restores the policies without deleting links; see `docs/billing.md`. |
 | `052_free_plan_allowances.sql` | Server-owned 100-entry/one-binder free allowance, billing RPC fields and serialized binder-creation enforcement. Preserves enforcement, cutoff, licences and existing over-limit data. Apply before shipping the client; missing columns retain the legacy signed-in policy. Rollback sets limits to 10/20 without deleting data; see `docs/billing.md`. |
@@ -86,9 +91,27 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
 
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users manage their own settings" ON public.user_settings
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- These policy names are used by migration 033.
+CREATE POLICY "Users can view own settings" ON public.user_settings
+  FOR SELECT USING ((select auth.uid()) = user_id);
+CREATE POLICY "Users can insert own settings" ON public.user_settings
+  FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY "Users can update own settings" ON public.user_settings
+  FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id);
 ```
 
-Check this against production (`\d public.user_settings`) before relying on it.
+This baseline uses the policy names expected by migration 033. It is for fresh projects; do not replace policies on an existing hosted project with this bootstrap.
 
+
+## Fresh-schema verification
+
+The full numbered sequence was replayed on PostgreSQL 18 with synthetic Supabase auth/storage scaffolding on 2026-11-08. This verifies SQL ordering, missing-table guards and the reconstructed settings policies; it is not proof of a complete Supabase Auth/Storage installation. No hosted database was touched.
+
+With `psql` installed, create a new empty local database for each verification run:
+
+```sh
+createdb holofolder_fresh_check
+FRESH_SCHEMA_TEST_DATABASE_URL=postgresql://localhost/holofolder_fresh_check bun test tests/fresh-schema.test.ts
+```
+
+The verifier refuses remote hosts, databases without the `holofolder_fresh_` prefix and nonempty schemas. It creates synthetic local auth/storage scaffolding and leaves the resulting database for inspection; it never clears an existing database. It exercises a wishlisted row's timestamp/backfill, binder creation, RLS, settings policy names and rerunning the legacy passkey security fix. Auth/storage service behaviour still requires a real Supabase smoke test.
