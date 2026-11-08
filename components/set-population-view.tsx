@@ -25,6 +25,7 @@ import { POKEMON_CATALOG, formatPokemonDisplayName, formatDexNumber } from "@/li
 import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-browse"
 
 interface SetPopulationViewProps {
+  pricingEnabled?: boolean
   collectionByPokemonId: Map<number, CollectedPokemon>
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
   /** The user's pricing region; set card prices are weighted for it. */
@@ -84,6 +85,7 @@ function getSelectedSetCard(slot: TCGSetDexSlot, selectedCardIdsByDexId: Record<
 }
 
 export default function SetPopulationView({
+  pricingEnabled = true,
   collectionByPokemonId,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
@@ -118,7 +120,7 @@ export default function SetPopulationView({
   const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
   const [recentSets, setRecentSets] = useState<TCGSetSummary[]>([])
   const priceLookups = useMemo(() => setCards.map((card) => ({ cardId: card.id, language: card.language })), [setCards])
-  const setPrices = useRegionalCardPrices(priceLookups, Boolean(selectedSet) && !isLoading, pricingRegion)
+  const setPrices = useRegionalCardPrices(priceLookups, pricingEnabled && Boolean(selectedSet) && !isLoading, pricingRegion)
   const highlightCards = useMemo(() => setCards.map((card) => ({
     id: card.id, language: card.language, name: card.name,
     numberLabel: `${card.localId}/${card.set.officialCardCount ?? "?"}`,

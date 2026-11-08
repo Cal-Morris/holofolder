@@ -44,6 +44,7 @@ export interface SelectedPokemonQuickPanelContext {
   handleToggleFavoriteSelectedPokemon: () => Promise<void>
   isCollectionLoading: boolean
   isDesktopViewport: boolean
+  pricingEnabled: boolean
   isLoadingPrices: boolean
   isMobileQuickPanel: boolean
   isQuickPanelCovered: boolean
@@ -267,7 +268,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
           </div>
           </div>
           <div className="-mx-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 [&>*]:shrink-0" style={{ WebkitOverflowScrolling: "touch" }}>
-          {(selectedPrimaryCardPreview?.cardId || selectedMarketPriceLabel || selectedGoodPriceLabel || (isLoadingPrices && (collectionItem?.card_id || selectedWantedCardPreview?.card_id))) ? (
+          {ctx.pricingEnabled && (selectedPrimaryCardPreview?.cardId || selectedMarketPriceLabel || selectedGoodPriceLabel || (isLoadingPrices && (collectionItem?.card_id || selectedWantedCardPreview?.card_id))) ? (
             <div className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-border/50 bg-background/45 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">

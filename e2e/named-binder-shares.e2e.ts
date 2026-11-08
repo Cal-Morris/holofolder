@@ -57,3 +57,47 @@ test("partner sees owner address but cannot rename it, unavailable schema preser
   await dialog.getByRole("button", { name: "Share", exact: true }).click()
   await expect(dialog.getByRole("button", { name: "Copy link", exact: true })).toBeEnabled()
 })
+
+// Synthetic share preferences, persisted by the mocked owner API.
+test("share pricing defaults off and owner can enable and disable it", async ({ harness, page }) => {
+  let showPrices = false
+  await page.route("**/app/api/binder-share**", async route => {
+    if (route.request().method() === "POST") showPrices = route.request().postDataJSON().showPrices
+    await route.fulfill({ json: { share: { token: "synthetic-token", is_enabled: true, show_prices: showPrices, path: "/app/share/synthetic-token" } } })
+  })
+  await page.goto("/app/e2e-harness?signedIn=1&binders=1")
+  const dialog = await settings(harness)
+  await dialog.getByRole("button", { name: "Share", exact: true }).click()
+  const toggle = dialog.getByRole("switch", { name: "Show prices on shared binder" })
+  await expect(toggle).not.toBeChecked()
+  await harness.expectMinTapTarget(toggle, 36)
+  await toggle.click()
+  await expect(toggle).toBeChecked()
+  expect(showPrices).toBe(true)
+  await toggle.click()
+  await expect(toggle).not.toBeChecked()
+  expect(showPrices).toBe(false)
+  await harness.expectNoHorizontalOverflow()
+})
+
+test("shared binder without pricing cannot load prices or expose price details", async ({ harness, page }) => {
+  const priceRequests: string[] = []
+  await page.goto("/app/e2e-harness?readOnly=1&cardArtwork=1")
+  page.on("request", request => { if (request.url().includes("/api/card-prices")) priceRequests.push(request.url()) })
+  const controls = await harness.openViewOptions()
+  await expect(controls.getByRole("button", { name: "Prices", exact: true })).toHaveCount(0)
+  await harness.closeControl(controls).click()
+  await harness.openCardDetail()
+  await expect(page.getByText("Price details", { exact: true })).toHaveCount(0)
+  expect(priceRequests).toEqual([])
+  await harness.expectNoHorizontalOverflow()
+})
+
+test("shared binder with pricing enabled retains the pricing view", async ({ harness, page }) => {
+  await page.goto("/app/e2e-harness?readOnly=1&sharePrices=1&cardArtwork=1")
+  const controls = await harness.openViewOptions()
+  await expect(controls.getByRole("button", { name: /^(Prices|Loading prices)/ })).toHaveAttribute("aria-pressed", "true")
+  await harness.closeControl(controls).click()
+  await harness.openCardDetail()
+  await expect(page.getByText("Price details", { exact: true })).toBeVisible()
+})

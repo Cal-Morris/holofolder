@@ -25,7 +25,8 @@ export default async function SharedBinder({ share, path }: { share: BinderShare
       initialSettings={settings}
       initialHasStoredSettings={bootstrap.hasStoredSettings}
       initialDarkMode={settings.darkMode}
-      initialPriceMode={true}
+      initialPriceMode={share.show_prices === true}
+      pricingEnabled={share.show_prices === true}
       readOnlyMode={true}
       shareViewToken={share.token}
       initialSharePath={path}

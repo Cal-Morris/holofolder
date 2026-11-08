@@ -39,7 +39,8 @@ function scopeShareQuery<Query>(query: Query, ownerUserId: string, binderId: str
   return binderId ? (owned as { eq(column: string, value: string): Query }).eq("binder_id", binderId) : owned
 }
 
-const SHARE_COLUMNS = "owner_user_id, binder_id, token, is_enabled"
+// Select all so reads still work before the optional pricing column is installed.
+const SHARE_COLUMNS = "*"
 
 function generateShareToken() {
   return randomBytes(24).toString("base64url")
@@ -94,7 +95,10 @@ export async function POST(request: Request) {
     }
 
     const ownerUserId = await resolveCollectionOwnerUserId(supabase, user.id)
-    const body = await request.json().catch(() => null) as { binderId?: unknown } | null
+    const body = await request.json().catch(() => null) as { binderId?: unknown; showPrices?: unknown } | null
+    if (body?.showPrices !== undefined && typeof body.showPrices !== "boolean") {
+      return identityJson({ error: "showPrices must be a boolean" }, 400)
+    }
     const binder = await resolveShareBinder(ownerUserId, body?.binderId)
     if (binder.response) return binder.response
     const existingResult = await scopeShareQuery(
@@ -108,24 +112,26 @@ export async function POST(request: Request) {
     }
 
     const token = existingResult.data?.token || generateShareToken()
-    const { data, error } = await supabase
+    const values = {
+      owner_user_id: ownerUserId,
+      ...(binder.binderId ? { binder_id: binder.binderId } : {}),
+      token,
+      is_enabled: true,
+      show_prices: body?.showPrices ?? existingResult.data?.show_prices ?? false,
+      updated_at: new Date().toISOString(),
+    }
+    const save = (row: Omit<typeof values, "show_prices"> & { show_prices?: boolean }) => supabase
       .from("binder_shares")
-      .upsert(
-        {
-          owner_user_id: ownerUserId,
-          ...(binder.binderId ? { binder_id: binder.binderId } : {}),
-          token,
-          is_enabled: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: binder.binderId ? "owner_user_id,binder_id" : "owner_user_id" },
-      )
+      .upsert(row, { onConflict: binder.binderId ? "owner_user_id,binder_id" : "owner_user_id" })
       .select(SHARE_COLUMNS)
       .single()
-
-    if (error) {
-      throw error
+    let { data, error } = await save(values)
+    if (error && ["PGRST204", "42703"].includes(error.code) && error.message.includes("show_prices")) {
+      if (body?.showPrices === true) return identityJson({ error: "Share pricing is not available yet" }, 503)
+      const { show_prices: _showPrices, ...legacyValues } = values
+      ;({ data, error } = await save(legacyValues))
     }
+    if (error) throw error
 
     return identityJson({
       share: {

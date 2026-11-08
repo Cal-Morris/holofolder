@@ -23,6 +23,7 @@ import {
 } from "@/lib/illustrators"
 
 export interface IllustratorCardsBrowserProps {
+  pricingEnabled?: boolean
   illustrator: string
   collection: readonly IllustratorCollectionItem[]
   isDesktop: boolean
@@ -39,7 +40,7 @@ type LoadState =
   | { status: "unavailable" }
 
 /** Read-only view of every card by one illustrator, across all sets. Never enters the edit flow. */
-export default function IllustratorCardsBrowser({ illustrator, collection, isDesktop, pricingRegion, formatPrice, onClose }: IllustratorCardsBrowserProps) {
+export default function IllustratorCardsBrowser({ pricingEnabled = true, illustrator, collection, isDesktop, pricingRegion, formatPrice, onClose }: IllustratorCardsBrowserProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<LoadState>({ status: "loading" })
   const [filter, setFilter] = useState<IllustratorCardFilter>("all")
@@ -70,7 +71,7 @@ export default function IllustratorCardsBrowser({ illustrator, collection, isDes
     () => (cards ?? []).map((card) => ({ cardId: card.id, language: card.language ?? "en" })),
     [cards],
   )
-  const { pricesByCardId, isLoading: isLoadingPrices } = useRegionalCardPrices(priceLookups, priceLookups.length > 0, pricingRegion)
+  const { pricesByCardId, isLoading: isLoadingPrices } = useRegionalCardPrices(priceLookups, pricingEnabled && priceLookups.length > 0, pricingRegion)
   const priceOf = useCallback(
     (card: BrowseCard) => pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]?.gbpAmount ?? null,
     [pricesByCardId],

@@ -11,7 +11,7 @@ export default async function SharedBinderPage({ params }: { params: Promise<{ t
   await connection()
   const { token } = await params
   const { data: share, error } = await createAdminClient().from("binder_shares")
-    .select("owner_user_id, binder_id, token, is_enabled").eq("token", token).eq("is_enabled", true).maybeSingle()
+    .select("*").eq("token", token).eq("is_enabled", true).maybeSingle()
   if (error || !share?.owner_user_id) notFound()
   return <SharedBinder share={share} />
 }

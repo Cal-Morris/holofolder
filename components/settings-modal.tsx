@@ -75,6 +75,8 @@ interface SettingsModalProps {
   onInstallApp: () => void
   isReadOnlyView: boolean
   sharePath: string | null
+  shareShowPrices: boolean
+  onShareShowPricesChange: (value: boolean) => void
   isShareEnabled: boolean
   isShareLoading: boolean
   shareMessage: string | null
@@ -126,6 +128,8 @@ export default function SettingsModal({
   onInstallApp,
   isReadOnlyView,
   sharePath,
+  shareShowPrices,
+  onShareShowPricesChange,
   isShareEnabled,
   isShareLoading,
   shareMessage,
@@ -581,13 +585,17 @@ export default function SettingsModal({
                 <h3 className="font-semibold">Read-only share link</h3>
               </div>
               <p className="text-xs text-muted-foreground">
-                Share a public binder link with prices enabled by default. Viewers can browse and filter, but they cannot collect, edit cards, or change your binder.
+                Share a public binder link. Prices are hidden unless you enable them. Viewers can browse and filter, but they cannot collect, edit cards, or change your binder.
               </p>
               {isShareEnabled && fullShareUrl ? (
                 <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/25 p-3">
                   <div className="rounded-xl border border-border/50 bg-background/70 px-3 py-2 text-xs text-muted-foreground break-all">
                     {fullShareUrl}
                   </div>
+                  <label className="flex min-h-11 items-center justify-between gap-3 text-sm" htmlFor="share-show-prices">
+                    Show prices on shared binder
+                    <Switch id="share-show-prices" className="min-h-9 min-w-9" checked={shareShowPrices} onCheckedChange={onShareShowPricesChange} disabled={isShareLoading || !isOnline} />
+                  </label>
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" className="flex-1 gap-2" onClick={handleCopyShareLink} disabled={isShareLoading}>
                       <Copy className="w-4 h-4" />
