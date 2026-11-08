@@ -25,9 +25,10 @@ function requireOwner(context:OperationContext) {
  if(context.principal.actorId!==context.ownerUserId)throw new DeveloperAccessError('owner_required','Only the collection owner can manage public sharing.',403)
 }
 export async function readDeveloperIdentity(context:OperationContext) {
- const admin=createAdminClient(),{data,error}=await admin.auth.admin.getUserById(context.principal.actorId)
+ const admin=createAdminClient()
+ const [{data,error},username]=await Promise.all([admin.auth.admin.getUserById(context.principal.actorId),readAccountUsername(admin,context.principal.actorId)])
  if(error||!data.user)throw new Error('Account identity unavailable')
- return {username:await readAccountUsername(admin,context.principal.actorId),displayName:accountDisplayName(data.user.user_metadata)}
+ return {username,displayName:accountDisplayName(data.user.user_metadata)}
 }
 export async function updateDeveloperIdentity(context:OperationContext,input:Record<string,unknown>) {
  const admin=createAdminClient()

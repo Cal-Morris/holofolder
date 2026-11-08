@@ -7,14 +7,14 @@ import { parseAnalyticsQuery } from "@/lib/collection-analytics"
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } })
 const missingHistory = (error: { code?: string } | null) => error?.code === "42P01" || error?.code === "PGRST205"
 
-export async function readCollectionAnalytics(request: Request, user: User) {
+export async function readCollectionAnalytics(request: Request, user: Pick<User, "id">, verifiedOwnerId?:string) {
   try {
     const client = createAdminClient()
     if (!user) return json({ error: "Not authenticated" }, 401)
     let query
     try { query = parseAnalyticsQuery(new URL(request.url).searchParams) }
     catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid history request" }, 400) }
-    const ownerId = await resolveCollectionOwnerUserId(client, user.id)
+    const ownerId = verifiedOwnerId ?? await resolveCollectionOwnerUserId(client, user.id)
     let activityQuery = client.from("collection_activity").select("id,pokemon_id,pokemon_name,recorded_at,before_state,after_state").eq("owner_user_id", ownerId).order("id", { ascending: false }).limit(51)
     if (query.beforeId) activityQuery = activityQuery.lt("id", query.beforeId)
     const [activityResult, priceResult] = await Promise.all([

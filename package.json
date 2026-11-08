@@ -12,6 +12,7 @@
     "mirror-card-images": "bun scripts/mirror-card-images.ts",
     "start": "next start",
     "test": "bun test tests/",
+    "test:api:smoke": "bun scripts/api-smoke.ts",
     "test:coverage": "bun test tests/ --coverage",
     "test:e2e": "playwright test",
     "test:e2e:matrix": "playwright test --project='*'",

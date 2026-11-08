@@ -22,7 +22,7 @@ import {collectionFingerprint} from '@/lib/collection/sync'
 import {normalizeCollectionItem} from '@/lib/collection/normalize'
 import {resolveWriteBinderId} from '@/lib/server/binders'
 import {sanitizeDeveloperImages} from '@/lib/server/developer-image-fields'
-import {listCatalogCards,getCatalogCard,listCatalogGroups} from './catalog'
+import {listCatalogCards,getCatalogCard,listCatalogGroups,getCatalogGroup} from './catalog'
 import {listBinders,createBinder,updateBinder,deleteBinder} from './binders'
 import {saveCollectionItem,deleteCollectionItem} from './collection'
 import {getCollectionSettings,saveCollectionSettings} from './settings'
@@ -66,7 +66,7 @@ function sliceEntries<T>(entries:T[],input:Record<string,unknown>,key:(entry:T)=
  return paginateEntries(entries,paramsOf(input),key)
 }
 export async function executeDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
- const params=paramsOf(input)
+ const params=paramsOf(input),identity={id:context.principal.actorId}
  switch(name) {
   case 'list_cards': return listCatalogCards(params.toString())
   case 'get_card': {const card=await getCatalogCard(String(input.id),normalizeCardLanguage(input.language));if(!card) throw new DeveloperAccessError('not_found','Card not found.',404);return card}
@@ -74,19 +74,18 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
   case 'list_series': return listCatalogGroups('series',params.toString())
   case 'get_set':case 'get_series': {
    const kind=name==='get_set'?'tcg_sets':'tcg_series'
-   const {data,error}=await createAdminClient().from(kind).select(kind==='tcg_sets'?'id,series_id,name_json,official_card_count,release_date,raw_json':'id,name_json,raw_json').eq('id',String(input.id)).maybeSingle()
-   if(error) throw new Error('Catalog lookup unavailable')
+   const data=await getCatalogGroup(kind,String(input.id))
    if(!data) throw new DeveloperAccessError('not_found','Catalog record not found.',404)
-   return sanitizeImages(data)
+   return data
   }
   case 'list_languages': return {data:CARD_LANGUAGES}
   case 'list_pokemon': return sliceEntries(POKEMON_CATALOG.filter(p=>!input.q||p.name.toLowerCase().includes(String(input.q).toLowerCase())),input,p=>String(p.id).padStart(4,'0'))
   case 'get_pokemon': {const entry=POKEMON_CATALOG.find(p=>p.id===Number(input.id));if(!entry) throw new DeveloperAccessError('not_found','Pokémon not found.',404);return entry}
   case 'list_illustrators': return sliceEntries((await getMirroredIllustratorDirectory()).filter(p=>!input.q||p.name.toLowerCase().includes(String(input.q).toLowerCase())),input,p=>p.name)
-  case 'list_binders': return unwrap(await listBinders(await actor(context)))
-  case 'create_binder': return unwrap(await createBinder(operationRequest(input),await actor(context)))
-  case 'update_binder':case 'reorder_binders': return unwrap(await updateBinder(operationRequest(input,'PATCH'),await actor(context)))
-  case 'delete_binder': {const request=operationRequest({...input,confirm:input.confirm?'1':'0'},'DELETE');return unwrap(await deleteBinder(request,await actor(context)))}
+  case 'list_binders': return unwrap(await listBinders(identity,context.ownerUserId))
+  case 'create_binder': return unwrap(await createBinder(operationRequest(input),identity,context.ownerUserId))
+  case 'update_binder':case 'reorder_binders': return unwrap(await updateBinder(operationRequest(input,'PATCH'),identity,context.ownerUserId))
+  case 'delete_binder': {const request=operationRequest({...input,confirm:input.confirm?'1':'0'},'DELETE');return unwrap(await deleteBinder(request,identity,context.ownerUserId))}
   case 'list_collection': {
    const admin=createAdminClient(),binder=await resolveWriteBinderId(admin,context.ownerUserId,input.binderId),page=decodePage(params)
    let query=admin.from('pokemon_collection').select('*').eq('user_id',context.ownerUserId).eq('binder_id',binder).order('pokemon_id').limit(page.limit+1)
@@ -95,24 +94,24 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
    const {data,error}=await query;if(error)throw new Error('Collection read unavailable')
    const rows=data??[];return {data:await sanitizeImages(rows.slice(0,page.limit)),nextCursor:rows.length>page.limit?encodeCursor(String(rows[page.limit-1].pokemon_id),params):null,absentFingerprint:collectionFingerprint(null)}
   }
-  case 'save_collection_item': return sanitizeImages(await unwrap(await saveCollectionItem(operationRequest(input),await actor(context),true)))
-  case 'delete_collection_item': return unwrap(await deleteCollectionItem(operationRequest(input,'DELETE'),await actor(context),true))
-  case 'get_settings': return unwrap(await getCollectionSettings(operationRequest(input,'GET'),await actor(context),true))
+  case 'save_collection_item': return sanitizeImages(await unwrap(await saveCollectionItem(operationRequest(input),await actor(context),true,context)))
+  case 'delete_collection_item': return unwrap(await deleteCollectionItem(operationRequest(input,'DELETE'),identity,true,context.ownerUserId))
+  case 'get_settings': return unwrap(await getCollectionSettings(operationRequest(input,'GET'),identity,true,context.ownerUserId))
   case 'get_prices': return {prices:await loadSavedCardPrices(normalizeCardPriceLookups(input.cards as unknown[]))}
-  case 'update_settings': return unwrap(await saveCollectionSettings(operationRequest(input,'PUT'),await actor(context),true))
+  case 'update_settings': return unwrap(await saveCollectionSettings(operationRequest(input,'PUT'),identity,true,context.ownerUserId))
   case 'refresh_prices': return refreshCardPriceLookups(normalizeCardPriceLookups(input.cards as unknown[]),{force:false})
   case 'get_price_checks':case 'refresh_price_checks': {
    const result=await loadCardPriceChecks(String(input.id),String(input.finish??'any'),name==='refresh_price_checks',input.source as 'ebay'|'soldcomps'|undefined)
    if(!result)throw new DeveloperAccessError('unsupported_printing','This exact printing is not supported yet.',422)
    return sanitizeImages(result)
   }
-  case 'get_comparison_job':return unwrap(await readComparisonOperation(operationRequest(input,'GET'),await actor(context)))
+  case 'get_comparison_job':return unwrap(await readComparisonOperation(operationRequest(input,'GET'),identity,context.ownerUserId))
   case 'inspect_comparison_job':case 'start_comparison_job':case 'cancel_comparison_job': {
    const action=name==='inspect_comparison_job'?'inspect':name==='cancel_comparison_job'?'stop':'start'
-   return unwrap(await writeComparisonOperation(operationRequest({...input,action}),await actor(context)))
+   return unwrap(await writeComparisonOperation(operationRequest({...input,action}),identity,context.ownerUserId))
   }
   case 'get_price_history':return readDeveloperPriceHistory(input)
-  case 'get_collection_analytics':return sanitizeImages(await unwrap(await readCollectionAnalytics(operationRequest(input,'GET'),await actor(context))))
+  case 'get_collection_analytics':return sanitizeImages(await unwrap(await readCollectionAnalytics(operationRequest(input,'GET'),identity,context.ownerUserId)))
   case 'resolve_import': {
    let lookups
    try{lookups=readImportLookups(input)}catch{throw new DeveloperAccessError('invalid_import','Use between 1 and 25 valid catalog identities.',400)}

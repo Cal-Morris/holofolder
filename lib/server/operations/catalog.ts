@@ -106,3 +106,11 @@ export async function listCatalogGroups(kind:'sets'|'series',rawParams:string) {
  const rows=(data??[]).map(record),visible=rows.slice(0,page.limit)
  return {data:visible.map(row=>({id:row.id,name:pickLocalizedText(row.name_json,lang),names:record(row.name_json),...(kind==='sets'?{seriesId:row.series_id,officialCardCount:row.official_card_count??null,releaseDate:row.release_date??null}:{})})),nextCursor:rows.length>page.limit?encodeCursor(String(record(visible.at(-1)).id),params):null}
 }
+
+export async function getCatalogGroup(kind:'tcg_sets'|'tcg_series',id:string) {
+ 'use cache: remote'
+ cacheLife('hours');cacheTag('tcg-mirror')
+ const {data,error}=await createAdminClient().from(kind).select(kind==='tcg_sets'?'id,series_id,name_json,official_card_count,release_date,raw_json':'id,name_json,raw_json').eq('id',id).maybeSingle()
+ if(error)throw new Error('Catalog lookup unavailable')
+ return data?sanitizeDeveloperImages(data):null
+}

@@ -8,6 +8,7 @@ async function run() {
   const owner = '00000000-0000-4000-8000-000000000001'
   const admin = {
     async rpc(name: string) {
+      if(name==='get_binder_slot_counts')return {data:rows.map(row=>({binder_id:row.id,slot_count:0})),error:null}
       assert.equal(name, 'get_billing_access')
       return { data: { enforced: true, perpetual: paid, ...(!legacy ? { free_card_limit: 100, free_binder_limit: 1 } : {}) }, error: null }
     },

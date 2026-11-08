@@ -1,5 +1,6 @@
 import {settingsFingerprint} from '@/lib/developer-api/settings'
 import type { User } from "@supabase/supabase-js"
+import { isBinderId } from "@/lib/binders/model"
 import { isBinderGridSize, needsCustomLayoutAccess, withBinderLayout } from "@/lib/binder-layout"
 import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
 import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
@@ -24,7 +25,7 @@ async function resolveSettingsOwnerUserId(userId: string) {
   return resolveCollectionOwnerUserId(createAdminClient(), userId)
 }
 
-export async function getCollectionSettings(request: NextRequest, actor: User, withFingerprint=false) {
+export async function getCollectionSettings(request: NextRequest, actor: Pick<User, "id">, withFingerprint=false, verifiedOwnerId?:string) {
   try {
     const user = actor
     if (!user) {
@@ -32,12 +33,14 @@ export async function getCollectionSettings(request: NextRequest, actor: User, w
     }
 
     const admin = createAdminClient()
-    const settingsOwnerUserId = await resolveSettingsOwnerUserId(user.id)
-    let { data, error } = await admin
-      .from("user_settings")
-      .select(withFingerprint?"*":USER_SETTINGS_COLUMNS)
-      .eq("user_id", settingsOwnerUserId)
-      .maybeSingle()
+    const settingsOwnerUserId = verifiedOwnerId ?? await resolveSettingsOwnerUserId(user.id)
+    const binderId = request.nextUrl.searchParams.get("binderId")
+    if (binderId && !isBinderId(binderId)) throw new BinderAccessError()
+    const [settingsResult, binderResult] = await Promise.all([
+      admin.from("user_settings").select(withFingerprint?"*":USER_SETTINGS_COLUMNS).eq("user_id", settingsOwnerUserId).maybeSingle(),
+      binderId ? admin.from("binders").select("binder_rows,binder_cols").eq("id",binderId).eq("owner_user_id",settingsOwnerUserId).maybeSingle() : Promise.resolve({data:null,error:null}),
+    ])
+    let {data,error} = settingsResult
 
     if (error && isMissingColumnError(error)) {
       ;({ data, error } = await admin.from("user_settings").select(PRE_VALUE_VISIBILITY_COLUMNS).eq("user_id", settingsOwnerUserId).maybeSingle())
@@ -56,15 +59,13 @@ export async function getCollectionSettings(request: NextRequest, actor: User, w
       return NextResponse.json({ error: error.message || "Failed to load settings" }, { status: 500 })
     }
 
-    const binderId = request.nextUrl.searchParams.get("binderId")
     let layout:Record<string,unknown>|null=null
     let settings = settingsFromRow(data as UserSettingsRow | null)
     if (binderId) {
-      await resolveWriteBinderId(admin, settingsOwnerUserId, binderId)
-      const binder = await admin.from("binders").select("binder_rows,binder_cols").eq("id", binderId).eq("owner_user_id", settingsOwnerUserId).single()
-      if (binder.error) throw binder.error
-      layout=binder.data
-      settings = withBinderLayout(settings, { rows: binder.data.binder_rows, cols: binder.data.binder_cols })
+      if (binderResult.error) throw binderResult.error
+      if (!binderResult.data) throw new BinderAccessError()
+      layout=binderResult.data
+      settings = withBinderLayout(settings, {rows:binderResult.data.binder_rows,cols:binderResult.data.binder_cols})
     }
     return NextResponse.json({
       settings,
@@ -81,7 +82,7 @@ export async function getCollectionSettings(request: NextRequest, actor: User, w
   }
 }
 
-export async function saveCollectionSettings(request: NextRequest, actor: User, requireAtomic=false) {
+export async function saveCollectionSettings(request: NextRequest, actor: Pick<User, "id">, requireAtomic=false, verifiedOwnerId?:string) {
   try {
     const user = actor
     if (!user) {
@@ -97,7 +98,7 @@ export async function saveCollectionSettings(request: NextRequest, actor: User, 
       return NextResponse.json({ error: "Choose whole numbers from 1 to 8 for rows and columns" }, { status: 400 })
     }
     const admin = createAdminClient()
-    const settingsOwnerUserId = await resolveSettingsOwnerUserId(user.id)
+    const settingsOwnerUserId = verifiedOwnerId ?? await resolveSettingsOwnerUserId(user.id)
     const binderId = body.binderId ? await resolveWriteBinderId(admin, settingsOwnerUserId, body.binderId) : null
     const nextSettings = settingsFromRow({
       binder_rows: body.binderRows,
@@ -141,7 +142,7 @@ export async function saveCollectionSettings(request: NextRequest, actor: User, 
       const {data,error}=await admin.rpc('developer_save_settings',{actor:user.id,owner_id:settingsOwnerUserId,binder_id_input:binderId,expected_settings:existingResult.data??null,expected_layout:currentBinder?.data??null,new_settings:atomicRow})
       if(error)throw error
       if(!data||data.conflict)return NextResponse.json({error:'Settings changed. Reload before saving again.'},{status:409})
-      return getCollectionSettings(request,actor,true)
+      return getCollectionSettings(request,actor,true,verifiedOwnerId)
     }
     if (binderId && layoutChanged) {
       const { error } = await admin.from("binders").update({ binder_rows: nextSettings.binderRows, binder_cols: nextSettings.binderCols }).eq("id", binderId).eq("owner_user_id", settingsOwnerUserId)

@@ -1,5 +1,7 @@
 // Synthetic hosted verification, all fixture and DDL changes are rolled back.
 import assert from 'node:assert/strict'
+import {developerEntitled} from '../lib/developer-api/permissions'
+import {resolveBillingAccess} from '../lib/billing'
 import { readFile } from 'node:fs/promises'
 import pg from 'pg'
 async function main() {
@@ -30,7 +32,7 @@ try {
  await db.query(recoverySql);await db.query(recoverySql)
  const directSql=await readFile(new URL('./067_direct_developer_access.sql',import.meta.url),'utf8')
  await db.query(directSql);await db.query(directSql)
- for(const file of ['068_catalog_image_inventory.sql','069_developer_access_round_trips.sql']) {
+ for(const file of ['068_catalog_image_inventory.sql','069_developer_access_round_trips.sql','071_binder_slot_counts.sql','072_developer_entitlement_lookup.sql']) {
   const sql=await readFile(new URL('./'+file,import.meta.url),'utf8')
   await db.query(sql);await db.query(sql)
  }
@@ -143,6 +145,19 @@ try {
   assert.equal((await db.query("SELECT has_function_privilege($1,'public.authenticate_developer_request(uuid,text,text[],text,text)','execute') AS allowed",[role])).rows[0].allowed,false)
   assert.equal((await db.query("SELECT has_table_privilege($1,'public.card_image_inventory','select') AS allowed",[role])).rows[0].allowed,false)
  }
+ // Lightweight developer entitlement must agree with the full billing resolver for every paid state.
+ await db.query('UPDATE auth.users SET created_at=now() WHERE id=$1',[stranger])
+ for(const [status,paidUntil] of [['none',null],['active',new Date(Date.now()+86400000).toISOString()],['past_due',new Date(Date.now()+86400000).toISOString()],['canceled',null],['active','2020-01-01T00:00:00Z']] as const) {
+  await db.query('INSERT INTO public.billing_accounts(owner_user_id,status,paid_through) VALUES($1,$2,$3) ON CONFLICT(owner_user_id) DO UPDATE SET status=excluded.status,paid_through=excluded.paid_through',[stranger,status,paidUntil])
+  const full=(await db.query('SELECT public.get_billing_access($1) AS result',[stranger])).rows[0].result
+  const lean=(await db.query('SELECT public.resolve_developer_access($1,NULL) AS result',[stranger])).rows[0].result.billing_access
+  assert.equal(developerEntitled(resolveBillingAccess(stranger,lean)),developerEntitled(resolveBillingAccess(stranger,full)))
+  assert.equal('saved_card_count' in lean,false)
+ }
+ const actualCounts=(await db.query('SELECT binder_id::text,slot_count::int FROM public.get_binder_slot_counts($1) ORDER BY binder_id',[actor])).rows
+ const expectedCounts=(await db.query('SELECT binder_id::text,count(*)::int AS slot_count FROM public.pokemon_collection WHERE user_id=$1 AND binder_id IS NOT NULL GROUP BY binder_id ORDER BY binder_id',[actor])).rows
+ assert.deepEqual(actualCounts,expectedCounts)
+ for(const role of ['anon','authenticated','holo_mcp'])assert.equal((await db.query("SELECT has_function_privilege($1,'public.get_binder_slot_counts(uuid)','execute') AS allowed",[role])).rows[0].allowed,false)
  const budgets=(await db.query("SELECT public.consume_developer_budget($1,10) AS budget FROM generate_series(1,11)",[actor])).rows.map(row=>row.budget.allowed)
  assert.deepEqual(budgets,[...Array(10).fill(true),false])
  for(let n=1;n<10;n++) await db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',[crypto.randomUUID(),...values.slice(1)])
@@ -159,7 +174,7 @@ try {
  await db.query('ROLLBACK TO SAVEPOINT expected_failure')
  await db.query('RESET ROLE')
  const plan=await db.query('EXPLAIN (ANALYZE,BUFFERS) SELECT id FROM public.developer_api_keys WHERE actor_id=$1',[actor]);assert.ok(plan.rows.length)
- console.log('PASS: key and OAuth migrations through 069 twice, one-call key validation, expiry/revocation/permissions, owner/partner/free membership, 60/min limit and image inventory isolation, direct resource/consent/audience checks, unchanged first-party claims, MCP DB impersonation denied;, personal key insertion, ten-key cap, shared limit exhaustion, private table/RPC denial and actor lookup EXPLAIN; all rolled back.')
+ console.log('PASS: key and OAuth migrations through 072 twice (070 is separately applied concurrent index DDL), entitlement parity and grouped count parity, one-call key validation, expiry/revocation/permissions, owner/partner/free membership, 60/min limit and image inventory isolation, direct resource/consent/audience checks, unchanged first-party claims, MCP DB impersonation denied;, personal key insertion, ten-key cap, shared limit exhaustion, private table/RPC denial and actor lookup EXPLAIN; all rolled back.')
 } finally {await db.query('ROLLBACK');await db.end()}
 
 }

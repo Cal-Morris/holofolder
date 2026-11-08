@@ -10,11 +10,11 @@ import { normalizeComparisonTargets } from "@/lib/comparison-jobs"
 import { comparisonScopeKey, estimateComparisonSpend, initialComparisonProgress, publicComparisonJob, readComparisonJob, type StoredComparisonJob } from "@/lib/server/comparison-jobs"
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } })
-async function owner(user: User) {
+async function owner(user: Pick<User, "id">, verifiedOwnerId?:string) {
   preferManagedVercelWorkflowWorld()
   const client = createAdminClient()
-  const ownerId = await resolveCollectionOwnerUserId(client, user.id)
-  await requirePaidAccess(ownerId)
+  const ownerId = verifiedOwnerId ?? await resolveCollectionOwnerUserId(client, user.id)
+  if (!verifiedOwnerId) await requirePaidAccess(ownerId)
   return { ownerId, userId: user.id }
 }
 function failure(error: unknown) {
@@ -23,9 +23,9 @@ function failure(error: unknown) {
   console.error("[holofolder] Comparison job unavailable", error)
   return json({ error: "Background checks are temporarily unavailable. Saved checks are safe." }, 503)
 }
-export async function readComparisonOperation(request: Request, actor: User) {
+export async function readComparisonOperation(request: Request, actor: Pick<User, "id">, verifiedOwnerId?:string) {
   try {
-    const { ownerId } = await owner(actor)
+    const { ownerId } = await owner(actor, verifiedOwnerId)
     const id = new URL(request.url).searchParams.get("id")
     if (!id || !/^[0-9a-f-]{36}$/.test(id)) return json({ error: "Invalid job." }, 400)
     let job = await readComparisonJob(id, ownerId)
@@ -42,13 +42,13 @@ export async function readComparisonOperation(request: Request, actor: User) {
     return json({ job: publicComparisonJob(job) })
   } catch (error) { return failure(error) }
 }
-export async function writeComparisonOperation(request: Request, actor: User) {
+export async function writeComparisonOperation(request: Request, actor: Pick<User, "id">, verifiedOwnerId?:string) {
   try {
     const text = await request.text()
     if (text.length > 1_000_000) return json({ error: "Too many cards." }, 413)
     let body
     try { body = JSON.parse(text) } catch { return json({ error: "Invalid request." }, 400) }
-    const { ownerId, userId } = await owner(actor)
+    const { ownerId, userId } = await owner(actor, verifiedOwnerId)
     const admin = createAdminClient()
     if (body?.action === "stop") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "Invalid job." }, 400)

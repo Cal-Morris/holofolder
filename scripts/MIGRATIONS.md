@@ -10,6 +10,8 @@ When you add a migration, use the next free number, keep it idempotent, and add 
 
 | File | What it does |
 |---|---|
+| `072_developer_entitlement_lookup.sql` | Reads current paid entitlement without counting saved collection rows on every API request. Trial access remains excluded. |
+| `071_binder_slot_counts.sql` | Service-role grouped slot counts for binder lists, replacing one count request per binder. |
 | `070_illustrator_directory_index.sql` | Partial covering index for directory counts; run the concurrent statement alone. |
 | `069_developer_access_round_trips.sql` | Live key validation, membership, billing and rate limits in one RPC. Older routes remain compatible. |
 | `068_catalog_image_inventory.sql` | Confirmed public R2 object keys, service-role only. Seed a complete public card bucket inventory before deploying the API. |
