@@ -3582,6 +3582,7 @@ export default function BinderApp({
 
       {/* Modals */}
       <SettingsModal
+        collectionImport={!readOnlyMode ? { scopeKey: `${user?.id ?? "guest"}:${resolvedCollectionOwnerUserId ?? "local"}:${initialBinderId ?? "default"}`, collection, binderId: initialBinderId, binderName: activeBinder?.name, signedIn: Boolean(user), ready: !isCollectionLoading, online: isOnline, onSave: (item, expected) => restoreCollectionItem(item, expected, { importOnly: true }) } : undefined}
         binderId={initialBinderId}
         binderName={activeBinder?.name}
         onPublicIdentityChange={handlePublicIdentityChange}

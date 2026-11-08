@@ -34,6 +34,19 @@ const row = (overrides: Partial<CollectedPokemon> = {}): CollectedPokemon => ({
   ...overrides,
 })
 
+test("imports preserve concurrent owned selections and only append wants", () => {
+  const base = row({ card_id: undefined, status: "wishlisted", wanted_cards: [want("old")] })
+  const local = row({ wanted_cards: [want("new")] })
+  const remote = row({ card_id: "remote-printing", status: "finalized", wanted_cards: [want("old"), want("remote")] })
+  const resolution = resolveConflict({ type: "upsert", pokemonId: 25, base, item: local, importOnly: true }, remote)
+  assert.equal(resolution.action, "write")
+  if (resolution.action !== "write") return
+  assert.equal(resolution.item.card_id, "remote-printing")
+  assert.equal(resolution.item.status, "finalized")
+  assert.deepEqual(resolution.item.wanted_cards.map(c => c.card_id), ["old", "remote", "new"])
+  assert.deepEqual(resolveConflict({ type: "upsert", pokemonId: 25, base, item: local, importOnly: true }, null), { action: "drop", serverItem: null })
+})
+
 test("fingerprints ignore ids, names and timestamps but see status, printing and wanted cards", () => {
   assert.equal(collectionFingerprint(null), ABSENT_ROW_FINGERPRINT)
   assert.equal(collectionFingerprint(row()), collectionFingerprint(row({ id: "other", card_name: "x", collected_at: "2020-01-01" })))

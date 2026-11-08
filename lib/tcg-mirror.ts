@@ -1,4 +1,5 @@
 import { cardSearchSetCandidates, correctedCardSearchQuery, resolveCardSearchQuery } from "@/lib/card-search-query"
+import type { ImportLookup } from "@/lib/collection-import"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 import type { CardCatalogIdentity } from "@/lib/domain/cards"
 import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog"
@@ -483,6 +484,39 @@ function localIdCandidates(number: string) {
   const [, value, suffix] = digits
   // Sets store local ids with varying zero padding ("4", "04", "004").
   return Array.from(new Set([value, value.padStart(2, "0"), value.padStart(3, "0")].map((candidate) => `${candidate}${suffix}`)))
+}
+
+/** Exact, bounded identity lookup for import. No fuzzy search or language fallback. */
+export async function findMirroredImportCandidates(lookup: ImportLookup): Promise<SearchCardResult[]> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION)
+  const admin = createAdminClient()
+  const escaped = (value: string) => value.replace(/[\\%_]/g, "\\$&")
+  let query = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).not(`name_json->>${lookup.language}`, "is", null)
+  if (lookup.cardId) {
+    const direct = await query.eq("id", lookup.cardId).limit(101)
+    if (direct.error) throw direct.error
+    if (direct.data?.length) return direct.data.map(card => toSearchCardResult(card, lookup.language)).filter((card): card is SearchCardResult => Boolean(card))
+    query = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).not(`name_json->>${lookup.language}`, "is", null).contains("external_ids_json", { catalog: { aliasIds: [lookup.cardId] } })
+  } else if (lookup.tcgplayerId) {
+    // readImportLookups restricts the filter value to digits.
+    if (!/^\d{1,12}$/.test(lookup.tcgplayerId)) return []
+    query = query.or(`external_ids_json->catalog->>productId.eq.${lookup.tcgplayerId},external_ids_json->tcgdex->thirdParty->>tcgplayer.eq.${lookup.tcgplayerId}`)
+  } else {
+    if (!lookup.cardName || !lookup.set || !lookup.number) return []
+    const direct = await admin.from("tcg_sets").select("id").eq("id", lookup.set).limit(2)
+    if (direct.error) throw direct.error
+    const sets = direct.data?.length ? direct : await admin.from("tcg_sets").select("id").ilike(`name_json->>${lookup.language}`, escaped(lookup.set)).limit(2)
+    if (sets.error) throw sets.error
+    if (sets.data?.length !== 1) return []
+    query = query.eq("set_id", sets.data[0].id).ilike(`name_json->>${lookup.language}`, escaped(lookup.cardName))
+  }
+  const { data, error } = await query.limit(101)
+  if (error) throw error
+  // A truncated result must never look like a unique match.
+  if (!data || data.length > 100) return []
+  return data.map(card => toSearchCardResult(card, lookup.language)).filter((card): card is SearchCardResult => Boolean(card))
 }
 
 /**

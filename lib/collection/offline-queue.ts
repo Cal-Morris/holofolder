@@ -23,6 +23,7 @@ export type PendingCollectionOperation =
       id: string
       type: "upsert"
       acquisition?: AcquisitionIntent
+      importOnly?: true
       pokemonId: number
       item: CollectedPokemon
       billingPause?: string
@@ -44,6 +45,7 @@ export type PendingCollectionOperationInput =
   | {
       type: "upsert"
       acquisition?: AcquisitionIntent
+      importOnly?: true
       pokemonId: number
       item: CollectedPokemon
       base?: CollectedPokemon | null
@@ -170,6 +172,7 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
           pokemonId: item.pokemonId,
           item: normalizeCollectionItem(item.item),
           acquisition: normalizeAcquisition(item.acquisition),
+          ...(item.importOnly === true ? { importOnly: true as const } : {}),
           ...(typeof item.billingPause === "string" ? { billingPause: item.billingPause } : {}),
           queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
           ...parseBase(item),
