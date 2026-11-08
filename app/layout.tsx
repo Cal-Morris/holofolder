@@ -15,6 +15,8 @@ const THEME_COLOR_DARK = "#07070a"
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://holofolder.com"),
+  // Framer serves the searchable marketing site; app and account pages stay out of search.
+  robots: { index: false, follow: true },
   openGraph: {
     title: "Holo Folder",
     siteName: "Holo Folder",
