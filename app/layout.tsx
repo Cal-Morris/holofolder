@@ -1,3 +1,4 @@
+import { GoogleAnalyticsProvider } from "@/components/google-analytics"
 import { CollectorFunnelProvider } from "@/components/collector-funnel"
 import type React from "react"
 import type { Metadata, Viewport } from "next"
@@ -68,7 +69,9 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: KEYBOARD_INSET_SCRIPT }} />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
-        <CollectorFunnelProvider enabled={process.env.VERCEL_ENV === "production" && process.env.HOLOFOLDER_FUNNEL_ENABLED === "true"}>{children}</CollectorFunnelProvider>
+        <GoogleAnalyticsProvider enabled={process.env.VERCEL_ENV === "production"}>
+          <CollectorFunnelProvider enabled={process.env.VERCEL_ENV === "production" && process.env.HOLOFOLDER_FUNNEL_ENABLED === "true"}>{children}</CollectorFunnelProvider>
+        </GoogleAnalyticsProvider>
         <Analytics scriptSrc="/app/_vercel/insights/script.js" endpoint="/app/_vercel/insights" />
         {/* Real-user Core Web Vitals per route (enabled on the Vercel project). */}
         <SpeedInsights scriptSrc="/app/_vercel/speed-insights/script.js" endpoint="/app/_vercel/speed-insights/vitals" />
