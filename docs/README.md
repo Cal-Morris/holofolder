@@ -9,6 +9,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 ## How the application works
 
 - [Architecture](architecture.md): ownership boundaries, startup, writes, offline sync and integrations.
+- [Agent-readable API docs](public-api/agent-docs.md): generated Markdown, `llms.txt`, full-text exports and OpenAPI discovery.
 - [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, auth, PWA scope and legacy URLs.
 - [Multiple binders](multiple-binders.md), [binder history](binder-history.md), [collection import](collection-import.md).
 - [Card catalog](card-catalog.md), [card image store](card-image-store.md), [pricing coverage](card-pricing-coverage.md).

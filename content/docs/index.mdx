@@ -45,3 +45,9 @@ The [API conventions](/docs/contracts) cover pagination, rate limits, safe write
 The API exposes the data available in Holo Folder's mirror. Missing data stays missing. Prices include available source, freshness and confidence evidence. Images come only from our Cloudflare R2 mirror; a missing mirrored image is reported as unavailable.
 
 Card data is sourced from TCGdex and the providers identified in each result. Pokémon card images are © The Pokémon Company, Nintendo, Creatures and GAME FREAK. Data licensing does not grant rights to the card artwork.
+
+## Read these docs with an agent
+
+Use [llms.txt](/app/docs/llms.txt) as the documentation index, or [llms-full.txt](/app/docs/llms-full.txt) to read all guides and endpoint contracts in one request. Every page also has a **View as Markdown** link. These public documents need no authentication.
+
+The [OpenAPI document](/app/openapi.json) is the machine-readable REST contract. It includes authentication, parameters, request schemas and documented response statuses. MCP uses the [remote server](/docs/mcp) to discover tools directly.
