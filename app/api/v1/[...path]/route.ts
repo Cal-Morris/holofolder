@@ -5,3 +5,5 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
   return handleRestRequest(request, context)
 }
 export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE }
+
+export { restOptions as OPTIONS } from '@/lib/server/developer-access/request'

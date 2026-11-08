@@ -5,9 +5,17 @@ The public site is `https://holofolder.com`. Framer serves marketing and forward
 - `/app` to `https://app.holofolder.com/app`
 - `/app/*` to `https://app.holofolder.com/app/:1`
 
-`app.holofolder.com` is the existing Vercel project's verified origin. It is not the public app URL. No app-domain redirect back to Framer may be configured on Vercel, since Framer needs to fetch it.
+`app.holofolder.com` is the existing Vercel project's verified origin. The public browser app stays on `holofolder.com/app`; developer clients use this origin directly. No app-domain redirect back to Framer may be configured on Vercel, since Framer needs to fetch it.
 
 Next.js builds with `basePath: "/app"`. Next Link and router destinations stay app-relative (`/auth/login`, `/studio`, `/`). Raw fetches, images, anchors, share links and service worker paths include `/app`. `appPath` prefixes a raw path once. `binderHref` returns an unprefixed router destination; wrap it with `appPath` for a full browser navigation. Don't prefix a Next Link/router destination twice.
+
+## Direct developer access
+
+Developer REST clients use `https://app.holofolder.com/app/api/v1`; remote MCP clients use `https://app.holofolder.com/app/mcp`. These requests bypass Framer, which drops the `WWW-Authenticate` header needed for MCP OAuth discovery. The discovery header and protected-resource metadata both identify the direct host. OAuth consent and account settings stay on the public website.
+
+The API reference playground also calls the direct REST host with cookies omitted. REST permits CORS with bearer API keys, including Authorization, Content-Type and Idempotency-Key preflights; it never accepts cookie authentication. The app's internal API calls, session cookies and offline paths remain same-origin under `holofolder.com/app`.
+
+Migration `067_direct_developer_access.sql` moves the token audience and authorization/consent checks together to the exact direct MCP resource. Deploy the matching code and apply the migration before clients reconnect. Old resource URLs/tokens are rejected; clients must reconnect using the direct URL. First-party sign-in is unchanged.
 
 ## Auth and origin checks
 

@@ -24,6 +24,8 @@ Stack:
 
 Framer serves `https://holofolder.com`; its Multi Site rules proxy `/app` and `/app/*` to the same paths on the Vercel origin `https://app.holofolder.com`. Next.js builds with `basePath: "/app"`. Route names below describe source routes; public URLs, raw fetches, images and service workers need the `/app` prefix. Next Link/router destinations remain unprefixed. Local entry is `http://localhost:3000/app`. See [`docs/app-routing.md`](docs/app-routing.md), including auth, legacy installs and paused push/branding branches.
 
+Developer clients connect directly to `https://app.holofolder.com/app/api/v1` (REST) and `https://app.holofolder.com/app/mcp` (MCP), bypassing Framer so OAuth discovery headers survive. The app’s internal API calls remain same-origin.
+
 See [docs/architecture.md](docs/architecture.md) for ownership, startup, synchronization and caching boundaries, and [docs/README.md](docs/README.md) for maintained guides versus historical plans.
 
 ## Architecture map

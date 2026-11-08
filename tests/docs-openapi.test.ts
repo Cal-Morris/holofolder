@@ -15,15 +15,15 @@ test('the downloadable API contract covers every registered operation with authe
     assert.equal(documented.tags.length, 1)
     for (const permission of operation.permissions) assert.ok(documented.description.includes(permission), operation.name)
   }
-  assert.equal(schema.servers[0].url, 'https://holofolder.com/app/api/v1')
+  assert.equal(schema.servers[0].url, 'https://app.holofolder.com/app/api/v1')
 })
 
-test('native explorer pages cover the registry once and use the same-origin API without a proxy', async () => {
+test('native explorer pages cover the registry once and use the direct developer API without a proxy', async () => {
   const source = await docsOpenAPI.staticSource({ per: 'operation', groupBy: 'tag', baseDir: 'reference' })
   const files = source.files.filter(file => file.type === 'page')
   assert.equal(files.length, DEVELOPER_OPERATIONS.length)
   assert.equal(new Set(files.map(file => file.path)).size, files.length)
   const { bundled } = await docsOpenAPI.getSchema('holofolder')
-  assert.equal(bundled.servers?.[0]?.url, '/app/api/v1')
+  assert.equal(bundled.servers?.[0]?.url, 'https://app.holofolder.com/app/api/v1')
   assert.equal(docsOpenAPI.options.proxyUrl, undefined)
 })

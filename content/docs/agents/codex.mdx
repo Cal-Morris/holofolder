@@ -8,7 +8,7 @@ Use the Codex CLI's remote MCP support to connect through OAuth.
 ## Add Holo Folder
 
 ```sh title="Terminal"
-codex mcp add holofolder --url https://holofolder.com/app/mcp
+codex mcp add holofolder --url https://app.holofolder.com/app/mcp
 codex mcp login holofolder
 ```
 
@@ -20,10 +20,12 @@ If you manage MCP servers in `~/.codex/config.toml`, add:
 
 ```toml title="~/.codex/config.toml"
 [mcp_servers.holofolder]
-url = "https://holofolder.com/app/mcp"
+url = "https://app.holofolder.com/app/mcp"
 ```
 
 Then run `codex mcp login holofolder` to authorise the connection. The CLI and compatible editor environments can use the configured server; check your environment's MCP controls if it maintains a separate configuration.
+
+If you already added the old `holofolder.com` URL, update the `url` in your existing config entry to `https://app.holofolder.com/app/mcp`, then run `codex mcp login holofolder` again.
 
 ## Check the connection
 

@@ -23,7 +23,7 @@ Connect an AI assistant to Holo Folder through **MCP**, the Model Context Protoc
 Every compatible client uses this **Streamable HTTP** endpoint:
 
 ```text title="MCP server URL"
-https://holofolder.com/app/mcp
+https://app.holofolder.com/app/mcp
 ```
 
 Choose **OAuth** when prompted. Compatible clients discover registration and authorisation from the server's authentication challenge. Do not paste a REST API key into an MCP connection.
@@ -53,6 +53,8 @@ Or ask it to search the catalog for a particular Pokémon or read the available 
 Building your own agent? Use an OAuth-capable remote MCP client with the server URL above. The server exposes tools from the same operation registry as the REST API. Tool names and required permissions appear on each [endpoint page](/docs/reference).
 
 For an agent that calls REST directly, use a [personal API key](/docs/api-keys) and the [OpenAPI document](/app/openapi.json). Read [API conventions](/docs/contracts) before enabling writes, retries or pagination.
+
+The developer endpoint connects directly to the app host so OAuth discovery headers reach your client. Sign-in and consent still open on the Holo Folder website. If you previously configured `https://holofolder.com/app/mcp`, replace it with the URL above and connect again.
 
 ## Manage access
 

@@ -18,7 +18,7 @@ async function main() {
   paths[op.path]??={};paths[op.path][op.method.toLowerCase()]={operationId:op.name,summary,description,tags:[group],security:[{apiKey:[]}],parameters,
    ...(op.method==='GET'?{}:{requestBody:{required:true,content:{'application/json':{schema:{...schema,properties,required}}}}}),responses:Object.fromEntries([200,400,401,402,403,404,409,413,422,429,503].map(status=>[String(status),{description:status===200?'Success':'See the API conventions page.'}]))}
  }
- const spec={openapi:'3.1.0',info:{title:'Holo Folder API',version:'1.0.0',description:'Premium/lifetime data API. MCP uses OAuth separately. Card image fields are R2-only.'},servers:[{url:'https://holofolder.com/app/api/v1',description:'Holo Folder production API'}],components:{securitySchemes:{apiKey:{type:'http',scheme:'bearer',bearerFormat:'Holo Folder personal API key'}}},paths}
+ const spec={openapi:'3.1.0',info:{title:'Holo Folder API',version:'1.0.0',description:'Premium/lifetime data API. MCP uses OAuth separately. Card image fields are R2-only.'},servers:[{url:'https://app.holofolder.com/app/api/v1',description:'Holo Folder production API'}],components:{securitySchemes:{apiKey:{type:'http',scheme:'bearer',bearerFormat:'Holo Folder personal API key'}}},paths}
  await mkdir('public',{recursive:true});await writeFile('public/openapi.json',JSON.stringify(spec,null,2)+'\n')
 }
 main().catch(error=>{console.error(error instanceof Error?error.message:'Documentation generation failed');process.exitCode=1})

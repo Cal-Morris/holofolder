@@ -3,7 +3,7 @@ import {auditDeveloperOperation} from '@/lib/server/developer-access/audit'
 import {matchRestOperation} from '@/lib/developer-api/operations'
 import {DeveloperAccessError} from '@/lib/developer-api/permissions'
 import {requireRestContext} from '@/lib/server/developer-access/principal'
-import {DEVELOPER_HEADERS,developerErrorResponse,readDeveloperJson,knownDeveloperError} from '@/lib/server/developer-access/request'
+import {DEVELOPER_HEADERS,developerErrorResponse,readDeveloperJson,knownDeveloperError,restResponse} from '@/lib/server/developer-access/request'
 import {executeDeveloperOperation} from '@/lib/server/operations/developer-dispatch'
 export async function handleRestRequest(request:Request,{params}:{params:Promise<{path:string[]}>}) {
  const requestId=crypto.randomUUID()
@@ -30,6 +30,6 @@ export async function handleRestRequest(request:Request,{params}:{params:Promise
   if(!input.success) throw new DeveloperAccessError('invalid_input',input.error.issues[0]?.message??'Invalid input.',400)
   const result=await executeDeveloperOperation(context,match.operation.name,input.data)
   auditDeveloperOperation(context,match.operation.name,'success')
-  return Response.json(result,{headers:{...DEVELOPER_HEADERS,'X-Request-Id':requestId}})
- }catch(error){if(context&&operationName)auditDeveloperOperation(context,operationName,'failure',knownDeveloperError(error)?.code??'temporarily_unavailable');return developerErrorResponse(error,requestId)}
+  return restResponse(Response.json(result,{headers:{...DEVELOPER_HEADERS,'X-Request-Id':requestId}}))
+ }catch(error){if(context&&operationName)auditDeveloperOperation(context,operationName,'failure',knownDeveloperError(error)?.code??'temporarily_unavailable');return restResponse(developerErrorResponse(error,requestId))}
 }
