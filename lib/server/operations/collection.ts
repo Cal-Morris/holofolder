@@ -62,7 +62,7 @@ async function resolveBinder(admin: ReturnType<typeof createAdminClient>, ownerU
 }
 
 
-export async function saveCollectionItem(request: NextRequest, actor: User, requireAtomic = false) {
+export async function saveCollectionItem(request: NextRequest, actor: User, requireAtomic = false, verifiedMembership?: {ownerUserId:string;memberIds:readonly string[]}) {
   try {
     const user = actor
     if (!user) {
@@ -84,7 +84,7 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
 
     const admin = createAdminClient()
     await assertCollectionWriteAccess(admin, user.id, body?.binderId)
-    const { ownerUserId, memberIds } = await resolveCollectionMembership(admin, user.id)
+    const { ownerUserId, memberIds } = verifiedMembership ?? await resolveCollectionMembership(admin, user.id)
     const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
     if (binder.response) return binder.response
     const { binderId } = binder
@@ -205,7 +205,7 @@ export async function updateCollectionStatus(request: NextRequest, actor: User) 
   }
 }
 
-export async function deleteCollectionItem(request: NextRequest, actor: User, atomicDelete = false) {
+export async function deleteCollectionItem(request: NextRequest, actor: Pick<User, "id">, atomicDelete = false, verifiedOwnerId?:string) {
   try {
     const user = actor
     if (!user) {
@@ -219,7 +219,7 @@ export async function deleteCollectionItem(request: NextRequest, actor: User, at
 
     const admin = createAdminClient()
     await assertCollectionWriteAccess(admin, user.id, request.nextUrl.searchParams.get("binderId"))
-    const ownerUserId = await resolveOwnerUserId(user.id)
+    const ownerUserId = verifiedOwnerId ?? await resolveOwnerUserId(user.id)
     const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"))
     if (binder.response) return binder.response
     const previous = atomicDelete

@@ -13,9 +13,9 @@ import { billingErrorResponse, getBillingAccess } from "@/lib/server/billing"
  * Binders of the signed-in owner. A partner manages the owner's binders (they share every binder), so every
  * request resolves the owner first and then uses the service role, like /app/api/collection.
  */
-async function requireOwner(user: User) {
+async function requireOwner(user: Pick<User, "id">, verifiedOwnerId?: string) {
   const admin = createAdminClient()
-  const ownerUserId = await resolveCollectionOwnerUserId(admin, user.id)
+  const ownerUserId = verifiedOwnerId ?? await resolveCollectionOwnerUserId(admin, user.id)
   return { admin, ownerUserId }
 }
 
@@ -32,12 +32,22 @@ async function slotCount(admin: Admin, ownerUserId: string, binderId: string) {
 }
 
 async function listWithCounts(admin: Admin, ownerUserId: string) {
-  let binders = await listOwnerBinders(admin, ownerUserId)
+  const [initialBinders, countsResult] = await Promise.all([listOwnerBinders(admin, ownerUserId), admin.rpc("get_binder_slot_counts", { owner_id: ownerUserId })])
+  let binders = initialBinders
   if (binders.length === 0 && await ensureDefaultBinderId(admin, ownerUserId)) {
     binders = await listOwnerBinders(admin, ownerUserId)
   }
-  const counts = await Promise.all(binders.map((binder) => slotCount(admin, ownerUserId, binder.id)))
-  return binders.map((binder, index) => ({ ...binder, slotCount: counts[index] }))
+  if (countsResult.error) {
+    if (!["PGRST202", "42883"].includes(countsResult.error.code)) throw countsResult.error
+    const counts = await Promise.all(binders.map((binder) => slotCount(admin, ownerUserId, binder.id)))
+    return binders.map((binder, index) => ({ ...binder, slotCount: counts[index] }))
+  }
+  const counts = new Map<string,number>((countsResult.data ?? []).map((row: {binder_id:string;slot_count:number}) => {
+    const count = Number(row.slot_count)
+    if (!Number.isSafeInteger(count) || count < 0) throw new Error("Invalid binder slot count")
+    return [row.binder_id,count]
+  }))
+  return binders.map(binder => ({...binder,slotCount:counts.get(binder.id)??0}))
 }
 
 function respond(binders: Array<Binder & { slotCount: number }>, extra: Record<string, unknown> = {}) {
@@ -49,9 +59,9 @@ function failure(label: string, error: unknown) {
   return NextResponse.json({ error: `Failed to ${label}` }, { status: 500 })
 }
 
-export async function listBinders(actor: User) {
+export async function listBinders(actor: Pick<User, "id">, verifiedOwnerId?: string) {
   try {
-    const session = await requireOwner(actor)
+    const session = await requireOwner(actor, verifiedOwnerId)
     if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     return respond(await listWithCounts(session.admin, session.ownerUserId))
   } catch (error) {
@@ -59,9 +69,9 @@ export async function listBinders(actor: User) {
   }
 }
 
-export async function createBinder(request: NextRequest, actor: User) {
+export async function createBinder(request: NextRequest, actor: Pick<User, "id">, verifiedOwnerId?: string) {
   try {
-    const session = await requireOwner(actor)
+    const session = await requireOwner(actor, verifiedOwnerId)
     if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     const body = await request.json().catch(() => null) as { name?: unknown } | null
     const name = normalizeBinderName(body?.name)
@@ -73,8 +83,10 @@ export async function createBinder(request: NextRequest, actor: User) {
     if (!retryKey && !canCreateBinder(binders)) {
       return NextResponse.json({ error: "You have the most binders allowed" }, { status: 409 })
     }
-    const access = await getBillingAccess(ownerUserId)
-    if (!retryKey && !canCreateOwnerBinder(access, binders.length)) throw new BillingAccessError('binder_limit_reached')
+    if (!retryKey) {
+      const access = await getBillingAccess(ownerUserId)
+      if (!canCreateOwnerBinder(access, binders.length)) throw new BillingAccessError('binder_limit_reached')
+    }
     const { data, error } = retryKey
       ? await admin.rpc("developer_create_binder", { actor: actor.id, owner_id: ownerUserId, binder_name: name, retry_key: retryKey,
           digest: createHash("sha256").update(JSON.stringify({ ownerUserId, name })).digest("hex") })
@@ -92,9 +104,9 @@ export async function createBinder(request: NextRequest, actor: User) {
   }
 }
 
-export async function updateBinder(request: NextRequest, actor: User) {
+export async function updateBinder(request: NextRequest, actor: Pick<User, "id">, verifiedOwnerId?: string) {
   try {
-    const session = await requireOwner(actor)
+    const session = await requireOwner(actor, verifiedOwnerId)
     if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     const { admin, ownerUserId } = session
     const body = await request.json().catch(() => null) as { id?: unknown; name?: unknown; order?: unknown } | null
@@ -121,9 +133,9 @@ export async function updateBinder(request: NextRequest, actor: User) {
   }
 }
 
-export async function deleteBinder(request: NextRequest, actor: User) {
+export async function deleteBinder(request: NextRequest, actor: Pick<User, "id">, verifiedOwnerId?: string) {
   try {
-    const session = await requireOwner(actor)
+    const session = await requireOwner(actor, verifiedOwnerId)
     if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     const { admin, ownerUserId } = session
     const params = new URL(request.url).searchParams

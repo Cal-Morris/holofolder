@@ -42,7 +42,7 @@ export function developerErrorResponse(error: unknown, requestId: string) {
 
 const REST_CORS_HEADERS = {
  'Access-Control-Allow-Origin': '*',
- 'Access-Control-Expose-Headers': 'X-Request-Id, Retry-After',
+ 'Access-Control-Expose-Headers': 'X-Request-Id, Retry-After, Server-Timing',
 }
 export function restResponse(response:Response) {
  for(const [key,value] of Object.entries(REST_CORS_HEADERS))response.headers.set(key,value)

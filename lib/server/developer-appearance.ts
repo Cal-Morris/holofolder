@@ -1,11 +1,12 @@
 import {DESIGN_SURFACES,type BinderDesign,type DesignSurface,type SurfaceDesign} from '@/lib/binder-design'
 import {developerArtworkReference,developerImageSource} from '@/lib/developer-api/image-identity'
-import {resolveDeveloperImage,type DeveloperImage} from './developer-images'
+import {createDeveloperImageResolver,type DeveloperImage} from './developer-images'
 import {DeveloperAccessError} from '@/lib/developer-api/permissions'
 type DeveloperDesign=Omit<BinderDesign,'surfaces'>&{surfaces:Record<DesignSurface,SurfaceDesign&{artworkImage?:DeveloperImage}>}
-export async function serializeDeveloperAppearance<T extends {design:BinderDesign|null}>(value:T,resolve:(source:string|null)=>Promise<DeveloperImage>=resolveDeveloperImage) {
+export async function serializeDeveloperAppearance<T extends {design:BinderDesign|null}>(value:T,resolve?: (source:string|null)=>Promise<DeveloperImage>) {
  const design=structuredClone(value.design) as DeveloperDesign|null
  if(!design)return {...value,design:null}
+ resolve??=await createDeveloperImageResolver(design.surfaces)
  for(const surface of DESIGN_SURFACES) {
   const entry=design.surfaces[surface]
   if(!entry.artwork||entry.artwork.startsWith('upload:'))continue
