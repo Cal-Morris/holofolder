@@ -21,6 +21,7 @@ export default async function DocumentationLayout({ children }: { children: Reac
       links={[
         { text: 'AI & agents', url: '/docs/mcp' },
         { text: 'API explorer', url: '/docs/reference' },
+        { text: 'Docs for LLMs', url: '/app/docs/llms.txt' },
         { type: 'button', text: 'Open app', url: '/app', external: true, icon: <ArrowUpRight size={14} /> },
       ]}
       sidebar={{ collapsible: false, defaultOpenLevel: 1, banner: <DocsLink href="/docs/mcp" className="docs-agent-link"><Bot size={19} /><span><strong>Connect an AI assistant</strong><span>Your collection, in your tools</span></span><ArrowUpRight size={14} /></DocsLink>, footer: <a className="docs-marketing-link" href="https://holofolder.com">Back to Holo Folder <ArrowUpRight size={13} /></a> }}>

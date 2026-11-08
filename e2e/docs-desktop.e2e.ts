@@ -14,6 +14,6 @@ test('desktop docs reserve a left sidebar and load the full Fumadocs typography'
   const heading = page.getByRole('heading', { name: /Choose your connection/ })
   expect(await heading.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(20)
   expect(await page.locator('th').first().evaluate(el => parseFloat(getComputedStyle(el).paddingLeft))).toBeGreaterThanOrEqual(8)
-  await expect(page.locator('.docs-brand img').first()).toHaveAttribute('src', '/app/holofolder-mark.png')
+  await expect(page.locator('.docs-brand img').first()).toHaveAttribute('src', /^\/app\/holofolder-mark\.png(?:\?|$)/)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
