@@ -61,7 +61,12 @@ describe("install icon exports", () => {
         assert.ok(encoded, name)
         const master = await sharp("assets/brand/holo-card-master.png").trim().png().toBuffer()
         const canonical = await sharp(master).resize(512, 512, { fit: "inside" }).png({ palette: true, effort: 10 }).toBuffer()
-        assert.deepEqual(Buffer.from(encoded, "base64"), canonical)
+        // Encoder metadata can change across native-library security upgrades.
+        const embedded = await sharp(Buffer.from(encoded, "base64")).raw().toBuffer({ resolveWithObject: true })
+        const expected = await sharp(canonical).raw().toBuffer({ resolveWithObject: true })
+        assert.equal(embedded.info.width, expected.info.width)
+        assert.equal(embedded.info.height, expected.info.height)
+        assert.deepEqual(embedded.data, expected.data)
       }
       for (const size of [32, 1024]) {
         const { info } = await sharp(data).resize(size, size).png().toBuffer({ resolveWithObject: true })
