@@ -19,3 +19,9 @@ export function normalizePermissions(value: unknown): DeveloperPermission[] {
 export function requirePermissions(granted: readonly DeveloperPermission[], required: readonly DeveloperPermission[]) {
   if (required.some(p => !granted.includes(p))) throw new DeveloperAccessError('insufficient_permissions', 'This credential does not have permission for this operation.', 403)
 }
+export const DEVELOPER_PERMISSION_LABELS: Record<DeveloperPermission,string> = {
+ 'catalog:read':'Read the card catalog', 'prices:read':'Read prices and comparisons', 'prices:refresh':'Request price refreshes',
+ 'binders:read':'Read binders', 'binders:write':'Create, edit and delete binders', 'collection:read':'Read owned and wanted cards',
+ 'collection:write':'Change owned and wanted cards', 'settings:read':'Read collection settings', 'settings:write':'Change settings and account identity',
+ 'sharing:manage':'Manage sharing and public links', 'partners:manage':'Manage partners and invitations',
+}

@@ -1,7 +1,6 @@
 import { normalizeBinderDesign, type BinderDesign } from "@/lib/binder-design"
 import { binderArtworkIds } from "@/lib/binder-appearance"
 import type { SavedBinderDesign } from "@/lib/binder-design-storage"
-import { createClient } from "@/lib/supabase/client"
 
 export interface RemoteBinderAppearance { ownerId: string; design: BinderDesign | null; revision: number }
 export class AppearanceConflict extends Error {
@@ -36,17 +35,12 @@ export async function syncBinderAppearance(owner: string, snapshot: SavedBinderD
     const blob = snapshot.uploads[id]
     if (!blob) throw new Error("Artwork is missing. Re-upload it before saving.")
     const response = await fetch("/app/api/binder-appearance/upload", { method: "POST", credentials: "same-origin", signal: AbortSignal.timeout(15000), headers: { "Content-Type": "application/json", "X-Binder-Owner": owner }, body: JSON.stringify({ id, mimeType: blob.type, size: blob.size }) })
-    const upload = await responseData(response) as { exists?: boolean; path?: string; token?: string }
+    const upload = await responseData(response) as { exists?: boolean; signedUploadUrl?: string; headers?: Record<string, string> }
     if (!upload.exists) {
-      if (!upload.path || !upload.token) throw new Error("Could not prepare the artwork upload.")
-      let timer: ReturnType<typeof setTimeout> | undefined
-      try {
-        const { error } = await Promise.race([
-          createClient().storage.from("binder-artwork").uploadToSignedUrl(upload.path, upload.token, blob, { contentType: blob.type }),
-          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Artwork upload timed out. Your draft is saved on this device.")), 15000) }),
-        ])
-        if (error) throw new Error("Artwork upload failed. Your draft is saved on this device.")
-      } finally { clearTimeout(timer) }
+      if (!upload.signedUploadUrl || !upload.headers) throw new Error("Could not prepare the artwork upload.")
+      const result = await fetch(upload.signedUploadUrl, { method: "PUT", headers: upload.headers, body: blob, credentials: "omit", signal: AbortSignal.timeout(15000) })
+      // A lost acknowledgement can leave an immutable upload already in R2.
+      if (!result.ok && result.status !== 412) throw new Error("Artwork upload failed. Your draft is saved on this device.")
     }
   }
   const response = await fetch("/app/api/binder-appearance", { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Binder-Owner": owner }, signal: AbortSignal.timeout(15000), body: JSON.stringify({ design: snapshot.design, baseRevision: snapshot.revision }) })

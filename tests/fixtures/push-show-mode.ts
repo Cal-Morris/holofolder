@@ -8,7 +8,7 @@ async function run() {
   const filters: Record<string, unknown> = {}
   // @ts-expect-error Bun mocks are isolated to this subprocess.
   const { mock } = await import('bun:test')
-  mock.module('../../lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: signedIn ? { id: person } : null } }) } }) }))
+  mock.module('../../lib/supabase/server', () => ({ createClient: async () => ({ auth: { getClaims: async () => ({data:signedIn?{claims:{sub:person}}:null,error:null}), getUser: async () => ({ data: { user: signedIn ? { id: person } : null } }) } }) }))
   mock.module('../../lib/supabase/admin', () => ({ createAdminClient: () => ({ from: (table: string) => {
     assert.equal(table, 'push_subscriptions')
     const query = { update: (row: Record<string, unknown>) => { updated = row; return query }, eq: (key: string, value: unknown) => { filters[key] = value; return query }, then: (resolve: (result: unknown) => void) => resolve({ error: null }) }

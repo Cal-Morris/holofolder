@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { getSessionUser, userFromClaims } from "../lib/supabase/session-user"
+import { getSessionUser, getFirstPartyUser, userFromClaims } from "../lib/supabase/session-user"
 
 const claims = {
   sub: "user-1",
@@ -43,5 +43,16 @@ describe("getSessionUser", () => {
   it("returns null when there is no session or verification fails", async () => {
     assert.equal(await getSessionUser(clientWith({ data: null, error: null })), null)
     assert.equal(await getSessionUser(clientWith({ data: null, error: new Error("bad signature") })), null)
+  })
+})
+
+describe("first-party OAuth boundary", () => {
+  it("rejects an OAuth client token in a website session", async () => {
+    const client = { auth: {
+      getClaims: async () => ({ data: { claims: { ...claims, client_id: "synthetic-client" } }, error: null }),
+      getUser: async () => { throw new Error("OAuth tokens must not reach website user resolution") },
+    } }
+    assert.equal(await getSessionUser(client as unknown as Parameters<typeof getSessionUser>[0]), null)
+    assert.equal((await getFirstPartyUser(client as unknown as Parameters<typeof getFirstPartyUser>[0])).data.user, null)
   })
 })

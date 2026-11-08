@@ -128,3 +128,6 @@ Framer branch: https://framer.com/projects/Holo-Folder--XORHOjHtiVkI2Vplan8k-d9D
 Docs rules are staged on that branch, not merged or published. Publish only when the docs route is deployed and verified.
 
 Routing update: Cal replaced the llms.txt rewrite with `/api/*` manually. On live reread, its new id was `TrqA32GLh`, initially targeting `/api/:1` on Vercel. Corrected only its target to `https://app.holofolder.com/app/api/:1`, preserving Cal's other edits. Root `/api/v1` is now the intended public API path once this Framer branch is published; `/app/api/v1` remains compatible. `/auth` is still absent and the six-rule limit remains. Do not restore the removed llms.txt rule.
+
+
+2026-11-08 approved clarification: private user-uploaded binder artwork also moves to a separate private R2 bucket. Share the owner-authorized signed-upload/download service across UI, REST and MCP. Copy and hash-verify existing Supabase artwork before cutover; retain source objects for rollback. No upstream or Supabase image-serving fallback. See docs/public-api/private-artwork.md.

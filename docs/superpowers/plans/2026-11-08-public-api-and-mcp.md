@@ -219,3 +219,6 @@ Operation inputs/outputs reuse existing domain types. Define each concrete schem
 ## Self-review
 
 All approved spec sections map to Tasks 1–12. Review Focus cases map respectively to Tasks 1/3/11, 2/7/9, 6, 6/7 and 1/4. Shared permission/context names are consistent across both transports. OAuth implementation remains dependent on hosted proof; no unsupported token-binding mechanism is silently assumed. Existing dirty files are excluded from commits. This is one cohesive project with separately shippable concerns, not a single quota-heavy branch push sequence.
+
+
+2026-11-08 approved clarification: private user-uploaded binder artwork also moves to a separate private R2 bucket. Share the owner-authorized signed-upload/download service across UI, REST and MCP. Copy and hash-verify existing Supabase artwork before cutover; retain source objects for rollback. No upstream or Supabase image-serving fallback. See docs/public-api/private-artwork.md.

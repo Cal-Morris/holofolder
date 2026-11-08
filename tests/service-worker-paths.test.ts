@@ -47,3 +47,25 @@ test("offline shell downloads lazy screens referenced by its scripts", async () 
   await runInContext('precacheLazyChunks(cache, ["/app/_next/static/chunks/main.js"])', context)
   assert.equal(await entries.get("/app/_next/static/chunks/lazy-screen.js")?.text(), "synthetic lazy screen")
 })
+
+test('developer data never enters the image cache or offline navigation shell',()=>{
+ const {listeners}=worker()
+ for(const path of ['/app/api/v1/cards/synthetic.png','/app/api/developer/keys','/app/mcp','/app/oauth/consent','/api/v1/cards/synthetic.png']) {
+  let intercepted=false
+  listeners.get('fetch')!({request:{method:'GET',mode:'cors',destination:'image',url:`https://holofolder.com${path}`},respondWith:(response:Promise<unknown>)=>{intercepted=true;void response.catch(()=>{})}})
+  assert.equal(intercepted,false,path)
+ }
+})
+test('offline consent and docs cannot fall back to a private binder',async()=>{
+ const {context}=worker();context.fetch=async()=>{throw new Error('synthetic offline')};context.caches={open:async()=>({match:async()=> 'private binder'})}
+ for(const path of ['/app/oauth/consent','/app/docs','/app/mcp']) await assert.rejects(runInContext(`handleNavigation({request:{url:${JSON.stringify(`https://holofolder.com${path}`)}}})`,context),/synthetic offline/)
+})
+
+test('private artwork and signed object URLs never enter shared worker caches', () => {
+ const {listeners}=worker()
+ for(const url of ['https://holofolder.com/app/api/binder-appearance/artwork?id=synthetic','https://account.r2.cloudflarestorage.com/private/owner/object?X-Amz-Signature=synthetic']) {
+  let intercepted=false
+  listeners.get('fetch')!({request:{method:'GET',mode:'cors',destination:'image',url},respondWith:(response:Promise<unknown>)=>{intercepted=true;void response.catch(()=>{})}})
+  assert.equal(intercepted,false,url)
+ }
+})

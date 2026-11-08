@@ -6,7 +6,7 @@ const { mock } = await import("bun:test")
 let collectionOwner: string | null = null
 let userId: string | null = "00000000-0000-4000-8000-000000000001"
 mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) } }) }))
-mock.module("../../lib/supabase/session-user", () => ({ getSessionUser: async () => userId ? { id: userId } : null }))
+mock.module("../../lib/supabase/session-user", () => ({ getFirstPartyUser: async (client: {auth:{getUser:()=>Promise<unknown>}}) => client.auth.getUser(), getSessionUser: async () => userId ? { id: userId } : null }))
 mock.module("../../lib/server/collection-owner", () => ({ resolveCollectionOwnerUserId: async (_client: unknown, id: string) => collectionOwner ?? id }))
 mock.module("../../lib/server/billing", () => ({ requirePaidAccess: async () => {}, billingErrorResponse: () => new Response(null, { status: 402 }) }))
 let schemaReady = true

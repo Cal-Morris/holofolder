@@ -1,3 +1,4 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session-user'
 import { normalizeUsername } from '@/lib/account-identity'
@@ -19,7 +20,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const client = await createClient()
-    const { data: { user }, error: authError } = await client.auth.getUser()
+    const { data: { user }, error: authError } = await getFirstPartyUser(client)
     if (authError || !user) return Response.json({ error: 'Sign in to set your username.' }, { status: 401, headers })
     const body = await request.json().catch(() => null)
     const username = normalizeUsername(body?.username)

@@ -64,11 +64,11 @@ test("migration protects artwork and prevents direct writes bypassing validation
 test("uploaded bytes are validated instead of trusting the declared image MIME", async () => {
   let blob = new Blob(["Synthetic invalid artwork"], { type: "image/png" })
   const admin = { storage: { from: () => ({ download: async () => ({ data: blob, error: null }) }) } } as unknown as ReturnType<typeof createAdminClient>
-  await assert.rejects(loadBinderArtwork(admin, "owner", upload), /could not be opened/)
+  await assert.rejects(loadBinderArtwork(admin, "owner", upload, { read: async () => Buffer.from(await blob.arrayBuffer()) } as never), /could not be opened/)
   const { default: sharp } = await import("sharp")
   const synthetic = await sharp({ create: { width: 2, height: 2, channels: 3, background: "#fff" } }).png().toBuffer()
   blob = new Blob([new Uint8Array(synthetic)], { type: "image/jpeg" })
-  const validated = await loadBinderArtwork(admin, "owner", upload)
+  const validated = await loadBinderArtwork(admin, "owner", upload, { read: async () => Buffer.from(await blob.arrayBuffer()) } as never)
   assert.equal(validated.contentType, "image/png")
   assert.deepEqual(validated.bytes, synthetic)
 })

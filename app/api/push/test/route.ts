@@ -1,3 +1,4 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -6,7 +7,7 @@ import { pushConfigured } from '@/lib/server/partner-push'
 const headers = { 'cache-control': 'private, no-store' }
 
 export async function POST(request: Request) {
-  const { data: { user } } = await (await createClient()).auth.getUser()
+  const { data: { user } } = await getFirstPartyUser(await createClient())
   if (!user) return Response.json({ error: 'Sign in to test notifications.' }, { status: 401, headers })
   if (!pushConfigured()) return Response.json({ error: 'Partner notifications are not available yet.' }, { status: 503, headers })
   const raw = await request.text()

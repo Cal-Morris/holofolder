@@ -1,3 +1,4 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import { requirePaidAccess, billingErrorResponse } from "@/lib/server/billing"
 import { isBillingError } from "@/lib/billing"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
@@ -14,7 +15,7 @@ async function handle(request: Request, refresh: boolean) {
     const url = new URL(request.url)
     if (refresh) requireAppearanceOrigin(request)
     const client = await createClient()
-    const user = refresh ? (await client.auth.getUser()).data.user : await getSessionUser(client)
+    const user = refresh ? (await getFirstPartyUser(client)).data.user : await getSessionUser(client)
     if (!user) return Response.json({ error: "Sign in to check prices." }, { status: 401, headers })
     await requirePaidAccess(await resolveCollectionOwnerUserId(client, user.id))
     if (!refresh && url.searchParams.has("cards")) {

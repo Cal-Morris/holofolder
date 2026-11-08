@@ -59,3 +59,9 @@ test("public share responses disable browser and CDN storage without loading the
     assert.equal(response.cookies.getAll().length, 0)
   }
 })
+
+test('bearer APIs, MCP metadata and docs skip browser session refresh',()=>{
+ for(const path of ['/api/v1/cards','/mcp','/.well-known/oauth-protected-resource','/docs','/docs/api-keys']) assert.equal(runsProxy(path),false,path)
+ assert.equal(runsProxy('/api/developer/keys'),true)
+ assert.equal(runsProxy('/oauth/consent'),true)
+})

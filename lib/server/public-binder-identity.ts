@@ -1,3 +1,4 @@
+import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -13,7 +14,7 @@ export const identityJson = (body: unknown, status = 200) => Response.json(body,
 
 export async function identitySession(write = false) {
   const client = await createClient()
-  const user = write ? (await client.auth.getUser()).data.user : await getSessionUser(client)
+  const user = write ? (await getFirstPartyUser(client)).data.user : await getSessionUser(client)
   if (!user) throw new IdentityError("Sign in to manage your public address.", 401)
   return { client, user }
 }

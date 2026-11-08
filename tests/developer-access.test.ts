@@ -27,3 +27,9 @@ describe('developer access', () => {
     for (const value of ['', 'hf_', 'hf_bad.secret', a.key+'extra', 'x'.repeat(10000)]) assert.equal(parseDeveloperKey(value), null)
   })
 })
+
+test('key inputs bound names, expiry and permissions', async () => {
+ const { normalizeKeyInput }=await import('@/lib/developer-api/keys')
+ assert.deepEqual(normalizeKeyInput({name:'  Synthetic script  '}),{name:'Synthetic script',expiryDays:90,permissions:['catalog:read','prices:read','binders:read','collection:read','settings:read']})
+ for(const input of [{name:''},{name:'x'.repeat(61)},{name:'ok',expiryDays:0},{name:'ok',permissions:['admin:all']}]) assert.throws(()=>normalizeKeyInput(input))
+})

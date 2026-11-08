@@ -1,0 +1,40 @@
+---
+title: API conventions
+description: Permissions, pagination, errors and image availability.
+---
+
+## Pagination
+
+List and search operations use bounded pages with a maximum of 100 records. Follow the returned cursor for the next page. A page is not the entire dataset, and a cursor belongs to the query that created it.
+
+## Limits
+
+The initial budget is 60 reads and 20 writes per minute per account, shared across its credentials. Provider refreshes and long-running comparisons have their own stricter limits. A `429` response includes `Retry-After`.
+
+## Errors
+
+| Status | Meaning |
+| --- | --- |
+| 401 | Invalid, expired or revoked credential |
+| 402 | Premium or lifetime access required |
+| 403 | Required permission missing |
+| 404 | Record unavailable to this account |
+| 409 | Conflict or confirmation required |
+| 413 | Request body too large |
+| 422 | This operation is unsupported for the requested data |
+| 429 | Rate limit reached |
+| 503 | A required service is unavailable |
+
+Errors include a stable code, a message and a request ID. Private responses are not cacheable.
+
+## Images and prices
+
+Image fields refer only to verified R2 objects. Missing images remain missing; the API does not fall back to another image host. Public CDN image links can still be accessed by someone who already has the URL.
+
+Prices include available source, currency, confidence and freshness evidence. Missing amounts and uncertain prices are not invented. Price signals require medium or high confidence.
+
+Private uploaded binder artwork lives in a separate private R2 bucket. Upload preparation returns a five-minute signed PUT URL, required headers and an `artworkRef` for the appearance design. Upload the exact declared bytes, then save the appearance revision. Downloads use five-minute signed GET URLs.
+
+## Safe writes
+
+Collection updates must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation and comparison jobs require an `Idempotency-Key`; collection edits require a `baseFingerprint` from the previous read. Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.

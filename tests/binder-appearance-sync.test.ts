@@ -39,3 +39,24 @@ describe("appearance sync", () => {
     finally { globalThis.fetch = original }
   })
 })
+
+test('artwork sync uploads directly to private R2 without sending session cookies', async () => {
+  const design = defaultBinderDesign()
+  const id = 'upload:9ade73fb-d75e-4174-86a1-9e4769b85f30'
+  design.surfaces.cover.artwork = id
+  const original = globalThis.fetch
+  const calls: Array<{url: string; init?: RequestInit}> = []
+  globalThis.fetch = (async (url, init) => {
+    calls.push({url: String(url), init})
+    if (String(url).endsWith('/upload')) return Response.json({ signedUploadUrl: 'https://synthetic.r2.cloudflarestorage.com/private/object?signature=synthetic', method: 'PUT', headers: {'Content-Type':'image/png','If-None-Match':'*'} })
+    if (String(url).startsWith('https://synthetic.r2.')) return new Response(null, {status:200})
+    return Response.json({ownerId:owner, design, revision:1})
+  }) as typeof fetch
+  try {
+    await syncBinderAppearance(owner,{design,uploads:{[id]:new Blob(['synthetic'],{type:'image/png'})},revision:0,pending:true})
+    assert.equal(calls.length,3)
+    assert.equal(calls[1].init?.method,'PUT')
+    assert.equal(calls[1].init?.credentials,'omit')
+    assert.deepEqual(calls[1].init?.headers, {'Content-Type':'image/png','If-None-Match':'*'})
+  } finally {globalThis.fetch=original}
+})

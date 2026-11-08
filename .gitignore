@@ -8,6 +8,9 @@ node_modules
 .worktrees/
 .next/
 app/.well-known/
+!app/.well-known/
+app/.well-known/*
+!app/.well-known/oauth-protected-resource/
 .cache/
 .swc/
 .pnp.*
@@ -27,3 +30,6 @@ tsconfig.tsbuildinfo
 # Private scanner reports and browser/session diagnostics
 gitleaks-report.*
 *.har
+
+# Generated Fumadocs content
+.source/

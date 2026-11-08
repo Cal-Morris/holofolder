@@ -67,7 +67,7 @@ async function run() {
   const { mock } = await import("bun:test")
   mock.module("next/cache", () => ({ cacheLife: () => {} }))
   mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ from: () => ({ select() { return this }, or() { return this }, limit() { return this }, maybeSingle: async () => ({ data: null, error: null }) }), auth: { getUser: async () => ({ data: { user: { id: "synthetic" } } }) } }) }))
-  mock.module("../../lib/supabase/session-user", () => ({ getSessionUser: async () => ({ id: "synthetic" }) }))
+  mock.module("../../lib/supabase/session-user", () => ({ getFirstPartyUser: async (client: {auth:{getUser:()=>Promise<unknown>}}) => client.auth.getUser(), getSessionUser: async () => ({ id: "synthetic" }) }))
   const routes = await import("../../app/api/card-price-checks/route")
   const legacy = await import("../../app/api/ebay/listings/route")
   const request = (cardId: string, finish = "holo") => new Request(`https://synthetic.test/app/api/card-price-checks?${new URLSearchParams({ cardId, finish })}`)
