@@ -142,7 +142,7 @@ See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKI
   - merge one PR at a time
 - **Keep merging when Vercel explicitly reports "Deployment rate limited" or an exhausted account build/deployment quota.** Verify the check details, run `bun run test`, `bun run typecheck`, `bun run lint` and `bun run build` on the current PR head (no full e2e required), and require every other required check and review to pass. Record the quota failure and local validation in the PR, then merge without waiting for the reset or pushing retry commits.
 - A quota-blocked merge is **merged, deployment pending**. After the limit resets, deploy the latest `main` and verify its production deployment; don't redeploy an older PR head.
-- GitHub Actions runs the full-repo **Typecheck** workflow in parallel with Vercel, which skips duplicate type-checking. Don't add other workflows unless the owner asks.
+- GitHub Actions runs unit tests, the lint warning ratchet and full-repo typechecking in the existing **Typecheck** workflow, in parallel with Vercel, which skips duplicate type-checking. Don't add other workflows unless the owner asks.
 
 See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md).
 

@@ -53,20 +53,28 @@ describe("install icon exports", () => {
   })
 
   test("logo and appearance SVGs embed the canonical framed card without external requests", async () => {
+    const master = await sharp("assets/brand/holo-card-master.png").trim().resize(512, 512, { fit: "inside" })
+      .flatten({ background: "#07070a" }).raw().toBuffer({ resolveWithObject: true })
+    let canonical: Buffer | undefined
     for (const name of ["mark", "icon", "light", "dark", "glass", "maskable", "monochrome"]) {
       const data = await fs.readFile(path.join(root, `holo-cards-${name}.svg`))
       assert.doesNotMatch(data.toString(), /https?:\/\/(?!www\.w3\.org)/)
       if (name !== "monochrome") {
         const encoded = data.toString().match(/data:image\/png;base64,([^"\s]+)/)?.[1]
         assert.ok(encoded, name)
-        const master = await sharp("assets/brand/holo-card-master.png").trim().png().toBuffer()
-        const canonical = await sharp(master).resize(512, 512, { fit: "inside" }).png({ palette: true, effort: 10 }).toBuffer()
-        // Encoder metadata can change across native-library security upgrades.
-        const embedded = await sharp(Buffer.from(encoded, "base64")).raw().toBuffer({ resolveWithObject: true })
-        const expected = await sharp(canonical).raw().toBuffer({ resolveWithObject: true })
-        assert.equal(embedded.info.width, expected.info.width)
-        assert.equal(embedded.info.height, expected.info.height)
-        assert.deepEqual(embedded.data, expected.data)
+        const png = Buffer.from(encoded, "base64")
+        canonical ??= png
+        assert.ok(png.equals(canonical), `${name} embeds the same artwork as mark`)
+        const embedded = await sharp(png).flatten({ background: "#07070a" }).raw().toBuffer({ resolveWithObject: true })
+        assert.equal(embedded.info.width, master.info.width)
+        assert.equal(embedded.info.height, master.info.height)
+        assert.equal(embedded.info.channels, master.info.channels)
+        // Palette quantization varies across native platforms. Compare visible RGB
+        // against the unquantized master (measured RMSE 2.15 on a 0–255 scale).
+        let squaredError = 0
+        for (let i = 0; i < embedded.data.length; i++) squaredError += (embedded.data[i] - master.data[i]) ** 2
+        const rmse = Math.sqrt(squaredError / embedded.data.length)
+        assert.ok(rmse < 3, `${name} differs from the master: RGB RMSE ${rmse}`)
       }
       for (const size of [32, 1024]) {
         const { info } = await sharp(data).resize(size, size).png().toBuffer({ resolveWithObject: true })
