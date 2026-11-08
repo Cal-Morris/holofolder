@@ -1,3 +1,4 @@
+import { getClassicCollectionPrinting } from "@/lib/classic-collection-printing"
 import { cacheLife } from "next/cache"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { readCatalogMetadata } from "@/lib/card-catalog"
@@ -60,9 +61,10 @@ export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjec
   // TCGcsv group 24451 maps to TCGdex mep (card-catalog-supplement.ts). Its market name
   // is "ME: Mega Evolution Promo", abbreviation MEP. Do not require the verbose set label
   // in a stamped-card search; title matching still verifies the set independently.
-  const setAliases = card.set_id === "mep" && set.name_en === "MEP Black Star Promos" ? ["Mega Evolution Promo", "Mega Evolution Promos"] : []
-  const query = priceCheckSearchQuery(name, localId, set.name_en, printing ? catalog.printingLabel : undefined).slice(0, 100)
-  const subject: PriceSubject = { cardId, name, localId, setId: card.set_id, setName: set.name_en, officialCardCount: set.official_card_count, language: "en", variant, printing, setAliases, unambiguousPrintingFinish }
+  const classic = card.set_id === "30th-c" ? getClassicCollectionPrinting(cardId) : null
+  const setAliases = classic?.setAliases ?? (card.set_id === "mep" && set.name_en === "MEP Black Star Promos" ? ["Mega Evolution Promo", "Mega Evolution Promos"] : [])
+  const query = priceCheckSearchQuery(name, classic?.number ?? localId, classic?.setName ?? set.name_en, printing ? catalog.printingLabel : undefined).slice(0, 100)
+  const subject: PriceSubject = { cardId, name, localId: classic?.localId ?? localId, setId: card.set_id, setName: classic?.setName ?? set.name_en, officialCardCount: classic?.officialCardCount ?? set.official_card_count, language: "en", variant, printing, setAliases, unambiguousPrintingFinish }
   return { subject, query }
 }
 

@@ -12,6 +12,7 @@ import { formatGbpAmount } from "@/lib/price-format"
 import { type CardPriceChecks, type CardPriceCheck, type PriceCheckSource } from "@/lib/card-price-checks"
 import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
 import { readDealThresholds, type DealThresholds } from "@/lib/deal-check"
+import { getClassicCollectionPrinting } from "@/lib/classic-collection-printing"
 import { cardListingSearchQuery, ebayOpenListingsUrl, ebaySoldListingsUrl, type ListingSearchCard } from "@/lib/ebay-search-urls"
 import type { CardFinish } from "@/lib/domain/cards"
 
@@ -45,8 +46,9 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   if (language !== "en" || finish === "jumbo") return null
   const exactFinish = finish && ["normal", "holo", "reverse_holo"].includes(finish) ? finish : "any"
   const query = cardListingSearchQuery({ cardId, ...searchCard }, finish)
-  const openUrl = result?.ebay?.searchUrl ?? ebayOpenListingsUrl(query)
-  const soldUrl = result?.soldcomps?.searchUrl ?? ebaySoldListingsUrl(query)
+  const useSavedLinks = !getClassicCollectionPrinting(cardId)
+  const openUrl = (useSavedLinks && result?.ebay?.searchUrl) || ebayOpenListingsUrl(query)
+  const soldUrl = (useSavedLinks && result?.soldcomps?.searchUrl) || ebaySoldListingsUrl(query)
   const loading = pending.ebay || pending.soldcomps
   const guide = buildSoldPriceGuide(result?.soldcomps, catalogMarketGbp, finish, givenThresholds ?? savedThresholds)
 
