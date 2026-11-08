@@ -1,3 +1,4 @@
+import {requiresPriceCheckUi} from '@/lib/developer-api/price-check-policy'
 import {readDeveloperIdentity,updateDeveloperIdentity,developerBinderIdentity,developerSharing,developerAppearance,developerArtwork} from './management'
 import {readDeveloperPartners,changeDeveloperPartner} from './partners'
 import {listDeveloperPurchases,addDeveloperPurchase,removeDeveloperPurchase} from './show-purchases'
@@ -66,6 +67,7 @@ function sliceEntries<T>(entries:T[],input:Record<string,unknown>,key:(entry:T)=
  return paginateEntries(entries,paramsOf(input),key)
 }
 export async function executeDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
+ if(requiresPriceCheckUi(name,input))throw new DeveloperAccessError('ui_only','Start sold-comps checks in the Holo Folder app. Saved comparisons remain available through the API.',403)
  const params=paramsOf(input),identity={id:context.principal.actorId}
  switch(name) {
   case 'list_cards': return listCatalogCards(params.toString())

@@ -134,12 +134,20 @@ async function main() {
   await read('check_deal',{cardId:'base1-1',language:'en',askingPrice:50,currency:'GBP'})
   await read('get_price_checks',{id:'base1-1',finish:'holo'})
   await read('inspect_comparison_job',{cards:comparisonCards})
-  const job=record((await call('start_comparison_job',{cards:comparisonCards,confirmed:true,idempotencyKey:runId})).job)
-  activeJob=String(job.id)
-  await read('get_comparison_job',{id:job.id})
-  await call('cancel_comparison_job',{id:job.id});activeJob=null
+  const deniedJob=await call('start_comparison_job',{cards:comparisonCards,confirmed:true,idempotencyKey:runId},owner,0,'default',403)
+  assert.equal(record(deniedJob.error).code,'ui_only')
+  // Seed an inert job to verify read/cancel without starting any paid background work.
+  const jobId=randomUUID()
+  await db.query("INSERT INTO public.comparison_jobs(id,owner_user_id,scope_key,targets,progress) VALUES($1,$2,$3,$4,$5)",[jobId,owner.id,runId,JSON.stringify(comparisonCards),JSON.stringify({done:0,total:1,fresh:0,checked:0,failed:0,stopped:{}})])
+  activeJob=jobId
+  await read('get_comparison_job',{id:jobId})
+  await call('cancel_comparison_job',{id:jobId});activeJob=null
   await call('refresh_prices',{cards})
   await call('refresh_price_checks',{id:'base1-1',finish:'holo',source:'ebay'})
+  for(const input of [{source:'soldcomps'},{}]) {
+   const denied=await call('refresh_price_checks',{id:'base1-1',finish:'holo',...input},owner,0,'soldcomps-ui-only',403)
+   assert.equal(record(denied.error).code,'ui_only')
+  }
   await call('get_listings',{id:'base1-1',finish:'holo'})
   const rejected=await call('invite_partner',{email:partner.email})
   await read('list_partners')

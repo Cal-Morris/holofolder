@@ -128,7 +128,9 @@ async function run() {
   assert.equal(checked?.ebay?.summary.count, 2)
   assert.deepEqual((await loadCardPriceChecks(id, "holo", true, "ebay"))?.ebay, checked?.ebay)
   assert.equal(calls, 1)
-  assert.equal((await loadCardPriceChecks(id, "holo", true, "soldcomps"))?.soldcomps?.summary.count, 1)
+  const uiSold=await routes.POST(new Request(`${request(id).url}&source=soldcomps`,{method:"POST"}))
+  assert.equal(uiSold.status,200,"the signed-in app may still initiate sold checks")
+  assert.equal((await uiSold.json()).soldcomps.summary.count,1)
   assert.equal(soldCalls, 1)
   // Existing zero samples remain fresh for 30 hours; deploying a matcher fix spends no allowance.
   saved["eq.ebay"] = { summary: { kind: "asking", currency: "GBP", count: 0, median: null, low: null, high: null }, checkedAt: new Date().toISOString(), listings: [] }
