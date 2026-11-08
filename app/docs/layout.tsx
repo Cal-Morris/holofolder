@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { Metadata } from 'next'
-import { ArrowUpRight, Bot, Layers3 } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowUpRight, Bot } from 'lucide-react'
 import { DocsLayout } from 'fumadocs-ui/layouts/docs'
 import { DocsLink, DocsProvider } from '@/components/docs/provider'
 import { docsSource } from '@/lib/docs-source'
@@ -16,7 +17,7 @@ export default async function DocumentationLayout({ children }: { children: Reac
   return <div className="holo-docs"><DocsProvider>
     <DocsLayout tree={source.pageTree} tabs={false}
       containerProps={{ style: { '--fd-docs-row-1': 'calc(env(safe-area-inset-top, 0px) + var(--fd-banner-height, 0px))' } as CSSProperties }} themeSwitch={{ enabled: false }}
-      nav={{ title: <span className="docs-brand"><span className="docs-brand-icon"><Layers3 size={19} /></span><span>Holo Folder <span className="docs-brand-label">Developers</span></span></span>, url: '/docs' }}
+      nav={{ title: <span className="docs-brand"><Image className="docs-brand-icon" src="/app/holofolder-mark.png" alt="" width={32} height={32} unoptimized /><span>Holo Folder <span className="docs-brand-label">Developers</span></span></span>, url: '/docs' }}
       links={[
         { text: 'AI & agents', url: '/docs/mcp' },
         { text: 'API explorer', url: '/docs/reference' },

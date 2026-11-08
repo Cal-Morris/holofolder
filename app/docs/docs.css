@@ -1,4 +1,13 @@
-/* Fumadocs' Tailwind plugins must run in globals.css, alongside @import tailwindcss. */
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumadocs-openapi/css/preset.css";
+
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+}
 body:has(.holo-docs) {
   --color-fd-background: #07070a;
   --color-fd-foreground: #f4f3f8;
@@ -41,7 +50,7 @@ body:has(.holo-docs) {
 .holo-docs .prose th { color: #f4f3f8; }
 .holo-docs .prose td { vertical-align: top; }
 .docs-brand { display: inline-flex; align-items: center; gap: 11px; font-size: 15px; font-weight: 650; letter-spacing: -.025em; }
-.docs-brand-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #b9a6ff40; border-radius: 10px; color: #ddd1ff; background: linear-gradient(135deg, #ff9ad522, #b9a6ff18 45%, #7fe7ff16); }
+.docs-brand-icon { width: 32px; height: 32px; object-fit: contain; }
 .docs-brand-label { margin-left: 9px; font-size: 12px; color: #a3a0b1; font-weight: 450; letter-spacing: 0; }
 .docs-agent-link { display: flex; align-items: center; gap: 11px; min-height: 76px; padding: 14px 12px; margin: 4px 0 12px; border: 1px solid #b9a6ff25; border-radius: 12px; background: linear-gradient(120deg, #b9a6ff0e, #7fe7ff05); color: #c9baff; }
 .docs-agent-link > span { display: grid; gap: 5px; flex: 1; }
