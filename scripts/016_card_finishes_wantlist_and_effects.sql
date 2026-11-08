@@ -34,7 +34,7 @@ SET wanted_cards = jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
   'card_set', card_set,
   'card_language', card_language,
   'card_finish', card_finish,
-  'added_at', COALESCE(collected_at, now()::text)
+  'added_at', COALESCE(collected_at::text, now()::text)
 )))
 WHERE status = 'wishlisted'
   AND card_id IS NOT NULL

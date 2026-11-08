@@ -36,5 +36,5 @@ DROP INDEX CONCURRENTLY IF EXISTS public.idx_tcg_cards_set_id;
 DROP INDEX CONCURRENTLY IF EXISTS public.idx_tcg_cards_name_en;
 
 -- Foreign keys without a covering index (advisor: unindexed_foreign_keys).
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tcgdex_cache_jobs_requested_by ON public.tcgdex_cache_jobs(requested_by);
+-- The optional legacy cache-job index is in legacy/034_tcgdex_cache_jobs_index.sql.
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_card_price_observations_run_id ON public.card_price_observations(run_id);

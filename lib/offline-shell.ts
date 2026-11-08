@@ -95,8 +95,13 @@ export function readOfflineBinderBoot(
     ? readOfflineShellState(storage, cookie, userId, collectionSnapshotKey(binder.id, binder.isDefault))
     : base
   const snapshotMatches = binder ? storedSnapshotIsOf(storage, binder) : false
+  const binderSettings = binder ? readJson(storage, `pokemon_binder_settings:${state.collectionOwnerUserId ?? device!.ownerUserId}:binder:${binder.id}`) : null
+  const settings = binder ? normalizeBinderSettings(binderSettings as StoredBinderSettings, {
+    ...state.settings, binderRows: binder.rows ?? state.settings.binderRows, binderCols: binder.cols ?? state.settings.binderCols,
+  }) : state.settings
   return {
     ...state,
+    settings,
     // Never show another binder's slots: a binder without a usable copy opens empty.
     collection: snapshotMatches ? state.collection : [],
     collectionOwnerUserId: state.collectionOwnerUserId ?? device!.ownerUserId,

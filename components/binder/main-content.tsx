@@ -366,8 +366,9 @@ export function renderMainContentView(ctx: MainContentContext) {
             </div>
           )}
 
+          {(settings.binderRows > 4 || settings.binderCols > 4) && <p className="shrink-0 text-center text-xs text-muted-foreground">Scroll inside the page to see every pocket. Use the arrows to turn pages.</p>}
           {/* Binder Grid */}
-          <div ref={setBinderStageRef} className="relative flex min-h-0 flex-1 touch-pan-y items-center justify-center overflow-hidden overscroll-x-contain">
+          <div ref={setBinderStageRef} className={`relative flex min-h-0 flex-1 ${settings.binderRows > 4 || settings.binderCols > 4 ? "touch-auto" : "touch-pan-y"} items-center justify-center overflow-hidden overscroll-x-contain`}>
             {pendingBinderPage !== null && (
               <div role="status" aria-label="Page loading" className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
                 <div className="holo-loading flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1 text-sm shadow-lg">

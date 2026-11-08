@@ -1,4 +1,4 @@
-// Defaults to read-only. --apply creates only Holo Folder resources on Syncaura.
+// Defaults to read-only. --apply creates only Holo Folder resources in the explicitly configured account.
 import Stripe from 'stripe'
 import { writeFile } from 'node:fs/promises'
 import { BILLING_PRICES } from '../lib/billing'
@@ -6,9 +6,13 @@ import { BILLING_PRICES } from '../lib/billing'
 async function main() {
   const apply = process.argv.includes('--apply')
   if (apply && !process.env.STRIPE_CONFIG_OUTPUT) throw new Error('Set STRIPE_CONFIG_OUTPUT to a new private output file before applying')
+  const accountId = process.env.STRIPE_SETUP_ACCOUNT_ID
+  const url = process.env.STRIPE_SETUP_WEBHOOK_URL
+  if (!accountId || !url) throw new Error('Set STRIPE_SETUP_ACCOUNT_ID and STRIPE_SETUP_WEBHOOK_URL before Stripe setup')
+  if (new URL(url).protocol !== 'https:') throw new Error('Stripe setup requires an HTTPS webhook URL')
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '')
-  const account = await stripe.accounts.retrieve('acct_1AHHDjGnHtZtNtvx')
-  if (account.id !== 'acct_1AHHDjGnHtZtNtvx') throw new Error('Expected the connected Syncaura account; no resources changed')
+  const account = await stripe.accounts.retrieve(null)
+  if (account.id !== accountId) throw new Error('Stripe key does not match STRIPE_SETUP_ACCOUNT_ID; no resources changed')
   const products = await stripe.products.list({ limit:100 })
   let product = products.data.find(p => p.metadata.app === 'holofolder' && p.active)
   console.log(JSON.stringify({ account:account.id, apply, product:product?.id ?? 'missing' }))
@@ -24,7 +28,6 @@ async function main() {
   let portal = (await stripe.billingPortal.configurations.list({ limit:100 })).data.find(p=>p.metadata?.app==='holofolder' && p.active)
   if (!portal && apply) portal = await stripe.billingPortal.configurations.create({ metadata:{app:'holofolder'},business_profile:{headline:'Manage your Holo Folder subscription'},features:{customer_update:{enabled:true,allowed_updates:['email']},payment_method_update:{enabled:true},invoice_history:{enabled:true},subscription_cancel:{enabled:true,mode:'at_period_end'}} })
   config.STRIPE_PORTAL_CONFIGURATION_ID = portal?.id ?? 'missing'
-  const url = 'https://app.holofolder.com/app/api/billing/webhook'
   let webhook = (await stripe.webhookEndpoints.list({limit:100})).data.find(w=>w.url===url && w.metadata.app==='holofolder' && w.status==='enabled')
   if (!webhook && apply) {
     const created = await stripe.webhookEndpoints.create({ url,metadata:{app:'holofolder'},api_version:Stripe.API_VERSION,enabled_events:['invoice.paid','invoice.payment_failed','customer.subscription.created','customer.subscription.updated','customer.subscription.deleted','checkout.session.completed'] })

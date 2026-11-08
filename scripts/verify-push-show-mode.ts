@@ -13,7 +13,7 @@ async function main() {
   assert.ok(target.hostname.startsWith(`db.${project}.`) || target.username.includes(project), 'Database must match the configured Supabase project')
   target.searchParams.set('sslmode', 'no-verify')
   const db = new Client({ connectionString: target.toString(), connectionTimeoutMillis: 10_000 })
-  const migration = await readFile(new URL('./057_partner_push_show_mode.sql', import.meta.url), 'utf8')
+  const migration = await readFile(new URL('./058_partner_push_show_mode.sql', import.meta.url), 'utf8')
   try {
     await db.connect()
     const { rows: [schema] } = await db.query("select exists(select 1 from information_schema.columns where table_schema='public' and table_name='push_subscriptions' and column_name='show_mode_until') as applied")
@@ -46,7 +46,7 @@ async function main() {
       await db.query('commit')
       const { rows: [result] } = await db.query("select count(*)::int as count from public.push_subscriptions where show_mode_until is not null")
       assert.equal(result.count, 0, 'Existing devices default to off')
-      console.log('Applied migration 057; existing devices verified off')
+      console.log('Applied migration 058; existing devices verified off')
     }
   } finally {
     await db.query('rollback').catch(() => undefined)

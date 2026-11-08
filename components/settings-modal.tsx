@@ -1,8 +1,10 @@
 "use client"
 
+import { BinderLayoutSettings } from "@/components/binder-layout-settings"
 import { OverlayLink } from "@/components/overlay-link"
 import { CollectionImport, type CollectionImportProps } from "@/components/collection-import"
 import { BillingSettings } from "@/components/billing-settings"
+import { AccountPasskeys } from "@/components/account-passkeys"
 import { AccountIdentitySettings } from "@/components/account-identity-settings"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
 import { useEffect, useRef, useState } from "react"
@@ -20,14 +22,6 @@ import { BINDER_COLOR_PRESETS, type BinderColorId } from "@/lib/binder-colors"
 import { buildBinderShareUrl } from "@/lib/binder-share"
 import type { User } from "@supabase/supabase-js"
 
-const BINDER_SIZES = [
-  { rows: 1, cols: 1, label: "1x1" },
-  { rows: 2, cols: 2, label: "2x2" },
-  { rows: 3, cols: 3, label: "3x3" },
-  { rows: 3, cols: 4, label: "3x4" },
-  { rows: 4, cols: 3, label: "4x3" },
-  { rows: 4, cols: 4, label: "4x4" },
-]
 
 type SettingsTabId = "binder" | "display" | "share" | "account"
 
@@ -51,7 +45,7 @@ interface SettingsModalProps {
   onClose: () => void
   user: User | null
   settings: BinderSettings
-  onUpdateSettings: (settings: Partial<BinderSettings>) => void
+  onUpdateSettings: (settings: Partial<BinderSettings>) => void | Promise<void>
   currentBinderPage: number
   totalBinderPages: number
   currentPageBinderColorId: BinderColorId
@@ -173,7 +167,7 @@ export default function SettingsModal({
   if (!isOpen) return null
 
   const handleBinderSizeChange = (rows: number, cols: number) => {
-    onUpdateSettings({ binderRows: rows, binderCols: cols })
+    return onUpdateSettings({ binderRows: rows, binderCols: cols })
   }
 
   const hasPageColorOverride = appearance ? Boolean(appearance.pageColors[String(currentBinderPage)]) : Boolean(settings.binderPageColors[String(currentBinderPage)])
@@ -274,31 +268,7 @@ export default function SettingsModal({
               <Grid3X3 className="w-4 h-4 text-primary" />
               <h3 className="font-semibold">Binder layout</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {BINDER_SIZES.map((size) => {
-                const isSelected = settings.binderRows === size.rows && settings.binderCols === size.cols
-                return (
-                  <button
-                    key={size.label}
-                    onClick={() => handleBinderSizeChange(size.rows, size.cols)}
-                    disabled={isReadOnlyView}
-                    className={`relative px-3 py-3 rounded-2xl text-sm font-medium border-2 transition-colors ${
-                      isSelected
-                        ? "bg-primary/10 text-primary border-primary"
-                        : "bg-muted/50 border-border/50 hover:border-primary/50 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <span className="text-lg font-bold">{size.label}</span>
-                    <span className="block text-[10px] opacity-70">{size.rows * size.cols} slots</span>
-                  </button>
-                )
-              })}
-            </div>
-            {isReadOnlyView && (
-              <p className="text-xs text-muted-foreground text-center">
-                Shared binders keep the owner&apos;s saved layout.
-              </p>
-            )}
+            <BinderLayoutSettings rows={settings.binderRows} cols={settings.binderCols} readOnly={isReadOnlyView} onChange={handleBinderSizeChange} />
           </div>
           )}
 
@@ -624,6 +594,7 @@ export default function SettingsModal({
           )}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />}
+          {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />}
           {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (

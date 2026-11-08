@@ -5,6 +5,7 @@ import { useOverlay } from "@/hooks/use-overlay"
 import { X, Loader2, Mail, Sparkles, KeyRound } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from "@/lib/auth-redirects"
+import { PasskeySignIn } from "@/components/passkey-sign-in"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
@@ -227,6 +228,7 @@ export default function AuthModal({ isOpen, initialMode = "sign-in", onClose }: 
             </div>
           ) : (
             <div className="space-y-4">
+              {!isSignUp && <PasskeySignIn disabled={isLoading} onSuccess={closeAndReload} />}
               {error && (
                 <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-3 text-center text-sm text-destructive">
                   {error}

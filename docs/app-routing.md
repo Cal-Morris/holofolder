@@ -66,3 +66,15 @@ After the app route is deployed, add this Framer Site Settings → Hosting → M
 Keep the existing `/app` and `/app/*` rules. Framer rewrites the request while preserving the visible named URL. No DNS or Next basePath change is needed. The origin route `https://app.holofolder.com/app/u/cal/national` can be checked independently, but does not prove the Framer rewrite works. The exact literal-@ wildcard rule and hydration through it require a published-site check. Browser verification is currently paused at Cal's request, so this remains a rollout gate.
 
 Apply `scripts/045_named_binder_shares.sql`, `scripts/047_account_usernames.sql` and `scripts/048_named_share_account_identity.sql` in order before enabling named addresses. Account usernames use the existing 047 profile settings and canonical identity store; 048 preserves existing saved names while connecting binder sharing. These migrations have been applied and verified on the hosted project. If it is missing, the new controls report unavailable and token sharing still works. Named routes and token routes are read-only, noindex and request-time rendered. The service worker excludes both from private offline-shell fallback; `/@…` is outside the app scope. Open pages retain already downloaded cards, so revocation prevents new loads rather than erasing a visitor's existing copy.
+
+## Email signup confirmation across devices
+
+The hosted Supabase **Confirm sign up** email template uses this URL for every confirmation button and plain-text fallback:
+
+```html
+{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email
+```
+
+`RedirectTo` is the `/app/auth/callback` URL passed by both signup forms. The callback calls `verifyOtp`, so the email can be opened on a different device. Do not switch this template back to `ConfirmationURL`: with the SSR client's PKCE flow that verifies the email upstream, then redirects with a code whose exchange needs the original browser's verifier cookie.
+
+Applied to all three links in the production signup template on 8 November 2026. A fresh-session production request with a generated email token returned 307 to `/app` and set the session cookie without a verifier. Existing emails retain their original links; after an old cross-device code exchange fails, the email may already be confirmed, so password sign-in can succeed. New confirmations must use a newly requested email.

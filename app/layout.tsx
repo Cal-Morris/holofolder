@@ -71,7 +71,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: KEYBOARD_INSET_SCRIPT }} />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
-        <GoogleAnalyticsProvider enabled={process.env.VERCEL_ENV === "production"}>
+        <GoogleAnalyticsProvider enabled={process.env.VERCEL_ENV === "production"} gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}>
           <CollectorFunnelProvider enabled={process.env.VERCEL_ENV === "production" && process.env.HOLOFOLDER_FUNNEL_ENABLED === "true"}>{children}</CollectorFunnelProvider>
         </GoogleAnalyticsProvider>
         <Analytics scriptSrc="/app/_vercel/insights/script.js" endpoint="/app/_vercel/insights" />
