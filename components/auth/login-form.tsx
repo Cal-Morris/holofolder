@@ -1,6 +1,7 @@
 'use client'
 
 import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from '@/lib/auth-redirects'
+import { PasskeySignIn } from '@/components/passkey-sign-in'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useEffect, useState, useSyncExternalStore } from 'react'
@@ -308,6 +309,7 @@ export function LoginForm() {
           </div>
         ) : (
           <div className="space-y-4">
+            <PasskeySignIn disabled={isLoading} onSuccess={() => { router.push('/'); router.refresh() }} />
             {error && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center">
                 {error}
