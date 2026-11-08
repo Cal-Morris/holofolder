@@ -14,6 +14,7 @@ export function BinderValue({ collection, prices, loading, onOpen, onDismiss }: 
   onDismiss: () => void
 }) {
   const summary = useMemo(() => buildCollectionAnalytics(collection, prices), [collection, prices])
+  if (summary.assignedCards === 0) return null
   return <section aria-label="Binder value" className="holo-panel relative mb-2 shrink-0 rounded-2xl border border-border/60">
     <button type="button" aria-label="View binder value in Analytics" onClick={onOpen} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl py-2 pl-3 pr-14 text-left">
     <span className="min-w-0"><span className="block text-sm font-medium">Binder value <span className="ml-1 text-lg font-semibold tabular-nums">{summary.pricedCards ? new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(summary.valueGbp) : loading ? "Loading…" : "Unknown"}</span></span>

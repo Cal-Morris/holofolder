@@ -405,7 +405,7 @@ export const PokemonSlot = memo(function PokemonSlot({
           }`} />
         )}
 
-        <div className="absolute top-0.5 left-0.5 z-10 rounded bg-white/74 px-1 py-0.5 text-[7px] font-bold tabular-nums text-slate-600 sm:top-1 sm:left-1 sm:text-[8px] dark:bg-black/50 dark:text-white/70">
+        <div className="absolute top-0.5 left-0.5 z-10 hidden rounded bg-white/74 px-1 py-0.5 text-[7px] font-bold tabular-nums text-slate-600 sm:block sm:top-1 sm:left-1 sm:text-[8px] dark:bg-black/50 dark:text-white/70">
           {slotLabel}
         </div>
 
