@@ -45,7 +45,7 @@ export function matchesCollectionFingerprint(item: Partial<CollectedPokemon> | n
 }
 
 export type PendingEdit =
-  | { type: "upsert"; pokemonId: number; item: CollectedPokemon; base?: CollectedPokemon | null }
+  | { type: "upsert"; pokemonId: number; item: CollectedPokemon; base?: CollectedPokemon | null; importOnly?: true }
   | { type: "delete"; pokemonId: number; base?: CollectedPokemon | null }
 
 /** Re-apply queued edits on top of a collection loaded from the server or the page, so they never flash away. */
@@ -84,6 +84,7 @@ export function resolveConflict(edit: PendingEdit, serverItem: CollectedPokemon 
     return { action: "drop", serverItem }
   }
   if (!serverItem) {
+    if (edit.importOnly && base) return { action: "drop", serverItem: null }
     // Removed elsewhere while we edited it: our edit is the latest explicit intent, so it is re-created.
     return { action: "write", item: local, base: null }
   }
@@ -103,9 +104,10 @@ export function resolveConflict(edit: PendingEdit, serverItem: CollectedPokemon 
       mergedWanted.set(key, { ...remote, wanted_by: mergeWantedPeople(baseWanted.get(key)?.wanted_by, card.wanted_by, remote.wanted_by) })
     }
   }
-  for (const key of baseWanted.keys()) if (!localWanted.has(key)) mergedWanted.delete(key)
+  if (!edit.importOnly) for (const key of baseWanted.keys()) if (!localWanted.has(key)) mergedWanted.delete(key)
 
-  const owned = ownedChangedLocally ? local : serverItem
+  const keepRemoteOwned = edit.importOnly && serverItem.status !== "wishlisted"
+  const owned = ownedChangedLocally && !keepRemoteOwned ? local : serverItem
   const merged = normalizeCollectionItem({
     ...serverItem,
     pokemon_name: local.pokemon_name || serverItem.pokemon_name,
@@ -115,7 +117,7 @@ export function resolveConflict(edit: PendingEdit, serverItem: CollectedPokemon 
     card_set: owned.card_set,
     card_language: owned.card_language,
     card_finish: owned.card_finish,
-    status: statusChangedLocally ? local.status : serverItem.status,
+    status: statusChangedLocally && !keepRemoteOwned ? local.status : serverItem.status,
     wanted_cards: [...mergedWanted.values()],
   })
 

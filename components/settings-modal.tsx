@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { CollectionImport, type CollectionImportProps } from "@/components/collection-import"
 import { BillingSettings } from "@/components/billing-settings"
 import { AccountIdentitySettings } from "@/components/account-identity-settings"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
@@ -38,6 +39,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 interface SettingsModalProps {
+  collectionImport?: CollectionImportProps
   binderId?: string | null
   binderName?: string
   onPublicIdentityChange?: () => void
@@ -88,6 +90,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({
+  collectionImport,
   binderId,
   binderName,
   onPublicIdentityChange = () => {},
@@ -627,8 +630,9 @@ export default function SettingsModal({
                 <Download className="h-4 w-4" />
                 {isBackingUp ? "Preparing backup…" : "Download backup"}
               </Button>
-              <p className="text-xs text-muted-foreground">This binder’s owned cards, wanted cards and settings, including unsynced edits. Saves a JSON file. Import isn’t available yet.</p>
+              <p className="text-xs text-muted-foreground">This binder’s owned cards, wanted cards and settings, including unsynced edits. Saves a JSON file. Collection entries can be imported below.</p>
               {backupMessage && <p role="status" className="text-xs text-muted-foreground">{backupMessage}</p>}
+              {isOpen && collectionImport && <CollectionImport key={collectionImport.scopeKey} {...collectionImport} />}
             </div>
           )}
 

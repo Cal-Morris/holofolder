@@ -57,6 +57,17 @@ const pikachu: CollectedPokemon = {
   collected_at: "2026-10-01T00:00:00.000Z",
 }
 
+test("import conflict policy survives queue persistence, a later manual edit replaces it", () => {
+  withStorage(() => {
+    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: pikachu, base: null, importOnly: true })
+    const imported = readPendingCollectionOperations()[0]
+    assert.equal(imported.type === "upsert" && imported.importOnly, true)
+    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: { ...pikachu, status: "finalized" } })
+    const manual = readPendingCollectionOperations()[0]
+    assert.equal(manual.type === "upsert" && manual.importOnly, undefined)
+  })
+})
+
 test("without a window everything is a safe no-op", () => {
   assert.equal(readLocalCollectionSnapshot(), null)
   assert.deepEqual(readPendingCollectionOperations(), [])

@@ -611,7 +611,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
               }
               const binderField = editBinderId ? { binderId: editBinderId } : {}
               const merged: PendingCollectionOperation = resolution.action === "write"
-                ? { id: operation.id, type: "upsert", pokemonId: operation.pokemonId, item: resolution.item, base: resolution.base, acquisition: mergeQueuedAcquisition(resolution.base, resolution.item, undefined, operation.type === "upsert" ? operation.acquisition : undefined), queuedAt: operation.queuedAt, ...binderField }
+                ? { id: operation.id, type: "upsert", pokemonId: operation.pokemonId, item: resolution.item, base: resolution.base, ...(operation.type === "upsert" && operation.importOnly ? { importOnly: true as const } : {}), acquisition: mergeQueuedAcquisition(resolution.base, resolution.item, undefined, operation.type === "upsert" ? operation.acquisition : undefined), queuedAt: operation.queuedAt, ...binderField }
                 : { id: operation.id, type: "delete", pokemonId: operation.pokemonId, base: resolution.base, queuedAt: operation.queuedAt, ...binderField }
               replacePendingCollectionOperation(operation.id, merged)
               operation = merged
@@ -781,9 +781,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
    * older edit of the same Pokémon still queued, the edit is queued instead (and keeps per-Pokémon order).
    * A hard server rejection rolls the edit back; network/server failures and conflicts go to the queue.
    */
-  const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null, acquisition?: AcquisitionIntent, expected?: CollectedPokemon | null) => {
+  const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null, acquisition?: AcquisitionIntent, expected?: CollectedPokemon | null, importOnly = false) => {
     const current = collectionRef.current
     const existingItem = current.find((item) => item.pokemon_id === pokemonId) ?? null
+    if (importOnly && hasPendingCollectionOperation(pokemonId, binderId)) {
+      return { item: existingItem, queued: false as const, rolledBack: true as const, error: "This Pokémon has unsynced edits. Sync before importing." }
+    }
     if (expected !== undefined && collectionFingerprint(existingItem) !== collectionFingerprint(expected)) {
       return { item: existingItem, queued: false as const, rolledBack: true as const, error: "This card changed since the action. Check your binder before undoing." }
     }
@@ -801,7 +804,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const binderField = binderId ? { binderId } : {}
     const edit: PendingCollectionOperationInput = nextItem
-      ? { type: "upsert", pokemonId, item: nextItem, base: existingItem, acquisition, ...binderField }
+      ? { type: "upsert", pokemonId, item: nextItem, base: existingItem, acquisition, ...(importOnly ? { importOnly: true as const } : {}), ...binderField }
       : { type: "delete", pokemonId, base: existingItem, ...binderField }
 
     if (!user || !collectionOwnerUserId || isOffline() || hasPendingCollectionOperation(pokemonId, binderId)) {
@@ -913,9 +916,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [collection, commitItemChange, readOnly])
 
   /** Write a previously saved row back exactly as it was (used by undo). */
-  const restoreCollectionItem = useCallback(async (previous: CollectedPokemon, expected?: CollectedPokemon | null) => {
+  const restoreCollectionItem = useCallback(async (previous: CollectedPokemon, expected?: CollectedPokemon | null, options?: { importOnly: true }) => {
     if (readOnly) return { error: "Read-only binder" }
-    const result = await commitItemChange(previous.pokemon_id, previous, undefined, expected)
+    const result = await commitItemChange(previous.pokemon_id, previous, undefined, expected, options?.importOnly)
     if ("rolledBack" in result) {
       console.error("[holofolder] Error restoring collection item:", result.error)
       return { error: extractErrorMessage(result.error) }
