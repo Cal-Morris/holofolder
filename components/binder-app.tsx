@@ -430,7 +430,7 @@ export default function BinderApp({
     return () => { window.removeEventListener("holofolder-upgrade", upgrade); window.removeEventListener("holofolder-sign-in", signIn) }
   }, [requestUpgrade])
 
-  usePartnerPush(user?.id ?? null, !readOnlyMode)
+  usePartnerPush(user?.id ?? null, !readOnlyMode, isShowModeOn)
   const handleSignOut = useCallback(async () => {
     await clearPushDevice().catch(() => undefined)
     await signOut()

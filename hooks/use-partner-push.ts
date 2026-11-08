@@ -1,9 +1,28 @@
 'use client'
 
 import { useEffect } from 'react'
-import { reconcilePushAccount } from '@/lib/push-device-client'
+import { reconcilePushAccount, syncPushShowMode } from '@/lib/push-device-client'
 
-export function usePartnerPush(userId: string | null, enabled = true) {
+export function usePartnerPush(userId: string | null, enabled = true, showMode = false) {
+  useEffect(() => {
+    if (!enabled || !userId) return
+    const controller = new AbortController()
+    const sync = () => {
+      if (navigator.onLine) void syncPushShowMode(showMode, controller.signal).catch(() => undefined)
+    }
+    sync()
+    const refresh = () => { if (document.visibilityState === 'visible') sync() }
+    const timer = showMode ? window.setInterval(refresh, 60_000) : undefined
+    window.addEventListener('online', sync)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      controller.abort()
+      window.clearInterval(timer)
+      window.removeEventListener('online', sync)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [userId, enabled, showMode])
+
   useEffect(() => {
     if (!enabled) return
     let stopped = false

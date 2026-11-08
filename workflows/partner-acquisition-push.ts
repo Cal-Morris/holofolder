@@ -19,7 +19,8 @@ async function recipientDevices(eventId: string) {
   if (!event || Date.now() - Date.parse(event.created_at) > 24 * 60 * 60 * 1000) return [] as string[]
   const access = await getBillingAccess(event.owner_user_id)
   if (access.enforced && access.tier !== 'paid') return [] as string[]
-  const { data, error: deviceError } = await admin.from('push_subscriptions').select('id').eq('user_id', event.recipient_id)
+  const { data, error: deviceError } = await admin.from('push_subscriptions').select('id').eq('user_id', event.recipient_id).gt('show_mode_until', new Date().toISOString())
+  if (deviceError?.code === '42703') return [] as string[]
   if (deviceError) throw new Error('Could not read recipient devices')
   return (data ?? []).map(row => String(row.id))
 }
@@ -38,10 +39,10 @@ async function deliver(eventId: string, subscriptionId: string): Promise<'delive
   }
   const [{ data: event, error: eventError }, { data: subscription, error: subscriptionError }] = await Promise.all([
     admin.from('partner_acquisitions').select('actor_name,card_name,binder_id,pokemon_id,recipient_id,owner_user_id').eq('id', eventId).maybeSingle(),
-    admin.from('push_subscriptions').select('user_id,endpoint,p256dh,auth').eq('id', subscriptionId).maybeSingle(),
+    admin.from('push_subscriptions').select('user_id,endpoint,p256dh,auth,show_mode_until').eq('id', subscriptionId).maybeSingle(),
   ])
   if (eventError || subscriptionError) throw new Error('Could not read delivery details')
-  if (!event || !subscription || subscription.user_id !== event.recipient_id) return 'skipped'
+  if (!event || !subscription || subscription.user_id !== event.recipient_id || !(Date.parse(subscription.show_mode_until ?? '') > Date.now())) return 'skipped'
   const access = await getBillingAccess(event.owner_user_id)
   if (access.enforced && access.tier !== 'paid') return 'skipped'
   let status = 201

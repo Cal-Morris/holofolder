@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSessionUser } from '@/lib/supabase/session-user'
+import { SHOW_MODE_IDLE_MS } from '@/lib/show-mode'
 import { normalizePushSubscription } from '@/lib/partner-push'
 import { missingPushSchema, pushConfigured } from '@/lib/server/partner-push'
 
@@ -44,5 +45,19 @@ export async function DELETE(request: Request) {
   query = uuid(body.id) ? query.eq('id', body.id) : query.eq('endpoint', body.endpoint)
   const { error } = await query
   if (error && !missingPushSchema(error)) return Response.json({ error: 'Could not remove this device.' }, { status: 503, headers })
+  return new Response(null, { status: 204, headers })
+}
+
+export async function PATCH(request: Request) {
+  const { data: { user } } = await (await createClient()).auth.getUser()
+  if (!user) return Response.json({ error: 'Sign in to manage notifications.' }, { status: 401, headers })
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body.endpoint !== 'string' || !body.endpoint || body.endpoint.length > 2048 || typeof body.showMode !== 'boolean') {
+    return Response.json({ error: 'Invalid Show mode device.' }, { status: 400, headers })
+  }
+  const { error } = await createAdminClient().from('push_subscriptions')
+    .update({ show_mode_until: body.showMode ? new Date(Date.now() + SHOW_MODE_IDLE_MS).toISOString() : null })
+    .eq('user_id', user.id).eq('endpoint', body.endpoint)
+  if (error) return Response.json({ error: 'Could not update Show mode notifications.' }, { status: 503, headers })
   return new Response(null, { status: 204, headers })
 }
