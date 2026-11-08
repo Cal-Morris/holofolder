@@ -28,8 +28,9 @@ The database schema lives in `scripts/NNN_*.sql`. Follow [scripts/MIGRATIONS.md]
 | `bun run typecheck` | Generate Next.js route types, then check the full repository with the pinned Rust `tsrs` checker |
 | `bun run typecheck:tsc` | Run the TypeScript reference checker for diagnostic comparison |
 | `bun run test` | Unit tests (`tests/*.test.ts`, `node:test` style, run by Bun) |
-| `bun run test:e2e` | Playwright end-to-end suite (`e2e/*.e2e.ts`) at three phone sizes, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `HOLOFOLDER_E2E=1` and a mocked Supabase |
-| `bun run test:e2e:smoke` | Fast feedback: card browsing, Quick mode navigation and offline card lookup across all six phone projects. Run the full suite when explicitly requested |
+| `bun run test:e2e` | Playwright scenarios (`e2e/*.e2e.ts`) at 390×844, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `HOLOFOLDER_E2E=1` and a mocked Supabase |
+| `bun run test:e2e:matrix <spec>` | Run affected specs at 375, 390 and 430 px in browser and standalone mode. Required for UI changes |
+| `bun run test:e2e:smoke` | Fast feedback: card browsing, Quick mode navigation and offline card lookup in the two default phone projects. Run the full suite when explicitly requested |
 | `bun run test:e2e:install` | Installs Playwright's Chromium (or set `CHROME_PATH` to a local Chrome) |
 | `bun run sync-card-db` | Syncs the TCGdex card database into Postgres (needs `POSTGRES_URL_NON_POOLING`; `--dry-run` supported) |
 

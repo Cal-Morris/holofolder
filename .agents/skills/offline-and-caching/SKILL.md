@@ -49,4 +49,4 @@ description: Change holofolder offline behaviour, including the service worker (
    - `serviceWorkers: "allow"`, with context-level mocks
    - wait for the worker to control the page and the shell to be cached, then go offline
    - cover reload, a stalled server and a slow first visit
-4. Run only the affected offline specs across all 6 projects. Repeat a focused test only when a failure or suspected flakiness justifies it. Run the full e2e suite only when Cal explicitly asks.
+4. Run only the affected offline specs across all 6 projects with `bun run test:e2e:matrix e2e/<affected>.e2e.ts`. Repeat a focused test only when a failure or suspected flakiness justifies it. Run the full e2e suite only when Cal explicitly asks.
