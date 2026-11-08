@@ -1,8 +1,8 @@
 # Google Analytics
 
-The Next.js root layout loads `GoogleAnalytics` from `@next/third-parties/google` for **G-3Z12777BKD**, only when `VERCEL_ENV=production`. Local development and preview deployments do not load Google Analytics or emit custom events. No extra environment variables are needed.
+The Next.js root layout loads `GoogleAnalytics` from `@next/third-parties/google` for the explicitly configured `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID`, only when `VERCEL_ENV=production`. Local development and preview deployments do not load Google Analytics or emit custom events. Leave the ID unset to disable GA, including on production forks. Use your own property. The hosted Holo Folder production property is configured in Vercel, not hardcoded in source.
 
-Use this single loader. The supplied **GTM-NVNZ94W3** container also targets the same property, so loading both would risk duplicate measurement. This app does not load that container. Framer's marketing pages are configured separately; a tag on the marketing site does not cover the proxied `/app` document.
+Use this single loader. Loading a GTM container targeting the same property as this loader would risk duplicate measurement. This app does not load that container. Framer's marketing pages are configured separately; a tag on the marketing site does not cover the proxied `/app` document.
 
 ## Pages and app screens
 
@@ -24,6 +24,6 @@ In GA Admin, create event-scoped custom dimensions for `surface`, `show_mode` an
 
 Use acquisition links such as `https://holofolder.com/app?utm_source=instagram&utm_medium=social&utm_campaign=launch`; keep campaign values non-identifying. GA reads standard UTM attribution automatically.
 
-After production deployment, check the browser's network requests for one `gtag/js?id=G-3Z12777BKD` loader and GA `g/collect` requests targeting that ID. Open the wanted list, Search and a card's price checker, and check the named events in GA Realtime or DebugView with Tag Assistant. Also navigate between actual Next routes and check that each navigation sends one page view. Property settings, custom definitions and receipt in GA require access to the Analytics account; a rendered script alone does not prove ingestion.
+After production deployment, check the browser's network requests for one `gtag/js?id=<your measurement ID>` loader and GA `g/collect` requests targeting that ID. Open the wanted list, Search and a card's price checker, and check the named events in GA Realtime or DebugView with Tag Assistant. Also navigate between actual Next routes and check that each navigation sends one page view. Property settings, custom definitions and receipt in GA require access to the Analytics account; a rendered script alone does not prove ingestion.
 
 References: [Next.js Google integration](https://nextjs.org/docs/app/guides/third-party-libraries#google-analytics), [GA4 custom dimensions](https://support.google.com/analytics/answer/14240153).
