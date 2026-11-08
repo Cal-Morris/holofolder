@@ -10,8 +10,16 @@ async function run() {
   for (const name of names) process.env[name] = name === "NEXT_PUBLIC_SUPABASE_URL" ? "https://synthetic.supabase.test" : "synthetic-key"
   const rows = new Map<string, unknown>()
   let browseCalls = 0, soldCalls = 0, failSold = false, claim = true
+  let blockedSource: string | null = null
+  let unavailableBudget = false
+  const budgets: Array<{budget_bucket:string;request_limit:number}> = []
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
+    if (url.pathname.endsWith("/rpc/consume_developer_budget")) {
+      const body=JSON.parse(String(init?.body));budgets.push(body)
+      if(unavailableBudget)return Response.json({message:"synthetic failure"},{status:503})
+      return Response.json({allowed:body.budget_bucket!==`price-check:provider:${blockedSource}`,retry_after:17})
+    }
     const json = (data: unknown) => Response.json(data)
     if (url.pathname.includes("/tcg_cards")) return json([{ id: "base1-44", name_en: "Bulbasaur", local_id: "44", set_id: "base1", external_ids_json: {}, tcg_sets: { name_en: "Base Set" } }])
     if (url.pathname.includes("/rpc/claim_card_price_check")) return json(claim)
@@ -51,6 +59,7 @@ async function run() {
     await loadCardPriceChecks("base1-44", "normal", true)
     await loadCardPriceChecks("base1-44", "normal", true, "soldcomps", true)
     assert.deepEqual([browseCalls, soldCalls], [1, 1], "manual refresh still respects the cooldown")
+    assert.equal(budgets.length,2,"saved and cached checks do not spend provider budget")
     const stale = { summary: { kind: "sold", currency: "GBP", count: 1, median: 9, low: 9, high: 9 }, checkedAt: new Date(Date.now() - 365 * 24 * 3600_000).toISOString() }
     rows.set("soldcomps", stale)
     const reused = await loadCardPriceChecks("base1-44", "normal", true)
@@ -77,6 +86,25 @@ async function run() {
     rows.set("soldcomps", empty)
     assert.equal((await loadCardPriceChecks("base1-44", "normal", true))?.soldcomps?.summary.count, 0)
     assert.equal(soldCalls, 3, "an old empty search also remains saved")
+    assert.ok(budgets.some(row=>row.budget_bucket==='price-check:provider:soldcomps'&&row.request_limit===10))
+    assert.ok(budgets.some(row=>row.budget_bucket==='price-check:provider:ebay'&&row.request_limit===60))
+    rows.clear();claim=true;blockedSource='soldcomps'
+    const beforeSold=soldCalls
+    await assert.rejects(loadCardPriceChecks("base1-44","normal",true,"soldcomps"),error=>{
+      const value=error as {status:number;retryAfter:number};return value.status===429&&value.retryAfter===17
+    })
+    assert.equal(soldCalls,beforeSold,'a denied provider budget cannot call sold comps')
+    assert.equal((await checkComparisonTarget(target,{})).retryable,true,'background jobs back off on shared limits')
+    blockedSource='ebay'
+    const beforeBrowse=browseCalls
+    const {fetchEbayListingIndicator,loadPriceCheckSubject}=await import('../../lib/server/ebay-listings')
+    const lookup=await loadPriceCheckSubject('base1-44','normal');assert.ok(lookup)
+    await assert.rejects(fetchEbayListingIndicator(lookup.subject,lookup.query),error=>(error as {status:number}).status===429)
+    assert.equal(browseCalls,beforeBrowse,'a denied budget cannot call listing search')
+    unavailableBudget=true
+    await assert.rejects(loadCardPriceChecks("base1-44","normal",true,"soldcomps"),error=>(error as {status:number}).status===503)
+    assert.equal(soldCalls,beforeSold,'budget failures fail closed')
+
   } finally {
     globalThis.fetch = originalFetch
     names.forEach((name, i) => { if (originalEnv[i] === undefined) delete process.env[name]; else process.env[name] = originalEnv[i] })

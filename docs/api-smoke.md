@@ -19,3 +19,11 @@ By default functional/coverage/cleanup failures fail the process; latency misses
 Cleanup always runs after a failure. Accounts, namespace reservations and actor-specific rate budgets are removed. Private artwork cleanup also requires the real R2 credentials documented for the private artwork store. If those are unavailable, the runner reports the exact disposable object key in `cleanup.artwork` and exits 2. Delete only those keys from `holofolder-private-artwork` through the connected Cloudflare account and verify absence. Do not call that run clean until the pending list is empty. Reports contain fixture identifiers but never keys, signed URLs or response bodies. Preserve the report if a process is interrupted so remaining fixture identifiers can be cleaned up.
 
 For public API changes, run after the exact production deployment is ready and inspect every operation's verification and timing. Keep the report with the release evidence. Run focused unit/rollback checks before shipping; do not run this fixture-creating suite automatically on every unit test invocation.
+
+## Price-check rate limits
+
+The REST API's existing per-actor 60 reads / 20 writes per minute also covers sold-check reads and refresh requests. Main-app `/api/card-price-checks` and `/api/ebay/listings` share owner-account counters: 60 saved/listing reads and 20 refresh requests per minute. Partners share the owner's app allowance.
+
+Actual upstream sold-comps requests have a global 10/minute budget; eBay listing searches have a global 60/minute budget. These Postgres counters apply across instances, accounts, REST/MCP operations and background jobs. They are fixed calendar-minute windows, separate from each card/finish/source's existing shared refresh claim and cooldown. Saved checks and cache hits never consume provider budget. They limit request rate, not monthly spend.
+
+Exhausted limits return HTTP 429 and `Retry-After`; unavailable counters fail closed with 503. Background comparison jobs treat exhausted/unavailable budgets as retryable and use their existing two-minute backoff. Tests use synthetic counters and assert no upstream request follows a denial; do not exhaust shared production provider counters to smoke-test a 429.

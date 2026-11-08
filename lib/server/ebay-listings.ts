@@ -1,3 +1,4 @@
+import { consumePriceCheckProviderLimit } from '@/lib/server/price-check-limits'
 import { getClassicCollectionPrinting } from "@/lib/classic-collection-printing"
 import { cacheLife } from "next/cache"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -71,6 +72,7 @@ export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjec
 export async function fetchEbayListingIndicator(subject: PriceSubject, query: string) {
   const url = new URL("https://api.ebay.com/buy/browse/v1/item_summary/search")
   url.search = new URLSearchParams({ q: query, limit: "50", filter: "buyingOptions:{FIXED_PRICE},itemLocationCountry:GB" }).toString()
+  await consumePriceCheckProviderLimit("ebay")
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${await getEbayAppToken()}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_GB" },
     cache: "no-store", signal: AbortSignal.timeout(10_000),

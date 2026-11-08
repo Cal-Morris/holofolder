@@ -14,6 +14,7 @@ async function run() {
   let providerCalls = 0
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
+    if (url.pathname.endsWith("/rpc/consume_developer_budget")) return Response.json({allowed:true,retry_after:1})
     if (url.pathname.includes("/tcg_cards")) return Response.json([{ id, name_en: "Gengar", local_id: "018", set_id: "30th-c", external_ids_json: {}, tcg_sets: { name_en: "30th Classic Collection", official_card_count: 30 } }])
     if (url.pathname.includes("/rpc/claim_card_price_check")) return Response.json(true)
     if (url.pathname.includes("/card_price_checks")) {

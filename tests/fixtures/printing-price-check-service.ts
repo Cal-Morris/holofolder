@@ -18,10 +18,16 @@ async function run() {
   let soldCalls = 0
   let calls = 0
   let paid = true
+  let limited=false
+  const accountBudgets: Array<{budget_bucket:string;request_limit:number}>=[]
   for (const name of ["SUPABASE_SERVICE_ROLE_KEY", "EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET", "SOLDCOMPS_API_KEY"]) process.env[name] = "synthetic"
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://synthetic.supabase.test"
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
+    if (url.pathname.endsWith("/rpc/consume_developer_budget")) {
+      accountBudgets.push(JSON.parse(String(init?.body)))
+      return Response.json({allowed:!limited,retry_after:23})
+    }
     if (url.pathname.endsWith('/rpc/get_billing_access')) return Response.json({ enforced: true, perpetual: paid, saved_card_count: 2 })
     if (url.pathname.endsWith('/rpc/billing_partner_allowed')) return Response.json(true)
     if (url.pathname.endsWith('/partnerships') && !url.searchParams.has('id') && !url.searchParams.has('owner_user_id')) return Response.json(null)
@@ -72,6 +78,16 @@ async function run() {
   const legacy = await import("../../app/api/ebay/listings/route")
   const request = (cardId: string, finish = "holo") => new Request(`https://synthetic.test/app/api/card-price-checks?${new URLSearchParams({ cardId, finish })}`)
   assert.equal((await routes.GET(request(id))).status, 200)
+  limited=true
+  for(const handler of [routes.GET,routes.POST,legacy.GET]) {
+    const response=await handler(request(id))
+    assert.equal(response.status,429)
+    assert.equal(response.headers.get('Retry-After'),'23')
+  }
+  assert.ok(accountBudgets.some(row=>row.budget_bucket.endsWith(':write')&&row.request_limit===20))
+  assert.ok(accountBudgets.some(row=>row.budget_bucket.endsWith(':read')&&row.request_limit===60))
+  limited=false
+
   for (const handler of [routes.GET, routes.POST, legacy.GET]) {
     for (const bad of ["", "../card", "a/b", "a?b", "a~", "a~~123", "a:123", "a~123~456", "x".repeat(101)]) assert.equal((await handler(request(bad))).status, 400, bad)
     assert.equal((await handler(request(id, "invalid"))).status, 400)
