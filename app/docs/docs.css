@@ -84,3 +84,5 @@ body:has(.holo-docs) [role="dialog"] input { font-size: 16px; }
 @media (prefers-reduced-motion: reduce) {
   body:has(.holo-docs) *, body:has(.holo-docs) *::before, body:has(.holo-docs) *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+.holo-docs .docs-key-auth [role="dialog"] { padding-top: 0; padding-bottom: 0; }

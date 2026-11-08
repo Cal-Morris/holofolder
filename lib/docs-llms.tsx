@@ -6,6 +6,7 @@ import { docsMarkdownHref, formatEndpointMarkdown, rewriteDocsLinks } from '@/li
 
 type DocsPage = NonNullable<ReturnType<Awaited<typeof docsSource>['getPage']>>
 const components = {
+  DocsApiKeys: () => { asMarkdown(); return '[Create or manage an API key in the interactive guide](https://holofolder.com/app/docs/api-keys#create-a-key)\n' },
   Cards: ({ children }: { children?: ReactNode }) => { asMarkdown(); return children },
   Card: ({ title, description, href }: { title: string; description?: string; href: string }) => { asMarkdown(); return `- [${title}](${docsMarkdownHref(href)}): ${description ?? ''}\n` },
   Callout: ({ title, children }: { title?: string; children?: ReactNode }) => { asMarkdown(); return md`**${title ?? 'Note'}**\n\n${children}\n\n` },

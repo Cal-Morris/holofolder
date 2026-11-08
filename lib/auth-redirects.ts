@@ -41,8 +41,9 @@ function getBaseUrl() {
   return "http://localhost:3000"
 }
 
-export function getMagicLinkRedirectUrl() {
-  return `${new URL(getBaseUrl()).origin}${appPath("/auth/callback")}`
+export function getMagicLinkRedirectUrl(returnTo?: string) {
+  const callback = `${new URL(getBaseUrl()).origin}${appPath("/auth/callback")}`
+  return returnTo ? `${callback}?next=${encodeURIComponent(appReturnPath(returnTo))}` : callback
 }
 
 export function getPasswordRecoveryRedirectUrl() {
