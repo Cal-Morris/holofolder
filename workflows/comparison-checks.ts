@@ -2,6 +2,7 @@ import { RetryableError, getWorkflowMetadata, getStepMetadata } from "workflow"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { readComparisonJob, checkComparisonTarget, comparisonJobActive } from "@/lib/server/comparison-jobs"
 import { countComparisonResult, type ComparisonTarget } from "@/lib/comparison-jobs"
+import { comparisonCompletionDevices, sendComparisonCompletion } from "@/lib/server/comparison-push"
 import type { CheckCompsProgress } from "@/lib/check-comps"
 
 export async function comparisonChecksWorkflow(jobId: string) {
@@ -15,7 +16,11 @@ export async function comparisonChecksWorkflow(jobId: string) {
     const results = await Promise.all(job.targets.slice(index, index + 2).map(target => checkTarget(jobId, target, progress.stopped)))
     for (const result of results) if (result) progress = countComparisonResult(progress, result)
   }
-  await saveProgress(jobId, progress, "completed")
+  if (!await saveProgress(jobId, progress, "completed")) return
+  const devices = await completionDevices(jobId)
+  // Each successful delivery is a durable step; retries do not restart card checks.
+  const deliveries = await Promise.allSettled(devices.map(deviceId => notifyDevice(jobId, deviceId)))
+  return { notificationsFailed: deliveries.filter(delivery => delivery.status === "rejected").length }
 }
 async function loadJob(jobId: string) {
   "use step"
@@ -36,4 +41,13 @@ async function saveProgress(jobId: string, progress: CheckCompsProgress, status:
     .update({ progress, status, updated_at: new Date().toISOString() }).eq("id", jobId).in("status", ["queued", "running"]).select("id")
   if (error) throw error
   return Boolean(data?.length)
+}
+
+async function completionDevices(jobId: string) {
+  "use step"
+  return comparisonCompletionDevices(jobId)
+}
+async function notifyDevice(jobId: string, deviceId: string) {
+  "use step"
+  await sendComparisonCompletion(jobId, deviceId)
 }

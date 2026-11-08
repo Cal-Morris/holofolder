@@ -3,11 +3,13 @@ async function run() {
 // Synthetic database and authenticated users; no provider/network calls.
 // @ts-expect-error Bun mocks stay isolated in this subprocess.
 const { mock } = await import("bun:test")
+let collectionOwner: string | null = null
 let userId: string | null = "00000000-0000-4000-8000-000000000001"
 mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) } }) }))
 mock.module("../../lib/supabase/session-user", () => ({ getSessionUser: async () => userId ? { id: userId } : null }))
-mock.module("../../lib/server/collection-owner", () => ({ resolveCollectionOwnerUserId: async (_client: unknown, id: string) => id }))
+mock.module("../../lib/server/collection-owner", () => ({ resolveCollectionOwnerUserId: async (_client: unknown, id: string) => collectionOwner ?? id }))
 mock.module("../../lib/server/billing", () => ({ requirePaidAccess: async () => {}, billingErrorResponse: () => new Response(null, { status: 402 }) }))
+let schemaReady = true
 let starts = 0, cancelled = 0
 mock.module("workflow/api", () => ({ start: async () => { starts++; return { runId: "synthetic-run" } }, getRun: () => ({ status: Promise.resolve("running"), cancel: async () => { cancelled++ } }) }))
 mock.module("../../workflows/comparison-checks", () => ({ comparisonChecksWorkflow: async () => {} }))
@@ -29,6 +31,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return true
   }))
   if (init?.method === "POST") {
+    if (!schemaReady && JSON.parse(String(init.body)).initiated_by) return Response.json({ code: "PGRST204", message: "initiated_by column is missing" }, { status: 400 })
     const row = { ...JSON.parse(String(init.body)), id: `00000000-0000-4000-8000-${String(++currentId).padStart(12, "0")}`, status: "queued", run_id: null, created_at: new Date().toISOString() }
     jobs.push(row); return Response.json(row)
   }
@@ -49,6 +52,7 @@ assert.equal((await post({ action: "start", cards: [{ cardId: null }] })).status
 const first = await post({ action: "start", cards, confirmed: true })
 assert.equal(first.status, 202)
 const job = (await first.json()).job
+assert.equal(jobs[0].initiated_by, userId, "the initiator comes from the authenticated user")
 assert.equal(starts, 1)
 assert.equal((await (await post({ action: "start", cards, confirmed: true })).json()).job.id, job.id)
 assert.equal(starts, 1, "a repeated start reconnects without another workflow")
@@ -60,6 +64,16 @@ userId = "00000000-0000-4000-8000-000000000001"
 assert.equal((await post({ action: "stop", id: job.id })).status, 200)
 assert.equal(cancelled, 1)
 assert.equal(jobs[0].status, "cancelled")
+// A partner starts a different job for the same collection owner.
+collectionOwner = "00000000-0000-4000-8000-000000000001"
+userId = "00000000-0000-4000-8000-000000000002"
+const partner = await post({ action: "start", cards: [{ cardId: "synthetic-partner" }], initiated_by: collectionOwner })
+assert.equal(partner.status, 202)
+assert.equal(jobs[1].owner_user_id, collectionOwner)
+assert.equal(jobs[1].initiated_by, userId, "a partner cannot spoof the notification recipient")
+schemaReady = false
+assert.equal((await post({ action: "start", cards: [{ cardId: "synthetic-legacy-schema" }] })).status, 202, "checks still start before the additive migration")
+assert.equal(jobs[2].initiated_by, undefined)
 userId = null
 assert.equal((await post({ action: "start", cards, confirmed: true })).status, 401)
 assert.ok(filters.filter(url => !url.searchParams.has("scope_key") && url.searchParams.has("id")).every(url => url.searchParams.has("owner_user_id")), "job-id reads and writes are owner scoped")

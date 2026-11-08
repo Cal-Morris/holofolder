@@ -8,6 +8,7 @@ import type { ComparisonJob, ComparisonTarget, ComparisonResult } from "@/lib/co
 
 export interface StoredComparisonJob extends ComparisonJob {
   owner_user_id: string
+  initiated_by?: string | null
   targets: ComparisonTarget[]
   run_id: string | null
   created_at: string

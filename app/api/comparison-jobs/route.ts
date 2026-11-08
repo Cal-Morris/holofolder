@@ -17,7 +17,7 @@ async function owner(write: boolean) {
   if (!user) throw new AppearanceError("Sign in to check prices.", 401)
   const ownerId = await resolveCollectionOwnerUserId(client, user.id)
   await requirePaidAccess(ownerId)
-  return ownerId
+  return { ownerId, userId: user.id }
 }
 function failure(error: unknown) {
   if (error instanceof AppearanceError) return json({ error: error.message }, error.status)
@@ -27,7 +27,7 @@ function failure(error: unknown) {
 }
 export async function GET(request: Request) {
   try {
-    const ownerId = await owner(false)
+    const { ownerId } = await owner(false)
     const id = new URL(request.url).searchParams.get("id")
     if (!id || !/^[0-9a-f-]{36}$/.test(id)) return json({ error: "Invalid job." }, 400)
     let job = await readComparisonJob(id, ownerId)
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     if (text.length > 1_000_000) return json({ error: "Too many cards." }, 413)
     let body
     try { body = JSON.parse(text) } catch { return json({ error: "Invalid request." }, 400) }
-    const ownerId = await owner(body?.action !== "inspect")
+    const { ownerId, userId } = await owner(body?.action !== "inspect")
     const admin = createAdminClient()
     if (body?.action === "stop") {
       if (typeof body.id !== "string" || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: "Invalid job." }, 400)
@@ -81,7 +81,12 @@ export async function POST(request: Request) {
       return json({ job: latest ? publicComparisonJob(latest as StoredComparisonJob) : null, needed })
     }
     if (needed >= 15 && body.confirmed !== true) return json({ needsConfirmation: true, needed }, 409)
-    const { data: inserted, error } = await admin.from("comparison_jobs").insert({ owner_user_id: ownerId, scope_key: scopeKey, targets, progress: initialComparisonProgress(targets.length) }).select("*").single()
+    const values = { owner_user_id: ownerId, scope_key: scopeKey, targets, progress: initialComparisonProgress(targets.length) }
+    let { data: inserted, error } = await admin.from("comparison_jobs").insert({ ...values, initiated_by: userId }).select("*").single()
+    // Older schemas can still run checks, without completion notifications.
+    if (error && ["PGRST204", "42703"].includes(error.code) && error.message.includes("initiated_by")) {
+      ;({ data: inserted, error } = await admin.from("comparison_jobs").insert(values).select("*").single())
+    }
     if (error?.code === "23505") {
       const { data: active, error: activeError } = await admin.from("comparison_jobs").select("*").eq("owner_user_id", ownerId).eq("scope_key", scopeKey).in("status", ["queued", "running"]).single()
       if (activeError) throw activeError

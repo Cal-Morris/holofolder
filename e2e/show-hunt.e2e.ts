@@ -1,4 +1,4 @@
-import { test, expect, SUPABASE_URL, type Harness } from "./fixtures"
+import { test, expect, SUPABASE_URL, E2E_USER, type Harness } from "./fixtures"
 import { HUNT_COLLECTION, HUNT_PRICES } from "./hunt-fixtures"
 import { mockCardPrices } from "./price-fixtures"
 
@@ -160,6 +160,7 @@ test.describe("Show mode finder", () => {
 
   test("Check comps bakes sold comps for the Hunting cards, dearest first, with progress", async ({ harness }) => {
     const { page } = harness
+    await page.route("**/app/api/billing", route => route.fulfill({ json: { access: { ownerUserId: E2E_USER.id, tier: "paid", source: "subscription", paidThrough: "2099-01-01T00:00:00Z", savedCardCount: 2, cardLimit: null, enforced: true }, canManage: true } }))
     // Synthetic sold / asking samples, checked just now; never real sale data.
     const checkedAt = new Date().toISOString()
     const requested: string[] = []
@@ -199,6 +200,7 @@ test.describe("Show mode finder", () => {
 
   test("Check comps big run: in-app confirm Cancel aborts, Check now proceeds", async ({ harness }, testInfo) => {
     const { page } = harness
+    await page.route("**/app/api/billing", route => route.fulfill({ json: { access: { ownerUserId: E2E_USER.id, tier: "paid", source: "subscription", paidThrough: "2099-01-01T00:00:00Z", savedCardCount: 2, cardLimit: null, enforced: true }, canManage: true } }))
     const checkedAt = new Date().toISOString()
     const requested: string[] = []
     await page.route("**/app/api/card-price-checks?**", async (route) => {
@@ -280,6 +282,59 @@ test.describe("Show mode finder", () => {
     await expect(page.getByTestId("check-comps-confirm")).toHaveCount(0)
     await expect(comps.getByRole("status")).toContainText(/Checking comps|Sold comps ready/)
     await expect.poll(() => requested.length).toBe(15)
+  })
+
+  test("lifetime Check prices covers the whole want list and resumes its background job after reload", async ({ harness }) => {
+    const { page } = harness
+    // Synthetic lifetime account and 65 printings, including one outside the chosen era filter.
+    const wanted = Array.from({ length: 65 }, (_, i) => ({
+      ...HUNT_COLLECTION[0].wanted_cards![0],
+      card_id: i === 64 ? "me02-001" : `sv03.5-${String(i + 1).padStart(3, "0")}`,
+      card_set: i === 64 ? "Phantasmal Flames" : "151", card_finish: "normal", card_language: "en",
+    }))
+    const targets = wanted.map(card => ({ cardId: card.card_id, language: "en", finish: "normal" }))
+    const id = "00000000-0000-4000-8000-000000000065"
+    let started = false, finished = false
+    const job = () => ({ id, status: finished ? "completed" : "running", progress: { total: 65, done: finished ? 65 : 4, fresh: 0, checked: finished ? 65 : 4, failed: 0, stopped: {} } })
+    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, route => route.request().method() === "GET" ? route.fulfill({ json: [{ ...HUNT_COLLECTION[0], wanted_cards: wanted }] }) : route.fallback())
+    await mockCardPrices(page, HUNT_PRICES)
+    await page.route("**/app/api/comparison-jobs**", async route => {
+      if (route.request().method() === "GET") return route.fulfill({ json: { job: job() } })
+      const body = route.request().postDataJSON()
+      expect(body.cards).toEqual(targets)
+      if (body.action === "inspect") return route.fulfill({ json: { job: started ? job() : null, needed: finished ? 0 : 65 } })
+      if (!body.confirmed) return route.fulfill({ status: 409, json: { needsConfirmation: true, needed: 65 } })
+      started = true
+      return route.fulfill({ status: 202, json: { job: job() } })
+    })
+    await page.route("**/app/api/card-price-checks?**", route => {
+      expect(route.request().method()).toBe("GET")
+      const cards = JSON.parse(new URL(route.request().url()).searchParams.get("cards") ?? "[]")
+      return route.fulfill({ json: { checks: cards.map((card: { cardId: string; finish: string }) => ({ ...card, ebay: null, soldcomps: null })) } })
+    })
+    await page.reload()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    let dialog = await openShowMode(harness)
+    await dialog.getByRole("combobox", { name: "Era" }).selectOption({ label: "Mega Evolution (1)" })
+    const checks = dialog.getByTestId("collection-price-check")
+    await expect(checks).toContainText("65 eligible printings in your want list")
+    const button = checks.getByRole("button", { name: "Check prices", exact: true })
+    await harness.expectMinTapTarget(button, 36)
+    await button.click()
+    const confirm = page.getByTestId("check-comps-confirm")
+    await expect(confirm).toContainText("65 cards need a sold comps refresh")
+    await harness.expectWithinSafeViewport(confirm.getByRole("button", { name: "Check now" }))
+    await confirm.getByRole("button", { name: "Check now" }).click()
+    await expect(checks.getByRole("status")).toContainText("Checking 4/65 in background")
+    await expect(checks).toContainText("notify you when finished")
+    await harness.expectNoHorizontalOverflow()
+    await dialog.getByRole("button", { name: "Close quick mode" }).click()
+    finished = true
+    await page.reload()
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible()
+    dialog = await openShowMode(harness)
+    await expect(dialog.getByTestId("collection-price-check").getByRole("status")).toContainText("Finished. Checks saved on the server")
+    await harness.expectNoHorizontalOverflow()
   })
 
   test("no Good pickups strip when nothing on the want list has dropped", async ({ harness }) => {
