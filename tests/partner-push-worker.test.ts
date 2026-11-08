@@ -45,7 +45,7 @@ test('registration test pushes confirm the bound device and open the app without
   assert.equal(app.notifications[0].title, 'Notifications are on')
   assert.equal(app.notifications[0].options.icon, '/app/holofolder-icon-192.png')
   assert.equal(app.notifications[0].options.badge, '/app/holofolder-monochrome.svg')
-  assert.equal(app.notifications[0].options.body, 'This device is ready for partner updates.')
+  assert.equal(app.notifications[0].options.body, 'This device is ready for price check and partner updates.')
   assert.equal(app.reads(), 0)
   await app.dispatch('notificationclick', { notification: { close() {}, data: app.notifications[0].options.data } })
   assert.deepEqual(app.destinations, ['/app'])
@@ -101,4 +101,19 @@ test('notification destinations reject marketing, auth, shares and external URLs
     await app.dispatch('push', { data: { json: () => ({ recipientId: person, eventId }) } })
     assert.equal((app.notifications[0].options.data as { url: string }).url, '/app')
   }
+})
+
+
+test('comparison completion pushes verify the initiator preview on receipt and click', async () => {
+  const app = runtime(person, { ok: true, json: async () => ({ title: 'Price checks finished', body: '65 printings checked.', url: '/app' }) })
+  await app.dispatch('push', { data: { json: () => ({ kind: 'comparison', recipientId: person, eventId, tag: `comparison:${eventId}` }) } })
+  assert.equal(app.notifications[0].title, 'Price checks finished')
+  assert.deepEqual(app.requests, [`/app/api/push/comparisons/${eventId}`])
+  await app.dispatch('notificationclick', { notification: { close() {}, data: app.notifications[0].options.data } })
+  assert.deepEqual(app.requests, [`/app/api/push/comparisons/${eventId}`, `/app/api/push/comparisons/${eventId}`])
+  assert.deepEqual(app.destinations, ['/app'])
+  const otherAccount = runtime('someone-else', { ok: false })
+  await otherAccount.dispatch('push', { data: { json: () => ({ kind: 'comparison', recipientId: person, eventId }) } })
+  assert.equal(otherAccount.notifications[0].title, 'Holo Folder update')
+  assert.equal(otherAccount.reads(), 0)
 })

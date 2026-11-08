@@ -6,8 +6,11 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { ChevronRight, Heart, Target, TrendingDown } from "lucide-react"
 import { PriceDropBadge } from "@/components/price-drop-badge"
+import { BackgroundPriceCheck } from "@/components/collection-price-check"
+import { useBillingContext } from "@/hooks/use-billing"
+import { checkCompsTargets } from "@/lib/check-comps"
 import ShowCheckComps from "@/components/show-check-comps"
-import { useDisplayCardPrices, type DisplayPriceLookup } from "@/hooks/use-display-card-prices"
+import { useDisplayCardPrices } from "@/hooks/use-display-card-prices"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import type { CheckCompsTarget } from "@/lib/check-comps"
 import { formatCardFinishLabel } from "@/lib/card-labels"
@@ -191,6 +194,7 @@ export interface ShowHuntProps {
 }
 
 function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnline, onPickCard, onPickPokemon }: ShowHuntProps) {
+  const billing = useBillingContext()
   const thresholds = useDealThresholds()
   const [sort, setSort] = useState<HuntSort>("wanted")
   const [era, setEra] = useState<string | null>(null)
@@ -199,7 +203,7 @@ function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnli
   const [directory, setDirectory] = useState<IllustratorSummary[]>([])
   const [illustratorCards, setIllustratorCards] = useState<{ name: string; ids: Set<string> | null } | null>(null)
 
-  const lookups = useMemo<DisplayPriceLookup[]>(
+  const lookups = useMemo(
     () => items.flatMap((item) => (item.wanted_cards ?? []).map((card) => ({ cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish }))),
     [items],
   )
@@ -274,6 +278,7 @@ function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnli
       .map((card) => ({ cardId: card.wanted.card_id, language: card.wanted.card_language ?? "en", finish: card.wanted.card_finish ?? null })),
     [cards, era, illustratorIds, setId],
   )
+  const fullWantTargets = useMemo(() => checkCompsTargets(lookups, "collection"), [lookups])
   const total = cards.length
   const filtering = Boolean(era || setId || illustrator)
 
@@ -318,7 +323,9 @@ function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnli
 
         {total > 0 && (
           <div className="pt-3">
-            <ShowCheckComps targets={compsTargets} isOnline={isOnline} />
+            {billing?.access?.source === "perpetual" ? (
+              <BackgroundPriceCheck targets={fullWantTargets} kind="wanted" ownerId={billing.access.ownerUserId} isOnline={isOnline} label="Check prices" scopeLabel="your want list" />
+            ) : <ShowCheckComps targets={compsTargets} isOnline={isOnline} />}
           </div>
         )}
 

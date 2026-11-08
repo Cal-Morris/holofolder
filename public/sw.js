@@ -583,10 +583,10 @@ self.addEventListener('push', event => {
     try { payload = event.data?.json() } catch { payload = null }
     const account = await notificationAccount()
     const isTest = account && account === payload?.recipientId && payload?.kind === 'test'
-    let preview = isTest ? { title: 'Notifications are on', body: 'This device is ready for partner updates.', url: '/app' } : null
+    let preview = isTest ? { title: 'Notifications are on', body: 'This device is ready for price check and partner updates.', url: '/app' } : null
     if (!isTest && account && account === payload?.recipientId && /^[0-9a-f-]{36}$/i.test(payload?.eventId ?? '')) {
       try {
-        const response = await fetch(`/app/api/push/events/${payload.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        const response = await fetch(`/app/api/push/${payload.kind === 'comparison' ? 'comparisons' : 'events'}/${payload.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
         if (response.ok) preview = await response.json()
       } catch { /* Offline or signed out: keep the visible notification private. */ }
     }
@@ -595,7 +595,7 @@ self.addEventListener('push', event => {
       icon: '/app/holofolder-icon-192.png', badge: '/app/holofolder-monochrome.svg',
       tag: typeof payload?.tag === 'string' ? payload.tag.slice(0, 100) : 'binderdex-update',
       ...(isTest ? { renotify: true } : {}),
-      data: { url: preview ? notificationDestination(preview.url) : '/app', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null },
+      data: { url: preview ? notificationDestination(preview.url) : '/app', recipientId: preview ? account : null, eventId: preview ? payload.eventId : null, kind: payload?.kind === 'comparison' ? 'comparison' : 'acquisition' },
     })
   })())
 })
@@ -607,7 +607,7 @@ self.addEventListener('notificationclick', event => {
     let url = '/app'
     if (account && account === event.notification.data?.recipientId && /^[0-9a-f-]{36}$/i.test(event.notification.data?.eventId ?? '')) {
       try {
-        const response = await fetch(`/app/api/push/events/${event.notification.data.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        const response = await fetch(`/app/api/push/${event.notification.data.kind === 'comparison' ? 'comparisons' : 'events'}/${event.notification.data.eventId}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) })
         if (response.ok) url = notificationDestination((await response.json()).url)
       } catch { /* Open the normal authenticated app when the update cannot be verified. */ }
     }

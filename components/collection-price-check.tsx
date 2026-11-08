@@ -4,7 +4,7 @@ import { useBillingContext } from "@/hooks/use-billing"
 import { useEffect, useMemo, useRef } from "react"
 import { Receipt, Square } from "lucide-react"
 import CheckCompsConfirm from "@/components/check-comps-confirm"
-import { checkCompsTargets } from "@/lib/check-comps"
+import { checkCompsTargets, type CheckCompsTarget } from "@/lib/check-comps"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { useComparisonJob } from "@/hooks/use-comparison-job"
 import { isComparisonJobActive } from "@/lib/comparison-jobs"
@@ -19,8 +19,20 @@ export default function CollectionPriceCheck({ collection, kind, isOnline, owner
   scopeLabel?: string
   onComplete?: () => void
 }) {
-  const billing = useBillingContext()
   const targets = useMemo(() => checkCompsTargets(collectionCompsTargets(collection, kind), "collection"), [collection, kind])
+  return <BackgroundPriceCheck targets={targets} kind={kind} ownerId={ownerId} isOnline={isOnline} label={label} scopeLabel={scopeLabel} onComplete={onComplete} />
+}
+
+export function BackgroundPriceCheck({ targets, kind, ownerId, isOnline, label, scopeLabel = "this binder", onComplete }: {
+  targets: readonly CheckCompsTarget[]
+  kind: "wanted" | "owned"
+  ownerId: string | null
+  isOnline: boolean
+  label?: string
+  scopeLabel?: string
+  onComplete?: () => void
+}) {
+  const billing = useBillingContext()
   const { job, syncedJobId, estimate, busy, message, start, stop, cancelConfirmation } = useComparisonJob(targets, isOnline, ownerId ? `comparison-job:${ownerId}:${kind}` : null)
   const running = Boolean(job && isComparisonJobActive(job))
   const progress = job?.progress
@@ -45,7 +57,7 @@ export default function CollectionPriceCheck({ collection, kind, isOnline, owner
       </button>}
       <span className="text-sm text-muted-foreground">{targets.length} eligible printing{targets.length === 1 ? "" : "s"} in {scopeLabel}</span>
     </div>
-    <p className="text-xs text-muted-foreground">eBay asking prices + sold comps. English, non-jumbo cards; duplicates checked once.</p>
+    <p className="text-xs text-muted-foreground">eBay asking prices + sold comps. English, non-jumbo cards; duplicates checked once. We’ll notify you when finished if notifications are enabled.</p>
     <p role="status" className="text-xs text-muted-foreground">
       {message ?? (!isOnline ? running ? "Offline. Checks continue on the server." : "Connect to check prices." : running ? `Checking ${progress?.done ?? 0}/${progress?.total ?? targets.length} in background… You can close the app.` : job?.status === "completed" ? "Finished. Checks saved on the server; Prepare for a show downloads them onto this device." : job?.status === "cancelled" ? "Stopped. Completed checks are saved." : job?.status === "failed" ? "Check interrupted on the server. Retry to reuse completed checks." : null)}
       {progress && <> {progress.checked} checked, {progress.fresh} already fresh, {progress.failed} incomplete. {Object.values(progress.stopped).join(" ")}</>}

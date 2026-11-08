@@ -47,7 +47,7 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
       const registration = await navigator.serviceWorker.getRegistration('/app')
       if (!registration?.active) throw new Error('The app is still getting ready. Reload and try again.')
       const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-      if (!key || !userId) throw new Error('Partner notifications are not available yet.')
+      if (!key || !userId) throw new Error('Notifications are not available yet.')
       await clearPushDevice()
       const decoded = atob(key.replaceAll('-', '+').replaceAll('_', '/'))
       const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(decoded, c => c.charCodeAt(0)) })
@@ -78,12 +78,12 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
   }
   if (!userId) return null
   const current = devices.find(device => device.endpoint === endpoint)
-  return <section aria-label="Partner notifications" className="space-y-3 border-t border-border pt-4">
-    <h3 className="font-semibold">Partner notifications</h3>
-    <p className="text-sm text-muted-foreground">Hear when your partner adds an owned card or marks a wanted card Got, in any mode. Enable this separately on each device.</p>
+  return <section aria-label="Notifications" className="space-y-3 border-t border-border pt-4">
+    <h3 className="font-semibold">Notifications</h3>
+    <p className="text-sm text-muted-foreground">Get an alert when your price checks finish, and when your partner adds an owned card or marks a wanted card Got. Enable this separately on each device.</p>
     {!supported ? <p className="text-sm text-muted-foreground">Push notifications are unavailable in this browser.</p>
       : needsInstall ? <p className="text-sm text-muted-foreground">On iPhone or iPad, add Holo Folder to your Home Screen, then enable notifications inside the installed app.</p>
-      : !configured ? <p className="text-sm text-muted-foreground">Partner notifications are not available yet.</p>
+      : !configured ? <p className="text-sm text-muted-foreground">Notifications are not available yet.</p>
       : !current && <Button variant="outline" className="min-h-10" disabled={busy} onClick={enable}>Enable on this device</Button>}
     {current && supported && !needsInstall && configured && <Button variant="outline" className="min-h-10" disabled={busy} onClick={() => void retryTest(current.id)}>Send test notification</Button>}
     <ul className="space-y-2">{devices.map(device => <li key={device.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
