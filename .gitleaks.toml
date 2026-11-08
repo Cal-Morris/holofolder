@@ -1,0 +1,14 @@
+title = "Holo Folder secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Public localStorage key, not a credential"
+condition = "AND"
+paths = ['''^(hooks/use-collection|lib/collection/offline-queue)\.ts$''']
+regexTarget = "secret"
+regexes = ['''^pokemon_collection_pending_ops_v1$''']
