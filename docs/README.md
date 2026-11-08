@@ -4,6 +4,8 @@ Start with the root [README](../README.md) for setup and [CONTRIBUTING](../CONTR
 
 [Testing](testing.md) covers persistent local e2e servers, synthetic credentials and focused runs.
 
+For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `$dependency-maintenance`. Their playbooks live in [`.agents/skills/`](../.agents/skills/) and are registered in [AGENTS.md](../AGENTS.md).
+
 ## How the application works
 
 - [Architecture](architecture.md): ownership boundaries, startup, writes, offline sync and integrations.
