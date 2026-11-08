@@ -2,6 +2,25 @@
 
 Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £2.99/month and £29.99/year. After migration 052, the free allowance is 100 saved entries across all binders, including individual wanted cards, and one binder. One owner's paid access includes their shared partner collection. Paid/lifetime owners can create multiple binders within the existing 20-binder safety ceiling.
 
+## Free read-only sharing
+
+After migration `053_free_binder_sharing.sql` and its app release, signed-in owners can create, copy, disable and re-enable their existing named or token share links without a subscription. Enabled links remain viewable after subscription expiry. Owner-only RLS, origin checks, explicit link enablement, private response headers, noindex metadata and public-field filtering are retained. Partner editing and sold comparisons remain paid. Price visibility and existing share appearance are unchanged.
+
+Apply 053 before releasing the app: it removes only `billing_share_insert` and `billing_share_update`, leaving the four owner policies intact. The older deployed app still has its paid create/render guards until updated. Verify with `FREE_SHARING_TEST_DATABASE_URL=postgresql://... bun scripts/verify-free-sharing.ts --hosted-rollback`; all changes and synthetic fixtures are rolled back. This checks double application, owner creation/re-enable/disable, stranger/anonymous denial, the unchanged paid-partner boundary and data-preserving rollback, including a rolled-back EXPLAIN ANALYZE under owner RLS.
+
+Applied 053 to the existing hosted Supabase target on 8 November 2026 after the rollback-only verification passed. Verified both paid-share policies were removed, all four owner policies and partner/invite policies were unchanged, and every existing share record was retained. App rollout is tracked by the #304 PR.
+
+For rollback, revert the app PR and restore these two policies as the trusted operator, retaining every existing token and share row:
+
+```sql
+DROP POLICY IF EXISTS billing_share_insert ON public.binder_shares;
+CREATE POLICY billing_share_insert ON public.binder_shares AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (NOT public.billing_enforced() OR public.billing_has_paid(owner_user_id));
+DROP POLICY IF EXISTS billing_share_update ON public.binder_shares;
+CREATE POLICY billing_share_update ON public.binder_shares AS RESTRICTIVE FOR UPDATE TO authenticated
+  WITH CHECK (NOT is_enabled OR NOT public.billing_enforced() OR public.billing_has_paid(owner_user_id));
+```
+
 ## Free-plan allowance rollout and rollback
 
 Migration `052_free_plan_allowances.sql` adds server-owned `free_card_limit` and `free_binder_limit` values to the existing configuration. It preserves the billing enforcement switch, original grandfather cutoff and licences. The billing RPC returns these values, and clients retain them in their account/owner-scoped offline cache. Before migration, updated signed-in clients conservatively keep the old ten-entry/20-binder policy; guests can save 100 entries locally. Existing cards, queued edits and extra binders are never deleted or hidden by the new limits. Non-growing edits and deletion remain available above the allowance.
@@ -44,7 +63,7 @@ Anonymous device-only binders cannot establish an account licence. Preserve thei
 2. Run `bun scripts/setup-stripe-billing.ts` with the Syncaura key for a read-only inventory. `--apply` creates missing Holo Folder resources only. Set `STRIPE_CONFIG_OUTPUT` to a new private file outside the repository to receive a newly created webhook secret. The script does not print secrets.
 3. Put the returned price IDs, portal configuration ID and webhook secret into the Vercel project's production environment. Keep development/preview payment verification in test mode. The Stripe integration supplies the existing account keys. Never create a real charge for an integration test.
 4. Deploy billing-aware code and verify signed webhook handling before enabling enforcement. Public return URLs are `https://holofolder.com/app?billing=return`; webhooks use the Vercel origin at `/app/api/billing/webhook` so no Framer body transformations interfere with signatures.
-5. Enable with `UPDATE public.billing_configuration SET enforced=true WHERE id;`. Confirm old accounts and their partners remain unlocked, a new account is free, and shares/comps/card writes enforce access. The staged switch is server-owned and initially off.
+5. Enable with `UPDATE public.billing_configuration SET enforced=true WHERE id;`. Confirm old accounts and their partners remain unlocked, a new account is free, and comps/card writes enforce access. Read-only sharing is free after 053. The staged switch is server-owned and initially off.
 
 Before the migration exists, billing actions are unavailable and the old application remains usable. A subscription's verified paid-through date determines access; an unpaid renewal cannot extend it. A perpetual licence always takes precedence. Cancellation through the portal is at period end. The app retains cards, partnership and share records after expiry. Billing responses are private and never cached by the service worker.
 
@@ -60,6 +79,6 @@ Only mapped Holo Folder Stripe customers and allowlisted prices affect access. S
 
 Migration 049 was applied with enforcement off. Grandfather cutoff `2026-11-07T21:13:57.946Z`: two eligible auth accounts, two perpetual grants, verified. Monthly/yearly price IDs, app-specific portal configuration and webhook secret are configured in Vercel production. Local checks: 1004 unit tests, full typecheck and the existing 64-warning lint cap. No real payment was submitted. Enforcement remains off until the merged production build and a signed webhook request are verified.
 
-The unmerged billing file was renumbered from 047 to 049 after parallel account-identity releases allocated 047 and 048. Its SQL content was unchanged and reapplication verified the original cutoff and both grants. Both named and legacy share routes use the same premium access check.
+The unmerged billing file was renumbered from 047 to 049 after parallel account-identity releases allocated 047 and 048. Its SQL content was unchanged and reapplication verified the original cutoff and both grants. Both named and legacy share routes originally used the same premium access check; 053 and its app release remove that requirement.
 
 Framer Home pricing, Terms and Privacy drafts now describe these plans, lifetime access and Stripe processing. Draft screenshots were visually reviewed at desktop, tablet and phone sizes. Publishing requires the Framer project’s explicit publish authorization.

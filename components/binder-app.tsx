@@ -2713,7 +2713,6 @@ export default function BinderApp({
 
   const handleEnableReadOnlyShare = useCallback(async () => {
     if (readOnlyMode || !user) return
-    if (!billing.premium) { requestUpgrade(); return }
 
     setIsShareLoading(true)
     setShareMessage(null)
@@ -2739,10 +2738,9 @@ export default function BinderApp({
     } finally {
       setIsShareLoading(false)
     }
-  }, [billing.premium, requestUpgrade, initialBinderId, readOnlyMode, user])
+  }, [initialBinderId, readOnlyMode, user])
 
   const handleCopyReadOnlyShareLink = useCallback(async () => {
-    if (!billing.premium) { requestUpgrade(); return }
     if (!fullShareUrl) {
       setShareCopyMessage("Generate a share link first.")
       return
@@ -2755,7 +2753,7 @@ export default function BinderApp({
     } catch {
       setShareCopyMessage("Could not copy the share link.")
     }
-  }, [fullShareUrl, billing.premium, requestUpgrade])
+  }, [fullShareUrl])
 
   const handleDisableReadOnlyShare = useCallback(async () => {
     if (readOnlyMode || !user) return

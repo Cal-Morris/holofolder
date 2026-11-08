@@ -1,4 +1,3 @@
-import { getBillingAccess } from "@/lib/server/billing"
 import { notFound } from "next/navigation"
 import BinderApp from "@/components/binder-app"
 import { publicCollectionItems, type BinderShareRecord } from "@/lib/binder-share"
@@ -7,8 +6,6 @@ import { resolveActiveBinder } from "@/lib/server/binders"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export default async function SharedBinder({ share, path }: { share: BinderShareRecord; path?: string }) {
-  const access = await getBillingAccess(share.owner_user_id)
-  if (access.enforced && access.tier !== "paid") notFound()
   const admin = createAdminClient()
   // Legacy token links without a binder retain their default-binder behaviour.
   const binderId = share.binder_id ?? null
