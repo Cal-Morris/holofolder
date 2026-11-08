@@ -50,7 +50,7 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
    - `R2_ACCESS_KEY_ID=<token access key id>` (sensitive)
    - `R2_SECRET_ACCESS_KEY=<token secret>` (sensitive)
    - `R2_BUCKET=binderdex-card-images`
-   - `R2_PUBLIC_BASE_URL=https://img.cal.gg` (or the `https://pub-….r2.dev` URL)
+   - `R2_PUBLIC_BASE_URL=https://assets.holofolder.com` (the public card-image bucket custom domain)
 
    `CARD_IMAGE_BLOB=0` can stay; it only affects Blob. Redeploy production afterwards.
 5. Run the backfill (resumable), repeating with the returned cursor until `"done": true`:
@@ -90,3 +90,13 @@ To add a source, add its host and a strict path rule to `lib/card-image-sources.
 - **Promo sets.** Distributions TCGdex doesn't list (Trick or Trade, Burger King, Countdown Calendar) are imported from TCGplayer product data into the `catalog-supplements` series, with ids `tcgplayer-<productId>`, the printed number as `local_id` and Pokédex links inferred from the card name.
 
 Afterwards run the backfill for the touched sets (`POST /api/admin/mirror-card-images?set=<id>`) and revalidate the mirror cache with a real `POST /api/admin/sync-card-db?set=<id>&images=0`.
+
+## Developer API image availability
+
+REST and MCP return stable public `https://assets.holofolder.com/cards/...` URLs. They read `card_image_inventory` in batches, including nested provider image fields, and never make HEAD or LIST requests to R2 while building JSON. Unknown objects return a null image. Private binder artwork uses its separate bucket and signed URLs.
+
+Apply migrations 068–070 before deploying the API optimization. Seed migration 068 with `bun scripts/sync-card-image-inventory.ts` using the public card bucket's R2 credentials and Supabase service role. This lists only `cards/`, with a 150-request budget, and records confirmed keys without downloading or uploading images. A failed listing never prunes inventory. Mirror uploads and backfills maintain the inventory; rerun the sync after manual object deletions. API reads fail closed if the inventory is unavailable.
+
+The main app uses the same public asset domain, with stored low/high image variants and CORS enabled for GET/HEAD. The image proxy remains the miss/legacy-cache fallback and continues to resize Pokémon artwork. The service worker caches public asset requests and can serve an existing proxy or saved-for-show image when offline, without renaming or deleting those caches.
+
+Vercel functions run in `iad1`, next to the existing Supabase database in US East. `vercel.json` records the region so new deployments preserve it.

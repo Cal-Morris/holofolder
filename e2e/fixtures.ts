@@ -197,11 +197,11 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     return route.fulfill({ json: { cards } })
   })
   // Placeholder art for card images and Pokémon artwork (external hosts are otherwise blocked).
-  await target.route(/^https:\/\/(assets\.tcgdex\.net|raw\.githubusercontent\.com)\//, (route) => {
+  await target.route(/^https:\/\/(assets\.tcgdex\.net|assets\.holofolder\.com|raw\.githubusercontent\.com)\//, (route) => {
     const url = route.request().url()
     const card = MOCK_CARDS.find((candidate) => url.includes(`/${candidate.set.id}/${candidate.localId}/`))
     const label = card ? `${card.name} ${card.localId}` : (url.match(/(\d+)\.png$/)?.[1] ? `#${url.match(/(\d+)\.png$/)![1]}` : "card")
-    return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg(label, card ? MOCK_CARDS.indexOf(card) : label.length) })
+    return route.fulfill({ headers: { "Access-Control-Allow-Origin": "*" }, contentType: "image/svg+xml", body: placeholderSvg(label, card ? MOCK_CARDS.indexOf(card) : label.length) })
   })
   await target.route("**/app/api/card-image-proxy**", (route) => {
     const source = new URL(route.request().url()).searchParams.get("url") ?? ""

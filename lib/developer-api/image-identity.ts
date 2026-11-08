@@ -1,4 +1,4 @@
-import {parseTcgdexCardImageUrl,getCardImageBlobPathname} from '@/lib/card-image-blob'
+import {parseTcgdexCardImageUrl,getCardImageBlobPathname} from '@/lib/tcgdex-card-image'
 import {parseSourceCardImageUrl} from '@/lib/card-image-sources'
 
 export function developerImageSource(value:string) {

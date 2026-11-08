@@ -50,15 +50,12 @@ test("isAllowedImageUrl allows only the playshop.fr store path on the shared Sho
 })
 
 
-test("featured card srcset offers proxy widths and the original scan", () => {
+test("featured card srcset uses public stored variants while canonical artwork remains compatible", () => {
   const card = FEATURED_CARDS[0]
-  const srcset = getFeaturedCardImageSrcSet(card)
-  const candidates = srcset.split(", ")
-  assert.equal(candidates.length, 5)
-  assert.equal(candidates[0], `${getFeaturedCardImageUrl(card, 160)} 160w`)
-  assert.equal(candidates.at(-1), `${getFeaturedCardImageUrl(card)} 600w`)
-  for (const candidate of candidates.slice(0, -1)) {
-    const width = Number(candidate.match(/&w=(\d+) /)?.[1])
-    assert.equal(parseProxyImageWidth(String(width)), width)
-  }
+  const candidates = getFeaturedCardImageSrcSet(card).split(", ")
+  assert.equal(candidates.length, 2)
+  assert.ok(candidates.every(url=>url.startsWith("https://assets.holofolder.com/cards/")))
+  assert.ok(candidates[0].endsWith("/low.webp 320w"))
+  assert.ok(candidates[1].endsWith("/high.webp 600w"))
+  assert.ok(getFeaturedCardImageUrl(card).startsWith("/app/api/card-image-proxy?"))
 })

@@ -3,10 +3,10 @@ import assert from "node:assert/strict"
 import { getPokemonOfficialArtworkUrl, resolveSlotImageUrl } from "../components/binder/pokemon-slot"
 import { toCardImageSrc } from "../lib/card-image-url"
 
-test("binder slots retain the original scan URL for responsive resizing", () => {
+test("binder slots use the public asset URL for responsive variants", () => {
   const image = "https://assets.tcgdex.net/en/base/base1/44/high.webp"
   assert.equal(resolveSlotImageUrl(1, image), toCardImageSrc(image))
-  assert.equal(toCardImageSrc(image), `/app/api/card-image-proxy?url=${encodeURIComponent(image)}`)
+  assert.equal(toCardImageSrc(image), "https://assets.holofolder.com/cards/en/base1/44/high.webp")
 })
 
 test("binder slots preserve other providers and local images, and use artwork for missing images", () => {

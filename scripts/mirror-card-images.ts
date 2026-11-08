@@ -1,3 +1,4 @@
+import { recordMirroredCardImages } from '../lib/card-image-inventory'
 /**
  * Local backfill of card images (TCGdex plus the fallback sources in lib/card-image-sources.ts) into the card image
  * store (Cloudflare R2), without going through a
@@ -7,7 +8,8 @@
  *                                     [--concurrency 8] [--max-class-a 200000] [--max-gb 8]
  *
  * Env (e.g. from `vercel env pull` into a temp file + an R2 API token): CARD_IMAGE_STORE=r2, R2_ACCOUNT_ID,
- * R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_BASE_URL, and for the card list either
+ * R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_BASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * (to record confirmed images), and for the card list either
  * NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY (public read via PostgREST over HTTPS, preferred) or
  * POSTGRES_URL_NON_POOLING (direct Postgres).
  *
@@ -161,7 +163,7 @@ async function main() {
     endpointPrefix: `https://${config.accountId}.r2.cloudflarestorage.com/`,
   })
   const mirror = createCardImageMirror({
-    ...createR2Deps(config, { fetch: politeFetch }),
+    ...createR2Deps(config, { fetch: politeFetch, onObjects: keys => recordMirroredCardImages(config.bucket, keys) }),
     logger: (message) => console.warn(`[mirror] ${message}`),
     transformSourceImage: convertSourceImageToWebp,
   })

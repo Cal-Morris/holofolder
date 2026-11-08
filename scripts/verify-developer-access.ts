@@ -30,6 +30,10 @@ try {
  await db.query(recoverySql);await db.query(recoverySql)
  const directSql=await readFile(new URL('./067_direct_developer_access.sql',import.meta.url),'utf8')
  await db.query(directSql);await db.query(directSql)
+ for(const file of ['068_catalog_image_inventory.sql','069_developer_access_round_trips.sql']) {
+  const sql=await readFile(new URL('./'+file,import.meta.url),'utf8')
+  await db.query(sql);await db.query(sql)
+ }
  const actor=crypto.randomUUID(), key=crypto.randomUUID()
  await db.query('INSERT INTO auth.users(id) VALUES($1)',[actor])
  await db.query("INSERT INTO public.perpetual_licences(owner_user_id,source) VALUES($1,'manual')",[actor])
@@ -116,6 +120,29 @@ try {
  const values=[key,actor,'Synthetic test key','a'.repeat(64),['catalog:read'],90]
  await db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',values)
  assert.equal((await db.query('SELECT count(*)::int AS n FROM public.developer_api_keys WHERE actor_id=$1',[actor])).rows[0].n,1)
+ await db.query("SELECT set_config('request.jwt.claims','{\"role\":\"service_role\"}',true)")
+ const authorize=async(digest='a'.repeat(64),permissions=['catalog:read'])=>(await db.query("SELECT public.authenticate_developer_request($1,$2,$3,'read',$4) AS result",[key,digest,permissions,`preauth:synthetic-${actor}`])).rows[0].result
+ const authorized=await authorize()
+ assert.equal(authorized.actor_id,actor);assert.equal(authorized.owner_user_id,actor);assert.equal(authorized.budget.allowed,true)
+ assert.equal((await authorize('b'.repeat(64))).error,'invalid_api_key')
+ assert.equal((await authorize('a'.repeat(64),['collection:write'])).error,'insufficient_permissions')
+ const allowedReads=(await db.query("SELECT public.authenticate_developer_request($1,$2,ARRAY['catalog:read'],'read',NULL) AS result FROM generate_series(1,59)",[key,'a'.repeat(64)])).rows
+ assert.ok(allowedReads.every(row=>row.result.budget.allowed))
+ assert.equal((await authorize()).budget.allowed,false)
+ await db.query('UPDATE public.developer_api_keys SET revoked_at=now() WHERE id=$1',[key])
+ assert.equal((await authorize()).error,'invalid_api_key')
+ await db.query("UPDATE public.developer_api_keys SET revoked_at=NULL,expires_at=now()-interval '1 day' WHERE id=$1",[key])
+ assert.equal((await authorize()).error,'invalid_api_key')
+ await db.query("UPDATE public.developer_api_keys SET expires_at=now()+interval '90 days' WHERE id=$1",[key])
+ await db.query('INSERT INTO public.partnerships(user1_id,user2_id,owner_user_id) VALUES(least($1::uuid,$2::uuid),greatest($1::uuid,$2::uuid),$1)',[actor,recipient])
+ const partner=(await db.query("SELECT public.resolve_developer_access($1,NULL) AS result",[recipient])).rows[0].result
+ assert.equal(partner.owner_user_id,actor);assert.deepEqual(new Set(partner.member_ids),new Set([actor,recipient]))
+ const free=(await db.query("SELECT public.resolve_developer_access($1,'read') AS result",[stranger])).rows[0].result
+ assert.equal(free.owner_user_id,stranger);assert.equal(free.budget,null)
+ for(const role of ['anon','authenticated','holo_mcp']) {
+  assert.equal((await db.query("SELECT has_function_privilege($1,'public.authenticate_developer_request(uuid,text,text[],text,text)','execute') AS allowed",[role])).rows[0].allowed,false)
+  assert.equal((await db.query("SELECT has_table_privilege($1,'public.card_image_inventory','select') AS allowed",[role])).rows[0].allowed,false)
+ }
  const budgets=(await db.query("SELECT public.consume_developer_budget($1,10) AS budget FROM generate_series(1,11)",[actor])).rows.map(row=>row.budget.allowed)
  assert.deepEqual(budgets,[...Array(10).fill(true),false])
  for(let n=1;n<10;n++) await db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',[crypto.randomUUID(),...values.slice(1)])
@@ -132,7 +159,7 @@ try {
  await db.query('ROLLBACK TO SAVEPOINT expected_failure')
  await db.query('RESET ROLE')
  const plan=await db.query('EXPLAIN (ANALYZE,BUFFERS) SELECT id FROM public.developer_api_keys WHERE actor_id=$1',[actor]);assert.ok(plan.rows.length)
- console.log('PASS: key and OAuth migrations through 067 twice, direct resource/consent/audience checks, unchanged first-party claims, MCP DB impersonation denied;, personal key insertion, ten-key cap, shared limit exhaustion, private table/RPC denial and actor lookup EXPLAIN; all rolled back.')
+ console.log('PASS: key and OAuth migrations through 069 twice, one-call key validation, expiry/revocation/permissions, owner/partner/free membership, 60/min limit and image inventory isolation, direct resource/consent/audience checks, unchanged first-party claims, MCP DB impersonation denied;, personal key insertion, ten-key cap, shared limit exhaustion, private table/RPC denial and actor lookup EXPLAIN; all rolled back.')
 } finally {await db.query('ROLLBACK');await db.end()}
 
 }

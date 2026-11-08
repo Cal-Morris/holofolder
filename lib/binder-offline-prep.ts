@@ -2,7 +2,7 @@ import { fetchOfflineResource } from "@/lib/offline-download"
 import type { CollectedPokemon, CardFinish, CardLanguage } from "@/lib/domain/cards"
 import { getCardPriceKey, isStandardFinishVariantKey, normalizeCardPriceLookups, type CardPriceSnapshot } from "@/lib/card-pricing"
 import { getProxiedThumbnailUrl, SAVE_FOR_SHOW_HEADERS } from "@/lib/card-show-prep"
-import { toCardImageSrc } from "@/lib/card-image-url"
+import { toCardImageSrc, PUBLIC_CARD_IMAGE_BASE } from "@/lib/card-image-url"
 import { isCardPriceCheck } from "@/lib/card-price-checks"
 import { pinCardPriceCheck, priceCheckKey, priceCheckFinish, PRICE_CHECK_SOURCES, readPinnedCardPriceCheck } from "@/lib/card-price-check-cache"
 import { collectionRecordKey } from "@/lib/binders/offline"
@@ -30,7 +30,7 @@ export function binderPrintings(items: readonly CollectedPokemon[]): BinderPrint
       const printing: BinderPrinting = { cardId: card.card_id, language: card.card_language ?? "en", finish: card.card_finish ?? "normal", images: [] }
       const key = printingKey(printing)
       const images = [toCardImageSrc(card.card_image), getProxiedThumbnailUrl(card.card_image)]
-        .filter((url): url is string => Boolean(url?.startsWith("/app/api/card-image-proxy?")))
+        .filter((url): url is string => Boolean(url?.startsWith("/app/api/card-image-proxy?") || url?.startsWith(PUBLIC_CARD_IMAGE_BASE)))
       printing.images = [...new Set([...(cards.get(key)?.images ?? []), ...images])]
       cards.set(key, printing)
     }

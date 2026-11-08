@@ -1,3 +1,4 @@
+import { PUBLIC_CARD_IMAGE_BASE } from "./card-image-url"
 import { getImageProps, type ImageLoaderProps } from "next/image"
 
 const PROXY_PATH = "/app/api/card-image-proxy"
@@ -18,6 +19,7 @@ export function cardImageLoader({ src, width }: Pick<ImageLoaderProps, "src" | "
 
 /** Prefetch and render must let the browser select exactly the same variant. */
 export function getCardImageAttributes(src: string, sizes: string) {
+  if(src.startsWith(PUBLIC_CARD_IMAGE_BASE) && /\/high\.(webp|png|jpg)$/.test(src))return {src,srcSet:`${src.replace(/\/high\.(webp|png|jpg)$/,"/low.$1")} 320w, ${src} 600w`,sizes}
   const { props } = getImageProps({ src, alt: "", sizes, width: 600, height: 825, loader: cardImageLoader, unoptimized: !isProxiedCardImage(src) })
   return { src: props.src, srcSet: props.srcSet, sizes: props.sizes }
 }

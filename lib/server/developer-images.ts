@@ -1,30 +1,44 @@
-import { AwsClient } from 'aws4fetch'
-import { cacheLife, cacheTag } from 'next/cache'
-import {developerImageKey} from '@/lib/developer-api/image-identity'
-import { createR2Deps, getR2Config, getR2BucketEndpoint } from '@/lib/card-image-r2'
+import { developerImageKey } from '@/lib/developer-api/image-identity'
+import { normalizePublicBaseUrl } from '@/lib/card-image-r2'
+import { createAdminClient } from '@/lib/supabase/admin'
+
 export type DeveloperImage = {url:string|null;availability:'available'|'missing'|'unavailable'}
-export async function resolveImageFromR2(source:unknown,head:(key:string)=>Promise<{url:string}|null>,r2Bases:readonly string[]=[]):Promise<DeveloperImage> {
- if(typeof source!=='string') return {url:null,availability:'missing'}
+export type DeveloperImageResolver = (source:string|null)=>Promise<DeveloperImage>
+
+export function collectDeveloperImageKeys(value:unknown,r2Bases:readonly string[]=[]):string[] {
+ const keys=new Set<string>()
+ function visit(item:unknown) {
+  if(typeof item==='string') {const key=developerImageKey(item,r2Bases);if(key)keys.add(key)}
+  else if(Array.isArray(item))item.forEach(visit)
+  else if(item&&typeof item==='object')Object.values(item).forEach(visit)
+ }
+ visit(value)
+ return [...keys]
+}
+export function resolveRecordedDeveloperImage(source:unknown,keys:ReadonlySet<string>,base:string,r2Bases:readonly string[]=[]):DeveloperImage {
  const key=developerImageKey(source,r2Bases)
- if(!key) return {url:null,availability:'missing'}
- try {const object=await head(key);return object?{url:object.url,availability:'available'}:{url:null,availability:'missing'}}
- catch {return {url:null,availability:'unavailable'}}
+ return key&&keys.has(key)?{url:`${base}${key}`,availability:'available'}:{url:null,availability:'missing'}
+}
+
+/** One batched inventory read for the entire response, including nested provider images. */
+export async function createDeveloperImageResolver(value:unknown):Promise<DeveloperImageResolver> {
+ const base=normalizePublicBaseUrl(process.env.R2_PUBLIC_BASE_URL),bucket=process.env.R2_BUCKET
+ if(!base||!bucket)return async source=>({url:null,availability:source?'unavailable':'missing'})
+ const bases=[base,'https://assets.holofolder.com/','https://pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev/']
+ if(process.env.R2_ACCOUNT_ID)bases.push(`https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${bucket}/`)
+ const keys=collectDeveloperImageKeys(value,bases),present=new Set<string>()
+ if(keys.length) {
+  const admin=createAdminClient()
+  for(let n=0;n<keys.length;n+=500) {
+   const {data,error}=await admin.from('card_image_inventory').select('object_key').eq('bucket',bucket).in('object_key',keys.slice(n,n+500))
+   // During migration rollout, fail closed without falling back to per-image R2 requests.
+   if(error)return async source=>({url:null,availability:developerImageKey(source,bases)?'unavailable':'missing'})
+   for(const row of data??[])present.add(row.object_key)
+  }
+ }
+ return async source=>resolveRecordedDeveloperImage(source,present,base,bases)
 }
 export async function resolveDeveloperImage(source:string|null):Promise<DeveloperImage> {
  if(!source)return {url:null,availability:'missing'}
- return resolvePresentDeveloperImage(source)
-}
-async function resolvePresentDeveloperImage(source:string):Promise<DeveloperImage> {
- 'use cache: remote'
- cacheLife({stale:60,revalidate:60,expire:120});cacheTag('tcg-mirror')
- const config=getR2Config()
- if(!config) return {url:null,availability:'unavailable'}
- const deps=createR2Deps(config)
- return resolveImageFromR2(source,async(key)=>{
-  const object=await deps.head(key)
-  if(!object || config.publicBaseUrl) return object
-  const signer=new AwsClient({accessKeyId:config.accessKeyId,secretAccessKey:config.secretAccessKey,service:'s3',region:'auto'})
-  const url=new URL(`${getR2BucketEndpoint(config)}${key}`);url.searchParams.set('X-Amz-Expires','300')
-  return {url:(await signer.sign(url,{aws:{signQuery:true}})).url}
- },[config.publicBaseUrl??getR2BucketEndpoint(config),getR2BucketEndpoint(config)])
+ return (await createDeveloperImageResolver(source))(source)
 }

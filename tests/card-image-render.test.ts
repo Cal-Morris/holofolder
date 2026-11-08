@@ -9,11 +9,11 @@ import CardImage from "../components/card-image"
 // Synthetic card URLs: the tests render markup without fetching any images.
 const src = "https://assets.tcgdex.net/en/mock/base1/44/high.webp"
 
-test("card images render responsive proxy variants and an inline loading placeholder", () => {
+test("card images render responsive asset variants and an inline loading placeholder", () => {
   const html = renderToStaticMarkup(createElement(CardImage, { src, alt: "Synthetic card", sizes: "80px" }))
   assert.equal(html.match(/srcSet="([^"]+)"/)?.[1].replace(/&amp;/g, "&"), getCardImageAttributes(toCardImageSrc(src)!, "80px").srcSet)
   assert.match(html, /sizes="80px"/)
-  assert.match(html, /\/app\/api\/card-image-proxy\?url=/)
+  assert.ok(html.includes("https://assets.holofolder.com/cards/"))
   assert.doesNotMatch(html, /\/_next\/image/)
   assert.match(html, /background-image:url/)
   assert.match(html, /data:image\/svg\+xml/)

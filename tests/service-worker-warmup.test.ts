@@ -64,3 +64,18 @@ test("newly visible URLs go ahead of older queued work and a failed warm-up can 
   assert.equal(requests.at(-1), "latest")
   assert.equal(requests.length, 14)
 })
+
+test('public asset requests reuse existing proxy/show caches when offline',async()=>{
+ const legacy='https://holofolder.com/app/api/card-image-proxy?url='+encodeURIComponent('https://assets.tcgdex.net/en/base/base1/1/high.webp')+'&w=160'
+ const stored=new Response('synthetic legacy cached card')
+ const context=createContext({URL,Request,self:{location:{origin:'https://holofolder.com'},addEventListener:()=>{}},
+  caches:{open:async()=>({keys:async()=>[new Request(legacy)],match:async(request:Request|string)=>typeof request==='object'&&request.url===legacy?stored.clone():undefined,put:async()=>{}})},
+  fetch:async()=>{throw new Error('synthetic offline')},
+ })
+ runInContext(readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),context)
+ context.request=new Request('https://assets.holofolder.com/cards/en/base1/1/low.webp')
+ const response=await runInContext('cacheFirst(request, IMAGE_CACHE)',context) as Response
+ assert.equal(await response.text(),'synthetic legacy cached card')
+ context.request=new Request('https://private.synthetic.test/cards/en/base1/1/low.webp')
+ await assert.rejects(()=>runInContext('cacheFirst(request, IMAGE_CACHE)',context),/synthetic offline/)
+})

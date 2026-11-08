@@ -10,7 +10,7 @@ import { readCatalogMetadata } from '@/lib/card-catalog'
 import { pickExternalCardImageUrl } from '@/lib/card-image-sources'
 import { parseCardSearchQuery } from '@/lib/pokemon-card-browse'
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query'
-import { resolveDeveloperImage } from '@/lib/server/developer-images'
+import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images'
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields'
 
 const CARD_COLUMNS='raw_json,id,series_id,set_id,local_id,name_json,category,rarity,hp,illustrator,types_json,image_languages_json,external_ids_json,variants_json,tcg_sets(id,name_json,official_card_count,release_date)'
@@ -23,21 +23,27 @@ function language(params:URLSearchParams):CardLanguage {
 function record(value:unknown):Record<string,unknown> {return value && typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}}
 function text(value:unknown):string|null {return typeof value==='string'?value:null}
 function strings(value:unknown):string[] {return Array.isArray(value)?value.filter((x):x is string=>typeof x==='string'):[]}
-async function serializeCard(value:unknown,lang:CardLanguage) {
+function cardSource(value:unknown,lang:CardLanguage) {
+ const row=record(value),metadata=readCatalogMetadata(row.external_ids_json),available=strings(row.image_languages_json)
+ const imageLanguage=available.includes(lang)?lang:available.find(l=>CARD_LANGUAGES.includes(l as CardLanguage))
+ return metadata.image??(imageLanguage?buildTcgdexAssetImageUrl(imageLanguage,String(row.series_id),String(row.set_id),String(row.local_id)):pickExternalCardImageUrl(row.external_ids_json)??null)
+}
+async function serializeCard(value:unknown,lang:CardLanguage,resolve:DeveloperImageResolver) {
  const row=record(value), set=record(row.tcg_sets),metadata=readCatalogMetadata(row.external_ids_json)
  const available=strings(row.image_languages_json)
  const imageLanguage=available.includes(lang)?lang:available.find(l=>CARD_LANGUAGES.includes(l as CardLanguage))
- const source=metadata.image??(imageLanguage?buildTcgdexAssetImageUrl(imageLanguage,String(row.series_id),String(row.set_id),String(row.local_id)):pickExternalCardImageUrl(row.external_ids_json)??null)
- const image=await resolveDeveloperImage(source)
+ const source=cardSource(value,lang)
+ const image=await resolve(source)
  const identifiers=readExternalIdentifiers(row.external_ids_json)
  return {id:row.id,canonicalId:metadata.canonicalId??row.id,aliasIds:metadata.aliasIds??[],localId:metadata.localId??row.local_id,name:pickLocalizedText(row.name_json,lang),names:record(row.name_json),language:lang,
   set:{id:row.set_id,name:pickLocalizedText(set.name_json,lang),officialCardCount:set.official_card_count??null,releaseDate:set.release_date??null},seriesId:row.series_id,
-  category:text(row.category),rarity:text(row.rarity),hp:typeof row.hp==='number'?row.hp:null,illustrator:text(row.illustrator),types:strings(row.types_json),variants:Object.fromEntries(Object.entries(record(row.variants_json)).filter(([,value])=>typeof value==='boolean')),externalIds:identifiers,details:await sanitizeDeveloperImages(record(row.raw_json)),
+  category:text(row.category),rarity:text(row.rarity),hp:typeof row.hp==='number'?row.hp:null,illustrator:text(row.illustrator),types:strings(row.types_json),variants:Object.fromEntries(Object.entries(record(row.variants_json)).filter(([,value])=>typeof value==='boolean')),externalIds:identifiers,details:await sanitizeDeveloperImages(record(row.raw_json),resolve),
   artworkRef:source?developerArtworkReference(source):null,image:image.url,imageAvailability:image.availability,imageLanguage:imageLanguage??null,attribution:ATTRIBUTION}
 }
 async function cardPage(rows:unknown[],lang:CardLanguage) {
+ const resolve=await createDeveloperImageResolver([rows,rows.map(row=>cardSource(row,lang))])
  const cards=[]
- for(let i=0;i<rows.length;i+=8) cards.push(...await Promise.all(rows.slice(i,i+8).map(row=>serializeCard(row,lang))))
+ for(let i=0;i<rows.length;i+=8) cards.push(...await Promise.all(rows.slice(i,i+8).map(row=>serializeCard(row,lang,resolve))))
  return cards
 }
 async function listSetsForSearch(query:string) {
@@ -85,7 +91,7 @@ export async function getCatalogCard(id:string,lang:CardLanguage) {
  cacheLife({stale:60,revalidate:60,expire:120});cacheTag('tcg-mirror')
  const {data,error}=await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).eq('id',id).maybeSingle()
  if(error) throw new Error('Card lookup unavailable')
- return data?serializeCard(data,lang):null
+ return data?(await cardPage([data],lang))[0]:null
 }
 export async function listCatalogGroups(kind:'sets'|'series',rawParams:string) {
  'use cache: remote'
