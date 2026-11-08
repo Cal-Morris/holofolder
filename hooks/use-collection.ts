@@ -1,5 +1,5 @@
 "use client"
-import { BillingAccessError, countSavedCards, pendingCardDelta, canGrowCollection, resolveBillingAccess, savedCardWeight } from "@/lib/billing"
+import { BillingAccessError, countSavedCards, pendingCardDelta, canGrowCollection, resolveBillingAccess, savedCardWeight, FREE_CARD_LIMIT } from "@/lib/billing"
 import { BILLING_CHANGED, readBillingCache } from "@/lib/billing-cache"
 
 import { captureAcquisition, mergeQueuedAcquisition, readPushMembership, writePushMembership, type AcquisitionIntent } from "@/lib/partner-push"
@@ -788,12 +788,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
       return { item: existingItem, queued: false as const, rolledBack: true as const, error: "This card changed since the action. Check your binder before undoing." }
     }
     const cachedAccess = typeof window === "undefined" ? null : readBillingCache(localStorage, user?.id ?? null, collectionOwnerUserId)
-    const access = cachedAccess ?? resolveBillingAccess(collectionOwnerUserId ?? "guest", { enforced: true })
+    const access = cachedAccess ?? resolveBillingAccess(collectionOwnerUserId ?? "guest", { enforced: true, ...(!user ? { free_card_limit: FREE_CARD_LIMIT } : {}) })
     const before = countSavedCards(current)
     const after = before - (existingItem ? savedCardWeight(existingItem) : 0) + (nextItem ? savedCardWeight(nextItem) : 0)
     const totalBefore = Math.max(before, access.savedCardCount + pendingCardDelta(readPendingCollectionOperations()))
     if (!canGrowCollection(access, totalBefore, totalBefore + after - before)) {
-      setSyncNotice("Your free account holds 10 cards. Upgrade to save more.")
+      setSyncNotice(`Your free account holds ${access.cardLimit} entries. Upgrade to save more.`)
       window.dispatchEvent(new Event("holofolder-upgrade"))
       return { item: existingItem, queued: false as const, error: "Upgrade to add more cards.", rolledBack: true as const }
     }

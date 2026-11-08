@@ -1,6 +1,29 @@
 # Billing and lifetime access
 
-Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £2.99/month and £29.99/year. The free allowance is 10 saved entries across all binders, including individual wanted cards. One owner's paid access includes their shared partner collection.
+Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £2.99/month and £29.99/year. After migration 052, the free allowance is 100 saved entries across all binders, including individual wanted cards, and one binder. One owner's paid access includes their shared partner collection. Paid/lifetime owners can create multiple binders within the existing 20-binder safety ceiling.
+
+## Free-plan allowance rollout and rollback
+
+Migration `052_free_plan_allowances.sql` adds server-owned `free_card_limit` and `free_binder_limit` values to the existing configuration. It preserves the billing enforcement switch, original grandfather cutoff and licences. The billing RPC returns these values, and clients retain them in their account/owner-scoped offline cache. Before migration, updated signed-in clients conservatively keep the old ten-entry/20-binder policy; guests can save 100 entries locally. Existing cards, queued edits and extra binders are never deleted or hidden by the new limits. Non-growing edits and deletion remain available above the allowance.
+
+The collection and binder database triggers serialize checks per owner, including direct database writes and concurrent requests. The binder API prechecks the same allowance for a useful HTTP 402; the database remains authoritative for races. Creating the first named binder does not create an extra default binder first. Existing default-binder initialization remains idempotent.
+
+1. Run the local concurrency verifier on a disposable database: `FREE_PLAN_TEST_DATABASE_URL=postgresql://.../holofolder_free_plan bun scripts/verify-free-plan.ts`. It creates the synthetic billing schema, applies 049 and 052, checks 052 twice, then verifies concurrent collection/binder limits and data-preserving rollback. The local database must be fresh; never point the local mode at the hosted database.
+2. Inspect the hosted target and verify `FREE_PLAN_TEST_DATABASE_URL` explicitly with `bun scripts/verify-free-plan.ts --hosted-rollback`. This applies 052 twice and checks synthetic owner/permission/cap/rollback behaviour inside one transaction, then rolls everything back. It does not change the existing cutoff, enforcement or licence grants.
+3. Apply 052 to the hosted target before releasing the new app. Older deployed clients may still guard at ten until their app updates. Verify the two configuration values and the new trigger/RPC. Keep the existing enforcement value.
+4. Release the code and verify its exact production deployment. Confirm account usage and the binder switcher reflect the server values. Billing prices, sharing and paid partner/comparison rules are unchanged in this release.
+
+To reverse the product policy without removing any saved data or schema, run this as the trusted operator, then revert the app PR if needed:
+
+```sql
+UPDATE public.billing_configuration
+SET free_card_limit = 10, free_binder_limit = 20
+WHERE id;
+```
+
+Refresh billing on connected clients; offline clients retain their last-known limits until reconnecting, and server-rejected edits remain queued. Updated clients consume the restored values. The additive columns and trigger can remain; the trigger's 20-binder safety ceiling and owner-immutability check remain active. No row deletion is part of rollback. Reapplying 052 preserves the configured values, so deliberately restoring the new policy requires setting them back to 100 and 1.
+
+Applied 052 to the existing hosted Supabase target on 8 November 2026 after rollback-only verification. Verified limits 100/1 and the binder trigger; enforcement stayed enabled, the original cutoff stayed unchanged, and both perpetual grants were preserved. Local real-Postgres concurrency and rollback checks passed. Production app deployment is tracked by the #303 PR.
 
 ## Permanent licences
 

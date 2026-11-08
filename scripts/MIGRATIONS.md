@@ -6,6 +6,7 @@ When you add a migration, use the next free number (`031_…`), keep it idempote
 
 | File | What it does |
 |---|---|
+| `052_free_plan_allowances.sql` | Server-owned 100-entry/one-binder free allowance, billing RPC fields and serialized binder-creation enforcement. Preserves enforcement, cutoff, licences and existing over-limit data. Apply before shipping the client; missing columns retain the legacy signed-in policy. Rollback sets limits to 10/20 without deleting data; see `docs/billing.md`. |
 | `049_billing_access.sql` | Stripe subscription access, separate permanent licences, fixed grandfather cutoff for existing accounts, staged enforcement, transactional card cap and paid partner/share policies. Apply before enabling billing; enforcement defaults off. |
 | `051_comparison_job_initiator.sql` | Completion pushes target the authenticated job initiator. Nullable for old jobs; checks still run before application without completion pushes. Apply the concurrent index separately. |
 | `050_comparison_jobs.sql` | 30-hour comparison reuse and server-only, owner-scoped background comparison jobs. |

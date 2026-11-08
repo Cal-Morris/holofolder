@@ -52,11 +52,12 @@ async function request(init: RequestInit & { query?: string } = {}) {
     binders?: BinderWithCount[]
     error?: string
     reason?: string
+    code?: string
     slotCount?: number
     createdBinderId?: string
   } | null
   if (!response.ok || !payload?.binders) {
-    throw new BinderRequestError(payload?.error || `Binder request failed (${response.status})`, response.status, payload?.reason, payload?.slotCount)
+    throw new BinderRequestError(payload?.error || `Binder request failed (${response.status})`, response.status, payload?.reason ?? payload?.code, payload?.slotCount)
   }
   return payload as { binders: BinderWithCount[]; createdBinderId?: string }
 }
