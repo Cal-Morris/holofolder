@@ -32,6 +32,20 @@ test("fresh schema replays documented setup, preserves wish timestamps and handl
         await db.query("insert into auth.users(id) values ('00000000-0000-4000-8000-000000000001')")
         await db.query("insert into public.pokemon_collection(user_id,pokemon_id,pokemon_name,card_id,status,collected_at) values ('00000000-0000-4000-8000-000000000001',1,'Synthetic Pokémon','synthetic-card','wishlisted','2020-01-02T03:04:05Z')")
       }
+      if (file.startsWith("036")) {
+        for (const name of ["passkey_credentials", "tcgdex_cache_jobs"]) {
+          assert.equal((await db.query("select to_regclass($1) as name", [`public.${name}`])).rows[0].name, null)
+        }
+        // The passkey security fix must still work on legacy installations, and be rerunnable.
+        await db.query("begin")
+        await db.query("create table public.passkey_credentials(user_id uuid); grant select on public.passkey_credentials to anon; alter table public.passkey_credentials enable row level security; create policy \"Service can lookup credentials by id\" on public.passkey_credentials using (true)")
+        const securityFix = readFileSync(new URL("036_passkey_credentials_owner_only.sql", scripts), "utf8")
+        await db.query(securityFix)
+        await db.query(securityFix)
+        assert.equal((await db.query("select has_table_privilege('anon','public.passkey_credentials','select') as allowed")).rows[0].allowed, false)
+        assert.equal((await db.query("select count(*)::int as n from pg_policies where tablename='passkey_credentials'")).rows[0].n, 0)
+        await db.query("rollback")
+      }
     }
     const row = (await db.query("select binder_id,wanted_cards from public.pokemon_collection")).rows[0]
     assert.ok(row.binder_id, "existing collection gets its default binder")
@@ -41,18 +55,7 @@ test("fresh schema replays documented setup, preserves wish timestamps and handl
       assert.equal((await db.query("select relrowsecurity from pg_class where oid=$1::regclass", [`public.${name}`])).rows[0].relrowsecurity, true, name)
     }
     assert.equal((await db.query("select count(*)::int as n from pg_policies where schemaname='public' and tablename='user_settings' and policyname in ('Users can view own settings','Users can insert own settings','Users can update own settings')")).rows[0].n, 3)
-    for (const name of ["passkey_credentials", "tcgdex_cache_jobs"]) {
-      assert.equal((await db.query("select to_regclass($1) as name", [`public.${name}`])).rows[0].name, null)
-    }
-    // The passkey security fix must still work on legacy installations, and be rerunnable.
-    await db.query("begin")
-    await db.query("create table public.passkey_credentials(user_id uuid); grant select on public.passkey_credentials to anon; alter table public.passkey_credentials enable row level security; create policy \"Service can lookup credentials by id\" on public.passkey_credentials using (true)")
-    const securityFix = readFileSync(new URL("036_passkey_credentials_owner_only.sql", scripts), "utf8")
-    await db.query(securityFix)
-    await db.query(securityFix)
-    assert.equal((await db.query("select has_table_privilege('anon','public.passkey_credentials','select') as allowed")).rows[0].allowed, false)
-    assert.equal((await db.query("select count(*)::int as n from pg_policies where tablename='passkey_credentials'")).rows[0].n, 0)
-    await db.query("rollback")
+
   } finally {
     await db.query("rollback")
     await db.end()
