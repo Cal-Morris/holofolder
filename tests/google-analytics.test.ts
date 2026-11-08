@@ -14,7 +14,7 @@ test("Google events stay disabled outside production and queue before the remote
   try {
     renderToString(createElement(GoogleAnalytics, { gaId: "G-SYNTHETIC" }))
     sendGoogleEvent(false, "screen_view", { screen_name: "wanted", show_mode: false, read_only: false })
-    assert.equal(browser.dataLayer, undefined)
+    assert.equal("dataLayer" in browser, false)
     sendGoogleEvent(true, "screen_view", { screen_name: "wanted", show_mode: false, read_only: false })
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false })
     sendGoogleEvent(true, "search_opened", { surface: "search" })
