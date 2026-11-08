@@ -1,3 +1,4 @@
+import { parseShowMode, SHOW_MODE_KEY } from '@/lib/show-mode'
 import { getOfflineStore } from '@/lib/offline-store/kv'
 
 const ACCOUNT_KEY = 'push:account'
@@ -24,4 +25,19 @@ export async function bindPushAccount(userId: string) {
   const store = getOfflineStore()
   if (!store) throw new Error('Device storage is unavailable. Enable browser storage to receive notifications.')
   await store.set(ACCOUNT_KEY, { userId })
+  try {
+    await syncPushShowMode(parseShowMode(window.localStorage.getItem(SHOW_MODE_KEY)).on)
+  } catch { /* Registration still works if Show mode storage or the network is unavailable. */ }
+}
+
+export async function syncPushShowMode(on: boolean, signal?: AbortSignal) {
+  if (!('serviceWorker' in navigator)) return
+  const registration = await navigator.serviceWorker.getRegistration('/app')
+  const subscription = await registration?.pushManager?.getSubscription()
+  if (!subscription || signal?.aborted) return
+  await fetch('/app/api/push/subscriptions', {
+    method: 'PATCH', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ endpoint: subscription.endpoint, showMode: on }),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(5000)]) : AbortSignal.timeout(5000),
+  })
 }
