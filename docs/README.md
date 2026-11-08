@@ -2,6 +2,8 @@
 
 Start with the root [README](../README.md) for setup and [CONTRIBUTING](../CONTRIBUTING.md) for changes. [AGENTS.md](../AGENTS.md) holds coding and release rules; task playbooks are under [`.agents/skills/`](../.agents/skills/).
 
+[Testing](testing.md) covers persistent local e2e servers, synthetic credentials and focused runs.
+
 ## How the application works
 
 - [Architecture](architecture.md): ownership boundaries, startup, writes, offline sync and integrations.

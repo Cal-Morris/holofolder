@@ -39,22 +39,7 @@ GitHub Actions runs the **Typecheck** check on pull requests and `main`, in para
 
 `tsrs` is pinned to `0.23.0-ts7.1.0-beta` and uses its default checker settings. It is experimental; compare unexpected diagnostics with `bun run typecheck:tsc`. TypeScript 6 remains installed for the editor, ESLint and other compiler-API integrations.
 
-For repeated test runs, use a persistent production server on your own port. Set these synthetic test values in **both terminals**, overriding any real values in `.env.local`:
-
-```sh
-export NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54399
-export NEXT_PUBLIC_SUPABASE_ANON_KEY=e2e-anon-key
-export NEXT_PUBLIC_VAPID_PUBLIC_KEY=c3ludGhldGljLWUyZS12YXBpZC1wdWJsaWMta2V5
-# First terminal
-HOLOFOLDER_E2E=1 bun run build
-HOLOFOLDER_E2E=1 bun run start -p 3279
-# Second terminal
-E2E_BASE_URL=http://localhost:3279 bun run test:e2e:smoke --workers=2
-```
-
-This avoids rebuilding between test edits or reruns. After changing app code, stop the server, rebuild and restart it. Run a relevant spec against the same server with `E2E_BASE_URL=http://localhost:3279 bun run test:e2e e2e/card-browser.e2e.ts --workers=2`. Without `E2E_BASE_URL`, the normal command handles the build and server automatically.
-
-Local runs capture a screenshot on failure without recording every passing test. To debug a failure with a trace, rerun its spec with `--trace=retain-on-failure`; CI records traces on the first retry. Keep `.next/cache` between builds: Next.js already uses Turbopack and its filesystem build cache by default.
+For persistent local test servers, synthetic credentials and focused Playwright runs, see [the testing guide](docs/testing.md). Test placeholders are separate from real service configuration in `.env.local`.
 
 ## Card data sync on Vercel
 
@@ -64,7 +49,7 @@ Local runs capture a screenshot on failure without recording every passing test.
 
 See [`.env.example`](.env.example) for every variable and what it's for. Only the three Supabase values are needed for local development.
 
-See the [documentation index](docs/README.md) and [architecture guide](docs/architecture.md) for data flow, ownership and offline boundaries.
+See the [documentation index](docs/README.md) and [architecture guide and diagrams](docs/architecture.md) for data flow, ownership and offline boundaries.
 
 ## Project layout
 
