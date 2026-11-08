@@ -81,3 +81,25 @@ test("3D pages support keyboard navigation and fitting the view", async ({ harne
   await page.getByRole("button", { name: "Fit binder", exact: true }).click()
   await expect(stage).toHaveAttribute("data-current-page", "1")
 })
+
+
+test("artwork adjustment stays tucked away until requested", async ({ harness }) => {
+  const { page } = harness
+  await page.goto("/app/e2e-harness/studio")
+  await expect(page.getByRole("button", { name: "Save appearance", exact: true })).toBeEnabled()
+  await page.getByText("Presets", { exact: true }).click()
+  await page.getByRole("button", { name: "Apply Magikarp preset", exact: true }).click()
+  await page.getByText("Presets", { exact: true }).click()
+  const crop = page.getByLabel("Artwork crop preview, drag to position, arrow keys to move", { exact: true })
+  await expect(crop).toBeHidden()
+  const colour = page.getByLabel("Surface colour", { exact: true })
+  await harness.expectMinTapTarget(colour, 36)
+  await colour.fill("#223344")
+  await expect(colour).toHaveValue("#223344")
+  await page.getByText("Adjust artwork", { exact: false }).click()
+  await expect(crop).toBeVisible()
+  await page.getByRole("button", { name: "Remove artwork", exact: true }).click()
+  await expect(crop).toHaveCount(0)
+  await expect(page.getByText("Upload artwork", { exact: true })).toBeVisible()
+  await harness.expectNoHorizontalOverflow()
+})
