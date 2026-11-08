@@ -367,10 +367,12 @@ export function renderMainContentView(ctx: MainContentContext) {
           {/* Binder Grid */}
           <div ref={setBinderStageRef} className="relative flex min-h-0 flex-1 touch-pan-y items-center justify-center overflow-hidden overscroll-x-contain">
             {pendingBinderPage !== null && (
-              <div role="status" aria-label="Page loading" className="pointer-events-none absolute left-1/2 top-2 z-20 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-background px-3 py-1 text-sm shadow-lg">
-                <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                <span>Opening page {pendingBinderPage}…</span>
-                <button type="button" aria-label="Cancel page change" onClick={cancelPageNavigation} className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" aria-hidden="true" /></button>
+              <div role="status" aria-label="Page loading" className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
+                <div className="holo-loading flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1 text-sm shadow-lg">
+                  <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                  <span>Opening page {pendingBinderPage}…</span>
+                  <button type="button" aria-label="Cancel page change" onClick={cancelPageNavigation} className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" aria-hidden="true" /></button>
+                </div>
               </div>
             )}
             <div
