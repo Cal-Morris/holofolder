@@ -40,7 +40,7 @@ test('each docs page advertises a matching Markdown alternate, including API sch
   expect(await guide.text()).toContain('## Authentication')
   const endpoint = await request.get('/app/docs/markdown/reference/catalog/list-cards')
   const text = await endpoint.text()
-  expect(text).toContain('GET https://holofolder.com/app/api/v1/cards')
+  expect(text).toContain(`GET ${schema.servers[0].url}/cards`)
   const operation = JSON.parse(text.split('```json\n')[1].split('\n```')[0])
   expect(operation).toEqual(schema.paths['/cards'].get)
   expect((await request.get('/app/docs/markdown/not-a-real-page')).status()).toBe(404)
