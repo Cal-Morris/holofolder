@@ -8,8 +8,9 @@ export const billingAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`
 export interface BillingAccess {
   ownerUserId: string
   tier: 'free' | 'paid'
-  source: 'free' | 'subscription' | 'perpetual'
+  source: 'free' | 'subscription' | 'perpetual' | 'trial'
   paidThrough: string | null
+  trialEndsAt: string | null
   savedCardCount: number
   cardLimit: number | null
   freeCardLimit: number
@@ -31,9 +32,11 @@ export function resolveBillingAccess(ownerUserId: string, row: Record<string, un
   const freeCardLimit = positiveInteger(row.free_card_limit, 10)
   const freeBinderLimit = Math.min(MAX_BINDERS_PER_OWNER, positiveInteger(row.free_binder_limit, MAX_BINDERS_PER_OWNER))
   const paidThrough = typeof row.paid_through === 'string' && Number.isFinite(Date.parse(row.paid_through)) ? row.paid_through : null
+  const trialEndsAt = typeof row.trial_ends_at === 'string' && Number.isFinite(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null
   const source = row.perpetual === true ? 'perpetual'
-    : ['active', 'past_due'].includes(String(row.status)) && paidThrough && Date.parse(paidThrough) > now ? 'subscription' : 'free'
-  return { ownerUserId, tier: source === 'free' ? 'free' : 'paid', source, paidThrough,
+    : ['active', 'past_due'].includes(String(row.status)) && paidThrough && Date.parse(paidThrough) > now ? 'subscription'
+    : trialEndsAt && Date.parse(trialEndsAt) > now ? 'trial' : 'free'
+  return { ownerUserId, tier: source === 'free' ? 'free' : 'paid', source, paidThrough, trialEndsAt,
     savedCardCount: typeof row.saved_card_count === 'number' && row.saved_card_count >= 0 ? row.saved_card_count : 0,
     cardLimit: source === 'free' ? freeCardLimit : null, freeCardLimit, freeBinderLimit,
     binderLimit: source === 'free' && row.enforced === true ? freeBinderLimit : MAX_BINDERS_PER_OWNER,

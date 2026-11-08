@@ -4,8 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { BillingContext, type BillingState } from '../hooks/use-billing'
 import { BillingSettings } from '../components/billing-settings'
 import { resolveBillingAccess } from '../lib/billing'
-function render(source: 'free'|'perpetual'|'subscription',canManage=true,hasBillingAccount=false) {
- const state: BillingState={ access:resolveBillingAccess('owner',{enforced:true,perpetual:source==='perpetual',status:source==='subscription'?'active':'none',paid_through:'2099-01-01',saved_card_count:10,free_card_limit:100,free_binder_limit:1}),canManage,hasBillingAccount,loading:false,error:null,busy:false,premium:source!=='free',refresh:async()=>{},upgrade:()=>{},checkout:async()=>{},portal:async()=>{} }
+function render(source: 'free'|'perpetual'|'subscription'|'trial',canManage=true,hasBillingAccount=false) {
+ const state: BillingState={ access:resolveBillingAccess('owner',{enforced:true,perpetual:source==='perpetual',status:source==='subscription'?'active':'none',trial_ends_at:source==='trial'?'2099-01-01':null,paid_through:'2099-01-01',saved_card_count:10,free_card_limit:100,free_binder_limit:1}),canManage,hasBillingAccount,loading:false,error:null,busy:false,premium:source!=='free',refresh:async()=>{},upgrade:()=>{},checkout:async()=>{},portal:async()=>{} }
  return renderToStaticMarkup(<BillingContext.Provider value={state}><BillingSettings signedIn onSignIn={()=>{}} /></BillingContext.Provider>)
 }
 test('lifetime plan shows permanent access without purchase or billing controls',()=>{
@@ -28,4 +28,14 @@ test('only the billing owner gets subscription management controls',()=>{
 
 test('a subscriber later granted lifetime access can still stop their existing billing',()=>{
  assert.match(render('perpetual',true,true),/Manage my existing billing/)
+})
+test('trial explains its expiry and no automatic charge, with optional purchase controls',()=>{
+ const html=render('trial')
+ assert.match(html,/7-day Premium trial/)
+ assert.match(html,/Trial ends/)
+ assert.match(html,/No payment details needed/)
+ assert.match(html,/won&#x27;t be charged automatically/)
+ assert.match(html,/£3.99 \/ month/)
+ assert.doesNotMatch(html,/Paid access until|>Manage billing</)
+ assert.doesNotMatch(render('trial',false),/£3.99/)
 })
