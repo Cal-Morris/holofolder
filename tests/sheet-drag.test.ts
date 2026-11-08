@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { dismissDuration, dragOffset, MAX_OVERDRAG, releaseVelocity, shouldDismissDrag } from "../lib/sheet-drag"
+import { dismissDuration, dragOffset, dragDistanceForOffset, MAX_OVERDRAG, releaseVelocity, shouldDismissDrag } from "../lib/sheet-drag"
 
 describe("sheet drag", () => {
   it("measures velocity over the last stretch of the gesture only", () => {
@@ -19,6 +19,14 @@ describe("sheet drag", () => {
     assert.equal(dragOffset(40), 40)
     assert.ok(dragOffset(-10) < 0 && dragOffset(-10) > -10)
     assert.ok(dragOffset(-10_000) > -MAX_OVERDRAG)
+  })
+
+  it("resumes from the visible position when catching a sheet", () => {
+    for (const distance of [-300, -50, -1, 0, 50, 300]) {
+      const recovered = dragDistanceForOffset(dragOffset(distance))
+      assert.ok(Math.abs(recovered - distance) < 0.0001)
+      assert.ok(Math.abs(dragOffset(recovered + 10) - dragOffset(distance + 10)) < 0.0001)
+    }
   })
 
   it("dismisses on distance, fling, or projected position", () => {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
-import { dismissDuration, dragOffset, releaseVelocity, shouldDismissDrag, type DragSample } from "@/lib/sheet-drag"
+import { dismissDuration, dragOffset, releaseVelocity, shouldDismissDrag, dragDistanceForOffset, type DragSample } from "@/lib/sheet-drag"
 
 const SNAP_BACK = "translate 260ms cubic-bezier(0.22, 1.2, 0.36, 1)"
 const MAX_SAMPLES = 12
@@ -20,7 +20,6 @@ export function useSheetDrag(sheetRef: RefObject<HTMLElement | null>, onDismiss:
   const samplesRef = useRef<DragSample[]>([])
   const deltaRef = useRef(0)
   const timerRef = useRef<number | null>(null)
-  const dismissingRef = useRef(false)
   const onDismissRef = useRef(onDismiss)
 
   useEffect(() => {
@@ -64,24 +63,32 @@ export function useSheetDrag(sheetRef: RefObject<HTMLElement | null>, onDismiss:
   }, [clearStyles, later, sheetRef])
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-    if (!enabled || event.button !== 0) return
+    if (!enabled || event.button !== 0 || startRef.current) return
     const target = event.target as HTMLElement
     if (target.closest("button, a, input, select, textarea, [data-no-swipe]")) return
-    if (dismissingRef.current) return
     // Catch a sheet that is still snapping back: stop the animation where it is.
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current)
       timerRef.current = null
     }
-    startRef.current = { y: event.clientY, pointerId: event.pointerId }
+    const sheet = sheetRef.current
+    const translate = sheet ? getComputedStyle(sheet).translate.split(" ") : []
+    const offset = Number.parseFloat(translate[1] ?? "0") || 0
+    // Undo rubber-banding so the first move resumes at the visible position.
+    const rawOffset = dragDistanceForOffset(offset)
+    if (sheet) {
+      sheet.style.transition = "none"
+      sheet.style.translate = `0 ${offset}px`
+    }
+    startRef.current = { y: event.clientY - rawOffset, pointerId: event.pointerId }
     samplesRef.current = [{ y: event.clientY, time: event.timeStamp || performance.now() }]
-    deltaRef.current = 0
+    deltaRef.current = rawOffset
     try {
       event.currentTarget.setPointerCapture?.(event.pointerId)
     } catch {
       // Pointer already gone (e.g. released during the same frame); the drag still works uncaptured.
     }
-  }, [enabled])
+  }, [enabled, sheetRef])
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const start = startRef.current
@@ -123,9 +130,7 @@ export function useSheetDrag(sheetRef: RefObject<HTMLElement | null>, onDismiss:
     const duration = dismissDuration(distance - delta, velocity)
     sheet.style.transition = `translate ${duration}ms cubic-bezier(0.2, 0.7, 0.3, 1)`
     sheet.style.translate = `0 ${distance}px`
-    dismissingRef.current = true
     later(duration, () => {
-      dismissingRef.current = false
       onDismissRef.current()
       // If the owner kept the sheet mounted (e.g. it refused to close), put it back.
       window.requestAnimationFrame(() => window.requestAnimationFrame(clearStyles))
@@ -136,7 +141,9 @@ export function useSheetDrag(sheetRef: RefObject<HTMLElement | null>, onDismiss:
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    onPointerCancel: snapBack,
+    onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => {
+      if (startRef.current?.pointerId === event.pointerId) snapBack()
+    },
     style: { touchAction: "none" as const },
   }
 }

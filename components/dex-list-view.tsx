@@ -255,7 +255,7 @@ export default function DexListView({
                       onSelectPokemon(pokemon)
                     }
                   }}
-                  className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-transparent bg-background/35 p-2.5 text-left transition-all hover:border-border/60 hover:bg-background/70 dark:bg-background/22 dark:hover:border-white/10"
+                  className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-transparent bg-background/35 p-2.5 text-left transition-colors hover:border-border/60 hover:bg-background/70 dark:bg-background/22 dark:hover:border-white/10"
                 >
                   <div className={`relative flex shrink-0 items-center justify-center border border-border/45 bg-muted/45 ${item?.card_image ? "trading-card w-10" : "h-14 w-14 overflow-hidden rounded-xl"}`}>
                     <img

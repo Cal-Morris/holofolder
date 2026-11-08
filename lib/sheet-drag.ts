@@ -40,6 +40,11 @@ export function dragOffset(deltaY: number): number {
   return -MAX_OVERDRAG * (1 - 1 / (pull / (MAX_OVERDRAG * 2) + 1))
 }
 
+/** Recover the finger distance when catching an already rubber-banded sheet. */
+export function dragDistanceForOffset(offset: number): number {
+  return offset < 0 ? 2 * MAX_OVERDRAG * offset / (MAX_OVERDRAG + offset) : offset
+}
+
 /**
  * Dismiss on a long enough drag, a downward fling, or when the projected position
  * passes a third of the sheet. An upward fling at release always snaps back.

@@ -17,7 +17,7 @@ export interface MobileSlotActionBarContext {
   isCollected: (pokemonId: number) => boolean
   longPressedPokemon: { id: number; name: string; } | null
   mobileActionsRef: RefObject<HTMLDivElement | null>
-  mobileActionsSwipe: { onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void; onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void; onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void; onPointerCancel: () => void; style: { touchAction: "none"; }; }
+  mobileActionsSwipe: { onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void; onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void; onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void; onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void; style: { touchAction: "none"; }; }
   openCardBrowser: (pokemon: { id: number; name: string; }, options?: { highlightCardId?: string | null | undefined; fromDetail?: boolean | undefined; }) => void
   openCardSelectorForPokemon: (pokemon: PokemonSummary, mode: CardSelectorMode) => void
   readOnlyMode: boolean

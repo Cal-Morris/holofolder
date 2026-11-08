@@ -278,7 +278,7 @@ export default function SettingsModal({
                     key={size.label}
                     onClick={() => handleBinderSizeChange(size.rows, size.cols)}
                     disabled={isReadOnlyView}
-                    className={`relative px-3 py-3 rounded-2xl text-sm font-medium border-2 transition-all ${
+                    className={`relative px-3 py-3 rounded-2xl text-sm font-medium border-2 transition-colors ${
                       isSelected
                         ? "bg-primary/10 text-primary border-primary"
                         : "bg-muted/50 border-border/50 hover:border-primary/50 text-muted-foreground hover:text-foreground"
@@ -412,7 +412,7 @@ export default function SettingsModal({
                       type="button"
                       onClick={() => setSelectedBinderColorId(preset.id)}
                       disabled={isReadOnlyView}
-                      className={`rounded-2xl border p-2 text-left transition-all ${
+                      className={`rounded-2xl border p-2 text-left transition-colors ${
                         isSelected
                           ? "border-primary bg-primary/10 shadow-sm"
                           : "border-border/50 bg-background/45 hover:border-primary/40"

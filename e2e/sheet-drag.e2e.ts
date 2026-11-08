@@ -77,3 +77,55 @@ test.describe("sheet drag to dismiss", () => {
     await expect(dialog).toBeVisible()
   })
 })
+
+for (const closing of [false, true]) {
+  test(`a sheet can be caught during ${closing ? "dismissal" : "snap-back"} without jumping`, async ({ harness }) => {
+    const dialog = await harness.openCardDetail()
+    await expect(dialog.locator("[data-sheet-grabber]").first()).toHaveCSS("touch-action", "none")
+    const result = await dialog.evaluate(async (sheet, closing) => {
+      const grabber = sheet.querySelector<HTMLElement>("[data-sheet-grabber]")!
+      const fire = (type: string, y: number) => grabber.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, isPrimary: true, pointerId: 9, pointerType: "touch", button: 0, clientY: y,
+      }))
+      fire("pointerdown", 100)
+      fire("pointermove", closing ? 220 : 150)
+      if (!closing) await new Promise(resolve => setTimeout(resolve, 100))
+      fire("pointerup", closing ? 220 : 150)
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const before = sheet.getBoundingClientRect().y
+      fire("pointerdown", 200)
+      fire("pointermove", 210)
+      const after = sheet.getBoundingClientRect().y
+      fire("pointermove", -500)
+      fire("pointercancel", -500)
+      return { before, after }
+    }, closing)
+    expect(result.after - result.before).toBeCloseTo(10, 0)
+    await expect(dialog).toBeVisible()
+    await expect.poll(() => dialog.evaluate(sheet => getComputedStyle(sheet).translate)).toBe("none")
+    await harness.expectWithinSafeViewport(harness.closeControl(dialog))
+    await harness.expectNoHorizontalOverflow()
+  })
+}
+
+test("another finger cannot take over or cancel a sheet drag", async ({ harness }) => {
+  const dialog = await harness.openCardDetail()
+  await expect(dialog.locator("[data-sheet-grabber]").first()).toHaveCSS("touch-action", "none")
+  const distance = await dialog.evaluate(sheet => {
+    const grabber = sheet.querySelector<HTMLElement>("[data-sheet-grabber]")!
+    const fire = (type: string, pointerId: number, y: number) => grabber.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, isPrimary: true, pointerId, pointerType: "touch", button: 0, clientY: y,
+    }))
+    const before = sheet.getBoundingClientRect().y
+    fire("pointerdown", 1, 100)
+    fire("pointermove", 1, 130)
+    fire("pointerdown", 2, 500)
+    fire("pointercancel", 2, 500)
+    fire("pointermove", 1, 150)
+    const distance = sheet.getBoundingClientRect().y - before
+    fire("pointercancel", 1, 150)
+    return distance
+  })
+  expect(distance).toBeCloseTo(50, 0)
+  await expect(dialog).toBeVisible()
+})

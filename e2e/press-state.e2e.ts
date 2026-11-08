@@ -68,3 +68,25 @@ test.describe("pressed state", () => {
     })
   })
 })
+
+test("touch controls respond without double-tap delay or selecting their label", async ({ harness }) => {
+  const button = harness.dock().getByRole("button", { name: "List", exact: true })
+  await expect(button).toHaveCSS("touch-action", "manipulation")
+  await expect(button).toHaveCSS("user-select", "none")
+})
+
+test("reduced motion stops decorative loading and foil animations", async ({ harness }) => {
+  await harness.page.emulateMedia({ reducedMotion: "reduce" })
+  const animations = await harness.page.evaluate(() => {
+    const classes = ["animate-pulse", "animate-shimmer", "animate-holographic-foil", "card-finish-holo", "animate-slide-up"]
+    return classes.map(className => {
+      const element = document.createElement("div")
+      element.className = className
+      document.body.append(element)
+      const animation = getComputedStyle(element).animationName
+      element.remove()
+      return { className, animation }
+    })
+  })
+  for (const { animation } of animations) expect(animation).toBe("none")
+})
