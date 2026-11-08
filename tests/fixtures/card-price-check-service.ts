@@ -9,6 +9,9 @@ async function run() {
   const originalEnv = names.map(name => process.env[name])
   for (const name of names) process.env[name] = name === "NEXT_PUBLIC_SUPABASE_URL" ? "https://synthetic.supabase.test" : "synthetic-key"
   const rows = new Map<string, unknown>()
+  let initialReads=0,gateCatalog=true
+  let markSavedReadStarted:()=>void=()=>{}
+  const savedReadStarted=new Promise<void>(resolve=>{markSavedReadStarted=resolve})
   let browseCalls = 0, soldCalls = 0, failSold = false, claim = true
   let blockedSource: string | null = null
   let unavailableBudget = false
@@ -21,9 +24,13 @@ async function run() {
       return Response.json({allowed:body.budget_bucket!==`price-check:provider:${blockedSource}`,retry_after:17})
     }
     const json = (data: unknown) => Response.json(data)
-    if (url.pathname.includes("/tcg_cards")) return json([{ id: "base1-44", name_en: "Bulbasaur", local_id: "44", set_id: "base1", external_ids_json: {}, tcg_sets: { name_en: "Base Set" } }])
+    if (url.pathname.includes("/tcg_cards")) {if(gateCatalog)await savedReadStarted;return json([{ id: "base1-44", name_en: "Bulbasaur", local_id: "44", set_id: "base1", external_ids_json: {}, tcg_sets: { name_en: "Base Set" } }])}
     if (url.pathname.includes("/rpc/claim_card_price_check")) return json(claim)
     if (url.pathname.includes("/card_price_checks")) {
+      if (url.searchParams.get("select") === "source,result_json") {
+        initialReads++;markSavedReadStarted()
+        return Response.json([...rows].map(([source,result_json])=>({source,result_json})))
+      }
       const source = url.searchParams.get("source")?.slice(3) ?? ""
       if (init?.method === "PATCH") { rows.set(source, JSON.parse(String(init.body)).result_json); return new Response(null, { status: 204 }) }
       if (url.searchParams.get("select") !== "result_json") return json([...rows].map(([source, value]) => ({ card_id: "base1-44", finish: "normal", source, result_json: value, checked_at: (value as { checkedAt: string }).checkedAt })))
@@ -43,7 +50,12 @@ async function run() {
     throw new Error(`Unexpected synthetic request to ${url.pathname}`)
   }) as typeof fetch
   try {
-    assert.deepEqual(await loadCardPriceChecks("base1-44", "normal", false), { ebay: null, soldcomps: null, errors: {} })
+    let timer:ReturnType<typeof setTimeout>|undefined
+    try {
+      const parallel=await Promise.race([loadCardPriceChecks("base1-44","normal",false),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("Saved comparisons must start before the catalog read finishes")),1000)})])
+      assert.deepEqual(parallel,{ebay:null,soldcomps:null,errors:{}})
+    } finally {clearTimeout(timer);gateCatalog=false}
+    assert.equal(initialReads,1,"both saved sources must load in one bounded read")
     const onlyEbay = await loadCardPriceChecks("base1-44", "normal", true, "ebay")
     assert.equal(onlyEbay?.ebay?.summary.median, 12)
     assert.equal(onlyEbay?.soldcomps, null)
