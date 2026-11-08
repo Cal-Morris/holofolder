@@ -5,11 +5,14 @@ import { appPath } from '@/lib/app-path'
 import { Button } from '@/components/ui/button'
 import { DEVELOPER_PERMISSION_LABELS, DEVELOPER_PERMISSIONS, DEFAULT_DEVELOPER_PERMISSIONS, normalizePermissions, type DeveloperPermission } from '@/lib/developer-api/permissions'
 import type { DeveloperKeyMetadata } from '@/lib/developer-api/types'
+class DeveloperKeyRequestError extends Error {
+ constructor(message:string,readonly status:number){super(message)}
+}
 const endpoint=appPath('/api/developer/keys')
 async function requestKeys(method='GET',body?:unknown) {
  const response=await fetch(endpoint,{method,cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined})
  const result=await response.json()
- if(!response.ok) throw new Error(result.error?.message??'Developer access is temporarily unavailable.')
+ if(!response.ok) throw new DeveloperKeyRequestError(result.error?.message??'Developer access is temporarily unavailable.',response.status)
  return result
 }
 function keyRows(value:unknown):DeveloperKeyMetadata[] {
@@ -19,15 +22,16 @@ function keyRows(value:unknown):DeveloperKeyMetadata[] {
   try{return [{id:row.id,name:row.name,permissions:normalizePermissions(row.permissions),expires_at:row.expires_at,created_at:row.created_at,revoked_at:typeof row.revoked_at==='string'?row.revoked_at:null,last_used_at:typeof row.last_used_at==='string'?row.last_used_at:null}]}catch{return []}
  })
 }
-export default function DeveloperSettings({isOnline}:{isOnline:boolean}) {
+export function DeveloperApiKeys({isOnline,onSignIn}:{isOnline:boolean;onSignIn?:()=>void}) {
+ const [signedOut,setSignedOut]=useState(false)
  const [keys,setKeys]=useState<DeveloperKeyMetadata[]>([]),[canCreate,setCanCreate]=useState(false),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false)
  const [error,setError]=useState(''),[name,setName]=useState(''),[expiry,setExpiry]=useState(90),[secret,setSecret]=useState('')
  const [permissions,setPermissions]=useState<DeveloperPermission[]>([...DEFAULT_DEVELOPER_PERMISSIONS])
  useEffect(()=>{
   let cancelled=false
-  requestKeys().then(result=>{if(!cancelled){setKeys(keyRows(result.keys));setCanCreate(result.canCreate===true)}}).catch(error=>{if(!cancelled)setError(error instanceof Error?error.message:'Developer access unavailable.')}).finally(()=>{if(!cancelled)setLoading(false)})
+  requestKeys().then(result=>{if(!cancelled){setKeys(keyRows(result.keys));setCanCreate(result.canCreate===true)}}).catch(error=>{if(!cancelled){if(error instanceof DeveloperKeyRequestError&&error.status===401&&onSignIn)setSignedOut(true);else setError(error instanceof Error?error.message:'Developer access unavailable.')}}).finally(()=>{if(!cancelled)setLoading(false)})
   return()=>{cancelled=true}
- },[])
+ },[onSignIn])
  async function change(method:string,body:unknown) {
   setBusy(true);setError('')
   try {
@@ -37,10 +41,10 @@ export default function DeveloperSettings({isOnline}:{isOnline:boolean}) {
   }catch(error){setError(error instanceof Error?error.message:'Try again shortly.')}
   finally{setBusy(false)}
  }
- return <section className="space-y-3 border-t border-border pt-4" aria-label="Developer access">
-  <div><h3 className="font-semibold">Developer access</h3><p className="mt-1 text-xs text-muted-foreground">API keys are for scripts. MCP clients connect through OAuth.</p><a href="https://holofolder.com/docs" className="inline-flex min-h-9 items-center text-sm text-primary">Read the developer docs</a></div>
+ if(signedOut&&onSignIn)return <div className="space-y-3"><p className="text-sm text-muted-foreground">Sign in to create and manage your API keys.</p><Button type="button" className="min-h-10" onClick={onSignIn}>Sign in to create a key</Button></div>
+ return <div className="space-y-3">
   {loading?<p className="text-sm text-muted-foreground">Loading developer access…</p>:<>
-   {!canCreate&&<p className="text-sm text-muted-foreground">Premium or lifetime access is required to create keys. You can still revoke existing keys.</p>}
+   {!canCreate&&!error&&<p className="text-sm text-muted-foreground">Premium or lifetime access is required to create keys. You can still revoke existing keys.</p>}
    {secret&&<div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-sm font-medium">Copy your key now. It will not be shown again.</p><output aria-label="New API key" className="block select-all break-all font-mono text-xs">{secret}</output><div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="min-h-9" onClick={()=>{navigator.clipboard.writeText(secret).catch(()=>setError('Could not copy. Select the key and copy it manually.'))}}>Copy key</Button><Button type="button" variant="outline" size="sm" className="min-h-9" onClick={()=>setSecret('')}>Hide key</Button></div></div>}
    {canCreate&&<form className="space-y-3" onSubmit={event=>{event.preventDefault();void change('POST',{name,expiryDays:expiry,permissions})}}>
     <label className="block text-sm">Key name<input value={name} maxLength={60} required onChange={event=>setName(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border border-border bg-background px-3 text-base" placeholder="My collection script" autoComplete="off" /></label>
@@ -50,8 +54,15 @@ export default function DeveloperSettings({isOnline}:{isOnline:boolean}) {
    </form>}
    <div className="space-y-2">{keys.filter(key=>!key.revoked_at).map(key=><div key={key.id} className="flex items-start justify-between gap-3 rounded-xl border border-border p-3"><div className="min-w-0"><p className="break-words text-sm font-medium">{key.name}</p><p className="mt-1 text-xs text-muted-foreground">Expires {new Date(key.expires_at).toLocaleDateString()}</p><p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">hf_{key.id}</p></div><Button type="button" variant="outline" size="sm" className="min-h-9 shrink-0" disabled={busy||!isOnline} onClick={()=>void change('DELETE',{id:key.id})} aria-label={`Revoke ${key.name}`}>Revoke</Button></div>)}</div>
   </>}
-  <DeveloperClients isOnline={isOnline}/>
   {!isOnline&&<p className="text-xs text-muted-foreground">Connect to the internet to manage developer access.</p>}
   {error&&<p role="alert" className="break-words text-sm text-destructive">{error}</p>}
+ </div>
+}
+
+export default function DeveloperSettings({isOnline}:{isOnline:boolean}) {
+ return <section className="space-y-3 border-t border-border pt-4" aria-label="Developer access">
+  <div><h3 className="font-semibold">Developer access</h3><p className="mt-1 text-xs text-muted-foreground">API keys are for scripts. MCP clients connect through OAuth.</p><a href="https://holofolder.com/app/docs" className="inline-flex min-h-9 items-center text-sm text-primary">Read the developer docs</a></div>
+  <DeveloperApiKeys isOnline={isOnline}/>
+  <DeveloperClients isOnline={isOnline}/>
  </section>
 }

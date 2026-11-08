@@ -93,3 +93,10 @@ test("proxy auth redirects keep the public origin and app prefix", async () => {
   assert.equal(appRedirectUrl(null, "http://localhost:3295/app/auth/callback").href, "http://localhost:3295/app")
   assert.equal(appRedirectUrl("//evil.example", "https://holofolder.com/app/auth/callback").href, "https://holofolder.com/app")
 })
+
+test('docs sign-in can return to the key guide without allowing external redirect targets', () => {
+  withEnv({ NEXT_PUBLIC_SITE_URL: 'https://holofolder.com' }, () => {
+    assert.equal(getMagicLinkRedirectUrl('/app/docs/api-keys'), 'https://holofolder.com/app/auth/callback?next=%2Fapp%2Fdocs%2Fapi-keys')
+    assert.equal(getMagicLinkRedirectUrl('https://untrusted.example/'), 'https://holofolder.com/app/auth/callback?next=%2Fapp')
+  })
+})

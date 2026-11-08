@@ -4,6 +4,7 @@ description: Your first request, in a few minutes.
 ---
 
 import { DocsLink } from '@/components/docs/provider'
+import { DocsApiKeys } from '@/components/docs/api-keys'
 
 Personal API keys connect your scripts and integrations to Holo Folder. Create a key, keep it on your server, and send it with each request.
 
@@ -18,7 +19,11 @@ Use the [AI setup guides](/docs/mcp) to connect through MCP with your Holo Folde
 
 ## Create a key
 
-1. Open [Holo Folder](/app) and go to **Settings → Account → Developer access**.
+Create a key here using your signed-in account. You can also manage the same keys in **Settings → Account → Developer access** in the app.
+
+<DocsApiKeys />
+
+1. Sign in above if you haven't already.
 2. Give the key a name you'll recognise, such as “Collection export”.
 3. Choose its permissions and expiry. Start with read access.
 4. Copy the full key and save it somewhere secure. It's shown only once.
