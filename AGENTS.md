@@ -4,7 +4,7 @@ This is the canonical guide for AI coding agents (and humans) working on **Holo 
 
 ## What this is
 
-Holo Folder is a mobile-first Pokémon binder tracker, currently live at https://binder.cal.gg, with https://holofolder.com planned for the domain cutover. It covers:
+Holo Folder is a mobile-first Pokémon binder tracker, served at https://holofolder.com/app, with Framer serving the marketing site at https://holofolder.com. It covers:
 - National Dex binder pages
 - collection and wanted lists
 - card matching and camera scanning
@@ -23,6 +23,8 @@ Stack:
 ## Public URL boundary
 
 Framer serves `https://holofolder.com`; its Multi Site rules proxy `/app` and `/app/*` to the same paths on the Vercel origin `https://app.holofolder.com`. Next.js builds with `basePath: "/app"`. Route names below describe source routes; public URLs, raw fetches, images and service workers need the `/app` prefix. Next Link/router destinations remain unprefixed. Local entry is `http://localhost:3000/app`. See [`docs/app-routing.md`](docs/app-routing.md), including auth, legacy installs and paused push/branding branches.
+
+See [docs/architecture.md](docs/architecture.md) for ownership, startup, synchronization and caching boundaries, and [docs/README.md](docs/README.md) for maintained guides versus historical plans.
 
 ## Architecture map
 
@@ -84,7 +86,7 @@ Framer serves `https://holofolder.com`; its Multi Site rules proxy `/app` and `/
 ```bash
 bun install
 cp .env.example .env.local   # fill in the values you need
-bun run dev                  # http://localhost:3000
+bun run dev                  # http://localhost:3000/app
 ```
 
 - Only `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are needed for local dev. `.env.example` documents every variable, and R2 setup is in `docs/card-image-store.md`.
@@ -99,7 +101,7 @@ bun run dev                  # http://localhost:3000
 | `bun run test` | Unit tests in `tests/` (`bun test tests/`) |
 | `bun run test:coverage` | Unit tests with coverage |
 | `bun run typecheck` | `next typegen && tsrs --noEmit`; checks the full repo with the pinned Rust checker. `bun run typecheck:tsc` compares reference diagnostics. Local builds also type-check; Vercel relies on Typecheck CI. |
-| `bun run lint` | ESLint with **`--max-warnings=68`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
+| `bun run lint` | ESLint with **`--max-warnings=59`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
 | `bun run build` | Production build |
 | `bun run test:e2e` | Playwright: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `HOLOFOLDER_E2E=1` |
 | `bun run test:e2e:install` | Installs Chromium for Playwright (or set `CHROME_PATH`) |

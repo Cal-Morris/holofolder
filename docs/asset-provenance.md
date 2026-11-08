@@ -1,0 +1,20 @@
+# Asset provenance
+
+Checked on 2026-11-08. [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) is the central attribution and license index. This record explains what the repository actually proves about stored assets.
+
+| Files | Recorded source | Evidence | Remaining question |
+|---|---|---|---|
+| `public/binder-presets/magikarp.png` | Preview of the binder using Magikarp, Paldea Evolved 203/193, Shinji Kanda, via TCGdex | `lib/binder-design-presets.ts` names `sv02-203`; the same reference was introduced with all six previews in the Binder Studio commit. Current TCGdex metadata confirms printing and illustrator. | No redistribution grant for the card artwork is recorded. |
+| `public/binder-presets/mew.png` | Preview using Mew ex, 151 193/165, aky CG Works, via TCGdex | The same code names `sv03.5-193`; TCGdex metadata confirms printing and illustrator. | No redistribution grant for the card artwork is recorded. |
+| Other four `public/binder-presets/*.png` | Archive, Ivory, Midnight and Oxblood binder preview designs | The same source defines their colours/materials without card artwork; previews were added in PR [#59](https://github.com/Cal-Morris/binderdex/pull/59). | Exact preview export command was not retained. |
+| `assets/brand/holo-card-master.png` | Original single-card project mark, according to its initial source documentation | PR [#254](https://github.com/Cal-Morris/binderdex/pull/254) and its original `assets/brand/README.md` describe a pearl border, foil and central glint with no Pokémon imagery/lettering. | Original creation tool, authoring file and any applicable generation terms were not retained. |
+| `assets/brand/holo-cards-master.png` | Generated concept reference, according to its initial source documentation | PR [#262](https://github.com/Cal-Morris/binderdex/pull/262) and its original asset README. | Generator and original terms were not retained. |
+| `assets/brand/holo-cards-mark.svg` | Project vector interpretation of the three-card concept | Added with PR #262; retained as historical source. | Its source concept has the provenance limit above. |
+| Current `public/holofolder-*` images, SVG wrappers, favicons, Apple/PWA images and legacy aliases | Exports of the framed single-card master | `scripts/generate-app-icons.mjs` and `assets/brand/README.md` specify the export pipeline. The SVG wrappers include the project's raster mark. | Same provenance limit as the master. |
+| Historical startup icons in early git history | v0 starter assets | Initial commit is named “Initial commit from v0”; later commits replace the icons. | The repository contains no separate license/source record for the initial starter icon images. Resolve or remove those historical assets before publication. |
+
+The PNG masters and all six preset previews contain no text, EXIF or compressed-text provenance chunks. Absence of metadata does not identify an author or prove permission. Do not invent an external source for project-generated material.
+
+For runtime card and Pokémon images, the source-to-host mappings are in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md); individual featured printings retain their metadata URLs in `lib/featured-cards.ts`. The repository contains references to external scans, not a bundled card image database.
+
+For every future imported asset, record the original URL, author, exact license/permission and local derivative paths here or in its adjacent README. Preserve the complete upstream license when required. If permission cannot be established, replace or exclude the asset and account for historical versions too.
