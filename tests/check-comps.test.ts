@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { PriceCheckRequestError } from "../lib/card-price-check-client"
-import { CHECK_COMPS_CONCURRENCY, CHECK_COMPS_CONFIRM_AT, CHECK_COMPS_MAX_CARDS, checkCompsTargets, runCheckComps } from "../lib/check-comps"
+import { CHECK_COMPS_CONCURRENCY, CHECK_COMPS_CONFIRM_AT, CHECK_COMPS_MAX_CARDS, checkCompsTargets, runCheckComps, warmShowComps } from "../lib/check-comps"
 import { formatPriceCheckAge, isPriceCheckFresh, pinCardPriceCheck, priceCheckKey, readPinnedCardPriceCheck } from "../lib/card-price-check-cache"
 import { createMemoryStore } from "../lib/offline-store/kv"
 import type { CardPriceCheck, PriceCheckSource } from "../lib/card-price-checks"
@@ -49,7 +49,7 @@ test("fresh pins make no request; stale ones refresh with bounded concurrency", 
   const result = outcome.progress
   assert.deepEqual(calls.filter(c => c.startsWith("fresh")), [])
   assert.ok(peak <= CHECK_COMPS_CONCURRENCY)
-  assert.deepEqual({ done: result.done, fresh: result.fresh, checked: result.checked, failed: result.failed }, { done: 3, fresh: 1, checked: 2, failed: 0 })
+  assert.deepEqual({ done: result.done, fresh: result.fresh, checked: result.checked, failed: result.failed }, { done: 2, fresh: 0, checked: 2, failed: 0 })
 })
 
 test("429 backs the batch off and retries; an exhausted allowance stops that source", async () => {
@@ -193,4 +193,31 @@ test("stop in flight does not start further provider calls", async () => {
   })
   assert.ok(calls.length <= CHECK_COMPS_CONCURRENCY)
   assert.ok(calls.every(call => call.endsWith(":ebay")))
+})
+
+
+test("Show checks the next 60 stale sold comps per run until the whole list is fresh", async () => {
+  const pins = new Map<string, CardPriceCheck>()
+  const batches: string[][] = []
+  const estimates: number[] = []
+  for (let run = 0; run < 4; run++) {
+    const calls: string[] = []
+    const outcome = await warmShowComps({ wanted: many(125) }, {
+      signal: new AbortController().signal, now: () => now,
+      readPinned: async (id, _finish, source) => pins.get(`${id}:${source}`) ?? null,
+      request: async (id, _language, _finish, source) => {
+        const result = check(source, hours(0))
+        pins.set(`${id}:${source}`, result)
+        if (source === "soldcomps") calls.push(id)
+        return { check: result, error: undefined }
+      },
+      confirmSpend: estimate => { estimates.push(estimate.cardsNeedingSoldcomps); return true },
+    })
+    assert.ok(outcome.ok)
+    assert.equal(outcome.progress.total, [60, 60, 5, 0][run])
+    batches.push(calls)
+  }
+  assert.deepEqual(batches.map(batch => batch.length), [60, 60, 5, 0])
+  assert.deepEqual(batches.flat(), many(125).map(target => target.cardId))
+  assert.deepEqual(estimates, [60, 60])
 })

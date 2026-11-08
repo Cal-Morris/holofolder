@@ -16,7 +16,7 @@ export interface ShowCheckCompsProps {
 }
 
 function summary(progress: CheckCompsProgress) {
-  if (progress.total === 0) return "No cards here have sold comps to check."
+  if (progress.total === 0) return "No cards need a comps refresh."
   const ready = progress.fresh + progress.checked
   const parts = [`Sold comps ready for ${ready}/${progress.total} card${progress.total === 1 ? "" : "s"}`]
   if (progress.failed) parts.push(`${progress.failed} couldn't be checked`)
@@ -93,7 +93,7 @@ function ShowCheckComps({ targets, isOnline }: ShowCheckCompsProps) {
         )}
         <p role="status" aria-live="polite" className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">
           {activelyChecking && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" aria-hidden />}
-          {status ?? (isOnline ? "Save sold comps for these cards on this device." : "Comps need signal.")}
+          {status ?? (isOnline ? "Check up to 60 cards at a time. Run again for the next batch." : "Comps need signal.")}
         </p>
       </div>
       {activelyChecking && (
