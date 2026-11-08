@@ -54,3 +54,7 @@ Provider access and hosted infrastructure are not included with the source. Self
 | Supplemental card scans | [TCGplayer](https://www.tcgplayer.com), [Pokémon TCG API](https://pokemontcg.io), [Scrydex](https://scrydex.com), [Limitless TCG](https://limitlesstcg.com), [Playshop](https://playshop.fr) | Host allowlist and deterministic source mapping in `lib/card-image-sources.ts` |
 
 These images are not covered by AGPL, the TCGdex database MIT license or the PokeAPI software license. Credit to a hosting provider does not transfer the underlying Pokémon artwork rights. Review provider terms before enabling mirroring or distributing image bundles.
+
+## Historical starter assets
+
+Early commits contain v0 starter icons and the `public/placeholder-*`/`public/placeholder.*` assets. They came with the initial [v0](https://v0.dev) scaffold (`2c07972`), not the Holo Folder mark, and were later replaced or removed. This attribution does not assign an invented MIT/AGPL license to them. See [asset provenance](docs/asset-provenance.md) for the exact paths and remaining source-license limits.

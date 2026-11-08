@@ -1,6 +1,6 @@
 # Open-source readiness
 
-Preparation is in progress. The repository remains private. Do not change visibility until the publication gates below are resolved.
+The preparation changes listed below are merged. The repository remains private. Publication still needs the asset-rights decisions and final hosted settings listed below.
 
 ## Decisions
 
@@ -17,7 +17,7 @@ Gitleaks 8.30.1 scanned remote and local git history with its default rules, red
 
 No credentials were identified. All 18 full-blob Gitleaks findings were independently verified as the literal localStorage key `pokemon_collection_pending_ops_v1`. The checked-in configuration permits only that exact value in its two known source paths, while retaining all default rules. This is a bounded scan result, not proof that no secret can exist.
 
-No tracked environment files other than `.env.example`, database dumps, private keys, HAR files or collection exports were found by the path inventory. GitHub reported no Actions artifacts or release assets, and no wiki or Pages site. Commit author/committer metadata contains the maintainer's email identities, which the maintainer has explicitly chosen to preserve along with signatures. PR/issue bodies, review comments, Actions logs, Git LFS content and third-party forks/caches were not comprehensively inspected by the git scan.
+No tracked environment files other than `.env.example`, database dumps, private keys, HAR files or collection exports were found by the path inventory. GitHub reported no Actions artifacts or release assets, and no wiki or Pages site. Commit author/committer metadata contains the maintainer's email identities, which the maintainer has explicitly chosen to preserve along with signatures. Those git scans do not cover hosted conversations/logs or content outside reachable refs. The additional hosted checks and remaining limits are recorded below.
 
 ## Repeating the secret scan
 
@@ -38,7 +38,7 @@ Also scan an export of the current committed tree and every reachable blob. Git 
 
 ## History preservation
 
-No credential-driven rewrite is currently warranted. An email-only scrub was rehearsed locally and then abandoned after the maintainer confirmed the original identities and signatures should remain. The live remote was never rewritten. Do not apply the sanitized rehearsal mirror.
+No credential-driven rewrite is currently warranted. Preserve the original commit identities, signatures and graph. The live remote has not been rewritten.
 
 If actual sensitive content is later found, rotate exposed credentials first and preserve a private backup. Rehearse the narrow removal in a separate mirror. Review all affected branches, tags and PR refs, and obtain explicit approval before force-pushing. A rewrite changes descendant SHAs and invalidates affected signatures, so it cannot preserve the current signed history.
 
@@ -51,11 +51,36 @@ Do not use an unreviewed `git push --mirror`: it can delete unrelated refs and G
 - [x] Preserve vendored skill notices and add copied UI, icon, font and card-data notices.
 - [x] Trace bundled card previews to exact printings and illustrators.
 - [ ] Resolve permissions or replace/exclude bundled Pokémon art and historical starter assets. Project branding provenance is documented, but original creation records remain incomplete.
-- [ ] Verify fresh-project database setup and align setup/architecture docs with current code.
-- [ ] Remove or explicitly configure hosted-only integration assumptions for forks, including analytics, Stripe setup and billing return URLs.
+- [x] Repair and verify the documented migration sequence on isolated PostgreSQL with synthetic Supabase auth/storage scaffolding; publish an architecture guide and documentation index. A complete Supabase Auth/Storage smoke test remains outstanding.
+- [x] Require explicit GA and Stripe setup configuration, use the configured billing return origin, and retain the hosted GA property through Vercel configuration.
 - [x] Confirm that original identities, signatures and history should remain. No credentials requiring a history rewrite were identified.
-- [ ] Inspect PR/issue conversations, review comments, Actions logs, LFS objects and any other hosted attachments for private material.
-- [ ] Review collaborator access, fork state, Actions permissions and Vercel preview access for untrusted public contributions. Enable available secret scanning, push protection and private vulnerability reporting.
+- [x] Scan the exported hosted issue/PR descriptions and comments, and all available GitHub Actions log archives. See scope and limits below.
+- [x] Verify read-only Actions tokens and enable/verify Vercel fork protection. No forks, release assets, Actions artifacts, wiki or Pages site were present in the inspected snapshot.
+- [ ] Isolate preview credentials before approving untrusted fork builds. The current integrations include server credentials with shared Production/Preview/Development targets; deployment approval runs submitted code with its configured environment.
+- [ ] At publication, confirm collaborator access and enable available secret scanning, push protection, private vulnerability reporting and fork workflow approval. The private-repository APIs do not expose all of these settings today.
 - [ ] Validate the final source revision, refresh the history scan and obtain explicit approval to make the repository public.
 
 The code license does not publish production user data, credential files, provider subscriptions or the Framer marketing site. Keep `package.json` private to prevent accidental package publication; that flag does not prevent open-source licensing.
+
+## Preparation changes
+
+| Change | Pull request |
+|---|---|
+| AGPL, full third-party notices, source attribution, contributor/security docs and architecture guide | [#328](https://github.com/Cal-Morris/binderdex/pull/328) |
+| Signed-in and anonymous shared-viewer test coverage | [#330](https://github.com/Cal-Morris/binderdex/pull/330) |
+| Fresh database bootstrap/replay fixes and a local-only regression verifier | [#331](https://github.com/Cal-Morris/binderdex/pull/331) |
+| Patched Sharp native dependencies, with decoded-pixel icon verification | [#334](https://github.com/Cal-Morris/binderdex/pull/334) |
+| Unused Select primitive, direct dependency and lockfile cleanup | [#335](https://github.com/Cal-Morris/binderdex/pull/335) |
+| Explicit analytics/billing configuration and updated integration docs | [#336](https://github.com/Cal-Morris/binderdex/pull/336) |
+
+The architecture pass traced startup, ownership/authorization, collection conflict/retry paths, public catalog/images and billing configuration. It found setup failures, hosted-only assumptions and one unused module/dependency. It did not justify a broad rewrite of the large stateful components. The remaining 59 lint warnings are unchanged; this is not a claim of a line-by-line security audit of every module.
+
+## Final audit refresh and limits
+
+The 18:23 UTC history/object refresh covered **837 reachable remote commits** plus additional local refs, **3,888 unique blobs** and about **99.3 MB of text**. All 18 full-blob findings were again confirmed as the same non-secret localStorage key. No credential requiring rotation or history removal was identified. This snapshot precedes the final preparation merges; rerun the scan immediately before publication, especially while other feature branches continue to change.
+
+The hosted export included 329 issue/PR records, 335 conversation comments, no inline review comments and no review bodies. Gitleaks scanned those exports plus 101 downloaded workflow log archives, about 7.28 MB total, with no findings. Another 17 log archives were unavailable; an inspected failure returned HTTP 410. No Git LFS configuration/pointers or submodule configuration appeared in the path/text inventory. Unreachable server-side objects, deleted conversations, inaccessible logs, other people's caches and runtime provider databases are outside this evidence.
+
+The Sharp update loads 0.35.5 with libvips 8.18.7 and librsvg 2.63.2. Native PNG-to-WebP conversion, focused image/icon tests and a production build passed. GitHub reported no remaining open Dependabot alerts after the merge. Application image files were not regenerated; the changed encoder's PNG bytes decoded to the same pixels.
+
+No full e2e suite, browser/PWA run, live payment, provider ingestion check or production user-data migration was performed for preparation. SQL checks used an isolated local database, not the hosted Supabase project. Existing signed commits and the working checkout's unrelated plan edits were preserved.
