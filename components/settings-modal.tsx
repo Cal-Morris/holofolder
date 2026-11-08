@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { OverlayLink } from "@/components/overlay-link"
 import { CollectionImport, type CollectionImportProps } from "@/components/collection-import"
 import { BillingSettings } from "@/components/billing-settings"
 import { AccountIdentitySettings } from "@/components/account-identity-settings"
@@ -265,10 +265,10 @@ export default function SettingsModal({
           {effectiveActiveTab === "binder" && (
           <div className="space-y-4">
             {!isReadOnlyView && (
-              <Link href="/studio" className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted">
-                <span>Customise binder</span>
+              <OverlayLink href="/studio" onClose={onClose} className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted">
+                <span>Binder Studio</span>
                 <span className="text-xs font-normal text-muted-foreground">3D studio ↗</span>
-              </Link>
+              </OverlayLink>
             )}
             <div className="flex items-center gap-2">
               <Grid3X3 className="w-4 h-4 text-primary" />

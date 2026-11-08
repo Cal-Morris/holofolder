@@ -4,7 +4,7 @@ import { HeaderMoreMenu } from "@/components/header-more-menu"
 import { Button } from "@/components/ui/button"
 import { formatMoney } from "@/lib/regional-price"
 import { offlineChipLabel, syncingChipLabel } from "@/lib/connection-chip"
-import { ChevronDown, ChevronLeft, ChevronRight, Grid3X3, Heart, Layers3, Link2, ListChecks, Loader2, LogIn, LogOut, Moon, Search as SearchIcon, Settings, SlidersHorizontal, Sparkles, Sun, Ticket, Users } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Grid3X3, Heart, Layers3, Link2, ListChecks, Loader2, LogIn, LogOut, Moon, Paintbrush, Search as SearchIcon, Settings, SlidersHorizontal, Sparkles, Sun, Ticket, Users } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
 import type { ShowSessionSummary } from "@/lib/show-session"
 import type { Dispatch, JSX, RefObject, SetStateAction } from "react"
@@ -130,6 +130,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
           )}
           {isShowModeOn ? <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-100 dark:hover:bg-amber-800/60 md:px-2"><Ticket className="hidden h-4 w-4 md:block" aria-hidden /><span className="hidden md:inline">Show ·</span>Exit</button> : <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button>}
           <HeaderMoreMenu message={shareCopyMessage || shareMessage} items={[
+            ...(!readOnlyMode ? [{ id: "studio", label: "Binder Studio", icon: <Paintbrush />, href: "/studio" }] : []),
             ...(activeMainView === "binder" && binderDimension === "2d" ? [
               { id: "previous-needed", label: `Previous ${activeJumpLabel.toLowerCase()}`, icon: <Sparkles />, onSelect: handleJumpToPreviousNeeded, disabled: activeJumpPokemonList.length === 0 },
               { id: "next-needed", label: `Next ${activeJumpLabel.toLowerCase()}`, icon: <Sparkles />, onSelect: handleJumpToNextNeeded, disabled: activeJumpPokemonList.length === 0 },

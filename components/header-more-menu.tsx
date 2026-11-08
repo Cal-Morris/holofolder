@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, type ReactNode } from "react"
+import { OverlayLink } from "@/components/overlay-link"
 import { MoreHorizontal, X } from "lucide-react"
 import { useOverlay } from "@/hooks/use-overlay"
 
@@ -8,10 +9,7 @@ export type HeaderMoreItem = {
   id: string
   label: string
   icon: ReactNode
-  onSelect: () => void
-  disabled?: boolean
-  keepOpen?: boolean
-}
+} & ({ href: string; onSelect?: never; disabled?: never; keepOpen?: never } | { href?: never; onSelect: () => void; disabled?: boolean; keepOpen?: boolean })
 
 export function HeaderMoreMenu({ items, message }: { items: HeaderMoreItem[]; message?: string | null }) {
   const [open, setOpen] = useState(false)
@@ -33,12 +31,15 @@ export function HeaderMoreMenu({ items, message }: { items: HeaderMoreItem[]; me
             <button type="button" onClick={close} aria-label="Close more" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
           </div>
           <div role="menu" aria-label="More" className="min-h-0 overflow-y-auto overscroll-contain">
-            {items.map(item => <button key={item.id} role="menuitem" type="button" disabled={item.disabled} onClick={() => {
+            {items.map(item => item.href ? <OverlayLink key={item.id} role="menuitem" href={item.href} onClose={close} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium hover:bg-muted/70">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:h-4 [&>svg]:w-4" aria-hidden>{item.icon}</span>
+              {item.label}
+            </OverlayLink> : <button key={item.id} role="menuitem" type="button" disabled={item.disabled} onClick={() => {
               if (!item.keepOpen) {
                 close()
                 buttonRef.current?.focus()
               }
-              item.onSelect()
+              item.onSelect?.()
             }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium hover:bg-muted/70 disabled:opacity-40">
               <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:h-4 [&>svg]:w-4" aria-hidden>{item.icon}</span>
               {item.label}
