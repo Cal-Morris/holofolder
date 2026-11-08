@@ -1,0 +1,34 @@
+---
+title: API explorer
+description: Build a request. Run it. See what comes back.
+---
+
+import { DocsLink } from '@/components/docs/provider'
+
+Every endpoint below comes from the same operation schemas that power the REST API and MCP tools. Choose an endpoint to see its parameters, generate a code example and send a real request.
+
+<div className="docs-quick-links">
+  <DocsLink href="/docs/reference/catalog/list-cards">Try a card search</DocsLink>
+  <DocsLink href="/app/openapi.json">Download OpenAPI</DocsLink>
+</div>
+
+<Callout title="Bring your API key">
+Create a personal key in **Settings → Account → Developer access**. In an endpoint's playground, enter the full key as the bearer token. Requests go directly to this site's API. Authentication is kept in your browser tab's session, so close the tab when you're finished on a shared device.
+</Callout>
+
+## Explore by resource
+
+<Cards>
+  <Card title="Card catalog" href="/docs/reference/catalog/list-cards" description="Search cards, browse sets and series, and look up Pokémon and illustrators." />
+  <Card title="Your collection" href="/docs/reference/collection/list-binders" description="Manage binders, owned and wanted cards, sharing, artwork and show purchases." />
+  <Card title="Prices & insights" href="/docs/reference/prices-and-insights/get-prices" description="Read price evidence, compare listings, check deals and follow price history." />
+  <Card title="Account & preferences" href="/docs/reference/account/get-settings" description="Read settings, update your identity and manage partner connections." />
+</Cards>
+
+## Before you send a request
+
+- **Real requests, real changes.** Write operations change your account. Start with a read-only key and a GET request.
+- **Permissions apply.** The explorer uses the same subscription, permissions and rate limits as your own integrations.
+- **Retry safely.** Operations that create binders or comparison jobs require an `Idempotency-Key`. Collection changes use the fingerprint from your last read.
+
+See [API conventions](/docs/contracts) for pagination, errors and limits. Prefer an AI assistant? [Connect through MCP](/docs/mcp) instead.

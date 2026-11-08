@@ -1,14 +1,15 @@
 import {test,expect} from '@playwright/test'
 import {emulateStandalone,SAFE_AREA} from './fixtures'
 
-test('developer docs stay within the phone viewport with ordinary inline navigation',async({page},info)=>{
+test('developer docs stay within the phone viewport with searchable mobile navigation',async({page},info)=>{
  if(info.project.metadata.standalone)await emulateStandalone(page,SAFE_AREA)
  await page.goto('/app/docs')
- await expect(page.getByRole('heading',{name:'Overview'})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Build with your collection'})).toBeVisible()
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
- await page.getByRole('link',{name:'MCP connections',exact:true}).first().click()
+ await page.getByRole('button',{name:'Open Sidebar'}).click()
+ await page.getByRole('link',{name:'AI & agents',exact:true}).first().click()
  await expect(page).toHaveURL(/\/app\/docs\/mcp$/)
- await expect(page.getByRole('heading',{name:/MCP/}).first()).toBeVisible()
+ await expect(page.getByRole('heading',{name:'AI & agents',exact:true}).first()).toBeVisible()
 })
 test('OAuth consent shows verified client details and keeps writes off by default',async({page},info)=>{
  if(info.project.metadata.standalone)await emulateStandalone(page,SAFE_AREA)

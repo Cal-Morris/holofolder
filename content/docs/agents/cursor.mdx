@@ -1,0 +1,34 @@
+---
+title: Cursor
+description: Bring your collection into Cursor's agent.
+---
+
+Add Holo Folder as a remote MCP server, then authorise it with your Holo Folder account.
+
+## Add the server
+
+Put this configuration in `.cursor/mcp.json` for your project, or `~/.cursor/mcp.json` for your user:
+
+```json title=".cursor/mcp.json"
+{
+  "mcpServers": {
+    "holofolder": {
+      "url": "https://holofolder.com/app/mcp"
+    }
+  }
+}
+```
+
+Merge this entry into your existing `mcpServers` object if you already have servers configured.
+
+## Sign in
+
+Open Cursor's MCP controls from its **Customize** settings. Enable Holo Folder and complete the OAuth sign-in when prompted. Review the client and requested permissions before approving.
+
+You do not need an `Authorization` header, REST API key or local server command for this connection.
+
+## Check the connection
+
+In an agent conversation, ask “Find Pokémon cards featuring Umbreon in Holo Folder's catalog.” Check the proposed tool call before running it. Start with reads; only grant write access if you want the agent to change your collection.
+
+[Connection and permission details](/docs/mcp) · [Cursor's official MCP guide](https://cursor.com/docs/mcp)

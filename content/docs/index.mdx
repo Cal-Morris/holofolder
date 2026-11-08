@@ -1,29 +1,47 @@
 ---
-title: Overview
-description: Your collection, connected to your tools.
+title: Build with your collection
+description: The cards you collect. The tools you already use.
 ---
 
-Holo Folder's developer interfaces bring the card catalog, binders, wanted lists and prices to your scripts and AI tools.
+import { DocsLink } from '@/components/docs/provider'
 
+Connect Holo Folder to your scripts, integrations and AI assistants. Search the card catalog, work with your binders and wanted lists, and read the price evidence behind your collection.
 
+<div className="docs-quick-links">
+  <DocsLink href="/docs/mcp">Connect an AI assistant</DocsLink>
+  <DocsLink href="/docs/reference">Explore the API</DocsLink>
+</div>
 
-## Two ways to connect
+## Choose your connection
 
-| Interface | Authentication | For |
+<Cards>
+  <Card title="AI & agents" href="/docs/mcp" description="Connect Claude, ChatGPT, Cursor or Codex through MCP. Sign in with Holo Folder, choose permissions, and start asking." />
+  <Card title="REST API" href="/docs/api-keys" description="Create a personal API key and make your first request. Use the interactive explorer to build your integration." />
+</Cards>
+
+## From a question to a working request
+
+Ask an assistant to find cards on your wanted list, or build a script that reads a binder. Both interfaces use the same operation schemas and account permissions.
+
+| | REST API | MCP |
 | --- | --- | --- |
-| REST API | Personal API key | Scripts and integrations |
-| MCP | OAuth consent | AI clients |
+| Best for | Scripts and custom integrations | AI assistants and coding agents |
+| Sign in with | A personal API key | Your Holo Folder account via OAuth |
+| Get started | [API keys](/docs/api-keys) | [AI setup guides](/docs/mcp) |
+| Reference | [Interactive API explorer](/docs/reference) | Tool names appear on each endpoint page |
 
-MCP clients sign in and request permission. They do not need an API key.
-
-## Access
-
+<Callout title="Developer access">
 A current Premium subscription or lifetime licence is required. Signup trials do not include developer access. Partners follow the paid collection owner's access and current membership.
+</Callout>
 
-Start with [API keys](/docs/api-keys) or [MCP connections](/docs/mcp).
+## Your account stays in your control
+
+Connections start with read permissions. Writes, sharing and partner management need explicit permission. Revoke a key or connected assistant at any time from **Settings → Account → Developer access**.
+
+The [API conventions](/docs/contracts) cover pagination, rate limits, safe writes and errors.
 
 ## Card data and images
 
-The API exposes the data actually available in Holo Folder's mirror. Unknown values stay unknown. Images come only from our Cloudflare R2 mirror; a missing mirrored image is reported as unavailable.
+The API exposes the data available in Holo Folder's mirror. Missing data stays missing. Prices include available source, freshness and confidence evidence. Images come only from our Cloudflare R2 mirror; a missing mirrored image is reported as unavailable.
 
 Card data is sourced from TCGdex and the providers identified in each result. Pokémon card images are © The Pokémon Company, Nintendo, Creatures and GAME FREAK. Data licensing does not grant rights to the card artwork.
