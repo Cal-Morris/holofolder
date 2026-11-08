@@ -7,6 +7,8 @@ import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { BINDER_NAME_MAX_LENGTH, MAX_BINDERS_PER_OWNER, type Binder } from "@/lib/binders/model"
 import { moveBinder } from "@/lib/binders/manage"
 import { BinderRequestError, bindersApi, type BinderWithCount } from "@/lib/binders/client"
+import { useBillingContext } from "@/hooks/use-billing"
+import { canCreateOwnerBinder } from "@/lib/billing"
 
 interface BinderSwitcherSheetProps {
   binders: readonly Binder[]
@@ -41,6 +43,8 @@ export default function BinderSwitcherSheet({
   onBindersChange,
   onClose,
 }: BinderSwitcherSheetProps) {
+  const billing = useBillingContext()
+  const upgrade = () => { onClose(); billing?.upgrade() }
   const sheetRef = useRef<HTMLDivElement | null>(null)
   useOverlay(true, onClose, { containerRef: sheetRef })
   const swipe = useSwipeToDismiss(sheetRef, onClose)
@@ -83,6 +87,7 @@ export default function BinderSwitcherSheet({
     try {
       await action()
     } catch (error) {
+      if (error instanceof BinderRequestError && error.reason === 'binder_limit_reached' && billing) { upgrade(); return }
       setMessage(error instanceof Error ? error.message : "Something went wrong")
     } finally {
       setBusy(null)
@@ -139,6 +144,7 @@ export default function BinderSwitcherSheet({
 
   const managing = canManage && isManaging
   const atLimit = rows.length >= MAX_BINDERS_PER_OWNER
+  const needsUpgrade = Boolean(billing?.access && !canCreateOwnerBinder(billing.access, rows.length) && !atLimit)
 
   if (typeof document === "undefined") return null
 
@@ -311,7 +317,13 @@ export default function BinderSwitcherSheet({
 
           {message && <p role="alert" className="mt-2 text-xs text-destructive">{message}</p>}
 
-          {canManage && (
+          {canManage && needsUpgrade && (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-muted-foreground">Your free plan includes one binder. Your existing binders stay available.</p>
+              <button type="button" onClick={upgrade} className="min-h-11 w-full rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground">Upgrade for more binders</button>
+            </div>
+          )}
+          {canManage && !needsUpgrade && (
             <form onSubmit={handleCreate} className="mt-3 flex items-center gap-1.5">
               <input
                 value={newName}
@@ -324,7 +336,7 @@ export default function BinderSwitcherSheet({
               />
               <button
                 type="submit"
-                disabled={atLimit || !isOnline || busy !== null || !newName.trim()}
+                disabled={atLimit || !isOnline || busy !== null || billing?.loading || !newName.trim()}
                 className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
               >
                 {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

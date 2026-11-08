@@ -5,7 +5,7 @@ import { BillingContext, type BillingState } from '../hooks/use-billing'
 import { BillingSettings } from '../components/billing-settings'
 import { resolveBillingAccess } from '../lib/billing'
 function render(source: 'free'|'perpetual'|'subscription',canManage=true,hasBillingAccount=false) {
- const state: BillingState={ access:resolveBillingAccess('owner',{enforced:true,perpetual:source==='perpetual',status:source==='subscription'?'active':'none',paid_through:'2099-01-01',saved_card_count:10}),canManage,hasBillingAccount,loading:false,error:null,busy:false,premium:source!=='free',refresh:async()=>{},upgrade:()=>{},checkout:async()=>{},portal:async()=>{} }
+ const state: BillingState={ access:resolveBillingAccess('owner',{enforced:true,perpetual:source==='perpetual',status:source==='subscription'?'active':'none',paid_through:'2099-01-01',saved_card_count:10,free_card_limit:100,free_binder_limit:1}),canManage,hasBillingAccount,loading:false,error:null,busy:false,premium:source!=='free',refresh:async()=>{},upgrade:()=>{},checkout:async()=>{},portal:async()=>{} }
  return renderToStaticMarkup(<BillingContext.Provider value={state}><BillingSettings signedIn onSignIn={()=>{}} /></BillingContext.Provider>)
 }
 test('lifetime plan shows permanent access without purchase or billing controls',()=>{
@@ -17,7 +17,8 @@ test('free plan shows both approved prices and the total card allowance',()=>{
  const html=render('free')
  assert.match(html,/£2.99 \/ month/)
  assert.match(html,/£29.99 \/ year, save £5.89/)
- assert.match(html,/10 of 10 free cards/)
+ assert.match(html,/10 of 100 free entries/)
+ assert.match(html,/1 free binder/)
 })
 test('only the billing owner gets subscription management controls',()=>{
  assert.match(render('subscription'),/Manage billing/)

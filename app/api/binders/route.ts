@@ -6,6 +6,8 @@ import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { ensureDefaultBinderId, listOwnerBinders } from "@/lib/server/binders"
 import { isBinderId, normalizeBinderName, type Binder } from "@/lib/binders/model"
 import { canCreateBinder, nextBinderSortOrder, planBinderDelete, validateBinderOrder } from "@/lib/binders/manage"
+import { BillingAccessError, canCreateOwnerBinder, isBillingError } from "@/lib/billing"
+import { billingErrorResponse, getBillingAccess } from "@/lib/server/billing"
 
 /**
  * Binders of the signed-in owner. A partner manages the owner's binders (they share every binder), so every
@@ -70,19 +72,23 @@ export async function POST(request: NextRequest) {
     if (!name) return NextResponse.json({ error: "Give the binder a name (up to 40 characters)" }, { status: 400 })
 
     const { admin, ownerUserId } = session
-    await ensureDefaultBinderId(admin, ownerUserId)
     const binders = await listOwnerBinders(admin, ownerUserId)
     if (!canCreateBinder(binders)) {
       return NextResponse.json({ error: "You have the most binders allowed" }, { status: 409 })
     }
+    const access = await getBillingAccess(ownerUserId)
+    if (!canCreateOwnerBinder(access, binders.length)) throw new BillingAccessError('binder_limit_reached')
     const { data, error } = await admin
       .from("binders")
-      .insert({ owner_user_id: ownerUserId, name, sort_order: nextBinderSortOrder(binders) })
+      .insert({ owner_user_id: ownerUserId, name, sort_order: nextBinderSortOrder(binders), is_default: binders.length === 0 })
       .select("id")
       .single()
+    if (isBillingError(error)) throw new BillingAccessError('binder_limit_reached')
+    if (error?.message?.includes('binder_safety_limit_reached')) return NextResponse.json({ error: "You have the most binders allowed" }, { status: 409 })
     if (error) throw error
     return respond(await listWithCounts(admin, ownerUserId), { createdBinderId: data.id })
   } catch (error) {
+    if (isBillingError(error)) return billingErrorResponse(error)
     return failure("create the binder", error)
   }
 }
