@@ -78,11 +78,16 @@ ALTER POLICY "Users can update their own binder share" ON public.binder_shares
   USING (owner_user_id = (select auth.uid())) WITH CHECK (owner_user_id = (select auth.uid()));
 ALTER POLICY "Users can delete their own binder share" ON public.binder_shares USING (owner_user_id = (select auth.uid()));
 
--- passkey_credentials
-ALTER POLICY "Users can view own passkeys" ON public.passkey_credentials USING (user_id = (select auth.uid()));
-ALTER POLICY "Users can insert own passkeys" ON public.passkey_credentials WITH CHECK (user_id = (select auth.uid()));
-ALTER POLICY "Users can update own passkeys" ON public.passkey_credentials USING (user_id = (select auth.uid()));
-ALTER POLICY "Users can delete own passkeys" ON public.passkey_credentials USING (user_id = (select auth.uid()));
+-- Passkeys were removed before the tracked schema; fresh projects have no such table.
+DO $$
+BEGIN
+  IF to_regclass('public.passkey_credentials') IS NOT NULL THEN
+    ALTER POLICY "Users can view own passkeys" ON public.passkey_credentials USING (user_id = (select auth.uid()));
+    ALTER POLICY "Users can insert own passkeys" ON public.passkey_credentials WITH CHECK (user_id = (select auth.uid()));
+    ALTER POLICY "Users can update own passkeys" ON public.passkey_credentials USING (user_id = (select auth.uid()));
+    ALTER POLICY "Users can delete own passkeys" ON public.passkey_credentials USING (user_id = (select auth.uid()));
+  END IF;
+END $$;
 
 -- partnerships
 ALTER POLICY "Users can view their partnerships" ON public.partnerships
@@ -110,11 +115,16 @@ ALTER POLICY "Users can update invites they received" ON public.partner_invites
   USING (invitee_email = COALESCE((select auth.jwt()) ->> 'email', '') AND status = 'pending')
   WITH CHECK (invitee_email = COALESCE((select auth.jwt()) ->> 'email', '') AND status IN ('accepted', 'rejected'));
 
--- tcgdex_cache_jobs
-ALTER POLICY "Authenticated users can read cache jobs" ON public.tcgdex_cache_jobs
-  USING ((select auth.role()) = 'authenticated');
-ALTER POLICY "Authenticated users can create cache jobs" ON public.tcgdex_cache_jobs
-  WITH CHECK (requested_by IS NULL OR requested_by = (select auth.uid()));
+-- Legacy cache jobs were removed before the tracked schema too.
+DO $$
+BEGIN
+  IF to_regclass('public.tcgdex_cache_jobs') IS NOT NULL THEN
+    ALTER POLICY "Authenticated users can read cache jobs" ON public.tcgdex_cache_jobs
+      USING ((select auth.role()) = 'authenticated');
+    ALTER POLICY "Authenticated users can create cache jobs" ON public.tcgdex_cache_jobs
+      WITH CHECK (requested_by IS NULL OR requested_by = (select auth.uid()));
+  END IF;
+END $$;
 
 -- The shared-collection checks look partnerships up by owner; index it (also covers the owner foreign key).
 CREATE INDEX IF NOT EXISTS idx_partnerships_owner_user_id ON public.partnerships(owner_user_id);
