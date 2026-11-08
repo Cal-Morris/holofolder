@@ -1,3 +1,4 @@
+import {settingsFingerprint} from '@/lib/developer-api/settings'
 import type { User } from "@supabase/supabase-js"
 import { isBinderGridSize, needsCustomLayoutAccess, withBinderLayout } from "@/lib/binder-layout"
 import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
@@ -23,7 +24,7 @@ async function resolveSettingsOwnerUserId(userId: string) {
   return resolveCollectionOwnerUserId(createAdminClient(), userId)
 }
 
-export async function getCollectionSettings(request: NextRequest, actor: User) {
+export async function getCollectionSettings(request: NextRequest, actor: User, withFingerprint=false) {
   try {
     const user = actor
     if (!user) {
@@ -34,7 +35,7 @@ export async function getCollectionSettings(request: NextRequest, actor: User) {
     const settingsOwnerUserId = await resolveSettingsOwnerUserId(user.id)
     let { data, error } = await admin
       .from("user_settings")
-      .select(USER_SETTINGS_COLUMNS)
+      .select(withFingerprint?"*":USER_SETTINGS_COLUMNS)
       .eq("user_id", settingsOwnerUserId)
       .maybeSingle()
 
@@ -56,16 +57,19 @@ export async function getCollectionSettings(request: NextRequest, actor: User) {
     }
 
     const binderId = request.nextUrl.searchParams.get("binderId")
+    let layout:Record<string,unknown>|null=null
     let settings = settingsFromRow(data as UserSettingsRow | null)
     if (binderId) {
       await resolveWriteBinderId(admin, settingsOwnerUserId, binderId)
       const binder = await admin.from("binders").select("binder_rows,binder_cols").eq("id", binderId).eq("owner_user_id", settingsOwnerUserId).single()
       if (binder.error) throw binder.error
+      layout=binder.data
       settings = withBinderLayout(settings, { rows: binder.data.binder_rows, cols: binder.data.binder_cols })
     }
     return NextResponse.json({
       settings,
       hasStoredSettings: Boolean(data),
+      ...(withFingerprint?{fingerprint:settingsFingerprint(data??null,layout)}:{}),
     })
   } catch (error) {
     if (error instanceof BinderAccessError) return NextResponse.json({ error: error.message }, { status: 404 })
@@ -77,7 +81,7 @@ export async function getCollectionSettings(request: NextRequest, actor: User) {
   }
 }
 
-export async function saveCollectionSettings(request: NextRequest, actor: User) {
+export async function saveCollectionSettings(request: NextRequest, actor: User, requireAtomic=false) {
   try {
     const user = actor
     if (!user) {
@@ -111,7 +115,7 @@ export async function saveCollectionSettings(request: NextRequest, actor: User) 
 
     const existingResult = await admin
       .from("user_settings")
-      .select("user_id,binder_rows,binder_cols")
+      .select("*")
       .eq("user_id", settingsOwnerUserId)
       .maybeSingle()
 
@@ -129,6 +133,15 @@ export async function saveCollectionSettings(request: NextRequest, actor: User) 
     const layoutChanged = nextSettings.binderRows !== previous.binderRows || nextSettings.binderCols !== previous.binderCols
     if (needsCustomLayoutAccess({ rows: nextSettings.binderRows, cols: nextSettings.binderCols }, { rows: previous.binderRows, cols: previous.binderCols })) {
       await requirePaidAccess(settingsOwnerUserId)
+    }
+    if(requireAtomic) {
+      if(typeof body.baseFingerprint!=='string'||body.baseFingerprint!==settingsFingerprint(existingResult.data??null,currentBinder?.data??null))return NextResponse.json({error:'Settings changed. Reload before saving again.'},{status:409})
+      const atomicRow:Record<string,unknown>=settingsToRow(nextSettings)
+      if(binderId) {delete atomicRow.binder_rows;delete atomicRow.binder_cols;atomicRow.layout_rows=nextSettings.binderRows;atomicRow.layout_cols=nextSettings.binderCols}
+      const {data,error}=await admin.rpc('developer_save_settings',{actor:user.id,owner_id:settingsOwnerUserId,binder_id_input:binderId,expected_settings:existingResult.data??null,expected_layout:currentBinder?.data??null,new_settings:atomicRow})
+      if(error)throw error
+      if(!data||data.conflict)return NextResponse.json({error:'Settings changed. Reload before saving again.'},{status:409})
+      return getCollectionSettings(request,actor,true)
     }
     if (binderId && layoutChanged) {
       const { error } = await admin.from("binders").update({ binder_rows: nextSettings.binderRows, binder_cols: nextSettings.binderCols }).eq("id", binderId).eq("owner_user_id", settingsOwnerUserId)

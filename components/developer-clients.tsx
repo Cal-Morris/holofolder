@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react'
 import {Button} from '@/components/ui/button'
 import {appPath} from '@/lib/app-path'
-type Client={client_id:string;client_name:string}
+type Client={client_id:string;client_name:string;revocationPending?:boolean}
 export default function DeveloperClients({isOnline}:{isOnline:boolean}) {
  const [clients,setClients]=useState<Client[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false)
  useEffect(()=>{
@@ -24,7 +24,7 @@ export default function DeveloperClients({isOnline}:{isOnline:boolean}) {
  }
  return <section className="space-y-2" aria-label="Connected MCP clients"><h4 className="text-sm font-medium">Connected MCP clients</h4>
   {clients.length===0&&!error&&<p className="text-xs text-muted-foreground">No connected clients. Add Holo Folder in your MCP client and approve the connection.</p>}
-  {clients.map(client=><div key={client.client_id} className="flex items-start justify-between gap-3 rounded-xl border border-border p-3"><p className="min-w-0 break-words text-sm">{client.client_name}</p><Button type="button" variant="outline" size="sm" className="min-h-9 shrink-0" disabled={busy||!isOnline} onClick={()=>void revoke(client)} aria-label={`Disconnect ${client.client_name}`}>Disconnect</Button></div>)}
+  {clients.map(client=><div key={client.client_id} className="flex items-start justify-between gap-3 rounded-xl border border-border p-3"><p className="min-w-0 break-words text-sm">{client.client_name}</p><Button type="button" variant="outline" size="sm" className="min-h-9 shrink-0" disabled={busy||!isOnline} onClick={()=>void revoke(client)} aria-label={`${client.revocationPending?'Finish disconnecting':'Disconnect'} ${client.client_name}`}>{client.revocationPending?'Retry disconnect':'Disconnect'}</Button></div>)}
   {error&&<p role="alert" className="break-words text-xs text-destructive">{error}</p>}
  </section>
 }

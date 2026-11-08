@@ -38,3 +38,34 @@ test('personal API keys are shown once and revocable, and MCP connections discon
  await expect(disconnect).toHaveCount(0)
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
+
+test('an interrupted MCP disconnect stays retryable after reopening Settings',async({harness})=>{
+ const {page}=harness
+ await page.route(`${SUPABASE_URL}/auth/v1/passkeys**`,route=>route.fulfill({json:[]}))
+ await page.route('**/app/api/developer/keys',route=>route.fulfill({json:{keys:[],canCreate:false}}))
+ let pending=true,attempts=0
+ await page.route('**/app/api/developer/clients',async route=>{
+  if(route.request().method()==='DELETE') {
+   attempts++
+   if(attempts===1){await route.fulfill({status:503,json:{error:{message:'Synthetic interrupted disconnection, retry in Settings.'}}});return}
+   pending=false;await route.fulfill({json:{revoked:true}});return
+  }
+  await route.fulfill({json:{clients:pending?[{client_id:'00000000-0000-4000-8000-000000000099',client_name:'Synthetic interrupted client',revocationPending:true}]:[]}})
+ })
+ async function openAccount() {
+  await page.getByRole('button',{name:'More',exact:true}).click()
+  await page.getByRole('menuitem',{name:'Settings',exact:true}).click()
+  const dialog=page.getByRole('dialog',{name:'Settings'})
+  await dialog.getByRole('button',{name:'Account',exact:true}).click()
+  return dialog
+ }
+ let dialog=await openAccount()
+ await dialog.getByRole('button',{name:'Finish disconnecting Synthetic interrupted client'}).click()
+ await expect(dialog.getByRole('alert').filter({hasText:'Synthetic interrupted disconnection'})).toBeVisible()
+ await dialog.getByRole('button',{name:'Close settings'}).click()
+ dialog=await openAccount()
+ const retry=dialog.getByRole('button',{name:'Finish disconnecting Synthetic interrupted client'})
+ await expect(retry).toBeVisible();await harness.expectMinTapTarget(retry);await retry.click()
+ await expect(retry).toHaveCount(0)
+ expect(attempts).toBe(2)
+})

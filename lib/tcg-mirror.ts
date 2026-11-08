@@ -297,22 +297,33 @@ export async function getRecentMirroredSets(asOfDate: string, limit = 6): Promis
   return selectRecentSetSummaries(sets, { asOfDate, limit })
 }
 
+export async function readSetCardPages<T>(fetchPage:(from:number,to:number)=>PromiseLike<{data:T[]|null;error:unknown}>) {
+  const rows:T[]=[]
+  for(let from=0;;from+=500) {
+    const {data,error}=await fetchPage(from,from+499)
+    if(error)throw error
+    rows.push(...data??[])
+    if(!data||data.length<500)return rows
+  }
+}
+
 export async function getMirroredSetDexSlots(
   setId: string,
   language: MirrorLanguage = "en",
   pokemonNames = new Map<number, string>(),
+  includeHidden = false,
 ): Promise<{ selectedSet: TCGSetSummary | null; slots: TCGSetDexSlot[]; cards: TCGSetSlotCard[] }> {
   "use cache: remote"
   cacheLife(MIRROR_CACHE_LIFE)
   cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, cacheSafeTag("set", setId), cacheSafeTag("language", language))
 
-  if (HIDDEN_SET_IDS.has(setId)) {
+  if (!includeHidden && HIDDEN_SET_IDS.has(setId)) {
     return { selectedSet: null, slots: [], cards: [] }
   }
 
   const admin = createAdminClient()
 
-  const { data, error } = await admin
+  const data = await readSetCardPages((from,to)=>admin
     .from("tcg_cards")
     .select(`
       id,
@@ -343,11 +354,7 @@ export async function getMirroredSetDexSlots(
       )
     `)
     .eq("set_id", setId)
-    .order("local_id_sort", { ascending: true, nullsFirst: false })
-
-  if (error) {
-    throw error
-  }
+    .order("local_id_sort", { ascending: true, nullsFirst: false }).order("id").range(from,to))
 
   const rows = deduplicateCatalogCards((data || []) as any[])
   const firstSet = rows[0]?.tcg_sets

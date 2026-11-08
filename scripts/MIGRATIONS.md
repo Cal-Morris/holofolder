@@ -10,6 +10,9 @@ When you add a migration, use the next free number, keep it idempotent, and add 
 
 | File | What it does |
 |---|---|
+| `066_mcp_revocation_recovery.sql` | Records completed Auth revocations separately so interrupted disconnections remain retryable; verifies existing-consent redirects against current grants. |
+| `065_developer_atomic_operations.sql` | Transactional populated/last-binder deletion and snapshot-checked external settings replacement, including binder layout. |
+| `064_mcp_resource_boundary.sql` | Restricts this MCP-only OAuth server's authorization records to the exact MCP resource and S256, including Supabase auto-approval. First-party login is unchanged. |
 | `063_developer_retention.sql` | Cleans expired private idempotency metadata in bounded batches on all API/MCP traffic, including comparison-only clients. |
 | `062_developer_management.sql` | Scoped identity delegation, transactional partner actions and comparison-job idempotency for developer transports. Existing identity rules remain authoritative. |
 | `061_developer_mutations.sql` | Transactional binder-create idempotency and atomic external collection deletion. Existing browser writes stay compatible. |

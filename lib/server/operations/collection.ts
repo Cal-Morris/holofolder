@@ -1,3 +1,5 @@
+import {normalizeStoredDeveloperImage} from '@/lib/developer-api/image-identity'
+import {getR2Config,getR2BucketEndpoint} from '@/lib/card-image-r2'
 import type { User } from "@supabase/supabase-js"
 import { BillingAccessError, isBillingError } from "@/lib/billing"
 import { scheduleCollectorTracking, recordCollectorSave } from "@/lib/server/collector-funnel"
@@ -100,6 +102,9 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
       return NextResponse.json({ error: "Invalid wanted assignment" }, { status: 400 })
     }
 
+    const r2=requireAtomic?getR2Config():null
+    const bases=r2?[r2.publicBaseUrl??getR2BucketEndpoint(r2),getR2BucketEndpoint(r2)]:[]
+    if(requireAtomic)wantedCards=wantedCards.map(card=>({...card,...(card.card_image?{card_image:normalizeStoredDeveloperImage(card.card_image,bases)??undefined}:{})}))
     const row = {
           user_id: ownerUserId,
           ...(binderId ? { binder_id: binderId } : {}),
@@ -107,7 +112,7 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
           pokemon_name: pokemonName,
           card_id: typeof body?.cardId === "string" ? body.cardId : null,
           card_name: typeof body?.cardName === "string" ? body.cardName : null,
-          card_image: typeof body?.cardImage === "string" ? body.cardImage : null,
+          card_image: requireAtomic?normalizeStoredDeveloperImage(body?.cardImage,bases):typeof body?.cardImage === "string" ? body.cardImage : null,
           card_set: typeof body?.cardSet === "string" ? body.cardSet : null,
           card_language: normalizeCardLanguage(body?.cardLanguage),
           card_finish: normalizeCardFinish(body?.cardFinish),

@@ -22,6 +22,12 @@ try {
  await db.query(managementSql);await db.query(managementSql)
  const retentionSql=await readFile(new URL('./063_developer_retention.sql',import.meta.url),'utf8')
  await db.query(retentionSql);await db.query(retentionSql)
+ const resourceSql=await readFile(new URL('./064_mcp_resource_boundary.sql',import.meta.url),'utf8')
+ await db.query(resourceSql);await db.query(resourceSql)
+ const atomicOperationsSql=await readFile(new URL('./065_developer_atomic_operations.sql',import.meta.url),'utf8')
+ await db.query(atomicOperationsSql);await db.query(atomicOperationsSql)
+ const recoverySql=await readFile(new URL('./066_mcp_revocation_recovery.sql',import.meta.url),'utf8')
+ await db.query(recoverySql);await db.query(recoverySql)
  const actor=crypto.randomUUID(), key=crypto.randomUUID()
  await db.query('INSERT INTO auth.users(id) VALUES($1)',[actor])
  await db.query("INSERT INTO public.perpetual_licences(owner_user_id,source) VALUES($1,'manual')",[actor])
@@ -69,11 +75,29 @@ try {
  await db.query("INSERT INTO public.developer_idempotency(actor_id,operation,request_key,input_digest,result,expires_at) VALUES($1,'synthetic_expired','synthetic-expired-key',$2,'{}',now()-interval '1 day')",[actor,'a'.repeat(64)])
  await db.query('SELECT public.consume_developer_budget($1,10)',[`synthetic-retention:${actor}`])
  assert.equal((await db.query("SELECT count(*)::int AS n FROM public.developer_idempotency WHERE actor_id=$1 AND operation='synthetic_expired'",[actor])).rows[0].n,0,'Expired idempotency metadata must be cleaned on ordinary API traffic')
+ await db.query('SAVEPOINT expected_failure')
+ await assert.rejects(db.query("INSERT INTO auth.oauth_authorizations(authorization_id,client_id,redirect_uri,scope,resource,code_challenge,code_challenge_method,response_type,expires_at) VALUES($1,$2,'https://synthetic.invalid/callback','email','https://wrong-resource.invalid',$3,'s256','code',now()+interval '5 minutes')",[crypto.randomUUID(),crypto.randomUUID(),'a'.repeat(43)]),/MCP authorization requires its exact resource/)
+ await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ const settingsRow={binder_color_id:'synthetic',binder_page_colors:{},binder_slot_glare_enabled:true,card_finish_effects_enabled:true,dark_mode:false,show_binder_value:true,pricing_region:null,preferred_currency:null,preferred_card_language:null,layout_rows:4,layout_cols:4}
+ const initialSettings=(await db.query('SELECT to_jsonb(s) AS row FROM public.user_settings s WHERE user_id=$1',[actor])).rows[0]?.row??null
+ const initialLayout=(await db.query("SELECT jsonb_build_object('binder_rows',binder_rows,'binder_cols',binder_cols) AS layout FROM public.binders WHERE id=$1",[first.id])).rows[0].layout
+ assert.equal((await db.query('SELECT public.developer_save_settings($1,$1,$2,$3,$4,$5) AS result',[actor,first.id,initialSettings,initialLayout,settingsRow])).rows[0].result.conflict,false)
+ const savedSettings=(await db.query('SELECT to_jsonb(s) AS row FROM public.user_settings s WHERE user_id=$1',[actor])).rows[0].row
+ await db.query('UPDATE public.user_settings SET dark_mode=true WHERE user_id=$1',[actor])
+ assert.equal((await db.query('SELECT public.developer_save_settings($1,$1,$2,$3,$4,$5) AS result',[actor,first.id,savedSettings,{binder_rows:4,binder_cols:4},{...settingsRow,layout_rows:5}])).rows[0].result.conflict,true)
+ assert.equal((await db.query('SELECT binder_rows FROM public.binders WHERE id=$1',[first.id])).rows[0].binder_rows,4)
+ assert.equal((await db.query('SELECT dark_mode FROM public.user_settings WHERE user_id=$1',[actor])).rows[0].dark_mode,true)
+ const lastBinder=(await db.query('SELECT public.developer_delete_binder($1,$1,$2,false) AS result',[actor,first.id])).rows[0].result
+ assert.equal(lastBinder.reason,'last-binder')
+ const spare=(await db.query('SELECT public.developer_create_binder($1,$1,$2,$3,$4) AS result',[actor,'Synthetic deletion binder','synthetic-delete-binder','f'.repeat(64)])).rows[0].result
+ await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) VALUES($1,$2,2,'Synthetic retained card','collected')",[actor,spare.id])
+ assert.equal((await db.query('SELECT public.developer_delete_binder($1,$1,$2,false) AS result',[actor,spare.id])).rows[0].result.reason,'needs-confirmation')
+ assert.equal((await db.query('SELECT public.developer_delete_binder($1,$1,$2,true) AS result',[actor,spare.id])).rows[0].result.ok,true)
  const values=[key,actor,'Synthetic test key','a'.repeat(64),['catalog:read'],90]
  await db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',values)
  assert.equal((await db.query('SELECT count(*)::int AS n FROM public.developer_api_keys WHERE actor_id=$1',[actor])).rows[0].n,1)
- for(let n=0;n<10;n++) assert.equal((await db.query("SELECT public.consume_developer_budget($1,10) AS budget",[actor])).rows[0].budget.allowed,true)
- assert.equal((await db.query('SELECT public.consume_developer_budget($1,10) AS budget',[actor])).rows[0].budget.allowed,false)
+ const budgets=(await db.query("SELECT public.consume_developer_budget($1,10) AS budget FROM generate_series(1,11)",[actor])).rows.map(row=>row.budget.allowed)
+ assert.deepEqual(budgets,[...Array(10).fill(true),false])
  for(let n=1;n<10;n++) await db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',[crypto.randomUUID(),...values.slice(1)])
  await db.query('SAVEPOINT expected_failure')
  await assert.rejects(db.query('SELECT public.create_developer_api_key($1,$2,$3,$4,$5,$6)',[crypto.randomUUID(),...values.slice(1)]),/key_limit_reached/)
@@ -92,4 +116,4 @@ try {
 } finally {await db.query('ROLLBACK');await db.end()}
 
 }
-main().catch(error => { console.error(error instanceof Error ? error.message : "Verification failed"); process.exitCode = 1 })
+main().catch(error => { console.error(error instanceof Error ? error.name==='AssertionError'?error.stack:error.message : "Verification failed"); process.exitCode = 1 })

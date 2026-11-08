@@ -10,3 +10,5 @@ export function validateMcpClaims(value:Record<string,unknown>,issuer:string,now
 export function validateMcpOrigin(origin:string|null|undefined,redirectOrigin:string) {
  if(origin && (origin==='null'||(origin!=='https://holofolder.com'&&origin!==redirectOrigin)))throw new DeveloperAccessError('invalid_origin','This origin was not authorized for this MCP client.',403)
 }
+
+export function needsOAuthRevocation(grant:{revoked_at:unknown;auth_revoked_at:unknown}) {return Boolean(grant.revoked_at&&!grant.auth_revoked_at)}

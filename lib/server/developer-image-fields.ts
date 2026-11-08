@@ -11,7 +11,7 @@ export async function sanitizeDeveloperImages(value: unknown, resolve: (source: 
   if (!value || typeof value !== 'object') return value
   const output: Record<string, unknown> = {}
   for (const [key, child] of Object.entries(value)) {
-    const image = imageGroup || /image|thumbnail|logo|symbol/i.test(key)
+    const image = imageGroup || /^(?:(?:card|small|large)?images?(?:url|small|large)?|thumbnails?(?:url)?|logos?|symbols?)$/i.test(key.replaceAll('_',''))
     if (image && (typeof child === 'string' || child === null)) {
       const resolved = await resolve(child)
       output[key] = resolved.url

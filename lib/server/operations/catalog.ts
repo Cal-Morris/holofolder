@@ -1,3 +1,5 @@
+import {readExternalIdentifiers} from '@/lib/developer-api/catalog'
+import {developerArtworkReference} from '@/lib/developer-api/image-identity'
 import { cacheLife, cacheTag } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CARD_LANGUAGES, isCardLanguage, type CardLanguage } from '@/lib/domain/cards'
@@ -27,16 +29,11 @@ async function serializeCard(value:unknown,lang:CardLanguage) {
  const imageLanguage=available.includes(lang)?lang:available.find(l=>CARD_LANGUAGES.includes(l as CardLanguage))
  const source=metadata.image??(imageLanguage?buildTcgdexAssetImageUrl(imageLanguage,String(row.series_id),String(row.set_id),String(row.local_id)):pickExternalCardImageUrl(row.external_ids_json)??null)
  const image=await resolveDeveloperImage(source)
- const external=record(row.external_ids_json)
- const identifiers:Record<string,string>={}
- for(const provider of ['tcgplayer','cardmarket','pokemontcg','scrydex']) {
-  const entry=record(external[provider]);const id=entry.id??entry.productId
-  if((typeof id==='string'||typeof id==='number') && String(id).length<=200 && !String(id).includes('://')) identifiers[provider]=String(id)
- }
+ const identifiers=readExternalIdentifiers(row.external_ids_json)
  return {id:row.id,canonicalId:metadata.canonicalId??row.id,aliasIds:metadata.aliasIds??[],localId:metadata.localId??row.local_id,name:pickLocalizedText(row.name_json,lang),names:record(row.name_json),language:lang,
   set:{id:row.set_id,name:pickLocalizedText(set.name_json,lang),officialCardCount:set.official_card_count??null,releaseDate:set.release_date??null},seriesId:row.series_id,
   category:text(row.category),rarity:text(row.rarity),hp:typeof row.hp==='number'?row.hp:null,illustrator:text(row.illustrator),types:strings(row.types_json),variants:Object.fromEntries(Object.entries(record(row.variants_json)).filter(([,value])=>typeof value==='boolean')),externalIds:identifiers,details:await sanitizeDeveloperImages(record(row.raw_json)),
-  image:image.url,imageAvailability:image.availability,imageLanguage:imageLanguage??null,attribution:ATTRIBUTION}
+  artworkRef:source?developerArtworkReference(source):null,image:image.url,imageAvailability:image.availability,imageLanguage:imageLanguage??null,attribution:ATTRIBUTION}
 }
 async function cardPage(rows:unknown[],lang:CardLanguage) {
  const cards=[]
@@ -44,7 +41,7 @@ async function cardPage(rows:unknown[],lang:CardLanguage) {
  return cards
 }
 async function listSetsForSearch(query:string) {
- const {data,error}=await createAdminClient().from('tcg_sets').select('id,name_en').or(`id.ilike.${JSON.stringify(`%${query}%`)},name_en.ilike.${JSON.stringify(`%${query}%`)}`).neq('id','jumbo').order('id').limit(100)
+ const {data,error}=await createAdminClient().from('tcg_sets').select('id,name_en').or(`id.ilike.${JSON.stringify(`%${query}%`)},name_en.ilike.${JSON.stringify(`%${query}%`)}`).order('id').limit(100)
  if(error) throw new Error('Set search unavailable')
  return (data??[]).map(set=>({id:set.id,name:set.name_en??set.id}))
 }
@@ -55,7 +52,7 @@ export async function listCatalogCards(rawParams:string) {
  const q=params.get('q')??''
  if(q.length>80) throw new DeveloperAccessError('invalid_query','Search queries must be at most 80 characters.',400)
  const admin=createAdminClient()
- let query=admin.from('tcg_cards').select(params.has('pokemon')?`${CARD_COLUMNS},tcg_card_dex_ids!inner(dex_id)`:CARD_COLUMNS).neq('set_id','jumbo').order('id').limit(page.limit+1)
+ let query=admin.from('tcg_cards').select(params.has('pokemon')?`${CARD_COLUMNS},tcg_card_dex_ids!inner(dex_id)`:CARD_COLUMNS).order('id').limit(page.limit+1)
  if(page.after) query=query.gt('id',page.after)
  for(const [parameter,column] of [['set','set_id'],['series','series_id'],['illustrator','illustrator']] as const) {
   const value=params.get(parameter)
@@ -86,7 +83,7 @@ export async function listCatalogCards(rawParams:string) {
 export async function getCatalogCard(id:string,lang:CardLanguage) {
  'use cache: remote'
  cacheLife({stale:60,revalidate:60,expire:120});cacheTag('tcg-mirror')
- const {data,error}=await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).eq('id',id).neq('set_id','jumbo').maybeSingle()
+ const {data,error}=await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).eq('id',id).maybeSingle()
  if(error) throw new Error('Card lookup unavailable')
  return data?serializeCard(data,lang):null
 }
@@ -96,7 +93,6 @@ export async function listCatalogGroups(kind:'sets'|'series',rawParams:string) {
  const params=new URLSearchParams(rawParams),page=decodePage(params),lang=language(params)
  const columns=kind==='sets'?'id,series_id,name_json,official_card_count,release_date':'id,name_json'
  let query=createAdminClient().from(kind==='sets'?'tcg_sets':'tcg_series').select(columns).order('id').limit(page.limit+1)
- if(kind==='sets') query=query.neq('id','jumbo')
  if(page.after) query=query.gt('id',page.after)
  if(params.get('series')&&kind==='sets') query=query.eq('series_id',params.get('series')!)
  const {data,error}=await query

@@ -15,3 +15,10 @@ test('MCP browser origins are bound to the consenting client, opaque origins are
  assert.throws(()=>validateMcpOrigin('https://attacker.test','https://synthetic-client.test'))
  assert.throws(()=>validateMcpOrigin('null','null'))
 })
+
+test('failed OAuth revocation remains distinguishable and retryable after reload',async()=>{
+ const {needsOAuthRevocation}=await import('../lib/developer-api/oauth')
+ assert.equal(needsOAuthRevocation({revoked_at:'2026-11-08T00:00:00Z',auth_revoked_at:null}),true)
+ assert.equal(needsOAuthRevocation({revoked_at:'2026-11-08T00:00:00Z',auth_revoked_at:'2026-11-08T00:00:01Z'}),false)
+ assert.equal(needsOAuthRevocation({revoked_at:null,auth_revoked_at:null}),false)
+})

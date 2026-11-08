@@ -16,7 +16,7 @@ import {NextRequest} from 'next/server'
 import {createAdminClient} from '@/lib/supabase/admin'
 import type {OperationContext} from '@/lib/developer-api/types'
 import {DeveloperAccessError} from '@/lib/developer-api/permissions'
-import {decodePage,encodeCursor} from '@/lib/developer-api/pagination'
+import {decodePage,encodeCursor,paginateEntries} from '@/lib/developer-api/pagination'
 import {normalizeCardLanguage,CARD_LANGUAGES} from '@/lib/domain/cards'
 import {collectionFingerprint} from '@/lib/collection/sync'
 import {normalizeCollectionItem} from '@/lib/collection/normalize'
@@ -63,9 +63,7 @@ async function sanitizeImages(value:unknown):Promise<unknown> {
 }
 
 function sliceEntries<T>(entries:T[],input:Record<string,unknown>,key:(entry:T)=>string) {
- const params=paramsOf(input),page=decodePage(params),sorted=entries.toSorted((a,b)=>key(a).localeCompare(key(b)))
- const visible=sorted.filter(row=>!page.after||key(row)>page.after).slice(0,page.limit+1)
- return {data:visible.slice(0,page.limit),nextCursor:visible.length>page.limit?encodeCursor(key(visible[page.limit-1]),params):null}
+ return paginateEntries(entries,paramsOf(input),key)
 }
 export async function executeDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
  const params=paramsOf(input)
@@ -78,7 +76,7 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
    const kind=name==='get_set'?'tcg_sets':'tcg_series'
    const {data,error}=await createAdminClient().from(kind).select(kind==='tcg_sets'?'id,series_id,name_json,official_card_count,release_date,raw_json':'id,name_json,raw_json').eq('id',String(input.id)).maybeSingle()
    if(error) throw new Error('Catalog lookup unavailable')
-   if(!data || input.id==='jumbo') throw new DeveloperAccessError('not_found','Catalog record not found.',404)
+   if(!data) throw new DeveloperAccessError('not_found','Catalog record not found.',404)
    return sanitizeImages(data)
   }
   case 'list_languages': return {data:CARD_LANGUAGES}
@@ -99,9 +97,9 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
   }
   case 'save_collection_item': return sanitizeImages(await unwrap(await saveCollectionItem(operationRequest(input),await actor(context),true)))
   case 'delete_collection_item': return unwrap(await deleteCollectionItem(operationRequest(input,'DELETE'),await actor(context),true))
-  case 'get_settings': return unwrap(await getCollectionSettings(operationRequest(input,'GET'),await actor(context)))
+  case 'get_settings': return unwrap(await getCollectionSettings(operationRequest(input,'GET'),await actor(context),true))
   case 'get_prices': return {prices:await loadSavedCardPrices(normalizeCardPriceLookups(input.cards as unknown[]))}
-  case 'update_settings': return unwrap(await saveCollectionSettings(operationRequest(input,'PUT'),await actor(context)))
+  case 'update_settings': return unwrap(await saveCollectionSettings(operationRequest(input,'PUT'),await actor(context),true))
   case 'refresh_prices': return refreshCardPriceLookups(normalizeCardPriceLookups(input.cards as unknown[]),{force:false})
   case 'get_price_checks':case 'refresh_price_checks': {
    const result=await loadCardPriceChecks(String(input.id),String(input.finish??'any'),name==='refresh_price_checks',input.source as 'ebay'|'soldcomps'|undefined)
@@ -134,7 +132,7 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
    return {currency,region,marketPrice:market,price:price??null,verdict,reason:verdict?null:!rate?'A verified exchange rate is not available.':'A reliable saved market price is not available.'}
   }
   case 'get_set_slots': {
-   const result=await getMirroredSetDexSlots(String(input.id),normalizeCardLanguage(input.language))
+   const result=await getMirroredSetDexSlots(String(input.id),normalizeCardLanguage(input.language),undefined,true)
    if(!result.selectedSet)throw new DeveloperAccessError('not_found','Set not found.',404)
    const page=sliceEntries(result.slots,input,slot=>String(slot.dexId).padStart(4,'0'))
    return sanitizeImages({...page,data:page.data.map(slot=>({dexId:slot.dexId,pokemonName:slot.pokemonName,cardIds:slot.cards.slice(0,100).map(card=>card.id),cardCount:slot.cards.length,hasMoreCards:slot.cards.length>100})),selectedSet:result.selectedSet})

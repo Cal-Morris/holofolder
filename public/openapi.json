@@ -1751,6 +1751,10 @@
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
+                  "baseFingerprint": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
                   "binderId": {
                     "type": "string",
                     "format": "uuid",
@@ -1847,6 +1851,7 @@
                   }
                 },
                 "required": [
+                  "baseFingerprint",
                   "binderRows",
                   "binderCols",
                   "binderColorId",

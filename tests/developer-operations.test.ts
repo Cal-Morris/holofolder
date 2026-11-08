@@ -16,3 +16,10 @@ test('operation inputs reject excess fields, oversized batches and missing write
  assert.equal(schema('delete_collection_item').safeParse({binderId:crypto.randomUUID(),pokemonId:1}).success,false)
  assert.equal(schema('get_prices').safeParse({cards:Array.from({length:26},()=>({cardId:'base1-1'}))}).success,false)
 })
+
+test('settings replacement requires a snapshot fingerprint',async()=>{
+ const {getDefaultBinderSettings}=await import('../lib/settings')
+ const schema=DEVELOPER_OPERATIONS.find(op=>op.name==='update_settings')!.schema
+ assert.equal(schema.safeParse(getDefaultBinderSettings()).success,false)
+ assert.equal(schema.safeParse({...getDefaultBinderSettings(),baseFingerprint:'a'.repeat(64)}).success,true)
+})

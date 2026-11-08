@@ -1,13 +1,11 @@
 import { AwsClient } from 'aws4fetch'
 import { cacheLife, cacheTag } from 'next/cache'
-import { parseTcgdexCardImageUrl, getCardImageBlobPathname } from '@/lib/card-image-blob'
-import { parseSourceCardImageUrl } from '@/lib/card-image-sources'
+import {developerImageKey} from '@/lib/developer-api/image-identity'
 import { createR2Deps, getR2Config, getR2BucketEndpoint } from '@/lib/card-image-r2'
 export type DeveloperImage = {url:string|null;availability:'available'|'missing'|'unavailable'}
-export async function resolveImageFromR2(source:unknown,head:(key:string)=>Promise<{url:string}|null>):Promise<DeveloperImage> {
+export async function resolveImageFromR2(source:unknown,head:(key:string)=>Promise<{url:string}|null>,r2Bases:readonly string[]=[]):Promise<DeveloperImage> {
  if(typeof source!=='string') return {url:null,availability:'missing'}
- const tcgdex=parseTcgdexCardImageUrl(source)
- const key=tcgdex?getCardImageBlobPathname(tcgdex):parseSourceCardImageUrl(source)?.pathname
+ const key=developerImageKey(source,r2Bases)
  if(!key) return {url:null,availability:'missing'}
  try {const object=await head(key);return object?{url:object.url,availability:'available'}:{url:null,availability:'missing'}}
  catch {return {url:null,availability:'unavailable'}}
@@ -28,5 +26,5 @@ async function resolvePresentDeveloperImage(source:string):Promise<DeveloperImag
   const signer=new AwsClient({accessKeyId:config.accessKeyId,secretAccessKey:config.secretAccessKey,service:'s3',region:'auto'})
   const url=new URL(`${getR2BucketEndpoint(config)}${key}`);url.searchParams.set('X-Amz-Expires','300')
   return {url:(await signer.sign(url,{aws:{signQuery:true}})).url}
- })
+ },[config.publicBaseUrl??getR2BucketEndpoint(config),getR2BucketEndpoint(config)])
 }

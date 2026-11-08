@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { ensureDefaultBinderId, listOwnerBinders } from "@/lib/server/binders"
 import { isBinderId, normalizeBinderName, type Binder } from "@/lib/binders/model"
-import { canCreateBinder, nextBinderSortOrder, planBinderDelete, validateBinderOrder } from "@/lib/binders/manage"
+import { canCreateBinder, nextBinderSortOrder, validateBinderOrder } from "@/lib/binders/manage"
 import { BillingAccessError, canCreateOwnerBinder, isBillingError } from "@/lib/billing"
 import { billingErrorResponse, getBillingAccess } from "@/lib/server/billing"
 
@@ -128,26 +128,15 @@ export async function deleteBinder(request: NextRequest, actor: User) {
     const { admin, ownerUserId } = session
     const params = new URL(request.url).searchParams
     const binderId = params.get("id")
-    const binders = await listOwnerBinders(admin, ownerUserId)
     if (!isBinderId(binderId)) return NextResponse.json({ error: "Binder not found" }, { status: 404 })
-
-    const slots = binders.some((binder) => binder.id === binderId) ? await slotCount(admin, ownerUserId, binderId) : 0
-    const plan = planBinderDelete(binders, binderId, slots, params.get("confirm") === "1")
-    if (!plan.ok) {
-      const status = plan.reason === "not-found" ? 404 : 409
-      const message = plan.reason === "last-binder"
-        ? "You can't delete your only binder"
-        : plan.reason === "needs-confirmation" ? "This binder has cards; confirm to delete them too" : "Binder not found"
-      return NextResponse.json({ error: message, reason: plan.reason, slotCount: slots }, { status })
+    const {data:plan,error}=await admin.rpc('developer_delete_binder',{actor:actor.id,owner_id:ownerUserId,binder_id_input:binderId,confirm_populated:params.get('confirm')==='1'})
+    if(error)throw error
+    if(!plan?.ok) {
+      const reason=plan?.reason??'not-found'
+      const message=reason==='last-binder'?"You can't delete your only binder":reason==='needs-confirmation'?'This binder has cards; confirm to delete them too':'Binder not found'
+      return NextResponse.json({error:message,reason,slotCount:plan?.slotCount??0},{status:reason==='not-found'?404:409})
     }
 
-    // Slots and the share link go with the binder (ON DELETE CASCADE).
-    const { error } = await admin.from("binders").delete().eq("id", binderId).eq("owner_user_id", ownerUserId)
-    if (error) throw error
-    if (plan.promoteBinderId) {
-      const promoted = await admin.from("binders").update({ is_default: true }).eq("id", plan.promoteBinderId).eq("owner_user_id", ownerUserId)
-      if (promoted.error) throw promoted.error
-    }
     return respond(await listWithCounts(admin, ownerUserId), { deletedBinderId: binderId })
   } catch (error) {
     return failure("delete the binder", error)

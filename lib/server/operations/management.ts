@@ -1,3 +1,4 @@
+import {serializeDeveloperAppearance,restoreDeveloperAppearance} from '@/lib/server/developer-appearance'
 import { requireArtworkStore } from "@/lib/server/binder-appearance"
 import {BINDER_ARTWORK_TYPES,MAX_BINDER_ARTWORK_BYTES,isBinderUploadId} from '@/lib/binder-appearance'
 import {randomBytes} from 'node:crypto'
@@ -71,15 +72,15 @@ export async function developerSharing(context:OperationContext,input:Record<str
 }
 export async function developerAppearance(context:OperationContext,input:Record<string,unknown>,write=false) {
  const admin=createAdminClient(),owner=context.ownerUserId
- if(!write)return readAppearance(admin,owner)
+ if(!write)return serializeDeveloperAppearance(await readAppearance(admin,owner))
  let payload
- try{payload=parseBinderAppearance(input)}catch{throw new DeveloperAccessError('invalid_appearance','Invalid binder appearance or revision.',400)}
+ try{payload=parseBinderAppearance({...input,design:restoreDeveloperAppearance(input.design)})}catch{throw new DeveloperAccessError('invalid_appearance','Invalid binder appearance or revision.',400)}
  const current=await readAppearance(admin,owner)
  if(payload.baseRevision!==current.revision)throw new DeveloperAccessError('conflict','Appearance changed on another device. Reload before retrying.',409)
  for(const id of binderArtworkIds(payload.design))await loadBinderArtwork(admin,owner,id)
  const saved=await writeAppearance(admin,owner,payload.design,payload.baseRevision)
  if(!saved)throw new DeveloperAccessError('conflict','Appearance changed on another device. Reload before retrying.',409)
- return saved
+ return serializeDeveloperAppearance(saved)
 }
 
 export async function developerArtwork(context:OperationContext,input:Record<string,unknown>,upload=false) {
