@@ -3,7 +3,7 @@
 import { useBillingContext } from "@/hooks/use-billing"
 import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import { requestCardPriceCheck } from "@/lib/card-price-check-client"
+import { readSavedCardPriceChecks, requestCardPriceCheck } from "@/lib/card-price-check-client"
 import { isPriceCheckFresh, readPinnedCardPriceChecks } from "@/lib/card-price-check-cache"
 import { PriceCheckRecords } from "@/components/price-check-records"
 import { DealPriceScale } from "@/components/deal-price-scale"
@@ -21,7 +21,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   cardId: string; searchCard: Omit<ListingSearchCard, "cardId">; language?: string; finish?: CardFinish; catalogMarketGbp?: number | null; thresholds?: DealThresholds; onSoldCheck?: (check: CardPriceCheck) => void; offerGbp?: number | null; showBuyingScale?: boolean
 }) {
   const billing = useBillingContext()
-  const premium = billing?.premium !== false
+  const premium = billing?.premium === true
   const [result, setResult] = useState<CardPriceChecks | null>(null)
   const requestController = useRef<AbortController | null>(null)
   useEffect(() => () => requestController.current?.abort(), [])
@@ -30,17 +30,34 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   const [savedThresholds] = useState(() => readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
   const onSoldCheckRef = useRef(onSoldCheck)
   useEffect(() => { onSoldCheckRef.current = onSoldCheck })
-  // Show the last check saved on this device straight away (works offline, costs no request); "Check prices"
-  // reuses saved server checks; only "Refresh prices" can spend credits again.
+  useEffect(() => {
+    if (result?.soldcomps) onSoldCheckRef.current?.(result.soldcomps)
+  }, [result?.soldcomps])
+  // Paint the offline copy first, then read shared saved checks without spending provider credits.
   useEffect(() => {
     if (language !== "en" || finish === "jumbo" || !premium) return
-    let cancelled = false
-    void readPinnedCardPriceChecks(cardId, finish).then(pinned => {
-      if (cancelled || (!pinned.ebay && !pinned.soldcomps)) return
-      setResult(previous => previous ?? { ...pinned, errors: {} })
-      if (pinned.soldcomps) onSoldCheckRef.current?.(pinned.soldcomps)
-    })
-    return () => { cancelled = true }
+    const controller = new AbortController()
+    function showSaved(checks: CardPriceChecks) {
+      if (controller.signal.aborted) return
+      setResult(previous => {
+        const next: CardPriceChecks = { ebay: null, soldcomps: null, ...previous, errors: { ...previous?.errors } }
+        for (const source of ["ebay", "soldcomps"] as const) {
+          const check = checks[source]
+          if (check && (!next[source] || Date.parse(check.checkedAt) > Date.parse(next[source].checkedAt))) next[source] = check
+        }
+        return next.ebay || next.soldcomps ? next : previous
+      })
+    }
+    void (async () => {
+      showSaved({ ...await readPinnedCardPriceChecks(cardId, finish), errors: {} })
+      if (controller.signal.aborted || !navigator.onLine) return
+      try {
+        showSaved(await readSavedCardPriceChecks(cardId, language, finish, controller.signal))
+      } catch {
+        // Keep the offline copy and manual check available when saved checks cannot be read.
+      }
+    })()
+    return () => controller.abort()
   }, [cardId, language, finish, premium])
   if (language !== "en" || finish === "jumbo") return null
   const exactFinish = finish && ["normal", "holo", "reverse_holo"].includes(finish) ? finish : "any"
@@ -55,7 +72,6 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
       const { check, error } = await requestCardPriceCheck(cardId, language, finish, source, signal, refresh)
       if (signal.aborted) return
       setResult(previous => ({ ebay: null, soldcomps: null, ...previous, [source]: check, errors: { ...previous?.errors, [source]: error } }))
-      if (source === "soldcomps" && check) onSoldCheck?.(check)
     } catch (failure) {
       if (signal.aborted) return
       const message = failure instanceof Error && failure.name !== "TimeoutError" ? failure.message : "Price check timed out. Try again later."
