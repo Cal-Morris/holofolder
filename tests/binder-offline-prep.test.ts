@@ -23,7 +23,7 @@ function setup(rows: CollectedPokemon[]) {
     assert.notEqual(init?.method, "POST")
     const url = new URL(String(input), "https://synthetic.test")
     requests.push(url.href)
-    if (url.pathname === "/app/api/card-image-proxy") return new Response("synthetic-image", { headers: { "Content-Type": "image/webp" } })
+    if ((url.pathname === "/app/api/card-image-proxy" || url.hostname === "assets.holofolder.com")) return new Response("synthetic-image", { headers: { "Content-Type": "image/webp" } })
     if (url.pathname === "/app/api/card-prices") return Response.json({ prices: JSON.parse(url.searchParams.get("cards")!).map((card: { cardId: string; language: string }) => ({ ...card, marketGbpAmount: 2, finishPrices: [{ finish: "normal", variantKey: "normal", marketGbpAmount: 2 }], sourcePrices: [{ source: "cardmarket" }], historyPoints: [{ amount: 2 }], trendPoints: [{ gbpAmount: 2 }] })) })
     return Response.json({ checks: JSON.parse(url.searchParams.get("cards")!).map((card: object) => ({ ...card, ebay: check("asking"), soldcomps: check("sold"), errors: {} })) })
   }) as typeof fetch
@@ -116,7 +116,7 @@ describe("binder offline prep", () => {
     assert.ok(saved > 0)
     const result = await downloadBinderPrep(binderPrintings(rows), scope, deps)
     assert.equal(result.complete, true)
-    assert.equal(deps.requests.filter(url => url.includes("card-image-proxy")).length, 8)
+    assert.equal(deps.requests.filter(url => url.includes("card-image-proxy") || url.startsWith("https://assets.holofolder.com/cards/")).length, 8)
   })
 })
 

@@ -1,3 +1,4 @@
+import { PUBLIC_CARD_IMAGE_BASE } from "./card-image-url"
 import { getCardImageAttributes } from "./card-image-loader"
 
 /** Retain the actual decoded images, including in-flight prefetches promoted by a page turn. */
@@ -15,6 +16,7 @@ export class BinderSlotImages {
       existing.image.removeAttribute("src")
     }
     const image = new Image()
+    if(url.startsWith(PUBLIC_CARD_IMAGE_BASE))image.crossOrigin="anonymous"
     image.decoding = "async"
     image.fetchPriority = priority
     const attributes = getCardImageAttributes(url, sizes)

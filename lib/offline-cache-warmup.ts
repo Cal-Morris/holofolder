@@ -1,3 +1,4 @@
+import { toCardImageSrc, PUBLIC_CARD_IMAGE_BASE } from "@/lib/card-image-url"
 import { appPath } from "@/lib/app-path"
 export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
 
@@ -26,6 +27,8 @@ interface OfflineCacheWarmupInput {
 export function toCacheableCardImageUrl(value: unknown) {
   if (typeof value !== "string" || value.trim().length === 0) return null
 
+  const rendered = toCardImageSrc(value)
+  if(rendered?.startsWith(PUBLIC_CARD_IMAGE_BASE))return rendered
   const trimmed = value.trim()
   if (trimmed.startsWith("/api/")) return appPath(trimmed)
   if (trimmed.startsWith("/")) return trimmed

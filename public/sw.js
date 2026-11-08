@@ -133,6 +133,44 @@ function legacyApiRequest(request) {
   return url.href
 }
 
+// Existing installs keep their proxy caches when public images move to the asset domain.
+function publicCardAssetPath(value) {
+  try {
+    let url = new URL(value, self.location.origin)
+    if (url.pathname.endsWith("/api/card-image-proxy")) url = new URL(url.searchParams.get("url"))
+    if (["assets.holofolder.com", "pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev"].includes(url.hostname)) return url.pathname
+    if (url.hostname === "assets.tcgdex.net") {
+      const parts = url.pathname.split("/")
+      if (parts.length === 6) return `/cards/${parts[1]}/${parts[3]}/${parts[4]}/${parts[5]}`
+    }
+    const sources = [
+      ["product-images.tcgplayer.com", /^\/([1-9]\d*)\.jpg$/, "tcgplayer"],
+      ["images.pokemontcg.io", /^\/([^/]+)\/([^/]+)\.png$/, "pokemontcg"],
+      ["images.scrydex.com", /^\/pokemon\/([^/]+)\/(large|medium|small)$/, "scrydex"],
+      ["limitlesstcg.nyc3.cdn.digitaloceanspaces.com", /^\/tpci\/([^/]+)\/([^/]+)\.(?:png|jpg|webp)$/, "limitless"],
+      ["cdn.shopify.com", /^\/s\/files\/1\/1015\/7057\/6719\/files\/([^/]+)\.(?:png|jpg)$/, "playshop"],
+    ]
+    for (const [host, pattern, provider] of sources) {
+      const match = url.hostname === host && pattern.exec(url.pathname)
+      if (match) return `/cards/src/${provider}/${match.slice(1).join("/").replaceAll("!", "exclamation")}.webp`
+    }
+  } catch {}
+  return null
+}
+
+async function legacyPublicCardImage(request) {
+  const url = new URL(request.url)
+  if (url.origin !== "https://assets.holofolder.com" || !url.pathname.startsWith("/cards/")) return null
+  const identity = path => path?.replace(/\/(?:high|low)\.(webp|png|jpg)$/, "/image.$1")
+  for (const name of [IMAGE_CACHE, SHOW_IMAGE_CACHE]) {
+    const cache = await caches.open(name)
+    for (const key of await cache.keys()) {
+      if (identity(publicCardAssetPath(key.url)) === identity(url.pathname)) return cache.match(key)
+    }
+  }
+  return null
+}
+
 async function cacheFirst(request, cacheName, event) {
   const cache = await caches.open(cacheName)
   const keepForShow = cacheName === IMAGE_CACHE && isSaveForShowRequest(request)
@@ -145,7 +183,11 @@ async function cacheFirst(request, cacheName, event) {
     return cached
   }
 
-  const response = await fetch(request)
+  const response = await fetch(request).catch(async error => {
+    const legacy = await legacyPublicCardImage(request)
+    if (legacy) return legacy
+    throw error
+  })
   if (isCacheableResponse(response)) {
     const writes = [putInCache(cache, cacheName, request, response.clone())]
     if (keepForShow) writes.push(saveForShow(request.url, response.clone()))
@@ -512,6 +554,7 @@ self.addEventListener("fetch", (event) => {
 
   if (
     request.destination === "image" ||
+    (url.origin === "https://assets.holofolder.com" && url.pathname.startsWith("/cards/")) ||
     url.pathname.startsWith("/app/api/card-image-proxy")
   ) {
     event.respondWith(cacheFirst(request, IMAGE_CACHE, event))

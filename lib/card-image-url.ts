@@ -1,5 +1,8 @@
 import { appPath } from "@/lib/app-path"
-import { isCardImageSourceUrl } from "@/lib/card-image-sources"
+import { parseTcgdexCardImageUrl, getCardImageBlobPathname } from "@/lib/tcgdex-card-image"
+import { parseSourceCardImageUrl, isCardImageSourceUrl } from "@/lib/card-image-sources"
+
+export const PUBLIC_CARD_IMAGE_BASE = "https://assets.holofolder.com/"
 
 const CARD_IMAGE_PROXY_PATH = "/app/api/card-image-proxy"
 
@@ -7,13 +10,8 @@ function isCardImageUrl(url: URL) {
   return url.hostname === "assets.tcgdex.net" || url.hostname.endsWith(".tcgdex.net") || isCardImageSourceUrl(url)
 }
 
-/**
- * The URL a card image is rendered from. Card images from TCGdex and the fallback sources are always
- * served through the image proxy, which reads them from our image store (and copies them there on a
- * miss), so the browser never loads them from a third-party host. Same-origin, data: and blob: URLs
- * and images from other hosts are returned unchanged.
- */
-export function toCardImageSrc(value: unknown): string | null {
+/** Same-origin fallback for origin misses and older offline image caches. */
+export function toCardImageProxySrc(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   if (!trimmed || trimmed === "null" || trimmed === "undefined") return null
@@ -26,4 +24,20 @@ export function toCardImageSrc(value: unknown): string | null {
   } catch {
     return null
   }
+}
+
+/** Public card objects load directly from the CDN; the proxy remains the miss/offline fallback. */
+export function toCardImageSrc(value:unknown):string|null {
+  const proxy=toCardImageProxySrc(value)
+  if(!proxy)return null
+  try {
+    let url=new URL(proxy,"https://holofolder.com")
+    if(url.pathname===CARD_IMAGE_PROXY_PATH&&url.searchParams.has("url"))url=new URL(url.searchParams.get("url")!)
+    const tcgdex=parseTcgdexCardImageUrl(url)
+    if(tcgdex)return PUBLIC_CARD_IMAGE_BASE+getCardImageBlobPathname(tcgdex)
+    const external=parseSourceCardImageUrl(url)
+    if(external)return PUBLIC_CARD_IMAGE_BASE+external.pathname
+    if(url.origin==="https://pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev"&&url.pathname.startsWith("/cards/"))return PUBLIC_CARD_IMAGE_BASE+url.pathname.slice(1)
+  }catch{}
+  return proxy
 }

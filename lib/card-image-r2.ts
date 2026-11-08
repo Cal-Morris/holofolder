@@ -95,7 +95,7 @@ export function parseListObjectsV2(xml: string) {
   return { keys, nextContinuationToken: truncated && token ? decodeXml(token) : null }
 }
 
-export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch } = {}): CardImageBlobDeps & { baseUrl: string } {
+export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch; onObjects?: (keys:string[])=>Promise<void> } = {}): CardImageBlobDeps & { baseUrl: string } {
   const fetchImpl = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args))
   const endpoint = getR2BucketEndpoint(config)
   const baseUrl = config.publicBaseUrl ?? endpoint
@@ -120,6 +120,7 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch }
       const response = await signedFetch(`${endpoint}${pathname}`, { method: "HEAD" })
       if (response.status === 404) return null
       if (!response.ok) throw await r2ResponseError("HEAD", response)
+      await options.onObjects?.([pathname])
       return { url: `${baseUrl}${pathname}` }
     },
     async put(pathname, body, contentType) {
@@ -134,6 +135,7 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch }
         },
       })
       if (!response.ok) throw await r2ResponseError("PUT", response)
+      await options.onObjects?.([pathname])
       return { url: `${baseUrl}${pathname}` }
     },
     async list(prefix) {
@@ -145,7 +147,9 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch }
         const response = await signedFetch(`${endpoint}?${query}`)
         if (!response.ok) throw await r2ResponseError("LIST", response)
         const page = parseListObjectsV2(await response.text())
-        keys.push(...page.keys.map(keyToPathname))
+        const pageKeys=page.keys.map(keyToPathname)
+        await options.onObjects?.(pageKeys)
+        keys.push(...pageKeys)
         token = page.nextContinuationToken
       } while (token)
       return keys

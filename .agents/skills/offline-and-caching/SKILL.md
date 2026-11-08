@@ -37,7 +37,7 @@ description: Change holofolder offline behaviour, including the service worker (
 
 - The binder must open offline and on dead Wi-Fi. Never lose or resurrect queued edits.
 - Never cache per-user HTML or auth responses in the service worker.
-- Images go through `/api/card-image-proxy`, so they are same-origin and cacheable by the worker.
+- Public card images use `https://assets.holofolder.com/cards/...`; Pokémon artwork and missing-card fallbacks use `/api/card-image-proxy`. The worker caches both, including CORS asset fetches, and reuses pre-upgrade proxy/show images offline. Keep both cache formats working.
 - When you change cached shapes, bump the relevant cache or key version and handle the old one: migrate it, or drop it in `activate` via `KEEP_CACHES`. Don't rename `binderdex-v3-images` casually; it holds users' cached cards.
 - Anything lazy-loaded (`next/dynamic`) must still work offline: the shell precaches the lazy chunks it names.
 

@@ -10,6 +10,9 @@ When you add a migration, use the next free number, keep it idempotent, and add 
 
 | File | What it does |
 |---|---|
+| `070_illustrator_directory_index.sql` | Partial covering index for directory counts; run the concurrent statement alone. |
+| `069_developer_access_round_trips.sql` | Live key validation, membership, billing and rate limits in one RPC. Older routes remain compatible. |
+| `068_catalog_image_inventory.sql` | Confirmed public R2 object keys, service-role only. Seed a complete public card bucket inventory before deploying the API. |
 | `067_direct_developer_access.sql` | Moves the exact MCP resource, audience hook and consent guards to app.holofolder.com. Apply with the matching deployment; existing clients must reconnect. First-party sessions are unchanged. |
 | `066_mcp_revocation_recovery.sql` | Records completed Auth revocations separately so interrupted disconnections remain retryable; verifies existing-consent redirects against current grants. |
 | `065_developer_atomic_operations.sql` | Transactional populated/last-binder deletion and snapshot-checked external settings replacement, including binder layout. |

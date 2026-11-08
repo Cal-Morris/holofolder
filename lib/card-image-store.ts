@@ -1,3 +1,4 @@
+import { recordMirroredCardImages } from './card-image-inventory'
 import { createCardImageMirror, createVercelBlobDeps, isCardImageBlobEnabled, type CardImageMirror } from "./card-image-blob"
 import { createR2Deps, getR2Config } from "./card-image-r2"
 import { convertSourceImageToWebp } from "./card-image-transform"
@@ -27,7 +28,10 @@ export function createCardImageMirrorFromEnv(env: Record<string, string | undefi
   const logger = (message: string) => console.warn(`[card-image-${kind}] ${message}`)
   if (kind === "r2") {
     const config = getR2Config(env)
-    return config ? createCardImageMirror({ ...createR2Deps(config), logger, transformSourceImage: convertSourceImageToWebp }) : null
+    return config ? createCardImageMirror({ ...createR2Deps(config, { onObjects: async keys => {
+      try { await recordMirroredCardImages(config.bucket, keys) }
+      catch { logger("Card image inventory update failed") }
+    } }), logger, transformSourceImage: convertSourceImageToWebp }) : null
   }
   if (kind === "blob") {
     return createCardImageMirror({ ...createVercelBlobDeps(env.BLOB_READ_WRITE_TOKEN), logger, transformSourceImage: convertSourceImageToWebp })
