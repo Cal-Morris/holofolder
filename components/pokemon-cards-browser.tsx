@@ -29,6 +29,7 @@ import {
 } from "@/lib/pokemon-card-browse"
 
 export interface PokemonCardsBrowserProps {
+  pricingEnabled?: boolean
   pokemon: { id: number; name: string }
   collectionItem?: Omit<BrowseCollectionState, "wanted_cards"> & { wanted_cards?: WantedCard[] } | null
   /** Printings other binders hold, by card id ("In <binder>" badge). */
@@ -66,6 +67,7 @@ function thumbnailUrl(image?: string) {
 }
 
 export default function PokemonCardsBrowser({
+  pricingEnabled = true,
   pokemon,
   collectionItem,
   ownedElsewhereByCard,
@@ -139,7 +141,7 @@ export default function PokemonCardsBrowser({
     () => allEntries.map((entry) => ({ cardId: entry.card.id, language: entry.card.language ?? "en" })),
     [allEntries],
   )
-  const { pricesByCardId } = useRegionalCardPrices(priceLookups, priceLookups.length > 0, pricingRegion)
+  const { pricesByCardId } = useRegionalCardPrices(priceLookups, pricingEnabled && priceLookups.length > 0, pricingRegion)
   const highlightCards = useMemo(() => allEntries.map((entry) => ({
     id: entry.card.id, language: entry.card.language, name: entry.card.name,
     numberLabel: entry.numberLabel, setName: entry.card.set.name, image: entry.card.image, rarity: entry.card.rarity,

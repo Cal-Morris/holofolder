@@ -14,6 +14,7 @@ export interface BinderShareRecord {
   owner_user_id: string
   binder_id?: string | null
   token: string
+  show_prices?: boolean
   is_enabled: boolean
 }
 

@@ -110,6 +110,7 @@ interface BinderAppProps {
   initialSettings: BinderSettings
   initialHasStoredSettings?: boolean
   initialDarkMode: boolean
+  pricingEnabled?: boolean
   initialPriceMode?: boolean
   readOnlyMode?: boolean
   shareViewToken?: string | null
@@ -126,6 +127,7 @@ export default function BinderApp({
   initialSettings,
   initialHasStoredSettings = false,
   initialDarkMode,
+  pricingEnabled = true,
   initialPriceMode = false,
   readOnlyMode = false,
   shareViewToken = null,
@@ -157,7 +159,7 @@ export default function BinderApp({
   const showModePromptSnoozedAt = useShowModeOfferDismissedAt()
   const quickPressTimerRef = useRef<number | null>(null)
   const quickPressFiredRef = useRef(false)
-  const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
+  const [isPriceMode, setIsPriceMode] = useState(pricingEnabled && initialPriceMode)
   const [activeMainView, setActiveMainView] = useState<ActiveMainView>("binder")
   const trackGoogleEvent = useGoogleAnalytics()
   useEffect(() => {
@@ -224,6 +226,7 @@ export default function BinderApp({
   const handlePublicIdentityChange = useCallback(() => setShareIdentityRevision(value => value + 1), [])
   const [sharePath, setSharePath] = useState<string | null>(initialSharePath ?? (shareViewToken ? `/app/share/${shareViewToken}` : null))
   const [isShareEnabled, setIsShareEnabled] = useState(Boolean(shareViewToken))
+  const [shareShowPrices, setShareShowPrices] = useState(false)
   const [isShareLoading, setIsShareLoading] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
   const [shareCopyMessage, setShareCopyMessage] = useState<string | null>(null)
@@ -1165,25 +1168,26 @@ export default function BinderApp({
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
   const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
-  const { pricesByCardId: rawPricesByCardId, isLoading: isLoadingPrices, fxRates } = useCardPrices(priceLookupCards, shouldLoadCardPrices)
+  const { pricesByCardId: rawPricesByCardId, isLoading: isLoadingPrices, fxRates } = useCardPrices(priceLookupCards, pricingEnabled && shouldLoadCardPrices)
   const pricingPreferences = usePricingPreferences(settings)
   // Region-grounded prices: re-weight each card's source evidence for the user's market.
   const pricesByCardId = useMemo(
-    () => regionalizeCardPrices(rawPricesByCardId, pricingPreferences.region),
-    [pricingPreferences.region, rawPricesByCardId],
+    () => pricingEnabled ? regionalizeCardPrices(rawPricesByCardId, pricingPreferences.region) : {},
+    [pricingEnabled, pricingPreferences.region, rawPricesByCardId],
   )
   const priceFormat = useMemo(() => {
     const context: PriceDisplayContext = { currency: pricingPreferences.currency, fxRates }
     return {
-      label: (price: CardPriceSnapshot | undefined) => formatRegionalPriceLabel(price, context),
-      amount: (amount: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayAmount(amount, context, price),
-      range: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot) => formatDisplayRange(low, high, context, price),
+      label: (price: CardPriceSnapshot | undefined) => pricingEnabled ? formatRegionalPriceLabel(price, context) : null,
+      amount: (amount: number | null | undefined, price?: CardPriceSnapshot) => pricingEnabled ? formatDisplayAmount(amount, context, price) : null,
+      range: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot) => pricingEnabled ? formatDisplayRange(low, high, context, price) : null,
       totals: (gbpTotal: number, originalTotals: Partial<Record<SupportedCurrency, number>>, estimatedFinishCount = 0) => {
+        if (!pricingEnabled) return ""
         const label = formatDisplayTotals(gbpTotal, originalTotals, context)
         return label && estimatedFinishCount > 0 ? `${label} · ${estimatedFinishCount} finish estimate${estimatedFinishCount === 1 ? "" : "s"}` : label
       },
     }
-  }, [fxRates, pricingPreferences.currency])
+  }, [fxRates, pricingEnabled, pricingPreferences.currency])
   const filteredPriceSummary = useMemo(
     () => summarizeOwnedCardPrices(filteredTrackedCards, pricesByCardId),
     [filteredTrackedCards, pricesByCardId],
@@ -2700,6 +2704,7 @@ export default function BinderApp({
 
         setSharePath(payload?.share?.path ?? null)
         setIsShareEnabled(Boolean(payload?.share?.is_enabled))
+        setShareShowPrices(payload?.share?.show_prices === true)
       } catch (error) {
         if (!cancelled) {
           setShareMessage(error instanceof Error ? error.message : "Could not load the share link.")
@@ -2718,7 +2723,7 @@ export default function BinderApp({
     }
   }, [initialBinderId, readOnlyMode, shareIdentityRevision, user])
 
-  const handleEnableReadOnlyShare = useCallback(async () => {
+  const handleEnableReadOnlyShare = useCallback(async (showPrices?: boolean) => {
     if (readOnlyMode || !user) return
 
     setIsShareLoading(true)
@@ -2729,7 +2734,7 @@ export default function BinderApp({
       const response = await fetch("/app/api/binder-share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(initialBinderId ? { binderId: initialBinderId } : {}),
+        body: JSON.stringify({ ...(initialBinderId ? { binderId: initialBinderId } : {}), ...(typeof showPrices === "boolean" ? { showPrices } : {}) }),
       })
       const payload = await response.json().catch(() => null)
 
@@ -2739,7 +2744,8 @@ export default function BinderApp({
 
       setSharePath(payload?.share?.path ?? null)
       setIsShareEnabled(Boolean(payload?.share?.is_enabled))
-      setShareMessage("Read-only share link is live.")
+      setShareShowPrices(payload?.share?.show_prices === true)
+      setShareMessage(typeof showPrices === "boolean" ? "Share pricing updated." : "Read-only share link is live.")
     } catch (error) {
       setShareMessage(error instanceof Error ? error.message : "Could not enable the share link.")
     } finally {
@@ -3125,6 +3131,7 @@ export default function BinderApp({
 
   /** Quick mode: the one-handed launcher (long-press Search, the Search sheet's button, or Ctrl/Cmd+K). */
   const openQuickMode = useCallback(() => {
+    if (!pricingEnabled) { openSearch(); return }
     trackGoogleEvent("search_opened", { surface: "quick_mode" })
     openExclusively(() => {
       setSelectedPokemon(null)
@@ -3132,8 +3139,9 @@ export default function BinderApp({
       setQuickLookup(null)
       setIsQuickModeOpen(true)
     })
-  }, [openExclusively, trackGoogleEvent])
+  }, [openExclusively, openSearch, pricingEnabled, trackGoogleEvent])
   const openPriceLookup = useCallback((query: string) => {
+    if (!pricingEnabled) { openSearch(); return }
     trackGoogleEvent("search_opened", { surface: "price_lookup" })
     openExclusively(() => {
       setSelectedPokemon(null)
@@ -3141,7 +3149,7 @@ export default function BinderApp({
       setQuickLookup({ query })
       setIsQuickModeOpen(true)
     })
-  }, [openExclusively, trackGoogleEvent])
+  }, [openExclusively, openSearch, pricingEnabled, trackGoogleEvent])
   const closeQuickMode = useCallback(() => setIsQuickModeOpen(false), [])
 
   useEffect(() => {
@@ -3330,7 +3338,7 @@ export default function BinderApp({
     }
   }, [isAuthOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen])
 
-  const renderSelectedPokemonQuickPanel = () => renderSelectedPokemonQuickPanelView({ selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards })
+  const renderSelectedPokemonQuickPanel = () => renderSelectedPokemonQuickPanelView({ pricingEnabled, selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards })
 
   const renderMobileSlotActionBar = () => renderMobileSlotActionBarView({ closeMobileActions, getCollectionItem, handleQuickCollect, handleToggleFavorite, isCollected, longPressedPokemon, mobileActionsRef, mobileActionsSwipe, openCardBrowser, openCardSelectorForPokemon, readOnlyMode, requestOwnedRemoval, setLongPressedPokemon, setSelectedPokemon })
 
@@ -3446,11 +3454,11 @@ export default function BinderApp({
 
   const renderAppHeader = () => renderAppHeaderView({ activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
-  const renderMainContent = () => renderMainContentView({ pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
+  const renderMainContent = () => renderMainContentView({ pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isShowModeOfferVisible, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setShowMode, setViewRequest, settings, snoozeShowModePrompt, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
   const renderSearchOverlay = () => renderSearchOverlayView({ history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
-  const renderMobileNavMenu = () => renderMobileNavMenuView({ activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
+  const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
 
   const renderBottomNav = () => renderBottomNavView({ activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
@@ -3638,10 +3646,12 @@ export default function BinderApp({
         onInstallApp={handleInstallApp}
         isReadOnlyView={readOnlyMode}
         sharePath={sharePath}
+        shareShowPrices={shareShowPrices}
+        onShareShowPricesChange={value => { void handleEnableReadOnlyShare(value) }}
         isShareEnabled={isShareEnabled}
         isShareLoading={isShareLoading}
         shareMessage={shareMessage}
-        onEnableReadOnlyShare={handleEnableReadOnlyShare}
+        onEnableReadOnlyShare={() => { void handleEnableReadOnlyShare() }}
         onDisableReadOnlyShare={handleDisableReadOnlyShare}
         trackedCardCount={trackedPriceLookups.length}
         isRefreshingPrices={isRefreshingPrices}
@@ -3670,6 +3680,7 @@ export default function BinderApp({
 
       {cardBrowser ? (
         <PokemonCardsBrowser
+          pricingEnabled={pricingEnabled}
           key={`${cardBrowser.pokemon.id}:${cardBrowser.highlightCardId ?? ""}`}
           pokemon={cardBrowser.pokemon}
           highlightCardId={cardBrowser.highlightCardId}
@@ -3707,6 +3718,7 @@ export default function BinderApp({
 
       {illustratorBrowser ? (
         <IllustratorCardsBrowser
+          pricingEnabled={pricingEnabled}
           key={illustratorBrowser.name}
           illustrator={illustratorBrowser.name}
           collection={collection}

@@ -82,6 +82,7 @@ export interface MainContentContext {
   isFilteredBinderLayout: boolean
   isLoadingPrices: boolean
   isOnline: boolean
+  pricingEnabled: boolean
   isPriceMode: boolean
   isShowModeOfferVisible: boolean
   isSpreadLayout: boolean
@@ -248,6 +249,7 @@ export function renderMainContentView(ctx: MainContentContext) {
           />
         ) : activeMainView === "sets" ? (
           <SetPopulationView
+            pricingEnabled={ctx.pricingEnabled}
             key={setViewRequest?.key ?? "sets"}
             initialSet={setViewRequest?.set ?? null}
             collectionByPokemonId={collectionByPokemonId}

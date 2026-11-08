@@ -12,14 +12,14 @@ const E2E_USER_ID = "00000000-0000-4000-8000-0000000000e2"
 const E2E_PARTNER_OWNER_ID = "00000000-0000-4000-8000-0000000000e3"
 const E2E_BINDER_IDS = ["e2e00000-0000-4000-8000-000000000001", "e2e00000-0000-4000-8000-000000000002", "e2e00000-0000-4000-8000-000000000004"] as const
 
-export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string; cardArtwork?: string; readOnly?: string; binders?: string; binder?: string; partner?: string }> }) {
+export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string; cardArtwork?: string; readOnly?: string; sharePrices?: string; binders?: string; binder?: string; partner?: string }> }) {
   await connection()
 
   if (process.env.HOLOFOLDER_E2E !== "1") {
     notFound()
   }
 
-  const { signedIn, cardArtwork, readOnly, binders: withBinders, binder, partner } = await searchParams
+  const { signedIn, cardArtwork, readOnly, sharePrices, binders: withBinders, binder, partner } = await searchParams
   const isSignedIn = signedIn === "1"
   const ownerUserId = partner === "1" ? E2E_PARTNER_OWNER_ID : E2E_USER_ID
   // ?binders=1: the owner has two binders ("My binder" and "Trades"); ?binder=<id> opens one.
@@ -56,6 +56,8 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
       initialBinders={binders}
       initialBinderId={activeBinderId}
       readOnlyMode={readOnly === "1"}
+      pricingEnabled={readOnly !== "1" || sharePrices === "1"}
+      initialPriceMode={readOnly === "1" && sharePrices === "1"}
       initialUser={initialUser}
       // The second binder holds only Charmander, so a switch is visible (Bulbasaur's slot is empty there).
       initialCollection={[

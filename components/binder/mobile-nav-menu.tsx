@@ -27,6 +27,7 @@ export interface MobileNavMenuContext {
   isLoadingPrices: boolean
   isMobileNavExpanded: boolean
   isMobileSpreadPreview: boolean
+  pricingEnabled: boolean
   isPriceMode: boolean
   isScanningPage: boolean
   isSearchOpen: boolean
@@ -160,8 +161,8 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
               </div>
             )}
 
-            <div className={`grid gap-2 md:flex md:flex-col md:gap-0 md:border-t md:border-border/60 md:pt-1 ${hasTrackedCards ? "grid-cols-2" : "grid-cols-1"}`}>
-              {hasTrackedCards && (
+            <div className={`grid gap-2 md:flex md:flex-col md:gap-0 md:border-t md:border-border/60 md:pt-1 ${hasTrackedCards && ctx.pricingEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
+              {hasTrackedCards && ctx.pricingEnabled && (
                 <button
                   onClick={() => setIsPriceMode((current) => !current)}
                   aria-pressed={isPriceMode}
