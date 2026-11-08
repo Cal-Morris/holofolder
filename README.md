@@ -80,4 +80,4 @@ See the [documentation index](docs/README.md) and [architecture guide](docs/arch
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The original code is licensed under [AGPL-3.0-only](LICENSE). Third-party code, fonts, artwork and branding have separate terms. Open-source preparation is in progress. [docs/open-source-readiness.md](docs/open-source-readiness.md) records the audit scope and remaining publication gates.
 
-The hosted service, production credentials, private account data and Framer marketing site are not included. Forks must use their own infrastructure. The Stripe setup script is currently specific to the maintainer's hosted account and webhook URL; do not use it for a fork.
+The hosted service, production credentials, private account data and Framer marketing site are not included. Forks must use their own infrastructure. Optional analytics require your own measurement ID. Stripe setup requires an explicit expected account and webhook URL; billing return URLs use `NEXT_PUBLIC_SITE_URL`. See `.env.example` and the integration guides before enabling them.

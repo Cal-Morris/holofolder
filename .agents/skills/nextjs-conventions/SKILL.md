@@ -37,7 +37,7 @@ Next 16.4 (App Router, Turbopack) and React 19.3. Read `node_modules/next/dist/d
 ## Images and fonts
 
 - Use `CardImage` for card previews: its Next Image loader generates responsive `/api/card-image-proxy` URLs (sharp; widths 96/160/240/320/480/600), with a loading placeholder and original-image retry for older offline caches. This keeps resizing outside Vercel Hobby image-optimisation quotas. Prefetch uses the same loader and `sizes`.
-- Fonts are `next/font` Geist and Geist Mono, used by family name through `--font-sans`/`--font-mono`. `sw.js` precaches the preloaded (`-s.p.`) Latin files for offline, so check offline before changing `preload` or subsets.
+- Fonts are `next/font` Inter and JetBrains Mono, used by family name through `--font-inter`/`--font-jetbrains-mono`. `sw.js` precaches the preloaded (`-s.p.`) Latin files for offline, so check offline before changing `preload` or subsets.
 
 ## Error and not-found UI
 
