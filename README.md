@@ -16,7 +16,7 @@ cp .env.example .env.local   # fill in the Supabase URL, anon key and service ro
 bun run dev                   # http://localhost:3000/app
 ```
 
-The database schema lives in `scripts/NNN_*.sql`. Follow [scripts/MIGRATIONS.md](scripts/MIGRATIONS.md) when creating your own Supabase project. The historical `002`/`003` files are missing: create the documented `user_settings` table before `012`. Some index statements must run outside transactions. A fresh-project migration replay has not yet been verified.
+The database schema lives in `scripts/NNN_*.sql`. Follow [scripts/MIGRATIONS.md](scripts/MIGRATIONS.md) when creating your own Supabase project. The historical `002`/`003` files are missing: create the documented `user_settings` table before `012`. Some index statements must run outside transactions. The sequence has been replayed on isolated PostgreSQL with synthetic auth/storage scaffolding; a full Supabase Auth/Storage smoke test remains unverified.
 
 ## Scripts
 

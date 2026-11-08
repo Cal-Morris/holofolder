@@ -5,7 +5,7 @@ description: Use when opening, verifying, merging or deploying a Holo Folder PR 
 
 # Release and deploy
 
-Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (currently https://binder.cal.gg, later https://holofolder.com). GitHub Actions runs **Typecheck** in parallel, generating Next route types before checking the full repository with the pinned `tsrs` checker. Vercel skips its duplicate type check. Both checks must pass before merging; the current GitHub plan cannot enforce required checks on this private repo, so agents enforce this release policy. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
+Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (the public app is https://holofolder.com/app; binder.cal.gg is a legacy hostname). GitHub Actions runs **Typecheck** in parallel, generating Next route types before checking the full repository with the pinned `tsrs` checker. Vercel skips its duplicate type check. Both checks must pass before merging; the current GitHub plan cannot enforce required checks on this private repo, so agents enforce this release policy. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
 
 ## Steps
 
@@ -22,7 +22,7 @@ Vercel builds every PR push as a preview, and every merge to `main` as a product
 7. **After merging:**
    - For a quota-blocked merge, report **merged, deployment pending**. After the limit resets, deploy the latest `main`, covering all accumulated merges rather than an older PR head, and verify that exact commit's production deployment.
    - Otherwise, confirm the production deployment for the merge commit succeeded (the commit status on `main`).
-   - After that deployment succeeds, smoke-test: `curl -sI https://binder.cal.gg` returns 200 (use https://holofolder.com after the domain cutover), and image changes return `x-card-image-source: r2` from `/api/card-image-proxy?url=…`.
+   - After that deployment succeeds, smoke-test: `curl -sL -o /dev/null -w '%{http_code}' https://holofolder.com/app` returns 200 after the signed-out redirect. For image-store changes, verify the expected `x-card-image-source` from `/app/api/card-image-proxy?url=…` (`r2` for a mirrored TCGdex card); resizing changes also need the requested width/format checked.
    - Apply any migrations or env vars the PR called out.
 8. **Env vars** are set in Vercel (Production and Preview) and documented in `.env.example`. A change needs a redeploy to take effect.
 

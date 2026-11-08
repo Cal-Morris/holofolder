@@ -1,5 +1,7 @@
 # Holo Folder rebrand
 
+Historical cutover record. Use [app-routing.md](app-routing.md) for current URLs; raw app/API URLs now include `/app`, including any future eBay endpoint registration. Do not execute the pre-basePath examples below as current setup instructions.
+
 The product is **Holo Folder**, at **https://holofolder.com**. Source, package name, logs, provider user agents, export filenames, public copy, metadata and installed-app branding use the new name. `HOLOFOLDER_E2E=1` enables the test harness; `HOLOFOLDER_TCG_REPO_DIR` configures the local catalog checkout (the previous variable remains accepted).
 
 ## Shipping on the existing domain

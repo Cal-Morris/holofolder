@@ -46,7 +46,7 @@ Next 16.4 (App Router, Turbopack) and React 19.3. Read `node_modules/next/dist/d
 ## Observability and checks
 
 - `<Analytics />` and `<SpeedInsights />` are in the root layout. Use Speed Insights (real mobile users) as well as Lighthouse.
-- Lighthouse mobile against production: `lighthouse https://holofolder.com/home --preset=perf --form-factor=mobile --chrome-flags="--headless=new"` (mobile is the default).
+- When performance/browser verification is authorized, audit the actual route: marketing is on `https://holofolder.com`, and the app starts at `/app`. A signed-out `/app` request measures the login page, not an authenticated binder.
 - Playwright on a shared box: use `--workers=2`. The WebGL and designer specs flake with more parallel workers.
 
 ## Vercel
