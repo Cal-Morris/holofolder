@@ -10,6 +10,7 @@ When you add a migration, use the next free number, keep it idempotent, and add 
 
 | File | What it does |
 |---|---|
+| `067_direct_developer_access.sql` | Moves the exact MCP resource, audience hook and consent guards to app.holofolder.com. Apply with the matching deployment; existing clients must reconnect. First-party sessions are unchanged. |
 | `066_mcp_revocation_recovery.sql` | Records completed Auth revocations separately so interrupted disconnections remain retryable; verifies existing-consent redirects against current grants. |
 | `065_developer_atomic_operations.sql` | Transactional populated/last-binder deletion and snapshot-checked external settings replacement, including binder layout. |
 | `064_mcp_resource_boundary.sql` | Restricts this MCP-only OAuth server's authorization records to the exact MCP resource and S256, including Supabase auto-approval. First-party login is unchanged. |

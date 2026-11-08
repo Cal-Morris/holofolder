@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://holofolder.com/app/api/v1",
+      "url": "https://app.holofolder.com/app/api/v1",
       "description": "Holo Folder production API"
     }
   ],

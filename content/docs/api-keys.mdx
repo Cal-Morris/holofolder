@@ -44,7 +44,7 @@ export HOLOFOLDER_API_KEY='hf_YOUR_KEY_ID.YOUR_SECRET'
 
 curl --fail-with-body \
   -H "Authorization: Bearer $HOLOFOLDER_API_KEY" \
-  'https://holofolder.com/app/api/v1/cards?limit=10'
+  'https://app.holofolder.com/app/api/v1/cards?limit=10'
 ```
 
 Use the returned `nextCursor` with the same filters to continue. See [pagination](/docs/contracts#pagination) for the full convention.

@@ -28,6 +28,8 @@ try {
  await db.query(atomicOperationsSql);await db.query(atomicOperationsSql)
  const recoverySql=await readFile(new URL('./066_mcp_revocation_recovery.sql',import.meta.url),'utf8')
  await db.query(recoverySql);await db.query(recoverySql)
+ const directSql=await readFile(new URL('./067_direct_developer_access.sql',import.meta.url),'utf8')
+ await db.query(directSql);await db.query(directSql)
  const actor=crypto.randomUUID(), key=crypto.randomUUID()
  await db.query('INSERT INTO auth.users(id) VALUES($1)',[actor])
  await db.query("INSERT INTO public.perpetual_licences(owner_user_id,source) VALUES($1,'manual')",[actor])
@@ -78,6 +80,24 @@ try {
  await db.query('SAVEPOINT expected_failure')
  await assert.rejects(db.query("INSERT INTO auth.oauth_authorizations(authorization_id,client_id,redirect_uri,scope,resource,code_challenge,code_challenge_method,response_type,expires_at) VALUES($1,$2,'https://synthetic.invalid/callback','email','https://wrong-resource.invalid',$3,'s256','code',now()+interval '5 minutes')",[crypto.randomUUID(),crypto.randomUUID(),'a'.repeat(43)]),/MCP authorization requires its exact resource/)
  await db.query('ROLLBACK TO SAVEPOINT expected_failure')
+ const client=crypto.randomUUID(), authorization=crypto.randomUUID()
+ await db.query("INSERT INTO auth.oauth_clients(id,registration_type,redirect_uris,grant_types,client_name,client_type,token_endpoint_auth_method) VALUES($1,'dynamic','https://synthetic.invalid/callback','authorization_code,refresh_token','Synthetic direct MCP client','public','none')",[client])
+ const insertAuthorization="INSERT INTO auth.oauth_authorizations(id,authorization_id,client_id,user_id,redirect_uri,scope,resource,code_challenge,code_challenge_method,expires_at) VALUES($1,$2,$3,$4,'https://synthetic.invalid/callback','email',$5,$6,'s256',now()+interval '5 minutes')"
+ for(const resource of ['https://holofolder.com/app/mcp','https://wrong-resource.invalid']) {
+  await db.query('SAVEPOINT direct_resource_failure')
+  await assert.rejects(db.query(insertAuthorization,[crypto.randomUUID(),crypto.randomUUID(),client,actor,resource,'a'.repeat(43)]),/MCP authorization requires its exact resource/)
+  await db.query('ROLLBACK TO SAVEPOINT direct_resource_failure')
+ }
+ await db.query(insertAuthorization,[crypto.randomUUID(),authorization,client,actor,'https://app.holofolder.com/app/mcp','a'.repeat(43)])
+ assert.equal((await db.query('SELECT public.read_developer_oauth_request($1,$2) AS result',[authorization,actor])).rows[0].result.grant_active,false)
+ const grant=(await db.query('SELECT public.approve_developer_oauth_request($1,$2,$3) AS result',[authorization,actor,['catalog:read']])).rows[0].result
+ assert.equal((await db.query('SELECT public.read_developer_oauth_request($1,$2) AS result',[authorization,actor])).rows[0].result.grant_active,true)
+ assert.equal((await db.query('SELECT public.read_developer_oauth_request($1,$2) AS result',[authorization,stranger])).rows[0].result,null)
+ const hooked=(await db.query('SELECT public.developer_access_token_hook($1) AS result',[{user_id:actor,claims:{sub:actor,client_id:client,aud:'authenticated',role:'authenticated'}}])).rows[0].result.claims
+ assert.equal(hooked.aud,'https://app.holofolder.com/app/mcp')
+ assert.equal(hooked.role,'holo_mcp')
+ assert.equal(hooked.developer_grant_id,grant)
+ assert.deepEqual((await db.query('SELECT public.developer_access_token_hook($1) AS result',[ordinary])).rows[0].result,{claims:ordinary.claims})
  const settingsRow={binder_color_id:'synthetic',binder_page_colors:{},binder_slot_glare_enabled:true,card_finish_effects_enabled:true,dark_mode:false,show_binder_value:true,pricing_region:null,preferred_currency:null,preferred_card_language:null,layout_rows:4,layout_cols:4}
  const initialSettings=(await db.query('SELECT to_jsonb(s) AS row FROM public.user_settings s WHERE user_id=$1',[actor])).rows[0]?.row??null
  const initialLayout=(await db.query("SELECT jsonb_build_object('binder_rows',binder_rows,'binder_cols',binder_cols) AS layout FROM public.binders WHERE id=$1",[first.id])).rows[0].layout
@@ -112,7 +132,7 @@ try {
  await db.query('ROLLBACK TO SAVEPOINT expected_failure')
  await db.query('RESET ROLE')
  const plan=await db.query('EXPLAIN (ANALYZE,BUFFERS) SELECT id FROM public.developer_api_keys WHERE actor_id=$1',[actor]);assert.ok(plan.rows.length)
- console.log('PASS: key and OAuth migration twice, unchanged first-party claims, MCP DB impersonation denied;, personal key insertion, ten-key cap, shared limit exhaustion, private table/RPC denial and actor lookup EXPLAIN; all rolled back.')
+ console.log('PASS: key and OAuth migrations through 067 twice, direct resource/consent/audience checks, unchanged first-party claims, MCP DB impersonation denied;, personal key insertion, ten-key cap, shared limit exhaustion, private table/RPC denial and actor lookup EXPLAIN; all rolled back.')
 } finally {await db.query('ROLLBACK');await db.end()}
 
 }

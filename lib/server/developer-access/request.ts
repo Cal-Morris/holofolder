@@ -39,3 +39,15 @@ export function developerErrorResponse(error: unknown, requestId: string) {
   headers:{...DEVELOPER_HEADERS,'X-Request-Id':requestId,...(known&&safe.retryAfter?{'Retry-After':String(safe.retryAfter)}:{})},
  })
 }
+
+const REST_CORS_HEADERS = {
+ 'Access-Control-Allow-Origin': '*',
+ 'Access-Control-Expose-Headers': 'X-Request-Id, Retry-After',
+}
+export function restResponse(response:Response) {
+ for(const [key,value] of Object.entries(REST_CORS_HEADERS))response.headers.set(key,value)
+ return response
+}
+export function restOptions() {
+ return new Response(null,{status:204,headers:{...REST_CORS_HEADERS,'Access-Control-Allow-Methods':'GET, POST, PUT, PATCH, DELETE, OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type, Idempotency-Key','Access-Control-Max-Age':'600'}})
+}
