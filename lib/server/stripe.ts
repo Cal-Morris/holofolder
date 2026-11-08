@@ -1,5 +1,6 @@
 import 'server-only'
 import Stripe from 'stripe'
+import { recognizedBillingPriceIds } from '@/lib/billing-subscription'
 
 let client: Stripe | undefined
 export function getStripe() {
@@ -12,6 +13,9 @@ export function billingPriceIds() {
   const year = process.env.STRIPE_YEARLY_PRICE_ID
   if (!month || !year) throw new Error('Subscription prices are not configured')
   return { month, year }
+}
+export function billingRecognizedPriceIds() {
+  return recognizedBillingPriceIds(billingPriceIds(), process.env.STRIPE_LEGACY_PRICE_IDS)
 }
 export function billingReturnUrl() {
   return 'https://holofolder.com/app?billing=return'

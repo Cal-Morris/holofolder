@@ -1,6 +1,35 @@
 # Billing and lifetime access
 
-Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £2.99/month and £29.99/year. After migration 052, the free allowance is 100 saved entries across all binders, including individual wanted cards, and one binder. One owner's paid access includes their shared partner collection. Paid/lifetime owners can create multiple binders within the existing 20-binder safety ceiling.
+Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £3.99/month and £34.99/year, saving £12.89 against twelve monthly payments. After migration 052, the free allowance is 100 saved entries across all binders, including individual wanted cards, and one binder. One owner's paid access includes their shared partner collection; billing is per owner, never per binder or per person. Paid/lifetime owners can create multiple binders within the existing 20-binder safety ceiling.
+
+## Pricing cutover, 8 November 2026
+
+The live Stripe audit found no Holo Folder subscriptions or open Checkout sessions before preparing the increase. The existing account `acct_1AHHDjGnHtZtNtvx` and product `prod_VaRpQ69dXzmuF8` are reused. New immutable recurring GBP prices were created with distinct v2 lookup keys. Existing v1 prices, portal configuration `bpc_1UZGvdGnHtZtNtvxOpUSMTxK` and webhook `we_1UZGveGnHtZtNtvxZZuWLWk7` are retained. No charge, subscription migration or unrelated product change is part of the cutover.
+
+| Configuration | Monthly | Annual |
+| --- | --- | --- |
+| New-sale price ID | `price_1UZVG6GnHtZtNtvxLBCYu6FU` | `price_1UZVG6GnHtZtNtvxKtPxXAFj` |
+| New amount in pence | 399 | 3499 |
+| New lookup key | `holofolder_gbp_month_v2` | `holofolder_gbp_year_v2` |
+| Previous price ID | `price_1UZGvdGnHtZtNtvxWwoxG6ue` | `price_1UZGvdGnHtZtNtvxXO2YEEDd` |
+| Previous amount in pence | 299 | 2999 |
+
+`STRIPE_MONTHLY_PRICE_ID` and `STRIPE_YEARLY_PRICE_ID` select new sales. `STRIPE_LEGACY_PRICE_IDS` must contain `price_1UZGvdGnHtZtNtvxWwoxG6ue,price_1UZGvdGnHtZtNtvxXO2YEEDd` when switching to v2. Reconciliation, paid-time recognition and collector payment history recognize both sets; new Checkout only selects the configured current price. This does not add a general grandfathering product. Genuine already-paid old-price access remains recognized, and lifetime access still bypasses Checkout.
+
+Before creating or reusing Checkout, the server retrieves the expanded price/product and verifies active Holo Folder metadata, GBP amount, recurrence/interval count and single licensed per-unit pricing against shared constants. A mismatched configuration fails closed. Session reuse checks actual line items, owner/client reference, interval and mode. A same-interval session with the old price is expired rather than reused; duplicate matching sessions are expired. Sessions tagged for another app are untouched.
+
+Coordinate the release in this order:
+
+1. Prepare the new price objects and pricing PR, run focused checks and wait for exact-head Typecheck/Vercel. Do not change Production IDs yet: another unrelated main deployment could otherwise activate them before the matching app/marketing release.
+2. From a separate Framer branch off main, update the published allowance, sharing/import and pricing offers, Terms and the collector privacy notice. Preserve the existing `expand-site-content` branch. Publish the branch preview, inspect it, merge that branch to main, and publish production. Confirm the new £3.99/£34.99 copy and privacy notice are live before the higher Checkout price is activated. A short period where Checkout still costs less than the new offer is preferable to a lower offer leading to a higher charge.
+3. Stage the new IDs and the legacy allowlist in Vercel Production. After the privacy notice is live, `HOLOFOLDER_FUNNEL_ENABLED=true` can be staged for the same deployment. Environment changes affect a new deployment, not the currently running one. Merge the pricing PR immediately after checking the current head and every required check/review. Verify its exact production deployment and the live app/Framer/Stripe amounts. Keep previews/test verification in test mode.
+4. Inspect open Holo Folder sessions again at cutover. Expire any remaining old-price sessions only after verifying their Holo Folder metadata/product and line items. New requests also reject stale sessions automatically. Verify tracking enablement separately with `docs/collector-funnel.md`; never fabricate paid events or make a real test charge.
+
+At PR preparation, only the new Stripe price objects exist: Production IDs, live app price and published Framer offer still use v1. The final merge/publish/configuration verification must be recorded before calling the rollout complete.
+
+Rollback requires coordinated external changes. Restore the v1 monthly/yearly IDs, revert app display/validation and restore the corresponding Framer price copy together, inspecting/expiring only abandoned v2 Holo Folder Checkout sessions. Put both v1 and v2 IDs in the legacy-recognition allowlist so any genuinely paid subscription retains access. A Git revert alone does not change Stripe objects, Vercel environment snapshots or Framer publication. Leave prices/data intact; no deletion or immutable price mutation is required. Funnel enablement has its own flag and privacy/retention handling.
+
+If a v2 subscription has already been paid, retain the combined-price recognition helper and its reconciliation/history calls when rolling back the sale price. The pre-PR code does not read the legacy allowlist; blindly reverting those calls would stop recognizing v2 paid access. Before any v2 payment, a full code revert plus the matching v1 configuration/Framer copy is sufficient.
 
 ## Free read-only sharing
 

@@ -1,6 +1,6 @@
 import "server-only"
 import type Stripe from "stripe"
-import { getStripe, billingPriceIds } from "@/lib/server/stripe"
+import { getStripe, billingRecognizedPriceIds } from "@/lib/server/stripe"
 import { isHoloSubscription } from "@/lib/billing-subscription"
 import { verifiedCollectorInvoices } from "@/lib/collector-payments"
 import { collectorFunnelEnabled, observeCollectorAccount, recordCollectorEvent } from "@/lib/server/collector-funnel"
@@ -8,7 +8,7 @@ import { collectorFunnelEnabled, observeCollectorAccount, recordCollectorEvent }
 /** Bounded read-only Stripe history, also usable by the explicit operator backfill. */
 export async function recordCollectorPayments(ownerId: string, customerId: string) {
   if (!collectorFunnelEnabled()) return { observed: 0, reason: "tracking disabled" }
-  const stripe = getStripe(), prices = Object.values(billingPriceIds())
+  const stripe = getStripe(), prices = billingRecognizedPriceIds()
   const subscriptionIds = new Set<string>()
   let count = 0
   for await (const sub of stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100 })) {
@@ -42,7 +42,7 @@ export async function recordCollectorPayments(ownerId: string, customerId: strin
 export async function recordCollectorCancellation(ownerId: string, subscriptionId: string, eventTime: number) {
   if (!collectorFunnelEnabled()) return
   const sub = await getStripe().subscriptions.retrieve(subscriptionId)
-  if (!isHoloSubscription(sub, Object.values(billingPriceIds()))) return
+  if (!isHoloSubscription(sub, billingRecognizedPriceIds())) return
   const name = sub.status === "canceled" ? "cancelled" : sub.cancel_at_period_end || sub.cancel_at ? "cancel_scheduled" : null
   if (!name) return
   const stamp = name === "cancelled" ? sub.ended_at ?? sub.canceled_at ?? eventTime : sub.canceled_at ?? eventTime

@@ -11,12 +11,12 @@ function render(source: 'free'|'perpetual'|'subscription',canManage=true,hasBill
 test('lifetime plan shows permanent access without purchase or billing controls',()=>{
  const html=render('perpetual')
  assert.match(html,/Lifetime access/)
- assert.doesNotMatch(html,/£2.99|£29.99|Manage billing/)
+ assert.doesNotMatch(html,/£3.99|£34.99|Manage billing/)
 })
 test('free plan shows both approved prices and the total card allowance',()=>{
  const html=render('free')
- assert.match(html,/£2.99 \/ month/)
- assert.match(html,/£29.99 \/ year, save £5.89/)
+ assert.match(html,/£3.99 \/ month/)
+ assert.match(html,/£34.99 \/ year, save £12.89/)
  assert.match(html,/10 of 100 free entries/)
  assert.match(html,/1 free binder/)
 })

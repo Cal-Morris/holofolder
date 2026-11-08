@@ -2,8 +2,8 @@ import 'server-only'
 import type Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getBillingAccess } from '@/lib/server/billing'
-import { getStripe, billingPriceIds, billingReturnUrl } from '@/lib/server/stripe'
-import { isHoloSubscription, paidInvoiceThrough } from '@/lib/billing-subscription'
+import { getStripe, billingPriceIds, billingRecognizedPriceIds, billingReturnUrl } from '@/lib/server/stripe'
+import { assertCheckoutPrice, canReuseCheckout, isHoloSubscription, paidInvoiceThrough } from '@/lib/billing-subscription'
 import { scheduleCollectorTracking, observeCollectorAccount, recordCollectorEvent } from '@/lib/server/collector-funnel'
 import { recordCollectorPayments, recordCollectorCancellation } from '@/lib/server/collector-payments'
 
@@ -22,7 +22,7 @@ async function readAccount(ownerId: string) {
   return data
 }
 async function subscriptions(customer: string) {
-  const stripe = getStripe(), prices = Object.values(billingPriceIds())
+  const stripe = getStripe(), prices = billingRecognizedPriceIds()
   const result: Stripe.Subscription[] = []
   for await (const sub of stripe.subscriptions.list({ customer, status: 'all', limit: 100 })) {
     if (isHoloSubscription(sub, prices)) result.push(sub)
@@ -37,7 +37,7 @@ async function reconcileLocked(ownerId: string, token: string, eventId?: string)
   let paidUntil: string | null = null
   if (sub && ['active','past_due'].includes(sub.status)) {
     for await (const invoice of getStripe().invoices.list({ customer: account.stripe_customer_id, subscription: sub.id, status: 'paid', limit: 100 })) {
-      const end = paidInvoiceThrough(invoice, Object.values(billingPriceIds()))
+      const end = paidInvoiceThrough(invoice, billingRecognizedPriceIds())
       if (end && (!paidUntil || end > paidUntil)) paidUntil = end
       // Most recent paid invoice is sufficient for this fixed monthly/annual plan.
       if (paidUntil) break
@@ -56,6 +56,7 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
   return withBillingLock(ownerId, async token => {
     if ((await getBillingAccess(ownerId)).source === 'perpetual') throw new Error('Your account already has lifetime access.')
     const stripe = getStripe(), price = billingPriceIds()[interval], admin = createAdminClient()
+    assertCheckoutPrice(await stripe.prices.retrieve(price,{expand:['product']}),interval)
     let account = await readAccount(ownerId)
     if (!account.stripe_customer_id) {
       const customer = await stripe.customers.create({ email, metadata: { app: 'holofolder', owner_user_id: ownerId } }, { idempotencyKey: `holofolder-customer:${ownerId}` })
@@ -69,13 +70,14 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
     let reuse: Stripe.Checkout.Session | undefined
     for await (const session of stripe.checkout.sessions.list({ customer: account.stripe_customer_id, status: 'open', limit: 100 })) {
       if (session.metadata?.app !== 'holofolder') continue
-      if (session.metadata.interval === interval) reuse = session
+      const lines = await stripe.checkout.sessions.listLineItems(session.id,{limit:2})
+      if (!reuse && canReuseCheckout(session,ownerId,interval,price,lines)) reuse = session
       else await stripe.checkout.sessions.expire(session.id)
     }
     if (reuse?.url) return reuse.url
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription', customer: account.stripe_customer_id, client_reference_id: ownerId,
-      metadata: { app: 'holofolder', interval, owner_user_id: ownerId },
+      metadata: { app: 'holofolder', interval, owner_user_id: ownerId, price_id: price },
       subscription_data: { metadata: { app: 'holofolder', owner_user_id: ownerId } },
       line_items: [{ price, quantity: 1 }], success_url: billingReturnUrl(), cancel_url: billingReturnUrl(),
     }, { idempotencyKey: `holofolder-checkout:${ownerId}:${interval}:${token}` })

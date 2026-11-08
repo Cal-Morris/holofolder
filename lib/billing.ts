@@ -1,7 +1,9 @@
 import { MAX_BINDERS_PER_OWNER } from '@/lib/binders/model'
 
 export const FREE_CARD_LIMIT = 100
-export const BILLING_PRICES = { month: 299, year: 2999 } as const
+export const BILLING_PRICES = { month: 399, year: 3499 } as const
+export const BILLING_ANNUAL_SAVING = BILLING_PRICES.month * 12 - BILLING_PRICES.year
+export const billingAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`
 
 export interface BillingAccess {
   ownerUserId: string

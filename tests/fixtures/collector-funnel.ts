@@ -18,7 +18,7 @@ async function run() {
   mock.module("../../lib/server/billing",()=>({getBillingAccess:async()=>({savedCardCount:count})}))
   const now = Math.floor(Date.now()/1000)
   const invoice = (id: string, at: number) => ({id,status:"paid",currency:"gbp",amount_paid:399,billing_reason:"subscription_cycle",parent:{subscription_details:{subscription:"sub_synthetic"}},status_transitions:{paid_at:at},lines:{has_more:false,data:[{amount:399,pricing:{price_details:{price:"price_synthetic"}},period:{start:at,end:at+2592000}}]}})
-  mock.module("../../lib/server/stripe",()=>({billingPriceIds:()=>({month:"price_synthetic",year:"price_annual"}),getStripe:()=>({subscriptions:{async *list(){yield {id:"sub_synthetic",metadata:{app:"holofolder"},items:{data:[{price:{id:"price_synthetic"},quantity:1}]}}}},invoices:{async *list(){yield invoice("in_recent",now-60);yield invoice("in_expired",now-100*86400)}}})}))
+  mock.module("../../lib/server/stripe",()=>({billingPriceIds:()=>({month:"price_synthetic",year:"price_annual"}),billingRecognizedPriceIds:()=>["price_synthetic","price_annual"],getStripe:()=>({subscriptions:{async *list(){yield {id:"sub_synthetic",metadata:{app:"holofolder"},items:{data:[{price:{id:"price_synthetic"},quantity:1}]}}}},invoices:{async *list(){yield invoice("in_recent",now-60);yield invoice("in_expired",now-100*86400)}}})}))
   mock.module("../../lib/server/collection-owner",()=>({resolveCollectionOwnerUserId:async()=>"synthetic-owner"}))
   const identity = await import("../../lib/server/public-binder-identity")
   mock.module("../../lib/server/public-binder-identity",()=>({...identity,identitySession:async()=>{if (!actor) throw new identity.IdentityError("Not signed in",401);return {user:{id:actor}}}}))

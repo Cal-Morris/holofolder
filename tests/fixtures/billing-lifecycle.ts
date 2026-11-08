@@ -12,12 +12,14 @@ async function run() {
   const receipts=new Set<string>()
   let locked=false,perpetual=false,reconciliations=0
   let status='active', paid=true, app='holofolder'
-  let checkoutCreates=0
+  let checkoutCreates=0, configuredPriceValid=true
+  let subscriptionPrice='price_monthly'
   const sessions: Array<Record<string,unknown>>=[]
   const fakeStripe={
-    subscriptions:{ async *list() { reconciliations++;yield { id:'sub_synthetic',created:1,status,metadata:{app},items:{data:[{price:{id:'price_monthly'},quantity:1}]} } } },
-    invoices:{ async *list() { if(paid) yield {status:'paid',lines:{data:[{pricing:{price_details:{price:'price_monthly'}},period:{end:2000000000}}]}} } },
-    checkout:{sessions:{ async *list(){yield* sessions},async expire(id:string){const s=sessions.find(s=>s.id===id);if(s)s.status='expired'},async create(input:Record<string,unknown>){checkoutCreates++;const s={id:'cs_synthetic',url:'https://checkout.stripe.com/c/pay/synthetic',metadata:input.metadata,status:'open'};sessions.push(s);return s} } },
+    prices:{async retrieve(id:string){return {active:true,type:'recurring',currency:'gbp',unit_amount:id==='price_monthly'?399:3499,recurring:{interval:id==='price_monthly'?'month':'year',interval_count:1,usage_type:'licensed'},billing_scheme:'per_unit',transform_quantity:null,metadata:{app:'holofolder'},product:{active:true,metadata:{app:configuredPriceValid?'holofolder':'syncaura'}}}}},
+    subscriptions:{ async *list() { reconciliations++;yield { id:'sub_synthetic',created:1,status,metadata:{app},items:{data:[{price:{id:subscriptionPrice},quantity:1}]} } } },
+    invoices:{ async *list() { if(paid) yield {status:'paid',lines:{data:[{pricing:{price_details:{price:subscriptionPrice}},period:{end:2000000000}}]}} } },
+    checkout:{sessions:{ async *list(){yield* sessions.filter(s=>s.status==='open')},async listLineItems(id:string){return {has_more:false,data:sessions.find(s=>s.id===id)?.lines??[]}},async expire(id:string){const s=sessions.find(s=>s.id===id);if(s)s.status='expired'},async create(input:Record<string,unknown>){checkoutCreates++;const s={id:`cs_synthetic_${checkoutCreates}`,created:1,mode:input.mode,client_reference_id:input.client_reference_id,lines:(input.line_items as Array<{price:string;quantity:number}>).map(line=>({price:{id:line.price},quantity:line.quantity})),url:'https://checkout.stripe.com/c/pay/synthetic',metadata:input.metadata,status:'open'};sessions.push(s);return s} } },
   }
   const admin={
     async rpc(name:string,args:Record<string,unknown>){
@@ -36,7 +38,7 @@ async function run() {
   mock.module('server-only',()=>({}))
   mock.module('../../lib/supabase/admin',()=>({createAdminClient:()=>admin}))
   const signatureStripe=new Stripe('sk_test_synthetic')
-  mock.module('../../lib/server/stripe',()=>({getStripe:()=>({...fakeStripe,webhooks:signatureStripe.webhooks}),billingPriceIds:()=>({month:'price_monthly',year:'price_yearly'}),billingReturnUrl:()=> 'https://holofolder.com/app?billing=return'}))
+  mock.module('../../lib/server/stripe',()=>({getStripe:()=>({...fakeStripe,webhooks:signatureStripe.webhooks}),billingPriceIds:()=>({month:'price_monthly',year:'price_yearly'}),billingRecognizedPriceIds:()=>['price_monthly','price_yearly','price_legacy'],billingReturnUrl:()=> 'https://holofolder.com/app?billing=return'}))
   mock.module('../../lib/server/billing',()=>({getBillingAccess:async()=>resolveBillingAccess('synthetic-owner',{perpetual,enforced:true,status:account.status,paid_through:account.paid_through})}))
   const service=await import('../../lib/server/billing-subscriptions')
   const event=(id:string,type='invoice.paid')=>({id,type,livemode:false,data:{object:{customer:'cus_synthetic'}}}) as Stripe.Event
@@ -68,6 +70,23 @@ async function run() {
   await service.startCheckout('synthetic-owner',undefined,'month')
   await service.startCheckout('synthetic-owner',undefined,'month')
   assert.equal(checkoutCreates,1,'repeat checkout reuses the open session')
+  sessions.push({...sessions[0],id:'cs_duplicate'})
+  await service.startCheckout('synthetic-owner',undefined,'month')
+  assert.equal(sessions.find(s=>s.id==='cs_duplicate')?.status,'expired','duplicate matching sessions are expired')
+  for(const session of sessions)session.status='expired'
+  sessions.push({...sessions[0],id:'cs_stale',status:'open',lines:[{price:{id:'price_legacy'},quantity:1}]})
+  sessions.push({...sessions[0],id:'cs_unrelated',status:'open',metadata:{app:'syncaura'}})
+  await service.startCheckout('synthetic-owner',undefined,'month')
+  assert.equal(sessions.find(s=>s.id==='cs_stale')?.status,'expired','same-interval old-price session must not be reused')
+  assert.equal(sessions.find(s=>s.id==='cs_unrelated')?.status,'open','unrelated app session stays untouched')
+  assert.equal(checkoutCreates,2)
+  configuredPriceValid=false
+  await assert.rejects(service.startCheckout('synthetic-owner',undefined,'month'),/pricing is temporarily unavailable/)
+  assert.equal(checkoutCreates,2)
+  configuredPriceValid=true
+  subscriptionPrice='price_legacy';status='active';paid=true
+  await service.reconcileBilling('synthetic-owner')
+  assert.equal(account.paid_through,'2033-05-18T03:33:20.000Z','genuine legacy paid access remains recognized')
   status='active'
   await assert.rejects(service.startCheckout('synthetic-owner',undefined,'month'),/already have a subscription/)
   const {POST}=await import('../../app/api/billing/webhook/route')
