@@ -4,6 +4,7 @@
 // chosen variant, an asking-price input with a verdict (lib/deal-check.ts), and big Bought / Add owned /
 // Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
 import { useBillingContext } from "@/hooks/use-billing"
+import { useGoogleAnalytics } from "@/components/google-analytics"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Heart, Layers, Plus, ShoppingBag, TrendingUp, WifiOff } from "lucide-react"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
@@ -120,6 +121,10 @@ export default function QuickCardCheck({
   onAddToBundle,
   showTools = true,
 }: QuickCardCheckProps) {
+  const trackGoogleEvent = useGoogleAnalytics()
+  useEffect(() => {
+    trackGoogleEvent("price_check_viewed", {})
+  }, [card.id, trackGoogleEvent])
   const billing = useBillingContext()
   const premium = billing?.premium !== false
   const language = card.language ?? "en"

@@ -21,6 +21,7 @@
     "typecheck:tsc": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@next/third-parties": "16.4.5",
     "@radix-ui/react-select": "2.2.6",
     "@radix-ui/react-slot": "1.2.4",
     "@radix-ui/react-switch": "1.2.6",

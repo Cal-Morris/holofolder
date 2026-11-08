@@ -1,5 +1,6 @@
 "use client"
 
+import { useGoogleAnalytics } from "@/components/google-analytics"
 import { appPath } from "@/lib/app-path"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { createBinderBackup, downloadBinderBackup } from "@/lib/binder-backup"
@@ -158,6 +159,10 @@ export default function BinderApp({
   const quickPressFiredRef = useRef(false)
   const [isPriceMode, setIsPriceMode] = useState(initialPriceMode)
   const [activeMainView, setActiveMainView] = useState<ActiveMainView>("binder")
+  const trackGoogleEvent = useGoogleAnalytics()
+  useEffect(() => {
+    trackGoogleEvent("screen_view", { screen_name: activeMainView, show_mode: isShowModeOn, read_only: readOnlyMode })
+  }, [activeMainView, isShowModeOn, readOnlyMode, trackGoogleEvent])
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("view") === "wanted") queueMicrotask(() => setActiveMainView("wanted"))
   }, [])
@@ -3111,29 +3116,32 @@ export default function BinderApp({
   }, [switchMainView])
 
   const openSearch = useCallback(() => {
+    trackGoogleEvent("search_opened", { surface: "search" })
     openExclusively(() => {
       setSelectedPokemon(null)
       setIsSearchOpen(true)
     })
-  }, [openExclusively])
+  }, [openExclusively, trackGoogleEvent])
 
   /** Quick mode: the one-handed launcher (long-press Search, the Search sheet's button, or Ctrl/Cmd+K). */
   const openQuickMode = useCallback(() => {
+    trackGoogleEvent("search_opened", { surface: "quick_mode" })
     openExclusively(() => {
       setSelectedPokemon(null)
       setIsSearchOpen(false)
       setQuickLookup(null)
       setIsQuickModeOpen(true)
     })
-  }, [openExclusively])
+  }, [openExclusively, trackGoogleEvent])
   const openPriceLookup = useCallback((query: string) => {
+    trackGoogleEvent("search_opened", { surface: "price_lookup" })
     openExclusively(() => {
       setSelectedPokemon(null)
       setIsSearchOpen(false)
       setQuickLookup({ query })
       setIsQuickModeOpen(true)
     })
-  }, [openExclusively])
+  }, [openExclusively, trackGoogleEvent])
   const closeQuickMode = useCallback(() => setIsQuickModeOpen(false), [])
 
   useEffect(() => {
