@@ -12,10 +12,10 @@ async function main() {
   const products = await stripe.products.list({ limit:100 })
   let product = products.data.find(p => p.metadata.app === 'holofolder' && p.active)
   console.log(JSON.stringify({ account:account.id, apply, product:product?.id ?? 'missing' }))
-  if (!product && apply) product = await stripe.products.create({ name:'Holo Folder Premium', description:'Unlimited Pokémon cards, binder sharing, partner mode and sold price comparisons.', metadata:{ app:'holofolder' } },{idempotencyKey:'holofolder-premium-v1'})
+  if (!product && apply) product = await stripe.products.create({ name:'Holo Folder Premium', description:'Unlimited Pokémon cards, multiple binders, partner mode and sold price comparisons.', metadata:{ app:'holofolder' } },{idempotencyKey:'holofolder-premium-v1'})
   const config: Record<string,string> = {}
   for (const interval of ['month','year'] as const) {
-    const lookup_key = `holofolder_gbp_${interval}_v1`
+    const lookup_key = `holofolder_gbp_${interval}_v2`
     let price = (await stripe.prices.list({ lookup_keys:[lookup_key],active:true,limit:10 })).data[0]
     if (!price && apply && product) price = await stripe.prices.create({ product:product.id, currency:'gbp',unit_amount:BILLING_PRICES[interval],recurring:{interval},lookup_key,metadata:{app:'holofolder'} },{idempotencyKey:lookup_key})
     if (price && (price.product !== product?.id || price.currency !== 'gbp' || price.unit_amount !== BILLING_PRICES[interval] || price.recurring?.interval !== interval || price.recurring.interval_count !== 1)) throw new Error('Existing Holo Folder price differs from the approved configuration')
