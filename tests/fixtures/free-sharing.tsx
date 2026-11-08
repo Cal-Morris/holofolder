@@ -67,7 +67,12 @@ async function run() {
   const { default: TokenPage, metadata: tokenMetadata } = await import('../../app/share/[token]/page')
   const { default: NamedPage, metadata: namedMetadata } = await import('../../app/u/[username]/[binderSlug]/page')
   const tokenPage = await TokenPage({ params: Promise.resolve({ token }) })
+  const signedInHtml = renderToStaticMarkup(await SharedBinder(tokenPage.props))
+  assert.match(signedInHtml, /initialUser&quot;:\{&quot;id&quot;:&quot;00000000-0000-4000-8000-000000000001&quot;\}/)
+  assert.match(signedInHtml, /readOnlyMode&quot;:true/, 'signed-in viewers still receive read-only shares')
+  actor = null
   const html = renderToStaticMarkup(await SharedBinder(tokenPage.props))
+  actor = owner
   assert.match(html, /readOnlyMode&quot;:true/)
   assert.match(html, /pricingEnabled&quot;:false/)
   assert.match(html, /initialPriceMode&quot;:false/)
