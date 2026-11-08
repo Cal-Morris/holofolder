@@ -260,12 +260,12 @@ export default function CardSelector({
   const [pendingCard, setPendingCard] = useState<TCGCard | null>(null)
   /** Tapping a card picks it; a printing that comes in several finishes asks which one first. */
   const pickCard = useCallback((card: TCGCard) => {
-    if (getCardPickerFinishChoices(card.variants, inferCardFinish(card), variantChoice).length > 0) {
+    if (getCardPickerFinishChoices(card.variants, inferCardFinish(card), variantChoice, pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)]?.finishPrices).length > 0) {
       setPendingCard(card)
       return
     }
     selectCard(card)
-  }, [selectCard, variantChoice])
+  }, [selectCard, variantChoice, pricesByCardId, selectedCardLanguage])
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false)
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine !== false)
@@ -921,7 +921,7 @@ export default function CardSelector({
               cardName={pendingCard.name}
               setName={pendingCard.set.name}
               actionLabel={isWishlistMode ? "Want" : "Add"}
-              choices={getCardPickerFinishChoices(pendingCard.variants, inferCardFinish(pendingCard), variantChoice).map((choice) => {
+              choices={getCardPickerFinishChoices(pendingCard.variants, inferCardFinish(pendingCard), variantChoice, pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)]?.finishPrices).map((choice) => {
                 const snapshot = pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)]
                 const finishPrice = getRegionalFinishPrices(snapshot, pricingRegion)[choice.finish]
                 return { ...choice, price: finishPrice ? formatAmount(finishPrice.marketGbpAmount ?? finishPrice.gbpAmount, snapshot) : null }

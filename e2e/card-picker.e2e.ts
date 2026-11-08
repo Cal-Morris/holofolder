@@ -1,4 +1,5 @@
 import { test, expect, type Harness } from "./fixtures"
+import { mockCardPrices } from "./price-fixtures"
 
 async function openPicker(harness: Harness) {
   const { page } = harness
@@ -85,6 +86,32 @@ test.describe("card picker layout", () => {
     await selector.getByRole("button", { name: "Clear search and filters" }).click()
     await expect(selector.getByText("3 of 3 cards")).toBeVisible()
     await expect(selector.getByRole("searchbox", { name: "Search cards" })).toHaveValue("")
+  })
+
+  test("provider-confirmed reverse is offered when catalogue flags omit it", async ({ harness }) => {
+    const { page } = harness
+    // Synthetic holo-only catalogue flags with explicit holo and reverse price evidence.
+    await mockCardPrices(page, {
+      "30th-007": { confidence: "high", market: 1, finishes: [
+        { finish: "holo", market: 1 }, { finish: "reverse_holo", market: 2 },
+      ] },
+    })
+    const selector = await openPicker(harness)
+    const card = selector.getByRole("button", { name: "Add card Squirtle from 30th Celebration", exact: true })
+    await expect(card).toContainText("£1.00")
+    await card.click()
+    const variants = page.getByRole("dialog", { name: "Which variant?" })
+    const reverse = variants.getByRole("button", { name: "Add Reverse, £2.00", exact: true })
+    await expect(variants.getByRole("button", { name: "Add Holo, £1.00", exact: true })).toBeVisible()
+    await expect(reverse).toBeVisible()
+    await harness.expectMinTapTarget(reverse, 36)
+    await harness.expectWithinSafeViewport(reverse)
+    await harness.expectNoHorizontalOverflow()
+    const saved = page.waitForRequest(request => request.url().includes("/app/api/collection") && request.method() === "POST")
+    await reverse.click()
+    const request = await saved
+    expect(request.postDataJSON()).toMatchObject({ cardId: "30th-007", cardFinish: "reverse_holo" })
+    await expect(selector).toHaveCount(0)
   })
 
   test("a single-finish card is picked in one tap", async ({ harness }) => {
