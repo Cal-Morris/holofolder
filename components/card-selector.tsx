@@ -723,7 +723,7 @@ export default function CardSelector({
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                       <div
-                        className="h-full rounded-full bg-white transition-all"
+                        className="h-full rounded-full bg-white transition-[width]"
                         style={{ width: `${isCapturingCardScan ? (cardFramesProcessed / CARD_SCAN_FRAME_COUNT) * 100 : 100}%` }}
                       />
                     </div>
@@ -998,7 +998,7 @@ export default function CardSelector({
                             <button
                               key={match.card.id}
                               onClick={() => pickCard(match.card)}
-                              className={`flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-all hover:bg-muted/60 ${intentHoverCardClass}`}
+                              className={`flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-left transition-[background-color,border-color,transform,scale] hover:bg-muted/60 ${intentHoverCardClass}`}
                             >
                               <CardSelectorImage
                                 src={match.card.image}
@@ -1113,7 +1113,7 @@ export default function CardSelector({
                       type="button"
                       onClick={() => pickCard(card)}
                       aria-label={`${isWishlistMode ? "Want card" : "Add card"} ${card.name} from ${card.set.name}`}
-                      className={`group/card relative flex flex-col justify-start overflow-hidden rounded-xl border-2 bg-card text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:hover:scale-[1.03] ${
+                      className={`group/card relative flex flex-col justify-start overflow-hidden rounded-xl border-2 bg-card text-left transition-[background-color,border-color,transform,scale] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:hover:scale-[1.03] ${
                         isCurrent ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
                       }`}
                     >

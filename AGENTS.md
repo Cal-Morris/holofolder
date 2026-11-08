@@ -200,6 +200,8 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 
 ## Skills
 
+UI craft skills from [Emil Kowalski](.agents/skills/EMIL-SOURCE.md) are vendored in `.agents/skills/`. For UI changes, use `emil-design-eng` for the overall review, `gestures` for drag/swipe interactions, `animate` for new motion, `animation-performance` for jank, and `mobile-native` for touch behaviour. Use `review-animations` and `break-ui` before shipping relevant changes. These complement the project playbooks below; repository accessibility, shared-overlay, offline and release requirements take precedence.
+
 | Skill | Use it when |
 |---|---|
 | [adding-a-new-tcg-set](.agents/skills/adding-a-new-tcg-set/SKILL.md) | A new set is released: sync it and back-fill its images |

@@ -31,7 +31,7 @@ test("active binder page outline stays inside every clipping container", async (
 test("desktop attribution reserves space below the whole binder", async ({ harness }) => {
   for (const viewport of [{ width: 768, height: 667 }, { width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
     await harness.page.setViewportSize(viewport)
-    const footer = harness.page.locator("footer")
+    const footer = harness.page.locator("footer").filter({ hasText: "Data:" })
     await expect(footer).toBeVisible()
     await expect.poll(async () => {
       const footerBox = (await footer.boundingBox())!
@@ -160,7 +160,7 @@ test("binder controls stay reachable and cards keep their full proportions", asy
     await harness.expectMinTapTarget(desktopDisplay.getByRole("button", { name: "3D", exact: true }))
     await harness.expectHittable(desktopDisplay.getByRole("button", { name: "3D", exact: true }))
     await menu.getByRole("button", { name: "Close view options", exact: true }).click()
-    await expect.poll(async () => (await page.locator("footer").boundingBox())?.height ?? Infinity).toBeLessThan(36)
+    await expect.poll(async () => (await page.locator("footer").filter({ hasText: "Data:" }).boundingBox())?.height ?? Infinity).toBeLessThan(36)
     await harness.expectNoHorizontalOverflow()
   }
 })

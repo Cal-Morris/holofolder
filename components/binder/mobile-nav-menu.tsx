@@ -17,7 +17,7 @@ export interface MobileNavMenuContext {
   collectionStats: { collected: number; total: number; percentage: number; }
   collectionViewFilter: CollectionViewFilter
   controlsSheetRef: RefObject<HTMLDivElement | null>
-  controlsSheetSwipe: { onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void; onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void; onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void; onPointerCancel: () => void; style: { touchAction: "none"; }; }
+  controlsSheetSwipe: { onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void; onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void; onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void; onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void; style: { touchAction: "none"; }; }
   currentPagePokemon: PokemonSummary[]
   handlePhotoButtonClick: () => void
   hasTrackedCards: boolean

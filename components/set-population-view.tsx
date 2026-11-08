@@ -404,7 +404,7 @@ export default function SetPopulationView({
                   onClick={() => {
                     addSet(set)
                   }}
-                  className={`w-[min(14rem,72vw)] shrink-0 rounded-2xl border px-3 py-2 text-left transition-all ${
+                  className={`w-[min(14rem,72vw)] shrink-0 rounded-2xl border px-3 py-2 text-left transition-colors ${
                     isActive
                       ? "border-primary/35 bg-primary/12 text-foreground"
                       : "border-border/55 bg-background/45 text-muted-foreground hover:text-foreground dark:border-white/10"
@@ -674,7 +674,7 @@ export default function SetPopulationView({
                   key={slot.dexId}
                   role="region"
                   aria-label={`${formatPokemonDisplayName(slot.pokemonName)} matches`}
-                  className={`grid w-full ${readOnly ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-[auto_auto_minmax(0,1fr)]"} items-center gap-3 rounded-2xl border p-2.5 text-left transition-all hover:border-border/60 hover:bg-background/70 dark:hover:border-white/10 ${
+                  className={`grid w-full ${readOnly ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-[auto_auto_minmax(0,1fr)]"} items-center gap-3 rounded-2xl border p-2.5 text-left transition-colors hover:border-border/60 hover:bg-background/70 dark:hover:border-white/10 ${
                     isSelected
                       ? "border-primary/35 bg-primary/8"
                       : "border-transparent bg-background/35 dark:bg-background/22"

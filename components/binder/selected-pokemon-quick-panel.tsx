@@ -54,7 +54,7 @@ export interface SelectedPokemonQuickPanelContext {
   pricesByCardId: Record<string, RegionalCardPriceSnapshot<CardPriceSnapshot>>
   quickPanelPosition: QuickPanelPosition | null
   quickPanelRef: RefObject<HTMLDivElement | null>
-  quickPanelSwipe: { onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void; onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void; onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void; onPointerCancel: () => void; style: { touchAction: "none"; }; }
+  quickPanelSwipe: { onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void; onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void; onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void; onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void; style: { touchAction: "none"; }; }
   readOnlyMode: boolean
   requestOwnedRemoval: (pokemon: { id: number; name: string; }) => void
   selectedAssignedPriceChipLabel: string | null

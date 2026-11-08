@@ -149,6 +149,14 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
   }
+  :where(button, [role="button"], [role="option"], [role="menuitem"], summary, label[for]) {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  a[href] {
+    touch-action: manipulation;
+  }
   /* Better selection */
   ::selection {
     @apply bg-primary/20 text-foreground;
@@ -516,6 +524,7 @@
   @media (prefers-reduced-motion: reduce) {
     .animate-slot-glare-sweep,
     .animate-holographic-foil,
+    .card-finish-mobile-sheen,
     .card-finish-normal,
     .card-finish-holo,
     .card-finish-reverse-holo,
@@ -528,7 +537,7 @@
     .card-finish-ace,
     .card-finish-amazing,
     .card-finish-shiny {
-      animation-duration: 12s;
+      animation: none;
     }
 
     .card-finish-mobile-sheen.card-finish-normal,
@@ -544,7 +553,7 @@
     .card-finish-mobile-sheen.card-finish-amazing,
     .card-finish-mobile-sheen.card-finish-shiny {
       opacity: 0.16;
-      animation-duration: 9s;
+      animation: none;
     }
   }
 
@@ -754,5 +763,18 @@ html[data-edge-back] body::after {
   }
   :where(button.w-full, a.w-full, [role="button"].w-full, [role="option"], [role="menuitem"], button[data-dex-id]) {
     --press-scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-scale-in,
+  .animate-bounce-in,
+  .animate-pulse,
+  .animate-pulse-soft,
+  .animate-shimmer {
+    animation: none;
   }
 }

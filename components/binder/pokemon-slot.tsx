@@ -503,7 +503,7 @@ export const PokemonSlot = memo(function PokemonSlot({
       </button>
 
       {quickActions.canShowActions ? (
-        <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 z-20 hidden translate-y-1 items-center justify-center gap-1 opacity-0 transition-all duration-150 sm:flex sm:group-hover/slot:pointer-events-auto sm:group-hover/slot:translate-y-0 sm:group-hover/slot:opacity-100 sm:group-focus-within/slot:pointer-events-auto sm:group-focus-within/slot:translate-y-0 sm:group-focus-within/slot:opacity-100">
+        <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 z-20 hidden translate-y-1 items-center justify-center gap-1 opacity-0 transition-[opacity,translate] duration-150 sm:flex sm:group-hover/slot:pointer-events-auto sm:group-hover/slot:translate-y-0 sm:group-hover/slot:opacity-100 sm:group-focus-within/slot:pointer-events-auto sm:group-focus-within/slot:translate-y-0 sm:group-focus-within/slot:opacity-100">
           <button
             type="button"
             onClick={(event) => {
@@ -540,7 +540,7 @@ export const PokemonSlot = memo(function PokemonSlot({
                 event.stopPropagation()
                 onAddCard()
               }}
-              className="flex h-7 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-600 transition-all hover:bg-emerald-500/20 dark:text-emerald-300"
+              className="flex h-7 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
             >
               <Check className="h-3 w-3" />
               {quickActions.addLabel}
@@ -551,7 +551,7 @@ export const PokemonSlot = memo(function PokemonSlot({
                 event.stopPropagation()
                 onAddWanted()
               }}
-              className="flex h-7 items-center gap-1 rounded-full bg-amber-500/10 px-2.5 text-xs font-medium text-amber-600 transition-all hover:bg-amber-500/20 dark:text-amber-300"
+              className="flex h-7 items-center gap-1 rounded-full bg-amber-500/10 px-2.5 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
             >
               <Heart className="h-3 w-3 fill-current" />
               {quickActions.wantLabel}
@@ -559,7 +559,7 @@ export const PokemonSlot = memo(function PokemonSlot({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onQuickCollect(); }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 isCollected
                   ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
                   : "bg-green-500/10 text-green-500 hover:bg-green-500/20"
@@ -572,7 +572,7 @@ export const PokemonSlot = memo(function PokemonSlot({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                   status === 'finalized'
                     ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
