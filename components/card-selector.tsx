@@ -1057,10 +1057,10 @@ export default function CardSelector({
               <div role="status" aria-label="Loading cards" className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
                 {Array.from({ length: 6 }, (_, index) => (
                   <div key={index} aria-hidden="true" className="overflow-hidden rounded-xl bg-muted/40">
-                    <div className="trading-card w-full animate-pulse bg-muted" />
+                    <div className="holo-loading trading-card w-full" />
                     <div className="space-y-1 p-1.5">
-                      <div className="h-2.5 w-3/4 animate-pulse rounded bg-muted" />
-                      <div className="h-2.5 w-1/2 animate-pulse rounded bg-muted" />
+                      <div className="h-2.5 w-3/4 rounded bg-muted" />
+                      <div className="h-2.5 w-1/2 rounded bg-muted" />
                     </div>
                   </div>
                 ))}
