@@ -450,7 +450,11 @@ const CARD_SEARCH_SELECT = `
   )
 `
 
-function toSearchCardResult(card: any, language: MirrorLanguage): SearchCardResult | null {
+export function cardSearchSelect(includeNonPokemon = false) {
+  return includeNonPokemon ? CARD_SEARCH_SELECT.replace("tcg_card_dex_ids!inner(", "tcg_card_dex_ids(") : CARD_SEARCH_SELECT
+}
+
+export function toSearchCardResult(card: any, language: MirrorLanguage, includeNonPokemon = false): SearchCardResult | null {
   const set = card?.tcg_sets
   if (!card?.id || !card?.local_id || !card?.set_id || !card?.series_id || !set?.id || HIDDEN_SET_IDS.has(card.set_id)) {
     return null
@@ -458,8 +462,10 @@ function toSearchCardResult(card: any, language: MirrorLanguage): SearchCardResu
   const dexIds = (Array.isArray(card.tcg_card_dex_ids) ? card.tcg_card_dex_ids : [])
     .map((link: any) => (typeof link?.dex_id === "number" ? link.dex_id : null))
     .filter((dexId: number | null): dexId is number => Boolean(dexId))
-  if (dexIds.length === 0) return null
+  if (!includeNonPokemon && dexIds.length === 0) return null
 
+  const confirmedLanguage = (typeof card.name_json?.[language] === "string" && card.name_json[language].trim().length > 0)
+    || (Array.isArray(card.image_languages_json) && card.image_languages_json.includes(language))
   const imageLanguage = pickImageLanguage(card.image_languages_json, language)
   return {
     id: card.id,
@@ -470,7 +476,7 @@ function toSearchCardResult(card: any, language: MirrorLanguage): SearchCardResu
     image: readCatalogMetadata(card.external_ids_json).image ?? (imageLanguage
       ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
       : pickExternalCardImageUrl(card.external_ids_json)),
-    language,
+    language: !includeNonPokemon || confirmedLanguage ? language : undefined,
     set: {
       id: set.id,
       name: pickLocalizedText(set.name_json, language) || set.name_en || set.id,
@@ -528,9 +534,9 @@ export async function findMirroredImportCandidates(lookup: ImportLookup): Promis
 
 /**
  * Card search across the mirror: card name, card number ("bulbasaur 44/102"), set name/id
- * ("pitch black", "me05 12"), illustrator ("arita") or a TCGdex card id ("base1-44"). Only cards that feature a Pokémon.
+ * ("pitch black", "me05 12"), illustrator ("arita") or a TCGdex card id ("base1-44"). Defaults to cards that feature a Pokémon; explicit-slot catalog mode also includes non-Pokémon cards.
  */
-export async function searchMirroredCards(query: string, language: MirrorLanguage = "en", limit = 60): Promise<{ cards: SearchCardResult[]; correction: string | null }> {
+export async function searchMirroredCards(query: string, language: MirrorLanguage = "en", limit = 60, includeNonPokemon = false): Promise<{ cards: SearchCardResult[]; correction: string | null }> {
   "use cache: remote"
   cacheLife(MIRROR_CACHE_LIFE)
 
@@ -542,6 +548,7 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
   }
 
   const admin = createAdminClient()
+  const select = cardSearchSelect(includeNonPokemon)
   let correction: string | null = null
   const candidates = [...new Set(cardSearchSetCandidates(query).map(candidate => candidate.phrase).filter(phrase => !phrase.includes(" ") && phrase.length >= 2))]
   if (candidates.length) {
@@ -559,22 +566,22 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
   const requests: Array<PromiseLike<{ data: any[] | null; error: unknown }>> = []
 
   if (parsed.cardId) {
-    requests.push(admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("id", parsed.cardId).limit(5))
+    requests.push(admin.from("tcg_cards").select(select).ilike("id", parsed.cardId).limit(5))
   }
 
   if (parsed.setIds.length) {
-    let bySet = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).in("set_id", parsed.setIds)
+    let bySet = admin.from("tcg_cards").select(select).in("set_id", parsed.setIds)
     if (parsed.text) bySet = bySet.ilike("name_en", `%${parsed.text}%`)
     if (numberCandidates) bySet = bySet.in("local_id", numberCandidates)
     requests.push(bySet.order("local_id_sort", { ascending: true, nullsFirst: false }).limit(limit))
   } else if (parsed.text.length >= 2) {
-    let byName = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("name_en", `%${parsed.text}%`)
+    let byName = admin.from("tcg_cards").select(select).ilike("name_en", `%${parsed.text}%`)
     if (numberCandidates) byName = byName.in("local_id", numberCandidates)
     requests.push(byName.limit(limit))
 
     // Illustrator ("arita", "5ban"): newest first, so a dealer's recent cards show up.
     if (parsed.text.length >= 3) {
-      let byIllustrator = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).ilike("illustrator", `%${parsed.text}%`)
+      let byIllustrator = admin.from("tcg_cards").select(select).ilike("illustrator", `%${parsed.text}%`)
       if (numberCandidates) byIllustrator = byIllustrator.in("local_id", numberCandidates)
       requests.push(byIllustrator.limit(limit))
     }
@@ -591,7 +598,7 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
       if (setMatches.error) return { data: null, error: setMatches.error }
       const setIds = ((setMatches.data || []) as Array<{ id: string }>).map((set) => set.id).filter((id) => !HIDDEN_SET_IDS.has(id))
       if (setIds.length === 0) return { data: [], error: null }
-      let bySet = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).in("set_id", setIds)
+      let bySet = admin.from("tcg_cards").select(select).in("set_id", setIds)
       if (numberCandidates) bySet = bySet.in("local_id", numberCandidates)
       return await bySet.order("local_id_sort", { ascending: true, nullsFirst: false }).limit(limit)
     })())
@@ -603,13 +610,13 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
     if (response.error) throw response.error
   }
   for (const row of deduplicateCatalogCards(responses.flatMap(response => response.data || []))) {
-    const card = toSearchCardResult(row, language)
+    const card = toSearchCardResult(row, language, includeNonPokemon)
     if (card && !results.has(card.id)) results.set(card.id, card)
   }
 
   const cards = Array.from(results.values()).slice(0, limit * 2)
   if (!cards.length && correction) {
-    const retry = await searchMirroredCards(correction, language, limit)
+    const retry = await searchMirroredCards(correction, language, limit, includeNonPokemon)
     return { cards: retry.cards, correction: retry.cards.length ? correction : null }
   }
   return { cards, correction: null }

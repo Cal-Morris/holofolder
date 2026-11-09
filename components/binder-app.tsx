@@ -105,6 +105,8 @@ import { renderSearchOverlayView } from "@/components/binder/search-overlay"
 import { renderMobileNavMenuView } from "@/components/binder/mobile-nav-menu"
 import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
+import type { SlotPickerIntent } from "@/lib/slot-picker"
+import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 const SlotDetail = dynamic(() => import("@/components/binder/slot-detail"), { ssr: false })
@@ -112,6 +114,9 @@ const SlotDetail = dynamic(() => import("@/components/binder/slot-detail"), { ss
 interface BinderAppProps {
   /** Internal staged read-only injection. Never supplied by production bootstrap or share routes. */
   stagedSlotDisplay?: SlotDisplayInput
+  /** Internal owner-only draft sink. No production caller or transport is enabled. */
+  onStagedSlotCommandIntent?: (draft: SlotPickerIntent) => void
+  stagedSlotCatalog?: InventoryCatalogResolver
   initialUser: User | null
   initialCollection: InitialCollectionRow[]
   initialCollectionOwnerUserId: string | null
@@ -130,6 +135,8 @@ interface BinderAppProps {
 
 export default function BinderApp({
   stagedSlotDisplay,
+  onStagedSlotCommandIntent,
+  stagedSlotCatalog,
   initialUser,
   initialCollection,
   initialCollectionOwnerUserId,
@@ -323,6 +330,7 @@ export default function BinderApp({
     if (readOnlyMode || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return
     rememberDeviceBinders(window.localStorage, resolvedCollectionOwnerUserId, binders)
   }, [binders, readOnlyMode, resolvedCollectionOwnerUserId, user])
+  useEffect(() => { queueMicrotask(closeSlotDetail) }, [stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, user?.id, closeSlotDetail])
   const historyScope = useMemo(() => readOnlyMode ? null : user
     ? resolvedCollectionOwnerUserId ? { accountId: user.id, ownerId: resolvedCollectionOwnerUserId, binderId: initialBinderId ?? "local" } : null
     : undefined, [readOnlyMode, user, resolvedCollectionOwnerUserId, initialBinderId])
@@ -3757,7 +3765,8 @@ export default function BinderApp({
         />
       ) : null}
 
-      {selectedDisplaySlot && <SlotDetail key={selectedDisplaySlot.id} slot={selectedDisplaySlot} onClose={closeSlotDetail} />}
+      {selectedDisplaySlot && <SlotDetail key={`${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
+        picker={!legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: selectedDisplaySlot.id }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent } : undefined} />}
       {isCardSelectorOpen && selectedPokemon && (
         <CardSelector
           pokemonId={selectedPokemon.id}

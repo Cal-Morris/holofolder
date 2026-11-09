@@ -4,6 +4,7 @@
 // mirror (grouped by Pokémon), falling back to the cards on this device when offline, plus fuzzy illustrator
 // matches from the directory (saved on the device after the first load) and set hits from the set search.
 import { useEffect, useMemo, useRef, useState } from "react"
+import type { CardLanguage } from "@/lib/domain/cards"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
 import { groupCardResultsByPokemon, parseCardSearchQuery, type CardSearchGroup, type SearchCardResult } from "@/lib/pokemon-card-browse"
 import { readOfflineSets, searchOfflineCardsWithCorrection } from "@/lib/offline-card-index"
@@ -14,7 +15,7 @@ import type { TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 
 const CARD_SEARCH_DEBOUNCE_MS = 250
 
-type CardSearchState = { key: string; groups: CardSearchGroup[]; loading: boolean; offline: boolean; correction: string | null }
+type CardSearchState = { key: string; groups: CardSearchGroup[]; cards: SearchCardResult[]; loading: boolean; offline: boolean; correction: string | null }
 
 const groupCards = (cards: SearchCardResult[]) =>
   groupCardResultsByPokemon(cards, (dexId) => getPokemonSummary(dexId)?.name ?? null, { maxGroups: 10, maxCardsPerGroup: 6 })
@@ -23,10 +24,12 @@ const groupCards = (cards: SearchCardResult[]) =>
  * Debounced card search against the TCG mirror, grouped by Pokémon. Offline (or when the API can't be
  * reached) it searches the cards on this device instead and says so.
  */
-export function useCardSearch(query: string, enabled: boolean, getOfflineCards?: () => Promise<SearchCardResult[]>) {
-  const [state, setState] = useState<CardSearchState>({ key: "", groups: [], loading: false, offline: false, correction: null })
+export function useCardSearch(query: string, enabled: boolean, getOfflineCards?: () => Promise<SearchCardResult[]>, options?: { language?: CardLanguage; includeNonPokemon?: boolean }) {
+  const [state, setState] = useState<CardSearchState>({ key: "", groups: [], cards: [], loading: false, offline: false, correction: null })
+  const { language, includeNonPokemon = false } = options ?? {}
   const parsed = parseCardSearchQuery(query)
-  const key = enabled && (parsed.text.length >= 2 || parsed.cardId) ? query.trim().toLowerCase() : ""
+  const searchText = enabled && (parsed.text.length >= 2 || parsed.cardId) ? query.trim().toLowerCase() : ""
+  const key = searchText ? `${language ?? "en"}:${includeNonPokemon}:${searchText}` : ""
   const offlineCardsRef = useRef<Promise<SearchCardResult[]> | null>(null)
   const getOfflineCardsRef = useRef(getOfflineCards)
   useEffect(() => {
@@ -42,29 +45,30 @@ export function useCardSearch(query: string, enabled: boolean, getOfflineCards?:
       if (!loader) return null
       offlineCardsRef.current ??= loader().catch(() => [])
       const cards = await offlineCardsRef.current
-      const result = searchOfflineCardsWithCorrection(cards, key)
-      return { groups: groupCards(result.cards), correction: result.correction }
+      const eligible = cards.filter(c => (includeNonPokemon || c.dexIds.length > 0) && (!language || c.language === undefined || c.language === language))
+      const result = searchOfflineCardsWithCorrection(eligible, searchText)
+      return { cards: result.cards, groups: groupCards(result.cards), correction: result.correction }
     }
     const showOffline = async () => {
       const result = await searchOnDevice()
       if (controller.signal.aborted) return
-      setState({ key, groups: result?.groups ?? [], loading: false, offline: result !== null, correction: result?.correction ?? null })
+      setState({ key, groups: result?.groups ?? [], cards: result?.cards ?? [], loading: false, offline: result !== null, correction: result?.correction ?? null })
     }
 
     const timer = window.setTimeout(() => {
-      setState((current) => ({ ...current, key, groups: [], loading: true, correction: null }))
+      setState((current) => ({ ...current, key, groups: [], cards: [], loading: true, correction: null }))
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         void showOffline()
         return
       }
-      fetch(`/app/api/tcg-card-search?q=${encodeURIComponent(key)}`, { signal: controller.signal })
+      fetch(`/app/api/tcg-card-search?q=${encodeURIComponent(searchText)}${language ? `&language=${language}` : ""}${includeNonPokemon ? "&includeNonPokemon=1" : ""}`, { signal: controller.signal })
         .then((response) => {
           if (!response.ok) throw new Error(`Card search failed (${response.status})`)
           return response.json()
         })
         .then((payload: { cards?: SearchCardResult[]; correction?: string | null }) => {
           const cards = Array.isArray(payload?.cards) ? payload.cards : []
-          if (!controller.signal.aborted) setState({ key, groups: groupCards(cards), loading: false, offline: false, correction: cards.length && typeof payload.correction === "string" ? payload.correction : null })
+          if (!controller.signal.aborted) setState({ key, groups: groupCards(cards), cards, loading: false, offline: false, correction: cards.length && typeof payload.correction === "string" ? payload.correction : null })
         })
         .catch((error: unknown) => {
           if ((error as { name?: string })?.name === "AbortError" || controller.signal.aborted) return
@@ -75,12 +79,12 @@ export function useCardSearch(query: string, enabled: boolean, getOfflineCards?:
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [key])
+  }, [key, searchText, language, includeNonPokemon])
 
-  if (!key) return { groups: [] as CardSearchGroup[], loading: false, offline: false, correction: null }
+  if (!key) return { groups: [] as CardSearchGroup[], cards: [] as SearchCardResult[], loading: false, offline: false, correction: null }
   return state.key === key
-    ? { groups: state.groups, loading: state.loading, offline: state.offline, correction: state.correction }
-    : { groups: [] as CardSearchGroup[], loading: true, offline: false, correction: null }
+    ? { groups: state.groups, cards: state.cards, loading: state.loading, offline: state.offline, correction: state.correction }
+    : { groups: [] as CardSearchGroup[], cards: [] as SearchCardResult[], loading: true, offline: false, correction: null }
 }
 
 /** Fuzzy illustrator matches from the directory (loaded once; offline it uses the copy saved on this device). */
