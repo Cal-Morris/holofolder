@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { activitySummary, readableActivityChanges, activityDay } from '../lib/activity-presentation'
+import { activitySummary, readableActivityChanges, activityDay, activityReceipt } from '../lib/activity-presentation'
 import type { ActivityEvent } from '../lib/collection-activity'
 
 // Synthetic histories, including the removed-card example.
@@ -29,4 +29,16 @@ test('details suppress identifiers, format values and keep unknowns honest',()=>
   assert.equal(activityDay('invalid'),'Earlier')
   const printing={...base,changes:[{table:'pokemon_collection',id:'row',before:row,after:{...row,card_id:'mep-038'}}]}
   assert.deepEqual(readableActivityChanges(printing)[0].fields,[{label:'Printing',before:'MEP Black Star Promos · #037',after:'MEP Black Star Promos · #038'}])
+})
+
+test('receipts expand only useful deltas or bulk changes and offer supported Undo',()=>{
+  const make = (before: Record<string,unknown>|null,after:Record<string,unknown>|null,table='pokemon_collection')=>({...base,changes:[{table,id:'row',before,after}]})
+  assert.equal(activityReceipt(make(null,row)).hasDetails,false)
+  assert.equal(activityReceipt(make(row,null)).hasDetails,false)
+  assert.equal(activityReceipt(make(row,{...row,card_id:'mep-038'})).hasDetails,true)
+  assert.equal(activityReceipt({...base,changes:[...make(null,row).changes,...make(null,row).changes]}).hasDetails,true)
+  assert.equal(activityReceipt(make(null,row)).canUndo,true)
+  assert.equal(activityReceipt(make(null,{name:'Binder'},'binders')).canUndo,false)
+  assert.equal(activityReceipt({...make(null,row),format_version:0}).canUndo,false)
+  assert.equal(activityReceipt({...make(null,row),action:'recovery.apply'}).canUndo,false)
 })

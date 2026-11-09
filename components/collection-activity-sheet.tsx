@@ -4,9 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss, runAfterOverlayHistory } from "@/hooks/use-overlay"
-import { OverlayLink } from "@/components/overlay-link"
-import { activityActor, activityCacheKey, activityChanges, activitySource, activityTime, parseActivityPage, readActivityCache, sameActivityScope, writeActivityCache, type ActivityEvent, type ActivityScope } from "@/lib/collection-activity"
-import { activitySummary, readableActivityChanges, activityDay } from "@/lib/activity-presentation"
+import { activityActor, activityCacheKey, activityTime, parseActivityPage, readActivityCache, sameActivityScope, writeActivityCache, type ActivityEvent, type ActivityScope } from "@/lib/collection-activity"
+import { activitySummary, activityReceipt, activityDay } from "@/lib/activity-presentation"
 import { ActivityRecovery } from "@/components/activity-recovery"
 import type { ActivityInitialFilter } from "@/components/collection-activity-context"
 import type { Binder } from "@/lib/binders/model"
@@ -14,7 +13,7 @@ import type { CollectedPokemon } from "@/lib/domain/cards"
 
 interface Props {
   scope:ActivityScope|null; initialFilter:ActivityInitialFilter; binderId:string|null; binders:readonly Binder[]; collection:readonly CollectedPokemon[]
-  pendingCount:number; isOnline:boolean; onRecovered:()=>Promise<void>; onOpenEvent?:(id:string,related?:boolean)=>void; onClose:()=>void; onInvalidScope:()=>void; onVerify:()=>void; onOpenPokemon:(id:number)=>void
+  pendingCount:number; isOnline:boolean; onRecovered:()=>Promise<void>; onClose:()=>void; onInvalidScope:()=>void; onVerify:()=>void; onOpenPokemon:(id:number)=>void
 }
 const control = 'min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm'
 
@@ -53,19 +52,9 @@ export default function CollectionActivitySheet(props:Props) {
           <label className="text-xs">From (UTC)<input type="date" name="since" defaultValue={selected.get('since')?.slice(0,10)} className={control}/></label>
           <label className="text-xs">Through (UTC)<input type="date" name="until" defaultValue={selected.get('until')?.slice(0,10)} className={control}/></label>
           <label className="col-span-2 text-xs">Action<select name="action" defaultValue={selected.get('action') ?? ''} className={control}><option value="">All changes</option><option value="collection_item">Cards and wanted lists</option><option value="collection_change">Collections and settings</option><option value="legacy">Older recorded changes</option></select></label>
-          <details className="col-span-2"><summary className="min-h-10 cursor-pointer py-2 text-xs">Advanced filters</summary><div className="grid grid-cols-2 gap-2 pt-2">
-          <label className="col-span-2 text-xs">Actor account ID<input name="actorIdText" defaultValue={selected.get('actorId') && !scope?.memberIds?.includes(selected.get('actorId')!) && selected.get('actorId')!==scope?.accountId ? selected.get('actorId')! : ''} className={control} placeholder="Another recorded account"/></label>
-          <label className="col-span-2 text-xs">Recorded action<input name="actionText" defaultValue={selected.get('action') && !['collection_item','collection_change','legacy'].includes(selected.get('action')!) ? selected.get('action')! : ''} className={control}/></label>
-          <label className="col-span-2 text-xs">Card printing ID<input name="cardId" defaultValue={selected.get('cardId') ?? ''} className={control} placeholder="e.g. base1-4"/></label>
-          <label className="text-xs">Owned item ID<input name="itemId" defaultValue={selected.get('itemId') ?? ''} className={control}/></label>
-          <label className="text-xs">Slot ID<input name="slotId" defaultValue={selected.get('slotId') ?? ''} className={control}/></label>
-          <label className="text-xs">Pokémon number<input name="pokemonId" inputMode="numeric" defaultValue={selected.get('pokemonId') ?? ''} className={control}/></label>
-          <label className="text-xs">Collection ID<input name="collectionIdText" defaultValue="" className={control} placeholder="Deleted or existing ID"/></label>
-          <p className="col-span-2 text-xs text-muted-foreground">Exact recorded IDs/actions, searched on the server across all pages. Older entries without entity IDs cannot match those filters. Pokémon filters include retained legacy deltas.</p>
-          </div></details>
           <button type="submit" className="col-span-2 min-h-10 rounded-lg bg-primary px-3 font-medium text-primary-foreground">Apply filters</button>
         </form>}
-        {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} onOpenEvent={(id,related)=>setFilters(related ? new URLSearchParams({limit:"50",recoveryOfEventId:id}).toString() : id ? new URLSearchParams({id}).toString() : new URLSearchParams({limit:'50',...(binderId ? {collectionId:binderId} : {})}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
+        {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
       </div>
     </section>
   </div>,document.body)
@@ -79,7 +68,6 @@ function ActivityResults(props:Props & {scope:ActivityScope;query:string}) {
   if(cursor)params.set('cursor',cursor)
   const pageQuery = params.toString()
   return <div>
-    {(params.has('id')||params.has('recoveryOfEventId')) && <button type="button" className="mb-2 min-h-10 text-xs text-primary" onClick={()=>props.onOpenEvent?.('')}>Back to activity</button>}
     <ActivityPageView key={pageQuery} {...props} pageQuery={pageQuery} onNext={next=>{setPrevious(v=>[...v,cursor]);setCursor(next)}} />
     {previous.length>0 && <div className="mt-3 flex gap-2"><button type="button" className="min-h-10 rounded-lg border border-border px-3" onClick={()=>{setCursor(previous.at(-1) ?? null);setPrevious(v=>v.slice(0,-1))}}>Newer page</button></div>}
     {/* Each page owns its older cursor; no client-side filtering or offset pagination. */}
@@ -119,52 +107,42 @@ function ActivityPageView({scope,pageQuery,isOnline,onInvalidScope,onNext,...pro
     {saved?.page.data.length===0 && <p className="py-4">{cached || !isOnline ? 'No saved activity on this page. Reconnect to check for more.' : 'No activity matches these filters.'}</p>}
     <ol className="space-y-2" aria-label="Committed activity">{saved?.page.data.map((event,index)=>{
       const day=activityDay(event.recorded_at)
-      return <ActivityEntry key={event.id} event={event} day={index===0 || day!==activityDay(saved.page.data[index-1].recorded_at) ? day : undefined} {...props} scope={scope} isOnline={isOnline} onInvalidScope={onInvalidScope}/>
+      return <ActivityEntry key={event.id} event={event} undone={saved.page.data.some(other=>other.recovery_of_event_id===event.id)} day={index===0 || day!==activityDay(saved.page.data[index-1].recorded_at) ? day : undefined} {...props} scope={scope} isOnline={isOnline} onInvalidScope={onInvalidScope}/>
     })}</ol>
     {saved?.page.nextCursor && <button type="button" className="mt-3 min-h-10 rounded-lg border border-border px-3" onClick={()=>onNext(saved.page.nextCursor!)}>Older page</button>}
   </>
 }
 
-function ActivityEntry({event,day,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,onRecovered,onOpenEvent,onInvalidScope}:Props & {event:ActivityEvent;day?:string}) {
+function ActivityEntry({event,day,undone,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,onRecovered,onInvalidScope}:Props & {event:ActivityEvent;day?:string;undone:boolean}) {
   const [expanded,setExpanded] = useState(false)
   const [count,setCount] = useState(10)
   const summary=activitySummary(event,binders)
-  const changes=expanded ? readableActivityChanges(event) : []
+  const {changes,hasDetails,canUndo}=activityReceipt(event)
   const first=event.changes[0]
   const state=first?.after ?? first?.before
-  const liveCollections=binders.filter(b=>event.affected_entities.collectionIds?.includes(b.id))
   const pokemonId=event.pokemon_id ?? (typeof state?.pokemon_id==='number' ? state.pokemon_id : null)
-  const liveItem=collection.find(item=>item.pokemon_id===pokemonId && (first?.id ? item.id===first.id : false))
+  const liveItem=summary.count===1 && first?.table==='pokemon_collection' && event.affected_entities.collectionIds?.includes(binderId ?? '')
+    ? collection.find(item=>item.pokemon_id===pokemonId && item.id===first.id) : undefined
   const person=activityActor(event,scope?.accountId,scope?.memberIds)
   return <li>
     {day && <h3 className="pt-3 pb-2 text-xs font-medium text-muted-foreground">{day}</h3>}
-    <article className="rounded-xl border border-border/70 bg-background/50 p-3">
-      <p className="text-sm font-medium leading-snug">{summary.title}</p>
-      {summary.subtitle && <p className="mt-1 text-xs text-muted-foreground">{summary.subtitle}</p>}
-      <p className="mt-1 text-xs text-muted-foreground">{person.startsWith('Account ') ? 'Previous member' : person} · <time dateTime={event.recorded_at}>{new Date(event.recorded_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></p>
-      <div className="mt-1 flex flex-wrap items-start gap-x-1">
-        <button type="button" aria-expanded={expanded} className="min-h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted" onClick={()=>setExpanded(v=>!v)}>{expanded ? 'Hide details' : 'Details'}</button>
-        {scope && <ActivityRecovery event={event} scope={scope} disabled={!isOnline||pendingCount>0} onRecovered={onRecovered} onOpenEvent={id=>onOpenEvent?.(id)} onInvalidScope={onInvalidScope}/>}
+    <article className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 rounded-xl border border-border/70 bg-background/50 p-3">
+      <div className="min-w-0 wrap-anywhere">
+        {liveItem ? <button type="button" className="min-h-10 text-left text-sm font-medium leading-snug text-primary hover:underline" onClick={()=>{onClose();runAfterOverlayHistory(()=>onOpenPokemon(liveItem.pokemon_id))}}>{summary.title}</button> : <p className="text-sm font-medium leading-snug">{summary.title}</p>}
+        {summary.subtitle && <p className="mt-1 text-xs text-muted-foreground">{summary.subtitle}</p>}
+        <p className="mt-1 text-xs text-muted-foreground">{person.startsWith('Account ') ? 'Previous member' : person} · <time dateTime={event.recorded_at}>{new Date(event.recorded_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></p>
       </div>
-      {expanded && <div className="mt-2 space-y-3 border-t border-border/60 pt-3 text-xs">
-        {changes.slice(0,count).map((change,index)=><section key={index} className="rounded-lg bg-muted/40 p-3">
-          {summary.count>1 && <h4 className="font-medium">{change.title}</h4>}
-          {change.subtitle && summary.count>1 && <p className="mt-1 text-muted-foreground">{change.subtitle}</p>}
-          {change.fields.length>0 ? <dl className="space-y-2">{change.fields.map(field=><div key={field.label}><dt className="text-muted-foreground">{field.label}</dt><dd className="mt-0.5">{field.before} <span className="px-1 text-muted-foreground" aria-label="changed to">→</span> {field.after}</dd></div>)}</dl> : summary.count===1 && <p className="text-muted-foreground">{change.title}</p>}
-        </section>)}
-        {changes.length>count && <button type="button" className="min-h-10 rounded-lg border border-border px-3" onClick={()=>setCount(c=>c+25)}>Show more changes ({changes.length-count} remaining)</button>}
-        <button type="button" className="min-h-10 rounded-lg px-3 text-primary" onClick={()=>onOpenEvent?.(event.id,true)}>View undo history</button>
-        {event.recovery_of_event_id && <button type="button" className="min-h-10 rounded-lg px-3 text-primary" onClick={()=>onOpenEvent?.(event.recovery_of_event_id!)}>View original change</button>}
-        {isOnline && liveCollections.map(b=><OverlayLink key={b.id} href={`/?binder=${encodeURIComponent(b.id)}`} onClose={onClose} className="flex min-h-10 items-center rounded-lg px-3 text-primary">Open {b.name}</OverlayLink>)}
-        {isOnline && liveItem && event.affected_entities.collectionIds?.includes(binderId ?? '') && <button type="button" className="min-h-10 rounded-lg px-3 text-primary" onClick={()=>{onClose();runAfterOverlayHistory(()=>onOpenPokemon(liveItem.pokemon_id))}}>Open card</button>}
-        <details><summary className="min-h-10 cursor-pointer py-3 text-muted-foreground">Technical details</summary><div className="space-y-2 select-text text-muted-foreground">
-          <p>Event {event.id} · {event.action}</p><p>{activitySource(event.source)} · {activityTime(event.recorded_at)}</p>
-          <p>Account: {event.actor_user_id ?? 'Unknown'}</p>
-          {event.operation_id && <p>Operation: {event.operation_id}</p>}{event.batch_id && <p>Batch: {event.batch_id}</p>}
-          {event.client_id && <p>Client: {event.client_id}</p>}
-          {event.format_version===0 && <p>Older entry with limited recorded information.</p>}
-          <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-2 text-[11px]">{JSON.stringify(activityChanges(event),null,2)}</pre>
-        </div></details>
+      {scope && canUndo && <ActivityRecovery undone={undone} event={event} scope={scope} disabled={!isOnline||pendingCount>0} onRecovered={onRecovered} onInvalidScope={onInvalidScope}/>}
+      {hasDetails && <div className="col-span-2 min-w-0">
+        <button type="button" aria-expanded={expanded} className="mt-1 min-h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted" onClick={()=>setExpanded(v=>!v)}>{expanded ? 'Hide changes' : summary.count>1 ? `View ${summary.count} changes` : 'View changes'}</button>
+        {expanded && <div className="mt-2 space-y-3 border-t border-border/60 pt-3 text-xs wrap-anywhere">
+          {changes.slice(0,count).map((change,index)=><section key={index} className="rounded-lg bg-muted/40 p-3">
+            {summary.count>1 && <h4 className="font-medium">{change.title}</h4>}
+            {change.subtitle && summary.count>1 && <p className="mt-1 text-muted-foreground">{change.subtitle}</p>}
+            {change.fields.length>0 && <dl className="space-y-2">{change.fields.map(field=><div key={field.label}><dt className="text-muted-foreground">{field.label}</dt><dd className="mt-0.5">{field.before} <span className="px-1 text-muted-foreground" aria-label="changed to">→</span> {field.after}</dd></div>)}</dl>}
+          </section>)}
+          {changes.length>count && <button type="button" className="min-h-10 rounded-lg border border-border px-3" onClick={()=>setCount(c=>c+25)}>Show more changes ({changes.length-count} remaining)</button>}
+        </div>}
       </div>}
     </article>
   </li>
