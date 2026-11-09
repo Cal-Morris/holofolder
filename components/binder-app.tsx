@@ -105,7 +105,7 @@ import { renderSearchOverlayView } from "@/components/binder/search-overlay"
 import { renderMobileNavMenuView } from "@/components/binder/mobile-nav-menu"
 import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
-import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
+import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
@@ -116,7 +116,9 @@ interface BinderAppProps {
   /** Internal staged read-only injection. Never supplied by production bootstrap or share routes. */
   stagedSlotDisplay?: SlotDisplayInput
   /** Internal owner-only draft sink. No production caller or transport is enabled. */
-  onStagedSlotCommandIntent?: (draft: StagedSlotCommandIntent) => void
+  onStagedSlotCommandIntent?: SlotCommandSink
+  stagedSlotSessionId?: string
+  stagedSlotLocalDurable?: boolean
   stagedSlotCatalog?: InventoryCatalogResolver
   initialUser: User | null
   initialCollection: InitialCollectionRow[]
@@ -138,6 +140,8 @@ export default function BinderApp({
   stagedSlotDisplay,
   onStagedSlotCommandIntent,
   stagedSlotCatalog,
+  stagedSlotSessionId,
+  stagedSlotLocalDurable,
   initialUser,
   initialCollection,
   initialCollectionOwnerUserId,
@@ -1054,7 +1058,7 @@ export default function BinderApp({
     const status = stagedSlotDisplay?.binder.slots.find(s => s.id === slot.id)?.status
     return Boolean(slot.item) && (collectionViewFilter === "favorite" ? status === "finalized" : status !== "finalized")
   }) : undefined, [orderedDisplaySlots, settings.binderRows, settings.binderCols, selectedGen, collectionViewFilter, stagedSlotDisplay])
-  const layoutScopeKey = JSON.stringify([user?.id, stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, initialBinderId, activeMainView, collectionViewFilter, selectedGen, binderDimension, isSpreadLayout, settings.binderRows, settings.binderCols])
+  const layoutScopeKey = JSON.stringify([stagedSlotSessionId, user?.id, stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, initialBinderId, activeMainView, collectionViewFilter, selectedGen, binderDimension, isSpreadLayout, settings.binderRows, settings.binderCols])
   const [layoutSession, setLayoutSession] = useState<{ scope: string; id: string } | null>(null)
   const canEditLayout = Boolean(!legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
     && activeMainView === "binder" && collectionViewFilter === "all" && selectedGen === 0)
@@ -1067,6 +1071,7 @@ export default function BinderApp({
     scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: null },
     catalog: stagedSlotCatalog,
     onCommandIntent: onStagedSlotCommandIntent,
+    localDurable: stagedSlotLocalDurable,
   } : undefined
   const layoutToolbar = layoutBoundary ? <LayoutToolbar key={`${layoutScopeKey}:${layoutSession?.id ?? "browse"}`} editing={editingLayout}
     boundary={layoutBoundary} onToggle={() => { closeSlotDetail(); setLayoutSession(editingLayout ? null : { scope: layoutScopeKey, id: crypto.randomUUID() }) }} /> : undefined
@@ -3782,10 +3787,10 @@ export default function BinderApp({
         />
       ) : null}
 
-      {selectedDisplaySlot && <SlotDetail key={`${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
+      {selectedDisplaySlot && <SlotDetail key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
         onDoneLayout={() => { closeSlotDetail(); setLayoutSession(null) }}
         layout={editingLayout && layoutBoundary ? { ...layoutBoundary, scope: { ...layoutBoundary.scope, slotId: selectedDisplaySlot.id } } : undefined}
-        picker={!editingLayout && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: selectedDisplaySlot.id }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent } : undefined} />}
+        picker={!editingLayout && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: selectedDisplaySlot.id }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent, localDurable: stagedSlotLocalDurable } : undefined} />}
       {isCardSelectorOpen && selectedPokemon && (
         <CardSelector
           pokemonId={selectedPokemon.id}
