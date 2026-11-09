@@ -48,8 +48,9 @@ export type InventorySnapshotReaders = {
   [K in "items" | "placements" | "collections" | "binders"]: (after: string | null, revision: number) => Promise<SnapshotPage<InventorySnapshot[K][number]>>
 }
 /** Fetch all private streams before publishing any snapshot. The binder reader must itself collect
- * every slot page under inventory+collection+layout revisions, never return a partial BinderSnapshot. */
-export async function readCompleteInventorySnapshot(ownerUserId: string, inventoryRevision: number, readers: InventorySnapshotReaders): Promise<CompleteInventorySnapshot> {
+ * every slot page under inventory+collection+layout revisions, never return a partial BinderSnapshot.
+ * A server reader may fence the completed streams before branding; failed fences publish nothing. */
+export async function readCompleteInventorySnapshot(ownerUserId: string, inventoryRevision: number, readers: InventorySnapshotReaders, beforeBrand?: () => Promise<void>): Promise<CompleteInventorySnapshot> {
   const [items, placements, collections, binders] = await Promise.all([
     readCompleteSnapshotRows(readers.items, inventoryRevision, i => i.id),
     readCompleteSnapshotRows(readers.placements, inventoryRevision, p => p.inventoryItemId),
@@ -58,6 +59,7 @@ export async function readCompleteInventorySnapshot(ownerUserId: string, invento
   ])
   const snapshot = normalizeInventorySnapshot({ ownerUserId, inventoryRevision, items, placements, collections, binders })
   if (!snapshot) throw new Error("invalid-complete-snapshot")
+  await beforeBrand?.()
   completeReads.add(snapshot)
   return snapshot as CompleteInventorySnapshot
 }

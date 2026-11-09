@@ -34,6 +34,8 @@ Reorder, structural insert/remove, assignments, selected wants, deletes and move
 
 There is no enabled owner-wide inventory read API yet. `readCompleteInventorySnapshot` provides an internal adapter for four complete stable owner-revision streams (items, placements, collections, binders). Its callbacks must bind authenticated scope, stable keysets and authoritative totals; totals are an internal completeness assertion, not invented fields on the current HTTP routes. The binder reader must call `readAllSlotPages` and map every returned stored slot under matching inventory/collection/layout revisions. Repeated identities, changing totals, missing rows and failed streams reject the entire read. Domain normalization then verifies all placements/slots/items form a complete owner-scoped bijection. #376 owns supported reads, status mapping, registry/OpenAPI/MCP and auth/provenance binding.
 
+The first-party authenticated table binding is now prepared in `lib/server/inventory-read.ts`. See [complete-read mapping, errors and scope boundaries](inventory-complete-read.md). It validates current session/membership/billing and all paginated streams before branding, with whole-attempt retry and a shared deadline. It remains internal and unwired: queue ACKs must call it after ledger replay, and legacy/mixed owners explicitly remain unavailable. Developer REST/MCP grants and rollout are separate gates.
+
 ## Proof and remaining gates
 
 Run focused units and the real-browser storage proof:
