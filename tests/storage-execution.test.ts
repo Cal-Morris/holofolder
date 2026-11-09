@@ -47,3 +47,25 @@ test("app and shared REST/MCP authentication, scopes, revocation and trusted ser
   const { execFileSync } = await import("node:child_process")
   execFileSync(process.execPath, [new URL("./fixtures/storage-execution-auth.ts", import.meta.url).pathname], { stdio: "pipe" })
 })
+
+test("default recovery v2 is explicit, canonical and separate from strict version-1 requests", () => {
+  const id = "00850000-0000-4000-8000-000000000001"
+  const v2 = { eventId: "1", restoreUnassignedItemIds: [], planVersion: 2, replacementDefaultCollectionId: id, inventoryRevision: 3,
+    collections: [{ collectionId: id, version: 4, layoutRevision: 5 }] }
+  const applying = { ...v2, operationId: "synthetic-default-v2", planToken: "a".repeat(64), confirmed: true }
+  assert.deepEqual(parseStorageRequest("recovery.preview.v2", v2), v2)
+  assert.deepEqual(parseStorageRequest("recovery.apply.v2", applying), applying)
+  assert.throws(() => parseStorageRequest("recovery.preview", v2))
+  assert.throws(() => parseStorageRequest("recovery.apply", applying))
+  assert.throws(() => parseStorageRequest("recovery.preview.v2", preview))
+  for (const change of [{ confirmed: false }, { planVersion: 1 }, { force: true }, { actor: id }, { inventoryRevision: -1 },
+    { collections: [] }, { replacementDefaultCollectionId: "bad" }, { collections: [{ collectionId: id, version: 4, layoutRevision: 5, raw: {} }] },
+    { collections: [{ collectionId: id, version: 4, layoutRevision: -1 }] }, { restoreUnassignedItemIds: ["copy"] }]) {
+    assert.throws(() => parseStorageRequest("recovery.apply.v2", { ...applying, ...change }))
+  }
+  const result = { planVersion: 2, eventId: "1", supported: true, unsupported: [], conflicts: [], planToken: "b".repeat(64),
+    restoreUnassignedItemIds: [], changes: [{ table: "binders", id, before: { is_default: false }, after: { is_default: true } }], rootRevisionsAdvance: true }
+  assert.deepEqual(normalizeStorageResult("recovery.preview.v2", result), result)
+  assert.throws(() => normalizeStorageResult("recovery.preview", result))
+  assert.throws(() => normalizeStorageResult("recovery.preview.v2", { ...result, changes: [{ certificate: "private" }] }))
+})

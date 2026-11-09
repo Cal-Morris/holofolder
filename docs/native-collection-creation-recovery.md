@@ -8,7 +8,7 @@ Related: #396, #384, #379. Depends on PR #428, published head `12433cdb0e0e0b4d8
 
 A first-native collection created beside an existing legacy default can be recovered. Its newly introduced `inventory_owner_state` is **retained**, with the current revision advanced once. This is a collection inverse, not an authority rollback. It never deletes inventory, demotes slot authority, converts a legacy binder, replays acquisitions or resets global counters. Existing copies, duplicate printings, grades/certificates, acquisition dates, explicit wants, legacy rows and other collections survive exactly. The unchanged storage authority guard permits collection-state removal only through the binder cascade; the executor does not bypass it.
 
-**First/default creation is still blocked** by `creation_default_requires_explicit_replacement`. This slice does not choose a replacement, leave an implicit default decision to a legacy bootstrap, or mutate another collection to make undo work. A nondefault inverse also requires a surviving default, otherwise `creation_surviving_default_missing`. These are precise conflicts with no plan token. #396 remains incomplete and #379 stays blocked.
+**In the version-1 contract, first/default creation is still blocked** by `creation_default_requires_explicit_replacement`. This slice does not choose a replacement, leave an implicit default decision to a legacy bootstrap, or mutate another collection to make undo work. A nondefault inverse also requires a surviving default, otherwise `creation_surviving_default_missing`. These are precise conflicts with no plan token. #396 remains incomplete and #379 stays blocked.
 
 ## Completeness, later edits and dependencies
 
@@ -25,6 +25,8 @@ Current membership is locked with `FOR SHARE` and rechecked before owner locks, 
 All **three fresh plan reads** remain: initial dependency discovery, reviewed preview/fingerprint after locks, and final private plan. Default/reference changes between preview/apply invalidate the fingerprint. Revocation wins before owner locks or waits through accepted recovery's transaction. Conflicting later edits committed while dependency locking waits are caught by the fresh reads.
 
 076 capture/flush/redaction/immutable guards, 079 validation behavior, 081 frozen restoration, current allowances and private runtime denials are unchanged. Recovery appends one linked `recovery.apply` event and the existing account-lifetime `recovery_v1` receipt in the same transaction. Recorder failure or statement cancellation rolls back roots, slots, ledger and history together. Exact replay after current authorization returns the accepted receipt; changed input conflicts. A creation retry after recovery returns its original historical 083 receipt and never recreates deleted entities. Fresh authoritative reconciliation is still required by #363. Ordinary deletion recovery can reverse this inverse using the same original collection/slot IDs, subject to current conflict/allowance rules.
+
+085 adds a separately versioned, explicit replacement opt-in for default creation. See [eligibility, canonical preconditions, conflicts and proof limits](explicit-default-creation-recovery.md). The 084 behavior and evidence below remain version-1 history.
 
 ## API and release boundary
 
