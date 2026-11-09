@@ -1,0 +1,111 @@
+# Staged atomic inventory operations (#383)
+
+This is an internal command preparation slice consuming #382's inventory, placement, grading, AuditContext and pure plans, and schema 073/074. It does not convert any binder or enable collecting through the new store. The legacy app remains authoritative. Migration **075** is applied **locally only** by this worker; parent owns review, a fresh restore-verified backup, hosted application and serialized release.
+
+`/app/api/inventory` GET/POST/PATCH/DELETE always return **503**, `code: inventory_operations_staged`, `Cache-Control: private, no-store`. The thin handlers do not authenticate, parse input, read private inventory or invoke SQL. No environment flag or body can enable them. `/app/api/binder-slots` remains hard 503. All seven new 075 functions revoke EXECUTE from PUBLIC, anon, authenticated, holo_mcp **and service_role**. Existing 074 restrictions remain intact. No runtime caller binds the internal adapter to a privileged connection.
+
+## Internal boundary, not a public API
+
+`lib/server/operations/inventory.ts` defines the strict request parser and transport-independent `executeInventoryCommand` adapter. It reuses shared inventory/grading/selection and slot precondition types. The adapter accepts a server-established AuditContext and an injected trusted RPC binding; shape validation is never authentication. HTTP does not call it. `inventory_command_v1(actor uuid, owner_id uuid, request jsonb, trusted_intent jsonb)` is the sole ownership transaction, without TypeScript read/modify/write persistence or per-command HTTP writes.
+
+The supported REST/MCP registry, generated OpenAPI and customer help remain unchanged. #376 must review/catalog-match these internal contracts, add supported schemas/permissions/examples/generated references, and verify app/REST/MCP parity **before exposure**. These prototypes are not public registry operations. This hidden slice has no customer release post or Framer publication. #379 owns the eventual enabled feature block.
+
+## Exact request shapes
+
+The root has exactly `operationId: string` (8–100 characters), `inventoryRevision: safe nonnegative integer`, `collections: CollectionToken[]`, `commands: Command[]`. Unknown properties are rejected. IDs are trimmed nonempty opaque strings of at most 200 characters; persisted collection IDs are UUIDs. Actor, owner, source/client and catalog evidence are never accepted from this body.
+
+`CollectionToken = { collectionId: UUID, version: integer, layoutRevision: integer }`. Include every source/destination/placed-edit collection, including one being deleted. Extra tokens are checked too. Duplicate collection tokens fail. Each must resolve to the same owner and current `authority: slots`. Legacy collections fail closed, without automatic conversion.
+
+`SlotPrecondition = { id, version, inventoryItemId, itemVersion, placementVersion }`, consuming #362. Empty means all three item fields are null. Occupied means the exact item ID, item version and placement version. `SlotRef = { collectionId, slot: SlotPrecondition }`.
+
+`ItemRef = { itemId, itemVersion, placement: SlotRef | null }`. Null asserts Unassigned. A placed ref asserts its exact collection/slot and all independent versions. A missing, removed, stale, moved or already-assigned explicit copy conflicts. It never falls through to new-copy creation.
+
+`Selection` consumes #382: `{ kind: "existing", inventoryItemId, itemVersion }` or `{ kind: "catalog", identity: { kind: "card", cardId, language?, finish? }, newItemId }`. Existing selection asserts Unassigned. Catalog selection uses reviewed canonical/alias identity rather than requiring the same catalog row ID, including when both canonical and alias rows exist, plus exact variant values including absent versus known, and only eligible Unassigned copies. Indistinguishable candidates choose the lexicographically smallest item ID under C collation. Materially different recorded grading objects return `inventory_copy_choice_required`. The picker must offer Raw and the recorded provider/grade/copy groups, then send an explicit existing item ID/version for that group, without substituting/cloning on conflict. If none is eligible, catalog selection creates the supplied unused ID as **raw**, with unknown acquisition timestamp. Assigned copies are never stolen. Explicit `add` records another genuinely owned copy, even if another item has the same card/certificate; neither field is a uniqueness key.
+
+`SelectedWant = null | { index: integer 0..99, expected: WantedCard }`. `expected` is the full exact shared wanted-card value, including people/variant/timestamp fields. The containing destination slot version is mandatory. Fulfillment checks that exact array index/value, validates the chosen item's persisted printing and any wanted variant, then removes **only that index in that destination slot** atomically. Duplicates at other indices and wants in every other slot/collection remain. Null preserves all explicit wants. The selected destination target is fulfilled through its sole primary placement; another collection's target cannot count this item.
+
+| Kind | Exact fields beyond `kind` | Behavior |
+| --- | --- | --- |
+| `add` | `itemId`, `identity`, `grading`, `acquiredAt` | Explicit new ownership in Unassigned. Shared InventoryIdentity/GradingRecord, timestamp string or null. Card identities require trusted persisted catalog; legacy Pokémon-only identities remain honest unknown printings (current Dex 1–1025). No reuse/deduplication. |
+| `edit` | `item: ItemRef`, `grading: GradingRecord or null` | Per-copy grading edit, no identity/acquisition/placement change. Same grading is a no-op. Pokémon-only ownership cannot be graded. No condition/valuation or provider integration. |
+| `removeOwned` | `item: ItemRef` | Explicit loss of ownership. Remove this item and its placement, clear its prior slot status, retain target/order/wants/provenance. Return deleted metadata and prior placement as recovery evidence. |
+| `unassign` | `item: ItemRef` | Clear primary placement/status, retain item/identity/grading/acquisition/metadata and source target/order/wants/provenance. Already Unassigned is a no-op. |
+| `assign` | `selection`, `destination: SlotRef`, `occupied: cancel or unassign`, `fulfillWant: SelectedWant` | Reuse eligible Unassigned or create raw for catalog selection. Explicit existing never creates. An occupied destination conflicts for cancel, or explicitly releases its displaced item to Unassigned. |
+| `move` | `item: ItemRef`, `destination: SlotRef`, `occupied: cancel or unassign or swap`, `fulfillWant: SelectedWant` | Move an already placed item. Swap requires occupied destination and both target matches. Unassign explicitly releases displaced ownership. No source-target/order/want movement. Same source/destination is invalid. |
+| `removeSlots` | `slots: SlotRef[]` | Delete only these storage pockets/wants/provenance and cascade placements into Unassigned. No owned-copy deletion. Surviving order/positions remain; gaps are valid, #362 normalizes on its next structural layout operation. |
+| `deleteCollection` | `collectionId: UUID`, `slots: SlotPrecondition[]`, `replacementDefaultCollectionId: UUID or null` | Exact complete slot list, including empty slots, required. Delete binder/storage plus slots/placements/shares/frozen legacy rows via existing FKs. Every item remains Unassigned. Nondefault deletion requires null replacement. Default deletion requires a distinct same-owner declared current slot collection as explicit replacement, made default atomically; the last binder cannot be deleted. |
+
+Newly added identities are canonicalized from validated persisted catalog metadata. Explicit existing copies entering **free** slots, unassignments and removal require no catalog evidence. Constrained destinations and both ends of a swap do require evidence. A historical missing catalog record never justifies cloning/deleting a copy. Item moves leave source target, position, wants and preset provenance in place; whole-slot layout moves remain #362's separate operation.
+
+Synthetic selection example, against an empty current slot:
+
+```json
+{
+  "operationId": "synthetic-assign-001",
+  "inventoryRevision": 7,
+  "collections": [{ "collectionId": "03830000-0000-4000-8000-000000000011", "version": 2, "layoutRevision": 3 }],
+  "commands": [{
+    "kind": "assign",
+    "selection": { "kind": "catalog", "identity": { "kind": "card", "cardId": "synthetic-card", "language": "en", "finish": "holo" }, "newItemId": "synthetic-new-owned-copy" },
+    "destination": { "collectionId": "03830000-0000-4000-8000-000000000011", "slot": { "id": "synthetic-slot", "version": 4, "inventoryItemId": null, "itemVersion": null, "placementVersion": null } },
+    "occupied": "cancel",
+    "fulfillWant": null
+  }]
+}
+```
+
+This example is an internal prototype payload, not an enabled REST request.
+
+## Atomicity, bulk preview, authority and billing
+
+One batch is one SQL transaction and one operation ID, with at most 100 commands, 32 declared collections, 256 affected work units (each command charges max(1, explicit slot count) plus item count), 256 KiB request and 1 MiB result. Large collection deletion fails without side effects; remove slots in reviewed bounded batches first, then delete the remaining collection. Every explicitly touched slot/item is single-touch across the batch. Requests cannot use a prior command's new ID or mutate an entity twice; submit final independent intentions. A bulk move sends each item and selected destination ID explicitly, preserving request order. No species-to-slot inference occurs.
+
+`previewInventoryMoves` is a bounded read-only pure preview, composing #382's current `planMoveInventory` against a normalized complete same-owner snapshot. It verifies both directions for swap, rejects occupied cancel/mixed scope/stale predicates/repeated entities, and returns explicit deterministic pairings and displaced IDs. It cannot grant permission, commit changes or reserve a copy. SQL rechecks full item/source/destination placement and slot/version predicates plus all collection tokens. Any failure, mixed owner, result overflow or final constraint failure rolls back the entire batch and ledger, with no partial assignment.
+
+SQL locks current partnership through commit, reuses `billing_partner_allowed`, takes the same owner advisory lock **4701** as legacy and 074, locks the owner's revision and binders/storage state, then verifies all independent predicates. A partner unlink waits for an accepted transaction; all later calls, including replay, recheck current access. A future runtime adapter must additionally use existing developer authentication/grants/current paid-access restrictions for REST/MCP, resolve owner from trusted current membership and establish a request/statement deadline before RPC invocation. Function-local timeout settings alone do not establish a deadline for the invoking statement.
+
+Billing reuses `slot_saved_count_v1`: legacy unconverted entries plus each owned item once including Unassigned, plus explicit slot wants/wishlisted/considering semantics. New ownership and legacy growth serialize under lock 4701, preventing concurrent allowance bypass. Empty targets/spacers cost zero. Moves/unassignments and grade edits introduce no ownership charge; selected-want fulfillment can offset new ownership. Over-limit non-growth operations remain allowed. Prices, 168-hour trial, paid/perpetual policy, custom-grid premium rules and binder limits remain unchanged. Existing legacy direct writes keep their original billing/authority guards. No authenticated or service-role RPC grant is added, and privileged table writers remain a rollout/audit gate.
+
+## Results, replay and audit/recovery integration
+
+Result keys are exactly `inventoryRevision`, `changed`, `selectedItemIds`, `acquiredItemIds`, `context`, `evidence`, `after`. `selectedItemIds` lists assign/move chosen IDs in command order. `acquiredItemIds` contains only **newly created** owned copies. Move, unassign, grading, removal, layout/view changes and reuse are not acquisitions and trigger no purchase/partner alert. This prototype invokes no notification or fake history recorder, even on add. #394 must wire actual acquisition intent/notification handling without treating placement as purchase.
+
+An effective batch increments the owner revision once and each affected surviving collection version once. Slot content changes increment touched slot versions; item metadata edits increment only item version, preserving identity/acquired_at/legacy_source; actual moves increment placement version. A new placement from Unassigned starts at 0. The owner revision and destination/source slot versions prevent absence/placement-version ABA replay; never recover from placement version alone. Only structural removal increments layout revision; item movement does not. No-op unassign/edit keeps revisions and has `changed: false`.
+
+`context` is a server-derived shared AuditContext: actor comes exclusively from the trusted SQL UUID argument, affected stable IDs are recomputed, and trusted source/client/batch/original occurrence intent is preserved unchanged. `trusted_intent` has exactly `source`, `clientId`, `batchId`, `clientOccurredAt`, each nullable as in #382 except source. No client request actor/history claim is accepted. Offline #363 must preserve original intent while reauthenticating the actual accountable actor. Shape-valid context is not authenticated context.
+
+Each `evidence` entry has `kind`, `before`, `after` with bounded touched `items`, `placements`, `slots`, `collections`, `binders` in database row shapes, including deleted metadata. These are private recovery integration values, **not events or an undo API**. Storage-deletion evidence captures ownership/slots/collection/default-selection state, not all auxiliary cascaded search-history, push queues or share configuration. #394/#396 must define recovery/redaction for those separately; restoring ownership must never silently republish an old share. Per-command collection versions precede the final one-per-batch increment; root `after` is authoritative final state, with final collection versions. Deleted IDs are explicit through before-present/after-absent evidence. There are currently no persisted inventory showcase references in schema 073/074; future non-owning references must clear transactionally on explicit item removal before #377/#394 exposure. Removing placements/storage does not clear display references because ownership survives.
+
+#394 must insert into the existing transactional history recorder at the documented SQL integration point **before ledger commit**, using original intent and before/final-after evidence. Recorder failure must abort everything. No competing history table is introduced. #396 must persist bounded inverse-safe state independently of deleted FKs and require current owner/item/slot/layout/collection versions and explicit absence predicates before recovery. If a former slot was filled meanwhile, restoration cannot overwrite it; restoring Unassigned requires a visible conflict decision. Actual bounded undo/recovery execution is #396. No unaudited runtime access is granted by this preparation.
+
+Replay uses existing `developer_idempotency`, operation `inventory_v1`, keyed by authenticated actor/operation ID. SQL hashes owner, complete request and trusted original intent. Same key/different intent conflicts. Access is checked first, replay before old/deleted entity predicates. Infinite expiry prevents cleanup from forgetting an accepted command. Failed commands consume no key. #394/#396 must assess retained private result size/retention and integrate audit references before exposure. After an unknown commit outcome, retry the **same** operation ID/intent, not a new ID that could create another copy.
+
+| Internal SQL error/message | Future supported adapter response |
+| --- | --- |
+| `42501`, `inventory_access_denied` | 403/404, no unrelated-owner data |
+| `55000`, `inventory_storage_unavailable` | 503, no conversion or legacy-write fallback |
+| `40001`, owner/collection/item/placement/slot/want conflict | 409, reread relevant scoped state before retry |
+| `40001`, `inventory_destination_occupied` / `inventory_destination_empty` | 409, explicit new occupied-slot intent |
+| `40001`, `inventory_copy_choice_required` | 409, show recorded Raw/grade/copy choices |
+| `40001`, `idempotency_conflict` | 409, original intent or genuinely new operation ID |
+| `22023`, malformed/oversized/repeated/same-slot/invalid selection/want/catalog/target | 400, correct/reduce request |
+| `card_limit_reached` | existing 402 billing contract |
+| safe-integer constraint overflow | 409, no mutation/replay row committed |
+| lock/deadline/serialization failure | bounded whole-operation replay with same ID and original intent; reread unknown outcome |
+
+The actual app route returns only its unconditional 503. #376 must sanitize DB details and implement supported status mapping, pagination/reads, registry/schema/docs and smoke tests. Do not forward SQL row details or log private grading/certificates.
+
+## Application, compatibility and remaining gates
+
+Parent reviews exact head and 075, refreshes backup/restore evidence from current hosted state, applies only 075 after already-applied 074 as one transaction, and verifies function ACLs, original table counts/digests and legacy billing/reads. Applying the file changes function definitions only; no schema row/backfill/conversion or grants. Code and SQL deployment orders are compatible while disabled, including missing 075. If unused definitions need rollback, revert code or leave revoked definitions in place; do not reset authority/delete inventory/restore frozen legacy rows over newer edits.
+
+This worker uses only `/Users/cal/.local/share/holofolder/issue383-local/socket`, port **55483**, SQL owner `issue383_test`, restored from the fresh pre-074 archive without modifying the archive/pointers or other workers' servers. 074 is applied on that private restore, then 075 twice. Opt-in tests refuse any other socket and never create/stop a server or connect to hosted state:
+
+```sh
+bun test tests/inventory-operations.test.ts tests/inventory-model.test.ts
+INVENTORY_COMMAND_TEST_SOCKET=/Users/cal/.local/share/holofolder/issue383-local/socket bun test tests/inventory-commands-sql.test.ts
+```
+
+#361/#362 remain open for their downstream compatibility/runtime gates. #394 real transactional audit, #396 recovery, #363 offline/reconciliation, #376 supported REST/MCP/catalog parity and #379 complete rollout remain prerequisites for **any** executor grant or route enablement. UI picker/move confirmation/offline e2e, privileged legacy/share/import/guest/read/delete compatibility and production-enabled behavior are not claimed by this staged server slice. No full e2e suite or hosted migration is run here.
+
+Prepared-head proof: 1,219 unit-suite entries pass; both opt-in private SQL cases pass, including two-session copy contention, current-partner unlink and legacy/new allowance races in both directions. Full typecheck, build and lint pass, with 55 pre-existing warnings and zero changed-file warnings. 075 is rerun twice locally by the SQL suite. All 88 original table counts and 35 core digests match the pre-074 archive after synthetic fixture cleanup. A two-copy Unassigned lookup EXPLAIN ANALYZE ran inside the rolled-back fixture; it is not production/load-performance evidence. No full e2e, hosted apply, conversion, grant, merge, watch or enabled-production claim.
