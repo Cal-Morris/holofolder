@@ -114,3 +114,7 @@ The opt-in bulk toolbar consumes existing internal parsed slot create/move reque
 ## Copied set checklist drafts (#372/#373)
 
 The [set preset slice](../set-preset-checklists.md) reuses full mirrored app set reads and existing supported `list_sets`/`get_set` and paged `list_cards`/`get_card` catalog operations. Exact target/scope generation is an internal UI draft callback, not a new REST/MCP mutation. OpenAPI and public creation schemas are unchanged. 083 remains the execution boundary; detailed scope metadata requires an accepted durable contract before #379 enablement. No saved creation, hosted partner execution or persistent offline replay is claimed. [Help](../../content/docs/set-checklist-drafts.mdx).
+
+### Existing ordered public shares (#371)
+
+The existing token/named pages use a scoped, public-only internal read projection after current share permission. This adds no REST/MCP operation, permission or generated OpenAPI schema. Share/identity management remains under its existing free owner controls; inventory/slot mutation routes remain staged 503 and #379 conversion/exposure remains closed. Public pages never expose the complete private inventory read transport. See [public binder compatibility](../public-binder-compatibility.md); rollout and publication acceptance remains with #371.
