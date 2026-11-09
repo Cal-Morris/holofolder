@@ -28,3 +28,7 @@ Authoritative Undo and stale partner-safe recovery; structural deletion and occu
 ## Durable acceptance integration
 
 The shared draft sink now permits a Promise resolving to a matching local-commit receipt, alongside existing synchronous draft-only callbacks. Layout controls stay blocked during commit or a failed unaccepted draft, and Retry same draft retains original operation/slot IDs and predicates. Done/Cancel never revoke accepted queue work. The hard-gated `slots=durable` synthetic session uses the real queue and optimistic snapshot, with Saved on device/Pending sync only after commit. Production bootstrap remains unchanged. Read the [session/replay contract and verification boundary](slot-inventory-offline.md#durable-session-ui-integration-this-slice); no supported REST/MCP operation, authoritative history success, Undo or customer rollout is enabled.
+
+## Opt-in bulk extension (#370)
+
+The original single-slot behavior above remains the default. A host can supply `bulk` to `LayoutToolbar` to opt into the [bulk selection/move/insertion contract](bulk-slot-layout-editing.md). That mode preserves selection by stable ID across pages; Done and scope/view/grid/session changes clear only transient editor state. It uses the same durable acceptance sink and existing bounded atomic commands. Public rollout, Undo, destructive editing and fill remain gated.
