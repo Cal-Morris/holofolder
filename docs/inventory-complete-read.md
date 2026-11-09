@@ -257,3 +257,5 @@ Full typecheck and production build passed, full lint retained the existing
 passed all four ACK/session/offline scenarios plus actual owner/partner navigation
 and the real service-worker privacy proof. This is local synthetic read evidence,
 not hosted RLS/load or production enablement proof.
+
+Parent catalog regression: fallback alias/canonical probes page every matching row using stable ID keysets within the existing budget, before language-specific resolution. A later matching printing cannot be hidden by a two-row probe; missing/rejected later pages fail instead of publishing partial catalog evidence. Both 501-row alias/canonical regressions failed on the original source and pass after the fix. Parent verification:54 focused tests, actual Chromium/IDB/SW proof, typecheck, lint at55 existing warnings and production build. No hosted authentication or enabled runtime proof.

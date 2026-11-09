@@ -37,12 +37,25 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
   // Alias IDs are mirror evidence too. Ambiguous matches remain separate and cannot resolve a card.
   for (const id of ids.filter(id => !cards.some(c => c.id === id))) {
     for (const canonical of [false, true]) {
-      check()
-      let query = db.from("tcg_cards").select("id,set_id,local_id,name_en,name_json,external_ids_json").limit(2)
-      query = canonical ? query.eq("external_ids_json->catalog->>canonicalId", id) : query.contains("external_ids_json", { catalog: { aliasIds: [id] } })
-      const response = await query.abortSignal(signal)
-      if (response.error || !Array.isArray(response.data)) throw new Error("inventory_read_unavailable")
-      for (const row of response.data as unknown as Row[]) if (!cards.some(c => c.id === row.id)) cards.push(row)
+      let after: string | null = null
+      const seen = new Set<string>()
+      do {
+        check()
+        let query = db.from("tcg_cards").select("id,set_id,local_id,name_en,name_json,external_ids_json").order("id").limit(500)
+        query = canonical ? query.eq("external_ids_json->catalog->>canonicalId", id) : query.contains("external_ids_json", { catalog: { aliasIds: [id] } })
+        if (after !== null) query = query.gt("id", after)
+        const response = await query.abortSignal(signal)
+        if (response.error || !Array.isArray(response.data) || response.data.length > 500) throw new Error("inventory_read_unavailable")
+        const page = response.data as unknown as Row[]
+        for (const row of page) {
+          const metadata = readCatalogMetadata(row.external_ids_json)
+          if (!isSlotContractId(row.id) || seen.has(row.id)
+            || (canonical ? metadata.canonicalId !== id : !metadata.aliasIds?.includes(id))) throw new Error("inventory_read_unavailable")
+          seen.add(row.id)
+          if (!cards.some(c => c.id === row.id)) cards.push(row)
+        }
+        after = page.length === 500 ? String(page.at(-1)!.id) : null
+      } while (after !== null)
     }
   }
   const cardIds = cards.map(c => String(c.id))

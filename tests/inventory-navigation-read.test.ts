@@ -214,3 +214,28 @@ test("mirror canonical/alias identities resolve without treating legacy source J
   assert.deepEqual(index.rows.map(r => r.name), ["Synthetic Energy", "Synthetic Energy"])
   assert.deepEqual(index.rows.map(r => r.speciesNames), [[], []])
 })
+
+for (const kind of ["alias", "canonical"] as const) {
+  test(`all ${kind} matches are paged before language-specific catalog resolution`, async () => {
+    const f = fixture(1)
+    f.tables.inventory_items[0].identity = { kind: "card", cardId: "synthetic-probe", language: "en" }
+    f.tables.tcg_sets = [{ id: "synthetic-set", name_en: "Synthetic set" }]
+    f.tables.tcg_cards = Array.from({ length: 501 }, (_, n) => ({
+      id: `synthetic-mirror-${String(n).padStart(4, "0")}`, local_id: String(n), set_id: "synthetic-set",
+      name_en: `Synthetic name ${n}`, name_json: { [n === 0 || n === 500 ? "en" : "fr"]: `Synthetic name ${n}` },
+      external_ids_json: { catalog: kind === "alias" ? { aliasIds: ["synthetic-probe"] } : { canonicalId: "synthetic-probe" } },
+    }))
+    const result = await readOwnerInventoryState(f.client)
+    const currentScope = { accountUserId: owner, ownerUserId: owner, sessionId: scope.sessionId }
+    const index = navigationIndex(currentScope, { scope: currentScope, evidence: { kind: "complete", snapshot: result.snapshot }, ...result.navigation })
+    assert.equal(index.rows[0].name, null, "a later English match makes the printing ambiguous")
+    assert.equal(result.navigation.catalog.length, 501)
+    assert.ok(f.requests.some(r => r.table === "tcg_cards" && r.url.searchParams.get("id")?.startsWith("gt.")))
+    f.intercept((table, url) => {
+      if (table === "tcg_cards" && url.searchParams.get("id")?.startsWith("gt.")) {
+        return Response.json({ message: "Synthetic rejected catalog page" }, { status: 400 })
+      }
+    })
+    await assert.rejects(readOwnerInventoryState(f.client), { code: "inventory_read_unavailable" })
+  })
+}
