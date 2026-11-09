@@ -11,6 +11,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Architecture](architecture.md): ownership boundaries, startup, writes, offline sync and integrations.
 - [Agent-readable API docs](public-api/agent-docs.md): generated Markdown, `llms.txt`, full-text exports and OpenAPI discovery.
 - [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, auth, PWA scope and legacy URLs.
+- [Staged atomic slot operations](atomic-slot-operations.md): disabled structural commands, revisioned pages, billing/legacy compatibility and audit/offline/API/recovery gates.
 - [Editable binder contracts](binder-slot-contracts.md): internal slot/snapshot, target/matching, copied preset and pure layout contracts, with explicit adapter and rollout boundaries.
 - [Multiple binders](multiple-binders.md), [binder history](binder-history.md), [collection import](collection-import.md).
 - [Card catalog](card-catalog.md), [card image store](card-image-store.md), [pricing coverage](card-pricing-coverage.md).

@@ -10,6 +10,7 @@ When you add a migration, use the next free number, keep it idempotent, and add 
 
 | File | What it does |
 |---|---|
+| `074_atomic_slot_commands.sql` | Staged SQL-owner-only slot commands/revisioned pages, owner-wide legacy+inventory allowance aggregate. No execution grant, conversion or public exposure. Apply as one transaction after 073; parent-owned review/application. [Contract and gates](../docs/atomic-slot-operations.md). |
 | `073_inventory_slot_storage.sql` | Additive inventory, primary placements, stable slots, private owner/partner RLS and explicit atomic legacy conversion. Apply as one transaction; converts no binders. Parent-reviewed application and backup gates: [storage migration](../docs/inventory-storage-migration.md). |
 | `072_developer_entitlement_lookup.sql` | Reads current paid entitlement without counting saved collection rows on every API request. Trial access remains excluded. |
 | `071_binder_slot_counts.sql` | Service-role grouped slot counts for binder lists, replacing one count request per binder. |
