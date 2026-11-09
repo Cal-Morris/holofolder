@@ -73,7 +73,8 @@ export function valueInventoryCollection(projection: InventoryCollectionProjecti
     const finish = getRegionalFinishPrices(snapshot ? applyPriceStaleness(snapshot, now) : undefined, region)[identity.finish as PricedCardFinish]
     const amount = finish?.gbpAmount
     // This read surface never introduces timing signals, including for low/unknown confidence.
-    const quote = finish && typeof amount === "number" && Number.isFinite(amount) && amount > 0 ? { ...finish, buySignal: null } : null
+    const quote = finish && typeof amount === "number" && Number.isFinite(amount) && amount > 0
+      ? { ...finish, ...applyPriceStaleness(finish, now), buySignal: null } : null
     return [JSON.stringify(identity), quote] as const
   }))
   const copies = projection.owned.map(item => {

@@ -44,3 +44,27 @@ test("Inventory storage totals, explicit destinations and saved raw references s
   await expect(totals).toHaveCount(0)
   await expect(list).toHaveCount(0)
 })
+
+test("Inventory caps confidence for an older regional source after finish selection", async ({ page, standalone, insets, baseURL }) => {
+  if (standalone) await emulateStandalone(page, insets)
+  await mockBackends(page, page.context(), { signedIn: false, baseURL })
+  await page.route("**/api/card-prices?*", async route => {
+    const prices = inventoryProjectionPrices()
+    for (const price of prices) {
+      const finish = price.finishPrices![0]
+      finish.confidence = "high"
+      finish.updatedAt = new Date().toISOString()
+      finish.sourcePrices = [{ source: "cardmarket", label: "Synthetic older regional evidence", variantLabel: null,
+        marketGbpAmount: finish.gbpAmount, lowGbpAmount: null, originalMarketAmount: 13,
+        originalLowAmount: null, originalCurrency: "EUR", updatedAt: "2020-01-01T00:00:00Z" }]
+    }
+    await route.fulfill({ json: { prices } })
+  })
+  await page.goto("/app/e2e-harness/inventory")
+  await page.getByRole("combobox", { name: "Harness evidence" }).selectOption("projection")
+  const list = page.getByRole("list", { name: "Owned copies" })
+  await expect(list.getByText(/low confidence · Updated 2020-01-01/)).toHaveCount(5)
+  await expect(list.getByText(/high confidence/)).toHaveCount(0)
+  await expect(list.getByText(/Raw reference, not graded value/)).toBeVisible()
+  await new Harness(page, insets, false).expectNoHorizontalOverflow()
+})

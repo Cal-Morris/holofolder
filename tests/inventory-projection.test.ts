@@ -81,3 +81,26 @@ test("different finishes share one transport request and unknown/invalid amounts
   assert.equal(result.rawUnknownCopies, 3)
   assert.equal(result.rawPricedCopies, 0)
 })
+
+// Synthetic mismatched source/snapshot dates, never live market evidence.
+for (const [finishDate, sourceDate, expected] of [
+  ["2026-11-09", "2026-09-01", "low"],
+  ["2026-11-09", "2026-11-01", "medium"],
+  ["2026-09-01", "2026-11-09", "low"],
+] as const) {
+  test(`regional quote respects both freshness caps: ${finishDate}/${sourceDate}`, () => {
+    const projection = projectInventoryCollection(inventoryBrowseFixture(1), inventoryBrowseCatalog)
+    const price = syntheticPrice()
+    const finish = price.finishPrices![0]
+    finish.updatedAt = `${finishDate}T00:00:00Z`
+    finish.confidence = "high"
+    finish.sourcePrices = [{ source: "tcgplayer", label: "Synthetic native source", variantLabel: null,
+      marketGbpAmount: 10, lowGbpAmount: null, originalMarketAmount: 13, originalLowAmount: null,
+      originalCurrency: "USD", updatedAt: `${sourceDate}T00:00:00Z` }]
+    const result = valueInventoryCollection(projection, [price], "US", Date.parse("2026-11-09T00:00:00Z"))
+    assert.equal(result.copies[0].quote?.updatedAt, `${sourceDate}T00:00:00Z`)
+    assert.equal(result.copies[0].quote?.confidence, expected)
+    assert.equal(result.copies[0].quote?.buySignal, null)
+    assert.equal(result.rawTotalGbp, 10)
+  })
+}
