@@ -19,6 +19,8 @@ import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
 import type { CardScanImageCandidate } from "@/lib/card-scan-evidence"
 import { TRADING_CARD_ASPECT_RATIO, getSlotLabel, type PageScanCardMatchSummary, type PageScanSummary } from "@/lib/page-scan"
 
+import NativePageScanner, { type NativePageScanAdmission } from "@/components/native-page-scanner"
+
 const GUIDED_SCAN_FRAME_COUNT = 16
 const GUIDED_SCAN_FRAME_DELAY_MS = 800
 const GUIDED_SCAN_SLOT_VOTE_RATIO = 0.45
@@ -124,7 +126,8 @@ function getScannerOverlayLayout(result: BinderPageScanResult) {
 
 type CollectionApi = ReturnType<typeof useCollection>
 
-export type PageScannerProps = {
+type LegacyPageScannerProps = {
+  nativeAdmission?: undefined
   initialSlotIndex: number
   currentPageSlots: Array<{ id: number; name: string } | null>
   currentBinderPage: number
@@ -148,7 +151,15 @@ export type PageScannerProps = {
   onClose: () => void
 }
 
-export default function PageScanner({
+/** Explicit host admission only; absence retains the legacy scanner. */
+export type PageScannerProps = LegacyPageScannerProps | { nativeAdmission: NativePageScanAdmission; onClose: () => void }
+
+export default function PageScanner(props: PageScannerProps) {
+  if (props.nativeAdmission) return <NativePageScanner admission={props.nativeAdmission} onClose={props.onClose} />
+  return <LegacyPageScanner {...props} />
+}
+
+function LegacyPageScanner({
   initialSlotIndex,
   currentPageSlots,
   currentBinderPage,
@@ -166,7 +177,7 @@ export default function PageScanner({
   setPageScanSummary,
   setPageScanError,
   onClose,
-}: PageScannerProps) {
+}: LegacyPageScannerProps) {
   const [pageScannerMode, setPageScannerMode] = useState<PageScannerMode>("slot-sweep")
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isCameraReady, setIsCameraReady] = useState(false)

@@ -127,3 +127,7 @@ The [set preset slice](../set-preset-checklists.md) reuses full mirrored app set
 ### Existing ordered public shares (#371)
 
 The existing token/named pages use a scoped, public-only internal read projection after current share permission. This adds no REST/MCP operation, permission or generated OpenAPI schema. Share/identity management remains under its existing free owner controls; inventory/slot mutation routes remain staged 503 and #379 conversion/exposure remains closed. Public pages never expose the complete private inventory read transport. See [public binder compatibility](../public-binder-compatibility.md); rollout and publication acceptance remains with #371.
+
+### Private scanner destination review (#375)
+
+Opt-in PageScanner camera/photo and QuickCardScanner review prepare existing parsed inventory intents for the device-commit sink. Capture and transient OCR/occupancy review are browser-only, not public native mutations. No REST/MCP registry, permission, OpenAPI/generated contract or route admission changes. All native runtime guards remain closed. [Internal host contract and atomic append gap](../scan-destinations.md), [staged help](../../content/docs/scan-destinations.mdx) and [unpublished release copy](../releases/scan-destinations-draft.md) record remaining #362/#383/#366/#369/#376/#379/#394/#396/#393 gates.
