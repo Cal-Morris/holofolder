@@ -67,3 +67,6 @@ The final isolated SQL regression covers 1,025-row bulk capture, immutable/delet
 ## Staged recovery link (077 / #396)
 
 [Safe collection recovery](safe-collection-recovery.md) adds denied private SQL preview/apply for supported versioned evidence, using this existing recorder and ledger. An accepted inverse appends a new event with `recovery_of_event_id`, current trusted actor/source and final root versions; the original and immutable guard stay unchanged. No runtime grant, recovery route, UI action or public reader-link projection is enabled. Legacy/conversion/auxiliary/asset recovery and Activity's linked original/new-event presentation remain explicit #396 work. The accepted #395 read-only release remains truthful.
+
+
+[080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.

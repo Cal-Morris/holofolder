@@ -21,7 +21,7 @@ Unrelated later partner rows survive. Global owner and collection counters are a
 These return `supported: false` and explicit reason strings, with no usable plan token:
 
 - Format 0, missing/empty inverse evidence, or evidence exceeding the recorder bounds.
-- Legacy `pokemon_collection`, `binder_legacy_rows`, conversion/authority transitions and converted collections with a conversion receipt. Mixed legacy default replacement and lossless frozen-row recovery are not enabled here.
+- Legacy `pokemon_collection`, `binder_legacy_rows` and actual conversion/authority transitions remain unsupported. With 080, unchanged conversion provenance permits ordinary edits after frozen-source validation; converted collection deletion, mapped-slot source cascades, mixed legacy default replacement and frozen-row restoration remain separate gates. See [the 080 boundary](converted-content-recovery.md).
 - Appearance/user configuration, share rows, auxiliary search/history/push state, and any other unrecognized table. A collection deletion that captured any such row is rejected as a **whole event**, never partially recovered.
 - Label asset IDs requiring a current private asset authorization/availability registry. That registry is not shipped, so restoring such a grade fails explicitly rather than dropping assets or guessing permission. Certificate text without label assets remains private and is preserved exactly.
 - Undo of collection creation, storage-kind/configuration transitions, and cross-owner transfer. Owned-copy and slot additions can be reversed safely; collection creation has additional compatibility effects outside this slice.
@@ -121,3 +121,6 @@ The practical local regression target is **10 seconds per invoked preview/apply 
 This is an engineering admission target, not a production SLA or an enabled service contract. A future trusted adapter must start the whole-intent deadline before RPC, propagate cancellation and fail atomically. Hosted statement settings, service/network latency, concurrent load and account-lifetime history remain exposure gates. The existing unsupported/finite-payload gates still reject the whole event. See [local measurements and reproduction](collection-recovery-performance.md).
 
 Parent application sequence: resolve #414's genuine Typecheck blocker, review and merge its disabled slice, take a fresh restore-verified hosted backup, apply/verify 078 then 079 in order, and serialize this dependent PR's review/merge/deployment. Neither migration was hosted-applied by this implementation task. No recovery route, Undo, API registry entry, conversion or Framer announcement is delivered. #396/#383 and their existing acceptance checklists remain open.
+
+
+080 extends only ordinary converted-binder content/placement/layout recovery. [The exact contract and remaining required slices](converted-content-recovery.md) distinguish unchanged conversion provenance from conversion undo, and document local proof plus parent application. No Activity wording or runtime exposure changes.

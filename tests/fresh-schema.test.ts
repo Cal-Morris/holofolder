@@ -12,7 +12,9 @@ test("fresh schema replays documented setup, preserves wish timestamps and handl
   const url = new URL(databaseUrl)
   assert.ok(["localhost", "127.0.0.1"].includes(url.hostname), "fresh-schema tests require a local database")
   assert.match(url.pathname, /^\/holofolder_fresh_[a-z0-9_]+$/, "use a dedicated holofolder_fresh_* database")
-  const db = new Client({ connectionString: databaseUrl })
+  const localSocket = process.env.FRESH_SCHEMA_TEST_SOCKET
+  if (localSocket) assert.equal(localSocket, "/Users/cal/.local/share/holofolder/issue396-converted-local/socket")
+  const db = new Client(localSocket ? { host: localSocket, port: Number(url.port || 5432), user: decodeURIComponent(url.username), database: decodeURIComponent(url.pathname.slice(1)) } : { connectionString: databaseUrl })
   await db.connect()
   try {
     const existing = await db.query("select nspname from pg_namespace where nspname in ('auth','storage') union select schemaname from pg_tables where schemaname='public'")
@@ -25,7 +27,7 @@ test("fresh schema replays documented setup, preserves wish timestamps and handl
       if (file.startsWith("012")) await db.query(settings[1])
       // psql sends individual statements in autocommit, required by CONCURRENTLY.
       execFileSync("psql", ["-X", "-v", "ON_ERROR_STOP=1", ...(file.startsWith("048") ? ["--single-transaction"] : []), "-f", fileURLToPath(new URL(file, scripts))], {
-        env: { ...process.env, PGHOST: url.hostname, PGPORT: url.port || "5432", PGDATABASE: decodeURIComponent(url.pathname.slice(1)), PGUSER: decodeURIComponent(url.username), PGPASSWORD: decodeURIComponent(url.password) },
+        env: { ...process.env, PGHOST: localSocket ?? url.hostname, PGPORT: url.port || "5432", PGDATABASE: decodeURIComponent(url.pathname.slice(1)), PGUSER: decodeURIComponent(url.username), PGPASSWORD: decodeURIComponent(url.password) },
         stdio: "pipe",
       })
       if (file.startsWith("009")) {
