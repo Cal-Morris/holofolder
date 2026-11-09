@@ -7,8 +7,12 @@ The new stable-slot picker is internal preparation and is not enabled in the liv
 
 In the staged flow, first select a destination slot. Choose a compatible catalog card, including Trainer, item and Energy cards without Pokémon links. Distinct owned copies remain separate. Eligible Unassigned copies can be reused; already-placed copies stay where they are. Recorded grading choices retain their copy identity and do not invent slab details.
 
-**Remove target** keeps the card and makes the slot free. **Clear contents** keeps its target and position and leaves the owned copy Unassigned. A mismatched target change can be cancelled without changing anything. Layout insertion, removal and rearrangement belong to the separate Edit layout work.
+**Remove target** keeps the card and makes the slot free. **Clear contents** keeps its target and position and leaves the owned copy Unassigned. A mismatched target change can be cancelled without changing anything. A separate hidden **Edit layout** preparation adds deliberate insertion, append and whole-slot button/keyboard moves. It is not enabled for production binders.
 
 Offline search can use cards already cached on the device. Missing catalog coverage is shown explicitly. This draft UI does not promise durable offline assignment, saved changes or partner sync. Creating a separate Raw copy while only graded matching Unassigned copies exist still requires command integration.
+
+The staged layout editor starts in Browse. Choose **Edit layout**, select a slot, then insert a free slot before/after or move the whole slot to a saved position or before/after another slot. **Append free slot** also works with an empty binder. Following slots shift across pages. **Done** returns to Browse; **Cancel selection** clears an unfinished choice, without undoing a draft already handed off. Changing the collection or view exits editing. Presentation filters disable layout editing.
+
+This is synthetic UI preparation only. Undo, slot deletion, confirmation, drag/bulk editing and durable offline layout changes remain unfinished. No saved-change, recovery or partner-sync guarantee is made.
 
 Authenticated commands, durable queues, conflict recovery, public API parity and enabled production verification remain required before this feature is released. No-destination search-to-target-or-append is a separate part of the same unfinished feature.
