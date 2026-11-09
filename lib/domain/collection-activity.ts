@@ -8,4 +8,4 @@ export type ActivityEvent = {
   affected_entities: Record<string, string[]>; changes: ActivityChange[]
 }
 export type ActivityPage = { data: ActivityEvent[]; nextCursor: string | null }
-export type ActivityScope = { accountId: string; ownerId: string; membershipKey: string }
+export type ActivityScope = { accountId: string; ownerId: string; membershipKey: string; memberIds?: string[] }

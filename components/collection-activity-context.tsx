@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import dynamic from "next/dynamic"
 import { History } from "lucide-react"
 import { closeAllOverlays } from "@/hooks/use-overlay"
-import { ACTIVITY_SCOPE_KEY, clearActivityCache, sameActivityScope, storedActivityScope, type ActivityScope } from "@/lib/collection-activity"
+import { ACTIVITY_SCOPE_KEY, normalizeActivityScope, clearActivityCache, sameActivityScope, storedActivityScope, type ActivityScope } from "@/lib/collection-activity"
 import type { Binder } from "@/lib/binders/model"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 
@@ -43,8 +43,8 @@ export function CollectionActivityProvider({accountId,ownerId,binderId,binders,c
       if (!response.ok) { if (!cancelled) invalidate(); return }
       const value = await response.json()
       if (cancelled) return
-      const next: ActivityScope = value.scope
-      if (next?.accountId!==accountId || next?.ownerId!==ownerId || typeof next.membershipKey!=='string') {invalidate();return}
+      const next = normalizeActivityScope(value.scope)
+      if (!next || next.accountId!==accountId || next.ownerId!==ownerId) {invalidate();return}
       if (!sameActivityScope(stored,next)) clearActivityCache(localStorage)
       try {localStorage.setItem(ACTIVITY_SCOPE_KEY,JSON.stringify(next))} catch { /* Online history still works without storage. */ }
       setScope(next)

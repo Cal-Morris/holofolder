@@ -29,7 +29,7 @@ export default function CollectionActivitySheet(props:Props) {
     const data = new FormData(event.currentTarget)
     const params = new URLSearchParams({limit:'50'})
     for (const [key,value] of data) if (typeof value==='string' && value.trim()) {
-      params.set(key==='collectionIdText' ? 'collectionId' : key,['since','until'].includes(key) ? new Date(`${value}${key==='since'?'T00:00:00.000Z':'T23:59:59.999Z'}`).toISOString() : value.trim())
+      params.set(key==='collectionIdText' ? 'collectionId' : key==='actorIdText' ? 'actorId' : key==='actionText' ? 'action' : key,['since','until'].includes(key) ? new Date(`${value}${key==='since'?'T00:00:00.000Z':'T23:59:59.999Z'}`).toISOString() : value.trim())
     }
     setFilters(params.toString());setShowFilters(false)
   }
@@ -51,16 +51,20 @@ export default function CollectionActivitySheet(props:Props) {
         <p className="mb-2 text-xs text-muted-foreground">{selected.has('collectionId') ? `Collection: ${binders.find(b=>b.id===selected.get('collectionId'))?.name ?? selected.get('collectionId')}` : 'All collections'}{selected.has('pokemonId') ? ` · Pokémon #${selected.get('pokemonId')}` : ''}{selected.has('itemId') ? ` · Item ${selected.get('itemId')}` : ''}</p>
         {showFilters && <form onSubmit={apply} className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-border p-3">
           <label className="col-span-2 text-xs">Collection<select name="collectionId" defaultValue={selected.get('collectionId') ?? ''} className={control}><option value="">All collections</option>{binders.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-          <label className="col-span-2 text-xs">Actor account ID<input name="actorId" defaultValue={selected.get('actorId') ?? ''} className={control} placeholder="Recorded account UUID"/></label>
+          <label className="col-span-2 text-xs">Person<select name="actorId" defaultValue={selected.get('actorId') ?? ''} className={control}><option value="">Everyone</option>{scope && <option value={scope.accountId}>You</option>}{scope?.memberIds?.filter(id=>id!==scope.accountId).map(id=><option key={id} value={id}>Collection partner</option>)}</select></label>
           <label className="text-xs">From (UTC)<input type="date" name="since" defaultValue={selected.get('since')?.slice(0,10)} className={control}/></label>
           <label className="text-xs">Through (UTC)<input type="date" name="until" defaultValue={selected.get('until')?.slice(0,10)} className={control}/></label>
-          <label className="col-span-2 text-xs">Action<input name="action" defaultValue={selected.get('action') ?? ''} className={control} placeholder="e.g. collection_item or recorded action"/></label>
+          <label className="col-span-2 text-xs">Action<select name="action" defaultValue={selected.get('action') ?? ''} className={control}><option value="">All changes</option><option value="collection_item">Cards and wanted lists</option><option value="collection_change">Collections and settings</option><option value="legacy">Older recorded changes</option></select></label>
+          <details className="col-span-2"><summary className="min-h-10 cursor-pointer py-2 text-xs">Advanced filters</summary><div className="grid grid-cols-2 gap-2 pt-2">
+          <label className="col-span-2 text-xs">Actor account ID<input name="actorIdText" defaultValue={selected.get('actorId') && !scope?.memberIds?.includes(selected.get('actorId')!) && selected.get('actorId')!==scope?.accountId ? selected.get('actorId')! : ''} className={control} placeholder="Another recorded account"/></label>
+          <label className="col-span-2 text-xs">Recorded action<input name="actionText" defaultValue={selected.get('action') && !['collection_item','collection_change','legacy'].includes(selected.get('action')!) ? selected.get('action')! : ''} className={control}/></label>
           <label className="col-span-2 text-xs">Card printing ID<input name="cardId" defaultValue={selected.get('cardId') ?? ''} className={control} placeholder="e.g. base1-4"/></label>
           <label className="text-xs">Owned item ID<input name="itemId" defaultValue={selected.get('itemId') ?? ''} className={control}/></label>
           <label className="text-xs">Slot ID<input name="slotId" defaultValue={selected.get('slotId') ?? ''} className={control}/></label>
           <label className="text-xs">Pokémon number<input name="pokemonId" inputMode="numeric" defaultValue={selected.get('pokemonId') ?? ''} className={control}/></label>
           <label className="text-xs">Collection ID<input name="collectionIdText" defaultValue="" className={control} placeholder="Deleted or existing ID"/></label>
           <p className="col-span-2 text-xs text-muted-foreground">Exact recorded IDs/actions, searched on the server across all pages. Older entries without entity IDs cannot match those filters. Pokémon filters include retained legacy deltas.</p>
+          </div></details>
           <button type="submit" className="col-span-2 min-h-10 rounded-lg bg-primary px-3 font-medium text-primary-foreground">Apply filters</button>
         </form>}
         {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
@@ -114,12 +118,12 @@ function ActivityPageView({scope,pageQuery,isOnline,onInvalidScope,onNext,...pro
     {saved && <p className="mb-3 text-xs text-muted-foreground">{cached || !isOnline ? 'Cached history' : 'History synced'} · Last sync {activityTime(saved.syncedAt)}{cached || !isOnline ? '. Only saved pages are available; newer or uncached events may exist. Membership was last verified online.' : ''}</p>}
     {!saved && !loading && <p className="py-4">{!isOnline ? 'This history page is not cached on this device. Reconnect to load it.' : 'History has not loaded. Refresh to try again.'}</p>}
     {saved?.page.data.length===0 && <p className="py-4">{cached || !isOnline ? 'No entries in this cached page. Other events may exist.' : 'No recorded events match these filters.'}</p>}
-    <ol className="space-y-3" aria-label="Committed activity">{saved?.page.data.map(event=><ActivityEntry key={event.id} event={event} {...props} isOnline={isOnline}/>)}</ol>
+    <ol className="space-y-3" aria-label="Committed activity">{saved?.page.data.map(event=><ActivityEntry key={event.id} event={event} {...props} scope={scope} isOnline={isOnline}/>)}</ol>
     {saved?.page.nextCursor && <button type="button" className="mt-3 min-h-10 rounded-lg border border-border px-3" onClick={()=>onNext(saved.page.nextCursor!)}>Older page</button>}
   </>
 }
 
-function ActivityEntry({event,binders,collection,binderId,isOnline,onClose,onOpenPokemon}:Pick<Props,'binders'|'collection'|'binderId'|'isOnline'|'onClose'|'onOpenPokemon'> & {event:ActivityEvent}) {
+function ActivityEntry({event,binders,collection,binderId,isOnline,onClose,onOpenPokemon,scope}:Pick<Props,'binders'|'collection'|'binderId'|'isOnline'|'onClose'|'onOpenPokemon'|'scope'> & {event:ActivityEvent}) {
   const [expanded,setExpanded] = useState(false)
   const [count,setCount] = useState(10)
   const changes = expanded ? activityChanges(event) : []
@@ -131,7 +135,7 @@ function ActivityEntry({event,binders,collection,binderId,isOnline,onClose,onOpe
   const liveItem = collection.find(item=>item.pokemon_id===pokemonId && (first?.id ? item.id===first.id : false))
   return <li className="rounded-xl border border-border bg-background/60 p-3">
     <p className="text-sm font-semibold">{event.action.replaceAll('_',' ')}{name ? ` · ${String(name)}` : ''}</p>
-    <p className="mt-1 text-xs">{activityActor(event)} · {activitySource(event.source)}</p>
+    <p className="mt-1 text-xs">{activityActor(event,scope?.accountId,scope?.memberIds)} · {activitySource(event.source)}</p>
     <time dateTime={event.recorded_at} className="text-xs text-muted-foreground">{activityTime(event.recorded_at)}</time>
     <p className="mt-1 text-xs text-muted-foreground">{event.changes.length || 1} recorded {event.changes.length<=1 ? 'change' : 'changes'} · Event {event.id}</p>
     <button type="button" aria-expanded={expanded} className="mt-2 min-h-10 rounded-lg border border-border px-3 text-xs font-medium" onClick={()=>setExpanded(v=>!v)}>{expanded ? 'Hide changes' : 'View changes'}</button>

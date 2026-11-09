@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { activityActor, activityChanges, parseActivityPage, activityCacheKey, readActivityCache, writeActivityCache, clearActivityCache } from "../lib/collection-activity"
+import { activityActor, normalizeActivityScope, activityChanges, parseActivityPage, activityCacheKey, readActivityCache, writeActivityCache, clearActivityCache } from "../lib/collection-activity"
 
 // All histories and identities in this file are synthetic.
 const event = { id: "9223372036854775807", recorded_at: "2026-11-09T12:00:00Z", format_version: 1, actor_kind: "unknown", source: "unknown", action: "collection_change", affected_entities: {}, changes: [] }
@@ -49,4 +49,18 @@ test("ownership and placement removed together never claims ownership was retain
     {table:'inventory_placements',id:'same-copy',before:{inventory_item_id:'same-copy',slot_id:'a'},after:null},
   ]})
   assert.doesNotMatch(changes[1].title,/ownership retained/)
+})
+
+test("current people labels stay readable without inventing historical names", () => {
+  const user = { actor_kind: "user", actor_user_id: "current-account" }
+  assert.equal(activityActor(user, "current-account", ["current-account", "linked-partner"]), "You")
+  assert.equal(activityActor({ ...user, actor_user_id: "linked-partner" }, "current-account", ["current-account", "linked-partner"]), "Collection partner")
+  assert.equal(activityActor({ ...user, actor_user_id: "old-member" }, "current-account", ["current-account", "linked-partner"]), "Account old-member")
+})
+
+test("untrusted current-member metadata is normalized before rendering or caching", () => {
+  const scope = { accountId: "current-account", ownerId: "current-account", membershipKey: "verified" }
+  assert.equal(normalizeActivityScope({ ...scope, memberIds: "not-an-array" }), null)
+  assert.equal(normalizeActivityScope({ ...scope, memberIds: [42] }), null)
+  assert.deepEqual(normalizeActivityScope({ ...scope, memberIds: ["current-account"] })?.memberIds, ["current-account"])
 })

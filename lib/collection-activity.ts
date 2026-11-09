@@ -28,9 +28,13 @@ export function parseActivityPage(value: unknown): ActivityPage | null {
   }
   return { data, nextCursor: value.nextCursor }
 }
-export function activityActor(event: Pick<ActivityEvent,'actor_kind'|'actor_job'|'actor_user_id'>) {
+export function activityActor(event: Pick<ActivityEvent,'actor_kind'|'actor_job'|'actor_user_id'>, accountId?: string, memberIds: readonly string[] = []) {
   if (event.actor_kind === 'system') return event.actor_job ? `System · ${event.actor_job}` : 'System'
-  if (event.actor_kind === 'user' && event.actor_user_id) return `Account ${event.actor_user_id}`
+  if (event.actor_kind === 'user' && event.actor_user_id) {
+    if (event.actor_user_id === accountId) return 'You'
+    if (memberIds.includes(event.actor_user_id)) return 'Collection partner'
+    return `Account ${event.actor_user_id}`
+  }
   return 'Unknown'
 }
 export function activitySource(source: string) {
@@ -75,8 +79,13 @@ const CACHE_KEY = 'holofolder_activity_cache_v1'
 type Storage = Pick<globalThis.Storage,'getItem'|'setItem'|'removeItem'>
 export const activityCacheKey = (scope: ActivityScope, query: string) => JSON.stringify([scope.accountId,scope.ownerId,scope.membershipKey,query])
 export function sameActivityScope(a: ActivityScope | null, b: ActivityScope | null) { return !!a && !!b && a.accountId === b.accountId && a.ownerId === b.ownerId && a.membershipKey === b.membershipKey }
+export function normalizeActivityScope(value: unknown): ActivityScope | null {
+  if (!record(value) || typeof value.accountId !== 'string' || typeof value.ownerId !== 'string' || typeof value.membershipKey !== 'string') return null
+  if (value.memberIds !== undefined && (!Array.isArray(value.memberIds) || value.memberIds.length > 2 || !value.memberIds.every(id => typeof id === 'string'))) return null
+  return { accountId: value.accountId, ownerId: value.ownerId, membershipKey: value.membershipKey, ...(Array.isArray(value.memberIds) ? { memberIds: [...value.memberIds] } : {}) }
+}
 export function storedActivityScope(storage: Storage): ActivityScope | null {
-  try { const v = JSON.parse(storage.getItem(ACTIVITY_SCOPE_KEY) ?? 'null'); return v && typeof v.accountId === 'string' && typeof v.ownerId === 'string' && typeof v.membershipKey === 'string' ? v : null } catch { return null }
+  try { return normalizeActivityScope(JSON.parse(storage.getItem(ACTIVITY_SCOPE_KEY) ?? 'null')) } catch { return null }
 }
 export function clearActivityCache(storage: Storage) { try { storage.removeItem(ACTIVITY_SCOPE_KEY); storage.removeItem(CACHE_KEY) } catch { /* Private storage may be unavailable. */ } }
 export function readActivityCache(storage: Storage, scope: ActivityScope, key: string): { page: ActivityPage; syncedAt: string } | null {

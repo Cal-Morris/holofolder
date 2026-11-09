@@ -13,7 +13,7 @@ export async function firstPartyActivity(request: Request) {
     const user = await getSessionUser(client)
     if (!user) return Response.json({error:"Sign in to view Activity."},{status:401,headers})
     const membership = await resolveCollectionMembership(client,user.id)
-    const scope = { accountId:user.id, ownerId:membership.ownerUserId,
+    const scope = { accountId:user.id, ownerId:membership.ownerUserId, memberIds:membership.memberIds,
       membershipKey:JSON.stringify([membership.partnershipId,...membership.memberIds.toSorted()]) }
     const params = new URL(request.url).searchParams
     if (params.toString() === "scope=1") return Response.json({scope},{headers})
