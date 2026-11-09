@@ -1,5 +1,7 @@
 "use client"
 
+import { clearActivityCache } from "@/lib/collection-activity"
+
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
@@ -196,6 +198,7 @@ export function usePartner({ user }: UsePartnerOptions) {
 
     try {
       await changePartner('disconnect')
+      clearActivityCache(window.localStorage)
       setPartner(null)
       return { success: true }
     } catch (err: unknown) {

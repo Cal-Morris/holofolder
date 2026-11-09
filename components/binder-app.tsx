@@ -1,5 +1,7 @@
 "use client"
 
+import { CollectionActivityProvider } from "@/components/collection-activity-context"
+
 import { useGoogleAnalytics } from "@/components/google-analytics"
 import { appPath } from "@/lib/app-path"
 import { toCardImageSrc } from "@/lib/card-image-url"
@@ -3462,6 +3464,7 @@ export default function BinderApp({
 
   return (
     <BillingContext.Provider value={billing}>
+    <CollectionActivityProvider accountId={readOnlyMode ? null : user?.id ?? null} ownerId={readOnlyMode ? null : resolvedCollectionOwnerUserId} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={localPendingSyncCount} isOnline={isOnline} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"
@@ -3748,6 +3751,7 @@ export default function BinderApp({
         <CardDataAttribution compact />
       </footer>
     </main>
+    </CollectionActivityProvider>
     </BillingContext.Provider>
   )
 }

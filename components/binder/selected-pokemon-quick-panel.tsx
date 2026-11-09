@@ -1,5 +1,7 @@
 "use client"
 
+import { ActivityButton } from "@/components/collection-activity-context"
+
 import { CARD_FINISH_OPTIONS, formatCollectedDate, getDetailArtwork, getWantedCardKey } from "@/components/binder/binder-app-model"
 import type { CardPriceCheck } from "@/lib/card-price-checks"
 import { CardPriceComparison } from "@/components/card-price-comparison"
@@ -353,6 +355,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
               <Button onClick={handleJumpToPreviousNeeded} disabled={!activeJumpPokemonList.length} variant="ghost" className="h-9 gap-1"><ChevronLeft className="h-3 w-3" />Prev</Button>
               <Button onClick={handleJumpToNextNeeded} disabled={!activeJumpPokemonList.length} variant="ghost" className="h-9 gap-1">Next<ChevronRight className="h-3 w-3" /></Button>
             </div>
+            {!readOnlyMode && <ActivityButton pokemonId={selectedPokemon.id} onOpen={closeSelectedPokemon} />}
             {!readOnlyMode && <>
               {primaryWanted && renderWantedActions(primaryWanted)}
               <section aria-label="Owned card" className="rounded-2xl border border-border/60 p-2.5">

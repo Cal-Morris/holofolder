@@ -1,5 +1,7 @@
 "use client"
 
+import { ActivityButton } from "@/components/collection-activity-context"
+
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { OverlayLink } from "@/components/overlay-link"
 import { createPortal } from "react-dom"
@@ -198,6 +200,7 @@ export default function BinderSwitcherSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--dock-clearance)+0.75rem)] sm:pb-4">
+          {canManage && <div className="mb-3"><ActivityButton onOpen={onClose} /></div>}
           {canManage && <OverlayLink href="/studio" onClose={onClose} className="mb-3 flex min-h-14 items-center gap-3 rounded-xl border border-border/60 holo-tile px-3 py-2.5 hover:bg-muted/70">
             <Paintbrush className="h-5 w-5 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0"><span className="block text-sm font-semibold">Binder Studio</span><span className="block text-xs text-muted-foreground">Customise your binder’s appearance</span></span>

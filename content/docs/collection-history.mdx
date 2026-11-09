@@ -1,6 +1,6 @@
 ---
 title: Collection history
-description: Read private committed collection changes through REST or MCP.
+description: Inspect private collection Activity in the app, REST or MCP.
 ---
 
 Use `list_collection_audit` or `GET /collection/audit` with `collection:read` to inspect your shared owner's committed changes. Current developer entitlement, credential grants and linked membership apply on every request. History is private and responses use `no-store`.
@@ -16,4 +16,26 @@ Follow `nextCursor` with the same filters. Lists contain up to 100 entries and u
 
 Older entries have Unknown actor/source; history does not guess who made them. Their original Pokémon states remain available, but stable entity filters cannot find IDs that were never recorded. A service write without established attribution also stays Unknown. Local offline pending actions are separate from committed history.
 
-This API requires migration 076. Before application it returns `503 audit_unavailable`. Activity UI and version-safe recovery are still separate rollout work; these read operations do not restore anything or enable structural inventory commands. Server `recorded_at` is measured at the transaction's commit boundary, separately from optional client occurrence time.
+This API requires migration 076. Before application it returns `503 audit_unavailable`. The app provides read-only Activity; version-safe recovery remains separate rollout work. These read operations do not restore anything or enable structural inventory commands. Server `recorded_at` is measured at the transaction's commit boundary, separately from optional client occurrence time.
+
+## Activity in the app
+
+Sign in, open the binder switcher, and choose **Activity**. A card's detail sheet also has an **Activity** button, which starts with that Pokémon's recorded changes in the current collection. Use **Filters** to select **All collections**, another collection, or exact retained collection/item/slot/card IDs. A deleted collection's ID can be entered in **Collection ID**. Actor and action filters use the identifiers shown in entry details. Date ranges are inclusive UTC days; the displayed server timestamp uses your device's timezone.
+
+**Older page** and **Newer page** follow server keysets. Filters apply to the entire recorded history, not only the visible page. The card printing filter uses the recorded catalog ID; duplicate printings remain distinguishable by owned item and slot IDs. Pokémon filtering includes original legacy states and bulk legacy deltas. Older entries without a stable collection/item ID cannot be found using an ID that was never recorded. Clear the collection filter to inspect those entries across the owner history.
+
+Each entry shows the recorded actor account, source and server time. Account IDs identify accountable actors without claiming a current or historical display name. An old or unattributed event says **Unknown**; an explicitly attributed service job says **System**. A provider refresh is not presented as a human acquisition. Removed entities keep their recorded names and IDs. **View changes** expands the safe before/after fields, with **Show more changes** for bulk events. Unassignment keeps ownership; removing ownership and deleting a slot are different recorded changes. Existing current destinations can be opened, while deleted or unsupported inventory destinations retain their information without an invented link.
+
+Activity is read-only. Recovery and linked undo/recovery actions are not available. Local undo controls elsewhere in the app are separate from shared committed history.
+
+## Access and offline limits
+
+Website Activity uses the existing first-party session and database owner/partner read policy. Standard owner history does not require a developer API subscription or API key. A linked partner's access follows the existing membership and billing policy. Public share views have no Activity entry or anonymous audit access.
+
+Locally pending edits are shown separately as a count for the open collection; they become shared history only after the server accepts a mutation. Retries, cancelled edits and local undo queue entries are not fabricated committed events.
+
+The device keeps up to eight exact history query pages, scoped to the signed-in account, resolved owner and last verified membership. Offline pages show **Cached history** and their last sync time. Uncached pages explicitly need a connection, and a cached empty page is not a claim that no other events exist. Membership is rechecked online when opening Activity and on focus/visibility refresh. Offline membership cannot be reverified until reconnection. Logout, observed membership/owner changes and account switches clear private cache visibility. No private history HTML is cached by the service worker.
+
+## Additional read filters
+
+`pokemonId` (positive Pokémon number) searches legacy states and touched legacy rows, including bulk events. `cardId` searches the recorded printing in legacy states and touched item/slot identity or target deltas. Both filters are available through the same REST/MCP list operation, and are bound into its cursor. They do not perform a live catalog lookup or guess unrecorded identities.
