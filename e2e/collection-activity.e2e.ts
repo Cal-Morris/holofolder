@@ -30,11 +30,51 @@ async function open(harness:Harness) {
   const dialog=harness.page.getByRole('dialog',{name:'Collection Activity',exact:true})
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('list',{name:'Committed activity'})).toBeVisible()
-  await expect(dialog.getByRole('button',{name:'View changes'}).first()).toBeVisible()
+  await expect(dialog.getByRole('button',{name:'Details'}).first()).toBeVisible()
   return dialog
 }
 test.describe('collection Activity',()=>{
   test.use({signedIn:true})
+  test('readable removed card, confirmed Undo, retry after lost reply and linked original',async({harness})=>{
+    const {page}=harness
+    let committed=false,loseReply=true
+    const applies:Record<string,unknown>[]=[]
+    const removed={...bulk,id:'120',action:'collection_item',pokemon_name:'Bulbasaur',changes:[{table:'pokemon_collection',id:'synthetic-row',before:{id:'synthetic-row',binder_id:binder,pokemon_id:1,pokemon_name:'Bulbasaur',status:'collected',card_name:'Bulbasaur',card_id:'mep-037',card_set:'MEP Black Star Promos',card_language:'en',card_finish:'holo'},after:null}]}
+    const undone={...removed,id:'121',action:'recovery.apply',recovery_of_event_id:'120',changes:removed.changes.map(c=>({...c,before:null,after:c.before}))}
+    await page.route('**/app/api/collection-activity**',async route=>{
+      const params=new URL(route.request().url()).searchParams
+      if(params.get('scope')==='1')return route.fulfill({json:{scope}})
+      if(params.has('operation')) {
+        const input=route.request().postDataJSON()
+        if(params.get('operation')==='preview')return route.fulfill({json:{eventId:'120',planVersion:1,supported:true,unsupported:[],conflicts:[],planToken:'a'.repeat(64),restoreUnassignedItemIds:[],changes:undone.changes}})
+        applies.push(input);committed=true
+        if(loseReply){loseReply=false;return route.abort('failed')}
+        return route.fulfill({json:{eventId:'121',recoveredEventId:'120'}})
+      }
+      return route.fulfill({json:{scope,data:params.get('id')==='120' ? [removed] : params.get('id')==='121' ? [undone] : committed ? [undone,removed] : [removed],nextCursor:null,syncedAt:'2026-11-09T12:01:00Z'}})
+    })
+    await page.goto('/app/e2e-harness?signedIn=1&binders=1')
+    let dialog=await open(harness)
+    await expect(dialog.getByText('Removed Bulbasaur from My binder',{exact:true})).toBeVisible()
+    await expect(dialog).not.toContainText('synthetic-row')
+    await dialog.getByRole('button',{name:'Undo',exact:true}).click()
+    await expect(dialog.getByRole('region',{name:'Review Undo'})).toContainText('Added Bulbasaur')
+    expect(applies).toHaveLength(0)
+    await dialog.getByRole('button',{name:'Undo this change',exact:true}).click()
+    await expect(dialog.getByRole('alert')).toBeVisible()
+    await dialog.getByRole('button',{name:'Close Activity'}).click()
+    dialog=await open(harness)
+    await dialog.getByRole('button',{name:'Retry Undo',exact:true}).click()
+    await expect(dialog.getByText('Change undone',{exact:true})).toBeVisible()
+    expect(applies).toHaveLength(2);expect(applies[0]).toEqual(applies[1])
+    await dialog.getByRole('button',{name:'View undo in activity'}).click()
+    await expect(dialog.getByText('Undid a change',{exact:true})).toBeVisible()
+    await dialog.getByRole('button',{name:'Details',exact:true}).click()
+    await dialog.getByRole('button',{name:'View original change'}).click()
+    await expect(dialog.getByText('Removed Bulbasaur from My binder',{exact:true})).toBeVisible()
+    await harness.expectNoHorizontalOverflow()
+    await page.screenshot({path:`/tmp/holofolder447-activity-${harness.viewport.width}.png`})
+  })
   test('safe mobile history, bulk progressive details, exact server filters and more than 1000 events',async({harness},testInfo)=>{
     const queries=await install(harness.page)
     await harness.page.goto('/app/e2e-harness?signedIn=1&binders=1')
@@ -44,15 +84,15 @@ test.describe('collection Activity',()=>{
     const box=(await dialog.boundingBox())!,dock=(await harness.dock().boundingBox())!
     expect(box.y+box.height).toBeLessThanOrEqual(dock.y)
     console.log(JSON.stringify({activityLayout:{project:testInfo.project.name,top:box.y,bottom:box.y+box.height,dockTop:dock.y,closeWidth:(await close.boundingBox())!.width}}))
-    await expect(dialog.getByText(/Unknown · Unknown/).first()).toBeVisible()
-    await dialog.getByRole('button',{name:'View changes'}).first().click()
-    await expect(dialog.getByRole('heading',{name:/Ownership removed/})).toBeVisible()
-    await expect(dialog.getByRole('heading',{name:/Unassigned, ownership retained/})).toBeVisible()
-    await expect(dialog.getByText('Owned item · copy-a',{exact:true})).toBeVisible()
+    await expect(dialog.getByText(/Unknown ·/).first()).toBeVisible()
+    await dialog.getByRole('button',{name:'Details'}).first().click()
+    await expect(dialog.getByRole('heading',{name:/Removed a card/})).toBeVisible()
+    await expect(dialog.getByRole('heading',{name:/Unassigned an item/})).toBeVisible()
+    await expect(dialog.getByText('Technical details',{exact:true}).first()).toBeVisible();await expect(dialog.getByText('Account: '+E2E_USER.id,{exact:true})).toBeHidden()
     await expect(dialog).not.toContainText('SYNTHETIC-PRIVATE-CERT');await expect(dialog).not.toContainText('SYNTHETIC-PRIVATE-ART')
-    await expect(dialog.getByRole('heading',{name:/Slot \/ target changed/})).toHaveCount(8)
+    await expect(dialog.getByRole('heading',{name:/Updated slot/})).toHaveCount(8)
     await dialog.getByRole('button',{name:/Show more changes/}).click()
-    await expect(dialog.getByRole('heading',{name:/Slot \/ target changed/})).toHaveCount(33)
+    await expect(dialog.getByRole('heading',{name:/Updated slot/})).toHaveCount(33)
     await harness.expectNoHorizontalOverflow()
     await harness.page.screenshot({path:`/tmp/holofolder395-activity-${testInfo.project.name}.png`})
     await harness.page.evaluate(()=>document.documentElement.classList.remove('dark'))
@@ -68,7 +108,7 @@ test.describe('collection Activity',()=>{
     await dialog.getByRole('combobox',{name:'Action',exact:true}).selectOption('collection_item')
     await dialog.getByRole('button',{name:'Apply filters',exact:true}).focus()
     await harness.page.keyboard.press('Enter')
-    await expect(dialog.getByText('No recorded events match these filters.')).toBeVisible()
+    await expect(dialog.getByText('No activity matches these filters.')).toBeVisible()
     expect(queries.at(-1)?.get('cardId')).toBe('base1-4');expect(queries.at(-1)?.get('actorId')).toBe(E2E_USER.id)
     expect(queries.at(-1)?.get('since')).toBe('2026-11-01T00:00:00.000Z');expect(queries.at(-1)?.has('collectionId')).toBe(false)
     await close.click()
@@ -105,12 +145,12 @@ test.describe('collection Activity',()=>{
     await install(harness.page)
     await harness.page.goto('/app/e2e-harness?signedIn=1&binders=1')
     const dialog=await open(harness)
-    await expect(dialog.getByText(/History synced/)).toBeVisible()
+    await expect(dialog.getByRole('button',{name:'Details'}).first()).toBeVisible()
     await harness.page.context().setOffline(true)
     await harness.page.evaluate(()=>window.dispatchEvent(new Event('offline')))
-    await expect(dialog.getByText(/Cached history/)).toBeVisible()
+    await expect(dialog.getByText(/Saved activity/)).toBeVisible()
     await dialog.getByRole('button',{name:'Older page',exact:true}).click()
-    await expect(dialog.getByText('This history page is not cached on this device. Reconnect to load it.')).toBeVisible()
+    await expect(dialog.getByText('Connect to load this activity.')).toBeVisible()
     await dialog.getByRole('button',{name:'Close Activity'}).click()
     await harness.page.context().setOffline(false)
     await harness.page.goto('/app/e2e-harness?signedIn=1&binders=1&readOnly=1')
@@ -143,7 +183,7 @@ test.describe('collection Activity',()=>{
     const dialog=await open(harness)
     await expect(dialog.getByText(/Synthetic original event/)).toBeVisible()
     hold=true
-    await dialog.getByRole('button',{name:'Refresh history'}).click()
+    await dialog.getByRole('button',{name:'Refresh',exact:true}).click()
     await pending
     hold=false
     currentScope={...scope,membershipKey:'synthetic-new-membership'}

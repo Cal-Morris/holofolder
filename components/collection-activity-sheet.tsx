@@ -5,14 +5,16 @@ import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss, runAfterOverlayHistory } from "@/hooks/use-overlay"
 import { OverlayLink } from "@/components/overlay-link"
-import { activityActor, activityEntityName, activityEntityKind, activityCacheKey, activityChanges, activitySource, activityTime, parseActivityPage, readActivityCache, sameActivityScope, writeActivityCache, type ActivityEvent, type ActivityScope } from "@/lib/collection-activity"
+import { activityActor, activityCacheKey, activityChanges, activitySource, activityTime, parseActivityPage, readActivityCache, sameActivityScope, writeActivityCache, type ActivityEvent, type ActivityScope } from "@/lib/collection-activity"
+import { activitySummary, readableActivityChanges, activityDay } from "@/lib/activity-presentation"
+import { ActivityRecovery } from "@/components/activity-recovery"
 import type { ActivityInitialFilter } from "@/components/collection-activity-context"
 import type { Binder } from "@/lib/binders/model"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 
 interface Props {
   scope:ActivityScope|null; initialFilter:ActivityInitialFilter; binderId:string|null; binders:readonly Binder[]; collection:readonly CollectedPokemon[]
-  pendingCount:number; isOnline:boolean; onClose:()=>void; onInvalidScope:()=>void; onVerify:()=>void; onOpenPokemon:(id:number)=>void
+  pendingCount:number; isOnline:boolean; onRecovered:()=>Promise<void>; onOpenEvent?:(id:string,related?:boolean)=>void; onClose:()=>void; onInvalidScope:()=>void; onVerify:()=>void; onOpenPokemon:(id:number)=>void
 }
 const control = 'min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm'
 
@@ -40,15 +42,11 @@ export default function CollectionActivitySheet(props:Props) {
       <header data-sheet-grabber className="shrink-0 px-4 pt-3 pb-2" {...swipe}>
         <div aria-hidden className="mx-auto mb-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
         <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">Activity</h2><button type="button" aria-label="Close Activity" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted" onClick={onClose}><X className="h-4 w-4"/></button></div>
-        <p className="text-xs text-muted-foreground">Committed shared history. Server time shown in your local timezone.</p>
       </header>
       <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 text-sm [overflow-wrap:anywhere]">
-        <aside className="mb-3 rounded-xl bg-muted/60 p-3 text-xs">
-          <p>{pendingCount ? `${pendingCount} locally pending edits on this device, not yet committed to shared history.` : 'No locally pending edits in this collection.'}</p>
-          <p className="mt-1 text-muted-foreground">History does not restore changes. Recovery is not available.</p>
-        </aside>
-        <div className="mb-2 flex gap-2"><button type="button" className="min-h-10 rounded-lg border border-border px-3" aria-expanded={showFilters} onClick={()=>setShowFilters(v=>!v)}>Filters</button><button type="button" className="min-h-10 rounded-lg border border-border px-3" disabled={!isOnline} onClick={()=>{if(scope)setRevision(v=>v+1);else props.onVerify()}}>Refresh history</button></div>
-        <p className="mb-2 text-xs text-muted-foreground">{selected.has('collectionId') ? `Collection: ${binders.find(b=>b.id===selected.get('collectionId'))?.name ?? selected.get('collectionId')}` : 'All collections'}{selected.has('pokemonId') ? ` · Pokémon #${selected.get('pokemonId')}` : ''}{selected.has('itemId') ? ` · Item ${selected.get('itemId')}` : ''}</p>
+        {pendingCount>0 && <p role="status" className="mb-3 rounded-xl bg-muted/60 p-3 text-xs">{pendingCount} {pendingCount===1 ? 'change waiting' : 'changes waiting'} to sync. Undo will be available once they’re saved.</p>}
+        <div className="mb-2 flex gap-2"><button type="button" className="min-h-10 rounded-lg border border-border px-3" aria-expanded={showFilters} onClick={()=>setShowFilters(v=>!v)}>Filters</button><button type="button" className="min-h-10 rounded-lg border border-border px-3" disabled={!isOnline} onClick={()=>{if(scope)setRevision(v=>v+1);else props.onVerify()}}>Refresh</button></div>
+        <p className="mb-2 text-xs text-muted-foreground">{selected.has('collectionId') ? binders.find(b=>b.id===selected.get('collectionId'))?.name ?? 'Previous collection' : selected.has('id') ? 'Selected change' : selected.has('recoveryOfEventId') ? 'Undo history' : 'All collections'}{selected.has('pokemonId') ? ` · Pokémon #${selected.get('pokemonId')}` : ''}{selected.has('itemId') ? ' · Selected card' : ''}</p>
         {showFilters && <form onSubmit={apply} className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-border p-3">
           <label className="col-span-2 text-xs">Collection<select name="collectionId" defaultValue={selected.get('collectionId') ?? ''} className={control}><option value="">All collections</option>{binders.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
           <label className="col-span-2 text-xs">Person<select name="actorId" defaultValue={selected.get('actorId') ?? ''} className={control}><option value="">Everyone</option>{scope && <option value={scope.accountId}>You</option>}{scope?.memberIds?.filter(id=>id!==scope.accountId).map(id=><option key={id} value={id}>Collection partner</option>)}</select></label>
@@ -67,7 +65,7 @@ export default function CollectionActivitySheet(props:Props) {
           </div></details>
           <button type="submit" className="col-span-2 min-h-10 rounded-lg bg-primary px-3 font-medium text-primary-foreground">Apply filters</button>
         </form>}
-        {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
+        {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} onOpenEvent={(id,related)=>setFilters(related ? new URLSearchParams({limit:"50",recoveryOfEventId:id}).toString() : id ? new URLSearchParams({id}).toString() : new URLSearchParams({limit:'50',...(binderId ? {collectionId:binderId} : {})}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
       </div>
     </section>
   </div>,document.body)
@@ -81,8 +79,9 @@ function ActivityResults(props:Props & {scope:ActivityScope;query:string}) {
   if(cursor)params.set('cursor',cursor)
   const pageQuery = params.toString()
   return <div>
+    {(params.has('id')||params.has('recoveryOfEventId')) && <button type="button" className="mb-2 min-h-10 text-xs text-primary" onClick={()=>props.onOpenEvent?.('')}>Back to activity</button>}
     <ActivityPageView key={pageQuery} {...props} pageQuery={pageQuery} onNext={next=>{setPrevious(v=>[...v,cursor]);setCursor(next)}} />
-    <div className="mt-3 flex gap-2"><button type="button" className="min-h-10 rounded-lg border border-border px-3" disabled={!previous.length} onClick={()=>{setCursor(previous.at(-1) ?? null);setPrevious(v=>v.slice(0,-1))}}>Newer page</button></div>
+    {previous.length>0 && <div className="mt-3 flex gap-2"><button type="button" className="min-h-10 rounded-lg border border-border px-3" onClick={()=>{setCursor(previous.at(-1) ?? null);setPrevious(v=>v.slice(0,-1))}}>Newer page</button></div>}
     {/* Each page owns its older cursor; no client-side filtering or offset pagination. */}
   </div>
 }
@@ -113,48 +112,60 @@ function ActivityPageView({scope,pageQuery,isOnline,onInvalidScope,onNext,...pro
     return ()=>{cancelled=true;abort.abort();window.clearTimeout(timeout)}
   },[scope,pageQuery,isOnline,key,onInvalidScope])
   return <>
-    {loading && <p role="status" className="py-2 text-xs">Loading committed history…</p>}
+    {loading && <p role="status" className="py-2 text-xs">Loading activity…</p>}
     {error && <p role="alert" className="my-2 rounded-lg bg-destructive/10 p-3 text-sm">{error}</p>}
-    {saved && <p className="mb-3 text-xs text-muted-foreground">{cached || !isOnline ? 'Cached history' : 'History synced'} · Last sync {activityTime(saved.syncedAt)}{cached || !isOnline ? '. Only saved pages are available; newer or uncached events may exist. Membership was last verified online.' : ''}</p>}
-    {!saved && !loading && <p className="py-4">{!isOnline ? 'This history page is not cached on this device. Reconnect to load it.' : 'History has not loaded. Refresh to try again.'}</p>}
-    {saved?.page.data.length===0 && <p className="py-4">{cached || !isOnline ? 'No entries in this cached page. Other events may exist.' : 'No recorded events match these filters.'}</p>}
-    <ol className="space-y-3" aria-label="Committed activity">{saved?.page.data.map(event=><ActivityEntry key={event.id} event={event} {...props} scope={scope} isOnline={isOnline}/>)}</ol>
+    {saved && (cached || !isOnline) && <p className="mb-3 text-xs text-muted-foreground">Saved activity · Last updated {activityTime(saved.syncedAt)}. Reconnect for the latest changes and Undo.</p>}
+    {!saved && !loading && <p className="py-4">{!isOnline ? 'Connect to load this activity.' : 'Couldn’t load activity. Try Refresh.'}</p>}
+    {saved?.page.data.length===0 && <p className="py-4">{cached || !isOnline ? 'No saved activity on this page. Reconnect to check for more.' : 'No activity matches these filters.'}</p>}
+    <ol className="space-y-2" aria-label="Committed activity">{saved?.page.data.map((event,index)=>{
+      const day=activityDay(event.recorded_at)
+      return <ActivityEntry key={event.id} event={event} day={index===0 || day!==activityDay(saved.page.data[index-1].recorded_at) ? day : undefined} {...props} scope={scope} isOnline={isOnline} onInvalidScope={onInvalidScope}/>
+    })}</ol>
     {saved?.page.nextCursor && <button type="button" className="mt-3 min-h-10 rounded-lg border border-border px-3" onClick={()=>onNext(saved.page.nextCursor!)}>Older page</button>}
   </>
 }
 
-function ActivityEntry({event,binders,collection,binderId,isOnline,onClose,onOpenPokemon,scope}:Pick<Props,'binders'|'collection'|'binderId'|'isOnline'|'onClose'|'onOpenPokemon'|'scope'> & {event:ActivityEvent}) {
+function ActivityEntry({event,day,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,onRecovered,onOpenEvent,onInvalidScope}:Props & {event:ActivityEvent;day?:string}) {
   const [expanded,setExpanded] = useState(false)
   const [count,setCount] = useState(10)
-  const changes = expanded ? activityChanges(event) : []
-  const first = event.changes[0]
-  const state = first?.after ?? first?.before
-  const name = activityEntityName(event)
-  const liveCollections = binders.filter(b=>event.affected_entities.collectionIds?.includes(b.id))
-  const pokemonId = event.pokemon_id ?? (typeof state?.pokemon_id==='number' ? state.pokemon_id : null)
-  const liveItem = collection.find(item=>item.pokemon_id===pokemonId && (first?.id ? item.id===first.id : false))
-  return <li className="rounded-xl border border-border bg-background/60 p-3">
-    <p className="text-sm font-semibold">{event.action.replaceAll('_',' ')}{name ? ` · ${String(name)}` : ''}</p>
-    <p className="mt-1 text-xs">{activityActor(event,scope?.accountId,scope?.memberIds)} · {activitySource(event.source)}</p>
-    <time dateTime={event.recorded_at} className="text-xs text-muted-foreground">{activityTime(event.recorded_at)}</time>
-    <p className="mt-1 text-xs text-muted-foreground">{event.changes.length || 1} recorded {event.changes.length<=1 ? 'change' : 'changes'} · Event {event.id}</p>
-    <button type="button" aria-expanded={expanded} className="mt-2 min-h-10 rounded-lg border border-border px-3 text-xs font-medium" onClick={()=>setExpanded(v=>!v)}>{expanded ? 'Hide changes' : 'View changes'}</button>
-    {expanded && <div className="mt-3 space-y-3 text-xs">
-      <p>Recorded action: {event.action}</p>
-      <p>Actor account: {event.actor_kind==='system' ? 'System' : event.actor_user_id ?? 'Unknown'}. Recorded identifiers are retained evidence, not a current profile name.</p>
-      <p>Source: {activitySource(event.source)}{event.client_id ? ` · Client ${event.client_id}` : ''}</p>
-      {event.operation_id && <p>Operation {event.operation_id}</p>}{event.batch_id && <p>Batch {event.batch_id}</p>}
-      {event.client_occurred_at && <p>Client occurrence time (unverified): {activityTime(event.client_occurred_at)}</p>}
-      {event.format_version===0 && <p>Older event: actor/source and stable entity IDs were not recorded. These are the original legacy states.</p>}
-      {Object.entries(event.affected_entities).map(([kind,ids])=>ids.length>0 && <details key={kind}><summary className="min-h-9 cursor-pointer py-2">Retained {kind} ({ids.length})</summary><p className="select-text">{ids.join(', ')}</p></details>)}
-      {changes.slice(0,count).map((change,index)=><section key={`${change.table}:${change.id}:${index}`} className="rounded-lg bg-muted/50 p-3">
-        <h3 className="font-semibold">{change.title}</h3><p className="mt-1 text-muted-foreground">{activityEntityKind(change.table)} · {change.id || 'No stable ID recorded'}</p>
-        <dl className="mt-2 space-y-2">{change.fields.map((field,i)=><div key={i}><dt className="font-medium">{field.label}</dt><dd><span className="text-muted-foreground">Before: </span>{field.before}</dd><dd><span className="text-muted-foreground">After: </span>{field.after}</dd></div>)}</dl>
-      </section>)}
-      {changes.length>count && <button type="button" className="min-h-10 rounded-lg border border-border px-3" onClick={()=>setCount(c=>c+25)}>Show more changes ({changes.length-count} remaining)</button>}
-      {isOnline && liveCollections.map(b=><OverlayLink key={b.id} href={`/?binder=${encodeURIComponent(b.id)}`} onClose={onClose} className="flex min-h-10 items-center rounded-lg border border-border px-3">Open collection {b.name}</OverlayLink>)}
-      {isOnline && liveItem && event.affected_entities.collectionIds?.includes(binderId ?? '') && <button type="button" className="min-h-10 rounded-lg border border-border px-3" onClick={()=>{onClose();runAfterOverlayHistory(()=>onOpenPokemon(liveItem.pokemon_id))}}>Open current item</button>}
-      <p className="text-muted-foreground">Only currently available destinations can be opened. Removed entities retain their recorded information. No recovery command is available.</p>
-    </div>}
+  const summary=activitySummary(event,binders)
+  const changes=expanded ? readableActivityChanges(event) : []
+  const first=event.changes[0]
+  const state=first?.after ?? first?.before
+  const liveCollections=binders.filter(b=>event.affected_entities.collectionIds?.includes(b.id))
+  const pokemonId=event.pokemon_id ?? (typeof state?.pokemon_id==='number' ? state.pokemon_id : null)
+  const liveItem=collection.find(item=>item.pokemon_id===pokemonId && (first?.id ? item.id===first.id : false))
+  const person=activityActor(event,scope?.accountId,scope?.memberIds)
+  return <li>
+    {day && <h3 className="pt-3 pb-2 text-xs font-medium text-muted-foreground">{day}</h3>}
+    <article className="rounded-xl border border-border/70 bg-background/50 p-3">
+      <p className="text-sm font-medium leading-snug">{summary.title}</p>
+      {summary.subtitle && <p className="mt-1 text-xs text-muted-foreground">{summary.subtitle}</p>}
+      <p className="mt-1 text-xs text-muted-foreground">{person.startsWith('Account ') ? 'Previous member' : person} · <time dateTime={event.recorded_at}>{new Date(event.recorded_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></p>
+      <div className="mt-1 flex flex-wrap items-start gap-x-1">
+        <button type="button" aria-expanded={expanded} className="min-h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted" onClick={()=>setExpanded(v=>!v)}>{expanded ? 'Hide details' : 'Details'}</button>
+        {scope && <ActivityRecovery event={event} scope={scope} disabled={!isOnline||pendingCount>0} onRecovered={onRecovered} onOpenEvent={id=>onOpenEvent?.(id)} onInvalidScope={onInvalidScope}/>}
+      </div>
+      {expanded && <div className="mt-2 space-y-3 border-t border-border/60 pt-3 text-xs">
+        {changes.slice(0,count).map((change,index)=><section key={index} className="rounded-lg bg-muted/40 p-3">
+          {summary.count>1 && <h4 className="font-medium">{change.title}</h4>}
+          {change.subtitle && summary.count>1 && <p className="mt-1 text-muted-foreground">{change.subtitle}</p>}
+          {change.fields.length>0 ? <dl className="space-y-2">{change.fields.map(field=><div key={field.label}><dt className="text-muted-foreground">{field.label}</dt><dd className="mt-0.5">{field.before} <span className="px-1 text-muted-foreground" aria-label="changed to">→</span> {field.after}</dd></div>)}</dl> : summary.count===1 && <p className="text-muted-foreground">{change.title}</p>}
+        </section>)}
+        {changes.length>count && <button type="button" className="min-h-10 rounded-lg border border-border px-3" onClick={()=>setCount(c=>c+25)}>Show more changes ({changes.length-count} remaining)</button>}
+        <button type="button" className="min-h-10 rounded-lg px-3 text-primary" onClick={()=>onOpenEvent?.(event.id,true)}>View undo history</button>
+        {event.recovery_of_event_id && <button type="button" className="min-h-10 rounded-lg px-3 text-primary" onClick={()=>onOpenEvent?.(event.recovery_of_event_id!)}>View original change</button>}
+        {isOnline && liveCollections.map(b=><OverlayLink key={b.id} href={`/?binder=${encodeURIComponent(b.id)}`} onClose={onClose} className="flex min-h-10 items-center rounded-lg px-3 text-primary">Open {b.name}</OverlayLink>)}
+        {isOnline && liveItem && event.affected_entities.collectionIds?.includes(binderId ?? '') && <button type="button" className="min-h-10 rounded-lg px-3 text-primary" onClick={()=>{onClose();runAfterOverlayHistory(()=>onOpenPokemon(liveItem.pokemon_id))}}>Open card</button>}
+        <details><summary className="min-h-10 cursor-pointer py-3 text-muted-foreground">Technical details</summary><div className="space-y-2 select-text text-muted-foreground">
+          <p>Event {event.id} · {event.action}</p><p>{activitySource(event.source)} · {activityTime(event.recorded_at)}</p>
+          <p>Account: {event.actor_user_id ?? 'Unknown'}</p>
+          {event.operation_id && <p>Operation: {event.operation_id}</p>}{event.batch_id && <p>Batch: {event.batch_id}</p>}
+          {event.client_id && <p>Client: {event.client_id}</p>}
+          {event.format_version===0 && <p>Older entry with limited recorded information.</p>}
+          <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-2 text-[11px]">{JSON.stringify(activityChanges(event),null,2)}</pre>
+        </div></details>
+      </div>}
+    </article>
   </li>
 }

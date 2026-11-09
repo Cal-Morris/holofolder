@@ -1,4 +1,5 @@
 import {readCollectionAudit} from "./audit"
+import {developerActivityRecovery} from './activity-recovery'
 import {withAuditActor} from "@/lib/server/audit-context"
 import {requiresPriceCheckUi} from '@/lib/developer-api/price-check-policy'
 import {readDeveloperIdentity,updateDeveloperIdentity,developerBinderIdentity,developerSharing,developerAppearance,developerArtwork} from './management'
@@ -121,6 +122,8 @@ async function dispatchDeveloperOperation(context:OperationContext,name:string,i
   case 'get_price_history':return readDeveloperPriceHistory(input)
   case 'list_collection_audit':return sanitizeImages(await readCollectionAudit(context,input))
   case 'get_collection_audit':return sanitizeImages(await readCollectionAudit(context,input,true))
+  case 'preview_collection_recovery':return developerActivityRecovery(context,'preview',input)
+  case 'apply_collection_recovery':return developerActivityRecovery(context,'apply',input)
   case 'get_collection_analytics':return sanitizeImages(await unwrap(await readCollectionAnalytics(operationRequest(input,'GET'),identity,context.ownerUserId)))
   case 'resolve_import': {
    let lookups

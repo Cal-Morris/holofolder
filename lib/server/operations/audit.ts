@@ -4,7 +4,7 @@ import { decodePage, encodeCursor } from "@/lib/developer-api/pagination"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 // Never select recovery_state/command_evidence: private certificates and label assets stay server-only.
-export const AUDIT_READ_COLUMNS = "id::text,recorded_at,format_version,actor_kind,actor_user_id,actor_job,source,client_id,operation_id,batch_id,client_occurred_at,action,affected_entities,changes,pokemon_id,pokemon_name,before_state,after_state"
+export const AUDIT_READ_COLUMNS = "id::text,recorded_at,format_version,actor_kind,actor_user_id,actor_job,source,client_id,operation_id,batch_id,client_occurred_at,action,affected_entities,changes,pokemon_id,pokemon_name,before_state,after_state,recovery_of_event_id::text"
 export function isAuditId(value: unknown): value is string {
   return typeof value === "string" && /^[1-9]\d{0,18}$/.test(value) && BigInt(value) <= BigInt("9223372036854775807")
 }
@@ -35,6 +35,7 @@ export async function readCollectionAudit(context: Pick<OperationContext, "owner
   if (groups.length) query = query.or(`and(${groups.map(group=>`or(${group})`).join(",")})`)
   if (input.actorId) query = query.eq("actor_user_id", String(input.actorId))
   if (input.action) query = query.eq("action", String(input.action))
+  if (input.recoveryOfEventId) query = query.eq('recovery_of_event_id', String(input.recoveryOfEventId))
   if (input.since) query = query.gte("recorded_at", String(input.since))
   if (input.until) query = query.lte("recorded_at", String(input.until))
   const { data, error } = await query

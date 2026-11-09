@@ -208,7 +208,7 @@ export default function BinderApp({
   const [ownedRemoveTarget, setOwnedRemoveTarget] = useState<{ id: number; name: string } | null>(null)
   const [quickUndo, setQuickUndo] = useState<(UndoAction & { id: string; accountId: string | null; ownerId: string | null }) | null>(null)
   const [undoBusy, setUndoBusy] = useState(false)
-  const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon } | null>(null)
+  const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon; activityEventId?:string; expected?:CollectedPokemon|null; accountId?:string; ownerId?:string|null } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; focusedCard?: SearchCardResult; finish?: CardFinish; nested: boolean } | null>(null)
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
@@ -299,6 +299,8 @@ export default function BinderApp({
     editWantedCard,
     removeOwnedCard,
     restoreCollectionItem,
+    refreshAfterRecovery,
+    undoActivityEvent,
     updateStatus,
     collectionCount,
     signOut,
@@ -1766,18 +1768,25 @@ export default function BinderApp({
       setOwnedRemoveUndo({
         message: mode === "to-wanted" ? `${displayName} moved back to Wanted` : `${displayName} removed`,
         previous: result.previous,
+        activityEventId: result.activityEventId, expected: result.data, accountId:user?.id, ownerId:resolvedCollectionOwnerUserId,
       })
     }
-  }, [ownedRemoveTarget, removeOwnedCard])
+  }, [ownedRemoveTarget, removeOwnedCard, user, resolvedCollectionOwnerUserId])
 
   const dismissOwnedRemoveUndo = useCallback(() => setOwnedRemoveUndo(null), [])
 
   const handleUndoOwnedRemoval = useCallback(async () => {
     const undo = ownedRemoveUndo
-    setOwnedRemoveUndo(null)
-    if (!undo) return
-    await restoreCollectionItem(undo.previous)
-  }, [ownedRemoveUndo, restoreCollectionItem])
+    if (!undo || (undo.accountId && (undo.accountId!==user?.id || undo.ownerId!==resolvedCollectionOwnerUserId))) return
+    try {
+      if(undo.activityEventId) await undoActivityEvent(undo.activityEventId)
+      else {
+        const result=await restoreCollectionItem(undo.previous,undo.expected)
+        if(result.error)throw new Error(typeof result.error==='string' ? result.error : 'Could not undo. Try again.')
+      }
+      setOwnedRemoveUndo(null)
+    } catch(error) {setOwnedRemoveUndo({...undo,message:error instanceof Error ? error.message : 'Could not undo. Try again.'})}
+  }, [ownedRemoveUndo, restoreCollectionItem, undoActivityEvent, user, resolvedCollectionOwnerUserId])
 
   const handleQuickCollect = async (pokemon: { id: number; name: string }) => {
     if (readOnlyMode) return
@@ -1816,8 +1825,8 @@ export default function BinderApp({
     if (!existing) return
     const previous = { ...existing, wanted_cards: [...existing.wanted_cards] }
     const result = await editWantedCard(pokemonId, wantedCard, null)
-    if (!("error" in result) || ("queued" in result && result.queued)) setOwnedRemoveUndo({ message: `${wantedCard.card_name} removed from want list`, previous })
-  }, [editWantedCard, getCollectionItem, readOnlyMode, user])
+    if (!("error" in result) || ("queued" in result && result.queued)) setOwnedRemoveUndo({ message: `${wantedCard.card_name} removed from want list`, previous, activityEventId: "activityEventId" in result ? result.activityEventId as string|undefined : undefined, expected: "data" in result ? result.data : null, accountId:user?.id,ownerId:resolvedCollectionOwnerUserId })
+  }, [editWantedCard, getCollectionItem, readOnlyMode, user, resolvedCollectionOwnerUserId])
 
   const handleCollectSetCard = useCallback(async (slot: TCGSetDexSlot, card: TCGSetSlotCard) => {
     if (readOnlyMode) return
@@ -1953,9 +1962,9 @@ export default function BinderApp({
       },
     )
     if (previous && "data" in gotResult) {
-      setOwnedRemoveUndo({ message: `${wantedCard.card_name} moved to your binder`, previous })
+      setOwnedRemoveUndo({ message: `${wantedCard.card_name} moved to your binder`, previous, activityEventId: "activityEventId" in gotResult ? gotResult.activityEventId as string|undefined : undefined, expected: "data" in gotResult ? gotResult.data : null, accountId:user?.id,ownerId:resolvedCollectionOwnerUserId })
     }
-  }, [addToCollection, getCollectionItem, readOnlyMode, user])
+  }, [addToCollection, getCollectionItem, readOnlyMode, user, resolvedCollectionOwnerUserId])
 
   const handleCollectSetCards = useCallback(async (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => {
     for (const { slot, card } of cards) {
@@ -1991,7 +2000,7 @@ export default function BinderApp({
       if (editingWantedCard) {
         if (replacement) {
           const result = await editWantedCard(pokemon.id, editingWantedCard, replacement)
-          if ((!("error" in result) || ("queued" in result && result.queued)) && existingCollectionItem) setOwnedRemoveUndo({ message: "Wanted card changed", previous: { ...existingCollectionItem, wanted_cards: [...existingCollectionItem.wanted_cards] } })
+          if ((!("error" in result) || ("queued" in result && result.queued)) && existingCollectionItem) setOwnedRemoveUndo({ message: "Wanted card changed", previous: { ...existingCollectionItem, wanted_cards: [...existingCollectionItem.wanted_cards] }, activityEventId: "activityEventId" in result ? result.activityEventId as string|undefined : undefined, expected: "data" in result ? result.data : null, accountId:user?.id,ownerId:resolvedCollectionOwnerUserId })
         } else await handleClearWantedCard(pokemon.id, editingWantedCard)
       } else if (replacement) await addWantedCard(pokemon.id, pokemon.name, replacement)
     } else {
@@ -3277,7 +3286,9 @@ export default function BinderApp({
     const previous = getCollectionItem(pokemon.id)
     const snapshot = previous ? { ...previous, wanted_cards: [...(previous.wanted_cards ?? [])] } : null
     let acquired: CollectedPokemon | null | undefined
+    let activityEventId:string|undefined
     const undo = async () => {
+      if(activityEventId) {await undoActivityEvent(activityEventId);return}
       const result = snapshot ? await restoreCollectionItem(snapshot, acquired) : await removeFromCollection(pokemon.id, acquired)
       if (result.error && !("queued" in result && result.queued)) throw new Error(typeof result.error === "string" ? result.error : "Could not undo. Try again.")
     }
@@ -3287,6 +3298,7 @@ export default function BinderApp({
       if (!wanted) return null
       const result = await editWantedCard(pokemon.id, wanted, null)
       if ("error" in result && !("queued" in result && result.queued)) throw new Error("Could not remove the wanted card")
+      activityEventId = "activityEventId" in result ? result.activityEventId as string|undefined : undefined
       acquired = "data" in result ? result.data : null
       return undo
     }
@@ -3306,6 +3318,7 @@ export default function BinderApp({
         added_at: new Date().toISOString(),
       })
       if (result.error && !result.queued) throw new Error("Could not add the wanted card")
+      activityEventId = "activityEventId" in result ? result.activityEventId as string|undefined : undefined
       acquired = result.data
       return undo
     }
@@ -3317,9 +3330,10 @@ export default function BinderApp({
       cardIds: catalogCardIds(card),
     })
     if (result.error && !result.queued) throw new Error("Could not add the owned card")
+    activityEventId = "activityEventId" in result ? result.activityEventId as string|undefined : undefined
     acquired = result.data
     return undo
-  }, [addToCollection, addWantedCard, editWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, user])
+  }, [addToCollection, addWantedCard, editWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, undoActivityEvent, user])
   const handleQuickChangeCard = useCallback((mode: CardSelectorMode, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => {
     const summary = getPokemonSummary(pokemon.id)
     if (!summary || readOnlyMode) return
@@ -3522,7 +3536,7 @@ export default function BinderApp({
 
   return (
     <BillingContext.Provider value={billing}>
-    <CollectionActivityProvider accountId={readOnlyMode ? null : user?.id ?? null} ownerId={readOnlyMode ? null : resolvedCollectionOwnerUserId} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={localPendingSyncCount} isOnline={isOnline} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
+    <CollectionActivityProvider accountId={readOnlyMode ? null : user?.id ?? null} ownerId={readOnlyMode ? null : resolvedCollectionOwnerUserId} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={localPendingSyncCount} isOnline={isOnline} onRecovered={refreshAfterRecovery} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"
