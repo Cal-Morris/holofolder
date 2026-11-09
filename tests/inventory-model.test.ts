@@ -99,6 +99,27 @@ describe("owned-copy inventory contract", () => {
 })
 
 describe("pure assignment, move and unassign", () => {
+  test("existing copies can enter free slots without catalog access, constrained targets still fail closed", () => {
+    const before = state()
+    before.binders[0].slots[0].target = null
+    before.binders[1].slots[0].target = null
+    const unavailable: InventoryCatalogResolver = () => undefined
+    const assigned = success(planAssignInventory(before, { inventoryRevision: 7, destination: destination(), selection: existing(), context }, unavailable))
+    assert.equal(assigned.selectedInventoryItemId, "raw")
+    const moved = success(planMoveInventory(assigned.snapshot, {
+      inventoryRevision: 8, inventoryItemId: "raw", itemVersion: 0, placementVersion: 0,
+      source: destination("a", 5), destination: destination("b"), context,
+    }, unavailable))
+    assert.deepEqual(moved.snapshot.items, before.items)
+    assert.equal(getInventoryItemLocation(moved.snapshot, "raw")?.collectionId, "b")
+    assert.deepEqual(planAssignInventory(state(), { inventoryRevision: 7, destination: destination(), selection: existing(), context }, unavailable), { ok: false, error: "catalog-unavailable" })
+    const constrained = structuredClone(assigned.snapshot)
+    constrained.binders[1].slots[0].target = { kind: "pokemon", pokemonId: 143 }
+    assert.deepEqual(planMoveInventory(constrained, {
+      inventoryRevision: 8, inventoryItemId: "raw", itemVersion: 0, placementVersion: 0,
+      source: destination("a", 5), destination: destination("b"), context,
+    }, unavailable), { ok: false, error: "catalog-unavailable" })
+  })
   test("automatically reuses matching Unassigned copy with acquisition and grade intact", () => {
     const snapshot = state([item("slab", { grading: grading() })])
     const before = structuredClone(snapshot)

@@ -136,9 +136,11 @@ export function planAssignInventory(snapshot: InventorySnapshot, input: AssignIn
       plan.snapshot.items.push(item)
     }
   } else return fail("invalid-selection")
-  const candidate = inventoryItemCandidate(item, resolveCatalog)
-  if (!candidate) return fail("catalog-unavailable")
-  if (!matchesSlotTarget(candidate, destination.target)) return fail("target-mismatch")
+  if (destination.target !== null) {
+    const candidate = inventoryItemCandidate(item, resolveCatalog)
+    if (!candidate) return fail("catalog-unavailable")
+    if (!matchesSlotTarget(candidate, destination.target)) return fail("target-mismatch")
+  }
   if (!Object.hasOwn(plan.preconditions.items, item.id)) expectItem(plan, item)
   else plan.preconditions.placements = { ...plan.preconditions.placements, [item.id]: null }
   if (!setSlotItem(plan, destination, item.id)) return fail("revision-overflow")
@@ -170,9 +172,11 @@ export function planMoveInventory(snapshot: InventorySnapshot, input: PlacedInve
   const destination = selectSlot(plan, input.destination)
   if (typeof destination === "string") return fail(destination)
   if (destination.id === selected.source.id) return finish(plan)
-  const candidate = inventoryItemCandidate(selected.item, resolveCatalog)
-  if (!candidate) return fail("catalog-unavailable")
-  if (!matchesSlotTarget(candidate, destination.target)) return fail("target-mismatch")
+  if (destination.target !== null) {
+    const candidate = inventoryItemCandidate(selected.item, resolveCatalog)
+    if (!candidate) return fail("catalog-unavailable")
+    if (!matchesSlotTarget(candidate, destination.target)) return fail("target-mismatch")
+  }
   if (selected.placementVersion === Number.MAX_SAFE_INTEGER || !setSlotItem(plan, selected.source, null)
     || !setSlotItem(plan, destination, selected.item.id)) return fail("revision-overflow")
   plan.snapshot.placements.push({ inventoryItemId: selected.item.id, collectionId: destination.collectionId, slotId: destination.id, version: selected.placementVersion + 1 })
