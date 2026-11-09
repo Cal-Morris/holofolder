@@ -67,7 +67,8 @@ test("cached set coverage, per-Pokémon lists and earlier searches all become se
   assert.deepEqual(fromPokemon[0].dexIds, [6])
 
   const fromSearch = extractCardsFromCachedResponse("/app/api/tcg-card-search?q=pika", { cards: [{ ...card("base1-58", "Pikachu", "58"), dexIds: [25] }, { ...card("x-1", "No dex", "1"), dexIds: [] }] })
-  assert.deepEqual(fromSearch.map((entry) => entry.id), ["base1-58"])
+  assert.deepEqual(fromSearch.map((entry) => entry.id), ["base1-58", "x-1"])
+  assert.deepEqual(fromSearch[1].dexIds, [])
 
   assert.deepEqual(extractCardsFromCachedResponse("/app/api/tcgdex-cache?pokemonId=0", { cards: [card("a-1", "A", "1")] }), [])
   assert.deepEqual(extractCardsFromCachedResponse("/app/api/other", setSlots), [])

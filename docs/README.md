@@ -15,6 +15,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Staged atomic inventory operations](atomic-inventory-operations.md): exclusive full-collection deletion bounds, Unassigned retention, audit/recovery proof and unsupported payload/latency gates (#383).
 - [Converted ordinary-edit recovery](converted-content-recovery.md): unchanged conversion provenance, frozen-source dependencies, local proof and explicit remaining recovery gates (080).
 - [Staged safe collection recovery](safe-collection-recovery.md): private reviewed inverse/apply, linked immutable history, local proof and remaining Activity/API/legacy rollout gates (#396).
+- [Explicit-slot picker preparation](explicit-slot-picker.md): private parsed-intent callback, synthetic UI proof, cached non-dex search and remaining authenticated/queue/rollout gates (#366).
 - [Editable binder contracts](binder-slot-contracts.md): internal slot/snapshot, target/matching, copied preset and pure layout contracts, with explicit adapter and rollout boundaries.
 - [Collection Activity](collection-activity-ui.md): first-party session adapter, read-only history, private device cache and parent release handoff.
 - [Multiple binders](multiple-binders.md), [binder history](binder-history.md), [collection import](collection-import.md).

@@ -21,6 +21,8 @@ function toSearchCard(value: unknown, dexIds: number[]): SearchCardResult | null
   if (typeof value.id !== "string" || typeof value.name !== "string" || !set || typeof set.id !== "string") return null
   return {
     id: value.id,
+    ...(typeof value.canonicalId === "string" ? { canonicalId: value.canonicalId } : {}),
+    ...(Array.isArray(value.aliasIds) ? { aliasIds: value.aliasIds.filter((id): id is string => typeof id === "string") } : {}),
     localId: typeof value.localId === "string" ? value.localId : value.id.split("-").pop() ?? "",
     name: value.name,
     image: typeof value.image === "string" ? value.image : undefined,
@@ -72,7 +74,7 @@ export function extractCardsFromCachedResponse(url: string, payload: unknown): S
   } else if ((path.startsWith("/app/api/tcg-card-search") || path.startsWith("/app/api/tcg-illustrators")) && Array.isArray(payload.cards)) {
     for (const card of payload.cards) {
       const result = toSearchCard(card, positiveInts(isRecord(card) ? card.dexIds : null))
-      if (result && result.dexIds.length > 0) cards.push(result)
+      if (result && (path.startsWith("/app/api/tcg-card-search") || result.dexIds.length > 0)) cards.push(result)
     }
   }
 
@@ -120,12 +122,14 @@ export function mergeSearchCards(lists: SearchCardResult[][]): SearchCardResult[
   const byId = new Map<string, SearchCardResult>()
   for (const list of lists) {
     for (const card of list) {
-      const key = `${card.id}:${card.language ?? "en"}`
+      const key = `${card.id}:${card.language ?? "unknown"}`
       const existing = byId.get(key)
       if (!existing) {
         byId.set(key, { ...card, dexIds: [...new Set(card.dexIds)] })
       } else {
         existing.dexIds = [...new Set([...existing.dexIds, ...card.dexIds])]
+        existing.canonicalId ??= card.canonicalId
+        if (card.aliasIds?.length) existing.aliasIds = [...new Set([...(existing.aliasIds ?? []), ...card.aliasIds])]
         existing.image ??= card.image
         existing.rarity ??= card.rarity
         if (!existing.set.officialCardCount && card.set.officialCardCount) existing.set = { ...existing.set, ...card.set }
@@ -138,7 +142,7 @@ export function mergeSearchCards(lists: SearchCardResult[][]): SearchCardResult[
 /** Same rules as the server search: card id, or name / set name / set id containing the text, optionally a number. */
 export function searchOfflineCards(cards: SearchCardResult[], query: string, limit = 60): SearchCardResult[] {
   // Supplement identities can have stamped suffixes that the collector-number parser cannot infer.
-  const exactId = cards.filter(card => card.id.toLowerCase() === query.trim().toLowerCase())
+  const exactId = cards.filter(card => [card.id, card.canonicalId, ...(card.aliasIds ?? [])].some(id => id?.toLowerCase() === query.trim().toLowerCase()))
   if (exactId.length) return exactId.slice(0, limit)
   const parsed = resolveCardSearchQuery(query, Array.from(new Map(cards.map(card => [card.set.id, card.set])).values()))
   if (parsed.cardId) {

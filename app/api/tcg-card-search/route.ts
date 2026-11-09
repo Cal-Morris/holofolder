@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const language = normalizeCardLanguage(searchParams.get("language"))
 
   try {
-    const result = await searchMirroredCards(query, language)
+    const result = await searchMirroredCards(query, language, 60, searchParams.get("includeNonPokemon") === "1")
     return NextResponse.json(result, { headers: PUBLIC_JSON_CACHE_HEADERS })
   } catch (error) {
     console.error("[holofolder] Card search failed:", error)
