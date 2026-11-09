@@ -6,6 +6,51 @@ import { binderDimensions, binderPocket, BINDER_PAGE, BINDER_LAYERS, defaultBind
 
 test.describe("3D binder gestures", () => {
   test.use({ signedIn: true })
+  test("unchanged collection refresh keeps settled 3D slots tappable", async ({ harness }) => {
+    const { page } = harness, design = defaultBinderDesign()
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
+    await page.reload()
+    await harness.openViewOptions()
+    await page.getByRole("button", { name: "3D", exact: true }).click()
+    const stage = page.getByTestId("binder-3d-stage"), canvas = stage.locator("canvas")
+    await expect(stage).toHaveAttribute("data-opening-state", "settled")
+    await expect(stage).toHaveAttribute("aria-busy", "false")
+    await canvas.scrollIntoViewIfNeeded()
+    await stage.evaluate(element => {
+      const busy: string[] = []
+      new MutationObserver(() => { if (element.getAttribute("aria-busy") === "true") busy.push("busy") }).observe(element, { attributes: true, attributeFilter: ["aria-busy"] })
+      Object.assign(element, { refreshBusyTransitions: busy })
+    })
+    const refresh = page.waitForResponse(response => response.url().includes("/rest/v1/pokemon_collection"))
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")))
+    await refresh
+    // Observe the entire refresh render, including a transient busy interval that has already ended.
+    await page.evaluate(() => new Promise<void>(resolve => {
+      let frames = 0
+      const observe = () => { if (++frames === 20) resolve(); else requestAnimationFrame(observe) }
+      requestAnimationFrame(observe)
+    }))
+    expect(await stage.evaluate(element => Reflect.get(element, "refreshBusyTransitions"))).toEqual([])
+    const box = (await canvas.boundingBox())!, dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))))
+    const camera = new PerspectiveCamera(34, box.width / box.height, .1, 100), frame = binderCameraFrame("inside", box.width, box.height, dimensions.coverZ)
+    camera.position.set(...frame.position); camera.lookAt(...frame.target); camera.updateMatrixWorld()
+    const pocket = binderPocket(design.rows, design.cols, 0, 1)
+    const point = new Vector3(BINDER_PAGE.hingeX + pocket.x, pocket.y, dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film).project(camera)
+    await canvas.tap({ position: { x: (point.x + 1) * box.width / 2, y: (1 - point.y) * box.height / 2 } })
+    const detail = page.getByRole("dialog", { name: /bulbasaur.*details/i })
+    await expect(detail).toBeVisible()
+    await harness.closeControl(detail).click()
+    const changedDesign = { ...design, surfaces: { ...design.surfaces, cover: { ...design.surfaces.cover, words: "Synthetic changed cover" } } }
+    await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design: changedDesign, revision: 2 } }))
+    const appearanceRefresh = page.waitForResponse(response => response.url().includes("/app/api/binder-appearance"))
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")))
+    await appearanceRefresh
+    await expect.poll(() => stage.evaluate(element => Reflect.get(element, "refreshBusyTransitions").length)).toBeGreaterThan(0)
+    await expect(stage).toHaveAttribute("aria-busy", "false")
+    await canvas.tap({ position: { x: (point.x + 1) * box.width / 2, y: (1 - point.y) * box.height / 2 } })
+    await expect(detail).toBeVisible()
+  })
+
   test("preloads neighbours, swipes both ways, pans while zoomed and opens Pokémon details", async ({ harness }) => {
     const { page } = harness
     const design = defaultBinderDesign()

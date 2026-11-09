@@ -27,6 +27,7 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   const root = new THREE.Group(); scene.add(root)
   let hinge = new THREE.Group(), binding: THREE.Mesh<THREE.BufferGeometry, THREE.MeshPhysicalMaterial> | null = null
   let radius = .3, opening = 0, view: BinderView = "front", targets: THREE.Object3D[] = [], textures: THREE.Texture[] = [], generation = 0, disposed = false, visible = true, pending: ReturnType<typeof setTimeout> | undefined
+  let updateKey: string | null = null
   let openingFrame = 0
   let frameRequest = 0, displayedPage = 0, latestInput: RenderInput | null = null
   let closedPages = new THREE.Group(), openPages = new THREE.Group()
@@ -387,7 +388,13 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
   renderer.domElement.addEventListener("pointerdown",pointerDown,true);document.addEventListener("pointermove",pointerMove);document.addEventListener("pointerup",pointerUp);renderer.domElement.addEventListener("click",click);document.addEventListener("pointercancel",pointerCancel);renderer.domElement.addEventListener("lostpointercapture",lostCapture);renderer.domElement.addEventListener("webglcontextlost",lost)
   resize();setView("front")
   return {
-    update(input: RenderInput){clearTimeout(pending);stopTurn();stage.setAttribute("aria-busy","true");generation++;pending=setTimeout(()=>{build(input).catch(()=>{stage.setAttribute("aria-busy","false");if(!disposed)fail("The 3D preview could not update. Your draft is still here.")})},100)},
+    update(input: RenderInput){
+      const key=JSON.stringify(input)
+      if(key===updateKey)return
+      updateKey=key
+      clearTimeout(pending);stopTurn();stage.setAttribute("aria-busy","true");generation++
+      pending=setTimeout(()=>{build(input).catch(()=>{if(key===updateKey)updateKey=null;stage.setAttribute("aria-busy","false");if(!disposed)fail("The 3D preview could not update. Your draft is still here.")})},100)
+    },
     setView, reset(){setView(view)},
     dispose(){disposed=true;generation++;cancelAnimationFrame(openingFrame);cancelAnimationFrame(frameRequest);clearTimeout(pending);observer.disconnect();intersection.disconnect();document.removeEventListener("visibilitychange",onVisible);document.removeEventListener("pointermove",pointerMove);document.removeEventListener("pointerup",pointerUp);document.removeEventListener("pointercancel",pointerCancel);controls.dispose();disposeModel();grain.dispose();environment.dispose();renderer.dispose();renderer.domElement.remove();imageCache.clear()},
   }
