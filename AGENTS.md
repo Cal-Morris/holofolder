@@ -200,6 +200,8 @@ Cal authorizes completing each feature through ready PR merges and verified prod
 
 Prepare release drafts during implementation. Merge one ready PR at a time under the release policy, verify the enabled main deployment, then finish the scoped Framer updates/publication and record live links on the issue/project. A quota-blocked merge stays deployment-pending and must not be announced as shipped. Internal-only changes may record why no marketing update is warranted. These instructions do not authorize publishing unrelated collaborator edits. Do not call a user-facing feature block complete while its required API/docs or marketing publication is pending.
 
+Use [task-progress](.agents/skills/task-progress/SKILL.md) at start, review, merge, deployment and completion to keep issue checklists, native dependencies and project Status aligned. A merge alone does not mark a feature Done; verify its applicable delivery gates, then close the issue and reconcile its parent/project.
+
 ## Definition of done
 
 - [ ] One concern per PR and commit, on a short-lived branch off the latest `main`; independent features use separate branches wherever possible
@@ -230,6 +232,7 @@ UI craft skills from [Emil Kowalski](.agents/skills/EMIL-SOURCE.md) are vendored
 | [pricing-signal-changes](.agents/skills/pricing-signal-changes/SKILL.md) | Touching providers, confidence, Rising or Breakout |
 | [offline-and-caching](.agents/skills/offline-and-caching/SKILL.md) | Touching `sw.js`, IndexedDB or the offline queue |
 | [mobile-ui-verification](.agents/skills/mobile-ui-verification/SKILL.md) | Any UI change |
+| [task-progress](.agents/skills/task-progress/SKILL.md) | Starting, progressing or completing issues: project status, acceptance evidence and parent/dependency reconciliation |
 | [feature-api-docs](.agents/skills/feature-api-docs/SKILL.md) | Every feature delivery: shared API parity, generated references and current help docs |
 | [release-posts-and-changelog](.agents/skills/release-posts-and-changelog/SKILL.md) | Shipped feature blocks: CMS blog posts and visible changelog |
 | [framer-feature-updates](.agents/skills/framer-feature-updates/SKILL.md) | Shipped feature blocks: current Framer feature pages and production publication |

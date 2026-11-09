@@ -19,6 +19,8 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 
 ## Feature delivery
 
+[Task progress](../.agents/skills/task-progress/SKILL.md) keeps issues, acceptance checklists, parent tasks and project status aligned throughout implementation and release.
+
 Every feature includes its API/docs under [feature-api-docs](../.agents/skills/feature-api-docs/SKILL.md). After merging and verifying a user-facing feature block on main, complete [CMS release posts and changelog](../.agents/skills/release-posts-and-changelog/SKILL.md) and [Framer feature-page updates/publication](../.agents/skills/framer-feature-updates/SKILL.md). [Release-and-deploy](../.agents/skills/release-and-deploy/SKILL.md) connects the workflows and records pending channels honestly.
 
 ## Publication and attribution
