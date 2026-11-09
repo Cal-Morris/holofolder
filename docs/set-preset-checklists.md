@@ -51,3 +51,7 @@ Craft review:
 | Catalog scope could drift | Frozen envelope and separate current-target progress | Preserve user edits |
 
 No new animation or overlay primitive is introduced. Controls use immediate state feedback and the existing shared switcher. All UI evidence is emulated; physical-device keyboard and gesture behavior remains unproved.
+
+Rejected scope changes, including conflicting catalog aliases, show a validation error and keep both the picker selection and previously published checklist unchanged. A promo is displayed as selected only after the derived scope validates.
+
+Parent regression proof: the conflicting-promo case failed on the original source and passes after validating before committing any scope selection. Final affected matrix passes all66 cases without retries;17 focused unit cases, typecheck, focused zero-warning lint and production-mode build pass. No runtime persistence or hosted write is claimed.

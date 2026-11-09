@@ -76,6 +76,28 @@ test.describe("copied set preset draft", () => {
     await sheet.getByRole("button", { name: "Prepare draft" }).click()
     await expect(page.getByLabel("Prepared creation draft")).toContainText('"excludedCardIds":["synthetic-set-1"]')
   })
+  test("rejected promo alias leaves the selected scope and prepared draft consistent", async ({ harness }) => {
+    const { page } = harness, sheet = page.getByRole("dialog", { name: "Binders", exact: true })
+    await page.route("**/app/api/tcg-set-slots**", route => {
+      const url = new URL(route.request().url()), promo = url.searchParams.get("setId") === "synthetic-promos"
+      const cards = promo ? [{ ...syntheticPresetPromo, aliasIds: ["synthetic-shared-alias"] }]
+        : syntheticPresetCards.map((card, index) => ({ ...card, ...(index === 0 ? { aliasIds: ["synthetic-shared-alias"] } : {}) }))
+      return route.fulfill({ json: { sets: [syntheticPresetSet], selectedSet: promo ? syntheticPresetPromo.set : syntheticPresetSet, cards, slots: [] } })
+    })
+    await sheet.getByRole("button", { name: "Find set", exact: true }).click()
+    await sheet.getByRole("button", { name: /Synthetic International/ }).click()
+    await sheet.getByText("Optional promos and exclusions", { exact: true }).click()
+    await sheet.getByLabel("Promo set ID").fill("synthetic-promos")
+    await sheet.getByRole("button", { name: "Load promos", exact: true }).click()
+    await sheet.getByRole("button", { name: /^Add promo/ }).click()
+    await expect(sheet.getByRole("status").filter({ hasText: "This catalog selection could not be used" })).toBeVisible()
+    await expect(sheet.getByRole("button", { name: /^Remove promo/ })).toHaveCount(0)
+    await expect(sheet.getByLabel("Copied set scope")).toContainText("6 targets")
+    await expect(sheet.getByLabel("Copied set scope")).toContainText("0 selected promos")
+    await sheet.getByRole("button", { name: "Prepare draft" }).click()
+    await expect(page.getByLabel("Prepared creation draft")).toContainText('"promoCardIds":[]')
+    await expect(page.getByLabel("Prepared creation draft")).not.toContainText('"cardId":"synthetic-promo-1"')
+  })
   test("saved scope remains visible offline and edited current targets change the goal", async ({ harness }) => {
     const { page } = harness, sheet = page.getByRole("dialog", { name: "Binders", exact: true })
     await sheet.getByRole("button", { name: "Prepare draft" }).click()

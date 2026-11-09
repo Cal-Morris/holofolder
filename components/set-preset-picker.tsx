@@ -28,8 +28,14 @@ export function SetPresetPicker({ isOnline, initialSet, onChange }: {
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [])
   function publish(nextCatalog = catalog, nextFinishes = finishes, nextExcluded = excluded, nextPromos = promos) {
-    if (!nextCatalog) { onChange(null); return }
-    onChange(generateSetChecklist({ ...nextCatalog, language, finishes: nextFinishes, excludedCardIds: nextExcluded, promos: nextPromos }))
+    if (!nextCatalog) { onChange(null); return false }
+    try {
+      const checklist = generateSetChecklist({ ...nextCatalog, language, finishes: nextFinishes, excludedCardIds: nextExcluded, promos: nextPromos })
+      onChange(checklist); setMessage(""); return true
+    } catch {
+      setMessage("This catalog selection could not be used. No new checklist was prepared.")
+      return false
+    }
   }
   async function load(setId?: string, promo = false) {
     if (!isOnline) return
@@ -49,7 +55,8 @@ export function SetPresetPicker({ isOnline, initialSet, onChange }: {
       if (!setId) { setSets(data.sets ?? []); if (!data.sets?.length) setMessage("No matching catalog set. Nothing substituted."); return }
       if (!data.selectedSet || data.selectedSet.id !== resolveSetSearchAlias(setId) || !Array.isArray(data.cards)) throw new Error("Full set catalog unavailable. No checklist generated.")
       const next = { set: data.selectedSet, cards: data.cards, capturedAt: new Date().toISOString() }
-      publish(next, finishes, [], []); setCatalog(next); setSets([])
+      if (!publish(next, finishes, [], [])) return
+      setCatalog(next); setSets([])
     } catch (error) { if (sequence === request.current) setMessage(error instanceof Error ? error.message : "Catalog unavailable") }
     finally { if (sequence === request.current) setLoading(false) }
   }
@@ -64,23 +71,23 @@ export function SetPresetPicker({ isOnline, initialSet, onChange }: {
     {catalog && <>
       <p className="break-words text-sm font-semibold">{catalog.set.name} · {catalog.set.id}</p>
       <fieldset className="space-y-1"><legend className="text-xs font-semibold">Finish scope</legend>
-        <button type="button" className={`${control} w-full text-left text-sm`} aria-pressed={!finishes.length} onClick={() => { setFinishes([]); publish(catalog, []) }}>Base checklist, any finish</button>
+        <button type="button" className={`${control} w-full text-left text-sm`} aria-pressed={!finishes.length} onClick={() => { if (publish(catalog, [])) setFinishes([]) }}>Base checklist, any finish</button>
         <p className="text-xs text-muted-foreground">Select verified finishes for a scoped variant checklist. Any finish does not mean Normal. First edition and promo stamps are not supported finish constraints.</p>
         {(Object.keys(SET_FINISH_FLAGS) as SetPresetFinish[]).map(f => {
           const count = [...catalog.cards, ...promos].filter(c => c.languageConfirmed === true && c.language === language && verifiedSetFinishes(c).includes(f)).length
           return <button type="button" key={f} aria-pressed={finishes.includes(f)} disabled={!count} className={`${control} w-full text-left text-sm disabled:opacity-50`} onClick={() => {
-            const next = finishes.includes(f) ? finishes.filter(x => x !== f) : [...finishes, f]; setFinishes(next); publish(catalog, next)
+            const next = finishes.includes(f) ? finishes.filter(x => x !== f) : [...finishes, f]; if (publish(catalog, next)) setFinishes(next)
           }}>{labels[f]} · {count} verified{!count && " · Unavailable"}</button>
         })}
       </fieldset>
       <details className="text-xs"><summary className="min-h-10 cursor-pointer py-3">Optional promos and exclusions</summary>
         <p className="mb-2">Promos are not automatically associated with this set. Load an actual promo set ID, then select cards explicitly.</p>
         <div className="flex gap-2"><input aria-label="Promo set ID" value={promoQuery} onChange={e => setPromoQuery(e.target.value)} className={`${control} min-w-0 flex-1`} /><button type="button" disabled={!isOnline || loading || !promoQuery.trim()} className={`${control} text-sm`} onClick={() => void load(promoQuery, true)}>Load promos</button></div>
-        {promoResults.map(c => <button key={c.id} type="button" disabled={!c.languageConfirmed || c.language !== language || promos.some(p => (p.canonicalId ?? p.id) === (c.canonicalId ?? c.id)) || catalog.cards.some(p => (p.canonicalId ?? p.id) === (c.canonicalId ?? c.id))} className={`${control} mt-1 w-full break-words py-2 text-left text-sm disabled:opacity-40`} onClick={() => { const next = [...promos, c]; setPromos(next); publish(catalog, finishes, excluded, next) }}>Add promo {c.name} #{c.localId}</button>)}
-        {promos.map(c => <button key={c.id} type="button" className={`${control} mt-1 w-full break-words text-left text-sm`} onClick={() => { const next = promos.filter(p => p.id !== c.id); setPromos(next); const nextExcluded = excluded.filter(id => id !== (c.canonicalId ?? c.id)); setExcluded(nextExcluded); publish(catalog, finishes, nextExcluded, next) }}>Remove promo {c.name}</button>)}
+        {promoResults.map(c => <button key={c.id} type="button" disabled={!c.languageConfirmed || c.language !== language || promos.some(p => (p.canonicalId ?? p.id) === (c.canonicalId ?? c.id)) || catalog.cards.some(p => (p.canonicalId ?? p.id) === (c.canonicalId ?? c.id))} className={`${control} mt-1 w-full break-words py-2 text-left text-sm disabled:opacity-40`} onClick={() => { const next = [...promos, c]; if (publish(catalog, finishes, excluded, next)) setPromos(next) }}>Add promo {c.name} #{c.localId}</button>)}
+        {promos.map(c => <button key={c.id} type="button" className={`${control} mt-1 w-full break-words text-left text-sm`} onClick={() => { const next = promos.filter(p => p.id !== c.id); const nextExcluded = excluded.filter(id => id !== (c.canonicalId ?? c.id)); if (publish(catalog, finishes, nextExcluded, next)) { setPromos(next); setExcluded(nextExcluded) } }}>Remove promo {c.name}</button>)}
         <div className="mt-2 max-h-52 space-y-1 overflow-y-auto" aria-label="Card exclusions">{catalog.cards.map(c => {
           const id = c.canonicalId ?? c.id
-          return <button type="button" key={id} aria-pressed={excluded.includes(id)} className={`${control} w-full break-words py-2 text-left text-sm`} onClick={() => { const next = excluded.includes(id) ? excluded.filter(x => x !== id) : [...excluded, id]; setExcluded(next); publish(catalog, finishes, next) }}>{excluded.includes(id) ? "Restore" : "Exclude"} #{c.localId} {c.name}</button>
+          return <button type="button" key={id} aria-pressed={excluded.includes(id)} className={`${control} w-full break-words py-2 text-left text-sm`} onClick={() => { const next = excluded.includes(id) ? excluded.filter(x => x !== id) : [...excluded, id]; if (publish(catalog, finishes, next)) setExcluded(next) }}>{excluded.includes(id) ? "Restore" : "Exclude"} #{c.localId} {c.name}</button>
         })}</div>
       </details>
     </>}
