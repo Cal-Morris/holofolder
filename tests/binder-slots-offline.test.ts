@@ -316,3 +316,37 @@ test("a lease overtaken during the fresh read cannot settle the replacement leas
   assert.equal(r.pending[0].status, "unavailable")
   assert.equal(r.receipts.length, 0)
 })
+
+test("cached complete brands cannot ACK even at the expected or a higher revision", async () => {
+  for (const extraRevision of [0, 2]) {
+    const q = createSlotOfflineQueue(createMemoryStore(), scope)
+    await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+    const old = projectSlotIntent(snapshot(), intent(), catalog)
+    old.inventoryRevision += extraRevision
+    const cached = await complete(old)
+    await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => scope, 0, catalog, async () => cached)
+    const record = await q.read()
+    assert.equal(record.pending.length, 1)
+    assert.equal(record.receipts.length, 0)
+    assert.equal(record.snapshot!.inventoryRevision, 1)
+  }
+})
+
+test("a complete read begun before execution cannot ACK by finishing after the reply", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  const s = projectSlotIntent(snapshot(), intent(), catalog)
+  let release!: () => void, signalReady!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const ready = new Promise<void>(resolve => { signalReady = resolve })
+  const page = <T>(rows: T[]) => async () => ({ inventoryRevision: s.inventoryRevision, total: rows.length, rows, next: null })
+  const earlierRead = readCompleteInventorySnapshot(s.ownerUserId, s.inventoryRevision,
+    { items: page(s.items), placements: page(s.placements), collections: page(s.collections), binders: page(s.binders) },
+    async () => { signalReady(); await gate })
+  await ready
+  await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => scope, 0, catalog,
+    async () => { release(); return earlierRead })
+  const record = await q.read()
+  assert.equal(record.pending.length, 1)
+  assert.equal(record.receipts.length, 0)
+})

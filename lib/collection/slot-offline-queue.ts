@@ -1,4 +1,4 @@
-import { isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
+import { captureCompleteInventoryReadFence, isCompleteInventoryReadAfter, isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
 import type { AtomicOfflineStore } from "@/lib/offline-store/kv"
 import { isContractRecord, isSlotContractId, isSlotRevision } from "@/lib/domain/binder-slots"
 import { normalizeInventorySnapshot, type InventorySnapshot, type InventoryCatalogResolver } from "@/lib/domain/inventory"
@@ -175,7 +175,9 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           try {
             const head = (await read()).pending[0]
             if (!active() || head?.lease?.id !== leaseId) return
+            const readFence = captureCompleteInventoryReadFence()
             snapshot = await readCurrent()
+            if (!isCompleteInventoryReadAfter(snapshot, readFence)) snapshot = undefined
           } catch { /* Keep unknown/partial outcomes durable. */ }
         }
         result = { ...result, snapshot }
