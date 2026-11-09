@@ -1,3 +1,4 @@
+import type { BinderBackupV2 } from "@/lib/binder-backup-v2"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
 import { isCardFinish, isCardLanguage, isSlotStatus, type CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeBinderDesign, DESIGN_SURFACES, type BinderDesign } from "@/lib/binder-design"
@@ -63,11 +64,11 @@ export function binderBackupFilename(name: string | null, exportedAt: string) {
   return `holofolder-${slug}-${new Date(exportedAt).toISOString().replace(/[:.]/g, "-")}.json`
 }
 
-export function downloadBinderBackup(backup: Awaited<ReturnType<typeof createBinderBackup>>) {
+export function downloadBinderBackup(backup: Awaited<ReturnType<typeof createBinderBackup>> | BinderBackupV2) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2) + "\n"], { type: "application/json" }))
   const link = document.createElement("a")
   link.href = url
-  link.download = binderBackupFilename(backup.binder.name, backup.exportedAt)
+  link.download = binderBackupFilename(backup.version === 1 ? backup.binder.name : backup.collections[0]?.name ?? "inventory", backup.exportedAt)
   try {
     document.body.appendChild(link)
     link.click()
