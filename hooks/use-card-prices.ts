@@ -308,7 +308,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
   }
 }
 
-function normalizeFetchedCardPrice(value: unknown): CardPriceSnapshot | null {
+export function normalizeFetchedCardPrice(value: unknown): CardPriceSnapshot | null {
   if (!value || typeof value !== "object" || typeof (value as { cardId?: unknown }).cardId !== "string") return null
   const price = value as Partial<CardPriceSnapshot> & { cardId: string }
   const snapshot: CardPriceSnapshot = {

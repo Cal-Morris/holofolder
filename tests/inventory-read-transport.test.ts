@@ -231,3 +231,22 @@ test("private JSON retains recorded canonical metadata including 083 location an
     assert.equal(result.snapshot.items[1].legacySource, "synthetic-source-not-selected")
   })
 })
+
+test("numeric catalog species evidence survives JSON, old absence stays unknown and malformed IDs reject", async () => {
+  await withFetch(async set => {
+    for (const ids of [[143, 143], [], undefined, [0], [-1], ["143"], [1.5]]) {
+      set(async input => {
+        const response = await handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), fixture(1).client)
+        const body = await response.json()
+        body.navigation.catalog = [{ card: { id: "synthetic-card", localId: "1", name: "Synthetic card", set: { id: "synthetic", name: "Synthetic" } }, speciesNames: [], ...(ids === undefined ? {} : { pokemonIds: ids }) }]
+        return Response.json(body, { headers: { "Cache-Control": "private, no-store" } })
+      })
+      const result = await fetchCurrentInventorySnapshot(() => scope)
+      if (ids?.some(id => typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0)) assert.equal(result.status, "unavailable")
+      else {
+        assert.equal(result.status, "complete")
+        if (result.status === "complete") assert.deepEqual(result.navigation.catalog[0].pokemonIds, ids === undefined ? undefined : [...new Set<string | number>(ids)])
+      }
+    }
+  })
+})

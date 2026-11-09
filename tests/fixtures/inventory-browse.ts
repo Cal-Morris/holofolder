@@ -44,3 +44,31 @@ export function completeInventoryBrowseFixture(snapshot = inventoryBrowseFixture
     collections: reader(snapshot.collections), binders: reader(snapshot.binders),
   })
 }
+
+/** Synthetic #374 mixed-storage fixture, never a real catalog or owner payload. */
+export function inventoryProjectionFixture(): InventorySnapshot {
+  const snapshot = inventoryBrowseFixture(6)
+  snapshot.items.forEach((item, i) => {
+    item.identity = i === 5 ? { kind: "pokemon", pokemonId: 143 }
+      : { kind: "card", cardId: i < 3 ? "synthetic-snorlax" : i === 3 ? "synthetic-trainer" : "synthetic-energy", language: "en", finish: "normal" }
+    if (i !== 2) item.grading = null
+  })
+  snapshot.binders[0].slots[0].target = { kind: "pokemon", pokemonId: 143 }
+  const want = { card_id: "synthetic-trainer", card_name: "Synthetic Trainer", added_at: "2026-11-09T00:00:00Z" }
+  snapshot.binders[0].slots[0].wantedCards = [want]
+  snapshot.binders[0].slots[1].wantedCards = [want]
+  return snapshot
+}
+export const inventoryProjectionCatalog: InventoryCatalogEvidence[] = ["snorlax", "trainer", "energy"].map(kind => ({
+  card: { id: `synthetic-${kind}`, name: `Synthetic ${kind[0].toUpperCase()}${kind.slice(1)}`, localId: "1", language: "en",
+    set: { id: "synthetic", name: "Synthetic projection set" } },
+  speciesNames: kind === "snorlax" ? ["Snorlax"] : [], pokemonIds: kind === "snorlax" ? [143] : [],
+}))
+export function inventoryProjectionPrices(): import("@/lib/card-pricing").CardPriceSnapshot[] {
+  return ["snorlax", "trainer", "energy"].map((kind, i) => {
+    const base = { cardId: `synthetic-${kind}`, language: "en" as const, gbpAmount: [10, 3, 2][i], marketGbpAmount: [10, 3, 2][i], goodGbpAmount: null,
+      lowGbpAmount: null, highGbpAmount: null, confidence: "low" as const, sourcePrices: [], trendPoints: [], buySignal: null,
+      originalAmount: null, originalCurrency: null, source: null, variantLabel: null, updatedAt: "2026-11-09T00:00:00Z", fxDate: null }
+    return { ...base, finishPrices: [{ ...base, finish: "normal", variantKey: "normal" }] }
+  })
+}

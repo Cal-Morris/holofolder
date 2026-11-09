@@ -27,3 +27,5 @@
 .sheetBody h3 { font-weight: 700; }
 .openLocation { width: 100%; font-weight: 600; }
 .identifier { font-size: .75rem; color: var(--muted-foreground); }
+
+.notice summary { min-height: 44px; padding-block: .65rem; cursor: pointer; }
