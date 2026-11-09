@@ -53,3 +53,6 @@ Capture and review retain a single shared overlay/history entry. Camera completi
 - Review sheets stay in the safe viewport with reachable 36px+ actions. Measured browser/standalone bounds respectively: 375, `(8,24,359,581)` / `(8,89,359,490)`; 390, `(8,24,374,758)` / `(8,89,374,667)`; 430, `(8,38,414,832)` / `(8,89,414,755)` in `(x,y,width,height)` pixels. This is a new staged sheet, so no legacy sheet geometry was changed. No horizontal overflow in the assertions.
 
 No independent review, hardware scan, cold-SW offline, hosted SQL/data, production host integration, runtime execution or deployment/publication proof is supplied. These remain parent-owned release gates.
+
+The synthetic scanner harness uses the established Inventory harness gate: hosted Vercel builds are denied even with HOLOFOLDER_E2E=1, and request hostnames must be loopback. Environment enablement alone cannot admit it.
+The request-time hostname denial uses Next notFound within the shared static shell: a streamed response can carry HTTP 200, but contains the 404 boundary/noindex and no scanner harness content.

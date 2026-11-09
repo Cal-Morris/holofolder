@@ -202,3 +202,15 @@ test.describe("native scan acceptance, synthetic device only", () => {
     await harness.expectScrollUnlocked()
   })
 })
+
+
+test("scanner harness requires a loopback request hostname", async ({ request }) => {
+  const local = await request.get("/app/e2e-harness/scan-destinations")
+  expect(local.status()).toBe(200)
+  const remote = await request.get("/app/e2e-harness/scan-destinations", { headers: { Host: "synthetic-remote.example" } })
+  const denied = await remote.text()
+  expect(denied).not.toContain("Synthetic scan destinations")
+  // The static Suspense shell has streamed before request-time notFound resolves.
+  expect(denied).toContain("NEXT_HTTP_ERROR_FALLBACK;404")
+  expect(denied).toContain("noindex")
+})
