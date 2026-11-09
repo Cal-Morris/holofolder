@@ -1,3 +1,4 @@
+import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
 import type { OperationIntentContext } from "@/lib/domain/audit-context"
 import { isCardLanguage } from "@/lib/domain/cards"
 import type { SlotTarget } from "@/lib/domain/binder-slots"
@@ -5,14 +6,14 @@ import { inventoryItemCandidate, type InventoryCatalogResolver, type InventoryId
 import type { InventorySelection } from "@/lib/inventory-plans"
 import type { SelectedWant } from "@/lib/domain/inventory-commands"
 import { matchesSlotTarget } from "@/lib/domain/binder-slots"
-import { parseSlotIntent, projectSlotIntent, type SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
+import { parseSlotIntent, projectSlotIntent } from "@/lib/collection/slot-optimistic"
 import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { isStandardFinishVariantKey, type CardFinishPrice } from "@/lib/card-pricing"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 
 export interface SlotPickerScope { ownerUserId: string; collectionId: string; slotId: string }
-export interface SlotPickerIntent { scope: SlotPickerScope; intent: SlotOfflineIntent }
+export interface SlotPickerIntent extends StagedSlotCommandIntent { scope: SlotPickerScope }
 export type SlotPickerAction = { kind: "assign"; selection: InventorySelection; fulfillWant: SelectedWant }
   | { kind: "target"; target: SlotTarget | null } | { kind: "clear" }
 

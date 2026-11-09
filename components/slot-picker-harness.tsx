@@ -1,13 +1,16 @@
 "use client"
 
-import { useEffect, useState, type ComponentProps } from "react"
+import { useEffect, useRef, useState, type ComponentProps } from "react"
 import BinderApp from "@/components/binder-app"
 import { syntheticSlotPickerSnapshot } from "@/tests/fixtures/slot-picker"
-import { pickerCandidate, type SlotPickerIntent } from "@/lib/slot-picker"
+import { pickerCandidate } from "@/lib/slot-picker"
+import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
 import { parseSlotIntent, projectSlotIntent } from "@/lib/collection/slot-optimistic"
 
 /** Imported only by the hard-gated e2e page. No persistence, transport, ownership store or ACK. */
 export default function SlotPickerHarness(props: ComponentProps<typeof BinderApp>) {
+  const rejectNext = useRef(false)
+  const [rejectedDraft, setRejectedDraft] = useState<StagedSlotCommandIntent | null>(null)
   const [data, setData] = useState(syntheticSlotPickerSnapshot)
   useEffect(() => {
     const changeScope = (event: Event) => {
@@ -26,6 +29,13 @@ export default function SlotPickerHarness(props: ComponentProps<typeof BinderApp
         return next
       })
     }
+    const reject = () => { rejectNext.current = true }
+    const emptyLayout = () => setData(previous => {
+      const next = structuredClone(previous)
+      next.binder.slots = []
+      next.inventory.placements = []
+      return next
+    })
     const changeGrade = (event: Event) => {
       const name = (event as CustomEvent<string>).detail
       if (typeof name !== "string" || name.length > 200) return
@@ -36,26 +46,37 @@ export default function SlotPickerHarness(props: ComponentProps<typeof BinderApp
         return next
       })
     }
+    window.addEventListener("synthetic-layout-reject-once", reject)
+    window.addEventListener("synthetic-layout-empty", emptyLayout)
     window.addEventListener("synthetic-slot-scope-change", changeScope)
     window.addEventListener("synthetic-slot-grading-change", changeGrade)
     return () => {
+      window.removeEventListener("synthetic-layout-reject-once", reject)
+      window.removeEventListener("synthetic-layout-empty", emptyLayout)
       window.removeEventListener("synthetic-slot-scope-change", changeScope)
       window.removeEventListener("synthetic-slot-grading-change", changeGrade)
     }
   }, [])
-  const [drafts, setDrafts] = useState<SlotPickerIntent[]>([])
+  const [drafts, setDrafts] = useState<StagedSlotCommandIntent[]>([])
   const catalog = (id: string) => {
     const card = data.cards.find(c => c.id === id || c.canonicalId === id || c.aliasIds?.includes(id))
     return card ? pickerCandidate(card) : undefined
   }
-  const receive = (draft: SlotPickerIntent) => {
+  const receive = (draft: StagedSlotCommandIntent) => {
     if (draft.scope.ownerUserId !== data.inventory.ownerUserId || draft.scope.collectionId !== data.binder.collectionId) throw new Error("harness-scope-changed")
+    if (rejectNext.current) {
+      rejectNext.current = false
+      setRejectedDraft(draft)
+      throw new Error("synthetic-rejection-before-handoff")
+    }
     const intent = parseSlotIntent(draft.intent)
     const inventory = projectSlotIntent(data.inventory, intent, catalog)
     setDrafts(previous => [...previous, { scope: draft.scope, intent }])
     setData({ ...data, inventory, binder: inventory.binders[0] })
   }
   return <>
+    <output aria-label="Synthetic latest draft" className="sr-only">{JSON.stringify(drafts.at(-1) ?? null)}</output>
+    <output aria-label="Synthetic rejected draft" className="sr-only">{JSON.stringify(rejectedDraft)}</output>
     <output aria-label="Synthetic draft count" className="sr-only">{drafts.length}</output>
     <BinderApp {...props} stagedSlotDisplay={data} stagedSlotCatalog={catalog} onStagedSlotCommandIntent={receive} />
   </>

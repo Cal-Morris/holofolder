@@ -16,7 +16,7 @@ The synthetic harness parses again, projects against its synthetic complete snap
 
 - `inventory.assign`, occupied `cancel`, selected catalog or explicit Unassigned item ID/version, optional one chosen want. An occupied slot must first be explicitly cleared, never overwritten. Placed copies are informational and cannot be selected for a default move.
 - `slots.update` with a Pokémon target, printing/language/finish target, or null target. Removing target retains contents. Unknown/mismatched occupied evidence rejects the change; Cancel preserves everything. Clearing first is a separate explicit consequence, not an implicit compound operation.
-- `slots.clear` for this exact slot. Ownership becomes Unassigned; target/order/wants/preset origins survive. No remove-slot, insert, append, layout move, inventory delete or cross-storage move control is added.
+- `slots.clear` for this exact slot. Ownership becomes Unassigned; target/order/wants/preset origins survive. The picker itself adds no remove-slot, insert, append, layout move, inventory delete or cross-storage move control. The separate [Edit layout preparation](explicit-slot-layout-editing.md) generalizes this same callback for staged create/move drafts.
 
 The ordinary path reuses an eligible Unassigned Raw copy, otherwise creates Raw if no eligible copy exists. Recorded grading groups are explicit choices and send a stable existing ID, never silently substituting or cloning after conflict. Groups use full recorded grading equality and stable ID ordering; display labels contain only provider/grade and an ordinal when needed, never certificates or private label assets. Cards remain raw card presentation, not invented slabs. Catalog aliases/dex evidence constrain targets; no dex is required for a free slot. Unknown variants remain absent, not defaulted to English/Normal.
 
@@ -28,7 +28,7 @@ Online search uses the existing `/app/api/tcg-card-search?q=...&language=en&incl
 
 #363 must durably store account/owner/binder-scoped original intents before local acceptance, preserve them through reload/storage failure/unlink/account changes, and handle ambiguity/conflicts/billing. #362/#383/#394 need supported authenticated transactional execution, actor/audit/acquisition attribution and replay. After ledger replay, use #413's fresh complete owner read bound to the exact operation/current lease before ACK; historical SQL results are not current snapshots. #361/#365/#379 own bootstrap, conversion/legacy compatibility, recipient/public projection, migration and enabled deployment proof. #376 owns supported REST/MCP registry, permissions, status mapping and generated docs once transports exist.
 
-No-destination compatible-target-or-append remains outside this slice. #369 owns Edit layout, removal and structural changes. #366 remains open with unmet criteria retained. #395 Activity and #416 recovery behavior are untouched. Parent owns exact-head review, serialized merge/deployment and publication after the enabled block.
+No-destination compatible-target-or-append remains outside this slice. #369 now has a separate staged Edit layout insertion/move slice on this same callback; removal, authoritative Undo, drag/bulk, durable offline and full acceptance remain open. #366 remains open with unmet criteria retained. #395 Activity and #416 recovery behavior are untouched. Parent owns exact-head review, serialized merge/deployment and publication after the enabled block.
 
 ## Local preparation evidence
 
