@@ -26,7 +26,7 @@ export interface AppHeaderContext {
   canGoToPreviousVisiblePage: boolean
   collectionCount: number
   collectionStats: { collected: number; total: number; percentage: number; }
-  commitPageInput: () => void
+  commitPageInput: (value?: string) => void
   currentBinderPage: number
   fullShareUrl: string | null
   goToNextPage: () => void
@@ -116,7 +116,11 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
           {activeMainView === "binder" && binderDimension === "2d" && (
             <div data-testid="mobile-header-pager" className="flex shrink-0 items-center">
               <Button variant="ghost" size="icon" className={`h-11 ${ctx.user ? "w-11" : "w-9 md:w-11"}`} onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}><ChevronLeft className="h-4 w-4" /></Button>
-              <input type="number" min={1} max={totalBinderPages} value={pageInputValue} onChange={e => setPageInputValue(e.target.value)} onBlur={commitPageInput} onKeyDown={e => {
+              <input type="number" min={1} max={totalBinderPages} value={pageInputValue} onChange={e => {
+                setPageInputValue(e.target.value)
+                // Native number steppers emit plain events; text edits emit InputEvents.
+                if (!(e.nativeEvent instanceof InputEvent)) commitPageInput(e.target.value)
+              }} onBlur={() => commitPageInput()} onKeyDown={e => {
                 if (e.key === "Enter") { commitPageInput(); e.currentTarget.blur() }
                 else if (e.key === "Escape") { setPageInputValue(String(currentBinderPage)); e.currentTarget.blur() }
               }} inputMode="numeric" aria-label="Binder page number" className={`h-11 rounded-lg bg-transparent text-center text-base font-semibold tabular-nums ${ctx.user ? "w-11" : "w-9 md:w-11"}`} />

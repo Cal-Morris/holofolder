@@ -4,6 +4,53 @@ const PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height=
 const artworkMarker = (dexId: number) => `official-artwork%2F${dexId}.png`
 
 test.describe("binder page turn", () => {
+  test("page number arrow keys turn pages without blurring", async ({ harness }) => {
+    const input = harness.page.getByRole("spinbutton", { name: "Binder page number" })
+    await input.press("ArrowUp")
+    await expect(input).toBeFocused()
+    await expect(harness.page.locator('button[data-dex-id="17"]')).toBeVisible()
+    await input.press("ArrowDown")
+    await expect(harness.page.locator('button[data-dex-id="1"]')).toBeVisible()
+    await input.press("ArrowDown")
+    await expect(input).toHaveValue("1")
+    await harness.expectNoHorizontalOverflow()
+  })
+
+  test("typing a page number waits for Enter or blur", async ({ harness }) => {
+    const input = harness.page.getByRole("spinbutton", { name: "Binder page number" })
+    await input.fill("")
+    await input.pressSequentially("10")
+    await expect(harness.page.locator('button[data-dex-id="1"]')).toBeVisible()
+    await input.press("Enter")
+    await expect(harness.page.locator('button[data-dex-id="145"]')).toBeVisible()
+    await input.fill("2")
+    await input.press("Tab")
+    await expect(harness.page.locator('button[data-dex-id="17"]')).toBeVisible()
+    const max = await input.getAttribute("max")
+    await input.fill(max!)
+    await input.press("Enter")
+    await input.press("ArrowUp")
+    await expect(input).toHaveValue(max!)
+  })
+
+  test.describe("desktop page number spinner", () => {
+    test.use({ isMobile: false, hasTouch: false })
+
+    test("native spinner clicks turn pages without blurring", async ({ harness }) => {
+      await harness.page.setViewportSize({ width: 1280, height: 900 })
+      const input = harness.page.getByRole("spinbutton", { name: "Binder page number" })
+      const box = await input.boundingBox()
+      expect(box).not.toBeNull()
+      await input.click({ position: { x: box!.width - 6, y: box!.height / 2 - 5 } })
+      await expect(input).toHaveValue("2")
+      await expect(input).toBeFocused()
+      await expect(harness.page.locator('button[data-dex-id="17"]')).toBeVisible()
+      await input.click({ position: { x: box!.width - 6, y: box!.height / 2 + 5 } })
+      await expect(input).toHaveValue("1")
+      await expect(harness.page.locator('button[data-dex-id="1"]')).toBeVisible()
+    })
+  })
+
   test("small finger movement still allows a long press", async ({ harness }) => {
     const slot = harness.page.locator('button[data-dex-id="1"]').first()
     await slot.evaluate(async (element) => {
