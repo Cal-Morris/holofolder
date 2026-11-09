@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {NATIVE_DEVELOPER_OPERATIONS} from '../lib/developer-api/storage'
 
 type Row=Record<string,unknown>
 type Check=(value:Row,input:Row)=>void
@@ -19,6 +20,9 @@ const id:Check=value=>string(value.id)
 
 // Every registered operation needs a successful response assertion, including mutations.
 export const API_SMOKE_ASSERTIONS:Record<string,Check>={
+ ...Object.fromEntries(NATIVE_DEVELOPER_OPERATIONS.map(operation=>[operation.name,(value:Row)=>{
+  assert.ok(operation.responseSchema?.safeParse(value).success,'Invalid native receipt for '+operation.name)
+ }])),
  list_cards:page,
  get_card:(value,input)=>{assert.equal(value.id,input.id);string(value.canonicalId);object(value.set);assert.ok(value.image===null||typeof value.image==='string')},
  list_sets:page,get_set:(value,input)=>assert.equal(value.id,input.id),
@@ -68,4 +72,14 @@ export function assertSmokeResponse(operation:string,value:unknown,input:Row) {
  const check=API_SMOKE_ASSERTIONS[operation]
  assert.ok(check,'Missing response assertion for '+operation)
  check(object(value),input)
+}
+
+/** Staging evidence is separate from successful execution and latency coverage. */
+export function assertStagedSmokeResponse(operation:string,value:unknown) {
+ assert.ok(NATIVE_DEVELOPER_OPERATIONS.some(op=>op.name===operation&&op.admission==='staged'),'Operation is not staged')
+ const body=object(value),error=object(body.error)
+ assert.deepEqual(Object.keys(body),['error'])
+ assert.deepEqual(Object.keys(error).sort(),['code','message','requestId'])
+ assert.equal(error.code,'native_operations_staged')
+ string(error.message);string(error.requestId)
 }

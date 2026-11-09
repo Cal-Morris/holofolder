@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {assertSmokeResponse,assertStagedSmokeResponse} from '../../scripts/api-smoke-assertions'
 import { createHash } from 'node:crypto'
 import { createDeveloperKey } from '../../lib/server/developer-access/key-secret'
 import { DeveloperAccessError } from '../../lib/developer-api/permissions'
@@ -120,9 +121,14 @@ async function main() {
       const value = { ...values[op.name] }
       if ('operationId' in value) value.operationId += '-' + transport
       const first = await call(transport, op.name, value)
-      if (!wired) assert.equal(first.result.error.code, 'native_operations_staged')
+      if (!wired) {
+        assertStagedSmokeResponse(op.name, first.result)
+        assert.equal(first.status, transport === 'rest' ? 503 : 200)
+        if (transport === 'mcp') assert.equal(first.raw.result.isError, true)
+      }
       else {
         assert.equal(first.status, 200, JSON.stringify(first.raw))
+        assertSmokeResponse(op.name, first.result, value)
         assert.equal(first.result.error, undefined, JSON.stringify(first.raw))
         assert.equal(JSON.stringify(first.result).includes('private'), false)
         assert.equal(calls.at(-1)?.header.source, transport)
