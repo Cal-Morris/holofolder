@@ -1,3 +1,6 @@
+import { isCardLanguage } from "@/lib/domain/cards"
+import { isBinderGridSize } from "@/lib/binder-layout"
+import type { InventoryCatalogEvidence, InventoryLayoutEvidence } from "@/lib/domain/inventory-browse"
 import { isContractRecord, isSlotContractId, isSlotRevision } from "@/lib/domain/binder-slots"
 import { normalizeInventorySnapshot, type InventorySnapshot } from "@/lib/domain/inventory"
 
@@ -19,8 +22,10 @@ export interface InventoryReadScope {
   /** Rotate on signout, account/owner/membership change and unlink/relink. Never persist. */
   sessionId: string
 }
+export interface InventoryNavigationEvidence { catalog: InventoryCatalogEvidence[]; layouts: InventoryLayoutEvidence[] }
 export interface InventoryReadEnvelope {
-  version: 1
+  version: 2
+  navigation: InventoryNavigationEvidence
   requestId: string
   scope: InventoryReadScope
   evidence: InventoryReadEvidence
@@ -38,8 +43,8 @@ export function sameInventoryReadScope(a: InventoryReadScope | null, b: Inventor
 /** Only call on this invocation's authenticated same-origin no-store HTTP response.
  * Shape validation alone does not authenticate arbitrary JSON or localStorage. */
 export function parseInventoryReadEnvelope(value: unknown, requestId: string, scope: InventoryReadScope): InventoryReadEnvelope | undefined {
-  if (!isContractRecord(value, ["version", "requestId", "scope", "evidence", "snapshot"])
-    || value.version !== 1 || value.requestId !== requestId || !isInventoryReadScope(value.scope)
+  if (!isContractRecord(value, ["version", "requestId", "scope", "evidence", "snapshot", "navigation"])
+    || value.version !== 2 || value.requestId !== requestId || !isInventoryReadScope(value.scope)
     || !sameInventoryReadScope(value.scope, scope)) return undefined
   const snapshot = normalizeInventorySnapshot(value.snapshot), e = value.evidence
   if (!snapshot || snapshot.ownerUserId !== scope.ownerUserId
@@ -62,7 +67,37 @@ export function parseInventoryReadEnvelope(value: unknown, requestId: string, sc
     storage.push({ collectionId: raw.collectionId, collectionVersion: raw.collectionVersion, layoutRevision: raw.layoutRevision, slotCount: raw.slotCount })
   }
   if (storage.reduce((sum, s) => sum + s.slotCount, 0) !== e.slots) return undefined
-  return { version: 1, requestId, scope: { ...scope }, snapshot,
+  const navigation = parseNavigationEvidence(value.navigation, snapshot)
+  if (!navigation) return undefined
+  return { version: 2, requestId, scope: { ...scope }, snapshot, navigation,
     evidence: { inventoryRevision: e.inventoryRevision as number, items: e.items as number, placements: e.placements as number,
       collections: e.collections as number, binders: e.binders as number, slots: e.slots as number, storage } }
+}
+
+/** Strict public catalog DTOs and exact snapshot grid revisions, never arbitrary private JSON. */
+function parseNavigationEvidence(value: unknown, snapshot: InventorySnapshot): InventoryNavigationEvidence | undefined {
+  if (!isContractRecord(value, ["catalog", "layouts"]) || !Array.isArray(value.catalog) || !Array.isArray(value.layouts)) return undefined
+  const layouts: InventoryLayoutEvidence[] = [], catalog: InventoryCatalogEvidence[] = []
+  for (const l of value.layouts) {
+    if (!isContractRecord(l, ["collectionId", "layoutRevision", "rows", "cols"]) || !isSlotContractId(l.collectionId)
+      || !isSlotRevision(l.layoutRevision) || !isBinderGridSize(l.rows) || !isBinderGridSize(l.cols)
+      || layouts.some(x => x.collectionId === l.collectionId)
+      || !snapshot.binders.some(b => b.collectionId === l.collectionId && b.layoutRevision === l.layoutRevision)) return undefined
+    layouts.push({ collectionId: l.collectionId, layoutRevision: l.layoutRevision, rows: l.rows, cols: l.cols })
+  }
+  for (const e of value.catalog) {
+    if (!isContractRecord(e, ["card", "speciesNames"]) || !Array.isArray(e.speciesNames) || !e.speciesNames.every(isSlotContractId)) return undefined
+    const c = e.card
+    if (!isContractRecord(c, ["id", "localId", "name", "set", "language", "canonicalId", "aliasIds", "image"])
+      || ![c.id, c.localId, c.name].every(isSlotContractId) || !isContractRecord(c.set, ["id", "name"])
+      || !isSlotContractId(c.set.id) || !isSlotContractId(c.set.name)
+      || "language" in c && !isCardLanguage(c.language) || "canonicalId" in c && !isSlotContractId(c.canonicalId)
+      || "aliasIds" in c && (!Array.isArray(c.aliasIds) || !c.aliasIds.every(isSlotContractId))
+      || "image" in c && typeof c.image !== "string") return undefined
+    if (catalog.some(x => x.card.id === c.id && x.card.language === c.language)) return undefined
+    catalog.push({ card: { id: c.id as string, localId: c.localId as string, name: c.name as string, set: { id: c.set.id, name: c.set.name },
+      ...(isCardLanguage(c.language) ? { language: c.language } : {}), ...(typeof c.canonicalId === "string" ? { canonicalId: c.canonicalId } : {}),
+      ...(Array.isArray(c.aliasIds) ? { aliasIds: [...c.aliasIds] as string[] } : {}), ...(typeof c.image === "string" ? { image: c.image } : {}) }, speciesNames: [...e.speciesNames] })
+  }
+  return { catalog, layouts }
 }

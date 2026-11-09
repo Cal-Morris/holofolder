@@ -20,9 +20,26 @@ The exported `CollectionNavigationRead` is an **in-memory private capability inp
 
 `readCurrent(): Promise<CollectionNavigationRead>` must invoke the real current-session complete reader and recheck current actor/membership/billing before returning, bind the current session ID, and return verified catalog/grid evidence at the exact layout revisions. It cannot reuse retained command ledger results, callback coordinates or a saved UI snapshot. On every Open location, the host awaits this callback and calls `navigationLocation` against its returned evidence. A moved copy opens its new collection/page/slot; missing, Unassigned, cached, inaccessible, layout-unknown and failed-refresh cases keep Inventory usable with an honest message. Obsolete scope/destination responses are ignored.
 
-The actual server reader is `readOwnerInventorySnapshot` in `lib/server/inventory-read.ts`. It uses a first-party cookie/RLS client, verifies claims and current user, resolves current partnership and `billing_partner_allowed`, pages every owner stream and complete slot order, then fences counts/revisions/metadata and current membership. It brands only that complete in-process result. It returns the owner snapshot, **not** a trusted browser actor/session envelope or grid/catalog evidence. Its private result includes metadata that the safe Inventory rows exclude.
+The actual current-session callback is now
+`readCurrentCollectionNavigation(liveScope)` in
+`lib/collection/inventory-navigation-read.ts`. Pass `() =>
+readCurrentCollectionNavigation(liveScope)` as `readCurrent`; explicit initial
+complete/conflict/unavailable handling is available through
+`fetchCurrentCollectionNavigationRead`. It invokes #435's same-origin private
+browser reader, reconstructs completeness through the shared complete reader and
+binds account/owner/lifecycle scope plus the fenced grid/catalog evidence.
+Failures preserve status/code and the existing host refresh-failure path; cached
+subsets are never upgraded. The adapter rechecks live scope after the browser read.
+No production host imports it yet and the public routes remain unconditional 503.
 
-The runtime brand does **not** survive JSON or the server/client boundary. Passing that result to a client component or casting response JSON to `CompleteInventorySnapshot` does not implement this contract. Do not reconstruct completeness using downloaded row lengths as their own asserted totals. Before production binding, #376/#379 must supply an authenticated private browser read/reconstruction boundary with trusted completeness/fence evidence and safe projection, or a different reviewed adapter preserving the same trust guarantees. This PR adds no endpoint or environment switch to bypass that gap. Parent #427 correction `7ced0dee2e1c2268b65b7c1a9cf669ada2586383` owns post-replay fresh-read sequence validation; queue/session/slot-snapshot files are untouched here.
+See [the complete-read contract](inventory-complete-read.md) for private v2 wire,
+083 location/source preservation, catalog batching and metadata fences. Grids come
+from actual current per-binder overrides and owner settings/defaults. Current
+owner-only settings RLS hides inherited owner dimensions from partners, so those
+page links remain unknown; fully explicit binder grids work for partners. This
+slice neither widens RLS nor substitutes the partner's settings. The approved
+partner owner-settings boundary, real lifecycle host binding and cached-only
+bootstrap remain rollout gaps. Catalog unknowns remain unknown.
 
 ## API, audit and release
 
@@ -34,7 +51,7 @@ The local-only existing Inventory harness adds `?navigation=1`; the same E2E plu
 
 ## Remaining production-binding gates
 
-- Authenticated complete browser transport/reconstruction and lifecycle-bound envelope, current catalog/grid evidence and safe offline bootstrap/index. Do not serialize away completeness and pretend the input is still trusted.
+- Bind the delivered authenticated browser transport and navigation adapter to the live auth lifecycle. Resolve RLS-hidden inherited owner grids for partners through a reviewed read boundary, and implement safe cached-only offline bootstrap/index. Do not serialize away completeness or guess a grid.
 - Bind the host to the real BinderApp header/dock/content and existing auth/deep-link dispatch without removing Wanted, Search, Browse, showcase or legacy missing-Pokémon access. Public share/auth destinations must be handled before private remembered state is consulted; this staged host never mounts on those routes.
 - Bind the production collection adapter's page/filter/scroll/highlight and session teardown to the durable queue/session owned by #363/#427. Navigation must retain pending edits; this slice deliberately never reads or changes that queue. Full Edit layout/drag/bulk/Undo acceptance remains #369/#386.
 - Slabs stays unavailable until #390. #379 remains the sole rollout/conversion authority; slot/inventory routes stay unconditional 503. #384/#385/#369 native blockers remain open.

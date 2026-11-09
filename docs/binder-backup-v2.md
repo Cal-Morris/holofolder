@@ -49,3 +49,30 @@ Draft only, do not publish or send to Framer while hidden:
 “Back up your collection layout and review imports before making changes. JSON backups preserve ordered targets, spacers, wanted choices and separate physical copies, including your recorded grading details. Choose a collection backup or all inventory, including Unassigned cards. CSV is available for card-list interchange; use JSON to keep the arrangement.”
 
 Only publish after the missing execution/offline/API/UI gates pass. Artwork and label packaging must describe the verified #390 behavior at that time; do not promise lossless images from this slice.
+
+
+## Optional private metadata compatibility
+
+The authenticated read extension adds optional `collections[].location`,
+`items[].legacySource` and `binders[].slots[].legacySource` (legacy row ID plus
+complete original source JSON) to canonical normalization. The existing portable
+v2 serializer/parser/hydrator carries these fields unchanged. Location is bounded
+by 083 and private to owner/partner; omission in an old file means unknown, not
+recorded absence. Explicit null stays null. Copied preset manifests and origin IDs
+remain detached and unchanged. Source JSON preserves original unknown fields,
+duplicated wants and timestamps; per-source bounds are 10,000 values and 30 levels.
+Invalid source values reject the snapshot instead of being silently stripped.
+
+This additive v2 change accepts old files. Older strict v2 readers reject new files
+that contain these fields; there is no promise of forward compatibility and no
+lossy downgrade. These are **private files**, not public shares. Opaque legacy
+source JSON can retain original account IDs/person assignments and other private
+historical fields. Top-level owner removal and current want-role conversion do not
+rewrite those original bytes or authorize their use on another account. Existing
+restore modes remain blocked where no atomic executor exists; source evidence is
+never an execution instruction, current catalog assertion or authorization.
+
+The private reader's inventory brand is still not a complete portable-backup
+capability: live appearance/settings, asset packaging and any supported restore
+API remain their owning delivery gates. No public serializer was expanded, no
+whole-restore executor or production export button was added.

@@ -20,7 +20,7 @@ test("authenticated table requests collect >1025 copies and ordered slots, then 
   assert.ok(slotRequests.every(r => r.url.searchParams.get("limit") === "500"))
   assert.ok(slotRequests.every(r => r.url.searchParams.get("order") === "position.asc" && r.url.searchParams.get("owner_user_id") === `eq.${owner}`))
   assert.ok(slotRequests.some(r => r.url.searchParams.get("position")?.startsWith("gt.")))
-  assert.ok(f.requests.every(r => !r.url.search.includes("select=*") && !/slot_page|recovery|command_evidence|legacy_source/.test(r.url.href)))
+  assert.ok(f.requests.every(r => !r.url.search.includes("select=*") && !/slot_page|recovery|command_evidence/.test(r.url.href)))
 })
 
 test("zero slots and no inventory are real complete state only with initialized owner", async () => {
@@ -91,12 +91,12 @@ test("recorded grades and unknown printing identities survive without catalog/pr
     f.tables.inventory_items[i].grading = { provider: i < 4 ? { kind: "known", id: providers[i] } : { kind: "custom", name: "Synthetic provider" },
       grade: "recorded not numeric", scale: "recorded", designation: null, subgrades: [{ name: "Surface", grade: "A" }], certificate: "synthetic-private-certificate",
       holder: "recorded", label: { variant: null, assetIds: ["synthetic-private-label-id"] } }
-    f.tables.inventory_items[i].legacy_source = { secret: "must not select" }
+    f.tables.inventory_items[i].legacy_source = { original: "synthetic private source" }
   }
   const result = await readOwnerInventorySnapshot(f.client)
   assert.deepEqual(result.items.map(i => i.grading), f.tables.inventory_items.map(i => i.grading))
-  assert.ok(f.requests.every(r => !/tcg_|provider|certificate/.test(r.table)))
-  assert.ok(!JSON.stringify(result).includes("must not select"))
+  assert.ok(f.requests.every(r => !/provider|certificate/.test(r.table)))
+  assert.deepEqual(result.items[0].legacySource, { original: "synthetic private source" })
 })
 
 test("spacers, empty collections and initialized empty owner retain honest zero state", async () => {
@@ -186,7 +186,7 @@ test("all storage kinds, collection streams beyond 1000 and independent layouts 
     const id = `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`
     f.tables.binders.push({ id, owner_user_id: owner, name: `Synthetic ${n}` })
     f.tables.storage_collection_state.push({ collection_id: id, owner_user_id: owner, kind: ["binder", "slab", "custom"][n % 3],
-      default_presentation: ["binder", "slabs", "list"][n % 3], version: n, layout_revision: n + 1, authority: "slots", preset_manifest: null })
+      default_presentation: ["binder", "slabs", "list"][n % 3], version: n, layout_revision: n + 1, authority: "slots", preset_manifest: null, location: null })
   }
   const result = await readOwnerInventorySnapshot(f.client, { maxRequests: 4096, timeoutMs: 30_000 })
   assert.equal(result.collections.length, 1031)

@@ -81,7 +81,7 @@ that authenticated session are rechecked before publication, including a same-us
 session replacement. Existing deadline, retry, request budget, incomplete-legacy,
 uninitialized-owner and conflict behavior remain in force.
 
-The strict version-1 envelope contains:
+The strict version-2 private envelope contains:
 
 - `requestId`: the current browser invocation's unpredictable nonce.
 - `scope`: the server-resolved `actorUserId`, `ownerUserId` and verified
@@ -90,7 +90,10 @@ The strict version-1 envelope contains:
   placements, storage states, binders and total slots; per-storage independent
   slot count, collection version and layout revision.
 - `snapshot`: the canonical private inventory domain projection, including
-  recorded grading/certificate/holder/opaque asset IDs and preset provenance.
+  recorded grading/certificate/holder/opaque asset IDs, preset provenance, 083
+  location, immutable item `legacySource` and slot legacy-row ID/source JSON.
+- `navigation`: bounded public mirror catalog DTOs and grids fenced with the
+  private snapshot. This is private transport, not a share/export schema.
 
 GET accepts exactly one `requestId` and `sessionId`, with no owner/actor parameters.
 Both request fields correlate the reply; neither authenticates anything. Responses,
@@ -141,17 +144,70 @@ image-like subpaths and warm-up messages. All cache helpers reject `private` or
 `no-store` responses. Cached safe subsets remain subsets and cannot reconstruct
 completeness; offline failure retains saved ownership and queued intent.
 
-### Canonical metadata limits
+### Canonical metadata and navigation adapter
 
-The wire contract deliberately transports the current reader's existing domain
-projection without inventing metadata. Migration 083's private custom-storage
-`location` is **not read or represented** by this domain snapshot. Binder grid
-settings, catalog association evidence, full export/source metadata and asset
-bytes are also absent. Omission means unsupported, never `null`, a guessed grid,
-a portable backup or proof of no recorded location. The complete brand proves the
-inventory/placement/ordered-slot domain only. It is insufficient by itself for
-navigation page/grid evidence or a lossless 083 export. #376/#379 must resolve those
-read/projection gaps before binding those capabilities; #365 retains export scope.
+`readCurrentCollectionNavigation(liveScope)` in
+`lib/collection/inventory-navigation-read.ts` directly implements the existing
+host's `readCurrent` callback, e.g. `readCurrent={() =>
+readCurrentCollectionNavigation(liveScope)}`. Initial loads may use
+`fetchCurrentCollectionNavigationRead` to handle its explicit complete/conflict/
+unavailable result. Both invoke the actual browser complete reader, retain its
+pre-fetch sequence and nonce/session checks, and recheck scope before returning.
+The throwing callback preserves failure status/code in `CollectionNavigationReadError`;
+the host's existing failed-refresh handling remains authoritative. Neither adapter
+accepts arbitrary JSON, a retained command reply, localStorage or a cached subset
+as complete evidence. No host/BinderApp/dock integration is enabled by this slice.
+
+Grid evidence comes from the current binder's `binder_rows`/`binder_cols`, inheriting
+each unset dimension from the resolved owner's `user_settings`, then the existing
+`settingsFromRow` defaults (currently 4×4) when that row is known absent. The reader
+uses `withBinderLayout`, not a cached UI grid. It includes binder override values,
+settings values and their update timestamps in before/after metadata fences, after
+catalog work too. A changed setting/layout/revision retries the entire read under
+the existing attempts/deadline/request budget, then returns conflict. Missing or
+invalid dimensions omit that layout, so location pages remain unknown.
+
+**Current partner limitation:** 033's `user_settings` SELECT policy is owner-only.
+An empty partner query is not proof that the owner has no settings. Fully explicit
+per-binder dimensions are usable; inherited dimensions stay unknown when RLS hides
+the owner's settings. The partner's own settings are never substituted. There is
+no new admin client, policy, grant or privilege bypass. An approved owner-settings
+read boundary is still required for those partner page links before enablement.
+
+Catalog evidence reads only public `tcg_cards`, `tcg_sets` and `tcg_card_dex_ids`
+through the same RLS client, using actual item/target/wanted printing IDs and
+canonical/alias metadata. No inner Pokémon join excludes Trainers/Energy.
+Confirmed translations establish language; species names come only from mirror
+dex links and known local species. Missing/incomplete/ambiguous catalog entries
+remain unknown. Public mirror reads have no owner predicates and no shared private
+cache: this implementation does not introduce catalog caching. A future public
+cache must contain only public mirror DTOs, never owner snapshots or layouts.
+ID batches are 100; keyset/range pages are at most 500, including dex associations.
+Alias misses use bounded ambiguity probes and the same total request/deadline
+budget; excessive unknown IDs may honestly report unavailable rather than bypass
+that budget. No upstream lookup, sync or backfill runs.
+
+Private metadata preserves canonical kind/default presentation, copied manifests,
+entry/source identities and complete immutable `inventory_items.legacy_source` and
+`binder_legacy_rows.source_row` JSON. Legacy rows are independently counted/paged,
+validated against slots, and compared again before publication. Item provenance is
+fenced with item/owner revisions. Source normalization preserves unknown JSON keys,
+duplicates and nulls with a 10,000-value/30-depth per-source budget; unsupported
+values reject rather than strip. `location` follows 083: null or trimmed 1–200
+characters on custom storage only. On old canonical snapshots, omitted location or
+source means unknown, distinct from a newly read explicit null.
+
+The private wire version is now **2**; v1 responses fail closed rather than
+pretending to contain navigation/083 evidence. This is not a supported REST/MCP
+version change. JSON-v2 backups accept these optional canonical fields and retain
+them without a format-number change; old files still parse, older strict readers
+reject files carrying the new fields. See [backup compatibility](binder-backup-v2.md).
+The read still does not package appearance/settings exports or private asset bytes
+and is not itself a full portable backup. No restore executor is added.
+
+Private location/source fields never enter Inventory's safe rows or existing
+`publicCollectionItems`/named/token share projections. The public share serializers
+are unchanged; the complete private snapshot must never be spread into them.
 
 This is app-only internal transport preparation. Supported REST/MCP registry
 operations, authorization/projections, generated OpenAPI, Markdown/LLM discovery
@@ -181,3 +237,23 @@ on an isolated loopback origin: private fetches bypass a deliberately seeded
 stale cache, private warm-ups perform no fetch, and offline reads fail rather
 than returning that cached subset. This is controlled SW privacy proof, not
 installed-PWA navigation. No full e2e is run.
+
+
+Navigation-extension verification adds `tests/inventory-navigation-read.test.ts`:
+current partner scope with owner-only settings RLS emulation, per-dimension grids,
+settings changes during reads, unknown grids, source/location/preset JSON-v2
+round trips and public redaction, non-Pokémon/catalog gaps, >1,000 IDs and dex links,
+source interruption/fences, old wire rejection and real handler→JSON→navigation.
+The same Chromium script now also calls the actual host adapter for owner/partner
+stable-ID page resolution and private metadata, retaining its cached/in-flight
+ACK, nonce/session and offline/SW regressions. No UI files changed, so no six-phone
+UI matrix or full e2e was run for this extension. Hosted authentication/RLS and
+production/installed-PWA behavior remain unverified.
+
+Local extension checks: 1,435 unit entries across 270 files passed; after the final
+adapter guard/source lookup edits, 140 affected tests across 11 files passed.
+Full typecheck and production build passed, full lint retained the existing
+55-warning cap, and focused lint reported zero warnings. The Chromium script
+passed all four ACK/session/offline scenarios plus actual owner/partner navigation
+and the real service-worker privacy proof. This is local synthetic read evidence,
+not hosted RLS/load or production enablement proof.
