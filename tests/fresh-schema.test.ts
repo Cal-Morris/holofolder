@@ -13,7 +13,7 @@ test("fresh schema replays documented setup, preserves wish timestamps and handl
   assert.ok(["localhost", "127.0.0.1"].includes(url.hostname), "fresh-schema tests require a local database")
   assert.match(url.pathname, /^\/holofolder_fresh_[a-z0-9_]+$/, "use a dedicated holofolder_fresh_* database")
   const localSocket = process.env.FRESH_SCHEMA_TEST_SOCKET
-  if (localSocket) assert.equal(localSocket, "/Users/cal/.local/share/holofolder/issue396-converted-local/socket")
+  if (localSocket) assert.ok(["/Users/cal/.local/share/holofolder/issue396-converted-local/socket", "/Users/cal/.local/share/holofolder/issue396-cascade-local/socket"].includes(localSocket))
   const db = new Client(localSocket ? { host: localSocket, port: Number(url.port || 5432), user: decodeURIComponent(url.username), database: decodeURIComponent(url.pathname.slice(1)) } : { connectionString: databaseUrl })
   await db.connect()
   try {

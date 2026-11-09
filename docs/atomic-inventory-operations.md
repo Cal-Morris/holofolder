@@ -143,3 +143,6 @@ The final 078 file applied twice locally, all 90 archived table counts and 35 or
 
 
 [080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.
+
+
+081 records presence-only auxiliary deletion dependencies through the existing command before-evidence, for both native and converted collections. Search/history, partner delivery and named-slug cascades reject whole recovery. [Converted cascade recovery](converted-cascade-recovery.md) restores eligible placements of the same retained copies and exact frozen compatibility sources, without another acquisition or runtime exposure.

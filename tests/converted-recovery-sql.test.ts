@@ -1,9 +1,10 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
+import { privateRecoveryDatabase } from "./private-recovery-db"
 import { readFileSync } from "node:fs"
 
 const socket = process.env.CONVERTED_RECOVERY_TEST_SOCKET
-const config = { host: socket, port: 55580, user: "converted_recovery_test", database: "postgres" }
+const config = socket ? privateRecoveryDatabase(socket, { socket: "/Users/cal/.local/share/holofolder/issue396-converted-local/socket", port: 55580, user: "converted_recovery_test" }) : undefined
 const owner = "03960800-0000-4000-8000-000000000001", partner = "03960800-0000-4000-8000-000000000002"
 const stranger = "03960800-0000-4000-8000-000000000003"
 const converted = "03960800-0000-4000-8000-000000000011", native = "03960800-0000-4000-8000-000000000012"
@@ -15,7 +16,6 @@ const slot = (n: number) => `legacy-dex-v1/${converted}/${n}`
 // Explicit opt-in private socket only; every fixture is synthetic and rolls back.
 test("converted recovery: actual 073 conversion, 074/075 commands and 076 immutable evidence", { skip: !socket, timeout: 120000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue396-converted-local/socket")
   const { Client } = await import("pg")
   const db = new Client(config)
   await db.connect()
@@ -271,7 +271,6 @@ test("converted recovery: actual 073 conversion, 074/075 commands and 076 immuta
 
 test("converted recovery: owner locks partner wants before owner root and blocks concurrent unlink", { skip: !socket, timeout: 30000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue396-converted-local/socket")
   const { Client } = await import("pg")
   const db = new Client(config), unlink = new Client(config)
   await db.connect(); await unlink.connect()

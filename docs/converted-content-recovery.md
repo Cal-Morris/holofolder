@@ -18,8 +18,7 @@ Frozen mapping digests join the existing private dependency fingerprint; origina
 
 These are required feature gates, not removed requirements. Unsupported events have no token and cannot restore a subset:
 
-- [ ] Whole converted-collection deletion and frozen-row restoration. A deleted receipt-bearing root remains `authority_or_config_transition`; frozen source/mapping deltas remain explicit `unsupported_table:pokemon_collection` / `unsupported_table:binder_legacy_rows`.
-- [ ] Mapped-slot removal with a frozen-source cascade. Current 074/075 can emit this deletion event, but its entire recovery remains unsupported. Unmapped target/spacer removal is supported when layout evidence is complete.
+- [ ] Parent review/application of [081 whole-event converted deletion and mapped-slot recovery](converted-cascade-recovery.md), including complete frozen-source evidence and the narrow future mapping capture-key correction. The statements above describe the historical 080 boundary; 081 extends it without conversion undo.
 - [ ] Actual conversion undo and authority/storage-kind/config transitions. Preserve installed guards and reject stale legacy writes; no authority reset or dual writes.
 - [ ] Mixed legacy default replacement, with lossless legacy/default/billing compatibility.
 - [ ] Appearance/config, share/search/push and private label-assets recovery. Keep explicit unsupported reasons; never republish obsolete share tokens or replay old delivery queues.

@@ -56,3 +56,6 @@ Migration 077 supplies SQL-owner-only safe preview/versioned idempotent apply ov
 079 optimizes only private recovery-plan computation behind the same SQL-owner boundary. Actor/owner/source still require trusted server binding before any future adapter; no registry, REST/MCP/OpenAPI, private plan exposure, permission or route changes. See [local recovery performance evidence](../collection-recovery-performance.md). This contributes to #396/#383 without completing or announcing recovery.
 
 080 extends the same denied private recovery SQL to ordinary edits with unchanged conversion provenance, validated frozen source and current dependency fingerprints. [Converted-content recovery](../converted-content-recovery.md) records supported commands, unsupported whole-event cascades/deletion/transitions and remaining API/UI/offline/asset gates. No registry, OpenAPI, REST/MCP grant or route is added.
+
+
+Internal 081 compatibility: [converted deletion and mapped-slot recovery](../converted-cascade-recovery.md) extends denied SQL-owner-only preview/apply, preserving physical copies and exact frozen sources. 074/075 retain private dependency evidence; unsupported auxiliary events fail whole. No supported REST/MCP registry/OpenAPI, UI/Undo/offline or Framer capability is added. Existing unconditional 503 gates and read-only Activity release remain.

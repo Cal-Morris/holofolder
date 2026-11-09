@@ -70,3 +70,6 @@ The final isolated SQL regression covers 1,025-row bulk capture, immutable/delet
 
 
 [080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.
+
+
+081 narrowly corrects future `binder_legacy_rows` capture identities: `legacy_row_id` must precede the collection fallback, or multiple mappings collapse into one delta. Existing accumulator/flush, bounds, redactor, immutability and privacy deletion remain; no historical event is rewritten. [Frozen cascade recovery](converted-cascade-recovery.md) validates authoritative full sources and rejects incomplete older evidence, suppressing legacy side effects only for exact protected compatibility INSERTs.
