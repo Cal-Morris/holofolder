@@ -1,5 +1,7 @@
 "use client"
 
+import type { BinderDisplaySlot } from "@/lib/binder-display-model"
+
 import CollectionPriceCheck from "@/components/collection-price-check"
 import { getCollectionItemPriceKey } from "@/components/binder/binder-app-model"
 import { CollectionAnalyticsView, DashboardBinderPreview, DexListView, PageScanner, PokemonBrowseView, SetPopulationView, WantedDashboard } from "@/components/binder/lazy-views"
@@ -32,6 +34,8 @@ import type { CollectedPokemon, SaveCollectionOptions, WantedCard } from "@/hook
 import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSummary } from "@/components/binder/binder-app-model"
 
 export interface MainContentContext {
+  orderedDisplaySlots?: (BinderDisplaySlot | null)[]
+  onSelectSlot?: (id: string) => void
   pendingBinderPage: number | null
   cancelPageNavigation: () => void
   assignWantedCard: (pokemonId: number, pokemonName: string, card: WantedCard, people: string[]) => void
@@ -251,6 +255,8 @@ export function renderMainContentView(ctx: MainContentContext) {
           />
         ) : binderDimension === "3d" ? (
           <DashboardBinderPreview
+            displaySlots={ctx.orderedDisplaySlots}
+            onSelectSlot={ctx.onSelectSlot}
             onSelectPokemon={pokemon => { handlePokemonSelect(pokemon); handleSlotClick(pokemon) }}
             appearance={dashboardBinderDesign}
             page={currentBinderPage}
@@ -403,7 +409,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             <span className="w-px h-3 bg-border/50" />
             <span className="tabular-nums">{visiblePageLabel}</span>
             <span className="w-px h-3 bg-border/50 sm:block" />
-            <span className="tabular-nums">{filteredPokemonList.length} Pokemon</span>
+            <span className="tabular-nums">{ctx.orderedDisplaySlots ? `${ctx.orderedDisplaySlots.filter(Boolean).length} slots` : `${filteredPokemonList.length} Pokemon`}</span>
             <span className="hidden sm:block w-px h-3 bg-border/50" />
             <span className="hidden sm:block">
               {isSpreadLayout
