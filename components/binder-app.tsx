@@ -1531,8 +1531,8 @@ export default function BinderApp({
   const canGoToPreviousVisiblePage = (pendingBinderPage ?? currentBinderPage) > 1
   const canGoToNextVisiblePage = (pendingPages.at(-1) ?? lastVisibleBinderPageNumber) < totalBinderPages
 
-  const commitPageInput = useCallback(() => {
-    const trimmedValue = pageInputValue.trim()
+  const commitPageInput = useCallback((value = pageInputValue) => {
+    const trimmedValue = value.trim()
 
     if (!trimmedValue) {
       setPageInputValue(String(currentBinderPage))
