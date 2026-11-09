@@ -1,7 +1,7 @@
 import { getBillingAccess } from '@/lib/server/billing'
 import { RetryableError } from 'workflow'
 import { createAdminClient } from '@/lib/supabase/admin'
-import webpush from 'web-push'
+import { sendNotification } from 'web-push'
 
 export async function partnerAcquisitionPush(eventId: string) {
   'use workflow'
@@ -47,7 +47,7 @@ async function deliver(eventId: string, subscriptionId: string): Promise<'delive
   if (access.enforced && access.tier !== 'paid') return 'skipped'
   let status = 201
   try {
-    await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({
+    await sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({
       recipientId: event.recipient_id, eventId, tag: `acquisition:${eventId}`,
     }), {
       vapidDetails: { subject: process.env.VAPID_SUBJECT!, publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, privateKey: process.env.VAPID_PRIVATE_KEY! },
