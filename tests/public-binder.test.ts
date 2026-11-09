@@ -140,3 +140,30 @@ test('historical binderless tokens resolve the exact current default without cre
   assert.equal(result.slots.length, 7)
   assert.ok(db.calls.filter(c => c.table === 'binders').every(c => c.filters.is_default === true))
 })
+
+for (const identity of [{ token: 'synthetic-token' }, { username: 'synthetic-owner', binderSlug: 'mixed' }]) {
+  test(`public artwork preserves each copy and target language: ${JSON.stringify(identity)}`, async () => {
+    const db = syntheticPublicDatabase()
+    db.tables.tcg_cards[0].image_languages_json = ['en', 'ja']
+    db.tables.inventory_items[0].identity = { kind: 'card', cardId: 'synthetic-mon', language: 'ja' }
+    db.tables.inventory_items[1].identity = { kind: 'card', cardId: 'synthetic-mon', language: 'en' }
+    db.tables.binder_slots[4].target = { kind: 'card', cardId: 'synthetic-mon', language: 'ja' }
+    db.tables.binder_slots[5].target = { kind: 'card', cardId: 'synthetic-mon', language: 'fr' }
+    const result = await loadPublicBinder(identity, db.client)
+    assert.match(result.slots[0].card!.image!, /\/ja\/synthetic\//)
+    assert.match(result.slots[1].card!.image!, /\/en\/synthetic\//)
+    assert.match(result.slots[4].card!.image!, /\/ja\/synthetic\//)
+    assert.equal(result.slots[5].card?.image, undefined)
+    assert.deepEqual(result.completion, { targetCount: 5, completedTargetCount: 2 })
+  })
+  test(`legacy public artwork preserves the recorded language: ${JSON.stringify(identity)}`, async () => {
+    const db = syntheticPublicDatabase({ legacy: true })
+    db.tables.tcg_cards[0].image_languages_json = ['en', 'ja']
+    db.tables.pokemon_collection.push({ user_id: 'PRIVATE-owner', binder_id: 'binder-allowed', pokemon_id: 143, status: 'collected', card_id: 'synthetic-mon', card_language: 'ja' })
+    const result = await loadPublicBinder(identity, db.client)
+    assert.match(result.slots[142].card!.image!, /\/ja\/synthetic\//)
+    db.tables.tcg_cards[0].image_languages_json = ['en']
+    const unavailable = await loadPublicBinder(identity, db.client)
+    assert.equal(unavailable.slots[142].card?.image, undefined)
+  })
+}

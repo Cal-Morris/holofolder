@@ -50,3 +50,5 @@ This is an internal public-page read adapter under existing free share permissio
 | Public pages booted the private app shell with species-keyed data | Dedicated public allowlist, shared browse-only ordered pockets | No private navigation/session/queue bootstrap or storage IDs in page data |
 | Native arrangement had no public read path | Current arranged slots keep gaps and repeats, with actual custom dimensions | Same sequence and current-target matching without inventing an inventory snapshot |
 | Wide layouts needed a usable pocket region | Minimum 64 px pockets within internal horizontal scrolling | 0 px document overflow across the six tested phones |
+
+Recorded copy and exact-target languages choose their own canonical artwork, cached by card and language. Legacy shares use the recorded card language. If that language has no catalog artwork, the image stays unknown rather than displaying another language.

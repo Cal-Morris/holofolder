@@ -159,20 +159,21 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         }
       }
     }
-    function card(cardId: string) {
-      if (catalog.has(cardId)) return catalog.get(cardId)!
+    function card(cardId: string, language: string = 'en') {
+      const cacheKey = JSON.stringify([cardId, language])
+      if (catalog.has(cacheKey)) return catalog.get(cacheKey)!
       const row = catalogRows.get(cardId)
       if (!row) return undefined
       const canonical = id(row.id), metadata = readCatalogMetadata(row.external_ids_json)
       const pokemonIds = catalogLinks.get(canonical) ?? []
       const languages = Array.isArray(row.image_languages_json) ? row.image_languages_json : []
-      const lang = languages.includes('en') ? 'en' : languages.find(l => typeof l === 'string' && /^[a-z]{2}(?:-[a-z]{2})?$/.test(l))
+      const lang = /^[a-z]{2}(?:-[a-z]{2})?$/.test(language) && languages.includes(language) ? language : undefined
       const segment = (v: unknown): v is string => typeof v === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(v) && !v.includes('..')
       const image = lang && segment(row.series_id) && segment(row.set_id) && segment(row.local_id)
         ? buildTcgdexAssetImageUrl(String(lang), row.series_id, row.set_id, row.local_id, 'high', 'webp') : undefined
       const value = { name: typeof row.name_en === 'string' && row.name_en.trim() ? row.name_en : 'Unknown card', ...(image ? { image } : {}),
         candidate: { kind: 'card' as const, id: canonical, ...(metadata.canonicalId ? { canonicalId: metadata.canonicalId } : {}), ...(metadata.aliasIds ? { aliasIds: metadata.aliasIds } : {}), pokemonIds } }
-      catalog.set(cardId, value)
+      catalog.set(cacheKey, value)
       return value
     }
     let slots: PublicDisplaySlot[], completion: PublicBinder['completion']
@@ -220,7 +221,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         if (!!placement !== (row.status === 'collected' || row.status === 'finalized')) return fail()
         const item = placement ? items.get(String(placement.inventory_item_id))! : null
         const identity = item?.identity ?? target
-        const found = identity?.kind === 'card' ? card(identity.cardId) : null
+        const found = identity?.kind === 'card' ? card(identity.cardId, identity.language ?? 'en') : null
         const pokemon = identity?.kind === 'pokemon' ? getPokemonSummary(identity.pokemonId) : null
         snapshot.slots.push({ id: id(row.id), ownerUserId: owner, collectionId: collection, target, inventoryItemId: item?.id ?? null, wantedCards: [], status: placement ? 'collected' : null, version: Number(row.version), presetOrigin: null })
         slots.push({ id: `public-${index}`, target: target?.kind === 'card' ? { kind: 'card', ...(target.language ? { language: target.language } : {}), ...(target.finish ? { finish: target.finish } : {}) } : target, item: item ? { grading: grades.has(item.id) ? { grade: grades.get(item.id)! } : null } : null,
@@ -228,7 +229,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
           pokemon: pokemon ? { id: pokemon.id, name: pokemon.name } : null, ...(item && providers.has(item.id) ? { recordedProvider: providers.get(item.id)! } : {}) })
         if (item?.identity.kind === 'card') priceLookups.set(index, { cardId: item.identity.cardId, language: item.identity.language ?? 'en' })
       }
-      const goal = getBinderCompletion(snapshot, key => { const item = items.get(key); return item ? inventoryItemCandidate(item, key => catalog.get(key)?.candidate) : undefined })
+      const goal = getBinderCompletion(snapshot, key => { const item = items.get(key); return item ? inventoryItemCandidate(item, key => card(key)?.candidate) : undefined })
       completion = { targetCount: goal.targetCount, completedTargetCount: goal.completedTargetCount }
       same(stored, await paged('binder_slots', 'id,owner_user_id,collection_id,position,target,status,version', 'position'))
       same(placements, await paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id'))
@@ -246,7 +247,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       for (const [index, pokemon] of POKEMON_CATALOG.entries()) {
         const item = stored.find(r => r.pokemon_id === pokemon.id)
         const owned = item?.status === 'collected' || item?.status === 'finalized'
-        const found = owned && typeof item?.card_id === 'string' ? card(item.card_id) : null
+        const found = owned && typeof item?.card_id === 'string' ? card(item.card_id, typeof item.card_language === 'string' ? item.card_language : 'en') : null
         if (owned && typeof item?.card_id === 'string') priceLookups.set(index, { cardId: item.card_id, language: typeof item.card_language === 'string' ? item.card_language : 'en' })
         slots.push({ id: `public-${index}`, target: { kind: 'pokemon', pokemonId: pokemon.id }, item: owned ? { grading: null } : null,
           card: found ? { name: found.name, ...(found.image ? { image: found.image } : {}) } : null, pokemon: { id: pokemon.id, name: pokemon.name } })
