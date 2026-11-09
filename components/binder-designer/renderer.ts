@@ -3,14 +3,14 @@ import { binderCameraFrame } from "@/lib/binder-camera"
 import { createBinderTapTracker, createBinderSwipeTracker } from "@/lib/binder-pointer"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js"
-import { artworkRectangle, binderDimensions, binderSpread, binderTurnPage, pageTurnPoint, binderPocket, BINDER_PAGE, BINDER_LAYERS, type BinderDesign, type BinderPart, type BinderStats, type BinderView, type DesignSurface, type StudioCard } from "@/lib/binder-design"
+import { studioCardTextureKey, artworkRectangle, binderDimensions, binderSpread, binderTurnPage, pageTurnPoint, binderPocket, BINDER_PAGE, BINDER_LAYERS, type BinderDesign, type BinderPart, type BinderStats, type BinderView, type DesignSurface, type StudioCard } from "@/lib/binder-design"
 
 interface RenderInput { design: BinderDesign; cards: readonly StudioCard[]; stats: BinderStats; page: number; artwork: Record<string, string> }
 export function createBinderRenderer(stage: HTMLDivElement, select: (part: BinderPart) => void, fail: (message: string) => void, onPageTurn?: (direction: -1 | 1) => void, onSlotSelect?: (slot: number) => void) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.enabled = true; renderer.toneMappingExposure=.85
-  renderer.domElement.setAttribute("aria-label", "3D binder, swipe to turn pages, pinch to zoom, drag when zoomed to pan, two fingers to orbit, tap a Pokémon for details")
+  renderer.domElement.setAttribute("aria-label", "3D binder, swipe to turn pages, pinch to zoom, drag when zoomed to pan, two fingers to orbit, tap a slot for details")
   renderer.domElement.setAttribute("role", "img")
   stage.append(renderer.domElement)
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(34, 1, .1, 100)
@@ -187,13 +187,23 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     for(let i=0;i<count;i++){
       const {x,y,w,h}=binderPocket(d.rows,d.cols,i,side)
       const card=loaded.find(c=>c.slot-start===i),im=card?.image
-      if(im){
-        let tex=pageTextures.get(card.card.image)
+      if(card && (im || card.card.presentation)){
+        const presentation=card.card.presentation
+        const textureKey=studioCardTextureKey(card.card)
+        let tex=pageTextures.get(textureKey)
         if(!tex){
-          const canvas=document.createElement("canvas"),scale=Math.min(1,2048/Math.max(im.naturalWidth,im.naturalHeight))
-          canvas.width=Math.max(1,Math.round(im.naturalWidth*scale));canvas.height=Math.max(1,Math.round(im.naturalHeight*scale))
-          const ctx=canvas.getContext("2d")!;ctx.beginPath();ctx.roundRect(0,0,canvas.width,canvas.height,canvas.width*.0476);ctx.clip();ctx.drawImage(im,0,0,canvas.width,canvas.height)
-          tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());pageTextures.set(card.card.image,tex);renderer.initTexture(tex)
+          const canvas=document.createElement("canvas"),scale=im?Math.min(1,2048/Math.max(im.naturalWidth,im.naturalHeight)):1
+          canvas.width=im?Math.max(1,Math.round(im.naturalWidth*scale)):252;canvas.height=im?Math.max(1,Math.round(im.naturalHeight*scale)):352
+          const ctx=canvas.getContext("2d")!;ctx.beginPath();ctx.roundRect(0,0,canvas.width,canvas.height,canvas.width*.0476);ctx.clip()
+          if(im){ctx.filter=presentation==="target"?"grayscale(1) opacity(.45)":"none";ctx.drawImage(im,0,0,canvas.width,canvas.height);ctx.filter="none"}
+          if(presentation){
+            const font=Math.max(12,Math.round(canvas.width/15))
+            ctx.fillStyle=im?"rgba(0,0,0,.85)":"#24262c";ctx.fillRect(0,im?canvas.height-font*4:0,canvas.width,im?font*4:canvas.height)
+            ctx.fillStyle="#f4f3f8";ctx.font=`${font}px sans-serif`;ctx.textAlign="center"
+            const words=card.card.name.split(", ")
+            words.slice(0,2).forEach((line,index)=>ctx.fillText(line,canvas.width/2,im?canvas.height-font*(2-index):canvas.height/2+index*font*1.5,canvas.width-16))
+          }
+          tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());tex.userData.imageSource=card.card.image;pageTextures.set(textureKey,tex);renderer.initTexture(tex)
         }
         const cardW=Math.min(w*.88,h*.88*63/88),g=new THREE.PlaneGeometry(cardW,cardW*88/63,8,4)
         g.translate(x,y,side*(BINDER_LAYERS.backing/2+BINDER_LAYERS.card))
@@ -239,8 +249,8 @@ export function createBinderRenderer(stage: HTMLDivElement, select: (part: Binde
     for(const [page,cached] of spreads)if(!pages.has(page)){spreads.delete(page);void cached.then(spread=>disposeGroup(spread.group)).catch(()=>{})}
     const count=input.design.rows*input.design.cols,faces=new Set<number>()
     for(const page of pages){const spread=binderSpread(page,input.design.pageCount);faces.add(spread.left);faces.add(spread.right);void cachedSpread(input,page).catch(()=>{spreads.delete(page);if(!disposed)fail("An adjacent page could not preload. Try turning the page again.")})}
-    const images=new Set(input.cards.filter((c,i)=>faces.has(Math.floor((c.slot??i)/count)+1)).map(c=>c.image))
-    for(const [src,texture] of pageTextures)if(!images.has(src)){texture.dispose();pageTextures.delete(src);imageCache.delete(src)}
+    const adjacent=input.cards.filter((c,i)=>faces.has(Math.floor((c.slot??i)/count)+1)),keys=new Set(adjacent.map(studioCardTextureKey)),images=new Set(adjacent.map(c=>c.image))
+    for(const [key,texture] of pageTextures)if(!keys.has(key)){const src=texture.userData.imageSource??key;texture.dispose();pageTextures.delete(key);if(!images.has(src))imageCache.delete(src)}
     stage.dataset.preloadedSpreads=[...pages].join(",")
   }
   async function updatePages(input:RenderInput,token:number) {
