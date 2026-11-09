@@ -1,5 +1,7 @@
 # Private native collection recovery performance (079)
 
+The later inherited converted 4,096-copy gate and 087 follow-up are tracked separately in [converted recovery performance](converted-recovery-performance.md). The native measurements below do not establish that gate.
+
 This is local SQL evidence for part of #396/#383, dependent on #414 at `f6c3e3fa4e81f86fc09ea907d36faf7093c79be5` (main base `a4c9c354d1d89114849ede320e396a32bc9d0509`). Neither issue is complete. No hosted read/write, migration application, runtime grant, API/UI enablement, merge or Framer update was performed.
 
 ## Workload and method
