@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import InventoryView from "@/components/inventory/inventory-view"
-import { closeAllOverlays, runAfterOverlayHistory } from "@/hooks/use-overlay"
+import { closeAllOverlays, isOverlayHistoryCleanup, runAfterOverlayHistory } from "@/hooks/use-overlay"
 import type { InventoryLocationIntent } from "@/lib/domain/inventory-browse"
 import { captureNavigationScroll, defaultCollectionView, navigationIndex, navigationLocation, navigationScroll, navigationStorageKey,
   normalizeNavigationState, resolveNavigation, type CollectionNavigationRead, type CollectionNavigationFocus, type CollectionNavigationScope, type CollectionNavigationState, type CollectionViewState, type InventoryViewState } from "@/lib/collection-navigation"
@@ -55,6 +55,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   }, [key])
   useEffect(() => {
     const onPop = (event: PopStateEvent) => {
+      if (isOverlayHistoryCleanup(event)) return
       const entry = event.state?.collectionNavigation
       // Shared overlay entries inherit this ID. Their dismissal is not a main-view traversal.
       if (entry?.key === key && entry.id === entryId.current) return
@@ -115,9 +116,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   useEffect(() => {
     if (!pendingNavigation) return
     // Overlay cleanup must commit before requesting host history, matching the shared primitive.
-    // The shared history listener may run before ours after a private host remount.
-    // Wait until every listener has handled the cleanup pop before changing its entry ID.
-    runAfterOverlayHistory(() => queueMicrotask(() => {
+    runAfterOverlayHistory(() => {
       if (!alive.current || request.current !== pendingNavigation.sequence) return
       request.current++
       if (stateRef.current) {
@@ -133,7 +132,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       history.pushState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: result.state } }, "", url)
       persist(result.state); setState(result.state); setHighlight(pendingNavigation.highlight); setNotice(result.notice); setVisit(v => v + 1)
       setPendingNavigation(null)
-    }))
+    })
   }, [pendingNavigation, scope, key, persist])
 
   const openLocation = async (intent: InventoryLocationIntent) => {
