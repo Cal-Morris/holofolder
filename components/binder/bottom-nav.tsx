@@ -8,6 +8,7 @@ import type { ActiveMainView, CollectionViewFilter } from "@/components/binder/b
 import { preloadTabView } from "@/components/binder/lazy-views"
 
 export interface BottomNavContext {
+  inventoryNavigation?: { active: boolean; open: () => void; collection: () => void }
   activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
   activeJumpPokemonList: PokemonEntry[]
   activeMainView: ActiveMainView
@@ -58,7 +59,8 @@ export function renderBottomNavView(ctx: BottomNavContext) {
           </button>
           <button
             onClick={() => {
-              switchMainView("binder")
+              if (ctx.inventoryNavigation) ctx.inventoryNavigation.collection()
+              else void switchMainView("binder")
             }}
             aria-label="Binder"
             aria-pressed={!isSearchOpen && !isQuickModeOpen && activeMainView === "binder"}
@@ -75,17 +77,18 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             onPointerDown={() => preloadTabView("list")}
             onTouchStart={() => preloadTabView("list")}
             onClick={() => {
-              switchMainView("list")
+              if (ctx.inventoryNavigation) ctx.inventoryNavigation.open()
+              else void switchMainView("list")
             }}
-            aria-label="List"
-            aria-pressed={!isSearchOpen && !isQuickModeOpen && activeMainView === "list"}
+            aria-label={ctx.inventoryNavigation ? "Inventory" : "List"}
+            aria-pressed={!isSearchOpen && !isQuickModeOpen && (ctx.inventoryNavigation ? ctx.inventoryNavigation.active : activeMainView === "list")}
             title="List"
             className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-full px-1 transition-colors ${
-                !isSearchOpen && !isQuickModeOpen && activeMainView === "list" ? "holo-selected text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
+                !isSearchOpen && !isQuickModeOpen && (ctx.inventoryNavigation ? ctx.inventoryNavigation.active : activeMainView === "list") ? "holo-selected text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
               }`}
           >
             <ListChecks className="h-4 w-4" aria-hidden />
-            <span className="text-[10px] font-medium">List</span>
+            <span className="text-[10px] font-medium">{ctx.inventoryNavigation ? "Inventory" : "List"}</span>
           </button>
           <button
             onPointerDown={() => preloadTabView("wanted")}

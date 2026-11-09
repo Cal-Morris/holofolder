@@ -79,8 +79,7 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
     if (!isSlotContractId(raw.id) || !isSlotContractId(raw.local_id) || !set || !isSlotContractId(set.id)
       || typeof set.name_en !== "string" || !set.name_en.trim() || typeof raw.name_en !== "string" || !raw.name_en.trim()) continue
     const metadata = readCatalogMetadata(raw.external_ids_json)
-    const pokemonIds = [...new Set(links.filter(l => l.card_id === raw.id).flatMap(l =>
-      typeof l.dex_id === "number" && Number.isSafeInteger(l.dex_id) && l.dex_id > 0 ? [l.dex_id] : []))]
+    const pokemonIds = [...new Set(links.filter(l => l.card_id === raw.id).flatMap(l => typeof l.dex_id === "number" && Number.isSafeInteger(l.dex_id) && l.dex_id > 0 ? [l.dex_id] : []))].sort((a, b) => a - b)
     const names = [...new Set(links.filter(l => l.card_id === raw.id).flatMap(l => {
       const pokemon = typeof l.dex_id === "number" ? getPokemonById(l.dex_id) : undefined
       return pokemon ? [formatPokemonDisplayName(pokemon.name)] : []

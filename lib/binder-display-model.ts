@@ -1,6 +1,6 @@
 import { normalizeBinderSnapshot, type BinderSnapshot, type SlotTarget } from "@/lib/domain/binder-slots"
 import { normalizeInventorySnapshot, type InventoryItem, type InventorySnapshot } from "@/lib/domain/inventory"
-import type { CollectedPokemon, WantedCard } from "@/lib/domain/cards"
+import type { CardLanguage, CollectedPokemon, WantedCard } from "@/lib/domain/cards"
 import { isBinderGridSize } from "@/lib/binder-layout"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
 
@@ -28,10 +28,11 @@ export interface SlotDisplayInput {
   binder: BinderSnapshot
   inventory: InventorySnapshot
   catalog: Record<string, DisplayCatalogCard>
+  resolveCard?: (cardId: string, language?: CardLanguage) => DisplayCatalogCard | undefined
 }
 
 /** Internal only: requires a complete coherent owner snapshot, not a partial transport page. */
-export function buildSlotDisplay(binder: BinderSnapshot, inventory: InventorySnapshot, resolve: (cardId: string) => DisplayCatalogCard | undefined): BinderDisplaySlot[] {
+export function buildSlotDisplay(binder: BinderSnapshot, inventory: InventorySnapshot, resolve: (cardId: string, language?: CardLanguage) => DisplayCatalogCard | undefined): BinderDisplaySlot[] {
   const checked = normalizeInventorySnapshot(inventory)
   const canonical = checked?.binders.find(b => b.collectionId === binder.collectionId)
   const requested = normalizeBinderSnapshot(binder)
@@ -40,8 +41,9 @@ export function buildSlotDisplay(binder: BinderSnapshot, inventory: InventorySna
   return binder.slots.map(slot => {
     const item = slot.inventoryItemId ? items.get(slot.inventoryItemId)! : null
     const cardId = item?.identity.kind === "card" ? item.identity.cardId : slot.target?.kind === "card" ? slot.target.cardId : null
+    const language = item?.identity.kind === "card" ? item.identity.language : slot.target?.kind === "card" ? slot.target.language : undefined
     const pokemonId = item?.identity.kind === "pokemon" ? item.identity.pokemonId : slot.target?.kind === "pokemon" ? slot.target.pokemonId : null
-    return { id: slot.id, target: slot.target, item, card: cardId ? resolve(cardId) ?? { name: cardId } : null, pokemon: pokemonId ? getPokemonSummary(pokemonId) ?? null : null, wantedCards: slot.wantedCards }
+    return { id: slot.id, target: slot.target, item, card: cardId ? resolve(cardId, language) ?? { name: cardId } : null, pokemon: pokemonId ? getPokemonSummary(pokemonId) ?? null : null, wantedCards: slot.wantedCards }
   })
 }
 

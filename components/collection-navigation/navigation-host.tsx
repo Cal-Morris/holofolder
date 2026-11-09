@@ -8,7 +8,23 @@ import { captureNavigationScroll, defaultCollectionView, navigationIndex, naviga
   normalizeNavigationState, resolveNavigation, type CollectionNavigationRead, type CollectionNavigationFocus, type CollectionNavigationScope, type CollectionNavigationState, type CollectionViewState, type InventoryViewState } from "@/lib/collection-navigation"
 import styles from "./navigation.module.css"
 
+export interface NavigationSurface {
+  notice: string
+  visit: number
+  content: ReactNode
+  header: ReactNode
+  state: CollectionNavigationState
+  collection: Parameters<CollectionNavigationHostProps["renderCollection"]>[0] | null
+  onInventory: () => void
+  onCollection: () => void
+  onDex: () => void
+  onLegacyView: (view: "wanted" | "sets" | "pokemon" | "analytics") => void
+}
+
 export interface CollectionNavigationHostProps {
+  renderSurface?: (surface: NavigationSurface) => ReactNode
+  fallbackCollectionId?: string | null
+  scrollContainerId?: string
   /** Current authenticated session scope, null while signed out/rechecking membership. */
   scope: CollectionNavigationScope | null
   read: CollectionNavigationRead
@@ -18,12 +34,17 @@ export interface CollectionNavigationHostProps {
     onChange: (patch: Partial<CollectionViewState>) => void }) => ReactNode
   renderNationalDex: () => ReactNode
 }
-/** Staged private host only. Production BinderApp/bootstrap do not call this until #379. */
+/** Shared host; the BinderApp binding remains denied in production until #379. */
 export default function CollectionNavigationHost(props: CollectionNavigationHostProps) {
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>
   return <ScopedNavigation key={JSON.stringify([navigationStorageKey(props.scope), props.scope.sessionId])} {...props} scope={props.scope} />
 }
-function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
+function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
+  const scrollElement = useCallback(() => {
+    const container = scrollContainerId ? document.getElementById(scrollContainerId) : null
+    return container?.querySelector<HTMLElement>('[data-testid="view-scroller"], [data-testid="wanted-list"]') ?? container
+  }, [scrollContainerId])
+  const scrollTop = useCallback(() => scrollElement()?.scrollTop ?? window.scrollY, [scrollElement])
   const [state, setState] = useState<CollectionNavigationState | null>(null)
   const [pendingNavigation, setPendingNavigation] = useState<{ state: CollectionNavigationState; highlight: CollectionNavigationFocus | null; read: CollectionNavigationRead; sequence: number } | null>(null)
   const entryId = useRef("")
@@ -45,8 +66,10 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     history.scrollRestoration = "manual"
     let saved: unknown
     try { saved = JSON.parse(localStorage.getItem(key) ?? "null") } catch { saved = null }
-    const initial = resolveNavigation(normalizeNavigationState(saved), scope, read, new URLSearchParams(location.search))
-    queueMicrotask(() => { if (alive.current) { setState(initial.state); setNotice(initial.notice); setHighlight(initial.highlight) } })
+    const remembered = normalizeNavigationState(saved)
+    if (!saved && fallbackCollectionId) { remembered.main = "collection"; remembered.collectionId = fallbackCollectionId }
+    const initial = resolveNavigation(remembered, scope, read, new URLSearchParams(location.search))
+    queueMicrotask(() => { if (alive.current) { stateRef.current = initial.state; setState(initial.state); setNotice(initial.notice); setHighlight(initial.highlight) } })
     entryId.current = crypto.randomUUID()
     history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: initial.state } }, "")
     return () => { alive.current = false; history.scrollRestoration = previousRestoration }
@@ -63,37 +86,53 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       request.current++; closeAllOverlays(); setHighlight(null)
       const result = resolveNavigation(normalizeNavigationState(entry?.key === key ? entry.state : null), scope, currentRead,
         entry?.key === key ? undefined : new URLSearchParams(location.search))
-      setState(result.state); setNotice(result.notice); setVisit(v => v + 1); persist(result.state)
+      stateRef.current = result.state; setState(result.state); setNotice(result.notice); setVisit(v => v + 1); persist(result.state)
     }
+    const onTraversal = (event: NavigationCurrentEntryChangeEvent) => {
+      if (event.navigationType === "traverse") onPop(new PopStateEvent("popstate", { state: history.state }))
+    }
+    // A native traversal can commit its entry before a framework releases popstate.
+    // Entry IDs deduplicate this early notification and the eventual popstate.
+    window.navigation?.addEventListener("currententrychange", onTraversal)
     window.addEventListener("popstate", onPop)
-    return () => window.removeEventListener("popstate", onPop)
+    return () => { window.navigation?.removeEventListener("currententrychange", onTraversal); window.removeEventListener("popstate", onPop) }
   }, [key, scope, currentRead, persist])
   const safe = state ? resolveNavigation(state, scope, currentRead) : null
   const visible = safe?.state
   const destinationKey = visible ? JSON.stringify([visible.main, visible.collectionId, visible.collections[visible.collectionId ?? ""]?.view]) : "loading"
   useEffect(() => {
     if (!visible) return
-    const frame = requestAnimationFrame(() => window.scrollTo({ top: navigationScroll(visible), behavior: "instant" }))
-    return () => cancelAnimationFrame(frame)
+    let frame = 0
+    const restore = () => {
+      const element = scrollElement()
+      if (scrollContainerId && !element) return false
+      ;(element ?? window).scrollTo({ top: navigationScroll(visible), behavior: "instant" })
+      return true
+    }
+    const observer = new MutationObserver(() => { if (restore()) observer.disconnect() })
+    frame = requestAnimationFrame(() => { if (!restore()) observer.observe(document.body, { childList: true, subtree: true }) })
+    return () => { cancelAnimationFrame(frame); observer.disconnect() }
     // Query edits should not reset scroll. Restore only when the destination changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destinationKey, visit])
+  }, [destinationKey, visit, scrollElement, scrollContainerId])
   useEffect(() => {
-    const save = () => {
+    const save = (event: Event) => {
+      if (scrollContainerId && event.type === "scroll" && event.target !== scrollElement()) return
       if (!stateRef.current) return
-      const next = captureNavigationScroll(stateRef.current, window.scrollY)
+      const next = captureNavigationScroll(stateRef.current, scrollTop())
       stateRef.current = next
       persist(next)
       history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: next } }, "")
     }
-    window.addEventListener("scroll", save, { passive: true })
+    document.addEventListener("scroll", save, { passive: true, capture: true })
     window.addEventListener("pagehide", save)
-    return () => { window.removeEventListener("scroll", save); window.removeEventListener("pagehide", save) }
-  }, [key, persist])
+    return () => { document.removeEventListener("scroll", save, true); window.removeEventListener("pagehide", save) }
+  }, [key, persist, scrollTop, scrollElement, scrollContainerId])
   const update = useCallback((mutate: (s: CollectionNavigationState) => CollectionNavigationState) => {
     setState(old => {
       if (!old) return old
-      const next = mutate(captureNavigationScroll(old, window.scrollY))
+      const next = mutate(captureNavigationScroll(old, scrollTop()))
+      stateRef.current = next
       persist(next)
       const url = new URL(location.href)
       if (next.main === "collection" && next.collectionId) {
@@ -106,7 +145,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: next } }, "", url)
       return next
     })
-  }, [persist, key])
+  }, [persist, key, scrollTop])
   const inventoryChange = useCallback((browse: InventoryViewState) => update(old => ({ ...old, inventory: { ...old.inventory, ...browse } })), [update])
   const navigate = (next: CollectionNavigationState, locationIntent: InventoryLocationIntent | null = null, latest = currentRead) => {
     const sequence = ++request.current
@@ -120,7 +159,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       if (!alive.current || request.current !== pendingNavigation.sequence) return
       request.current++
       if (stateRef.current) {
-        const outgoing = captureNavigationScroll(stateRef.current, window.scrollY)
+        const outgoing = captureNavigationScroll(stateRef.current, scrollTop())
         history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: outgoing } }, "")
       }
       const result = resolveNavigation(pendingNavigation.state, scope, pendingNavigation.read)
@@ -130,10 +169,10 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       if (result.state.main === "collection" && result.state.collectionId) url.searchParams.set("binder", result.state.collectionId)
       entryId.current = crypto.randomUUID()
       history.pushState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: result.state } }, "", url)
-      persist(result.state); setState(result.state); setHighlight(pendingNavigation.highlight); setNotice(result.notice); setVisit(v => v + 1)
+      stateRef.current = result.state; persist(result.state); setState(result.state); setHighlight(pendingNavigation.highlight); setNotice(result.notice); setVisit(v => v + 1)
       setPendingNavigation(null)
     })
-  }, [pendingNavigation, scope, key, persist])
+  }, [pendingNavigation, scope, key, persist, scrollTop])
 
   const openLocation = async (intent: InventoryLocationIntent) => {
     const sequence = ++request.current
@@ -146,7 +185,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
         return
       }
       setFresh({ base: read, value: latest })
-      const next = captureNavigationScroll(stateRef.current, window.scrollY), id = location.intent.collectionId
+      const next = captureNavigationScroll(stateRef.current, scrollTop()), id = location.intent.collectionId
       next.main = "collection"; next.collectionId = id
       next.collections[id] = { ...defaultCollectionView(), page: location.page }
       // navigate validates against latest, not the outgoing evidence, on the next render.
@@ -156,8 +195,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   if (!visible) return <p role="status">Opening saved view…</p>
   const collectionId = visible.collectionId
   const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
-  return <div className={styles.host}>
-    <header className={styles.header}>
+  const header = <header className={styles.header}>
       <label>Collection<select aria-label="Collection" value={collectionId ?? ""} onChange={e => navigate({ ...visible, main: "collection", collectionId: e.target.value })}>
         {!collectionId && <option value="">No available storage</option>}{index.collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select></label>
@@ -166,7 +204,11 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
         <option value="binder">Binder</option><option value="list">List</option>
       </select></label>}
       <p>Inventory is what you own and where. Collections are your named storage arrangements.</p>
+      <button className="min-h-9 px-2" onClick={() => navigate({ ...visible, main: "dex", dexView: "list" })}>National Dex</button>
     </header>
+  const collection = collectionId && index.kind !== "unavailable" ? { read: currentRead, collectionId, state: collectionState, highlight,
+    onChange: (patch: Partial<CollectionViewState>) => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) } : null
+  const content = <>
     {(notice || safe?.notice) && <p role="status" className={styles.notice}>{notice || safe?.notice}</p>}
     {visible.main === "inventory" ? <InventoryView key={visit} scope={scope} evidence={index.kind === "unavailable" ? { kind: "unavailable" } : currentRead.evidence}
       catalog={currentRead.catalog} layouts={currentRead.layouts} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
@@ -174,6 +216,11 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       : collectionId && index.kind !== "unavailable" ? <div key={`${destinationKey}:${visit}`}>{renderCollection({ read: currentRead, collectionId, state: collectionState, highlight,
         onChange: patch => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) })}</div>
       : <p role="status">Collection unavailable. Open Inventory or National Dex.</p>}
+  </>
+  if (renderSurface) return renderSurface({ notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
+    onInventory: () => navigate({ ...visible, main: "inventory" }), onCollection: () => navigate({ ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
+    onLegacyView: dexView => navigate({ ...visible, main: "dex", dexView }) })
+  return <div className={styles.host}>{header}{content}
     <nav aria-label="Collection navigation" className={styles.dock}>
       <button aria-current={visible.main === "collection" ? "page" : undefined} disabled={!collectionId} onClick={() => navigate({ ...visible, main: "collection" })}>Collections</button>
       <button aria-current={visible.main === "inventory" ? "page" : undefined} onClick={() => navigate({ ...visible, main: "inventory" })}>Inventory</button>
