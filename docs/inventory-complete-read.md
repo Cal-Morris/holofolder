@@ -56,7 +56,7 @@ Default limits: two whole-snapshot attempts, 15 seconds total, 512 request steps
 
 #361/#365/#379 own mixed legacy/bootstrap and recipient integration. #376 still owns supported REST/MCP reads/writes/presets, authenticated developer grants/projections, strict registry schemas, status mapping, generated docs and smoke coverage before exposure. No operation was registered here, so OpenAPI/agent discovery stays unchanged. Use #360/#382 `getStorageCompletion` for independent completion integration; no new completion formula is introduced. The canonical docs metadata follow-up already tracked on #376 is unchanged.
 
-#396 owns the only new schema/migration/recovery work. #383's full-Dex deletion/256-work/1 MiB limits, mixed legacy default replacement and auxiliary recovery remain unresolved. #394/#396/#379 audit/recovery/compatibility and enabled rollout gates remain required. Activity is already delivered separately; this adds no activity/marketing/Framer work. Parent owns exact-head review, serialized merge and production verification.
+077 remains the recovery authority. #383's 078 follow-up adds exclusive full-Dex/4,096-slot forward admission with bounded evidence, leaving ordinary batches unchanged. Oversized retained payloads, latency, mixed legacy default replacement and auxiliary recovery remain unresolved. #394/#396/#379 audit/recovery/compatibility and enabled rollout gates remain required. Activity is already delivered separately; this adds no activity/marketing/Framer work. Parent owns exact-head review, serialized merge and production verification.
 
 ## Verification boundary
 

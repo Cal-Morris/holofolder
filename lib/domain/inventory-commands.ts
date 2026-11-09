@@ -23,6 +23,7 @@ export interface InventoryCommandRequest {
   commands: InventoryCommand[]
 }
 export const INVENTORY_LIMITS = { commands: 100, collections: 32, affected: 256, bytes: 262144, resultBytes: 1048576 } as const
+export const INVENTORY_COLLECTION_DELETE_LIMITS = { slots: 4096, collections: 2, affected: 8192, bytes: 8388608, resultBytes: 16777216 } as const
 const uuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
 const exact = (v: unknown, keys: string[]) => isContractRecord(v, keys) && Object.keys(v).length === keys.length
 const ref = (v: unknown): v is SlotPrecondition => isContractRecord(v, ["id", "version", "inventoryItemId", "itemVersion", "placementVersion"])
@@ -37,10 +38,15 @@ function invalid(): never { throw new Error("Invalid or oversized inventory comm
 
 /** Body contains intent/preconditions only, never actor, owner, source or catalog evidence. */
 export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
-  if (new TextEncoder().encode(JSON.stringify(value) ?? "").length > INVENTORY_LIMITS.bytes
+  const wholeCollection = isContractRecord(value, ["operationId", "inventoryRevision", "collections", "commands"])
+    && Array.isArray(value.commands) && value.commands.length === 1
+    && isContractRecord(value.commands[0], ["kind", "collectionId", "slots", "replacementDefaultCollectionId"])
+    && value.commands[0].kind === "deleteCollection"
+  const limits = wholeCollection ? INVENTORY_COLLECTION_DELETE_LIMITS : INVENTORY_LIMITS
+  if (new TextEncoder().encode(JSON.stringify(value) ?? "").length > limits.bytes
     || !isContractRecord(value, ["operationId", "inventoryRevision", "collections", "commands"])
     || !isSlotContractId(value.operationId) || value.operationId.length < 8 || value.operationId.length > 100 || !isSlotRevision(value.inventoryRevision)
-    || !Array.isArray(value.collections) || value.collections.length > INVENTORY_LIMITS.collections
+    || !Array.isArray(value.collections) || value.collections.length > limits.collections
     || !Array.isArray(value.commands) || !value.commands.length || value.commands.length > INVENTORY_LIMITS.commands) return invalid()
   const collections = new Set<string>()
   for (const c of value.collections) {
@@ -83,11 +89,11 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
       if (!exact(c, ["kind", "slots"]) || !Array.isArray(c.slots) || !c.slots.length || !c.slots.every(checkSlot)) return invalid()
       affected += c.slots.length + c.slots.filter((s: InventorySlotRef) => s.slot.inventoryItemId !== null).length
     } else if (c.kind === "deleteCollection") {
-      if (!exact(c, ["kind", "collectionId", "slots", "replacementDefaultCollectionId"]) || !uuid(c.collectionId) || !collections.has(c.collectionId) || !Array.isArray(c.slots) || !c.slots.every(ref) || !(c.replacementDefaultCollectionId === null || (uuid(c.replacementDefaultCollectionId) && collections.has(c.replacementDefaultCollectionId) && c.replacementDefaultCollectionId !== c.collectionId))) return invalid()
+      if (!exact(c, ["kind", "collectionId", "slots", "replacementDefaultCollectionId"]) || !uuid(c.collectionId) || !collections.has(c.collectionId) || !Array.isArray(c.slots) || c.slots.length > INVENTORY_COLLECTION_DELETE_LIMITS.slots || !c.slots.every(ref) || !(c.replacementDefaultCollectionId === null || (uuid(c.replacementDefaultCollectionId) && collections.has(c.replacementDefaultCollectionId) && c.replacementDefaultCollectionId !== c.collectionId))) return invalid()
       affected += Math.max(1, c.slots.length) + c.slots.filter((s: SlotPrecondition) => s.inventoryItemId !== null).length
     } else return invalid()
   }
-  if (affected > INVENTORY_LIMITS.affected) return invalid()
+  if (affected > limits.affected) return invalid()
   return structuredClone(value) as unknown as InventoryCommandRequest
 }
 
