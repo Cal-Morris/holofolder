@@ -16,13 +16,13 @@ The 16-row preview pages are presentation only. Blank has zero persisted entries
 
 `stagedCreation: { ownerUserId, onDraft }` receives `BinderCreationDraft`, parsed by `parseBinderCreationDraft`. Version 1 includes only `operationId`, owner scope, normalized name and a detached recursively frozen copied manifest. The callback is synchronous and signals only draft handoff. The UI explicitly says no binder was saved. Each Prepare action prepares a new intent; it does not retry or send an earlier draft. No mutable store, queue, ACK, audit event or fake success is added.
 
-The backend lane must adapt this draft at the canonical authenticated shared operation boundary, not call legacy `create_binder` and then issue slot updates. That sequence could expose a half-created binder. Before enabling:
+The [083 backend slice](atomic-storage-creation.md) now provides the internal atomic command/receipt/SQL transaction, still blocked on native creation recovery and #379. The frontend has not been wired or saved. The backend lane must adapt this draft at the canonical authenticated shared operation boundary, not call legacy `create_binder` and then issue slot updates. That sequence could expose a half-created binder. Before enabling:
 
 - Agree/parse the real versioned creation command. Validate current owner/partner membership and entitlement/cap admission on the server; never trust draft owner attribution.
 - Atomically create the named collection, slots and detached manifest with stable server-accepted IDs. Blank accepts zero slots. Preserve existing ordering and custom-grid entitlement rules.
 - Carry the original operation/idempotency identity and expected owner inventory/collection-list versions required by the authoritative executor. The UI draft intentionally does not guess missing current versions or declare a new transport contract.
 - Replaying the exact same accepted command must return the same binder/result; the same key with different content must conflict. Retain the exact accepted payload across retries. A fresh UI draft is not a retry guarantee.
-- Publish REST/MCP schemas/docs only with supported authoritative execution. The current public registry/OpenAPI is unchanged. #376 owns parity; the backend command/recovery lane owns execution and migration 082.
+- Publish REST/MCP schemas/docs only with supported authoritative execution. The current public registry/OpenAPI is unchanged. #376 owns parity; the backend command/recovery lane owns execution and migration 083, built on trusted bridge 082.
 - Complete #363/#413 offline persistence/replay/fresh-read acknowledgement and #379 compatibility gates, including old clients, partners, export/restore, caps, default binder and rollback. Offline UI here allows preview only and disables Prepare. Uncached printings explicitly require a connection.
 - Record actual transactional actor/audit/recovery acceptance. Preparing a draft is not a successful mutation and emits no event.
 

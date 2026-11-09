@@ -1,5 +1,6 @@
 import "server-only"
 import { requireExpectedAppearanceOwner } from "@/lib/server/binder-appearance"
+import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { randomUUID } from "node:crypto"
 import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/permissions"
 import type { OperationContext } from "@/lib/developer-api/types"
@@ -17,19 +18,20 @@ export async function executeAppStorageRequest(request: Request, operation: Stor
   const client = createAdminClient()
   const membership = await resolveCollectionMembership(client, user.id)
   requireExpectedAppearanceOwner(request, membership.ownerUserId)
-  const input = parseStorageRequest(operation, await readDeveloperJson(request, operation === "inventory" ? 8388608 : 1048576))
+  const input = parseStorageRequest(operation, await readDeveloperJson(request, storageRequestBytes(operation)))
   return withAuditActor(user.id, () => executeStorageRpc(operation, membership.ownerUserId, input, client))
 }
 
 /** Authentication is shared with existing REST/MCP operations, including revocation, budgets and paid access. */
 export async function executeRestStorageRequest(request: Request, operation: StorageOperation) {
   const context = await requireRestContext(request, STORAGE_PERMISSIONS, "write")
-  return executeDeveloperStorageOperation(context, operation, await readDeveloperJson(request, operation === "inventory" ? 8388608 : 1048576))
+  return executeDeveloperStorageOperation(context, operation, await readDeveloperJson(request, storageRequestBytes(operation)))
 }
 export async function executeMcpStorageRequest(request: Request, operation: StorageOperation, input: unknown) {
   const context = await requireMcpContext(request, STORAGE_PERMISSIONS, "write")
   return executeDeveloperStorageOperation(context, operation, input)
 }
+const storageRequestBytes = (operation: StorageOperation) => operation === "inventory" ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
 // Slots can change wanted cards and release placements; every operation needs both write scopes.
 const STORAGE_PERMISSIONS = ["collection:write", "binders:write"] as const
 
