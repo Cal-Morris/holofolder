@@ -88,6 +88,7 @@ test("catalog reads batch >1000 actual target/item IDs, retain non-Pokémon and 
   const result = await readOwnerInventoryState(f.client)
   assert.equal(result.navigation.catalog.length, 1031)
   assert.deepEqual(result.navigation.catalog[0].speciesNames, ["Pikachu"])
+  assert.deepEqual(result.navigation.catalog[0].pokemonIds, [25])
   assert.deepEqual(result.navigation.catalog[1].speciesNames, [])
   assert.ok(f.requests.filter(r => r.table === "tcg_cards").length > 10)
   assert.ok(f.requests.filter(r => /^tcg_/.test(r.table)).every(r => !r.url.searchParams.has("owner_user_id")))
@@ -105,6 +106,7 @@ test("catalog dex associations page beyond 1000 and target-only cards are read",
   f.tables.tcg_card_dex_ids = Array.from({ length: 1025 }, (_, i) => ({ card_id: "synthetic-target", dex_id: i + 1 }))
   const read = await readOwnerInventoryState(f.client)
   assert.equal(read.navigation.catalog[0].speciesNames.length, 1025)
+  assert.equal(read.navigation.catalog[0].pokemonIds?.length, 1025)
   assert.equal(f.requests.filter(r => r.table === "tcg_card_dex_ids").length, 3)
 })
 test("location omission stays unknown, null stays null, invalid locations fail and public projection redacts private metadata", async () => {

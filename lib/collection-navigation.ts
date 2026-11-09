@@ -12,6 +12,7 @@ export interface CollectionNavigationState {
   collectionId: string | null
   collections: Record<string, CollectionViewState>
   inventory: InventoryViewState & { scroll: number }
+  dexView?: "list" | "wanted" | "sets" | "pokemon" | "analytics"
   dexScroll: number
 }
 /** Private in-memory host result, NEVER a JSON transport. The host authenticates both scope fields. */
@@ -43,7 +44,7 @@ export function normalizeNavigationState(value: unknown): CollectionNavigationSt
     collections[id] = { view: c.view === "list" ? "list" : "binder", page: integer(c.page, 4096, 1), search: text(c.search), scroll: integer(c.scroll, 10000000) }
   }
   return { main: v.main === "collection" || v.main === "dex" ? v.main : "inventory", collectionId: typeof v.collectionId === "string" ? text(v.collectionId) : null,
-    collections, inventory: { ...normalizeInventoryViewState(v.inventory), scroll: integer(object(v.inventory).scroll, 10000000) }, dexScroll: integer(v.dexScroll, 10000000) }
+    collections, inventory: { ...normalizeInventoryViewState(v.inventory), scroll: integer(object(v.inventory).scroll, 10000000) }, dexView: v.dexView === "wanted" || v.dexView === "sets" || v.dexView === "pokemon" || v.dexView === "analytics" ? v.dexView : "list", dexScroll: integer(v.dexScroll, 10000000) }
 }
 export function navigationIndex(scope: CollectionNavigationScope, read: CollectionNavigationRead) {
   const matches = Boolean(scope.sessionId) && read.scope.sessionId === scope.sessionId && read.scope.accountUserId === scope.accountUserId && read.scope.ownerUserId === scope.ownerUserId

@@ -109,10 +109,23 @@ import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
+import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
+import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
+import type { BrowserSurfaceBinding } from "@/components/collection-navigation/browser-session"
+import type { ReactNode } from "react"
+const BrowserCollectionSession = dynamic(() => import("@/components/collection-navigation/browser-session"), { ssr: false })
+
+const CollectionSlotList = dynamic(() => import("@/components/collection-navigation/slot-list"), { ssr: false })
+
 const LayoutToolbar = dynamic(() => import("@/components/binder/layout-editor").then(module => module.LayoutToolbar), { ssr: false })
 const SlotDetail = dynamic(() => import("@/components/binder/slot-detail"), { ssr: false })
 
 interface BinderAppProps {
+  /** Minted only by the server-gated loopback harness. Production bootstrap never supplies this. */
+  localBrowserHost?: boolean
+  browserSurface?: BrowserSurfaceBinding
+  browserHeader?: ReactNode
+  onBrowserSignOut?: () => Promise<void>
   /** Internal staged read-only injection. Never supplied by production bootstrap or share routes. */
   stagedSlotDisplay?: SlotDisplayInput
   /** Internal owner-only draft sink. No production caller or transport is enabled. */
@@ -136,7 +149,9 @@ interface BinderAppProps {
   initialBinderId?: string | null
 }
 
-export default function BinderApp({
+export default function BinderApp(props: BinderAppProps) {
+  const {
+  localBrowserHost = false, browserSurface, browserHeader, onBrowserSignOut,
   stagedSlotDisplay,
   onStagedSlotCommandIntent,
   stagedSlotCatalog,
@@ -155,8 +170,8 @@ export default function BinderApp({
   initialSharePath = null,
   initialBinders = [],
   initialBinderId = null,
-}: BinderAppProps) {
-  const readOnlyMode = legacyReadOnlyMode || Boolean(stagedSlotDisplay)
+} = props
+  const readOnlyMode = legacyReadOnlyMode || Boolean(stagedSlotDisplay) || Boolean(browserSurface)
   const router = useRouter()
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const closeSlotDetail = useCallback(() => setSelectedSlotId(null), [])
@@ -185,7 +200,7 @@ export default function BinderApp({
   const quickPressTimerRef = useRef<number | null>(null)
   const quickPressFiredRef = useRef(false)
   const [isPriceMode, setIsPriceMode] = useState(pricingEnabled && initialPriceMode)
-  const [activeMainView, setActiveMainView] = useState<ActiveMainView>("binder")
+  const [activeMainView, setActiveMainView] = useState<ActiveMainView>(browserSurface?.surface.state.main === "collection" ? browserSurface.surface.collection?.state.view ?? "binder" : browserSurface?.surface.state.main === "dex" ? browserSurface.surface.state.dexView ?? "list" : "binder")
   const trackGoogleEvent = useGoogleAnalytics()
   useEffect(() => {
     trackGoogleEvent("screen_view", { screen_name: activeMainView, show_mode: isShowModeOn, read_only: readOnlyMode })
@@ -196,7 +211,7 @@ export default function BinderApp({
   const lastBrowseViewRef = useRef<"pokemon" | "sets">("sets")
   const [viewLoadError, setViewLoadError] = useState<string | null>(null)
   const [selectedGen, setSelectedGen] = useState(0)
-  const [currentBinderPage, setCurrentBinderPage] = useState(1)
+  const [currentBinderPage, setCurrentBinderPage] = useState(browserSurface?.surface.collection?.state.page ?? 1)
   const [pageNavigation, setPageNavigation] = useState<{ page: number; direction: "left" | "right" } | null>(null)
   const pendingBinderPage = pageNavigation?.page ?? null
   const [pageInputValue, setPageInputValue] = useState("1")
@@ -320,6 +335,14 @@ export default function BinderApp({
     isDefaultBinder: !initialBinderId || initialBinders.find((binder) => binder.id === initialBinderId)?.isDefault !== false,
     readOnly: readOnlyMode,
   })
+  const [hostAdmitted, setHostAdmitted] = useState(false)
+  useEffect(() => { queueMicrotask(() => {
+    const explicit = new URLSearchParams(location.search).get("view")
+    setHostAdmitted(!["wanted", "sets", "pokemon", "analytics"].includes(explicit ?? "") && browserHostAdmission(localBrowserHost, "1", false, location.host).admitted)
+  }) }, [localBrowserHost])
+  const browserScope = useBrowserCollectionScope(user?.id ?? null, resolvedCollectionOwnerUserId ?? null,
+    hostAdmitted && !browserSurface && !legacyReadOnlyMode && !shareViewToken && !stagedSlotDisplay)
+
   const offerQuickUndo = useCallback((action: UndoAction) => {
     setOwnedRemoveUndo(null)
     setQuickUndo({ ...action, id: crypto.randomUUID(), accountId: user?.id ?? null, ownerId: resolvedCollectionOwnerUserId })
@@ -1002,7 +1025,7 @@ export default function BinderApp({
   }, [filteredPokemonList, pokemonList, slotsPerPage])
 
   useEffect(() => {
-    if (hasHydratedPageFromQueryRef.current || typeof window === "undefined") {
+    if (localBrowserHost || browserSurface || hasHydratedPageFromQueryRef.current || typeof window === "undefined") {
       return
     }
 
@@ -1018,13 +1041,14 @@ export default function BinderApp({
     if (nextPage !== currentBinderPage) {
       setCurrentBinderPage(nextPage)
     }
-  }, [currentBinderPage, totalBinderPages])
+  }, [localBrowserHost, browserSurface, currentBinderPage, totalBinderPages])
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return
     }
 
+    if (localBrowserHost || browserSurface) return
     const url = new URL(window.location.href)
 
     if (currentBinderPage <= 1) {
@@ -1034,7 +1058,7 @@ export default function BinderApp({
     }
 
     window.history.replaceState(window.history.state, "", url)
-  }, [currentBinderPage])
+  }, [localBrowserHost, browserSurface, currentBinderPage])
 
   useEffect(() => {
     setPageInputValue(String(currentBinderPage))
@@ -1058,6 +1082,10 @@ export default function BinderApp({
     const status = stagedSlotDisplay?.binder.slots.find(s => s.id === slot.id)?.status
     return Boolean(slot.item) && (collectionViewFilter === "favorite" ? status === "finalized" : status !== "finalized")
   }) : undefined, [orderedDisplaySlots, settings.binderRows, settings.binderCols, selectedGen, collectionViewFilter, stagedSlotDisplay])
+  useEffect(() => {
+    if (browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.page !== currentBinderPage)
+      browserSurface.surface.collection?.onChange({ page: currentBinderPage })
+  }, [browserSurface, currentBinderPage])
   const layoutScopeKey = JSON.stringify([stagedSlotSessionId, user?.id, stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, initialBinderId, activeMainView, collectionViewFilter, selectedGen, binderDimension, isSpreadLayout, settings.binderRows, settings.binderCols])
   const [layoutSession, setLayoutSession] = useState<{ scope: string; id: string } | null>(null)
   const canEditLayout = Boolean(!legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
@@ -3113,6 +3141,11 @@ export default function BinderApp({
 
   /** Switch main view (dock tab / desktop tab), closing any open overlay and card detail. */
   const switchMainView = useCallback(async (view: ActiveMainView) => {
+    if (browserSurface && (view === "wanted" || view === "sets" || view === "pokemon" || view === "analytics")
+      && (browserSurface.surface.state.main !== "dex" || browserSurface.surface.state.dexView !== view)) {
+      browserSurface.surface.onLegacyView(view)
+      return
+    }
     cancelPageNavigation()
     const request = ++viewRequestRef.current
     setViewLoadError(null)
@@ -3143,7 +3176,7 @@ export default function BinderApp({
     transitionContent(mainViewRef.current, () => {
       if (request === viewRequestRef.current) setActiveMainView(view)
     })
-  }, [setCardBrowser, activeMainView, transitionContent, cancelPageNavigation])
+  }, [browserSurface, setCardBrowser, activeMainView, transitionContent, cancelPageNavigation])
   useEdgeSwipeBack(activeMainView, switchMainView, "binder")
 
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
@@ -3458,7 +3491,7 @@ export default function BinderApp({
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
   const slotActions = useBinderSlotActions({ currentBinderPage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, openCardSelectorForPokemon, registerSlotButtonRef, setCurrentBinderPage, setLongPressedPokemon })
-  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => orderedDisplaySlots?.length === 0 ? <div role="status" className="flex h-full items-center justify-center rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">No slots in this binder</div> : renderBinderGridPageView({ displaySlots: getDisplayPageSlots, slotInteractionKey: `${layoutScopeKey}:${layoutSession?.id ?? "browse"}`, selectedSlotId, onSelectSlot: setSelectedSlotId, binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
+  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => orderedDisplaySlots?.length === 0 ? <div role="status" className="flex h-full items-center justify-center rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">No slots in this binder</div> : renderBinderGridPageView({ displaySlots: getDisplayPageSlots, slotInteractionKey: `${layoutScopeKey}:${layoutSession?.id ?? "browse"}`, selectedSlotId: selectedSlotId ?? browserSurface?.surface.collection?.highlight?.slotId, onSelectSlot: setSelectedSlotId, binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
   const handleShareWantedList = async (scope: "binder" | "all" = "binder") => {
     if (!billing.premium) { requestUpgrade(); return }
@@ -3518,9 +3551,13 @@ export default function BinderApp({
   const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
 
-  const renderBottomNav = () => renderBottomNavView({ activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
+  const renderBottomNav = () => renderBottomNavView({ inventoryNavigation: browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory, collection: browserSurface.surface.onCollection } : undefined, activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
 
-  return (
+  // eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props
+  const legacyMainContent = renderMainContent()
+  // eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props
+  const legacyHeader = renderAppHeader()
+  const legacySurface = (
     <BillingContext.Provider value={billing}>
     <CollectionActivityProvider accountId={readOnlyMode ? null : user?.id ?? null} ownerId={readOnlyMode ? null : resolvedCollectionOwnerUserId} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={localPendingSyncCount} isOnline={isOnline} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
@@ -3610,12 +3647,20 @@ export default function BinderApp({
       ) : null}
 
       {/* Glass Navigation */}
-      {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
-      {renderAppHeader()}
+      {browserHeader ? <div className="shrink-0 pt-[var(--top-inset)]">{browserSurface?.surface.state.main === "dex" && <p className="px-4 pt-2 text-sm font-semibold">National Dex</p>}{browserHeader}<div className="flex gap-2 px-4 pb-2">
+        <button className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => openExclusively(() => setIsSettingsOpen(true))}>Settings</button>
+        <button className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { void (onBrowserSignOut ?? handleSignOut)() }}>Sign out</button>
+      </div></div> : legacyHeader}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
-      {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
-      {renderMainContent()}
+      {browserSurface && activeMainView === "binder" && browserSurface.surface.state.main === "inventory"
+        ? <div id="collection-browser-scroll" className="min-h-0 flex-1 overflow-y-auto pb-[var(--dock-clearance)]">{browserSurface.surface.content}</div>
+         : browserSurface?.surface.state.main === "collection" && activeMainView === "list" && orderedDisplaySlots
+          ? <CollectionSlotList slots={orderedDisplaySlots} search={browserSurface.surface.collection?.state.search ?? ""}
+              onSearch={search => browserSurface.surface.collection?.onChange({ search, scroll: 0 })} onSelect={setSelectedSlotId}
+              highlight={browserSurface.surface.collection?.highlight?.slotId} />
+         : browserSurface?.surface.state.main === "collection" && !stagedSlotDisplay
+          ? <p role="status">Ordered pages unavailable on this device. Open Inventory or National Dex.</p>  : legacyMainContent}
 
       {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
       {renderSelectedPokemonQuickPanel()}
@@ -3816,4 +3861,21 @@ export default function BinderApp({
     </CollectionActivityProvider>
     </BillingContext.Provider>
   )
+  if (!browserSurface && browserScope.scope && hostAdmitted) return <BrowserCollectionSession scope={browserScope.scope} initialBinderId={initialBinderId} currentScope={browserScope.currentScope} renderFallback={() => legacySurface}
+    renderSurface={binding => {
+      const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
+      const layout = context?.read.layouts.find(l => l.collectionId === context.collectionId && l.layoutRevision === binding.display?.binder.layoutRevision)
+      return <BinderApp {...props} key={JSON.stringify([binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
+        localBrowserHost={false} browserSurface={binding} browserHeader={binding.surface.header} onBrowserSignOut={handleSignOut}
+        initialUser={user} initialCollectionOwnerUserId={resolvedCollectionOwnerUserId}
+        initialCollection={binding.surface.state.main === "dex" ? collection : []}
+        initialBinderId={context?.collectionId ?? initialBinderId}
+        initialSettings={{ ...settings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
+        stagedSlotDisplay={binding.surface.state.main === "collection" ? binding.display : undefined}
+        stagedSlotSessionId={browserScope.scope?.sessionId} stagedSlotLocalDurable
+        stagedSlotCatalog={binding.catalog}
+        onStagedSlotCommandIntent={binding.surface.state.main === "collection" && binding.display ? binding.receive : undefined} />
+    }} />
+  return legacySurface
+
 }
