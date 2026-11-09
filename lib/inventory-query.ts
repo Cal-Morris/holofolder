@@ -65,8 +65,7 @@ function rowKey(row: InventoryBrowseRow, sort: InventoryBrowseQuery["sort"]): st
 }
 /** Opaque in-memory keyset, deliberately scoped to one projection and query. Never persist it. */
 export interface InventoryBrowseCursor { readonly evidenceKey: string; readonly query: string; readonly after: readonly string[] }
-export function queryInventory(index: InventoryBrowseIndex, query: InventoryBrowseQuery = {},
-  cursor: InventoryBrowseCursor | null = null, limit = 40) {
+function orderedInventoryQuery(index: InventoryBrowseIndex, query: InventoryBrowseQuery) {
   const key = queryKey(query)
   const terms = fold(query.search ?? "").split(/\s+/).filter(Boolean)
   const filtered = index.rows.filter(row => {
@@ -77,15 +76,29 @@ export function queryInventory(index: InventoryBrowseIndex, query: InventoryBrow
       && (!query.condition || query.condition === "all" || (query.condition === "graded") === row.graded)
       && (!query.provider || row.provider === query.provider) && (!query.grade || row.grade === query.grade)
   })
-  const total = filtered.length
+  return { key, ordered: filtered.map(row => ({ row, key: rowKey(row, query.sort) })).sort((a, b) => compareKeys(a.key, b.key)) }
+}
+
+export function queryInventory(index: InventoryBrowseIndex, query: InventoryBrowseQuery = {},
+  cursor: InventoryBrowseCursor | null = null, limit = 40) {
+  const { key, ordered } = orderedInventoryQuery(index, query)
+  const total = ordered.length
   if (cursor && (cursor.evidenceKey !== index.key || cursor.query !== key)) return { rows: [], total, next: null, invalidCursor: true }
-  const ordered = filtered.map(row => ({ row, key: rowKey(row, query.sort) })).sort((a, b) => compareKeys(a.key, b.key))
   const window = ordered.filter(entry => !cursor || compareKeys(entry.key, cursor.after) > 0)
   const size = Number.isSafeInteger(limit) ? Math.max(1, Math.min(100, limit)) : 40
   const rows = window.slice(0, size).map(entry => entry.row)
   const last = rows.at(-1)
   const next: InventoryBrowseCursor | null = window.length > size && last ? { evidenceKey: index.key, query: key, after: rowKey(last, query.sort) } : null
   return { rows, total, next, invalidCursor: false }
+}
+
+/** Restore a presentation window from current evidence in one sort, never persist opaque keysets. */
+export function restoreInventoryWindow(index: InventoryBrowseIndex, query: InventoryBrowseQuery, requestedWindow: number) {
+  const { key, ordered } = orderedInventoryQuery(index, query)
+  const window = Math.min(Number.isSafeInteger(requestedWindow) ? Math.max(0, requestedWindow) : 0, Math.max(0, Math.ceil(ordered.length / 40) - 1))
+  const cursors: (InventoryBrowseCursor | null)[] = [null]
+  for (let page = 1; page <= window; page++) cursors.push({ evidenceKey: index.key, query: key, after: ordered[page * 40 - 1].key })
+  return { cursor: cursors.at(-1) ?? null, previous: cursors.slice(0, -1) }
 }
 
 export function inventoryGradingLabel(row: InventoryBrowseRow) {

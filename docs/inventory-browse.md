@@ -30,7 +30,7 @@ The safe row projection deliberately excludes certificate, holder, label assets/
 
 `onOpenLocation?: (intent: InventoryLocationIntent) => void` receives **only** `{ collectionId, slotId, itemId }`. The detail closes before the callback runs through `runAfterOverlayHistory`, so browser history cleanup cannot undo host navigation. The future host must re-resolve `itemId` against current authorized evidence using `resolveInventoryLocationIntent`, not blindly trust the originally emitted collection/slot or page. A moved copy resolves to its new collection/slot; Unassigned, removed and unavailable items require an honest fallback. Derived page/slot are optional presentation only. This harness reports the resolved destination; it does not claim a production page jump/highlight or back-to-Inventory restoration.
 
-Future #386 host integration must preserve Inventory search/scope/scroll when returning from a location, keep it device/account/owner scoped, and dismiss overlays on a main tab switch via `closeAllOverlays`. This slice supplies no navigation persistence or production dispatcher.
+The [staged #386 host](collection-navigation.md) now supplies device/account/owner-scoped search/scope/window/scroll restoration, current stable-ID location refresh, history/deep links and `closeAllOverlays` integration around this reusable view. Production dispatch/authenticated browser binding remains gated by #379; the original standalone browse harness keeps its default behavior.
 
 ## Concrete next host bindings, not runtime APIs
 

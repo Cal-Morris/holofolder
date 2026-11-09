@@ -6,13 +6,16 @@ import { runAfterOverlayHistory } from "@/hooks/use-overlay"
 import CardImage from "@/components/card-image"
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseScope, InventoryCatalogEvidence,
   InventoryLayoutEvidence, InventoryLocationIntent } from "@/lib/domain/inventory-browse"
-import { buildInventoryBrowseIndex, inventoryGradingLabel, queryInventory,
+import { buildInventoryBrowseIndex, inventoryGradingLabel, queryInventory, restoreInventoryWindow,
   type InventoryBrowseCursor, type InventoryBrowseIndex } from "@/lib/inventory-query"
 import { inventoryLocationLabel } from "@/lib/inventory-location"
+import { normalizeInventoryViewState, type InventoryViewState } from "@/lib/collection-navigation"
 import styles from "./inventory.module.css"
 
 const InventoryDetail = dynamic(() => import("./inventory-detail"), { ssr: false })
 export interface InventoryViewProps {
+  initialBrowseState?: InventoryViewState
+  onBrowseStateChange?: (state: InventoryViewState) => void
   scope: InventoryBrowseScope
   evidence: InventoryBrowseEvidence
   catalog: readonly InventoryCatalogEvidence[]
@@ -20,19 +23,24 @@ export interface InventoryViewProps {
   /** Host re-resolves the stable IDs against current authorized evidence before navigating. */
   onOpenLocation?: (intent: InventoryLocationIntent) => void
 }
-export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation }: InventoryViewProps) {
+export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation, initialBrowseState, onBrowseStateChange }: InventoryViewProps) {
   const index = useMemo(() => buildInventoryBrowseIndex(scope, evidence, catalog, layouts), [scope, evidence, catalog, layouts])
   // Synchronous remount prevents even a single paint of another account's selection/query/cursor.
-  return <InventoryResults key={index.key} index={index} onOpenLocation={onOpenLocation} />
+  return <InventoryResults key={index.key} index={index} onOpenLocation={onOpenLocation} initialBrowseState={initialBrowseState} onBrowseStateChange={onBrowseStateChange} />
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className={styles.field}><span>{label}</span>{children}</label>
 }
-function InventoryResults({ index, onOpenLocation }: { index: InventoryBrowseIndex; onOpenLocation?: InventoryViewProps["onOpenLocation"] }) {
-  const [query, setQuery] = useState<InventoryBrowseQuery>({})
-  const [cursor, setCursor] = useState<InventoryBrowseCursor | null>(null)
-  const [previous, setPrevious] = useState<(InventoryBrowseCursor | null)[]>([])
+function InventoryResults({ index, onOpenLocation, initialBrowseState, onBrowseStateChange }: Pick<InventoryViewProps, "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange"> & { index: InventoryBrowseIndex }) {
+  const [initial] = useState(() => {
+    const state = normalizeInventoryViewState(initialBrowseState)
+    return { query: state.query, ...restoreInventoryWindow(index, state.query, state.window) }
+  })
+  const [query, setQuery] = useState<InventoryBrowseQuery>(initial.query)
+  const [cursor, setCursor] = useState<InventoryBrowseCursor | null>(initial.cursor)
+  const [previous, setPrevious] = useState<(InventoryBrowseCursor | null)[]>(initial.previous)
+  useEffect(() => { onBrowseStateChange?.({ query, window: previous.length }) }, [query, previous.length, onBrowseStateChange])
   const [selected, setSelected] = useState<string | null>(null)
   const pendingLocation = useRef<InventoryLocationIntent | null>(null)
   useEffect(() => {

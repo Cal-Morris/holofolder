@@ -15,6 +15,7 @@ let savedHtmlOverflow = ""
 // history entries in one batched history.go(-n); pushes requested while that traversal is
 // still pending are deferred until it lands so entries never get out of order.
 let ignoredPopstates = 0
+const cleanupPopstates = new WeakSet<PopStateEvent>()
 let queuedBacks = 0
 let backFlushScheduled = false
 let lastPopstateIgnored = false
@@ -24,8 +25,9 @@ let globalPopstateListenerInstalled = false
 function installGlobalPopstateListener() {
   if (globalPopstateListenerInstalled || typeof window === "undefined") return
   globalPopstateListenerInstalled = true
-  window.addEventListener("popstate", () => {
+  window.addEventListener("popstate", (event) => {
     if (ignoredPopstates > 0) {
+      cleanupPopstates.add(event)
       ignoredPopstates -= 1
       lastPopstateIgnored = true
       if (ignoredPopstates === 0) {
@@ -97,6 +99,11 @@ export function runAfterOverlayHistory(navigate: () => void) {
   if (typeof window === "undefined") return
   installGlobalPopstateListener()
   requestHistoryPush(navigate)
+}
+
+/** Classify this cleanup traversal before or after the shared listener flushes deferred pushes. */
+export function isOverlayHistoryCleanup(event: PopStateEvent) {
+  return ignoredPopstates > 0 || cleanupPopstates.has(event)
 }
 
 /** Whether any overlay (sheet, dialog, menu) is currently open. */
