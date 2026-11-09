@@ -3,6 +3,7 @@ import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 import type { ComponentProps } from "react"
+import SlotPickerHarness from "@/components/slot-picker-harness"
 import BinderApp from "@/components/binder-app"
 import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
 
@@ -14,11 +15,11 @@ const E2E_PARTNER_OWNER_ID = "00000000-0000-4000-8000-0000000000e3"
 const E2E_BINDER_IDS = ["e2e00000-0000-4000-8000-000000000001", "e2e00000-0000-4000-8000-000000000002", "e2e00000-0000-4000-8000-000000000004"] as const
 
 export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string; cardArtwork?: string; readOnly?: string; sharePrices?: string; binders?: string; binder?: string; partner?: string; slots?: string; rows?: string; cols?: string }> }) {
-  await connection()
-
   if (process.env.HOLOFOLDER_E2E !== "1") {
     notFound()
   }
+
+  await connection()
 
   const { signedIn, cardArtwork, readOnly, sharePrices, binders: withBinders, binder, partner, slots, rows, cols } = await searchParams
   const isSignedIn = signedIn === "1"
@@ -51,8 +52,9 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
       } as User)
     : null
 
+  const HarnessApp = slots === "picker" ? SlotPickerHarness : BinderApp
   return (
-    <BinderApp
+    <HarnessApp
       key={activeBinderId ?? "single"}
       stagedSlotDisplay={slots ? syntheticSlotDisplaySnapshot(slots === "empty") : undefined}
       initialBinders={binders}

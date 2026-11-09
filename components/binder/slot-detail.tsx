@@ -1,14 +1,21 @@
 "use client"
 
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { displaySlotLabel, type BinderDisplaySlot } from "@/lib/binder-display-model"
+import SlotPicker, { type SlotPickerBoundary } from "@/components/binder/slot-picker"
 import CardImage from "@/components/card-image"
 
-export default function SlotDetail({ slot, onClose }: { slot: BinderDisplaySlot; onClose: () => void }) {
+export default function SlotDetail({ slot, onClose, picker }: { slot: BinderDisplaySlot; onClose: () => void; picker?: SlotPickerBoundary }) {
   const ref = useRef<HTMLDivElement>(null)
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
+  const editable = Boolean(picker)
+  useEffect(() => {
+    if (!editable) return
+    window.addEventListener("offline", onClose)
+    return () => window.removeEventListener("offline", onClose)
+  }, [editable, onClose])
   const grade = slot.item?.grading
   return <div className="fixed inset-0 z-40">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
@@ -20,8 +27,9 @@ export default function SlotDetail({ slot, onClose }: { slot: BinderDisplaySlot;
       </header>
       <div className="space-y-3 overflow-y-auto overscroll-contain p-4 text-sm">
         {slot.card?.image && <div className="relative mx-auto h-40 w-28"><CardImage key={`${slot.id}:${slot.card.image}`} src={slot.card.image} alt={slot.card.name} fill sizes="112px" className="object-contain" /></div>}
+        {picker && <SlotPicker key={picker.snapshot.inventoryRevision} boundary={picker} />}
         <p>{slot.item ? "Owned copy" : slot.target ? "Unfilled target, no owned copy assigned" : "Empty spacer, no target or owned copy"}</p>
-        {slot.item?.identity.kind === "card" && <p>Printing: {slot.item.identity.cardId}</p>}
+        {slot.item?.identity.kind === "card" && <p className="break-words [overflow-wrap:anywhere]">Printing: {slot.item.identity.cardId}<br />{slot.item.identity.language ?? "Unknown language"} · {slot.item.identity.finish?.replaceAll("_", " ") ?? "Unknown finish"}</p>}
         {slot.item && <p>Copy: {slot.item.id}</p>}
         {grade && <dl className="space-y-1 break-words"><dt>Recorded grading provider</dt><dd>{grade.provider.kind === "known" ? grade.provider.id.toUpperCase() : grade.provider.name}</dd><dt>Grade</dt><dd>{grade.grade ?? "Unknown"}{grade.scale ? ` / ${grade.scale}` : ""}</dd>{grade.designation && <><dt>Designation</dt><dd>{grade.designation}</dd></>}{grade.holder && <><dt>Holder</dt><dd>{grade.holder}</dd></>}{grade.subgrades.map((s, index) => <div key={index}><dt>{s.name}</dt><dd>{s.grade}</dd></div>)}</dl>}
       </div>

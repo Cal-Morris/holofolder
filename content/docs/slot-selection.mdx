@@ -1,0 +1,14 @@
+---
+title: Slot selection preparation
+description: The staged explicit-slot picker and its current integration limits.
+---
+
+The new stable-slot picker is internal preparation and is not enabled in the live app. Continue using the current binder's card selection. There is no supported slot-selection REST or MCP operation yet.
+
+In the staged flow, first select a destination slot. Choose a compatible catalog card, including Trainer, item and Energy cards without Pokémon links. Distinct owned copies remain separate. Eligible Unassigned copies can be reused; already-placed copies stay where they are. Recorded grading choices retain their copy identity and do not invent slab details.
+
+**Remove target** keeps the card and makes the slot free. **Clear contents** keeps its target and position and leaves the owned copy Unassigned. A mismatched target change can be cancelled without changing anything. Layout insertion, removal and rearrangement belong to the separate Edit layout work.
+
+Offline search can use cards already cached on the device. Missing catalog coverage is shown explicitly. This draft UI does not promise durable offline assignment, saved changes or partner sync. Creating a separate Raw copy while only graded matching Unassigned copies exist still requires command integration.
+
+Authenticated commands, durable queues, conflict recovery, public API parity and enabled production verification remain required before this feature is released. No-destination search-to-target-or-append is a separate part of the same unfinished feature.
