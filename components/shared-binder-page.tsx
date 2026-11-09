@@ -1,40 +1,7 @@
-import { notFound } from "next/navigation"
-import BinderApp from "@/components/binder-app"
-import { publicCollectionItems, type BinderShareRecord } from "@/lib/binder-share"
-import { loadBinderBootstrap } from "@/lib/server/binder-bootstrap"
-import { resolveActiveBinder } from "@/lib/server/binders"
-import { createClient } from "@/lib/supabase/server"
-import { getSessionUser } from "@/lib/supabase/session-user"
-import { createAdminClient } from "@/lib/supabase/admin"
+import PublicBinderView from '@/components/public-binder'
+import type { PublicBinder } from '@/lib/public-binder'
 
-export default async function SharedBinder({ share, path }: { share: BinderShareRecord; path?: string }) {
-  const admin = createAdminClient()
-  // Legacy token links without a binder retain their default-binder behaviour.
-  const binderId = share.binder_id ?? null
-  const { activeBinder } = await resolveActiveBinder(admin, share.owner_user_id, binderId)
-  if (binderId && activeBinder?.id !== binderId) notFound()
-  const [bootstrap, viewer] = await Promise.all([
-    loadBinderBootstrap(admin, share.owner_user_id, activeBinder?.id ?? null),
-    createClient().then(getSessionUser),
-  ])
-  if (bootstrap.collectionError) notFound()
-  const settings = bootstrap.settings
-  return <>
-    <script dangerouslySetInnerHTML={{ __html: `document.documentElement.classList.toggle("dark", ${JSON.stringify(settings.darkMode)});` }} />
-    <BinderApp
-      initialUser={viewer}
-      initialCollection={publicCollectionItems(bootstrap.collection)}
-      initialCollectionOwnerUserId={share.owner_user_id}
-      initialBinders={activeBinder ? [activeBinder] : []}
-      initialBinderId={activeBinder?.id ?? null}
-      initialSettings={settings}
-      initialHasStoredSettings={bootstrap.hasStoredSettings}
-      initialDarkMode={settings.darkMode}
-      initialPriceMode={share.show_prices === true}
-      pricingEnabled={share.show_prices === true}
-      readOnlyMode={true}
-      shareViewToken={share.token}
-      initialSharePath={path}
-    />
-  </>
+/** The server passes only the public allowlist to the client component and RSC payload. */
+export default function SharedBinder({ binder }: { binder: PublicBinder }) {
+  return <PublicBinderView binder={binder} />
 }

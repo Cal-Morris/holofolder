@@ -1,0 +1,14 @@
+---
+title: Public binder links
+description: Existing read-only links, prices and ordered-pocket compatibility.
+---
+
+Existing token links and saved named binder addresses remain read-only. The owner controls whether sharing is enabled and whether saved market estimates may appear. Turning sharing off prevents subsequent server reads. Public pages do not load your visitor account's collection or private offline binder.
+
+Ordered-pocket compatibility is implemented behind the existing storage-authority boundary. It does not convert a binder or enable the inventory/slot write APIs. Native rollout acceptance is still pending under #371 and #379. Unconverted binders retain their legacy National Dex arrangement.
+
+For a slot-authoritative binder, public pages preserve the owner's current pocket sequence, including repeated cards, Trainers, Energy, target placeholders and free spaces. Completion uses current targets, so a removed preset target does not remain missing. Large custom grids scroll within the page.
+
+Only public display fields appear. Account/member IDs, private notes, acquisition information, purchase costs, pending changes, other collections and Unassigned inventory are excluded. Hidden prices are absent from page data and previews. Certificates, provider verification links and slab/label photos are not shared; ordinary card artwork may appear alongside recorded provider/grade text. Provider-faithful slab rendering is separate work.
+
+Public page reads use existing free share permission. They add no developer REST/MCP inventory endpoint or permission. Existing sharing management operations keep their current registry contracts. A public page is a scoped view of one binder, never a complete owner inventory export.

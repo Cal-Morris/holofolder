@@ -16,6 +16,14 @@ export interface BinderDisplaySlot {
   legacyPokemonId?: number
   legacyItem?: CollectedPokemon
 }
+/** Minimal browse contract shared by private display references and public projections. */
+export interface ReadOnlyDisplaySlot {
+  id: string
+  target: { kind: "card" } | { kind: "pokemon"; pokemonId: number } | null
+  item: { grading: { grade: string | null } | null } | null
+  card: DisplayCatalogCard | null
+  pokemon: { id: number; name: string } | null
+}
 export interface SlotDisplayInput {
   binder: BinderSnapshot
   inventory: InventorySnapshot
@@ -59,7 +67,7 @@ export function resolveDisplaySelection(slots: readonly BinderDisplaySlot[], slo
   return slots.find(slot => slot.id === slotId) ?? null
 }
 
-export function displaySlotLabel(slot: BinderDisplaySlot) {
+export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, "card" | "pokemon" | "target" | "item">) {
   const name = slot.card?.name ?? (slot.pokemon ? slot.pokemon.name : slot.target?.kind === "pokemon" ? `Pokémon ${slot.target.pokemonId}` : "Free slot")
   return `${name}, ${slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}`
 }

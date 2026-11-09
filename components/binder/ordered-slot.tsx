@@ -2,12 +2,12 @@
 
 import CardImage from "@/components/card-image"
 import { BinderSlotGlare, TRADING_CARD_CORNER_RADIUS } from "@/components/binder/pokemon-slot"
-import { displaySlotLabel, type BinderDisplaySlot } from "@/lib/binder-display-model"
+import { displaySlotLabel, type ReadOnlyDisplaySlot } from "@/lib/binder-display-model"
 import { getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
 import { useRef, type CSSProperties } from "react"
 
 /** Browse-only slot. No drag, long-press, placement or ownership callbacks. */
-export function OrderedSlot({ slot, selected, onSelect, imageSizes, glareStyle, glare, interactionKey }: { interactionKey?: string; slot: BinderDisplaySlot; selected: boolean; onSelect: (id: string) => void; imageSizes: string; glareStyle: CSSProperties; glare: boolean }) {
+export function OrderedSlot({ slot, selected, onSelect, imageSizes, glareStyle, glare, interactionKey }: { interactionKey?: string; slot: ReadOnlyDisplaySlot; selected: boolean; onSelect: (id: string) => void; imageSizes: string; glareStyle: CSSProperties; glare: boolean }) {
   const press = useRef<{ key: string | undefined; x: number; y: number } | null>(null)
   const image = slot.card?.image ?? (slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null)
   return <button type="button" data-slot-id={slot.id} aria-label={displaySlotLabel(slot)} aria-pressed={selected} draggable={false}
