@@ -2,6 +2,7 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { instantiatePreset, normalizePresetDefinition, normalizePresetManifest, type PresetDefinition } from "@/lib/domain/binder-presets"
 import { getBinderCompletion, normalizeBinderSnapshot } from "@/lib/domain/binder-slots"
+import { getInventoryCounts, normalizeInventorySnapshot, type InventorySnapshot } from "@/lib/domain/inventory"
 import { planRemoveSlots } from "@/lib/binder-slot-plans"
 
 // Synthetic source definitions and IDs, not catalog records.
@@ -37,6 +38,17 @@ describe("copied preset contracts", () => {
     assert.deepEqual(second.presetManifest, definition())
     assert.equal(second.slots[0].presetOrigin!.source.version, "v1")
     assert.equal(first.presetManifest!.source.version, "v1")
+  })
+
+  test("copied repeat targets and spacers contribute no owner inventory", () => {
+    const binder = instantiatePreset(definition(), scope, ["a", "b", "c"])!
+    const inventory: InventorySnapshot = {
+      ownerUserId: scope.ownerUserId, inventoryRevision: 0, items: [], placements: [], binders: [binder],
+      collections: [{ id: scope.collectionId, ownerUserId: scope.ownerUserId, name: "Synthetic", kind: "binder", defaultPresentation: "binder", version: 0 }],
+    }
+    assert.ok(normalizeInventorySnapshot(inventory))
+    assert.deepEqual(getInventoryCounts(inventory), { total: 0, assigned: 0, unassigned: 0, byCollection: { binder: 0 } })
+    assert.deepEqual(binder.slots.map(s => s.inventoryItemId), [null, null, null])
   })
 
   test("blank generates no implicit targets or slots", () => {

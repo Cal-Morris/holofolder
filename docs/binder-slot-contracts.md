@@ -90,3 +90,5 @@ This is unused internal, isomorphic contract code. There are no new REST/MCP ope
 - **#376:** defines exposed operation schemas, permissions, response/errors and generated REST/MCP docs with the runtime capability. #379 keeps exposure gated until compatibility/offline/audit/recovery checks pass.
 
 Verification: `bun test tests/binder-slots.test.ts tests/binder-presets.test.ts tests/binder-slot-targets.test.ts tests/domain-cards.test.ts tests/card-catalog.test.ts` covers strict normalization, stable repeat identities, independent preset copies, whole-slot movement, Unassigned effects, conflict/no-op/overflow behavior, occupied edits and current-target completion. Pure contracts need no mobile/e2e run or production data writes; runtime integrations still need their own proof.
+
+The additive [inventory contract](inventory-contracts.md) under #382 supplies the referenced item/placement/grading shapes, owner-wide uniqueness, trusted candidate adaptation and audit context. Whole-slot layout moves still preserve placement IDs; inventory moves change primary placement without moving the target. Schema and authoritative execution remain downstream.
