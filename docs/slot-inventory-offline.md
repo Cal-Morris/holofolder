@@ -86,3 +86,13 @@ The change adds no animation or gesture. Existing overlay dismissal, pointer/edi
 These are synthetic local checks, not hosted permissions/execution, production conversion, installed-PWA/SW navigation, physical-device or deployed-main proof. The issue stays open and parent owns review/integration/merge/deployment.
 
 A successful replay also captures a process-local complete-read start fence after its matching execution reply. The snapshot brand retains the constructor's start sequence; cached brands and reads already in flight before that fence cannot acknowledge the queue, even if their revision is high enough or they finish later. This metadata is weakly held, never serialized, and does not change the normal complete-snapshot contract for other consumers. The authenticated reader must still supply real current scope/revision/count evidence rather than self-attesting cached data.
+
+The [private browser read transport](inventory-complete-read.md#private-browser-transport-still-behind-379)
+now reserves the complete-read sequence before HTTP and reconstructs from the
+authenticated handler's independent count/revision fences. Its live scope getter,
+verified auth session, lifecycle epoch and per-request nonce reject account swaps
+and replayed HTTP bodies. Real Chromium/IDB proof retains queued commands for
+cached/already-in-flight responses and offline failure, and ACKs only a genuinely
+fresh read. This is an internal synthetic integration; public routes remain 503,
+production queue execution/bootstrap stays unwired, and 083 location/grid/export
+read gaps remain explicit.

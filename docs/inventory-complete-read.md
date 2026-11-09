@@ -8,7 +8,7 @@ With no client argument, the helper creates the standard request cookie/RLS Supa
 
 This is standard app owner/partner access under 073 authenticated SELECT/RLS. It does **not** impose the paid developer entitlement on the app, accept an API key, authorize an MCP OAuth client, or reuse a shape-valid `OperationContext` as proof of authentication. OAuth `client_id` sessions are rejected. Future REST/MCP reads still require the existing current grant/permission, developer entitlement, scope binding and safe projection boundary. Do not call this private reader from the developer dispatcher as a substitute for those checks.
 
-The result contains owner-authorized recorded grading/certificate/holder metadata and opaque private label asset IDs, needed by internal plans. It is not a public/share/API response or a certificate-publication policy. No provider lookup/verification, grade conversion, catalog enrichment, signed artwork URL generation, recovery state, command evidence, conversion receipt, frozen legacy source or credential/token projection occurs. Selects enumerate actual required fields; no `select('*')` is used. Unknown printings, repeated Pokémon, Trainers/Energy identities, and recorded grades survive without guessed catalog facts or manufactured copies.
+The result contains owner-authorized recorded grading/certificate/holder metadata and opaque private label asset IDs, needed by internal plans. It is not a public/share/developer API response or a certificate-publication policy. No provider lookup/verification, grade conversion, catalog enrichment, signed artwork URL generation, recovery state, command evidence, conversion receipt, frozen legacy source or credential/token projection occurs. Selects enumerate actual required fields; no `select('*')` is used. Unknown printings, repeated Pokémon, Trainers/Energy identities, and recorded grades survive without guessed catalog facts or manufactured copies.
 
 ## Actual table reads and mapping
 
@@ -24,7 +24,7 @@ All requests use the existing Supabase PostgREST client, never a handler Postgre
 | `inventory_placements` | exact count and unique `inventory_item_id` keyset; collection, slot, placement version | existing `normalizePlacement`; no placement means Unassigned |
 | `binder_slots` | per-collection exact count, unique increasing `position` keyset, plus owner-wide count fence | existing `normalizeBinderSlot`; ordered slots with target/wants/status/content version and saved preset origin; occupancy comes only from the complete placement stream |
 
-Pages are limited to 500, below PostgREST's 1,000-row cap. Text keysets use PostgreSQL's ordering/collation. Positions use the schema's unique `(collection_id, position)` constraint. Counts come from separate `select(..., {count: 'exact', head: true})` requests; they are internal completeness assertions, **not new fields on 074/HTTP responses**. Independent item, placement, slot-content, collection and layout versions are retained; none is substituted for the owner revision.
+Pages are limited to 500, below PostgREST's 1,000-row cap. Text keysets use PostgreSQL's ordering/collation. Positions use the schema's unique `(collection_id, position)` constraint. Counts come from separate `select(..., {count: 'exact', head: true})` requests; they are internal completeness assertions, **not additions to the 074 SQL or supported public REST/MCP contract**; the private transport below retains them as independent evidence. Independent item, placement, slot-content, collection and layout versions are retained; none is substituted for the owner revision.
 
 For each collection, the permitted table reader produces the actual 074 `SlotPage` continuation shape (`inventoryRevision`, `collectionVersion`, `layoutRevision`, `slots`, `nextPosition`). `readAllSlotPages` checks the tokens and all ordered pages before mapping. It does not invoke the denied function or claim its raw private SQL projection is public. An early empty page, changing count, repeated ID/cursor, nonincreasing position, capacity violation or invalid normalized record rejects the read.
 
@@ -60,4 +60,124 @@ Default limits: two whole-snapshot attempts, 15 seconds total, 512 request steps
 
 ## Verification boundary
 
-`tests/inventory-server-read.test.ts` uses the installed real Supabase client with a synthetic fetch-backed PostgREST transport and session stubs. It exercises emitted HEAD/count/select/filter/order/keyset/limit request shapes and actual domain mapping, >1,025 items/slots and collections, all supported grading providers/custom metadata, unknown printings, empty/spacer collections, partial/duplicate/inconsistent streams, independent revision/metadata changes, current partner/unlink/billing/stranger scope, forged owner options, denied schema/queries and request/deadline budgets. `tests/slot-snapshot.test.ts` covers cursor cycles and 074 token conflicts. This is local query-shape/completeness proof, not hosted permission/load/performance or enabled-production proof. No hosted read/write, migration, conversion, dump, full e2e or browser/UI verification is required or claimed for this server-only slice.
+`tests/inventory-server-read.test.ts` uses the installed real Supabase client with a synthetic fetch-backed PostgREST transport and session stubs. It exercises emitted HEAD/count/select/filter/order/keyset/limit request shapes and actual domain mapping, >1,025 items/slots and collections, all supported grading providers/custom metadata, unknown printings, empty/spacer collections, partial/duplicate/inconsistent streams, independent revision/metadata changes, current partner/unlink/billing/stranger scope, forged owner options, denied schema/queries and request/deadline budgets. `tests/slot-snapshot.test.ts` covers cursor cycles and 074 token conflicts. This is local query-shape/completeness proof, not hosted permission/load/performance or enabled-production proof. Those server-reader tests claim no hosted read/write, migration, conversion, dump or enabled UI proof. The browser transport proof below is separate.
+
+## Private browser transport, still behind #379
+
+`handleInventoryCompleteRead(request, client?)` in `lib/server/inventory-read-http.ts`
+implements the reusable first-party GET handler. **No production route invokes it**:
+`/app/api/inventory` and `/app/api/binder-slots` still return unconditional 503 for
+all staged methods. There is no environment, body or role bypass. Direct handler
+tests and the synthetic local browser proof exercise the handler without opening
+those routes. No command execution, BinderApp/dock/navigation integration, grant,
+conversion, migration or hosted access is part of this slice.
+
+The handler calls `readOwnerInventoryState`, the same authoritative cookie/RLS
+reader underlying `readOwnerInventorySnapshot`. Its no-client path creates the
+standard request-scoped server client; the optional client is trusted server/test
+injection only, never HTTP input or an admin client. The reader now also requires
+and fences the verified JWT `session_id`. Actor, owner, partnership, billing and
+that authenticated session are rechecked before publication, including a same-user
+session replacement. Existing deadline, retry, request budget, incomplete-legacy,
+uninitialized-owner and conflict behavior remain in force.
+
+The strict version-1 envelope contains:
+
+- `requestId`: the current browser invocation's unpredictable nonce.
+- `scope`: the server-resolved `actorUserId`, `ownerUserId` and verified
+  `authSessionId`, plus the echoed device lifecycle `sessionId`.
+- `evidence`: the fenced owner revision; independent HEAD counts for items,
+  placements, storage states, binders and total slots; per-storage independent
+  slot count, collection version and layout revision.
+- `snapshot`: the canonical private inventory domain projection, including
+  recorded grading/certificate/holder/opaque asset IDs and preset provenance.
+
+GET accepts exactly one `requestId` and `sessionId`, with no owner/actor parameters.
+Both request fields correlate the reply; neither authenticates anything. Responses,
+including failures, use `Cache-Control: private, no-store`, `Vary: Cookie` and
+`nosniff`. Raw database details are never returned. Safe public/share projections
+remain separate. The app entitlement is current owner/partner access, not paid
+developer access. API keys and OAuth MCP sessions cannot invoke this boundary.
+
+`fetchCurrentInventorySnapshot(currentScope)` is the actual browser adapter. Its
+fixed same-origin `/app/api/inventory` fetch uses same-origin credentials,
+`cache: "no-store"`, redirects rejected, and a 30-second client deadline. The auth
+host must supply a live scope getter from its authenticated lifecycle, including
+the verified auth session ID. Rotate the in-memory lifecycle ID on signout,
+account/owner/membership changes and unlink/relink, including a return to the same
+IDs. No lifecycle identifier or complete capability is restored from localStorage,
+IDB, history, a command receipt or a caller-supplied owner selection.
+
+The adapter checks its current scope after HTTP, after JSON and before/after
+branding. It validates the exact envelope version, nonce, scope, canonical domain
+shape/bijection, every independent count, and collection/layout versions. It
+rejects cacheable, redirected, wrong-session, wrong-owner, partial or malformed
+responses. Shape validation is not authentication: only this invocation's
+cookie-authenticated same-origin response supplies the evidence. The exported
+wire parser alone never creates a complete brand.
+
+### Read-start sequencing and offline behavior
+
+The shared complete reader now accepts a promised fenced revision. It reserves its
+process-local read-start sequence synchronously **before** the browser fetch and
+before waiting for HTTP/JSON, then consumes the server's independent evidence.
+JSON is never cast to `CompleteInventorySnapshot`; the existing complete-stream
+validator reconstructs it. Downloaded array lengths are compared with server
+counts, never used as their own assertions. A successful command response's queue
+fence therefore rejects both a cached complete object and a read already in flight,
+even when its JSON arrives later with sufficiently new revisions. Every invocation
+uses a new nonce, so replaying an older authenticated HTTP body also fails.
+
+Results are `{status: "complete", scope, snapshot}` or honest
+`{status: "conflict" | "unavailable", code}`. The existing public 503 reports
+`inventory_operations_staged`; it cannot manufacture empty ownership. Network,
+permission, conversion or session failure does not mutate the queue. The eventual
+queue adapter must pass only a successful result's snapshot to its current-session
+read callback, after the matching successful command reply, retaining all pending
+intent on other results. That production execution/binding is still #363/#379.
+
+The service worker explicitly bypasses both private path families, including
+image-like subpaths and warm-up messages. All cache helpers reject `private` or
+`no-store` responses. Cached safe subsets remain subsets and cannot reconstruct
+completeness; offline failure retains saved ownership and queued intent.
+
+### Canonical metadata limits
+
+The wire contract deliberately transports the current reader's existing domain
+projection without inventing metadata. Migration 083's private custom-storage
+`location` is **not read or represented** by this domain snapshot. Binder grid
+settings, catalog association evidence, full export/source metadata and asset
+bytes are also absent. Omission means unsupported, never `null`, a guessed grid,
+a portable backup or proof of no recorded location. The complete brand proves the
+inventory/placement/ordered-slot domain only. It is insufficient by itself for
+navigation page/grid evidence or a lossless 083 export. #376/#379 must resolve those
+read/projection gaps before binding those capabilities; #365 retains export scope.
+
+This is app-only internal transport preparation. Supported REST/MCP registry
+operations, authorization/projections, generated OpenAPI, Markdown/LLM discovery
+and external smoke gates remain #376; none is registered or newly advertised here.
+#379 remains the exposure/conversion authority. [Unpublished release copy](releases/inventory-complete-read-draft.md)
+belongs to that eventual feature block. Issues stay open and parent owns review,
+merge and release.
+
+### Local proof
+
+`tests/inventory-read-transport.test.ts` directly exercises the real handler,
+authenticated actor/partner resolution and server reader through synthetic
+Supabase auth/PostgREST. It crosses JSON serialization and tests >1,000 records,
+interrupted pages, legacy/uninitialized/denied state, independent counts/versions,
+malformed owner/session/nonce/version replies, HTTP/JSON session teardown,
+cache/replay rejection and read-start sequencing. Existing server/pagination/queue
+regressions remain independent checks.
+
+`bun scripts/verify-inventory-read-browser.ts` bundles the actual browser adapter
+and sole queue, then runs real Chromium fetch/JSON/IndexedDB against that real
+handler with synthetic authentication/tables. It proves cached and pre-command
+in-flight reads retain intent, a genuinely fresh read ACKs, lifecycle swaps reject,
+and offline failure/reopen retains saved ownership and the queue. It is synthetic
+transport/storage proof, not real hosted authentication/RLS, installed-PWA,
+physical-device or enabled production UI proof. It also serves the actual worker
+on an isolated loopback origin: private fetches bypass a deliberately seeded
+stale cache, private warm-ups perform no fetch, and offline reads fail rather
+than returning that cached subset. This is controlled SW privacy proof, not
+installed-PWA navigation. No full e2e is run.

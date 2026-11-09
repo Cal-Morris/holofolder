@@ -69,3 +69,26 @@ test('private artwork and signed object URLs never enter shared worker caches', 
   assert.equal(intercepted,false,url)
  }
 })
+
+test("private complete reads bypass fetch caches and warm-ups, including image-like paths", async () => {
+  const { context, listeners } = worker()
+  context.fetch = async () => { throw new Error("private read must not be warmed") }
+  context.caches = { open: async () => { throw new Error("private read must not use caches") } }
+  for (const path of ["/app/api/inventory", "/api/inventory", "/app/api/binder-slots", "/app/api/inventory/private.png", "/app/api/binder-slots/private.png"]) {
+    let intercepted = false
+    listeners.get("fetch")!({ request: { method: "GET", mode: "cors", destination: "image", url: `https://holofolder.com${path}` }, respondWith: () => { intercepted = true } })
+    assert.equal(intercepted, false, path)
+    context.url = path
+    await runInContext("warmCacheUrl(url)", context)
+  }
+})
+
+test("private/no-store complete responses are never cacheable through another cache helper", () => {
+  const { context } = worker()
+  for (const policy of ["private, no-store", "no-store", "private, max-age=60"]) {
+    context.response = Response.json({ synthetic: true }, { headers: { "Cache-Control": policy } })
+    assert.equal(runInContext("isCacheableResponse(response)", context), false)
+  }
+  context.response = new Response("synthetic public image", { headers: { "Cache-Control": "public, immutable" } })
+  assert.equal(runInContext("isCacheableResponse(response)", context), true)
+})

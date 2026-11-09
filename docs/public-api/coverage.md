@@ -85,3 +85,17 @@ Internal backup/import preparation (#365): [JSON v2 serialization and immutable 
 [Inventory browse's private UI input/callback contract](../inventory-browse.md) consumes supplied validated owner evidence. It adds a reusable per-copy projection/view and an isolated local-only synthetic harness, not a public inventory read or command. No REST/MCP registry, dispatcher, OpenAPI, permission/grant, queue, bootstrap or server execution change occurs. The authenticated whole-owner binding and complete-read transport validation remain a #379 enablement gate; #386 owns navigation/highlight/restoration. No audit/recovery side effects are fabricated. Cached subsets stay explicitly cached-only, and absent cached copies are never reported as absent ownership. [Release copy](../releases/inventory-browse-draft.md) is unpublished until the real capability is deployed and enabled.
 
 Internal grading editor (#387): [manual grading drafts and provider navigation](../manual-grading.md) consume canonical per-copy grading and the existing 075 edit intent through supplied draft/commit callbacks. There is no production caller, durable sink, new REST/MCP operation or generated schema. Official outbound lookup/record links are private UI only; certificates, certificate-bearing hrefs and private labels are not added to public serializers. #385/#376/#379 retain integration, API and rollout ownership.
+
+### Private browser complete-read transport (#376/#379 preparation)
+
+[The first-party handler and browser reconstruction adapter](../inventory-complete-read.md#private-browser-transport-still-behind-379)
+transport the authoritative reader's private domain plus independent completeness
+fences, bound to current actor/owner/auth session/device lifecycle and a fresh
+nonce. They are deliberately unwired behind the unchanged unconditional 503 routes.
+This app-only boundary accepts cookie/RLS authentication, not API keys or MCP OAuth,
+and contains private grading metadata unsuitable for public/share projection.
+No shared registry operation, permission, OpenAPI schema or generated discovery is
+added. Supported REST/MCP parity remains tracked here in #376; #379 owns exposure.
+Migration 083 location, navigation grid/catalog evidence and full export metadata
+remain unsupported by this read, with no invented fallback. No customer
+availability or audit/recovery mutation is claimed.
