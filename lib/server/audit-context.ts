@@ -1,10 +1,11 @@
 import { installAuditHeaderReader } from "@/lib/supabase/audit-header"
 import { AsyncLocalStorage } from "node:async_hooks"
 import { randomUUID } from "node:crypto"
+import { isSlotContractId } from "@/lib/domain/binder-slots"
 import type { OperationContext } from "@/lib/developer-api/types"
 
 // Context is established after authentication, never from request headers/body or queued actor fields.
-const attribution = new AsyncLocalStorage<{ actor: {kind:"user";userId:string} | {kind:"system";job:string}; source: "app" | "rest" | "mcp" | "system"; clientId: string | null; batchId: string }>()
+const attribution = new AsyncLocalStorage<{ actor: {kind:"user";userId:string} | {kind:"system";job:string}; source: "app" | "rest" | "mcp" | "system"; clientId: string | null; batchId: string; operationId?: string }>()
 export function withAuditActor<T>(actorId: string, run: () => T, context?: OperationContext): T {
   return attribution.run({ actor: {kind:"user",userId:actorId}, source: context?.principal.transport ?? "app", clientId: context?.principal.credentialId ?? null,
     batchId: context?.requestId ?? randomUUID() }, run)
@@ -16,7 +17,7 @@ export function auditContextHeader(): string | undefined {
   const context = attribution.getStore()
   if (!context) return undefined
   return JSON.stringify({ actor: context.actor, source: context.source, clientId: context.clientId,
-    operationId: randomUUID(), batchId: context.batchId, clientOccurredAt: null })
+    operationId: context.operationId ?? randomUUID(), batchId: context.batchId, clientOccurredAt: null })
 }
 
 /** Future service jobs opt in explicitly at their authenticated server entry point. Unwrapped jobs remain Unknown. */
@@ -26,3 +27,10 @@ export function withAuditSystem<T>(job: string, run: () => T): T {
 }
 
 installAuditHeaderReader(auditContextHeader)
+
+/** Stable across delivery retries; only called after authentication and strict intent parsing. */
+export function withAuditOperation<T>(operationId: string, run: () => T): T {
+  const context = attribution.getStore()
+  if (!context || context.actor.kind !== "user" || (!isSlotContractId(operationId) || operationId.length < 8 || operationId.length > 100)) throw new Error("Invalid trusted storage operation")
+  return attribution.run({ ...context, operationId, batchId: operationId }, run)
+}

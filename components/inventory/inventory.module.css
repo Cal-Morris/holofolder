@@ -1,0 +1,29 @@
+.view { max-width: 48rem; margin-inline: auto; padding: 1rem 1rem calc(var(--dock-clearance) + 1.5rem); color: var(--foreground); }
+.view h1 { font-size: 1.6rem; font-weight: 700; }
+.view header p, .view > p { margin-block: .5rem 1rem; }
+.field { display: flex; flex-direction: column; min-width: 0; gap: .25rem; font-size: .8rem; }
+.field input, .field select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--border); border-radius: .6rem; padding: .5rem; background: var(--background); color: inherit; font-size: 16px; text-overflow: ellipsis; }
+.filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .65rem; margin-block: 1rem; }
+.list { display: grid; gap: .5rem; list-style: none; padding: 0; }
+.copy { display: flex; gap: .8rem; width: 100%; min-width: 0; text-align: left; border: 1px solid var(--border); border-radius: .85rem; padding: .75rem; background: var(--card); color: inherit; touch-action: manipulation; }
+.copy:active, .pagination button:active, .sheet button:active { transform: scale(.98); }
+.copy:focus-visible, .view input:focus-visible, .view select:focus-visible, .view button:focus-visible, .sheet button:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px; }
+.art { flex: 0 0 56px; width: 56px; min-height: 78px; font-size: .65rem; color: var(--muted-foreground); display: grid; place-items: center; border-radius: .3rem; background: var(--muted); overflow: hidden; }
+.art img { width: 56px; height: 78px; object-fit: contain; }
+.copyText { display: flex; flex-direction: column; gap: .2rem; min-width: 0; font-size: .8rem; overflow-wrap: anywhere; }
+.copyText strong { font-size: .95rem; }
+.grading { font-weight: 600; }
+.notice { background: var(--muted); padding: 1rem; border-radius: .75rem; margin-block: 1rem; overflow-wrap: anywhere; }
+.notice h2 { font-weight: 600; margin-bottom: .5rem; }
+.pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .65rem; margin-block: 1rem; font-size: .8rem; }
+.pagination button, .sheet button { min-height: 44px; min-width: 44px; padding: .6rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--background); color: inherit; touch-action: manipulation; }
+.overlay { position: fixed; inset: 0; z-index: 40; }
+.backdrop { position: absolute; inset: 0; background: rgb(0 0 0 / .5); }
+.sheet { position: absolute; bottom: calc(var(--dock-clearance) + .5rem); left: .75rem; right: .75rem; max-width: 36rem; margin-inline: auto; max-height: calc(100dvh - env(safe-area-inset-top, 0px) - var(--dock-clearance) - 2rem); display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 1rem; background: var(--background); color: var(--foreground); overflow: hidden; }
+.sheetHeader { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; padding: .6rem 1rem; border-bottom: 1px solid var(--border); touch-action: none; }
+.sheetHeader h2 { font-weight: 600; }
+.sheetBody { overflow-y: auto; overscroll-behavior: contain; padding: 1rem; overflow-wrap: anywhere; }
+.sheetBody > * + * { margin-top: .65rem; }
+.sheetBody h3 { font-weight: 700; }
+.openLocation { width: 100%; font-weight: 600; }
+.identifier { font-size: .75rem; color: var(--muted-foreground); }
