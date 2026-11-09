@@ -19,6 +19,7 @@ import type { BinderColorTheme } from "@/lib/binder-colors"
 
 export interface BinderGridPageContext {
   displaySlots?: (page: number) => (BinderDisplaySlot | null)[]
+  slotInteractionKey?: string
   selectedSlotId?: string | null
   onSelectSlot?: (id: string) => void
   binderSlotImageSizes: string
@@ -198,7 +199,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
         >
           {pageSlots.map((displaySlot, index) => {
             const pokemon = displaySlot?.legacyPokemonId ? displaySlot.pokemon : null
-            if (displaySlot && !displaySlot.legacyPokemonId) return <OrderedSlot key={displaySlot.id} slot={displaySlot} selected={ctx.selectedSlotId === displaySlot.id} onSelect={ctx.onSelectSlot!} imageSizes={binderSlotImageSizes} glareStyle={slotGlareOverlayStyle} glare={settings.binderSlotGlareEnabled} />
+            if (displaySlot && !displaySlot.legacyPokemonId) return <OrderedSlot key={displaySlot.id} slot={displaySlot} interactionKey={ctx.slotInteractionKey} selected={ctx.selectedSlotId === displaySlot.id} onSelect={ctx.onSelectSlot!} imageSizes={binderSlotImageSizes} glareStyle={slotGlareOverlayStyle} glare={settings.binderSlotGlareEnabled} />
             const row = Math.floor(index / settings.binderCols)
             const col = index % settings.binderCols
             const rowLetter = String.fromCharCode(65 + row)
