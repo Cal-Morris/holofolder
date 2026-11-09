@@ -10,6 +10,7 @@ When you add a migration, use the next free number, keep it idempotent, and add 
 
 | File | What it does |
 |---|---|
+| `073_inventory_slot_storage.sql` | Additive inventory, primary placements, stable slots, private owner/partner RLS and explicit atomic legacy conversion. Apply as one transaction; converts no binders. Parent-reviewed application and backup gates: [storage migration](../docs/inventory-storage-migration.md). |
 | `072_developer_entitlement_lookup.sql` | Reads current paid entitlement without counting saved collection rows on every API request. Trial access remains excluded. |
 | `071_binder_slot_counts.sql` | Service-role grouped slot counts for binder lists, replacing one count request per binder. |
 | `070_illustrator_directory_index.sql` | Partial covering index for directory counts; run the concurrent statement alone. |
