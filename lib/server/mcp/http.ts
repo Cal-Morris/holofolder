@@ -6,6 +6,7 @@ import {consumeDeveloperLimit,consumeDeveloperPreauth} from '@/lib/server/develo
 import {bearerCredential,DEVELOPER_HEADERS,developerErrorResponse,readDeveloperJson} from '@/lib/server/developer-access/request'
 import {createHoloMcpServer} from '@/lib/server/mcp/server'
 import {MCP_METADATA_URL} from '@/lib/server/mcp/metadata'
+import {DEVELOPER_OPERATIONS} from '@/lib/developer-api/operations'
 export async function handleMcpRequest(request:Request) {
  const requestId=crypto.randomUUID()
  try {
@@ -14,7 +15,12 @@ export async function handleMcpRequest(request:Request) {
   await consumeDeveloperPreauth(request)
   const principal=await authenticateMcpToken(token,request.headers.get('origin'))
   await requireDeveloperEntitlement(principal.actorId)
-  const body=request.method==='POST'?await readDeveloperJson(request,131072):undefined
+  // The largest native intent is bounded at 8 MiB; reserve 64 KiB for JSON-RPC framing.
+  let bodyBytes=0
+  const body=request.method==='POST'?await readDeveloperJson(request,8388608+65536,size=>{bodyBytes=size}):undefined
+  const toolParams=body?.params as {name?:unknown}|undefined
+  const operation=body?.method==='tools/call'?DEVELOPER_OPERATIONS.find(op=>op.name===toolParams?.name):undefined
+  if(body && bodyBytes>(operation?.maxBytes ? operation.maxBytes+65536 : 131072))throw new DeveloperAccessError('body_too_large','The MCP request exceeds this operation’s body limit.',413)
   if(body?.method!=='tools/call') await consumeDeveloperLimit(principal.actorId,'read')
   const server=createHoloMcpServer(request,requestId,principal)
   const transport=new WebStandardStreamableHTTPServerTransport({sessionIdGenerator:undefined,enableJsonResponse:true})

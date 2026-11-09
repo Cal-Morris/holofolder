@@ -1,0 +1,188 @@
+import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { createDeveloperKey } from '../../lib/server/developer-access/key-secret'
+import { DeveloperAccessError } from '../../lib/developer-api/permissions'
+import type { DeveloperPermission } from '../../lib/developer-api/permissions'
+
+async function main() {
+  // Synthetic authentication/PostgREST only. No hosted network or production admission override.
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://synthetic.supabase.test'
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'synthetic-service-role'
+  process.env.VERCEL = '0'
+  // @ts-expect-error Bun module mocks are isolated to this subprocess.
+  const { mock } = await import('bun:test')
+  mock.module('server-only', () => ({}))
+  const wired = process.argv.includes('--wired')
+  if (wired) mock.module('../../lib/server/operations/native-developer-admission', () => ({ requireNativeDeveloperAdmission() {} }))
+  const actor = '00820000-0000-4000-8000-000000000002', owner = '00820000-0000-4000-8000-000000000001'
+  let currentActor = actor, currentOwner = owner, readonly = false, paid = true, revoked = false, budget = true
+  let error: string | null = null, privatePreview = false, missingScope: DeveloperPermission | null = null
+  const credentialId = createHash('sha256').update('synthetic-native').digest('hex'), key = createDeveloperKey()
+  const permissions = (): DeveloperPermission[] => (readonly ? ['collection:read', 'binders:read'] : ['collection:read', 'collection:write', 'binders:read', 'binders:write']).filter(p => p !== missingScope) as DeveloperPermission[]
+  mock.module('../../lib/server/developer-access/grants', () => ({ authenticateMcpToken: async (token: string) => {
+    if (revoked || token !== 'synthetic-oauth') throw new DeveloperAccessError('oauth_revoked', 'Synthetic denied credential.', 401)
+    return { actorId: currentActor, credentialId, transport: 'mcp', permissions: permissions() }
+  } }))
+  const calls: { operation: string; request: Record<string, unknown>; header: Record<string, unknown> }[] = []
+  const ledger = new Map<string, { body: string; result: unknown }>()
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url)
+    assert.equal(url.hostname, 'synthetic.supabase.test', 'no real network access')
+    const body = JSON.parse(String(init?.body ?? '{}'))
+    if (url.pathname.endsWith('/authenticate_developer_request')) {
+      assert.equal(body.key_id, key.id)
+      assert.equal(body.presented_digest, key.digest)
+      return Response.json(revoked ? { error: 'invalid_api_key' } : {
+        actor_id: currentActor, credential_id: credentialId, owner_user_id: currentOwner, member_ids: [currentOwner, currentActor],
+        permissions: permissions(), billing_access: { perpetual: paid }, budget: { allowed: budget },
+      })
+    }
+    if (url.pathname.endsWith('/resolve_developer_access')) return Response.json({ owner_user_id: currentOwner,
+      member_ids: [currentOwner, currentActor], billing_access: { perpetual: paid }, budget: { allowed: budget } })
+    if (url.pathname.endsWith('/storage_execute_v1')) {
+      const header = JSON.parse(new Headers(init?.headers).get('x-holo-audit-context')!)
+      assert.deepEqual(header.actor, { kind: 'user', userId: currentActor })
+      assert.equal(header.clientId, credentialId)
+      assert.equal(body.owner_id, currentOwner)
+      assert.ok(init?.signal instanceof AbortSignal)
+      if ('operationId' in body.request) {
+        assert.equal(header.operationId, body.request.operationId)
+        assert.equal(header.batchId, body.request.operationId)
+      }
+      calls.push({ ...body, header })
+      if (error) return Response.json({ code: error, message: 'private certificate SQL details', details: 'private' }, { status: 400 })
+      const operation = body.operation as string, request = body.request
+      let result: unknown
+      if (operation.includes('preview')) result = { planVersion: operation.endsWith('v2') ? 2 : 1, eventId: request.eventId,
+        supported: false, unsupported: ['synthetic unsupported dependency'], conflicts: [], changes: privatePreview ? [{ certificate: 'private' }] : [],
+        restoreUnassignedItemIds: [], rootRevisionsAdvance: true, planToken: null }
+      else if (operation.includes('apply')) result = { inventoryRevision: 2, eventId: '13', recoveredEventId: request.eventId, collections: [] }
+      else if (operation === 'collection.create') result = { inventoryRevision: 2, changed: true, collectionId: request.collectionId,
+        collectionVersion: 0, layoutRevision: 0, slotIds: request.slotIds, recoverySupported: false, evidence: { certificate: 'private' } }
+      else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
+      else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
+      // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
+      if (request.operationId) {
+        const ledgerKey = currentOwner + ':' + request.operationId
+        const serialized = JSON.stringify({ ...body, header: { ...header, operationId: request.operationId } })
+        const previous = ledger.get(ledgerKey)
+        if (previous && previous.body !== serialized) return Response.json({ code: '40001', message: 'private ledger mismatch' }, { status: 400 })
+        if (previous) result = previous.result
+        else ledger.set(ledgerKey, { body: serialized, result })
+      }
+      return Response.json(result)
+    }
+    if (url.pathname.endsWith('/collection_recovery_v1')) {
+      return Response.json(body.operation === 'apply' ? { eventId: '13', recoveredEventId: body.request.eventId }
+        : { planVersion: 1, eventId: body.request.eventId, supported: true, unsupported: [], conflicts: [], changes: [], planToken: 'c'.repeat(64), restoreUnassignedItemIds: [], rootRevisionsAdvance: false })
+    }
+    throw new Error('Unexpected dependency ' + url.pathname)
+  }
+  const { handleRestRequest } = await import('../../lib/server/developer-access/http')
+  const { handleMcpRequest } = await import('../../lib/server/mcp/http')
+  const { NATIVE_DEVELOPER_OPERATIONS } = await import('../../lib/developer-api/storage')
+  const { DEVELOPER_OPERATIONS } = await import('../../lib/developer-api/operations')
+  const collectionId = '00830000-0000-4000-8000-000000000011'
+  const inventory = { operationId: 'synthetic-inventory-1', inventoryRevision: 1, collections: [], commands: [
+    { kind: 'add', itemId: 'synthetic-copy', identity: { kind: 'pokemon', pokemonId: 1 }, grading: null, acquiredAt: null }] }
+  const slots = { operationId: 'synthetic-slots-1', inventoryRevision: 1, collectionId, collectionVersion: 0, layoutRevision: 0,
+    commands: [{ kind: 'create', ids: ['synthetic-slot'], beforeSlotId: null }] }
+  const creation = { version: 1, operationId: 'synthetic-creation-1', inventoryRevision: 1, collectionId, name: 'Synthetic binder',
+    kind: 'binder', defaultPresentation: 'binder', location: null, grid: null,
+    manifest: { source: { id: 'synthetic', version: '1' }, name: 'Synthetic targets', entries: [{ id: 'synthetic-entry', target: { kind: 'pokemon', pokemonId: 1 } }] }, slotIds: ['synthetic-slot'] }
+  const preview = { eventId: '12', restoreUnassignedItemIds: [] }
+  const apply = { ...preview, operationId: 'synthetic-recovery-1', planVersion: 1, planToken: 'a'.repeat(64), confirmed: true }
+  const v2 = { ...preview, planVersion: 2, replacementDefaultCollectionId: collectionId, inventoryRevision: 1, collections: [{ collectionId, version: 0, layoutRevision: 0 }] }
+  const values: Record<string, Record<string, unknown>> = { execute_inventory_commands: inventory, execute_slot_commands: slots, create_storage_collection: creation,
+    preview_storage_recovery: preview, apply_storage_recovery: apply, preview_storage_recovery_v2: v2,
+    apply_storage_recovery_v2: { ...v2, operationId: 'synthetic-recovery-v2', planToken: 'b'.repeat(64), confirmed: true } }
+  async function call(transport: 'rest' | 'mcp', name: string, value: unknown) {
+    const op = DEVELOPER_OPERATIONS.find(op => op.name === name)!
+    const headers = { 'Content-Type': 'application/json', authorization: 'Bearer ' + (transport === 'rest' ? key.key : 'synthetic-oauth'),
+      'x-holo-audit-context': JSON.stringify({ actor: { kind: 'user', userId: owner }, source: 'migration' }), Accept: 'application/json, text/event-stream' }
+    const response = transport === 'rest' ? await handleRestRequest(new Request('https://synthetic.test/app/api/v1' + op.path, { method: 'POST', headers, body: JSON.stringify(value) }), { params: Promise.resolve({ path: op.path.slice(1).split('/') }) })
+      : await handleMcpRequest(new Request('https://synthetic.test/app/mcp', { method: 'POST', headers, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: value } }) }))
+    assert.equal(response.headers.get('cache-control'), 'private, no-store')
+    const raw = await response.json()
+    const result = transport === 'mcp' && raw.result ? raw.result.structuredContent : raw
+    return { status: response.status, result, raw }
+  }
+  const paddedLegacy = await handleMcpRequest(new Request('https://synthetic.test/app/mcp', { method: 'POST', headers: { authorization: 'Bearer synthetic-oauth', 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_collection_recovery', arguments: { eventId: '12' } } }) + ' '.repeat(131072) }))
+  assert.equal(paddedLegacy.status, 413, 'legacy MCP framing keeps its actual-byte limit, including whitespace')
+  for (const transport of ['rest', 'mcp'] as const) {
+    const legacyPreview = await call(transport, 'preview_collection_recovery', { eventId: '12' })
+    assert.equal(legacyPreview.result.supported, true, JSON.stringify(legacyPreview.raw))
+    assert.equal(legacyPreview.result.rootRevisionsAdvance, false)
+    const legacyApply = await call(transport, 'apply_collection_recovery', apply)
+    assert.deepEqual(legacyApply.result, { eventId: '13', recoveredEventId: '12' })
+    for (const op of NATIVE_DEVELOPER_OPERATIONS) {
+      // Different sources intentionally use different operation IDs; a cross-source replay must conflict.
+      const value = { ...values[op.name] }
+      if ('operationId' in value) value.operationId += '-' + transport
+      const first = await call(transport, op.name, value)
+      if (!wired) assert.equal(first.result.error.code, 'native_operations_staged')
+      else {
+        assert.equal(first.status, 200, JSON.stringify(first.raw))
+        assert.equal(first.result.error, undefined, JSON.stringify(first.raw))
+        assert.equal(JSON.stringify(first.result).includes('private'), false)
+        assert.equal(calls.at(-1)?.header.source, transport)
+        assert.deepEqual(calls.at(-1)?.request, value)
+        if ('operationId' in value) {
+          const retry = await call(transport, op.name, value)
+          assert.deepEqual(retry.result, first.result)
+          const conflict = await call(transport, op.name, { ...value, ...('inventoryRevision' in value ? { inventoryRevision: 0 } : { eventId: '11' }) })
+          assert.equal(conflict.result.error.code, 'storage_conflict')
+        }
+      }
+    }
+    const before = calls.length
+    for (const [changes, expected] of [[{ readonly: true }, 'insufficient_permissions'], [{ paid: false }, 'premium_required'], [{ revoked: true }, transport === 'rest' ? 'invalid_api_key' : 'oauth_revoked'], [{ budget: false }, 'rate_limited']] as const) {
+      readonly = 'readonly' in changes; paid = !('paid' in changes); revoked = 'revoked' in changes; budget = !('budget' in changes)
+      const result = await call(transport, 'execute_inventory_commands', inventory)
+      assert.equal(result.result.error?.code, expected, JSON.stringify(result.raw))
+    }
+    readonly = false; paid = true; revoked = false; budget = true
+    for (const scope of ['collection:write', 'binders:write', 'collection:read'] as const) {
+      missingScope = scope
+      const denied = await call(transport, scope === 'collection:read' ? 'preview_storage_recovery' : 'execute_inventory_commands', scope === 'collection:read' ? preview : inventory)
+      assert.equal(denied.result.error.code, 'insufficient_permissions')
+    }
+    missingScope = null
+    for (const value of [{ ...slots, ownerId: owner }, { ...slots, inventoryRevision: -1 }, { ...slots, layoutRevision: undefined }, { ...slots, cursor: 'partial' }, { ...apply, confirmed: false }]) {
+      const result = await call(transport, 'execute_slot_commands', value)
+      assert.ok(result.result?.error || result.raw.error || result.raw.result?.isError, JSON.stringify(result.raw))
+    }
+    assert.equal(calls.length, before, 'denial and malformed intent cannot reach execution')
+    // The real REST stream and JSON-RPC envelope both admit the documented larger intent.
+    const largeCreation = { ...creation, operationId: 'synthetic-dex-' + transport,
+      manifest: { ...creation.manifest, entries: Array.from({ length: 1025 }, (_, i) => ({ id: 'synthetic-entry-' + i, target: { kind: 'pokemon', pokemonId: i + 1 } })) },
+      slotIds: Array.from({ length: 1025 }, (_, i) => 'synthetic-slot-' + i) }
+    assert.ok(Buffer.byteLength(JSON.stringify(largeCreation)) > 65536)
+    const large = await call(transport, 'create_storage_collection', largeCreation)
+    assert.equal(large.result.error?.code, wired ? undefined : 'native_operations_staged', JSON.stringify(large.raw))
+    if (wired) {
+      for (const [sql, expected] of [['40001', 'storage_conflict'], ['42501', 'storage_access_denied'], ['HF402', 'premium_required'], ['0A000', 'recovery_unsupported'], ['22023', 'invalid_input'], ['XX000', 'storage_unavailable']]) {
+        error = sql
+        const result = await call(transport, 'execute_inventory_commands', inventory)
+        assert.equal(result.result.error.code, expected)
+        assert.equal(JSON.stringify(result.result).includes('private'), false)
+      }
+      error = null
+      privatePreview = true
+      const result = await call(transport, 'preview_storage_recovery', preview)
+      assert.equal(result.result.error.code, 'storage_unavailable')
+      privatePreview = false
+      currentActor = owner; currentOwner = owner
+      const own = await call(transport, 'execute_inventory_commands', { ...inventory, operationId: 'synthetic-owner-' + transport })
+      assert.equal(own.result.error, undefined)
+      currentActor = actor; currentOwner = actor
+      const changedScope = await call(transport, 'execute_inventory_commands', { ...inventory, operationId: 'synthetic-unlinked-' + transport })
+      assert.equal(changedScope.result.error, undefined)
+      assert.equal(calls.at(-1)?.header.source, transport)
+      currentOwner = owner
+    }
+  }
+  if (!wired) assert.equal(calls.length, 0, 'production gate never invokes the executor')
+  console.log(wired ? 'wired synthetic transports passed' : 'fixed admission passed')
+}
+main().catch(error => { console.error(error); process.exitCode = 1 })

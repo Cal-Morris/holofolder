@@ -1,0 +1,105 @@
+import { z } from 'zod'
+import { CARD_LANGUAGES, CARD_FINISHES } from '@/lib/domain/cards'
+import { parseSlotCommand, SLOT_LIMITS } from '@/lib/domain/slot-commands'
+import { parseInventoryCommand, INVENTORY_COLLECTION_DELETE_LIMITS } from '@/lib/domain/inventory-commands'
+import { parseCollectionCreation, COLLECTION_CREATION_LIMITS } from '@/lib/domain/storage-creation'
+import type { DeveloperOperation } from './operations'
+
+const id = z.string().min(1).max(200).refine(v => v.trim() === v)
+const revision = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
+const operationId = id.min(8).max(100)
+const collectionId = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+const identity = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('pokemon'), pokemonId: revision.min(1) }).strict(),
+  z.object({ kind: z.literal('card'), cardId: id, language: z.enum(CARD_LANGUAGES).optional(), finish: z.enum(CARD_FINISHES).optional() }).strict(),
+])
+const text = z.string().min(1).max(500).refine(v => !!v.trim())
+const grading = z.object({
+  provider: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('known'), id: z.enum(['psa', 'ace', 'cgc', 'beckett']) }).strict(),
+    z.object({ kind: z.literal('custom'), name: text }).strict(),
+  ]), grade: text.nullable(), scale: text.nullable(), designation: text.nullable(),
+  subgrades: z.array(z.object({ name: text, grade: text }).strict()).max(20),
+  certificate: text.nullable(), holder: text.nullable(),
+  label: z.object({ variant: text.nullable(), assetIds: z.array(id).max(20) }).strict(),
+}).strict().nullable()
+const want = z.object({ card_id: id, card_name: z.string().min(1), added_at: z.string(),
+  card_language: z.enum(CARD_LANGUAGES).optional(), card_finish: z.enum(CARD_FINISHES).optional(),
+  card_image: z.string().optional(), card_set: z.string().optional(), rarity: z.string().optional(),
+  local_id: z.string().optional(), illustrator: z.string().optional(), set_total: revision.min(1).optional(),
+  wanted_by: z.array(z.uuid()).max(2).optional(),
+}).strict()
+const slot = z.object({ id, version: revision, inventoryItemId: id.nullable(), itemVersion: revision.nullable(), placementVersion: revision.nullable() }).strict()
+const slotRef = z.object({ collectionId, slot }).strict()
+const item = z.object({ itemId: id, itemVersion: revision, placement: slotRef.nullable() }).strict()
+const selectedWant = z.object({ index: revision.max(99), expected: want }).strict().nullable()
+const collection = z.object({ collectionId, version: revision, layoutRevision: revision }).strict()
+const slotCommand = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('create'), ids: z.array(id).min(1).max(256), beforeSlotId: id.nullable() }).strict(),
+  z.object({ kind: z.literal('move'), slots: z.array(slot).min(1).max(256), beforeSlotId: id.nullable() }).strict(),
+  z.object({ kind: z.enum(['clear', 'remove']), slots: z.array(slot).min(1).max(256) }).strict(),
+  z.object({ kind: z.literal('update'), slot, target: identity.nullable().optional(), wantedCards: z.array(want).max(100).optional() }).strict(),
+])
+const inventoryCommand = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('add'), itemId: id, identity, grading, acquiredAt: z.string().nullable() }).strict(),
+  z.object({ kind: z.literal('edit'), item, grading }).strict(),
+  z.object({ kind: z.enum(['removeOwned', 'unassign']), item }).strict(),
+  z.object({ kind: z.literal('assign'), selection: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('existing'), inventoryItemId: id, itemVersion: revision }).strict(),
+    z.object({ kind: z.literal('catalog'), identity, newItemId: id }).strict(),
+  ]), destination: slotRef, occupied: z.enum(['cancel', 'unassign']), fulfillWant: selectedWant }).strict(),
+  z.object({ kind: z.literal('move'), item, destination: slotRef, occupied: z.enum(['cancel', 'unassign', 'swap']), fulfillWant: selectedWant }).strict(),
+  z.object({ kind: z.literal('removeSlots'), slots: z.array(slotRef).min(1).max(256) }).strict(),
+  z.object({ kind: z.literal('deleteCollection'), collectionId, slots: z.array(slot).max(4096), replacementDefaultCollectionId: collectionId.nullable() }).strict(),
+])
+// Structural schemas feed discovery; canonical parsers enforce cross-field, identity and byte budgets.
+function canonical(parse: (input: unknown) => unknown) {
+  return (input: unknown) => { try { parse(input); return true } catch { return false } }
+}
+export const nativeSlotSchema = z.object({ collectionId, operationId, inventoryRevision: revision, collectionVersion: revision,
+  layoutRevision: revision, commands: z.array(slotCommand).min(1).max(100),
+}).strict().refine(canonical(parseSlotCommand), 'Invalid or oversized slot command.')
+export const nativeInventorySchema = z.object({ operationId, inventoryRevision: revision,
+  collections: z.array(collection).max(32), commands: z.array(inventoryCommand).min(1).max(100),
+}).strict().refine(canonical(parseInventoryCommand), 'Invalid or oversized inventory command.')
+export const nativeCreationSchema = z.object({ version: z.literal(1), operationId, inventoryRevision: revision, collectionId,
+  name: z.string().min(1).max(40), kind: z.enum(['binder', 'slab', 'custom']), defaultPresentation: z.enum(['binder', 'slabs', 'list']),
+  location: z.string().min(1).max(200).nullable(), grid: z.object({ rows: z.number().int().min(1).max(8), cols: z.number().int().min(1).max(8) }).strict().nullable(),
+  manifest: z.object({ source: z.object({ id, version: id }).strict(), name: z.string().min(1).max(200),
+    entries: z.array(z.object({ id, target: identity.nullable() }).strict()).max(4096),
+  }).strict(), slotIds: z.array(id).max(4096),
+}).strict().refine(canonical(parseCollectionCreation), 'Invalid or oversized copied collection creation.')
+const eventId = z.string().regex(/^[1-9]\d{0,18}$/).refine(v => v.length < 19 || v <= '9223372036854775807')
+const recovery = { eventId, restoreUnassignedItemIds: z.array(id).max(16384).refine(v => new Set(v).size === v.length) }
+const apply = { operationId, planToken: z.string().regex(/^[a-f0-9]{64}$/), confirmed: z.literal(true) }
+const replacement = { planVersion: z.literal(2), replacementDefaultCollectionId: collectionId, inventoryRevision: revision, collections: z.array(collection).length(1) }
+const validReplacement = (v: { replacementDefaultCollectionId: string; collections: { collectionId: string }[]; restoreUnassignedItemIds: string[] }) =>
+  v.restoreUnassignedItemIds.length === 0 && v.collections.length === 1 && v.collections[0].collectionId === v.replacementDefaultCollectionId
+const previewSchema = z.object(recovery).strict()
+const applySchema = z.object({ ...recovery, ...apply, planVersion: z.literal(1) }).strict()
+const previewV2Schema = z.object({ ...recovery, ...replacement }).strict().refine(validReplacement)
+const applyV2Schema = z.object({ ...recovery, ...replacement, ...apply }).strict().refine(validReplacement)
+const receipt = { inventoryRevision: revision }
+const changed = { ...receipt, changed: z.boolean() }
+const recoveryReceipt = z.object({ ...receipt, eventId, recoveredEventId: eventId, collections: z.array(collection).max(4096) }).strict()
+const recoveryPreview = z.object({ planVersion: z.union([z.literal(1), z.literal(2)]), eventId, supported: z.boolean(), unsupported: z.array(z.string()).max(16384),
+  conflicts: z.array(z.unknown()).max(16384), changes: z.array(z.unknown()).max(16384), planToken: z.string().regex(/^[a-f0-9]{64}$/).nullable(), restoreUnassignedItemIds: z.array(id), rootRevisionsAdvance: z.literal(true),
+}).strict()
+const staged = 'STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. '
+const permissions = ['collection:write', 'binders:write'] as const
+const recoveryPermissions = ['collection:read', ...permissions] as const
+const operations: readonly DeveloperOperation[] = [
+  { name: 'execute_slot_commands', method: 'POST', path: '/storage/slots/commands', description: staged + 'Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership.', permissions, write: true, schema: nativeSlotSchema, maxBytes: SLOT_LIMITS.bytes,
+    responseSchema: z.object({ ...changed, collectionVersion: revision, layoutRevision: revision, removedSlotIds: z.array(id) }).strict() },
+  { name: 'execute_inventory_commands', method: 'POST', path: '/storage/inventory/commands', description: staged + 'Atomic owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation.', permissions, write: true, schema: nativeInventorySchema, maxBytes: INVENTORY_COLLECTION_DELETE_LIMITS.bytes,
+    responseSchema: z.object({ ...changed, selectedItemIds: z.array(id), acquiredItemIds: z.array(id) }).strict() },
+  { name: 'create_storage_collection', method: 'POST', path: '/storage/collections', description: staged + 'Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.', permissions, write: true, schema: nativeCreationSchema, maxBytes: COLLECTION_CREATION_LIMITS.bytes,
+    responseSchema: z.object({ ...receipt, changed: z.literal(true), collectionId, collectionVersion: revision, layoutRevision: revision, slotIds: z.array(id).max(4096), recoverySupported: z.literal(false) }).strict() },
+  { name: 'preview_storage_recovery', method: 'POST', path: '/storage/recovery/preview', description: staged + 'Preview supported native audit evidence using the private native backend, never the legacy Activity facade. Unsupported events return conflicts/unsupported with no usable plan. Default-creation recovery needs explicit v2 replacement.', permissions: recoveryPermissions, write: false, schema: previewSchema, responseSchema: recoveryPreview, maxBytes: 1048576 },
+  { name: 'apply_storage_recovery', method: 'POST', path: '/storage/recovery/apply', description: staged + 'Apply exactly reviewed native version-1 recovery with confirmation, planToken and retry-stable operationId. Current authority and newer/ABA changes remain enforced. No fallback to legacy recovery.', permissions: recoveryPermissions, write: true, schema: applySchema, responseSchema: recoveryReceipt, maxBytes: 1048576 },
+  { name: 'preview_storage_recovery_v2', method: 'POST', path: '/storage/recovery/v2/preview', description: staged + 'Preview default-creation recovery with one explicit same-owner replacement and its current inventory/content/layout revisions. Does not select a replacement or restore authority implicitly.', permissions: recoveryPermissions, write: false, schema: previewV2Schema, responseSchema: recoveryPreview, maxBytes: 1048576 },
+  { name: 'apply_storage_recovery_v2', method: 'POST', path: '/storage/recovery/v2/apply', description: staged + 'Apply the exact confirmed version-2 default-creation plan with explicit replacement and stable operationId. Unsupported dependencies and conflicts reject atomically; no legacy fallback.', permissions: recoveryPermissions, write: true, schema: applyV2Schema, responseSchema: recoveryReceipt, maxBytes: 1048576 },
+]
+export const NATIVE_DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = operations.map(operation => ({ ...operation, admission: 'staged' as const, idempotent: true,
+  destructive: operation.write && operation.name !== 'create_storage_collection',
+}))

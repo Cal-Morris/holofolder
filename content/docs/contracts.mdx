@@ -38,3 +38,7 @@ Private uploaded binder artwork lives in a separate private R2 bucket. Upload pr
 ## Safe writes
 
 Collection updates must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation and comparison jobs require an `Idempotency-Key`; collection edits require a `baseFingerprint` from the previous read. Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.
+
+## Staged native storage
+
+[Native storage contracts](/docs/native-storage) declare their fixed 503 admission, exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy or expose developer inventory reads. Existing collection and Activity Undo operations remain available under their current contract.
