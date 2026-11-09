@@ -115,7 +115,9 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   useEffect(() => {
     if (!pendingNavigation) return
     // Overlay cleanup must commit before requesting host history, matching the shared primitive.
-    runAfterOverlayHistory(() => {
+    // The shared history listener may run before ours after a private host remount.
+    // Wait until every listener has handled the cleanup pop before changing its entry ID.
+    runAfterOverlayHistory(() => queueMicrotask(() => {
       if (!alive.current || request.current !== pendingNavigation.sequence) return
       request.current++
       if (stateRef.current) {
@@ -131,7 +133,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       history.pushState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: result.state } }, "", url)
       persist(result.state); setState(result.state); setHighlight(pendingNavigation.highlight); setNotice(result.notice); setVisit(v => v + 1)
       setPendingNavigation(null)
-    })
+    }))
   }, [pendingNavigation, scope, key, persist])
 
   const openLocation = async (intent: InventoryLocationIntent) => {

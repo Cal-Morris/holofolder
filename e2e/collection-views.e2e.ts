@@ -144,3 +144,23 @@ test("cached offline switching, unavailable fallback, missing Dex list and phone
   await expect(page.getByRole("status").filter({ hasText: "unavailable on this device" })).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("alpha")
 })
+
+
+test("dock navigation survives overlay cleanup after private host remount", async ({ page }) => {
+  await page.locator('[data-item-id="copy-00001"]').click()
+  await expect(page.getByRole("dialog")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: /Close/ }).click()
+  await expect(page.getByRole("dialog")).not.toBeVisible()
+  await page.getByLabel("Navigation account").selectOption("synthetic-partner")
+  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
+  for (const destination of ["Collections", "National Dex"]) {
+    await page.locator('[data-item-id="copy-00001"]').click()
+    await expect(page.getByRole("dialog")).toBeVisible()
+    await dock(page).getByRole("button", { name: destination, exact: true }).click()
+    await expect(page.getByRole("dialog")).not.toBeVisible()
+    if (destination === "Collections") await expect(page.getByRole("region", { name: "Collection presentation" })).toBeVisible()
+    else await expect(page.getByRole("region", { name: "National Dex", exact: true })).toBeVisible()
+    await page.goBack()
+    await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
+  }
+})
