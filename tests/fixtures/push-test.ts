@@ -15,14 +15,14 @@ async function run() {
     const query = { select: () => query, eq: (key: string, value: string) => { filters[key] = value; return query }, maybeSingle: async () => ({ data: exists ? subscription : null, error: null }) }
     return query
   } }) }))
-  mock.module('web-push', () => ({ default: { sendNotification: async (target: unknown, raw: string, options: { vapidDetails: { subject: string }; TTL: number }) => {
+  mock.module('web-push', () => ({ sendNotification: async (target: unknown, raw: string, options: { vapidDetails: { subject: string }; TTL: number }) => {
     sent++
     assert.deepEqual(target, { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } })
     assert.deepEqual(JSON.parse(raw), { kind: 'test', recipientId: person, tag: 'holofolder-test' })
     assert.equal(options.vapidDetails.subject, 'https://holofolder.com')
     assert.equal(options.TTL, 60)
     if (rejected) throw { statusCode: 403 }
-  } } }))
+  } }))
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'synthetic-key'
   process.env.VAPID_PRIVATE_KEY = 'synthetic-private'
   process.env.VAPID_SUBJECT = 'https://holofolder.com'

@@ -10,7 +10,7 @@ async function run() {
   // @ts-expect-error Bun mocks are isolated to this subprocess.
   const { mock } = await import('bun:test')
   mock.module('../../lib/server/billing', () => ({ getBillingAccess: async () => ({ enforced: false }) }))
-  mock.module('web-push', () => ({ default: { sendNotification: async () => { sent++ } } }))
+  mock.module('web-push', () => ({ sendNotification: async () => { sent++ } }))
   mock.module('../../lib/supabase/admin', () => ({ createAdminClient: () => ({
     rpc: async () => { claims++; return { data: 'synthetic-lease', error: null } },
     from: (table: string) => {
