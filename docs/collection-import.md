@@ -15,3 +15,7 @@ Writes use the existing collection hook, optimistic persistence, allowance guard
 Closing Settings, switching account/owner/binder, cancelling or replacing the file stops future work. An already submitted write may complete. A hard failure stops remaining writes and leaves completed/queued work intact. The report distinguishes saved, queued, skipped, failed and unapplied rows; queued writes still require server checks. Partial catalogue resolutions remain reviewable after a network failure.
 
 No schema or environment changes. Roll back by reverting this PR. Review/sync outstanding import writes before reverting installed clients, since older clients ignore the additive conservative conflict flag. Reverting does not remove cards that a user has already imported.
+
+## JSON v2 preparation
+
+The production Settings importer still accepts only v1 JSON and the Dex CSV contract above. JSON v2 serialization and immutable inventory-copy/arrangement previews are internal preparation under #365, not an enabled restore feature. Do not flatten a v2 file into legacy per-species writes. See [the v2 format and exact execution/offline/asset gates](binder-backup-v2.md). No public API, production UI or hosted restore has been enabled by this preparation.

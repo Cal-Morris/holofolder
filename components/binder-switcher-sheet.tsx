@@ -1,5 +1,8 @@
 "use client"
 
+import { BinderCreationPresets } from "@/components/binder-creation-presets"
+import type { BinderCreationDraft } from "@/lib/binder-creation-draft"
+
 import { ActivityButton } from "@/components/collection-activity-context"
 
 import { useEffect, useRef, useState, type FormEvent } from "react"
@@ -25,6 +28,8 @@ interface BinderSwitcherSheetProps {
   onSwitch: (binderId: string) => void
   onBindersChange: (binders: Binder[]) => void
   onClose: () => void
+  /** Private draft adapter only; production callers deliberately omit it until #379. */
+  stagedCreation?: { ownerUserId: string; onDraft: (draft: BinderCreationDraft) => void }
 }
 
 type Row = Binder & { slotCount?: number }
@@ -46,6 +51,7 @@ export default function BinderSwitcherSheet({
   onSwitch,
   onBindersChange,
   onClose,
+  stagedCreation,
 }: BinderSwitcherSheetProps) {
   const billing = useBillingContext()
   const upgrade = () => { onClose(); billing?.upgrade() }
@@ -156,6 +162,7 @@ export default function BinderSwitcherSheet({
     <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px]" onClick={onClose}>
       <div
         ref={sheetRef}
+        style={stagedCreation ? { bottom: "var(--dock-clearance)", maxHeight: "calc(100dvh - var(--top-inset) - var(--dock-clearance) - 0.5rem)" } : undefined}
         role="dialog"
         aria-modal="true"
         aria-label="Binders"
@@ -332,7 +339,8 @@ export default function BinderSwitcherSheet({
               <button type="button" onClick={upgrade} className="min-h-11 w-full rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground">Upgrade for more binders</button>
             </div>
           )}
-          {canManage && !needsUpgrade && (
+          {canManage && !needsUpgrade && stagedCreation && <BinderCreationPresets {...stagedCreation} isOnline={isOnline} disabled={atLimit || busy !== null || billing?.loading} />}
+          {canManage && !needsUpgrade && !stagedCreation && (
             <form onSubmit={handleCreate} className="mt-3 flex items-center gap-1.5">
               <input
                 value={newName}
