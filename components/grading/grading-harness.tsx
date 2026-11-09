@@ -24,7 +24,7 @@ export default function GradingHarness() {
   return <main style={{ padding: "calc(env(safe-area-inset-top, 0px) + 1rem) 1rem var(--dock-clearance)", overflowWrap: "anywhere" }}>
     <h1>Synthetic grading drafts, not persisted</h1>
     <label>Harness sink<select aria-label="Harness sink" value={sink} onChange={e => setSink(e.target.value)} style={{ minHeight: 44 }}>
-      <option value="draft">Local draft only</option><option value="reject">Reject persistence</option><option value="queued">Incorrect enqueue receipt</option><option value="throw">Failed persistence</option>
+      <option value="pending">Pending persistence</option><option value="draft">Local draft only</option><option value="reject">Reject persistence</option><option value="queued">Incorrect enqueue receipt</option><option value="throw">Failed persistence</option>
     </select></label>
     {items.map(i => <section key={i.id}><button style={{ minHeight: 44 }} onClick={() => setSelected(i.id)}>Edit {i.id}</button>
       <output aria-label={`Draft ${i.id}`}>{JSON.stringify(i)}</output></section>)}
@@ -32,6 +32,7 @@ export default function GradingHarness() {
     {item && <GradingEditor item={item} itemRef={{ itemId: item.id, itemVersion: item.version, placement: null }} ownerEvidence={items} onClose={() => setSelected(null)}
       onAcceptDraft={command => { setItems(items.map(i => i.id === command.item.itemId ? { ...i, grading: command.grading } : i)); setNotice("Accepted local draft only, not persisted") }}
       onCommit={sink === "draft" ? undefined : async () => {
+        if (sink === "pending") return new Promise<GradingCommitResult>(() => {})
         if (sink === "throw") throw new Error("Synthetic persistence unavailable")
         if (sink === "queued") return { kind: "queued" } as unknown as GradingCommitResult
         return { kind: "rejected", message: "Synthetic version conflict, draft retained" }

@@ -42,7 +42,7 @@ function EditorSession({ item, itemRef, ownerEvidence, onClose, onAcceptDraft, o
   const value = graded ? record : null
   const duplicates = duplicateGradingCopies(item, value, ownerEvidence)
   const textField = (label: string, key: "grade" | "scale" | "designation" | "certificate" | "holder") => <label className={styles.field}>{label}
-    <input value={record[key] ?? ""} maxLength={500} autoCapitalize="none" autoCorrect="off"
+    <input disabled={busy} value={record[key] ?? ""} maxLength={500} autoCapitalize="none" autoCorrect="off"
       onChange={e => setRecord({ ...record, [key]: e.target.value === "" ? null : e.target.value })} /></label>
   const submit = async () => {
     if (pending.current) return
@@ -72,31 +72,31 @@ function EditorSession({ item, itemRef, ownerEvidence, onClose, onAcceptDraft, o
       <div className={styles.body}>
         <p>Copy {item.id}</p>
         <p className={styles.notice}>User-recorded details. Certificate and private labels are not published. Blank fields mean unknown.</p>
-        <label className={styles.field}>Grading status<select value={graded ? "graded" : "raw"} onChange={e => setGraded(e.target.value === "graded")}>
+        <label className={styles.field}>Grading status<select disabled={busy} value={graded ? "graded" : "raw"} onChange={e => setGraded(e.target.value === "graded")}>
           <option value="raw">Raw</option><option value="graded" disabled={item.identity.kind !== "card"}>Graded</option>
         </select></label>
         {!graded && <p>Raw removes grading from this copy only when accepted. Ownership and acquisition stay the same.</p>}
         {graded && <>
-          <label className={styles.field}>Provider<select value={record.provider.kind === "known" ? record.provider.id : "custom"} onChange={e => {
+          <label className={styles.field}>Provider<select disabled={busy} value={record.provider.kind === "known" ? record.provider.id : "custom"} onChange={e => {
             const id = e.target.value
             setRecord({ ...record, provider: id === "custom" ? { kind: "custom", name: "" } : { kind: "known", id: id as Extract<GradingRecord["provider"], { kind: "known" }>["id"] } })
           }}>{Object.entries(GRADING_PROVIDERS).map(([id, p]) => <option key={id} value={id}>{p.name}</option>)}<option value="custom">Custom</option></select></label>
-          {record.provider.kind === "custom" && <label className={styles.field}>Custom provider name<input value={record.provider.name} maxLength={500}
+          {record.provider.kind === "custom" && <label className={styles.field}>Custom provider name<input disabled={busy} value={record.provider.name} maxLength={500}
             onChange={e => setRecord({ ...record, provider: { kind: "custom", name: e.target.value } })} /></label>}
           <p className={styles.notice}>Changing provider keeps entered text. Review the grade, scale and label for that provider.</p>
           {textField("Recorded grade", "grade")}{textField("Scale / version", "scale")}{textField("Designation / qualifier", "designation")}
           {textField("Certificate number", "certificate")}{textField("Holder / version", "holder")}
-          <label className={styles.field}>Label variant / custom style<input value={record.label.variant ?? ""} maxLength={500}
+          <label className={styles.field}>Label variant / custom style<input disabled={busy} value={record.label.variant ?? ""} maxLength={500}
             onChange={e => setRecord({ ...record, label: { ...record.label, variant: e.target.value === "" ? null : e.target.value } })} /></label>
           <p className={styles.notice}>Record the actual label, including legacy versions. No artwork or Black Label / Pristine designation is inferred. Existing private asset references are retained.</p>
           {record.subgrades.map((subgrade, index) => <fieldset key={index}><legend>Subgrade {index + 1}</legend>
-            {(["name", "grade"] as const).map(key => <label key={key} className={styles.field}>{key === "name" ? "Subgrade name" : "Subgrade value"}<input maxLength={500} value={subgrade[key]}
+            {(["name", "grade"] as const).map(key => <label key={key} className={styles.field}>{key === "name" ? "Subgrade name" : "Subgrade value"}<input disabled={busy} maxLength={500} value={subgrade[key]}
               onChange={e => setRecord({ ...record, subgrades: record.subgrades.map((s, i) => i === index ? { ...s, [key]: e.target.value } : s) })} /></label>)}
-            <button type="button" onClick={() => setRecord({ ...record, subgrades: record.subgrades.filter((_, i) => i !== index) })}>Remove subgrade {index + 1}</button>
+            <button type="button" disabled={busy} onClick={() => setRecord({ ...record, subgrades: record.subgrades.filter((_, i) => i !== index) })}>Remove subgrade {index + 1}</button>
           </fieldset>)}
-          <button type="button" disabled={record.subgrades.length >= 20} onClick={() => setRecord({ ...record, subgrades: [...record.subgrades, { name: "", grade: "" }] })}>Add subgrade</button>
-          <label className={styles.field}>Official record URL<input type="url" value={url} onChange={e => setUrl(e.target.value)} /></label>
-          <button type="button" onClick={() => {
+          <button type="button" disabled={busy || record.subgrades.length >= 20} onClick={() => setRecord({ ...record, subgrades: [...record.subgrades, { name: "", grade: "" }] })}>Add subgrade</button>
+          <label className={styles.field}>Official record URL<input disabled={busy} type="url" value={url} onChange={e => setUrl(e.target.value)} /></label>
+          <button type="button" disabled={busy} onClick={() => {
             const parsed = parseOfficialGradingUrl(url)
             if (!parsed || record.provider.kind !== "known" || parsed.provider.kind !== "known" || parsed.provider.id !== record.provider.id) {
               setError("Use a supported official URL for the selected provider. Other providers use lookup and copy."); return

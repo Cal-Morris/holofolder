@@ -135,3 +135,25 @@ test("all overlay dismissals discard drafts, restore focus, respect safe areas/d
   await harness.expectWithinSafeViewport(dialog)
   await harness.expectNoHorizontalOverflow()
 })
+
+
+test("pending persistence freezes submitted grading fields and keeps dismissal available", async ({ page }) => {
+  await page.getByLabel("Harness sink").selectOption("pending")
+  await page.getByRole("button", { name: `Edit ${ace}`, exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "Edit copy grading" })
+  await dialog.getByLabel("Recorded grade", { exact: true }).fill("9.5")
+  await dialog.getByRole("button", { name: "Add subgrade", exact: true }).click()
+  await dialog.getByLabel("Subgrade name", { exact: true }).fill("Corners")
+  await dialog.getByLabel("Subgrade value", { exact: true }).fill("9")
+  await dialog.getByRole("button", { name: "Save grading", exact: true }).click()
+  await expect(dialog.getByRole("status").filter({ hasText: "Waiting for persisted confirmation" })).toBeVisible()
+  for (const control of await dialog.locator("input,select").all()) await expect(control).toBeDisabled()
+  for (const name of ["Saving…", "Add subgrade", "Remove subgrade 1", "Use certificate from URL"]) {
+    await expect(dialog.getByRole("button", { name, exact: true })).toBeDisabled()
+  }
+  await expect(dialog.getByLabel("Recorded grade", { exact: true })).toHaveValue("9.5")
+  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeEnabled()
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByLabel(`Draft ${ace}`)).toContainText('"grade":"9"')
+})
