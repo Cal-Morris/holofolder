@@ -1,3 +1,4 @@
+import type { InventoryReadEvidence } from "@/lib/collection/inventory-read-transport"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { isSlotContractId, isSlotRevision, normalizeBinderSlot, normalizeBinderSnapshot } from "@/lib/domain/binder-slots"
 import { normalizeInventoryItem, normalizePlacement, normalizeStorageCollection } from "@/lib/domain/inventory"
@@ -6,7 +7,7 @@ import {
   type CompleteInventorySnapshot, type SnapshotPage,
 } from "@/lib/collection/slot-snapshot"
 
-/** Private first-party state only. Never serialize this through share/REST/MCP. */
+/** Private first-party state only. Never serialize through share or developer REST/MCP. */
 export class InventoryReadError extends Error {
   constructor(readonly code: "inventory_sign_in_required" | "inventory_read_forbidden" | "inventory_read_unavailable"
     | "inventory_not_initialized" | "legacy_inventory_incomplete" | "inventory_read_conflict" | "inventory_read_deadline",
@@ -36,6 +37,16 @@ export interface InventoryReadOptions {
  * With no client, creates the standard server session client. Each invocation reads current state;
  * queue integration must invoke AFTER successful ledger replay, never use the retained SQL result. */
 export async function readOwnerInventorySnapshot(client?: SupabaseClient, options: InventoryReadOptions = {}): Promise<CompleteInventorySnapshot> {
+  return (await readOwnerInventoryState(client, options)).snapshot
+}
+
+/** Same authoritative read, retaining independent server fences for private HTTP serialization. */
+export async function readOwnerInventoryState(client?: SupabaseClient, options: InventoryReadOptions = {}): Promise<{
+  snapshot: CompleteInventorySnapshot
+  actorUserId: string
+  authSessionId: string
+  evidence: InventoryReadEvidence
+}> {
   const attempts = options.attempts ?? 2, timeoutMs = options.timeoutMs ?? 15_000, maxRequests = options.maxRequests ?? 512
   if (!Number.isInteger(attempts) || attempts < 1 || attempts > 3 || !Number.isInteger(timeoutMs) || timeoutMs < 0 || timeoutMs > 30_000
     || !Number.isInteger(maxRequests) || maxRequests < 1 || maxRequests > 4096) return unavailable()
@@ -61,6 +72,8 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
         check()
         const claims = await db.auth.getClaims()
         if (claims.error || !claims.data?.claims.sub || claims.data.claims.client_id || claims.data.claims.role !== "authenticated") fail("inventory_sign_in_required", 401)
+        const authSessionId = claims.data!.claims.session_id
+        if (!isSlotContractId(authSessionId)) return fail("inventory_sign_in_required", 401)
         check()
         const user = await db.auth.getUser()
         const actor = user.data.user?.id
@@ -80,7 +93,7 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
         // Unlike legacy compatibility, missing billing policy never silently allows new reads.
         if (access.error || typeof access.data !== "boolean") return unavailable()
         if (!access.data) return fail("inventory_read_forbidden", 403)
-        return { actor, owner, partnership: p ?? null }
+        return { actor, owner, authSessionId, partnership: p ?? null }
       }
       const initialScope = await scope()
       const owner = initialScope.owner
@@ -125,7 +138,7 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
           return fail("legacy_inventory_incomplete", 503)
         }
         if (states.some(s => !isSlotRevision(s.version) || !isSlotRevision(s.layout_revision))) return unavailable()
-        return { states, binders }
+        return { states, binders, stateTotal, binderTotal }
       }
       for (let attempt = 0; attempt < attempts; attempt++) {
         try {
@@ -137,8 +150,9 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
           const collections = meta.states.map(s => valid(normalizeStorageCollection({ id: s.collection_id, ownerUserId: owner,
             name: meta.binders.find(b => b.id === s.collection_id)!.name, kind: s.kind, defaultPresentation: s.default_presentation, version: s.version })))
           const itemReader = reader("inventory_items", "id,owner_user_id,identity,grading,acquired_at,version", "id", rev, itemCount)
-          const collectionReader = reader("storage_collection_state", STATE, "collection_id", rev, meta.states.length)
+          const collectionReader = reader("storage_collection_state", STATE, "collection_id", rev, meta.stateTotal)
           let snapshotSlotCount = 0
+          const storage: InventoryReadEvidence["storage"] = []
           const binderReader = async (after: string | null) => {
             const page = await collectionReader(after)
             const binders = []
@@ -163,6 +177,7 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
               })
               if (loaded !== slotCount || await count("binder_slots", collectionId) !== slotCount) conflict()
               snapshotSlotCount += loaded
+              storage.push({ collectionId, collectionVersion: s.version as number, layoutRevision: s.layout_revision as number, slotCount })
               binders.push(valid(normalizeBinderSnapshot({ ownerUserId: owner, collectionId, layoutRevision: s.layout_revision as number, presetManifest: s.preset_manifest,
                 slots: slotPage.slots.map(r => valid(normalizeBinderSlot({ id: r.id, ownerUserId: r.owner_user_id, collectionId: r.collection_id,
                   target: r.target, status: r.status, wantedCards: r.wanted_cards, version: r.version, presetOrigin: r.preset_origin,
@@ -192,7 +207,9 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
             await sameScope()
             check()
           })
-          return snapshot
+          return { snapshot, actorUserId: initialScope.actor, authSessionId: initialScope.authSessionId,
+            evidence: { inventoryRevision: rev, items: itemCount, placements: placementCount,
+              collections: meta.stateTotal, binders: meta.binderTotal, slots: slotCount, storage } }
         } catch (error) {
           if (error instanceof InventoryReadError && error.code === "inventory_read_conflict" && attempt + 1 < attempts) continue
           // Shared validators' details and PostgREST errors never cross this private API boundary.
