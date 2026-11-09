@@ -225,3 +225,49 @@ export function planEditInventoryMetadata(snapshot: InventorySnapshot, input: In
   }
   return finish(plan)
 }
+
+export type InventoryMovePreviewInput = Omit<PlacedInventoryInput, keyof InventoryPlanInput> & {
+  destination: InventorySlotRevision
+  occupied: "cancel" | "unassign" | "swap"
+}
+export type InventoryMovePreview = { ok: false; error: InventoryPlanError | "destination-occupied" | "invalid-batch" } | {
+  ok: true
+  pairings: { inventoryItemId: string; sourceSlotId: string; destinationSlotId: string; displacedInventoryItemId: string | null; occupied: InventoryMovePreviewInput["occupied"] }[]
+}
+
+/** Read-only pairing preview using the accepted match/version plans. No ownership or auth proof.
+ * Caller supplies selected IDs, never an automatic species/printing-to-slot pairing. SQL rechecks all predicates. */
+export function previewInventoryMoves(snapshot: InventorySnapshot, input: InventoryPlanInput & { moves: InventoryMovePreviewInput[] }, resolveCatalog: InventoryCatalogResolver): InventoryMovePreview {
+  const prepared = prepare(snapshot, input)
+  if (!prepared.ok) return prepared
+  if (!input.moves.length || input.moves.length > 100) return { ok: false, error: "invalid-batch" }
+  const seenSlots = new Set<string>(), seenItems = new Set<string>()
+  const pairings: Extract<InventoryMovePreview, { ok: true }>["pairings"] = []
+  let affected = 0
+  for (const move of input.moves) {
+    if (!["cancel", "unassign", "swap"].includes(move.occupied) || move.source.slotId === move.destination.slotId) return { ok: false, error: "invalid-batch" }
+    const destination = prepared.snapshot.binders.find(b => b.collectionId === move.destination.collectionId)?.slots.find(s => s.id === move.destination.slotId)
+    if (!destination) return fail("invalid-destination")
+    const displaced = destination.inventoryItemId
+    if (displaced !== null && move.occupied === "cancel") return { ok: false, error: "destination-occupied" }
+    if (displaced === null && move.occupied === "swap") return { ok: false, error: "invalid-batch" }
+    const itemIds = [move.inventoryItemId, ...(displaced === null ? [] : [displaced])]
+    if (itemIds.some(id => seenItems.has(id)) || [move.source.slotId, move.destination.slotId].some(id => seenSlots.has(id))) return { ok: false, error: "invalid-batch" }
+    affected += 2 + itemIds.length
+    if (affected > 256) return { ok: false, error: "invalid-batch" }
+    const forward = planMoveInventory(prepared.snapshot, { ...move, inventoryRevision: input.inventoryRevision, context: input.context }, resolveCatalog)
+    if (!forward.ok) return forward
+    if (move.occupied === "swap" && displaced !== null) {
+      const item = prepared.snapshot.items.find(i => i.id === displaced)!
+      const placement = prepared.snapshot.placements.find(p => p.inventoryItemId === displaced)!
+      const reverse = planMoveInventory(prepared.snapshot, { inventoryRevision: input.inventoryRevision, context: input.context,
+        inventoryItemId: displaced, itemVersion: item.version, placementVersion: placement.version,
+        source: move.destination, destination: move.source }, resolveCatalog)
+      if (!reverse.ok) return reverse
+    }
+    itemIds.forEach(id => seenItems.add(id))
+    seenSlots.add(move.source.slotId); seenSlots.add(move.destination.slotId)
+    pairings.push({ inventoryItemId: move.inventoryItemId, sourceSlotId: move.source.slotId, destinationSlotId: move.destination.slotId, displacedInventoryItemId: displaced, occupied: move.occupied })
+  }
+  return { ok: true, pairings }
+}
