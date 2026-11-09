@@ -16,8 +16,8 @@ export interface InventoryBrowseIndex {
 const fold = (value: string) => value.normalize("NFKC").toLowerCase().trim()
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0
 const compareKeys = (a: readonly string[], b: readonly string[]) => {
-  for (let i = 0; i < a.length; i++) { const result = compare(a[i], b[i]); if (result) return result }
-  return 0
+  for (let i = 0; i < Math.min(a.length, b.length); i++) { const result = compare(a[i], b[i]); if (result) return result }
+  return a.length - b.length
 }
 
 /** A local projection, not a store or authentication boundary. Reject unbranded 'complete' payloads. */

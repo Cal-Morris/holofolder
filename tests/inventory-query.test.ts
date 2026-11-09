@@ -136,3 +136,23 @@ test("synthetic harness is local-only and cannot be enabled on hosted production
   assert.equal(canShowInventoryHarness("1", true, "localhost:3524"), false)
   assert.equal(canShowInventoryHarness(undefined, false, "localhost:3524"), false)
 })
+
+test("location keyset prefixes cannot hide a distinct copy between pages", async () => {
+  for (const reverse of [false, true]) {
+    const snapshot = inventoryBrowseFixture()
+    snapshot.collections[0].name = "unassigned"
+    snapshot.items[2].id = "0000000000000010"
+    if (reverse) snapshot.items.reverse()
+    const data = buildInventoryBrowseIndex(scope, { kind: "complete", snapshot: await completeInventoryBrowseFixture(snapshot) }, inventoryBrowseCatalog, inventoryBrowseLayouts)
+    const seen: string[] = []
+    let cursor: InventoryBrowseCursor | null = null
+    do {
+      const page = queryInventory(data, { sort: "location" }, cursor, 1)
+      seen.push(...page.rows.map(row => row.itemId))
+      cursor = page.next
+    } while (cursor)
+    assert.equal(seen.length, snapshot.items.length)
+    assert.deepEqual(new Set(seen), new Set(snapshot.items.map(item => item.id)))
+    assert.deepEqual(seen, queryInventory(data, { sort: "location" }, null, 100).rows.map(row => row.itemId))
+  }
+})

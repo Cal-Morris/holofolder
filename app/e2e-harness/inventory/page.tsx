@@ -9,5 +9,6 @@ async function LocalInventoryHarness() {
   return <InventoryHarness />
 }
 export default function InventoryHarnessPage() {
+  if (process.env.HOLOFOLDER_E2E !== "1" || process.env.VERCEL || process.env.VERCEL_ENV) notFound()
   return <Suspense fallback={null}><LocalInventoryHarness /></Suspense>
 }
