@@ -1,0 +1,16 @@
+---
+title: Bulk layout preparation
+description: Private preparation for selecting and moving whole groups of binder slots.
+---
+
+Bulk layout editing is being prepared behind a private boundary. It is not enabled for ordinary binders or the public API.
+
+The prepared controls require choosing **Edit layout**. Select saved slots across pages, or **Select page** to select the stored slots on the current page. Empty padding is excluded. The count shows the complete selection; **Clear selection** resets it.
+
+Move the selection before or after another saved slot, or to the beginning or end. Slots keep their targets, copies and wants, in their saved relative order. Choose a destination outside the selection. Every action also works with buttons and keyboard, without dragging across pages.
+
+Insert a number of free slots or a whole current-grid page at an exact saved anchor. Following slots shift automatically, including across pages. Changing the grid later repaginates them.
+
+The private durable session says **Saved on device · Pending sync** only after a local storage transaction accepts the complete group. That does not mean a server has saved it. A changed layout needs review. Changed selected copies block the whole group until you clear selection and choose again. Failed local saves retain the original group for retry. **Done** exits editing without discarding accepted device edits.
+
+Ordered card fill, bulk clear/remove with safe Undo, cross-storage moves, public sync and rollout remain unavailable in this slice.

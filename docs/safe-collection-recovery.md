@@ -1,5 +1,7 @@
 # Staged safe collection recovery (#396)
 
+Current additive slice: [084 native creation recovery](native-collection-creation-recovery.md) supports complete untouched nondefault 083 events, including first-native creation beside a legacy default, retaining and advancing owner authority. First/default creation and unsafe/incomplete dependencies remain explicit conflicts. The service-only 082 bridge remains internal; #396/#379 are incomplete and Activity stays read-only.
+
 Migration **077** adds SQL-owner-only preview/apply to the deployed 076 recorder. It is a **partial internal implementation**, not enabled recovery. Activity remains read-only, including the accepted #395 release published at Framer version `ca377c12f`. There is no recovery HTTP route, shared REST/MCP registry entry, app wrapper, permission grant, environment toggle or Undo integration in this PR. The existing slot/inventory app routes remain unconditional private/no-store 503; all fourteen 074/075 functions and every private audit/recovery function remain denied to anon, authenticated, holo_mcp and service_role. No real binder is converted.
 
 ## Implemented scope
@@ -24,7 +26,7 @@ These return `supported: false` and explicit reason strings, with no usable plan
 - Ordinary legacy inverses and actual conversion/authority transitions remain unsupported. 080 permits ordinary converted edits; [081](converted-cascade-recovery.md) additionally supports fully evidenced converted deletion and mapped-slot cascades with exact frozen compatibility rows. Incomplete older evidence, mixed legacy default admission and auxiliary/private-asset recovery remain gates.
 - Appearance/user configuration, share rows, auxiliary search/history/push state, and any other unrecognized table. A collection deletion that captured any such row is rejected as a **whole event**, never partially recovered.
 - Label asset IDs requiring a current private asset authorization/availability registry. That registry is not shipped, so restoring such a grade fails explicitly rather than dropping assets or guessing permission. Certificate text without label assets remains private and is preserved exactly.
-- Undo of collection creation, storage-kind/configuration transitions, and cross-owner transfer. Owned-copy and slot additions can be reversed safely; collection creation has additional compatibility effects outside this slice.
+- Undo of collection creation without 084's complete untouched nondefault evidence, storage-kind/configuration transitions, and cross-owner transfer. First/default creation requires explicit replacement semantics; no default is chosen implicitly.
 - Structural changes without retained layout-root evidence. Direct writes with insufficient inverse/dependency evidence cannot acquire guessed layout intent.
 
 Never restore share tokens, automatically reenable sharing, or replay acquisition/push queues. This executor touches none of those tables. A revoked share remains revoked when an unrelated ownership event is recovered. Appearance/config recovery must later validate assets and current entitlements, regenerate applicable search projections from restored source state, and preserve sharing/notification privacy. No old search projection or delivery queue may be replayed as historical state.
