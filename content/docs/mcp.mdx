@@ -39,6 +39,14 @@ A current Premium subscription or lifetime licence is required. Signup trials do
 
 Start with read permissions. Writes, sharing and partner changes need explicit approval.
 
+### Clients running on another machine
+
+If your agent runs on a remote machine, in an SSH session or in a container, a `localhost` callback points at that environment. Opening it in your browser reaches your own device instead.
+
+On the consent screen, select **My client is on another machine** before approving. Holo Folder will keep the callback URL on screen. Choose **Copy callback URL**, send it to the agent you are connecting, and ask it to open that URL on the machine where the MCP client is waiting. If copying is unavailable, select and copy the URL from the text field. Keep the client waiting while you do this; if the request expires, start a new connection.
+
+An already-approved connection with a localhost callback also shows this handoff. If the client is on your device, choose **Open on this device** to continue locally. Holo Folder cannot automatically forward a localhost callback to a remote machine; that requires forwarding support from the client.
+
 ## Try a first prompt
 
 ```text title="Ask your assistant"
