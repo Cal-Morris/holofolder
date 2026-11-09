@@ -41,7 +41,7 @@ export async function requireAppearanceOwner(request: Request, { readOnly = fals
   const admin = createAdminClient()
   const ownerId = await resolveCollectionOwnerUserId(admin, user.id)
   requireExpectedAppearanceOwner(request, ownerId)
-  return { admin, ownerId }
+  return { admin, ownerId, actorId: user.id }
 }
 export async function readAppearance(admin: ReturnType<typeof createAdminClient>, ownerId: string) {
   const { data, error } = await admin.from("binder_appearances").select("design, revision").eq("owner_user_id", ownerId).maybeSingle()

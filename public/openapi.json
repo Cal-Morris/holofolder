@@ -2257,7 +2257,7 @@
       "post": {
         "operationId": "refresh_price_checks",
         "summary": "Refresh price checks",
-        "description": "Refresh exact-printing market comparisons within provider limits.\n\nRequired permissions: `prices:refresh`. MCP tool: `refresh_price_checks`.",
+        "description": "Refresh eBay asking comparisons within provider limits. Set source to ebay; sold-comps refreshes are app-only.\n\nRequired permissions: `prices:refresh`. MCP tool: `refresh_price_checks`.",
         "tags": [
           "Prices and insights"
         ],
@@ -2583,7 +2583,7 @@
       "post": {
         "operationId": "start_comparison_job",
         "summary": "Start comparison job",
-        "description": "Start bounded background comparisons. Costly requests require confirmation.\n\nRequired permissions: `prices:refresh`. MCP tool: `start_comparison_job`.",
+        "description": "App-only: starting background comparisons through REST or MCP returns ui_only. Read, inspect and cancel existing jobs instead.\n\nRequired permissions: `prices:refresh`. MCP tool: `start_comparison_job`.",
         "tags": [
           "Prices and insights"
         ],
@@ -2750,6 +2750,207 @@
             "schema": {
               "type": "string",
               "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/collection/audit": {
+      "get": {
+        "operationId": "list_collection_audit",
+        "summary": "List collection audit",
+        "description": "Read private account-lifetime committed collection history. Keyset cursor is bound to filters; private certificates and label assets are redacted. Legacy actors are Unknown. Requires current collection access.\n\nRequired permissions: `collection:read`. MCP tool: `list_collection_audit`.",
+        "tags": [
+          "Collection"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "collectionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "slotId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/collection/audit/{id}": {
+      "get": {
+        "operationId": "get_collection_audit",
+        "summary": "Get collection audit",
+        "description": "Read one private committed audit event, including safe before/after deltas retained after entity deletion. Recovery execution is not available.\n\nRequired permissions: `collection:read`. MCP tool: `get_collection_audit`.",
+        "tags": [
+          "Collection"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d{0,18}$"
             }
           }
         ],
