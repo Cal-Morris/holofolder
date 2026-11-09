@@ -116,6 +116,19 @@ async function main() {
   await call('list_collection',{binderId:defaultBinder},partner,0,'cross-owner-denial',404)
   const saved=await call('list_collection',{binderId:defaultBinder})
   await call('delete_collection_item',{binderId:defaultBinder,pokemonId:1,baseFingerprint:record((saved.data as unknown[])[0]).fingerprint})
+  const removed=await call('list_collection_audit',{collectionId:defaultBinder,pokemonId:1,limit:1})
+  const removedEvent=record((removed.data as unknown[])[0])
+  assert.equal(removedEvent.action,'collection_item','Recovery must target the fixture card deletion')
+  const preview=await call('preview_collection_recovery',{eventId:removedEvent.id,restoreUnassignedItemIds:[]})
+  assert.equal(preview.supported,true);assert.deepEqual(preview.conflicts,[]);assert.equal(preview.rootRevisionsAdvance,false)
+  assert.equal(typeof preview.planToken,'string','Fixture recovery must produce a usable reviewed plan')
+  const undoInput={eventId:removedEvent.id,restoreUnassignedItemIds:[],planVersion:1,planToken:preview.planToken,operationId:randomUUID(),confirmed:true}
+  const undo=await call('apply_collection_recovery',undoInput)
+  assert.deepEqual(await call('apply_collection_recovery',undoInput,owner,0,'idempotent-replay'),undo)
+  const linked=await call('list_collection_audit',{recoveryOfEventId:removedEvent.id})
+  assert.equal(record((linked.data as unknown[])[0]).id,undo.eventId,'Undo must be linked from the original event')
+  const restored=await call('get_collection_audit',{id:undo.eventId})
+  assert.equal(restored.recovery_of_event_id,removedEvent.id)
   const settings=await read('get_settings',{binderId:defaultBinder})
   const settingsInput={...record(settings.settings),binderId:defaultBinder,baseFingerprint:settings.fingerprint}
   const settingsSchema=DEVELOPER_OPERATIONS.find(op=>op.name==='update_settings')!.schema

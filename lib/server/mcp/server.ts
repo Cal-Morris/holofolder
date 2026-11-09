@@ -10,7 +10,7 @@ export function createHoloMcpServer(request:Request,requestId:string,principal:D
  const server=new McpServer({name:'Holo Folder',version:'1.0.0'})
  for(const operation of DEVELOPER_OPERATIONS) {
   server.registerTool(operation.name,{description:operation.description,inputSchema:operation.schema,
-   annotations:{readOnlyHint:!operation.write,destructiveHint:operation.write&&/^(?:update|save|delete|remove|cancel|disconnect|accept|reject)_/.test(operation.name),idempotentHint:!operation.write||operation.name==='create_binder',openWorldHint:operation.name==='get_listings'||operation.name.startsWith('refresh_')||operation.name==='start_comparison_job'}},async input=>{
+   annotations:{readOnlyHint:!operation.write,destructiveHint:operation.write&&/^(?:update|save|delete|remove|cancel|disconnect|accept|reject|apply)_/.test(operation.name),idempotentHint:!operation.write||operation.name==='create_binder'||operation.name==='apply_collection_recovery',openWorldHint:operation.name==='get_listings'||operation.name.startsWith('refresh_')||operation.name==='start_comparison_job'}},async input=>{
    try {
     if(operation.name!=='update_appearance'&&Buffer.byteLength(JSON.stringify(input))>65536)throw new DeveloperAccessError('body_too_large','Tool arguments must be at most 64 KiB.',413)
     const context=await requireMcpContext(request,operation.permissions,operation.write?'write':'read',requestId)
