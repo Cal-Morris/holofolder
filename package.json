@@ -34,7 +34,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.2",
     "@vercel/speed-insights": "^2.1.0",
-    "@workflow/world-postgres": "4.2.0",
+    "@workflow/world-postgres": "5.1.1",
     "aws4fetch": "^1.0.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -53,8 +53,8 @@
     "tailwind-merge": "^3.7.0",
     "tesseract.js": "^7.0.0",
     "three": "^0.187.0",
-    "web-push": "3.6.7",
-    "workflow": "4.5.0",
+    "web-push": "4.0.0",
+    "workflow": "5.4.0",
     "zod": "4.6.7"
   },
   "devDependencies": {

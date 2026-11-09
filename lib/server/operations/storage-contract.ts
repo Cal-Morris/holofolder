@@ -1,12 +1,12 @@
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
 import { isContractRecord, isSlotContractId, isSlotRevision } from "@/lib/domain/binder-slots"
-import { parseInventoryCommand } from "@/lib/domain/inventory-commands"
+import { parseInventoryCommand, type InventoryCommandRequest, type InventoryCommand } from "@/lib/domain/inventory-commands"
 import { parseCollectionCreation, COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { isBinderId } from "@/lib/binders/model"
 import { parseSlotCommand } from "@/lib/domain/slot-commands"
 import { isAuditId } from "./audit"
 
-export type StorageOperation = "inventory" | "slots" | "collection.create" | "recovery.preview" | "recovery.apply"
+export type StorageOperation = "inventory" | "slots" | "collection.create" | "recovery.preview" | "recovery.apply" | "recovery.preview.v2" | "recovery.apply.v2"
 export const STORAGE_RESULT_BYTES = 16777216
 const invalid = (): never => { throw new DeveloperAccessError("invalid_input", "Invalid or oversized storage request.", 400) }
 const ids = (v: unknown, limit = 16384): v is string[] => Array.isArray(v) && v.length <= limit && v.every(isSlotContractId)
@@ -15,14 +15,26 @@ export function parseStorageRequest(operation: StorageOperation, input: unknown)
     if (operation === "collection.create") return parseCollectionCreation(input)
     if (operation === "inventory") return parseInventoryCommand(input)
     if (operation === "slots") return parseSlotCommand(input)
-    if (operation !== "recovery.preview" && operation !== "recovery.apply") return invalid()
+    const v2 = operation === "recovery.preview.v2" || operation === "recovery.apply.v2"
+    const applying = operation === "recovery.apply" || operation === "recovery.apply.v2"
+    if (!v2 && operation !== "recovery.preview" && operation !== "recovery.apply") return invalid()
     const keys = ["eventId", "restoreUnassignedItemIds"]
-    if (operation === "recovery.apply") keys.push("operationId", "planVersion", "planToken", "confirmed")
+    if (v2) keys.push("planVersion", "replacementDefaultCollectionId", "inventoryRevision", "collections")
+    if (applying) keys.push("operationId", ...(v2 ? [] : ["planVersion"]), "planToken", "confirmed")
     if (Buffer.byteLength(JSON.stringify(input) ?? "") > 1048576 || !isContractRecord(input, keys)
       || Object.keys(input).length !== keys.length || !isAuditId(input.eventId)
       || !ids(input.restoreUnassignedItemIds) || new Set(input.restoreUnassignedItemIds).size !== input.restoreUnassignedItemIds.length) return invalid()
-    if (operation === "recovery.apply" && (!isSlotContractId(input.operationId) || input.operationId.length < 8 || input.operationId.length > 100
-      || input.planVersion !== 1 || input.confirmed !== true || typeof input.planToken !== "string" || !/^[a-f0-9]{64}$/.test(input.planToken))) return invalid()
+    if (v2) {
+      if (input.planVersion !== 2 || input.restoreUnassignedItemIds.length !== 0 || !Array.isArray(input.collections) || input.collections.length !== 1
+        || !isContractRecord(input.collections[0], ["collectionId", "version", "layoutRevision"]) || Object.keys(input.collections[0]).length !== 3
+        || input.collections[0].collectionId !== input.replacementDefaultCollectionId) return invalid()
+      // Reuse the canonical 075 deletion intent and collection preconditions.
+      const command: Extract<InventoryCommand, { kind: "deleteCollection" }> = { kind: "deleteCollection", collectionId: String(input.replacementDefaultCollectionId), slots: [], replacementDefaultCollectionId: null }
+      const canonical: InventoryCommandRequest = parseInventoryCommand({ operationId: "recovery-preview-v2", inventoryRevision: input.inventoryRevision, collections: input.collections, commands: [command] })
+      if (canonical.collections.length !== 1) return invalid()
+    }
+    if (applying && (!isSlotContractId(input.operationId) || input.operationId.length < 8 || input.operationId.length > 100
+      || input.planVersion !== (v2 ? 2 : 1) || input.confirmed !== true || typeof input.planToken !== "string" || !/^[a-f0-9]{64}$/.test(input.planToken))) return invalid()
     return structuredClone(input)
   } catch { return invalid() }
 }
@@ -49,8 +61,8 @@ export function normalizeStorageResult(operation: StorageOperation, value: unkno
   const row = value as Record<string, unknown>
   const revision = (key: string) => { if (!isSlotRevision(row[key])) return unavailable(); return row[key] }
   const list = (key: string) => { if (!ids(row[key])) return unavailable(); return [...row[key]] }
-  if (operation === "recovery.preview") {
-    if (row.planVersion !== 1 || !isAuditId(row.eventId) || typeof row.supported !== "boolean" || row.rootRevisionsAdvance !== true
+  if (operation === "recovery.preview" || operation === "recovery.preview.v2") {
+    if (row.planVersion !== (operation === "recovery.preview.v2" ? 2 : 1) || !isAuditId(row.eventId) || typeof row.supported !== "boolean" || row.rootRevisionsAdvance !== true
       || !(row.planToken === null || typeof row.planToken === "string" && /^[a-f0-9]{64}$/.test(row.planToken))
       || !ids(row.restoreUnassignedItemIds) || !Array.isArray(row.unsupported) || row.unsupported.length > 16384
       || !row.unsupported.every(v => typeof v === "string" && v.length <= 200)
@@ -72,7 +84,7 @@ export function normalizeStorageResult(operation: StorageOperation, value: unkno
     return { ...result, collectionId: row.collectionId, collectionVersion: revision("collectionVersion"),
       layoutRevision: revision("layoutRevision"), changed: true, slotIds: [...row.slotIds], recoverySupported: false }
   }
-  if (operation === "recovery.apply") {
+  if (operation === "recovery.apply" || operation === "recovery.apply.v2") {
     if (!isAuditId(row.eventId) || !isAuditId(row.recoveredEventId) || !Array.isArray(row.collections) || row.collections.length > 4096) return unavailable()
     result.eventId = row.eventId; result.recoveredEventId = row.recoveredEventId
     result.collections = row.collections.map(c => {

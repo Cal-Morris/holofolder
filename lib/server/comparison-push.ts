@@ -1,4 +1,4 @@
-import webpush from "web-push"
+import { sendNotification } from "web-push"
 import { RetryableError } from "workflow"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { readComparisonJob } from "@/lib/server/comparison-jobs"
@@ -24,7 +24,7 @@ export async function sendComparisonCompletion(jobId: string, subscriptionId: st
   if (error) throw new Error("Could not read price check notification device")
   if (job?.status !== "completed" || !job.initiated_by || subscription?.user_id !== job.initiated_by) return
   try {
-    await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({
+    await sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({
       kind: "comparison", recipientId: job.initiated_by, eventId: job.id, tag: `comparison:${job.id}`,
     }), {
       vapidDetails: { subject: process.env.VAPID_SUBJECT!, publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, privateKey: process.env.VAPID_PRIVATE_KEY! },

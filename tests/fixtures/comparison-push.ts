@@ -21,11 +21,11 @@ async function run() {
   const { mock } = await import("bun:test")
   mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({}) }))
   mock.module("../../lib/supabase/session-user", () => ({ getSessionUser: async () => viewer ? { id: viewer } : null }))
-  mock.module("web-push", () => ({ default: { sendNotification: async (_device: unknown, raw: string) => {
+  mock.module("web-push", () => ({ sendNotification: async (_device: unknown, raw: string) => {
     assert.deepEqual(JSON.parse(raw), { kind: "comparison", recipientId: initiator, eventId: id, tag: `comparison:${id}` })
     sent++
     if (rejection) throw { statusCode: rejection }
-  } } }))
+  } }))
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
     assert.equal(url.hostname, "synthetic.supabase.test")

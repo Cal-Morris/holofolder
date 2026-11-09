@@ -1,5 +1,5 @@
 import { getFirstPartyUser } from "@/lib/supabase/session-user"
-import webpush from 'web-push'
+import { sendNotification } from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { pushConfigured } from '@/lib/server/partner-push'
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   if (error) return Response.json({ error: 'Could not load this notification device.' }, { status: 503, headers })
   if (!device) return Response.json({ error: 'This device is no longer registered. Enable notifications again.' }, { status: 404, headers })
   try {
-    await webpush.sendNotification({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } }, JSON.stringify({
+    await sendNotification({ endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } }, JSON.stringify({
       kind: 'test', recipientId: user.id, tag: 'holofolder-test',
     }), {
       vapidDetails: { subject: process.env.VAPID_SUBJECT!, publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, privateKey: process.env.VAPID_PRIVATE_KEY! },
