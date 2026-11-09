@@ -102,3 +102,6 @@ Prepared-head evidence: 1,213 unit-suite entries pass; nine focused cases pass i
 
 
 [080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.
+
+
+081 retains checked item ID/version evidence for 074 slot removal through the existing command-evidence channel. This enables [whole-event mapped-source recovery](converted-cascade-recovery.md) without deleting/reacquiring inventory or changing the forward command limits. Staged routes/executors remain denied.

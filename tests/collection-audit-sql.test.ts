@@ -19,12 +19,15 @@ test("private SQL audit: atomicity, provenance, immutability, bulk, retention, p
     const before = (await original()).rows
     const migration = readFileSync(new URL("../scripts/076_transactional_collection_audit.sql", import.meta.url), "utf8")
     for (let run=0;run<2;run++) for (const statement of migration.split("-- Apply separately:")) await db.query(statement.replace(/^ outside[^\n]*\n/, ""))
-    if (socket.includes("issue396-converted-local")) {
+    if (socket.includes("issue396-converted-local") || socket.includes("issue396-cascade-local")) {
       for (const file of ["077_safe_collection_recovery.sql", "079_bounded_collection_recovery.sql", "080_converted_content_recovery.sql"]) {
         await db.query(readFileSync(new URL(`../scripts/${file}`, import.meta.url), "utf8"))
       }
     }
     assert.deepEqual((await original()).rows, before, "ADD COLUMN must preserve the original event columns exactly")
+    if (socket.includes("issue396-cascade-local")) {
+      await db.query(readFileSync(new URL("../scripts/081_converted_cascade_recovery.sql", import.meta.url), "utf8"))
+    }
     await db.query("BEGIN; SET LOCAL statement_timeout='30s'")
     const rejected = async (sql: string, values: unknown[] = [], pattern = /permission denied|audit_immutable/) => {
       await db.query("SAVEPOINT rejected")

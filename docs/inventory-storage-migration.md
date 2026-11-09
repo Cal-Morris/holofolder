@@ -77,3 +77,6 @@ Local evidence for this prepared PR: 1,204 unit tests pass; the separate opt-in 
 
 
 [080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.
+
+
+[081 converted cascade recovery](converted-cascade-recovery.md) restores supported deleted roots/mappings using full original frozen source evidence and the complete receipt. It does not undo conversion or create owned copies from compatibility rows. Current authority/legacy-write guards remain, with a denied transaction-owned exact INSERT context only for recovery.

@@ -27,6 +27,9 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
   const execute = async (request: object, actor = partner) => (await db.query("SELECT public.inventory_command_v1($1,$2,$3,$4) r", [actor, owner, request, intent])).rows[0].r
   const snapshot = async () => (await db.query("SELECT public.inventory_evidence_v1($1,ARRAY(SELECT id FROM public.inventory_items WHERE owner_user_id=$1),ARRAY(SELECT id FROM public.binder_slots WHERE owner_user_id=$1),ARRAY[$2,$3]::uuid[]) s", [owner, collection, remaining])).rows[0].s
   try {
+    if (socket.includes("issue396-cascade-local")) {
+      await db.query(readFileSync(new URL("../scripts/077_safe_collection_recovery.sql", import.meta.url), "utf8"))
+    }
     const protectedBodies = async () => (await db.query("SELECT p.oid::regprocedure::text name,md5(pg_get_functiondef(p.oid)) digest FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='collection_audit_private' ORDER BY 1")).rows
     const protectedBefore = await protectedBodies()
     if (!process.env.COLLECTION_DELETE_BASELINE) {
@@ -34,14 +37,14 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
       await db.query(migration); await db.query(migration)
     }
     assert.deepEqual(await protectedBodies(), protectedBefore, "076 recorder and 077 recovery definitions unchanged")
-    const performanceSlice = socket.includes("issue396-perf-local") || socket.includes("issue396-converted-local")
+    const performanceSlice = ["issue396-perf-local", "issue396-converted-local", "issue396-cascade-local"].some(name => socket.includes(name))
     if (performanceSlice) {
       const migration = readFileSync(new URL("../scripts/079_bounded_collection_recovery.sql", import.meta.url), "utf8")
       const protectedDefinitions = await protectedBodies()
       await db.query(migration); await db.query(migration)
       assert.deepEqual((await protectedBodies()).filter(p => !p.name.includes("recovery_plan_v1")), protectedDefinitions.filter(p => !p.name.includes("recovery_plan_v1")), "079 changes only private plan computation, including no recorder or executor replacement")
     }
-    if (socket.includes("issue396-converted-local")) {
+    if (socket.includes("issue396-converted-local") || socket.includes("issue396-cascade-local")) {
       const convertedMigration = readFileSync(new URL("../scripts/080_converted_content_recovery.sql", import.meta.url), "utf8")
       await db.query(convertedMigration); await db.query(convertedMigration)
     }
@@ -54,6 +57,9 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
     }
     for (const [count, allOwned, isDefault, caller] of [[1025, false, false, partner], [4096, true, true, owner]] as const) {
       const fixtureWant = { ...want, wanted_by: [allOwned ? owner : partner] }
+      if (socket.includes("issue396-cascade-local")) {
+        await db.query(readFileSync(new URL("../scripts/081_converted_cascade_recovery.sql", import.meta.url), "utf8"))
+      }
       await db.query("BEGIN; SET LOCAL statement_timeout='300s'")
       await db.query("INSERT INTO auth.users(id,created_at) VALUES($1,'2020-01-01'),($2,'2020-01-01'),($3,'2020-01-01')", [owner, partner, stranger])
       await db.query("UPDATE public.billing_configuration SET enforced=false")

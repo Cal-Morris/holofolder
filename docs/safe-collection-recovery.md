@@ -21,7 +21,7 @@ Unrelated later partner rows survive. Global owner and collection counters are a
 These return `supported: false` and explicit reason strings, with no usable plan token:
 
 - Format 0, missing/empty inverse evidence, or evidence exceeding the recorder bounds.
-- Legacy `pokemon_collection`, `binder_legacy_rows` and actual conversion/authority transitions remain unsupported. With 080, unchanged conversion provenance permits ordinary edits after frozen-source validation; converted collection deletion, mapped-slot source cascades, mixed legacy default replacement and frozen-row restoration remain separate gates. See [the 080 boundary](converted-content-recovery.md).
+- Ordinary legacy inverses and actual conversion/authority transitions remain unsupported. 080 permits ordinary converted edits; [081](converted-cascade-recovery.md) additionally supports fully evidenced converted deletion and mapped-slot cascades with exact frozen compatibility rows. Incomplete older evidence, mixed legacy default admission and auxiliary/private-asset recovery remain gates.
 - Appearance/user configuration, share rows, auxiliary search/history/push state, and any other unrecognized table. A collection deletion that captured any such row is rejected as a **whole event**, never partially recovered.
 - Label asset IDs requiring a current private asset authorization/availability registry. That registry is not shipped, so restoring such a grade fails explicitly rather than dropping assets or guessing permission. Certificate text without label assets remains private and is preserved exactly.
 - Undo of collection creation, storage-kind/configuration transitions, and cross-owner transfer. Owned-copy and slot additions can be reversed safely; collection creation has additional compatibility effects outside this slice.
@@ -124,3 +124,5 @@ Parent application sequence: resolve #414's genuine Typecheck blocker, review an
 
 
 080 extends only ordinary converted-binder content/placement/layout recovery. [The exact contract and remaining required slices](converted-content-recovery.md) distinguish unchanged conversion provenance from conversion undo, and document local proof plus parent application. No Activity wording or runtime exposure changes.
+
+081 extends only the [documented whole-event converted cascade boundary](converted-cascade-recovery.md). Private signatures/plan version, current authorization, three fresh apply plan reads, immutable linked history and finite bounds remain. It fixes future mapping capture identities without rewriting older collapsed evidence; unsupported auxiliary events still have no token.
