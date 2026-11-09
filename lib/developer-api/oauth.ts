@@ -12,3 +12,10 @@ export function validateMcpOrigin(origin:string|null|undefined,redirectOrigin:st
 }
 
 export function needsOAuthRevocation(grant:{revoked_at:unknown;auth_revoked_at:unknown}) {return Boolean(grant.revoked_at&&!grant.auth_revoked_at)}
+
+export function isLoopbackOAuthRedirect(value:string) {
+ try {
+  const url=new URL(value)
+  return (url.protocol==='http:'||url.protocol==='https:')&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)
+ }catch{return false}
+}

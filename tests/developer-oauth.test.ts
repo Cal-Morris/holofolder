@@ -22,3 +22,14 @@ test('failed OAuth revocation remains distinguishable and retryable after reload
  assert.equal(needsOAuthRevocation({revoked_at:'2026-11-08T00:00:00Z',auth_revoked_at:'2026-11-08T00:00:01Z'}),false)
  assert.equal(needsOAuthRevocation({revoked_at:null,auth_revoked_at:null}),false)
 })
+
+test('OAuth handoff recognizes only HTTP loopback callbacks',async()=>{
+ const oauth=await import('@/lib/developer-api/oauth')
+ assert.equal(typeof oauth.isLoopbackOAuthRedirect,'function')
+ for(const url of ['http://localhost:1455/auth/callback','http://127.0.0.1:54321/callback','https://[::1]:8080/callback','http://LOCALHOST/callback']) {
+  assert.equal(oauth.isLoopbackOAuthRedirect(url),true,url)
+ }
+ for(const url of ['https://client.example/callback','http://localhost.evil.example/callback','http://localhost@evil.example/callback','myapp://localhost/callback','not a URL','/callback']) {
+  assert.equal(oauth.isLoopbackOAuthRedirect(url),false,url)
+ }
+})
