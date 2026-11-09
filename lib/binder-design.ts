@@ -25,7 +25,11 @@ export interface BinderDesign {
   zip: { teeth: string; tape: string; pull: string; type: "metal" | "nylon" }
   stats: "off" | "compact" | "full"
 }
-export interface StudioCard { id: string; name: string; image: string; slot?: number }
+export function studioCardTextureKey(card: StudioCard) {
+  return card.presentation ? JSON.stringify([card.id, card.image, card.name, card.presentation]) : card.image
+}
+
+export interface StudioCard { id: string; name: string; image: string; slot?: number; presentation?: "owned" | "target" | "spacer" }
 export interface BinderStats { placed: number; wanted: number; capacity: number; sample: boolean; filled: number; unavailable?: boolean }
 const frame: ArtworkFrame = { fit: "fill", zoom: 1, x: 0, y: 0 }
 const number = (v: unknown, fallback: number, min: number, max: number) => typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback

@@ -1,3 +1,4 @@
+import { syntheticSlotDisplaySnapshot } from "@/tests/fixtures/slot-display"
 import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
@@ -12,14 +13,14 @@ const E2E_USER_ID = "00000000-0000-4000-8000-0000000000e2"
 const E2E_PARTNER_OWNER_ID = "00000000-0000-4000-8000-0000000000e3"
 const E2E_BINDER_IDS = ["e2e00000-0000-4000-8000-000000000001", "e2e00000-0000-4000-8000-000000000002", "e2e00000-0000-4000-8000-000000000004"] as const
 
-export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string; cardArtwork?: string; readOnly?: string; sharePrices?: string; binders?: string; binder?: string; partner?: string }> }) {
+export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ signedIn?: string; cardArtwork?: string; readOnly?: string; sharePrices?: string; binders?: string; binder?: string; partner?: string; slots?: string; rows?: string; cols?: string }> }) {
   await connection()
 
   if (process.env.HOLOFOLDER_E2E !== "1") {
     notFound()
   }
 
-  const { signedIn, cardArtwork, readOnly, sharePrices, binders: withBinders, binder, partner } = await searchParams
+  const { signedIn, cardArtwork, readOnly, sharePrices, binders: withBinders, binder, partner, slots, rows, cols } = await searchParams
   const isSignedIn = signedIn === "1"
   const ownerUserId = partner === "1" ? E2E_PARTNER_OWNER_ID : E2E_USER_ID
   // ?binders=1: the owner has two binders ("My binder" and "Trades"); ?binder=<id> opens one.
@@ -53,6 +54,7 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
   return (
     <BinderApp
       key={activeBinderId ?? "single"}
+      stagedSlotDisplay={slots ? syntheticSlotDisplaySnapshot(slots === "empty") : undefined}
       initialBinders={binders}
       initialBinderId={activeBinderId}
       readOnlyMode={readOnly === "1"}
@@ -92,8 +94,8 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
       ].filter((item) => !isEmptyBinder && (!isSecondBinder || item.pokemon_id === 4)) as ComponentProps<typeof BinderApp>["initialCollection"]}
       initialCollectionOwnerUserId={isSignedIn ? ownerUserId : null}
       initialSettings={{
-        binderRows: 4,
-        binderCols: 4,
+        binderRows: slots && Number(rows) >= 1 && Number(rows) <= 8 ? Number(rows) : 4,
+        binderCols: slots && Number(cols) >= 1 && Number(cols) <= 8 ? Number(cols) : 4,
         binderColorId: DEFAULT_BINDER_COLOR_ID,
         binderPageColors: {},
         binderSlotGlareEnabled: false,

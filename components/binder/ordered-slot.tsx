@@ -1,0 +1,24 @@
+"use client"
+
+import CardImage from "@/components/card-image"
+import { BinderSlotGlare, TRADING_CARD_CORNER_RADIUS } from "@/components/binder/pokemon-slot"
+import { displaySlotLabel, type BinderDisplaySlot } from "@/lib/binder-display-model"
+import { getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
+import type { CSSProperties } from "react"
+
+/** Browse-only slot. No drag, long-press, placement or ownership callbacks. */
+export function OrderedSlot({ slot, selected, onSelect, imageSizes, glareStyle, glare }: { slot: BinderDisplaySlot; selected: boolean; onSelect: (id: string) => void; imageSizes: string; glareStyle: CSSProperties; glare: boolean }) {
+  const image = slot.card?.image ?? (slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null)
+  return <button type="button" data-slot-id={slot.id} aria-label={displaySlotLabel(slot)} aria-pressed={selected} draggable={false}
+    onClick={() => onSelect(slot.id)}
+    className={`relative h-full min-h-9 w-full min-w-9 overflow-hidden border bg-white/10 text-white shadow-inner active:scale-[0.98] ${selected ? "border-primary ring-2 ring-primary" : "border-white/25"}`}
+    style={{ borderRadius: TRADING_CARD_CORNER_RADIUS }}>
+    {image && <CardImage key={`${slot.id}:${image}`} src={image} alt="" fill sizes={imageSizes} className={`object-contain p-[3px] ${slot.item ? "" : "grayscale opacity-45"}`} draggable={false} />}
+    <span className="absolute inset-x-0 bottom-0 bg-black/75 px-1 py-1 text-[10px] leading-tight">
+      <span className="block truncate">{slot.card?.name ?? slot.pokemon?.name ?? (slot.target?.kind === "pokemon" ? `Pokémon ${slot.target.pokemonId}` : "Free slot")}</span>
+      <span className="block truncate">{slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}</span>
+      {slot.item?.grading && <span className="block truncate">Recorded grade: {slot.item.grading.grade ?? "Unknown"}</span>}
+    </span>
+    {glare && <BinderSlotGlare glareStyle={glareStyle} innerRadius={TRADING_CARD_CORNER_RADIUS} />}
+  </button>
+}

@@ -2,6 +2,7 @@
 
 import { CollectionActivityProvider } from "@/components/collection-activity-context"
 
+import dynamic from "next/dynamic"
 import { useGoogleAnalytics } from "@/components/google-analytics"
 import { appPath } from "@/lib/app-path"
 import { toCardImageSrc } from "@/lib/card-image-url"
@@ -104,7 +105,13 @@ import { renderSearchOverlayView } from "@/components/binder/search-overlay"
 import { renderMobileNavMenuView } from "@/components/binder/mobile-nav-menu"
 import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
+import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
+
+const SlotDetail = dynamic(() => import("@/components/binder/slot-detail"), { ssr: false })
+
 interface BinderAppProps {
+  /** Internal staged read-only injection. Never supplied by production bootstrap or share routes. */
+  stagedSlotDisplay?: SlotDisplayInput
   initialUser: User | null
   initialCollection: InitialCollectionRow[]
   initialCollectionOwnerUserId: string | null
@@ -122,6 +129,7 @@ interface BinderAppProps {
 }
 
 export default function BinderApp({
+  stagedSlotDisplay,
   initialUser,
   initialCollection,
   initialCollectionOwnerUserId,
@@ -130,13 +138,18 @@ export default function BinderApp({
   initialDarkMode,
   pricingEnabled = true,
   initialPriceMode = false,
-  readOnlyMode = false,
+  readOnlyMode: legacyReadOnlyMode = false,
   shareViewToken = null,
   initialSharePath = null,
   initialBinders = [],
   initialBinderId = null,
 }: BinderAppProps) {
+  const readOnlyMode = legacyReadOnlyMode || Boolean(stagedSlotDisplay)
   const router = useRouter()
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
+  const closeSlotDetail = useCallback(() => setSelectedSlotId(null), [])
+  const orderedDisplaySlots = useMemo(() => stagedSlotDisplay ? buildSlotDisplay(stagedSlotDisplay.binder, stagedSlotDisplay.inventory, id => stagedSlotDisplay.catalog[id]) : undefined, [stagedSlotDisplay])
+  const selectedDisplaySlot = orderedDisplaySlots ? resolveDisplaySelection(orderedDisplaySlots, selectedSlotId) : null
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonSummary | null>(null)
   const [wantedDetail, setWantedDetail] = useState<{ pokemonId: number; card: WantedCard } | null>(null)
   const [editingWantedCard, setEditingWantedCard] = useState<WantedCard | null>(null)
@@ -960,7 +973,7 @@ export default function BinderApp({
     [filteredPokemonList],
   )
 
-  const totalBinderPages = Math.max(1, Math.ceil(pokemonList.length / slotsPerPage))
+  const totalBinderPages = Math.max(1, Math.ceil((orderedDisplaySlots?.length ?? pokemonList.length) / slotsPerPage))
   const dashboardBinderDesign = useMemo(() => ({
     ...binderAppearance.design, rows: settings.binderRows, cols: settings.binderCols, pageCount: totalBinderPages,
   }), [binderAppearance.design, settings.binderRows, settings.binderCols, totalBinderPages])
@@ -1024,6 +1037,20 @@ export default function BinderApp({
     setLocalCollectionSyncMessage(null)
   }, [user])
 
+  const orderedDisplayPages = useMemo(() => orderedDisplaySlots ? paginateDisplaySlots(orderedDisplaySlots, settings.binderRows, settings.binderCols, slot => {
+    if (selectedGen !== 0 && (!slot.pokemon || slot.pokemon.id < GENERATIONS[selectedGen].start || slot.pokemon.id > GENERATIONS[selectedGen].end)) return false
+    if (collectionViewFilter === "all") return true
+    if (collectionViewFilter === "needed") return slot.target !== null && !slot.item
+    if (collectionViewFilter === "wanted") return slot.wantedCards.length > 0
+    const status = stagedSlotDisplay?.binder.slots.find(s => s.id === slot.id)?.status
+    return Boolean(slot.item) && (collectionViewFilter === "favorite" ? status === "finalized" : status !== "finalized")
+  }) : undefined, [orderedDisplaySlots, settings.binderRows, settings.binderCols, selectedGen, collectionViewFilter, stagedSlotDisplay])
+  const getDisplayPageSlots = orderedDisplayPages ? (page: number) => orderedDisplayPages[page - 1] ?? Array.from({ length: slotsPerPage }, () => null) : undefined
+
+  useEffect(() => {
+    queueMicrotask(closeSlotDetail)
+  }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen, closeSlotDetail])
+
   const getPageSlots = useCallback((pageNumber: number) => {
     if (pageNumber < 1) {
       return Array.from({ length: slotsPerPage }, () => null as PokemonSummary | null)
@@ -1055,6 +1082,7 @@ export default function BinderApp({
   const adjustPageForFilters = useEffectEvent(() => {
     setCurrentBinderPage(current => {
       const page = Math.min(current, totalBinderPages)
+      if (orderedDisplayPages) return orderedDisplayPages[page - 1]?.some(Boolean) ? page : Math.max(1, orderedDisplayPages.findIndex(p => p.some(Boolean)) + 1)
       return getPageSlots(page).some(Boolean) ? page : firstNonEmptyPage
     })
   })
@@ -3337,7 +3365,7 @@ export default function BinderApp({
     }
   }, [isAuthOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen])
 
-  const renderSelectedPokemonQuickPanel = () => renderSelectedPokemonQuickPanelView({ pricingEnabled, selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards })
+  const renderSelectedPokemonQuickPanel = () => stagedSlotDisplay ? null : renderSelectedPokemonQuickPanelView({ pricingEnabled, selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards })
 
   const renderMobileSlotActionBar = () => renderMobileSlotActionBarView({ closeMobileActions, getCollectionItem, handleQuickCollect, handleToggleFavorite, isCollected, longPressedPokemon, mobileActionsRef, mobileActionsSwipe, openCardBrowser, openCardSelectorForPokemon, readOnlyMode, requestOwnedRemoval, setLongPressedPokemon, setSelectedPokemon })
 
@@ -3400,7 +3428,7 @@ export default function BinderApp({
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
   const slotActions = useBinderSlotActions({ currentBinderPage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, openCardSelectorForPokemon, registerSlotButtonRef, setCurrentBinderPage, setLongPressedPokemon })
-  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => renderBinderGridPageView({ binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
+  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => orderedDisplaySlots?.length === 0 ? <div role="status" className="flex h-full items-center justify-center rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">No slots in this binder</div> : renderBinderGridPageView({ displaySlots: getDisplayPageSlots, selectedSlotId, onSelectSlot: setSelectedSlotId, binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
   const handleShareWantedList = async (scope: "binder" | "all" = "binder") => {
     if (!billing.premium) { requestUpgrade(); return }
@@ -3453,7 +3481,7 @@ export default function BinderApp({
 
   const renderAppHeader = () => renderAppHeaderView({ activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
-  const renderMainContent = () => renderMainContentView({ pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
+  const renderMainContent = () => renderMainContentView({ orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
   const renderSearchOverlay = () => renderSearchOverlayView({ history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
@@ -3729,6 +3757,7 @@ export default function BinderApp({
         />
       ) : null}
 
+      {selectedDisplaySlot && <SlotDetail key={selectedDisplaySlot.id} slot={selectedDisplaySlot} onClose={closeSlotDetail} />}
       {isCardSelectorOpen && selectedPokemon && (
         <CardSelector
           pokemonId={selectedPokemon.id}

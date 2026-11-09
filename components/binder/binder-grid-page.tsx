@@ -1,5 +1,7 @@
 "use client"
 
+import { OrderedSlot } from "@/components/binder/ordered-slot"
+import { adaptLegacyDisplaySlots, type BinderDisplaySlot } from "@/lib/binder-display-model"
 import { getCollectionItemPriceKey } from "@/components/binder/binder-app-model"
 import { BinderSlotGlare, PokemonSlot, TRADING_CARD_CORNER_RADIUS, TRADING_CARD_INNER_CORNER_RADIUS } from "@/components/binder/pokemon-slot"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
@@ -16,6 +18,9 @@ import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import type { BinderColorTheme } from "@/lib/binder-colors"
 
 export interface BinderGridPageContext {
+  displaySlots?: (page: number) => (BinderDisplaySlot | null)[]
+  selectedSlotId?: string | null
+  onSelectSlot?: (id: string) => void
   binderSlotImageSizes: string
   binderCardDisplay: BinderCardDisplay
   cardFinishEffectStyle: CSSProperties
@@ -151,7 +156,7 @@ const BinderGridSlot = memo(function BinderGridSlot({ pageNumber, actions, ...sl
 export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber: number, side: "left" | "right") {
   const { binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings, slotActions, slotGlareOverlayStyle, user } = ctx
   const pageTheme = getBinderThemeForPage(pageNumber)
-  const pageSlots = getPageSlots(pageNumber)
+  const pageSlots = ctx.displaySlots ? ctx.displaySlots(pageNumber) : getPageSlots(pageNumber).map(pokemon => pokemon ? adaptLegacyDisplaySlots("legacy", [pokemon], getCollectionItem)[0] : null)
   const isActivePage = pageNumber === currentBinderPage
   const scrollable = settings.binderRows > 4 || settings.binderCols > 4
 
@@ -191,7 +196,9 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
             gap: "0.375rem",
           }}
         >
-          {pageSlots.map((pokemon, index) => {
+          {pageSlots.map((displaySlot, index) => {
+            const pokemon = displaySlot?.legacyPokemonId ? displaySlot.pokemon : null
+            if (displaySlot && !displaySlot.legacyPokemonId) return <OrderedSlot key={displaySlot.id} slot={displaySlot} selected={ctx.selectedSlotId === displaySlot.id} onSelect={ctx.onSelectSlot!} imageSizes={binderSlotImageSizes} glareStyle={slotGlareOverlayStyle} glare={settings.binderSlotGlareEnabled} />
             const row = Math.floor(index / settings.binderCols)
             const col = index % settings.binderCols
             const rowLetter = String.fromCharCode(65 + row)
@@ -232,7 +239,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
 
             return (
               <BinderGridSlot
-                key={`${pageNumber}-${pokemon.id}`}
+                key={displaySlot!.id}
                 pokemon={pokemon}
                 isCollected={binderCardDisplay !== "wanted" && isCurrentCollected}
                 isWishlisted={isCurrentWishlisted}
