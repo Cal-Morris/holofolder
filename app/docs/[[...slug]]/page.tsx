@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { DocsLink } from '@/components/docs/provider'
 import { docsMarkdownHref } from '@/lib/docs-markdown'
 import { docsSource } from '@/lib/docs-source'
+import { docsCanonicalUrl } from '@/lib/docs-routing'
 
 const OpenAPIPage = dynamic(() => import('@/components/docs/api-page').then(module => module.OpenAPIPage), {
   loading: () => <p className="text-sm text-fd-muted-foreground">Loading API explorer…</p>,
@@ -15,7 +16,7 @@ export async function generateStaticParams() { return (await docsSource).generat
 export async function generateMetadata({ params }: { params: Promise<{ slug?: string[] }> }) {
   const { slug } = await params
   const page = (await docsSource).getPage(slug)
-  return page ? { title: page.data.title, description: page.data.description, alternates: { canonical: `https://holofolder.com${page.url}`, types: { 'text/markdown': docsMarkdownHref(page.url) } } } : {}
+  return page ? { title: page.data.title, description: page.data.description, alternates: { canonical: docsCanonicalUrl(page.url), types: { 'text/markdown': docsMarkdownHref(page.url) } } } : {}
 }
 
 export default async function DocumentationPage({ params }: { params: Promise<{ slug?: string[] }> }) {
