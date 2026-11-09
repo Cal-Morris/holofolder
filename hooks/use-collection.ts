@@ -1,4 +1,6 @@
 "use client"
+
+import { clearActivityCache } from "@/lib/collection-activity"
 import { BillingAccessError, countSavedCards, pendingCardDelta, canGrowCollection, resolveBillingAccess, savedCardWeight, FREE_CARD_LIMIT } from "@/lib/billing"
 import { BILLING_CHANGED, readBillingCache } from "@/lib/billing-cache"
 
@@ -1151,6 +1153,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   const signOut = useCallback(async () => {
     if (readOnly) return
+    clearActivityCache(window.localStorage)
     authenticatedUserId.current = null
     setUser(null)
     setCollectionOwnerUserId(null)

@@ -37,7 +37,7 @@ GET https://app.holofolder.com/app/api/v1/collection/audit?limit=50
 Authorization: Bearer <collection-read-key>
 ```
 
-The response has `data` and `nextCursor`. Each entry includes actor kind/account/job, source/client identifier, operation/batch IDs, server/client times, action, retained affected entity IDs and redacted before/after deltas. A legacy entry has format 0, action `legacy`, Unknown provenance and its original Pokémon states. Recovery execution and UI are separate issues #396/#395.
+The response has `data` and `nextCursor`. Each entry includes actor kind/account/job, source/client identifier, operation/batch IDs, server/client times, action, retained affected entity IDs and redacted before/after deltas. A legacy entry has format 0, action `legacy`, Unknown provenance and its original Pokémon states. Read-only app Activity consumes this reader through the first-party session adapter described in [collection-activity-ui.md](collection-activity-ui.md). Recovery execution remains separate issue #396.
 
 ## Parent apply and compatibility plan
 

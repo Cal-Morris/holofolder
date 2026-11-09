@@ -8,17 +8,31 @@ export const AUDIT_READ_COLUMNS = "id::text,recorded_at,format_version,actor_kin
 export function isAuditId(value: unknown): value is string {
   return typeof value === "string" && /^[1-9]\d{0,18}$/.test(value) && BigInt(value) <= BigInt("9223372036854775807")
 }
-export async function readCollectionAudit(context: OperationContext, input: Record<string, unknown>, detail = false) {
+export async function readCollectionAudit(context: Pick<OperationContext, "ownerUserId">, input: Record<string, unknown>, detail = false, client = createAdminClient()) {
   const params = new URLSearchParams(Object.entries(input).filter(([,v])=>v!==undefined).map(([k,v])=>[k,String(v)]))
   const page = detail ? { limit: 1, after: null } : decodePage(params)
   if ((detail && !isAuditId(input.id)) || (page.after && !isAuditId(page.after))) throw new DeveloperAccessError("invalid_pagination", "Use the cursor from this audit query.", 400)
-  let query = createAdminClient().from("collection_activity").select(AUDIT_READ_COLUMNS)
+  let query = client.from("collection_activity").select(AUDIT_READ_COLUMNS)
     .eq("owner_user_id", context.ownerUserId).order("id", { ascending: false }).limit(page.limit + 1)
   if (detail) query = query.eq("id", String(input.id))
   if (page.after) query = query.lt("id", page.after)
   if (input.collectionId) query = query.contains("affected_entities", { collectionIds: [input.collectionId] })
   if (input.itemId) query = query.contains("affected_entities", { inventoryItemIds: [input.itemId] })
   if (input.slotId) query = query.contains("affected_entities", { slotIds: [input.slotId] })
+  // JSON containment reaches retained deltas, including deleted entities and bulk events.
+  // Quote JSON operands for PostgREST's logic grammar, never interpolate untrusted syntax.
+  const operand = (value: unknown) => JSON.stringify(JSON.stringify(value))
+  const retained = (field: string, value: unknown) => ["before", "after"].map(side => `changes.cs.${operand([{ [side]: { [field]: value } }])}`)
+  const groups: string[] = []
+  if (input.pokemonId) groups.push([`pokemon_id.eq.${Number(input.pokemonId)}`, ...retained("pokemon_id", Number(input.pokemonId))].join(","))
+  if (input.cardId) groups.push([
+    ...["before_state", "after_state"].map(side => `${side}.cs.${operand({ card_id: input.cardId })}`),
+    ...retained("card_id", input.cardId),
+    ...retained("wanted_cards", [{ card_id: input.cardId }]),
+    ...["before_state", "after_state"].map(side => `${side}.cs.${operand({ wanted_cards: [{ card_id: input.cardId }] })}`),
+    ...["before", "after"].flatMap(side => ["identity", "target"].map(field => `changes.cs.${operand([{ [side]: { [field]: { cardId: input.cardId } } }])}`)),
+  ].join(","))
+  if (groups.length) query = query.or(`and(${groups.map(group=>`or(${group})`).join(",")})`)
   if (input.actorId) query = query.eq("actor_user_id", String(input.actorId))
   if (input.action) query = query.eq("action", String(input.action))
   if (input.since) query = query.gte("recorded_at", String(input.since))

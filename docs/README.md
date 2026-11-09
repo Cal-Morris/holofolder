@@ -13,6 +13,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, auth, PWA scope and legacy URLs.
 - [Staged atomic slot operations](atomic-slot-operations.md): disabled structural commands, revisioned pages, billing/legacy compatibility and audit/offline/API/recovery gates.
 - [Editable binder contracts](binder-slot-contracts.md): internal slot/snapshot, target/matching, copied preset and pure layout contracts, with explicit adapter and rollout boundaries.
+- [Collection Activity](collection-activity-ui.md): first-party session adapter, read-only history, private device cache and parent release handoff.
 - [Multiple binders](multiple-binders.md), [binder history](binder-history.md), [collection import](collection-import.md).
 - [Card catalog](card-catalog.md), [card image store](card-image-store.md), [pricing coverage](card-pricing-coverage.md).
 - [Billing](billing.md): server-owned entitlements, free allowances, Premium trials and Stripe reconciliation.
