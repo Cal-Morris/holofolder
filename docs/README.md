@@ -35,3 +35,5 @@ Every feature includes its API/docs under [feature-api-docs](../.agents/skills/f
 ## Historical records
 
 Files in `superpowers/plans/` and `superpowers/specs/`, [the rebrand checklist](holo-folder-rebrand.md), [the modal scroll audit](modal-scroll-audit.md) and [the Delta Reign investigation](delta-reign.md) record earlier decisions or investigations. They may describe old pricing, routing, feature gates or incomplete verification. Use current source and the maintained guides above for present behaviour. Do not treat an old rollout note as a standing production instruction.
+
+- [Staged slot/inventory offline intent](slot-inventory-offline.md): private durable queue, complete reads, reconciliation and rollout boundaries (#363).

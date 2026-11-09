@@ -10,6 +10,11 @@ export interface OfflineKeyValueStore {
   keys(prefix?: string): Promise<string[]>
 }
 
+/** Synchronous read/modify/write in one transaction, serialized across tabs. */
+export interface AtomicOfflineStore extends OfflineKeyValueStore {
+  update(key: string, transform: (current: unknown) => unknown): Promise<void>
+}
+
 export const OFFLINE_DB_NAME = "binderdex-offline"
 export const OFFLINE_DB_VERSION = 1
 export const OFFLINE_DB_STORE = "records"
@@ -35,7 +40,7 @@ function openDatabase(factory: IDBFactory, name: string) {
   })
 }
 
-export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME): OfflineKeyValueStore {
+export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME): AtomicOfflineStore {
   let databasePromise: Promise<IDBDatabase> | null = null
   const database = () => {
     databasePromise ??= openDatabase(factory, name).then((db) => {
@@ -75,6 +80,20 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
   }
 
   return {
+    async update(key, transform) {
+      const db = await database()
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(OFFLINE_DB_STORE, "readwrite")
+        let failure: unknown
+        tx.oncomplete = () => resolve()
+        tx.onerror = tx.onabort = () => reject(failure ?? tx.error ?? new Error("IndexedDB transaction aborted"))
+        const store = tx.objectStore(OFFLINE_DB_STORE), request = store.get(key)
+        request.onsuccess = () => {
+          try { store.put(transform(request.result), key) }
+          catch (error) { failure = error; tx.abort() }
+        }
+      })
+    },
     async get<T>(key: string) {
       return (await run("readonly", (store) => [store.get(key)]))[0] as T | undefined
     },
@@ -100,10 +119,14 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
 }
 
 /** In-memory store with the same contract (tests, and browsers without IndexedDB). */
-export function createMemoryStore(initial: Record<string, unknown> = {}): OfflineKeyValueStore {
+export function createMemoryStore(initial: Record<string, unknown> = {}): AtomicOfflineStore {
   const records = new Map<string, unknown>(Object.entries(initial))
   const clone = <T>(value: T): T => (value === undefined ? value : structuredClone(value))
   return {
+    async update(key, transform) {
+      const next = clone(transform(clone(records.get(key))))
+      records.set(key, next)
+    },
     async get<T>(key: string) {
       return clone(records.get(key)) as T | undefined
     },
@@ -126,10 +149,10 @@ export function createMemoryStore(initial: Record<string, unknown> = {}): Offlin
   }
 }
 
-let browserStore: OfflineKeyValueStore | null | undefined
+let browserStore: AtomicOfflineStore | null | undefined
 
 /** The app's IndexedDB store, or null on the server / where IndexedDB is unavailable. */
-export function getOfflineStore(): OfflineKeyValueStore | null {
+export function getOfflineStore(): AtomicOfflineStore | null {
   if (browserStore !== undefined) return browserStore
   browserStore = typeof indexedDB === "undefined" ? null : createIndexedDbStore(indexedDB)
   return browserStore
