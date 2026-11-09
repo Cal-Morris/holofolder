@@ -5,7 +5,7 @@
 // (the system text reader where there is one, else Tesseract, whose engine is fetched from a CDN on first use);
 // the lookup uses the card search online and the cards saved on this device offline. When it can't be
 // sure, Quick mode gets the text it read so the search field can finish the job.
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { Camera, Keyboard, Loader2, X } from "lucide-react"
 import { useOverlay } from "@/hooks/use-overlay"
 import { useCameraStream } from "@/hooks/use-camera-stream"
@@ -16,6 +16,9 @@ import { decideScanOutcome, isScanReadComplete, readScannedCard, type CardScanOu
 import { searchOfflineCards } from "@/lib/offline-card-index"
 import { formatPokemonDisplayName, getPokemonById } from "@/lib/pokemon-catalog"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
+
+import { captureScanDestination, type ScanDestinationAdmission, type ScanDestinationCapture } from "@/lib/scan-destinations"
+import ScanDestinationReview, { type ScanReviewCell } from "@/components/scan-destination-review"
 
 const SCAN_FRAMES = 3
 const SCAN_FRAME_GAP_MS = 300
@@ -38,9 +41,12 @@ export interface CardScanResult {
   /** The text reader couldn't run (usually offline before it was ever downloaded). */
   readerUnavailable: boolean
   offline: boolean
+  /** Native review candidates, absent from legacy callbacks. */
+  candidates?: SearchCardResult[]
 }
 
-interface QuickCardScannerProps {
+export interface QuickCardScannerProps {
+  nativeAdmission?: ScanDestinationAdmission
   onClose: () => void
   onResult: (result: CardScanResult) => void
   isOnline: boolean
@@ -52,12 +58,12 @@ function lookupPokemon(id: number) {
   return entry ? { id: entry.id, name: formatPokemonDisplayName(entry.name) } : null
 }
 
-async function searchCards(query: string, isOnline: boolean, getOfflineCards: () => Promise<SearchCardResult[]>) {
+async function searchCards(query: string, isOnline: boolean, getOfflineCards: () => Promise<SearchCardResult[]>, includeNonPokemon = false) {
   const onDevice = async () => searchOfflineCards(await getOfflineCards().catch(() => []), query)
   if (!query) return { cards: [] as SearchCardResult[], offline: !isOnline }
   if (!isOnline || (typeof navigator !== "undefined" && navigator.onLine === false)) return { cards: await onDevice(), offline: true }
   try {
-    const response = await fetch(`/app/api/tcg-card-search?q=${encodeURIComponent(query.toLowerCase())}`)
+    const response = await fetch(`/app/api/tcg-card-search?q=${encodeURIComponent(query.toLowerCase())}${includeNonPokemon ? "&includeNonPokemon=1" : ""}`)
     if (!response.ok) throw new Error(`Card search failed (${response.status})`)
     const payload = (await response.json()) as { cards?: SearchCardResult[] }
     return { cards: Array.isArray(payload?.cards) ? payload.cards : [], offline: false }
@@ -66,12 +72,38 @@ async function searchCards(query: string, isOnline: boolean, getOfflineCards: ()
   }
 }
 
-export default function QuickCardScanner({ onClose, onResult, isOnline, getOfflineCards }: QuickCardScannerProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null)
+export default function QuickCardScanner(props: QuickCardScannerProps) {
+  if (props.nativeAdmission) return <NativeQuickCardScanner {...props} admission={props.nativeAdmission} />
+  return <QuickCardScannerCamera {...props} />
+}
+
+function NativeQuickCardScanner({ admission, ...props }: QuickCardScannerProps & { admission: ScanDestinationAdmission }) {
+  const captured = useRef<ScanDestinationCapture | null>(null)
+  const alive = useRef(true), saving = useRef(false)
+  const panel = useRef<HTMLDivElement>(null)
+  const [review, setReview] = useState<{ capture: ScanDestinationCapture; cells: ScanReviewCell[] } | null>(null)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  const close = () => { if (!saving.current) { alive.current = false; props.onClose() } }
+  useOverlay(true, close, { containerRef: panel, autoFocus: false })
+  if (review) return <ScanDestinationReview admission={admission} capture={review.capture} cells={review.cells} onClose={close} managed={{ containerRef: panel, onBusyChange: busy => { saving.current = busy } }} />
+  return <QuickCardScannerCamera {...props} onClose={close} managedContainerRef={panel}
+    onReadStarted={() => { captured.current = captureScanDestination(admission.snapshot, admission.view) }}
+    onResult={result => {
+      if (!alive.current) return
+      const capture = captured.current ?? captureScanDestination(admission.snapshot, admission.view)
+      const candidates = result.candidates ?? (result.outcome.kind === "match" ? [result.outcome.card] : [])
+      setReview({ capture, cells: [{ index: 0, slotId: null, occupied: true, candidates }] })
+    }} />
+}
+
+function QuickCardScannerCamera({ onClose, onResult, isOnline, getOfflineCards, onReadStarted, managedContainerRef }: QuickCardScannerProps & { onReadStarted?: () => void; managedContainerRef?: RefObject<HTMLDivElement | null> }) {
+  const ownContainerRef = useRef<HTMLDivElement | null>(null)
+  const containerRef = managedContainerRef ?? ownContainerRef
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [phase, setPhase] = useState<"idle" | "reading" | "matching">("idle")
   const [frame, setFrame] = useState(0)
+  const [destinationError, setDestinationError] = useState<string | null>(null)
   const busy = phase !== "idle"
   const camera = useCameraStream(true, videoRef)
 
@@ -82,18 +114,27 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
   }, [isOnline])
 
   const closeSafely = useCallback(() => {
-    if (!busy) onClose()
-  }, [busy, onClose])
-  useOverlay(true, closeSafely, { containerRef, autoFocus: false })
+    if (!busy || onReadStarted) onClose()
+  }, [busy, onClose, onReadStarted])
+  useOverlay(!managedContainerRef, closeSafely, { containerRef, autoFocus: false })
+
+  const beginCapture = useCallback(() => {
+    try { onReadStarted?.(); setDestinationError(null); return true }
+    catch { setDestinationError("The scan destination changed. Close and reopen the scanner."); return false }
+  }, [onReadStarted])
 
   const typeInstead = useCallback(() => {
-    onResult({ outcome: { kind: "unread", query: "" }, readerUnavailable: false, offline: !isOnline })
-  }, [isOnline, onResult])
+    if (!beginCapture()) return
+    if (onReadStarted) {
+      void getOfflineCards().catch(() => []).then(candidates => onResult({ outcome: { kind: "unread", query: "" }, readerUnavailable: false, offline: !isOnline, candidates }))
+    } else onResult({ outcome: { kind: "unread", query: "" }, readerUnavailable: false, offline: !isOnline })
+  }, [isOnline, onResult, onReadStarted, getOfflineCards, beginCapture])
 
   const read = useCallback(async () => {
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas || !camera.ready || busy) return
+    if (!beginCapture()) return
     setPhase("reading")
     const frames: Array<CardTextSignals | null> = []
     let readerFailures = 0
@@ -113,9 +154,10 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
 
       const scanned = readScannedCard(mergeCardTextSignals(frames))
       setPhase("matching")
-      const { cards, offline } = await searchCards(scanned.query, isOnline, getOfflineCards)
+      const { cards, offline } = await searchCards(scanned.query, isOnline, getOfflineCards, !!onReadStarted)
       onResult({
         outcome: decideScanOutcome(cards, scanned, lookupPokemon),
+        ...(onReadStarted ? { candidates: cards } : {}),
         readerUnavailable: frames.length === 0 && readerFailures > 0,
         offline,
       })
@@ -125,7 +167,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
     } finally {
       setPhase("idle")
     }
-  }, [busy, camera.ready, getOfflineCards, isOnline, onResult])
+  }, [busy, camera.ready, getOfflineCards, isOnline, onResult, onReadStarted, beginCapture])
 
   return (
     <div ref={containerRef} role="dialog" aria-modal="true" aria-label="Scan a card" className="fixed inset-0 z-[60] bg-black outline-none">
@@ -139,7 +181,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
           <button
             type="button"
             onClick={closeSafely}
-            disabled={busy}
+            disabled={busy && !onReadStarted}
             aria-label="Close scanner"
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
           >
@@ -170,7 +212,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
 
         <div className="shrink-0 space-y-2 pt-3">
           <p role="status" className="min-h-5 text-center text-sm text-white/75" data-testid="card-scan-status">
-            {camera.error
+            {destinationError ?? (camera.error
               ? camera.error
               : phase === "reading"
               ? `Reading the card… ${frame}/${SCAN_FRAMES}`
@@ -178,7 +220,7 @@ export default function QuickCardScanner({ onClose, onResult, isOnline, getOffli
               ? isOnline ? "Looking it up…" : "Looking it up on this device…"
               : camera.ready
               ? isOnline ? "Hold steady, then tap Read card." : "Offline: reads the card and looks it up on this device."
-              : ""}
+              : "")}
           </p>
           <div className="flex gap-2">
             <button
