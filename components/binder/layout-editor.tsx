@@ -2,13 +2,16 @@
 
 import { useRef, useState, type ButtonHTMLAttributes } from "react"
 import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
-import { prepareLayoutIntent, type LayoutAction, type StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
+import { prepareLayoutIntent, type LayoutAction, type StagedSlotCommandIntent, type SlotCommandSink } from "@/lib/binder-slot-editing"
+
+import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
 
 export interface LayoutBoundary {
   snapshot: InventorySnapshot
   scope: StagedSlotCommandIntent["scope"]
   catalog: InventoryCatalogResolver
-  onCommandIntent: (draft: StagedSlotCommandIntent) => void
+  onCommandIntent: SlotCommandSink
+  localDurable?: boolean
 }
 const button = "min-h-10 rounded-xl border border-border px-3 py-2 text-sm disabled:opacity-50 hover:bg-muted"
 
@@ -35,18 +38,11 @@ export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boun
   const [position, setPosition] = useState("")
   const [anchor, setAnchor] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState<StagedSlotCommandIntent | null>(null)
-  const handoff = (draft: StagedSlotCommandIntent) => {
-    try {
-      onCommandIntent(draft)
-      setPending(null); setError(null); setPosition(""); setAnchor("")
-    } catch {
-      setPending(draft)
-      setError("Draft could not be handed off. Nothing is confirmed. Retry the same draft, or choose Done to discard this unaccepted draft.")
-    }
-  }
+  const { pending, busy, message, handoff } = useSlotDraftAcceptance<StagedSlotCommandIntent>(onCommandIntent, () => {
+    setError(null); setPosition(""); setAnchor("")
+  })
   const emit = (action: LayoutAction) => {
-    if (pending) return
+    if (pending || busy) return
     try {
       const prepared = prepareLayoutIntent(snapshot, scope, action, { source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() }, catalog)
       handoff({ scope: prepared.scope, intent: prepared.intent })
@@ -55,7 +51,7 @@ export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boun
       setError("Layout changed or destination is invalid. Choose a current saved slot or position.")
     }
   }
-  const blocked = pending !== null
+  const blocked = pending !== null || busy
   return <section aria-label="Layout actions" className="space-y-3">
     {!appendOnly && <>
       <p className="text-sm font-semibold">Editing layout · Slot {index + 1} of {binder.slots.length}</p>
@@ -87,9 +83,11 @@ export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boun
     </>}
     <LayoutButton disabled={blocked} onClick={() => emit({ kind: "append", newSlotId: crypto.randomUUID() })}>Append free slot</LayoutButton>
     {error && <p role="alert" className="text-sm">{error}</p>}
-    {pending && <LayoutButton onClick={() => handoff(pending)}>Retry same draft</LayoutButton>}
+    {message && <p role={pending ? "alert" : "status"} className="break-words text-sm">{message}</p>}
+    {busy && <p role="status">Saving on device…</p>}
+    {pending && <LayoutButton disabled={busy} onClick={() => handoff(pending)}>Retry same draft</LayoutButton>}
     {onCancel && <LayoutButton onClick={onCancel}>Cancel selection</LayoutButton>}
-    {!appendOnly && <p className="text-xs text-muted-foreground">Internal draft only. Saving, offline sync and Undo are not enabled.</p>}
+    {!appendOnly && <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Accepted edits stay saved on this device. Sync and Undo are separate." : "Internal draft only. Saving, offline sync and Undo are not enabled."}</p>}
   </section>
 }
 
@@ -99,6 +97,6 @@ export function LayoutToolbar({ editing, onToggle, boundary }: { editing: boolea
       <p role="status" className="text-sm">{editing ? "Editing layout" : "Browse layout"}</p>
       <LayoutButton aria-pressed={editing} onClick={onToggle}>{editing ? "Done" : "Edit layout"}</LayoutButton>
     </div>
-    {editing && <><p className="mb-2 text-xs text-muted-foreground">Select a slot to insert or move. Internal draft only.</p><LayoutActions boundary={boundary} appendOnly /></>}
+    {editing && <><p className="mb-2 text-xs text-muted-foreground">Select a slot to insert or move. {boundary.localDurable ? "Save on this device." : "Internal draft only."}</p><LayoutActions boundary={boundary} appendOnly /></>}
   </section>
 }

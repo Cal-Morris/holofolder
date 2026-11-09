@@ -153,7 +153,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         p.status = "pending"; p.attempts = 0; p.nextAttemptAt = 0; p.lease = null
       })
     },
-    async replay(send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>, activeScope: () => SlotOfflineScope | null, now = Date.now(), catalog: InventoryCatalogResolver = () => undefined) {
+    async replay(send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>, activeScope: () => SlotOfflineScope | null, now = Date.now(), catalog: InventoryCatalogResolver = () => undefined, readCurrent?: () => Promise<unknown>) {
       const active = () => sameValue(activeScope(), scope)
       if (!scope.accountId || !scope.ownerUserId || !active()) return
       const leaseId = crypto.randomUUID()
@@ -167,13 +167,37 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       let result: SlotReplayResult
       try { result = await send(claimed) } catch { result = { status: 0 } }
       if (!active()) return // Leave original lease/intent durable; a later session can replay the same ID.
+      // Ledger snapshots are historical. Only a separate read started after this matching reply
+      // can supply the current base. The transaction below still fences the claimed lease.
+      if (result.status === 200) {
+        let snapshot: unknown
+        if (result.operationId === (claimed as SlotOfflineIntent).request.operationId && readCurrent) {
+          try {
+            const head = (await read()).pending[0]
+            if (!active() || head?.lease?.id !== leaseId) return
+            snapshot = await readCurrent()
+          } catch { /* Keep unknown/partial outcomes durable. */ }
+        }
+        result = { ...result, snapshot }
+      }
+      if (!active()) return
       await update(record => {
         const p = record.pending[0]
         if (!active() || !p || p.lease?.id !== leaseId) return
         p.lease = null
         let current: InventorySnapshot | null = null
-        try { if (isCompleteInventorySnapshot(result.snapshot)) { current = scopedSnapshot(result.snapshot, scope); if (current.inventoryRevision < record.snapshot!.inventoryRevision) current = null } } catch { /* Invalid/partial response is never an acknowledgment. */ }
-        if (result.status === 200 && result.operationId === p.intent.request.operationId && current && current.inventoryRevision >= record.snapshot!.inventoryRevision) {
+        try {
+          if (isCompleteInventorySnapshot(result.snapshot)) {
+            current = scopedSnapshot(result.snapshot, scope)
+            // The next intent's retained base is the head's committed local projection.
+            // Avoid needing catalog caches again just to validate a fresh server read.
+            const minimumRevision = result.status === 200
+              ? (record.pending[1]?.base ?? record.optimistic!).inventoryRevision
+              : record.snapshot!.inventoryRevision
+            if (current.inventoryRevision < Math.max(record.snapshot!.inventoryRevision, minimumRevision)) current = null
+          }
+        } catch { current = null } // Invalid/partial response is never an acknowledgment.
+        if (result.status === 200 && result.operationId === p.intent.request.operationId && current) {
           record.receipts.push({ operationId: p.intent.request.operationId, intent: p.intent, outcome: "acknowledged" })
           record.pending.shift(); record.snapshot = current; reproject(record, catalog)
         } else if (result.status === 409) {
