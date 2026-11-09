@@ -110,3 +110,7 @@ availability or audit/recovery mutation is claimed.
 ### Private bulk layout preparation (#370)
 
 The opt-in bulk toolbar consumes existing internal parsed slot create/move requests and the real device-commit acceptance sink. One bounded group is one request, not independently accepted chunks. It supplies no new public REST/MCP operation, grant or OpenAPI schema while routes remain gated. Stable selection, stale-copy evidence, host props and remaining Undo/fill/cross-storage/enablement gates are documented in [bulk layout editing](../bulk-slot-layout-editing.md); staged help is `/app/docs/bulk-layout`. #376/#379 own public parity/enablement, #393 owns publication after the feature block is enabled. This is not a claim of authenticated server execution or customer availability.
+
+## Copied set checklist drafts (#372/#373)
+
+The [set preset slice](../set-preset-checklists.md) reuses full mirrored app set reads and existing supported `list_sets`/`get_set` and paged `list_cards`/`get_card` catalog operations. Exact target/scope generation is an internal UI draft callback, not a new REST/MCP mutation. OpenAPI and public creation schemas are unchanged. 083 remains the execution boundary; detailed scope metadata requires an accepted durable contract before #379 enablement. No saved creation, hosted partner execution or persistent offline replay is claimed. [Help](../../content/docs/set-checklist-drafts.mdx).

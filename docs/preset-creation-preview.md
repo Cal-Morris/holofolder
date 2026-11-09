@@ -49,3 +49,7 @@ Craft review:
 No new animation is added. Selection and keyboard feedback is immediate; the existing shared sheet gesture handles dismissal. The schema-backed 40-character binder name and plausible long catalog/set labels are exercised without overflow. The synthetic worst-case toggle and all edit scaffolding stay inside the hard-gated harness.
 
 Local evidence on the submitted slice: 94 focused unit tests pass across eight files; 138 affected browser/standalone cases pass across all six phone profiles without retries; typecheck and production build pass; full lint remains at the unchanged 55-warning cap and focused lint has zero warnings. The mobile run includes all existing slot-picker cases plus legacy switcher/create and illustrator search/offline regressions. This is not a full local e2e run or hosted/deployed execution proof.
+
+## Set and variant scope extension
+
+The creation picker and opt-in Sets integration now share [copied set checklist drafts](set-preset-checklists.md). This extends the preset target model with a detached exact catalog/scope envelope alongside the existing 083-compatible manifest. It adds no durable executor or public enablement.

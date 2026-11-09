@@ -1,5 +1,7 @@
 "use client"
 
+import { BinderCreationPresets } from "@/components/binder-creation-presets"
+import type { BinderCreationDraft } from "@/lib/binder-creation-draft"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, deduplicateCatalogCards, matchesCatalogCardId } from "@/lib/card-catalog"
 
@@ -25,6 +27,8 @@ import { POKEMON_CATALOG, formatPokemonDisplayName, formatDexNumber } from "@/li
 import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-browse"
 
 interface SetPopulationViewProps {
+  /** Opt-in internal draft integration only; production callers omit it until #379. */
+  stagedCreation?: { ownerUserId: string; onDraft: (draft: BinderCreationDraft) => void; isOnline: boolean }
   pricingEnabled?: boolean
   collectionByPokemonId: Map<number, CollectedPokemon>
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
@@ -97,7 +101,9 @@ export default function SetPopulationView({
   onWantCards,
   readOnly,
   initialSet = null,
+  stagedCreation,
 }: SetPopulationViewProps) {
+  const [presetSet, setPresetSet] = useState<TCGSetSummary | null>(null)
   const [query, setQuery] = useState("")
   const heading = useCollapseOnScroll()
   const [selectedSets, setSelectedSets] = useState<TCGSetSummary[]>(() => (initialSet ? [initialSet] : []))
@@ -499,6 +505,8 @@ export default function SetPopulationView({
 
         {selectedSet ? (
           <div className="mt-3 space-y-2">
+            {stagedCreation && !readOnly && selectedSets.length === 1 && <button type="button" className="min-h-11 rounded-xl border border-border px-3 text-sm" onClick={() => setPresetSet(selectedSet)}>Create binder from this set</button>}
+            {stagedCreation && presetSet && <BinderCreationPresets key={presetSet.id} initialSet={presetSet} ownerUserId={stagedCreation.ownerUserId} onDraft={stagedCreation.onDraft} isOnline={stagedCreation.isOnline} />}
             <div role="group" aria-label="Set checklist" className="flex gap-2">
               {(["pokemon", "cards"] as const).map(view => <button key={view} type="button" aria-pressed={checklistView === view} onClick={() => { setChecklistView(view); setSlotFilter("all"); setSlotSearch("") }} className={`min-h-9 rounded-full border px-3 text-xs font-semibold ${checklistView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-background/45"}`}>{view === "pokemon" ? "Pokémon" : "Cards"}</button>)}
             </div>
