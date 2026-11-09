@@ -34,12 +34,16 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
       await db.query(migration); await db.query(migration)
     }
     assert.deepEqual(await protectedBodies(), protectedBefore, "076 recorder and 077 recovery definitions unchanged")
-    const performanceSlice = socket.includes("issue396-perf-local")
+    const performanceSlice = socket.includes("issue396-perf-local") || socket.includes("issue396-converted-local")
     if (performanceSlice) {
       const migration = readFileSync(new URL("../scripts/079_bounded_collection_recovery.sql", import.meta.url), "utf8")
       const protectedDefinitions = await protectedBodies()
       await db.query(migration); await db.query(migration)
       assert.deepEqual((await protectedBodies()).filter(p => !p.name.includes("recovery_plan_v1")), protectedDefinitions.filter(p => !p.name.includes("recovery_plan_v1")), "079 changes only private plan computation, including no recorder or executor replacement")
+    }
+    if (socket.includes("issue396-converted-local")) {
+      const convertedMigration = readFileSync(new URL("../scripts/080_converted_content_recovery.sql", import.meta.url), "utf8")
+      await db.query(convertedMigration); await db.query(convertedMigration)
     }
     const installed = (await db.query("SELECT pg_get_functiondef('public.inventory_command_v1(uuid,uuid,jsonb,jsonb)'::regprocedure) b")).rows[0].b
     assert.match(installed, /collection_audit_private.command_result/)

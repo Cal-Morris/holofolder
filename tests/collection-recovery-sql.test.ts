@@ -17,9 +17,13 @@ test("private recovery SQL: reviewed inverse, stable copies, conflicts, atomic a
   try {
     const migration = readFileSync(new URL("../scripts/077_safe_collection_recovery.sql", import.meta.url), "utf8")
     await db.query(migration); await db.query(migration)
-    if (socket.includes("issue396-perf-local")) {
+    if (socket.includes("issue396-perf-local") || socket.includes("issue396-converted-local")) {
       const performanceMigration = readFileSync(new URL("../scripts/079_bounded_collection_recovery.sql", import.meta.url), "utf8")
       await db.query(performanceMigration); await db.query(performanceMigration)
+    }
+    if (socket.includes("issue396-converted-local")) {
+      const convertedMigration = readFileSync(new URL("../scripts/080_converted_content_recovery.sql", import.meta.url), "utf8")
+      await db.query(convertedMigration); await db.query(convertedMigration)
     }
     await db.query("BEGIN; SET LOCAL statement_timeout='30s'")
     const flush = () => db.query("SET CONSTRAINTS ALL IMMEDIATE; SET CONSTRAINTS ALL DEFERRED")
