@@ -104,7 +104,8 @@ test.describe("multiple binders", () => {
     await expect(page.getByTestId("binder-switcher-trigger")).toHaveAttribute("aria-label", "Binders: My binder")
 
     let sheet = await openSwitcher(harness)
-    await expect(sheet.getByText("2 slots")).toBeVisible()
+    await expect(sheet.getByText("1025 slots")).toHaveCount(2)
+    await expect(sheet.getByText("2 slots", { exact: true })).toHaveCount(0)
     const trades = sheet.getByRole("button", { name: /^Trades/ })
     await harness.expectWithinSafeViewport(harness.closeControl(sheet))
     await harness.expectMinTapTarget(harness.closeControl(sheet))

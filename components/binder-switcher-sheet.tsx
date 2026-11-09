@@ -8,6 +8,7 @@ import { createPortal } from "react-dom"
 import { ArrowDown, ArrowUp, Check, Loader2, Paintbrush, Pencil, Plus, Trash2, X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { BINDER_NAME_MAX_LENGTH, MAX_BINDERS_PER_OWNER, type Binder } from "@/lib/binders/model"
+import { POKEMON_CATALOG } from "@/lib/pokemon-catalog"
 import { moveBinder } from "@/lib/binders/manage"
 import { BinderRequestError, bindersApi, type BinderWithCount } from "@/lib/binders/client"
 import { useBillingContext } from "@/hooks/use-billing"
@@ -257,7 +258,7 @@ export default function BinderSwitcherSheet({
                           <span className="block text-[11px] text-muted-foreground">
                             {[
                               binder.isDefault ? "Default" : null,
-                              slotLabel(binder.slotCount),
+                              slotLabel(POKEMON_CATALOG.length),
                               canManage && !isOnline ? (openableOffline ? "Saved on this device" : "Needs a connection") : null,
                             ].filter(Boolean).join(" · ") || "\u00a0"}
                           </span>
