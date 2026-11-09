@@ -1,0 +1,19 @@
+---
+title: Collection history
+description: Read private committed collection changes through REST or MCP.
+---
+
+Use `list_collection_audit` or `GET /collection/audit` with `collection:read` to inspect your shared owner's committed changes. Current developer entitlement, credential grants and linked membership apply on every request. History is private and responses use `no-store`.
+
+```bash
+curl 'https://app.holofolder.com/app/api/v1/collection/audit?limit=50' \
+  -H 'Authorization: Bearer <collection-read-key>'
+```
+
+Follow `nextCursor` with the same filters. Lists contain up to 100 entries and use stable event ID keysets, including histories longer than 1,000 events. Event IDs are strings. Optional filters are `collectionId`, `itemId`, `slotId`, `actorId`, `action`, `since` and `until`. Date bounds use server time.
+
+`get_collection_audit` or `GET /collection/audit/{id}` returns one entry. Entries include the recorded actor/source, operation and batch IDs, server time, optional original client time, affected entities and safe before/after changes. Structural events can contain many touched entities in one operation. Deleting an item or collection retains its recorded safe evidence for the owner's account lifetime. Private certificates, label assets, uploaded artwork references and share tokens are omitted.
+
+Older entries have Unknown actor/source; history does not guess who made them. Their original Pokémon states remain available, but stable entity filters cannot find IDs that were never recorded. A service write without established attribution also stays Unknown. Local offline pending actions are separate from committed history.
+
+This API requires migration 076. Before application it returns `503 audit_unavailable`. Activity UI and version-safe recovery are still separate rollout work; these read operations do not restore anything or enable structural inventory commands. Server `recorded_at` is measured at the transaction's commit boundary, separately from optional client occurrence time.

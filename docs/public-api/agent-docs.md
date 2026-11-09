@@ -18,3 +18,5 @@ Fumadocs generates the index from the existing page tree. Guide Markdown is comp
 Only public documentation and schemas are exported. These endpoints do not read account data or bypass API authentication. REST still requires a personal key; MCP uses OAuth. Missing response schemas remain undocumented rather than being guessed.
 
 Verification: `bun test tests/docs-markdown.test.ts`; focused Playwright coverage in `e2e/docs-llms.e2e.ts` checks both indexes, all registered operations, exact endpoint contracts, discovery links and 404s. Regenerate OpenAPI after operation changes with `bun scripts/generate-api-docs.ts`.
+
+Private committed history: use list_collection_audit/get_collection_audit with collection:read and current paid developer access. Follow nextCursor with unchanged filters; event IDs are strings. Unknown legacy actors are intentional. Recovery columns, certificate/label assets and share tokens are absent; no recovery command or structural mutation enablement is implied. Migration 076 is required, otherwise audit_unavailable is 503.

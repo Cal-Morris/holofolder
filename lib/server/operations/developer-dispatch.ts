@@ -1,3 +1,5 @@
+import {readCollectionAudit} from "./audit"
+import {withAuditActor} from "@/lib/server/audit-context"
 import {requiresPriceCheckUi} from '@/lib/developer-api/price-check-policy'
 import {readDeveloperIdentity,updateDeveloperIdentity,developerBinderIdentity,developerSharing,developerAppearance,developerArtwork} from './management'
 import {readDeveloperPartners,changeDeveloperPartner} from './partners'
@@ -67,7 +69,7 @@ async function sanitizeImages(value:unknown):Promise<unknown> {
 function sliceEntries<T>(entries:T[],input:Record<string,unknown>,key:(entry:T)=>string) {
  return paginateEntries(entries,paramsOf(input),key)
 }
-export async function executeDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
+async function dispatchDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
  if(requiresPriceCheckUi(name,input))throw new DeveloperAccessError('ui_only','Start sold-comps checks in the Holo Folder app. Saved comparisons remain available through the API.',403)
  const params=paramsOf(input),identity={id:context.principal.actorId}
  switch(name) {
@@ -117,6 +119,8 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
    return unwrap(await writeComparisonOperation(operationRequest({...input,action}),identity,context.ownerUserId))
   }
   case 'get_price_history':return readDeveloperPriceHistory(input)
+  case 'list_collection_audit':return sanitizeImages(await readCollectionAudit(context,input))
+  case 'get_collection_audit':return sanitizeImages(await readCollectionAudit(context,input,true))
   case 'get_collection_analytics':return sanitizeImages(await unwrap(await readCollectionAnalytics(operationRequest(input,'GET'),identity,context.ownerUserId)))
   case 'resolve_import': {
    let lookups
@@ -167,4 +171,8 @@ export async function executeDeveloperOperation(context:OperationContext,name:st
   case 'get_artwork':return developerArtwork(context,input)
   default:throw new DeveloperAccessError('not_found','Operation not found.',404)
  }
+}
+
+export function executeDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
+ return withAuditActor(context.principal.actorId,()=>dispatchDeveloperOperation(context,name,input),context)
 }

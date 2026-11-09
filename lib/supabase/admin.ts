@@ -1,3 +1,4 @@
+import { readAuditHeader } from "@/lib/supabase/audit-header"
 import { createClient } from "@supabase/supabase-js"
 
 export function createAdminClient() {
@@ -9,6 +10,13 @@ export function createAdminClient() {
   }
 
   return createClient(url, serviceRoleKey, {
+    global: { fetch: (input, init) => {
+      const headers = new Headers(init?.headers)
+      headers.delete("x-holo-audit-context")
+      const context = readAuditHeader()
+      if (context) headers.set("x-holo-audit-context", context)
+      return fetch(input, { ...init, headers })
+    } },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

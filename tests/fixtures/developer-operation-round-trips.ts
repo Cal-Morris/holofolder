@@ -8,7 +8,7 @@ async function main() {
  // @ts-expect-error Bun module mocks are confined to this subprocess.
  const {mock}=await import('bun:test')
  mock.module('server-only',()=>({}))
- const owner='00000000-0000-4000-8000-000000000001',binder='00000000-0000-4000-8000-000000000002'
+ const actor='00000000-0000-4000-8000-000000000003',owner='00000000-0000-4000-8000-000000000001',binder='00000000-0000-4000-8000-000000000002'
  const calls:string[]=[]
  let parallelCollection=false,binderVisible=true
  let collectionStarted:Promise<void>=Promise.resolve()
@@ -19,6 +19,10 @@ async function main() {
   const url=new URL(typeof input==='string'?input:input instanceof URL?input:input.url)
   calls.push(url.pathname)
   assert.equal(url.hostname,'synthetic.supabase.test')
+  const attribution=JSON.parse(new Headers(init?.headers).get('x-holo-audit-context')??'null')
+  assert.equal(attribution?.actor?.userId,actor,'service writes/reads must receive the authenticated API actor, never the resolved owner by inference')
+  assert.ok(['rest','mcp'].includes(attribution.source))
+  assert.equal(attribution.clientId,createHash('sha256').update('synthetic').digest('hex'))
   assert.ok(!url.pathname.includes('/auth/'),'ID-only operations must reuse the authenticated actor')
   assert.ok(!url.pathname.endsWith('/partnerships'),'API operations must reuse the already verified owner')
   if(url.pathname.endsWith('/rpc/get_binder_slot_counts')) {
@@ -44,7 +48,7 @@ async function main() {
  let priceChecks=0
  mock.module('../../lib/server/card-price-checks',()=>({loadSavedCardPriceChecks:async()=>[],loadCardPriceChecks:async()=>{priceChecks++;return {ebay:null,soldcomps:null,errors:{}}}}))
  const {executeDeveloperOperation}=await import('../../lib/server/operations/developer-dispatch')
- const context:OperationContext={principal:{actorId:owner,credentialId:createHash('sha256').update('synthetic').digest('hex'),permissions:['binders:read','settings:read','collection:read'],transport:'rest'},ownerUserId:owner,memberIds:[owner],requestId:'synthetic'}
+ const context:OperationContext={principal:{actorId:actor,credentialId:createHash('sha256').update('synthetic').digest('hex'),permissions:['binders:read','settings:read','collection:read'],transport:'rest'},ownerUserId:owner,memberIds:[owner,actor],requestId:'synthetic'}
  const listed=await executeDeveloperOperation(context,'list_binders',{}) as {binders:Array<{slotCount:number}>}
  assert.equal(listed.binders[0].slotCount,7)
  assert.equal(calls.length,2,'binder list and grouped slot counts require two parallel database calls')

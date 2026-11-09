@@ -42,6 +42,8 @@ export const API_SMOKE_ASSERTIONS:Record<string,Check>={
  inspect_comparison_job:value=>{assert.ok(Number.isSafeInteger(value.needed)&&Number(value.needed)>=0);assert.ok(value.job===null||typeof value.job==='object')},
  start_comparison_job:job,cancel_comparison_job:job,
  get_price_history:page,
+ list_collection_audit:page,
+ get_collection_audit:value=>{assert.equal(typeof value.id,'string');assert.ok(['unknown','user','system'].includes(String(value.actor_kind)));assert.ok(!('recovery_state' in value));assert.ok(!('command_evidence' in value))},
  get_collection_analytics:value=>{array(value.activity);array(value.priceHistory);assert.equal(typeof value.historyAvailable,'boolean')},
  resolve_import:value=>{assert.ok(array(value.results).length>0)},
  check_deal:value=>{assert.equal(value.currency,'GBP');assert.ok(value.verdict===null||typeof value.verdict==='object')},
