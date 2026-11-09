@@ -99,3 +99,14 @@ test("dead refresh cannot hold startup forever or establish cached identity", as
   const { session } = fixture()
   assert.equal(await readDeviceStartupSession(async () => ({ data: { session } })), session)
 })
+
+test("cached identity expires at the earlier session or JWT deadline", () => {
+  for (const [sessionSeconds, jwtSeconds] of [[600, 1], [1, 600]]) {
+    const f = fixture()
+    f.session.expires_at = now / 1000 + sessionSeconds
+    const claims = { sub: "owner", session_id: "auth-session", exp: now / 1000 + jwtSeconds }
+    f.session.access_token = `e30.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.synthetic`
+    assert.equal(cachedNativeIdentity(f.storage, f.session, now)?.expiresAt, now + 1000)
+    assert.equal(cachedNativeIdentity(f.storage, f.session, now + 2000), null)
+  }
+})

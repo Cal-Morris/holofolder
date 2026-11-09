@@ -24,18 +24,20 @@ export function cachedNativeIdentity(storage: Pick<Storage, "getItem">, session:
   const marker = readBinderStartMarker(storage), native = marker?.native
   if (!session || !marker || !native || marker.userId !== session.user.id
     || !isSlotContractId(native.deviceId) || storage.getItem("holofolder-slot-device-v1") !== native.deviceId
-    || !session.expires_at || session.expires_at * 1000 <= now) return null
+    || !session.expires_at || !Number.isFinite(session.expires_at * 1000) || session.expires_at * 1000 <= now) return null
+  let expiresAt = session.expires_at * 1000
   try {
     const payload = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
     const claims = JSON.parse(atob(payload))
-    if (claims.sub !== marker.userId || claims.session_id !== native.authSessionId || typeof claims.exp !== "number" || claims.exp * 1000 <= now) return null
+    if (claims.sub !== marker.userId || claims.session_id !== native.authSessionId || typeof claims.exp !== "number" || !Number.isFinite(claims.exp * 1000) || claims.exp * 1000 <= now) return null
+    expiresAt = Math.min(expiresAt, claims.exp * 1000)
   } catch { return null }
   if (marker.ownerUserId !== marker.userId) {
     // Exact legacy readLocalBinderStart/readOfflineShellState policy, not fresh partnership proof.
     const access = readBillingCache(storage, marker.userId, marker.ownerUserId, now)
     if (!access || (access.enforced && access.tier !== "paid")) return null
   }
-  return { marker, scope: { deviceId: native.deviceId, workspaceId: "holofolder", accountId: marker.userId, ownerUserId: marker.ownerUserId } }
+  return { marker, expiresAt, scope: { deviceId: native.deviceId, workspaceId: "holofolder", accountId: marker.userId, ownerUserId: marker.ownerUserId } }
 }
 
 /** Read-only adapter over the one canonical queue and its existing navigation metadata.

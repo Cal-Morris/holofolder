@@ -40,7 +40,7 @@ async function queueRecords(page: Page) {
   })
 }
 const offlineAbort = (route: Route) => route.abort("internetdisconnected")
-async function relaunch(page: Page, standalone: boolean, path = "/app") {
+async function relaunch(page: Page, standalone: boolean, path = "/app", clockTime?: number) {
   const context = page.context()
   // No mounted React view, document state or page HTTP cache survives this boundary.
   await page.close()
@@ -48,6 +48,7 @@ async function relaunch(page: Page, standalone: boolean, path = "/app") {
   await context.route("**/rest/v1/**", offlineAbort)
   await context.route("**/auth/v1/**", offlineAbort)
   const reopened = await context.newPage()
+  if (clockTime !== undefined) await reopened.clock.install({ time: new Date(clockTime) })
   if (standalone) await emulateStandalone(reopened, SAFE_AREA)
   const cdp = await context.newCDPSession(reopened)
   await cdp.send("Network.enable")
@@ -181,4 +182,24 @@ test("evicted boot chunk gives a static reconnect notice and leaves canonical qu
 test("first ever uncached offline launch cannot manufacture an executable shell", async ({ page, context }) => {
   await context.setOffline(true)
   await expect(page.goto("/app")).rejects.toThrow(/ERR_INTERNET_DISCONNECTED|ERR_FAILED/)
+})
+
+
+test("open cached native display closes at an earlier JWT expiry", async ({ page, context }, info) => {
+  await prepare(page)
+  const before = await queueRecords(page)
+  const now = Date.now()
+  const cookie = (await context.cookies()).find(c => c.name === "sb-127-auth-token")!
+  const session = JSON.parse(Buffer.from(cookie.value.replace(/^base64-/, ""), "base64url").toString())
+  const claims = JSON.parse(Buffer.from(session.access_token.split(".")[1], "base64url").toString())
+  session.expires_at = Math.floor(now / 1000) + 3600
+  claims.exp = Math.floor(now / 1000) + 60
+  session.access_token = `e30.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.synthetic-earlier-expiry`
+  await context.addCookies([{ ...cookie, value: `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}` }])
+  const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone), "/app", now)
+  await expect(reopened.getByText(/Cached only. Access will be checked/)).toBeVisible({ timeout: 30000 })
+  await reopened.clock.fastForward(65000)
+  await expect(reopened.getByText(/Cached only. Access will be checked/)).not.toBeVisible()
+  await expect(reopened.getByRole("status").filter({ hasText: /Saved storage is paused/ })).toBeVisible()
+  expect(await queueRecords(reopened)).toEqual(before)
 })

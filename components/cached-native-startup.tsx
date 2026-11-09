@@ -38,8 +38,10 @@ export default function CachedNativeStartup({ localHarness = false, legacyProps,
       if (!identity || !store) throw new Error("saved-scope-unavailable")
       const boot = await readCachedNativeStartup(store, identity, crypto.randomUUID())
       if (!active || navigator.onLine) return
-      // A cached session expiring while open loses even display access. No token is stored here.
-      expiry = setTimeout(invalidate, Math.min(2147483647, Math.max(0, session!.expires_at! * 1000 - Date.now())))
+      // IDB may outlive the cached identity or its earlier JWT deadline.
+      const current = cachedNativeIdentity(localStorage, session)
+      if (!current || JSON.stringify(current.scope) !== JSON.stringify(identity.scope)) throw new Error("saved-scope-expired")
+      expiry = setTimeout(invalidate, Math.min(2147483647, Math.max(0, current.expiresAt - Date.now())))
       established = true
       setSaved(boot)
     })().catch(() => { if (active) setNotice("Saved native storage is unavailable on this device. Connect to reopen it. Pending edits have not been removed.") })
