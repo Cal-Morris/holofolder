@@ -105,6 +105,7 @@ test("catalog dex associations page beyond 1000 and target-only cards are read",
   f.tables.tcg_card_dex_ids = Array.from({ length: 1025 }, (_, i) => ({ card_id: "synthetic-target", dex_id: i + 1 }))
   const read = await readOwnerInventoryState(f.client)
   assert.equal(read.navigation.catalog[0].speciesNames.length, 1025)
+  assert.deepEqual(read.navigation.catalog[0].pokemonIds, Array.from({ length: 1025 }, (_, i) => i + 1))
   assert.equal(f.requests.filter(r => r.table === "tcg_card_dex_ids").length, 3)
 })
 test("location omission stays unknown, null stays null, invalid locations fail and public projection redacts private metadata", async () => {
