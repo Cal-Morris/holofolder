@@ -1,0 +1,50 @@
+version: 2
+updates:
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/London
+    open-pull-requests-limit: 5
+    # Avoid automatic rebases spending the Vercel deployment budget.
+    rebase-strategy: disabled
+    groups:
+      # Match coupled packages before the broader dev/runtime groups.
+      next:
+        patterns:
+          - next
+          - "@next/*"
+          - eslint-config-next
+        update-types: [minor, patch]
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+        update-types: [minor, patch]
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/London
+    open-pull-requests-limit: 1
+    rebase-strategy: disabled
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
