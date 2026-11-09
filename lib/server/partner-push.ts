@@ -22,7 +22,7 @@ export async function saveCollectionWithAcquisition(input: {
   })
   if (missingPushSchema(error)) return null
   if (isBillingError(error)) throw new BillingAccessError(error?.message?.includes('card_limit_reached') ? 'card_limit_reached' : 'upgrade_required')
-  if (error) throw new Error('Could not save the collection change')
+  if (error) throw new Error('Could not save the collection change', { cause: error })
   if (!data || typeof data !== 'object' || (!data.conflict && !data.item)) throw new Error('Invalid collection save response')
   return data
 }

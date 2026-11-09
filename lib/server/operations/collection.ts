@@ -1,3 +1,4 @@
+import { legacySlotCompatibilityResponse, legacySlotAuthorityResponse } from "@/lib/server/operations/binder-slots"
 import {normalizeStoredDeveloperImage} from '@/lib/developer-api/image-identity'
 import {getR2Config,getR2BucketEndpoint} from '@/lib/card-image-r2'
 import type { User } from "@supabase/supabase-js"
@@ -17,6 +18,13 @@ import { normalizeCollectionItem } from "@/lib/collection/normalize"
 import { matchesCollectionFingerprint } from "@/lib/collection/sync"
 import { scopeCollectionQuery } from "@/lib/collection/load"
 import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
+
+async function checkLegacyBinderAuthority(admin: ReturnType<typeof createAdminClient>, ownerUserId: string, binderId: string | null) {
+  if (!binderId) return null
+  const { data, error } = await admin.from("storage_collection_state").select("authority,conversion_version")
+    .eq("collection_id", binderId).eq("owner_user_id", ownerUserId).maybeSingle()
+  return legacySlotAuthorityResponse(data, error)
+}
 
 async function resolveOwnerUserId(userId: string) {
   return resolveCollectionOwnerUserId(createAdminClient(), userId)
@@ -88,6 +96,8 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
     const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
     if (binder.response) return binder.response
     const { binderId } = binder
+    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binderId)
+    if (authority) return authority
     const { data: previousRow, error: previousError } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId)
       .eq("pokemon_id", pokemonId).maybeSingle()
     if (previousError) throw previousError
@@ -141,6 +151,8 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
 
     if (isBillingError(error)) throw new BillingAccessError("card_limit_reached")
     if (error) {
+      const compatibility = legacySlotCompatibilityResponse(error)
+      if (compatibility) return compatibility
       console.error("[holofolder] API collection upsert failed:", error)
       return NextResponse.json({ error: error.message || "Failed to save collection item" }, { status: 500 })
     }
@@ -149,6 +161,8 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
     scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, body?.origin === "import" ? "import" : "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
+    const compatibility = legacySlotCompatibilityResponse(error)
+    if (compatibility) return compatibility
     if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] API collection POST failed:", error)
     return NextResponse.json(
@@ -182,12 +196,16 @@ export async function updateCollectionStatus(request: NextRequest, actor: User) 
     const ownerUserId = await resolveOwnerUserId(user.id)
     const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
     if (binder.response) return binder.response
+    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binder.binderId)
+    if (authority) return authority
     const { data, error } = await scopeCollectionQuery(admin.from("pokemon_collection").update({ status }), ownerUserId, binder.binderId)
       .eq("pokemon_id", pokemonId)
       .select("*")
       .single()
 
     if (error) {
+      const compatibility = legacySlotCompatibilityResponse(error)
+      if (compatibility) return compatibility
       console.error("[holofolder] API collection status update failed:", error)
       return NextResponse.json({ error: error.message || "Failed to update collection item" }, { status: 500 })
     }
@@ -196,6 +214,8 @@ export async function updateCollectionStatus(request: NextRequest, actor: User) 
     scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
+    const compatibility = legacySlotCompatibilityResponse(error)
+    if (compatibility) return compatibility
     if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] API collection PATCH failed:", error)
     return NextResponse.json(
@@ -222,6 +242,8 @@ export async function deleteCollectionItem(request: NextRequest, actor: Pick<Use
     const ownerUserId = verifiedOwnerId ?? await resolveOwnerUserId(user.id)
     const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"))
     if (binder.response) return binder.response
+    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binder.binderId)
+    if (authority) return authority
     const previous = atomicDelete
       ? await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId).maybeSingle()
       : undefined
@@ -236,12 +258,16 @@ export async function deleteCollectionItem(request: NextRequest, actor: Pick<Use
     if ("data" in result && result.data?.conflict) return NextResponse.json({ error: "Collection item changed on the server" }, { status: 409 })
 
     if (error) {
+      const compatibility = legacySlotCompatibilityResponse(error)
+      if (compatibility) return compatibility
       console.error("[holofolder] API collection delete failed:", error)
       return NextResponse.json({ error: error.message || "Failed to delete collection item" }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    const compatibility = legacySlotCompatibilityResponse(error)
+    if (compatibility) return compatibility
     if (isBillingError(error)) return billingErrorResponse(error)
     console.error("[holofolder] API collection DELETE failed:", error)
     return NextResponse.json(
