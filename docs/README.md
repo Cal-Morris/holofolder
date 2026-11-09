@@ -22,6 +22,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Collection Activity](collection-activity-ui.md): first-party session adapter, read-only history, private device cache and parent release handoff.
 - [Multiple binders](multiple-binders.md), [binder history](binder-history.md), [collection import](collection-import.md).
 - [Card catalog](card-catalog.md), [card image store](card-image-store.md), [pricing coverage](card-pricing-coverage.md).
+- [OCR and card scanning](card-scanning.md): on-device text recognition, visual matching, binder-page detection and offline limits.
 - [Billing](billing.md): server-owned entitlements, free allowances, Premium trials and Stripe reconciliation.
 - [Google Analytics](google-analytics.md), [collector funnel](collector-funnel.md): separate telemetry systems and their privacy/configuration boundaries.
 - [Database migrations](../scripts/MIGRATIONS.md): historical schema, fresh-project prerequisites and execution requirements.

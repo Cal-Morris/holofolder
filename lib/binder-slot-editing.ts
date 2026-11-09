@@ -8,6 +8,10 @@ export interface StagedSlotCommandIntent {
   scope: { ownerUserId: string; collectionId: string; slotId: string | null }
   intent: SlotOfflineIntent
 }
+/** Resolves at local transaction commit, never at remote execution or audit success. */
+export interface SlotLocalAcceptance { status: "saved-on-device"; operationId: string; refreshError: string | null }
+export type SlotCommandSink = (draft: StagedSlotCommandIntent) => void | Promise<SlotLocalAcceptance>
+
 export type LayoutDestination = { kind: "position"; position: number } | { kind: "before" | "after"; slotId: string }
 export type LayoutAction = { kind: "append"; newSlotId: string }
   | { kind: "insert"; anchorId: string; side: "before" | "after"; newSlotId: string }

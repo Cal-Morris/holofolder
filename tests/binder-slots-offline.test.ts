@@ -78,7 +78,7 @@ describe("staged durable slot intent", () => {
     await reopened.replay(async sent => {
       assert.deepEqual(sent, intent())
       return { status: 200, operationId: "operation-one", snapshot: committed }
-    }, () => scope, 1660000)
+    }, () => scope, 1660000, catalog, () => complete(committed))
     assert.equal((await reopened.read()).pending.length, 0)
     assert.equal((await reopened.read()).receipts[0].operationId, "operation-one")
   })
@@ -147,7 +147,7 @@ describe("staged durable slot intent", () => {
     }
     await q.replay(async sent => { await server(sent as ReturnType<typeof intent>); throw new Error("lost-response") }, () => scope, 0)
     const reopened = createSlotOfflineQueue(store, scope)
-    await reopened.replay(sent => server(sent as ReturnType<typeof intent>), () => scope, 400000)
+    await reopened.replay(sent => server(sent as ReturnType<typeof intent>), () => scope, 400000, catalog, () => complete(committed))
     assert.equal(serverCommits, 1)
     const state = await reopened.read()
     assert.equal(state.pending.length, 0); assert.equal(state.receipts[0].operationId, "operation-one")
@@ -238,7 +238,7 @@ describe("staged durable slot intent", () => {
     edit.request.commands = [{ kind: "update", slot: { id: "new-stable-slot", version: 0, inventoryItemId: null, itemVersion: null, placementVersion: null }, target: { kind: "pokemon", pokemonId: 143 } }]
     await q.enqueue(edit, catalog)
     const reopened = createSlotOfflineQueue(store, scope)
-    await reopened.replay(async () => ({ status: 200, operationId: "operation-one", snapshot: await complete(projectSlotIntent(snapshot(), insert, catalog)) }), () => scope, 0, catalog)
+    await reopened.replay(async () => ({ status: 200, operationId: "operation-one", snapshot: await complete(projectSlotIntent(snapshot(), insert, catalog)) }), () => scope, 0, catalog, () => complete(projectSlotIntent(snapshot(), insert, catalog)))
     const record = await reopened.read()
     assert.equal(record.pending[0].intent.request.operationId, "dependent-operation")
     assert.equal(record.pending[0].status, "pending")
@@ -255,4 +255,98 @@ describe("staged durable slot intent", () => {
     assert.equal(result.binders[0].slots.length, 1026)
   })
 
+})
+
+test("a matching historical complete ledger result cannot ACK without a new all-stream read", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  const ledger = await complete(projectSlotIntent(snapshot(), intent(), catalog))
+  await q.replay(async () => ({ status: 200, operationId: "operation-one", snapshot: ledger }), () => scope, 0)
+  assert.equal((await q.read()).pending.length, 1)
+  const latest = structuredClone(ledger)
+  latest.inventoryRevision++; latest.collections[0].name = "Later partner edit"
+  let executed = false
+  await q.replay(async () => { executed = true; return { status: 200, operationId: "operation-one", snapshot: ledger } }, () => scope, 400000, catalog, async () => {
+    assert.equal(executed, true)
+    return complete(latest)
+  })
+  assert.equal((await q.read()).pending.length, 0)
+  assert.equal((await q.read()).snapshot!.collections[0].name, "Later partner edit")
+})
+
+test("fresh-read failures, plain JSON and stale revision retain the original intent", async () => {
+  for (const read of [async () => { throw new Error("partial") }, async () => snapshot(), async () => complete(snapshot())]) {
+    const q = createSlotOfflineQueue(createMemoryStore(), scope)
+    await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+    await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => scope, 0, catalog, read)
+    assert.deepEqual((await q.read()).pending[0].intent, intent())
+  }
+})
+
+test("session ends during the fresh read, retaining the claimed lease and original ID", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  let active = true
+  await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => active ? scope : null, 0, catalog, async () => {
+    active = false
+    return complete(projectSlotIntent(snapshot(), intent(), catalog))
+  })
+  const r = await q.read()
+  assert.equal(r.pending[0].lease?.until, 60000)
+  assert.equal(r.receipts.length, 0)
+})
+
+test("a no-op command may ACK a fresh unchanged complete revision", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope), noop = intent()
+  noop.request.commands = [{ kind: "move", slots: [{ id: "c", version: 0, inventoryItemId: null, itemVersion: null, placementVersion: null }], beforeSlotId: null }]
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(noop, catalog)
+  await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => scope, 0, catalog, () => complete(snapshot()))
+  assert.equal((await q.read()).pending.length, 0)
+})
+
+test("a lease overtaken during the fresh read cannot settle the replacement lease", async () => {
+  const store = createMemoryStore(), q = createSlotOfflineQueue(store, scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => scope, 0, catalog, async () => {
+    await createSlotOfflineQueue(store, scope).replay(async () => ({ status: 503 }), () => scope, 61000)
+    return complete(projectSlotIntent(snapshot(), intent(), catalog))
+  })
+  const r = await q.read()
+  assert.equal(r.pending[0].attempts, 2)
+  assert.equal(r.pending[0].status, "unavailable")
+  assert.equal(r.receipts.length, 0)
+})
+
+test("cached complete brands cannot ACK even at the expected or a higher revision", async () => {
+  for (const extraRevision of [0, 2]) {
+    const q = createSlotOfflineQueue(createMemoryStore(), scope)
+    await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+    const old = projectSlotIntent(snapshot(), intent(), catalog)
+    old.inventoryRevision += extraRevision
+    const cached = await complete(old)
+    await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => scope, 0, catalog, async () => cached)
+    const record = await q.read()
+    assert.equal(record.pending.length, 1)
+    assert.equal(record.receipts.length, 0)
+    assert.equal(record.snapshot!.inventoryRevision, 1)
+  }
+})
+
+test("a complete read begun before execution cannot ACK by finishing after the reply", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  const s = projectSlotIntent(snapshot(), intent(), catalog)
+  let release!: () => void, signalReady!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const ready = new Promise<void>(resolve => { signalReady = resolve })
+  const page = <T>(rows: T[]) => async () => ({ inventoryRevision: s.inventoryRevision, total: rows.length, rows, next: null })
+  const earlierRead = readCompleteInventorySnapshot(s.ownerUserId, s.inventoryRevision,
+    { items: page(s.items), placements: page(s.placements), collections: page(s.collections), binders: page(s.binders) },
+    async () => { signalReady(); await gate })
+  await ready
+  await q.replay(async () => ({ status: 200, operationId: "operation-one" }), () => scope, 0, catalog,
+    async () => { release(); return earlierRead })
+  const record = await q.read()
+  assert.equal(record.pending.length, 1)
+  assert.equal(record.receipts.length, 0)
 })

@@ -1,15 +1,18 @@
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
 import { isContractRecord, isSlotContractId, isSlotRevision } from "@/lib/domain/binder-slots"
 import { parseInventoryCommand } from "@/lib/domain/inventory-commands"
+import { parseCollectionCreation, COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
+import { isBinderId } from "@/lib/binders/model"
 import { parseSlotCommand } from "@/lib/domain/slot-commands"
 import { isAuditId } from "./audit"
 
-export type StorageOperation = "inventory" | "slots" | "recovery.preview" | "recovery.apply"
+export type StorageOperation = "inventory" | "slots" | "collection.create" | "recovery.preview" | "recovery.apply"
 export const STORAGE_RESULT_BYTES = 16777216
 const invalid = (): never => { throw new DeveloperAccessError("invalid_input", "Invalid or oversized storage request.", 400) }
 const ids = (v: unknown, limit = 16384): v is string[] => Array.isArray(v) && v.length <= limit && v.every(isSlotContractId)
 export function parseStorageRequest(operation: StorageOperation, input: unknown) {
   try {
+    if (operation === "collection.create") return parseCollectionCreation(input)
     if (operation === "inventory") return parseInventoryCommand(input)
     if (operation === "slots") return parseSlotCommand(input)
     if (operation !== "recovery.preview" && operation !== "recovery.apply") return invalid()
@@ -27,6 +30,9 @@ export function parseStorageRequest(operation: StorageOperation, input: unknown)
 export function storageExecutionError(error: unknown): DeveloperAccessError {
   const message = error && typeof error === "object" && "message" in error ? error.message : null
   const code = error && typeof error === "object" && "code" in error ? error.code : null
+  if (code === "P0001" && message === "binder_limit_reached") return new DeveloperAccessError("binder_limit_reached", "You have reached your current collection allowance.", 402)
+  if (code === "P0001" && message === "binder_safety_limit_reached") return new DeveloperAccessError("binder_safety_limit_reached", "You have reached the maximum number of collections.", 409)
+  if (code === "P0001" && message === "upgrade_required") return new DeveloperAccessError("premium_required", "This custom grid requires Premium access.", 402)
   if (code === "P0001" && message === "card_limit_reached") return new DeveloperAccessError("card_limit_reached", "You have reached your current saved card allowance.", 402)
   if (code === "40001" || code === "23505") return new DeveloperAccessError("storage_conflict", "Storage changed or the operation ID was already used. Refresh and review before retrying.", 409)
   if (code === "42501") return new DeveloperAccessError("storage_access_denied", "This operation is not allowed for the current collection.", 403)
@@ -60,6 +66,12 @@ export function normalizeStorageResult(operation: StorageOperation, value: unkno
     return Object.fromEntries(["planVersion", "eventId", "supported", "unsupported", "conflicts", "planToken", "restoreUnassignedItemIds", "changes", "rootRevisionsAdvance"].map(k => [k, row[k]]))
   }
   const result: Record<string, unknown> = { inventoryRevision: revision("inventoryRevision") }
+  if (operation === "collection.create") {
+    if (!isBinderId(row.collectionId) || row.changed !== true || row.recoverySupported !== false
+      || !ids(row.slotIds, COLLECTION_CREATION_LIMITS.capacity) || new Set(row.slotIds).size !== row.slotIds.length) return unavailable()
+    return { ...result, collectionId: row.collectionId, collectionVersion: revision("collectionVersion"),
+      layoutRevision: revision("layoutRevision"), changed: true, slotIds: [...row.slotIds], recoverySupported: false }
+  }
   if (operation === "recovery.apply") {
     if (!isAuditId(row.eventId) || !isAuditId(row.recoveredEventId) || !Array.isArray(row.collections) || row.collections.length > 4096) return unavailable()
     result.eventId = row.eventId; result.recoveredEventId = row.recoveredEventId

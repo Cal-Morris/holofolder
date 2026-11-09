@@ -5,9 +5,16 @@ import { isSlotRevision } from "@/lib/domain/binder-slots"
 
 declare const completeSnapshot: unique symbol
 export type CompleteInventorySnapshot = InventorySnapshot & { readonly [completeSnapshot]: true }
-const completeReads = new WeakSet<object>()
+let readStartSequence = 0
+const completeReads = new WeakMap<object, number>()
 export function isCompleteInventorySnapshot(value: unknown): value is CompleteInventorySnapshot {
   return !!value && typeof value === "object" && completeReads.has(value)
+}
+
+/** Process-local fence: cached brands and reads already in flight cannot prove post-reply freshness. */
+export function captureCompleteInventoryReadFence() { return readStartSequence }
+export function isCompleteInventoryReadAfter(value: unknown, fence: number): value is CompleteInventorySnapshot {
+  return isCompleteInventorySnapshot(value) && completeReads.get(value)! > fence
 }
 
 /** Internal read adapter, not an enabled HTTP/MCP schema. Readers must bind authenticated scope,
@@ -51,6 +58,7 @@ export type InventorySnapshotReaders = {
  * every slot page under inventory+collection+layout revisions, never return a partial BinderSnapshot.
  * A server reader may fence the completed streams before branding; failed fences publish nothing. */
 export async function readCompleteInventorySnapshot(ownerUserId: string, inventoryRevision: number, readers: InventorySnapshotReaders, beforeBrand?: () => Promise<void>): Promise<CompleteInventorySnapshot> {
+  const started = ++readStartSequence
   const [items, placements, collections, binders] = await Promise.all([
     readCompleteSnapshotRows(readers.items, inventoryRevision, i => i.id),
     readCompleteSnapshotRows(readers.placements, inventoryRevision, p => p.inventoryItemId),
@@ -60,7 +68,7 @@ export async function readCompleteInventorySnapshot(ownerUserId: string, invento
   const snapshot = normalizeInventorySnapshot({ ownerUserId, inventoryRevision, items, placements, collections, binders })
   if (!snapshot) throw new Error("invalid-complete-snapshot")
   await beforeBrand?.()
-  completeReads.add(snapshot)
+  completeReads.set(snapshot, started)
   return snapshot as CompleteInventorySnapshot
 }
 

@@ -3,6 +3,7 @@ import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 import type { ComponentProps } from "react"
+import SlotDurableSessionHarness from "@/components/slot-durable-session-harness"
 import SlotPickerHarness from "@/components/slot-picker-harness"
 import BinderApp from "@/components/binder-app"
 import { DEFAULT_BINDER_COLOR_ID } from "@/lib/binder-colors"
@@ -52,7 +53,7 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
       } as User)
     : null
 
-  const HarnessApp = slots === "picker" ? SlotPickerHarness : BinderApp
+  const HarnessApp = slots === "durable" ? SlotDurableSessionHarness : slots === "picker" ? SlotPickerHarness : BinderApp
   return (
     <HarnessApp
       key={activeBinderId ?? "single"}
