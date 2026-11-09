@@ -22,4 +22,6 @@ The operation registry in `lib/developer-api/operations.ts` defines the REST sch
 
 Website-only: billing and checkout, account deletion, credential administration, push-device enrollment. Device-only: camera capture/OCR, wake lock, offline storage/queues. Admin sync/backfill and payment webhooks are not public tools.
 
+Internal foundation: [editable binder contracts](../binder-slot-contracts.md) define stable slots, copied presets and pure layout plans under #360. They have no runtime caller or new REST/MCP operation. Inventory adapters (#382), authoritative writes (#362/#383), exposed API schemas/docs (#376) and rollout gates (#379) must ship before these capabilities are publicly advertised. Existing collection operations above retain their legacy contract.
+
 API keys are REST-only. MCP requires resource-bound OAuth with explicit grants. Signup trials are excluded. Raw API authentication ignores cookies and query-string secrets. Current membership and paid access are checked on every operation. Images are R2-only, including private binder artwork in a separate bucket.
