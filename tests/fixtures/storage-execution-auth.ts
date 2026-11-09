@@ -45,6 +45,9 @@ async function main() {
       assert.equal("source" in body, false)
       if (errorCode === "ABORT") throw new DOMException("synthetic transport timeout", "AbortError")
       if (errorCode) return Response.json({ code: errorCode, message: "private SQL certificate", details: "secret" }, { status: 400 })
+      if (body.operation === "collection.create") return Response.json({ inventoryRevision: 2, changed: true,
+        collectionId: "00830000-0000-4000-8000-000000000011", collectionVersion: 0, layoutRevision: 0,
+        slotIds: [], recoverySupported: false, evidence: { certificate: "private" } })
       return Response.json({ inventoryRevision: 2, changed: true, selectedItemIds: [], acquiredItemIds: [], evidence: { certificate: "private" } })
     }
     throw new Error("Unexpected request " + url.pathname)
@@ -93,6 +96,24 @@ async function main() {
   await assert.rejects(executeAppStorageRequest(request(), "inventory"), (e: unknown) => e instanceof Error && !e.message.includes("certificate") && "status" in e && e.status === 409)
   errorCode = "ABORT"
   await assert.rejects(executeAppStorageRequest(request(), "inventory"), (e: unknown) => e instanceof Error && "status" in e && e.status === 503)
+  errorCode = null
+  const creation = { version: 1, operationId: "synthetic-bridge-auth", inventoryRevision: 1,
+    collectionId: "00830000-0000-4000-8000-000000000011", name: "Synthetic creation", kind: "custom",
+    defaultPresentation: "list", location: "Synthetic shelf", grid: null,
+    manifest: { source: { id: "blank", version: "1" }, name: "Blank", entries: [] }, slotIds: [] }
+  for (const source of ["app", "rest", "mcp"]) {
+    const result = source === "app" ? await executeAppStorageRequest(request({}, creation), "collection.create")
+      : source === "rest" ? await executeRestStorageRequest(request({ authorization: "Bearer " + key.key }, creation), "collection.create")
+      : await executeMcpStorageRequest(request({ authorization: "Bearer synthetic-oauth" }), "collection.create", creation)
+    assert.equal(result.collectionId, creation.collectionId)
+    assert.equal("evidence" in result, false)
+    assert.equal(result.recoverySupported, false)
+    assert.equal(calls.at(-1)?.header?.source, source)
+    assert.deepEqual(calls.at(-1)?.body.request, creation)
+  }
+  before = count()
+  await assert.rejects(executeAppStorageRequest(request({}, { ...creation, ownerUserId: actor }), "collection.create"))
+  assert.equal(count(), before)
   assert.ok(calls.every(c => c.header?.source !== "migration"))
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

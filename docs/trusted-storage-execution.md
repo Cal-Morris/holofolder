@@ -57,3 +57,8 @@ Run `STORAGE_BRIDGE_TEST_SOCKET=<exact socket above> bun test tests/storage-exec
 Parent reviews 082, refreshes the restore-verified hosted backup, applies only approved migration(s), then verifies hosted ACLs and behavior. This branch does not access/write hosted SQL, merge, watch, deploy or publish. Missing 082 fails closed to `storage_unavailable`; existing public paths remain unchanged.
 
 Before #379 exposure: wire app routes to the named authenticated adapter; add strict registry schemas/permission metadata for the same shared developer operation; align transport body limits (including the sole delete exception); generate and verify REST/OpenAPI/MCP/help/agent docs and smoke coverage together. Complete #363 original-recipient durable reconciliation, bootstrap/renderer/layout/preset gates and #396 Activity/short-Undo/mobile conflict integration. Public registry entries must not advertise this internal RPC as an available capability. Issues stay open until their literal delivery acceptance passes.
+
+
+## Additive creation dispatch (083)
+
+[Atomic named storage creation](atomic-storage-creation.md) adds internal `collection.create` parsing, receipt projection and a denied private executor through the same service-only gateway. The 082 file is unchanged. Its one dispatch branch/allowlist is extended by 083; existing authentication, membership-before-owner-locks, paid developer access and all other executors/ACLs are preserved. Creation has a separate 2 MiB/4,096-slot bound. Actual native creation recovery remains unsupported and explicitly blocks runtime enablement, in addition to #379. No public registry or endpoint is added.
