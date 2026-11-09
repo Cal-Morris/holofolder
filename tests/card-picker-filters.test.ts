@@ -69,3 +69,38 @@ describe("provider-confirmed picker finishes", () => {
     assert.deepEqual(getCardPickerFinishChoices({ normal: true }, "normal", "any", quotes.slice(0, 1)), [])
   })
 })
+
+describe("card picker priced variants", () => {
+  // Synthetic prices, including the screenshot's unpriced Holo regression.
+  const choices = [
+    { finish: "normal" as const, label: "Normal" },
+    { finish: "holo" as const, label: "Holo" },
+    { finish: "reverse_holo" as const, label: "Reverse" },
+  ]
+
+  test("suggests the highest priced available finish rather than an unpriced holo", async () => {
+    const { getCardPickerSuggestedFinish } = await import("../lib/card-picker-filters")
+    const result = getCardPickerSuggestedFinish(choices, (finish) => ({ normal: 3.54, holo: null, reverse_holo: 54.72 })[finish])
+    assert.equal(result, "reverse_holo")
+    assert.equal(getCardPickerSuggestedFinish(choices, (finish) => finish === "normal" ? 60 : 12), "normal")
+  })
+
+  test("ignores unusable amounts", async () => {
+    const { getCardPickerSuggestedFinish } = await import("../lib/card-picker-filters")
+    for (const missing of [null, undefined, 0, -1, NaN, Infinity]) {
+      assert.equal(getCardPickerSuggestedFinish(choices, (finish) => finish === "normal" ? missing : finish === "holo" ? 12 : 6), "holo")
+    }
+  })
+
+  test("keeps catalog choices without a suggestion when all prices are missing", async () => {
+    const { getCardPickerSuggestedFinish } = await import("../lib/card-picker-filters")
+    const result = getCardPickerSuggestedFinish(choices, () => null)
+    assert.equal(result, null)
+  })
+
+  test("only considers offered finishes and breaks price ties in catalog order", async () => {
+    const { getCardPickerSuggestedFinish } = await import("../lib/card-picker-filters")
+    assert.equal(getCardPickerSuggestedFinish(choices.slice(1), () => 4), "holo")
+    assert.equal(getCardPickerSuggestedFinish([], () => 100), null)
+  })
+})

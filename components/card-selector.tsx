@@ -24,6 +24,7 @@ import {
 import {
   getActiveFilterChips,
   getCardPickerFinishChoices,
+  getCardPickerSuggestedFinish,
   getRecordedFinish,
   getVariantFilter,
   type CardPickerFilterKey,
@@ -258,6 +259,11 @@ export default function CardSelector({
     })
   }, [finishFor, onClose, onSelect, selectedCardLanguage, selectionMode])
   const [pendingCard, setPendingCard] = useState<TCGCard | null>(null)
+  const pendingSnapshot = pendingCard ? pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)] : undefined
+  const pendingFinishPrices = getRegionalFinishPrices(pendingSnapshot, pricingRegion)
+  const pendingChoices = pendingCard
+    ? getCardPickerFinishChoices(pendingCard.variants, inferCardFinish(pendingCard), variantChoice, pendingSnapshot?.finishPrices)
+    : []
   /** Tapping a card picks it; a printing that comes in several finishes asks which one first. */
   const pickCard = useCallback((card: TCGCard) => {
     if (getCardPickerFinishChoices(card.variants, inferCardFinish(card), variantChoice, pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)]?.finishPrices).length > 0) {
@@ -921,15 +927,14 @@ export default function CardSelector({
               cardName={pendingCard.name}
               setName={pendingCard.set.name}
               actionLabel={isWishlistMode ? "Want" : "Add"}
-              choices={getCardPickerFinishChoices(pendingCard.variants, inferCardFinish(pendingCard), variantChoice, pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)]?.finishPrices).map((choice) => {
-                const snapshot = pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)]
-                const finishPrice = getRegionalFinishPrices(snapshot, pricingRegion)[choice.finish]
-                return { ...choice, price: finishPrice ? formatAmount(finishPrice.marketGbpAmount ?? finishPrice.gbpAmount, snapshot) : null }
+              choices={pendingChoices.map((choice) => {
+                const finishPrice = pendingFinishPrices[choice.finish]
+                return { ...choice, price: finishPrice ? formatAmount(finishPrice.marketGbpAmount ?? finishPrice.gbpAmount, pendingSnapshot) : null }
               })}
-              suggested={(() => {
-                const inferred = inferCardFinish(pendingCard)
-                return inferred === "normal" || inferred === "holo" || inferred === "reverse_holo" ? inferred : null
-              })()}
+              suggested={getCardPickerSuggestedFinish(pendingChoices, (finish) => {
+                const price = pendingFinishPrices[finish]
+                return price?.marketGbpAmount ?? price?.gbpAmount
+              })}
               onChoose={(finish) => {
                 const card = pendingCard
                 setPendingCard(null)
