@@ -30,7 +30,7 @@ export default function SlotDetail({ slot, onClose, picker, layout, onDoneLayout
       <div className="space-y-3 overflow-y-auto overscroll-contain p-4 text-sm">
         {slot.card?.image && <div className="relative mx-auto h-40 w-28"><CardImage key={`${slot.id}:${slot.card.image}`} src={slot.card.image} alt={slot.card.name} fill sizes="112px" className="object-contain" /></div>}
         {layout && <LayoutActions boundary={layout} onCancel={onClose} />}
-        {picker && <SlotPicker key={picker.snapshot.inventoryRevision} boundary={picker} />}
+        {picker && <SlotPicker boundary={picker} />}
         <p>{slot.item ? "Owned copy" : slot.target ? "Unfilled target, no owned copy assigned" : "Empty spacer, no target or owned copy"}</p>
         {slot.item?.identity.kind === "card" && <p className="break-words [overflow-wrap:anywhere]">Printing: {slot.item.identity.cardId}<br />{slot.item.identity.language ?? "Unknown language"} · {slot.item.identity.finish?.replaceAll("_", " ") ?? "Unknown finish"}</p>}
         {slot.item && <p>Copy: {slot.item.id}</p>}

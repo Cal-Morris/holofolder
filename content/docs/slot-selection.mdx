@@ -16,3 +16,6 @@ The staged layout editor starts in Browse. Choose **Edit layout**, select a slot
 This is synthetic UI preparation only. Undo, slot deletion, confirmation, drag/bulk editing and durable offline layout changes remain unfinished. No saved-change, recovery or partner-sync guarantee is made.
 
 Authenticated commands, durable queues, conflict recovery, public API parity and enabled production verification remain required before this feature is released. No-destination search-to-target-or-append is a separate part of the same unfinished feature.
+
+
+An isolated internal durable-session harness now joins picker/layout intents to the existing device queue. It reports **Saved on device / Pending sync** only after IndexedDB commit; failed saves retain the same draft for retry. A later refresh error does not turn committed work into an unsaved edit. Replay requires a matching operation and a new verified complete owner read before acknowledgement. These synthetic checks do not enable this flow in your live binder. Production conversion/bootstrap, authenticated commands/recovery, guest recipient acceptance and supported APIs remain release gates.

@@ -14,11 +14,15 @@ import type { SelectedWant } from "@/lib/domain/inventory-commands"
 import { pickerCandidate, pickerChoices, pickerFinishes, prepareSlotPickerIntent, type SlotPickerAction, type SlotPickerIntent, type SlotPickerScope } from "@/lib/slot-picker"
 import { getPokemonSummary, POKEMON_CATALOG } from "@/lib/pokemon-catalog"
 
+import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
+import type { SlotCommandSink } from "@/lib/binder-slot-editing"
+
 export interface SlotPickerBoundary {
   snapshot: InventorySnapshot
   scope: SlotPickerScope
   catalog: InventoryCatalogResolver
-  onCommandIntent: (draft: SlotPickerIntent) => void
+  onCommandIntent: SlotCommandSink
+  localDurable?: boolean
 }
 const button = "min-h-10 rounded-xl border border-border px-3 py-2 text-left text-sm active:scale-[0.98] disabled:opacity-50"
 
@@ -32,22 +36,20 @@ export default function SlotPicker({ boundary }: { boundary: SlotPickerBoundary 
   const [finish, setFinish] = useState<CardFinish | undefined>()
   const [want, setWant] = useState<SelectedWant>(null)
   const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState<SlotPickerIntent | null>(null)
   const [language, setLanguage] = useState<CardLanguage>("en")
   const offlineCards = useCallback(() => buildOfflineCardIndex([]), [])
   const search = useCardSearch(query, mode !== "actions" && !card, offlineCards, { language, includeNonPokemon: true })
   const { pricesByCardId, isLoading: loadingPrices } = useCardPrices((card ? [card] : search.cards).filter(c => isCardLanguage(c.language)).map(c => ({ cardId: c.id, language: c.language! })), mode !== "actions")
   const quotesFor = (c: SearchCardResult) => isCardLanguage(c.language) ? pricesByCardId[getCardPriceKey(c.id, c.language)]?.finishPrices : undefined
   const resolve: InventoryCatalogResolver = id => card && matchesCatalogCardId(card, id) ? pickerCandidate(card) : catalog(id)
-  const reset = () => { setMode("actions"); setCard(null); setQuery(""); setWant(null); setError(null); setPending(null) }
+  const reset = () => { setMode("actions"); setCard(null); setQuery(""); setWant(null); setError(null) }
+  const { pending, busy, message, handoff } = useSlotDraftAcceptance<SlotPickerIntent>(onCommandIntent, reset)
   const emit = (action: SlotPickerAction, resolver = resolve) => {
+    if (pending || busy) return
     try {
       const prepared = prepareSlotPickerIntent(snapshot, scope, action, { source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() }, resolver)
       const draft = { scope: prepared.scope, intent: prepared.intent }
-      setPending(draft)
-      onCommandIntent(draft)
-      setPending(null)
-      reset()
+      handoff(draft)
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : "unavailable"
       setError(reason === "occupied-target" ? "This target does not match the owned copy. Cancel to keep everything, or clear contents first to leave the copy Unassigned."
@@ -81,9 +83,12 @@ export default function SlotPicker({ boundary }: { boundary: SlotPickerBoundary 
     return match && current && (match.canonicalId ?? match.id) === (current.canonicalId ?? current.id)
   }) : []
   return <div className="space-y-3" data-slot-picker>
-    <p className="text-xs text-muted-foreground">Internal draft only. Changes are not saved or synced.</p>
+    <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Changes are saved on this device only after acceptance. Sync is separate." : "Internal draft only. Changes are not saved or synced."}</p>
     {error && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
-    {pending && <button className={button} onClick={() => { try { onCommandIntent(pending); reset() } catch { setError("Draft is still pending. Nothing is confirmed.") } }}>Retry draft</button>}
+    {message && <p role={pending ? "alert" : "status"} className="break-words text-sm">{message}</p>}
+    {busy && <p role="status">Saving on device…</p>}
+    {pending && <button className={button} disabled={busy} onClick={() => handoff(pending)}>Retry draft</button>}
+    <fieldset disabled={pending !== null || busy} className="min-w-0 space-y-3">
     {mode === "actions" ? <div className="grid gap-2">
       {!slot.inventoryItemId && <button className={button} onClick={() => setMode("assign")}>Choose card</button>}
       <button className={button} onClick={() => setMode("target")}>{slot.target ? "Change target" : "Set target"}</button>
@@ -113,5 +118,6 @@ export default function SlotPicker({ boundary }: { boundary: SlotPickerBoundary 
         {placed.length > 0 && <p className="text-xs text-muted-foreground">Already placed in {placed.map(p => snapshot.collections.find(c => c.id === p.collectionId)?.name ?? "another collection").join(", ")}. These copies stay where they are.</p>}
       </div>}
     </>}
+    </fieldset>
   </div>
 }
