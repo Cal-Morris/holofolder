@@ -62,6 +62,7 @@ export class CollectionWriteError extends Error {
 }
 
 export interface RemoteWriteOptions {
+  onCommittedEvent?: (eventId:string)=>void
   importOnly?: true
   acquisition?: AcquisitionIntent
   /** Fingerprint of the row this edit was based on; the server rejects the write with 409 if it changed. */
@@ -113,6 +114,8 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
   }
 
   const payload = await readJsonResponse(response)
+  const eventId=response.headers.get('X-Activity-Event')
+  if(eventId)options.onCommittedEvent?.(eventId)
   return normalizeCollectionItem(payload?.item ?? item)
 }
 
@@ -127,4 +130,6 @@ export async function deleteRemoteCollectionItem(pokemonId: number, options: Rem
   if (!response.ok) {
     throw await toWriteError(response, "Failed to delete collection item")
   }
+  const eventId=response.headers.get('X-Activity-Event')
+  if(eventId)options.onCommittedEvent?.(eventId)
 }

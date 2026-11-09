@@ -1,5 +1,8 @@
 # Collection Activity UI (#395)
 
+Current delivery: [Activity and card/want-list Undo](../content/docs/collection-history.mdx) replaces the original presentation below. Migration 087 enables checked legacy-row recovery through app, REST and MCP; native/structural recovery remains gated under #396/#379. The remaining notes record the initial read-only release and its evidence.
+
+
 Related: #395, foundation #394 / #407, recovery #396. This PR is read-only and UI-only apart from an internal session adapter and additive filters on the existing audit read operation. No schema changes, hosted writes, conversion, structural executor grants, recovery command or new export/registry/feed.
 
 ## Internal first-party adapter

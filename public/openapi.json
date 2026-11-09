@@ -2893,6 +2893,15 @@
             }
           },
           {
+            "name": "recoveryOfEventId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9]\\d{0,18}$"
+            }
+          },
+          {
             "name": "since",
             "in": "query",
             "required": false,
@@ -2954,7 +2963,7 @@
       "get": {
         "operationId": "get_collection_audit",
         "summary": "Get collection audit",
-        "description": "Read one private committed audit event, including safe before/after deltas retained after entity deletion. Recovery execution is not available.\n\nRequired permissions: `collection:read`. MCP tool: `get_collection_audit`.",
+        "description": "Read one private committed audit event, including safe retained deltas and the original event ID for an undo.\n\nRequired permissions: `collection:read`. MCP tool: `get_collection_audit`.",
         "tags": [
           "Collection"
         ],
@@ -2974,6 +2983,194 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/collection/recovery/preview": {
+      "post": {
+        "operationId": "preview_collection_recovery",
+        "summary": "Preview collection recovery",
+        "description": "Preview a safe undo of complete recorded card and want-list row edits without changing collection data. Collection deletion, settings, native storage and incomplete older events remain unsupported. Returns supported, conflicts, safe changes and a reviewed planToken. Older incomplete events and unsupported dependencies have no token. Requires current access and all listed scopes.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `preview_collection_recovery`.",
+        "tags": [
+          "Collection"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "eventId": {
+                    "type": "string",
+                    "pattern": "^[1-9]\\d{0,18}$"
+                  },
+                  "restoreUnassignedItemIds": {
+                    "default": [],
+                    "maxItems": 16384,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  }
+                },
+                "required": [
+                  "eventId",
+                  "restoreUnassignedItemIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/collection/recovery/apply": {
+      "post": {
+        "operationId": "apply_collection_recovery",
+        "summary": "Apply collection recovery",
+        "description": "Undo the exact reviewed card or want-list event atomically with a linked new audit event. Structural/native storage recovery remains gated. Requires confirmed:true, planVersion:1, planToken and a retry-stable operationId. Newer edits, lost access and current limits can block undo. Retry the exact request after an unknown outcome; never generate a new operationId.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_collection_recovery`.",
+        "tags": [
+          "Collection"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "eventId": {
+                    "type": "string",
+                    "pattern": "^[1-9]\\d{0,18}$"
+                  },
+                  "restoreUnassignedItemIds": {
+                    "default": [],
+                    "maxItems": 16384,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "operationId": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 100,
+                    "pattern": "^[a-zA-Z0-9_:/.-]+$"
+                  },
+                  "planVersion": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "planToken": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "confirmed": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                },
+                "required": [
+                  "eventId",
+                  "restoreUnassignedItemIds",
+                  "operationId",
+                  "planVersion",
+                  "planToken",
+                  "confirmed"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success"

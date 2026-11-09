@@ -85,7 +85,7 @@ import {
 import { isOwnedCollectionItem, planOwnedRemoval, type OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { resolveWantedCardsAfterOwnedAdd } from "@/lib/collection/owned-add"
 import { editWantedCards } from "@/lib/collection/wanted-card-edit"
-import { scopeCollectionQuery, syncCollectionRows } from "@/lib/collection/load"
+import { loadCollectionRows, scopeCollectionQuery, syncCollectionRows } from "@/lib/collection/load"
 import { collectionBaselineRows, createCollectionBaseline, type CollectionSyncBaseline } from "@/lib/collection/delta-sync"
 
 /** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
@@ -156,6 +156,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const collectionRef = useRef(collection)
   useLayoutEffect(() => { collectionRef.current = collection }, [collection])
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
+  const recoveryIdentity=JSON.stringify([user?.id??null,collectionOwnerUserId,binderId])
+  const recoveryIdentityRef=useRef<string|null>(recoveryIdentity)
+  useLayoutEffect(()=>{recoveryIdentityRef.current=recoveryIdentity;return()=>{recoveryIdentityRef.current=null}},[recoveryIdentity])
   const [ownerResolvedForUserId, setOwnerResolvedForUserId] = useState<string | null>(initialCollectionOwnerUserId ? initialUser?.id ?? null : null)
   const authenticatedUserId = useRef(initialUser?.id ?? null)
   // Server rows last read, so refreshes can fetch only what changed (lib/collection/delta-sync.ts).
@@ -815,18 +818,20 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     const baseFingerprint = collectionFingerprint(existingItem)
+    let activityEventId:string|undefined
+    const onCommittedEvent=(id:string)=>{activityEventId=id}
     try {
       if (nextItem) {
-        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId, acquisition, ...(importOnly ? { importOnly: true } : {}) }))
+        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId, acquisition, onCommittedEvent, ...(importOnly ? { importOnly: true } : {}) }))
         settleLocalItem(pokemonId, savedItem)
         void broadcastCollectionChanged()
         window.dispatchEvent(new Event("holofolder-refresh-billing"))
-        return { item: savedItem, queued: false as const }
+        return { item: savedItem, queued: false as const, activityEventId }
       }
-      await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId, { baseFingerprint, binderId }))
+      await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId, { baseFingerprint, binderId, onCommittedEvent }))
       void broadcastCollectionChanged()
       window.dispatchEvent(new Event("holofolder-refresh-billing"))
-      return { item: null, queued: false as const }
+      return { item: null, queued: false as const, activityEventId }
     } catch (error) {
       if (classifyWriteFailure(error) === "hard") {
         rollBackEdit({ pokemonId, item: nextItem ?? undefined, base: existingItem, ...binderField }, error)
@@ -848,7 +853,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     cardLanguage: CardLanguage = "en",
     status: SlotStatus = 'collected',
     options: SaveCollectionOptions = {},
-  ): Promise<{ data?: CollectedPokemon; queued?: boolean; error?: string }> => {
+  ): Promise<{ data?: CollectedPokemon; queued?: boolean; error?: string; activityEventId?:string }> => {
     if (readOnly) return { error: "Read-only binder" }
 
     const existingItem = collection.find((item) => item.pokemon_id === pokemonId)
@@ -885,7 +890,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (result.queued) {
       return { data: nextItem, queued: true, ...("error" in result ? { error: extractErrorMessage(result.error) } : {}) }
     }
-    return { data: result.item ?? nextItem }
+    return { data: result.item ?? nextItem, activityEventId: result.activityEventId }
   }, [commitItemChange, collection, collectionOwnerUserId, readOnly, user])
 
   const removeFromCollection = useCallback(async (pokemonId: number, expected?: CollectedPokemon | null) => {
@@ -896,7 +901,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[holofolder] Error removing from collection:", result.error)
       return { error: result.error }
     }
-    return result.queued ? { success: true, queued: true, ...("error" in result ? { error: result.error } : {}) } : { success: true }
+    return result.queued ? { success: true, queued: true, ...("error" in result ? { error: result.error } : {}) } : { success: true, activityEventId: result.activityEventId }
   }, [commitItemChange, readOnly])
 
   /**
@@ -914,7 +919,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       console.error("[holofolder] Error removing owned card:", result.error)
       return { error: extractErrorMessage(result.error) }
     }
-    return { previous, data: next, queued: result.queued }
+    return { previous, data: next, queued: result.queued, activityEventId: "activityEventId" in result ? result.activityEventId : undefined }
   }, [collection, commitItemChange, readOnly])
 
   /** Write a previously saved row back exactly as it was (used by undo). */
@@ -1120,7 +1125,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (result.queued) {
       return { data: nextItem, queued: true, ...("error" in result ? { error: result.error } : {}) }
     }
-    return { data: result.item ?? nextItem }
+    return { data: result.item ?? nextItem, activityEventId: result.activityEventId }
   }, [collection, commitItemChange, readOnly])
 
   const cycleStatus = useCallback(async (pokemonId: number) => {
@@ -1160,7 +1165,27 @@ export function useCollection(options: UseCollectionOptions = {}) {
     setCollection([])
   }, [readOnly])
 
+  const refreshAfterRecovery = async () => {
+      const accountId = user?.id
+      const ownerId = collectionOwnerUserId
+      if (!accountId || !ownerId || readOnly || readPendingCollectionOperations().length) throw new Error('Sync your pending changes first.')
+      const { data: rows, error } = await loadCollectionRows(supabase, ownerId, binderId)
+      if (error) throw new Error('Could not refresh your collection. Retry to verify Undo.')
+      if (authenticatedUserId.current !== accountId || recoveryIdentityRef.current!==recoveryIdentity) throw new Error('Your collection changed. Reopen Activity.')
+      collectionBaselineRef.current = createCollectionBaseline(ownerId, rows, binderId)
+      setCollection(applyPendingEdits(normalizeCollectionItems(rows), readBinderPendingOperations()))
+      await broadcastCollectionChanged()
+      window.dispatchEvent(new Event('holofolder-refresh-billing'))
+  }
+
   return {
+    refreshAfterRecovery,
+    undoActivityEvent: async (eventId:string) => {
+      const accountId=user?.id,ownerId=collectionOwnerUserId
+      if(!accountId||!ownerId||readPendingCollectionOperations().length) throw new Error('Sync your pending changes before undoing.')
+      const {undoCommittedActivity}=await import('@/lib/undo-committed-activity')
+      await undoCommittedActivity(eventId,accountId,ownerId,()=>authenticatedUserId.current===accountId&&recoveryIdentityRef.current===recoveryIdentity,refreshAfterRecovery)
+    },
     user,
     collection,
     isLoading: false,

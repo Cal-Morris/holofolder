@@ -21,7 +21,7 @@ export function parseActivityPage(value: unknown): ActivityPage | null {
     }
     data.push({ id: row.id, recorded_at: row.recorded_at, format_version: typeof row.format_version === 'number' ? row.format_version : 0,
       actor_kind: text('actor_kind') ?? 'unknown', actor_user_id: text('actor_user_id'), actor_job: text('actor_job'), source: text('source') ?? 'unknown', client_id: text('client_id'),
-      action: text('action') ?? 'legacy', operation_id: text('operation_id'), batch_id: text('batch_id'), client_occurred_at: text('client_occurred_at'),
+      action: text('action') ?? 'legacy', operation_id: text('operation_id'), batch_id: text('batch_id'), client_occurred_at: text('client_occurred_at'), recovery_of_event_id: text('recovery_of_event_id'),
       pokemon_id: typeof row.pokemon_id === 'number' ? row.pokemon_id : null, pokemon_name: text('pokemon_name'),
       before_state: safeState(row.before_state), after_state: safeState(row.after_state), affected_entities: affected,
       changes: Array.isArray(row.changes) ? row.changes.filter(record).map(c => ({table: typeof c.table === 'string' ? c.table : 'unknown', id: typeof c.id === 'string' ? c.id : '', before: safeState(c.before), after: safeState(c.after)})) : [] })
