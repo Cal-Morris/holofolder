@@ -11,6 +11,7 @@ import { browserHostCatalog, browserHostDisplayCatalog } from "@/lib/collection/
 import type { SlotDisplayInput } from "@/lib/binder-display-model"
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import { isSlotContractId } from "@/lib/domain/binder-slots"
+import { sendStorageCommand } from "@/lib/collection/storage-command-browser"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 
 export interface BrowserSurfaceBinding {
@@ -20,8 +21,9 @@ export interface BrowserSurfaceBinding {
   receive: SlotCommandSink
   pending: number
 }
-export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId }: {
+export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, localHarness = false }: {
   initialBinderId: string | null
+  localHarness?: boolean
   renderFallback: () => ReactNode
   scope: InventoryReadScope
   currentScope: () => InventoryReadScope | null
@@ -38,38 +40,44 @@ export default function BrowserCollectionSession({ scope, currentScope, renderSu
   }, [])
   if (!deviceId) return renderFallback()
   return <ScopedBrowserSession key={JSON.stringify([deviceId, scope.actorUserId, scope.ownerUserId, scope.authSessionId, scope.sessionId])}
-    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId }} />
+    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness }} />
 }
-function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId }: {
+function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness }: {
   initialBinderId: string | null
+  localHarness: boolean
   scope: InventoryReadScope; currentScope: () => InventoryReadScope | null; deviceId: string
   renderSurface: (binding: BrowserSurfaceBinding) => ReactNode
 }) {
   const navigationScope = useMemo(() => ({ accountUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, sessionId: scope.sessionId }), [scope])
   const queue = useSlotOfflineQueue({ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }, scope.sessionId)
-  const latest = useRef({ currentScope, queue })
-  useLayoutEffect(() => { latest.current = { currentScope, queue } })
+  const latest = useRef({ currentScope, queue, catalog: browserHostCatalog([]) })
   const [read, setRead] = useState<CollectionNavigationRead>({ scope: navigationScope, evidence: { kind: "unavailable" }, catalog: [], layouts: [] })
   const [notice, setNotice] = useState("")
   const [ready, setReady] = useState(false)
   const [online, setOnline] = useState(true)
-  const alive = useRef(false), sequence = useRef(0)
+  const alive = useRef(false), sequence = useRef(0), refreshing = useRef(0), sending = useRef(false)
+  const transport = useRef<AbortController | null>(null)
+  useLayoutEffect(() => () => { alive.current = false; sequence.current++; transport.current?.abort() }, [])
   const metadataKey = `slot-navigation-v1:${JSON.stringify([deviceId, scope.actorUserId, scope.ownerUserId])}`
   const valid = () => alive.current && sameInventoryReadScope(latest.current.currentScope(), scope)
   const catalog = useMemo(() => browserHostCatalog(read.catalog), [read.catalog])
+  useLayoutEffect(() => { latest.current = { currentScope, queue, catalog } })
   const refresh = async () => {
+    if (sending.current) throw new Error("pending-command-read")
     const request = ++sequence.current
+    refreshing.current++
     try {
-      const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null)
+      const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness)
       if (!valid() || request !== sequence.current || fresh.evidence.kind !== "complete") throw new Error("inventory_read_scope_changed")
       // Persist through the canonical queue, which reapplies every unresolved local intent.
       const resolver = browserHostCatalog(fresh.catalog)
-      await latest.current.queue.saveSnapshot(fresh.evidence.snapshot, resolver)
+      const pending = (await latest.current.queue.queue?.read())?.pending.length
+      if (!pending) await latest.current.queue.saveSnapshot(fresh.evidence.snapshot, resolver)
       if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
       setRead(fresh); setNotice("")
       await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts })
       return fresh
-    } finally { if (valid() && request === sequence.current) setReady(true) }
+    } finally { refreshing.current--; if (valid() && request === sequence.current) setReady(true) }
   }
   useEffect(() => {
     alive.current = true
@@ -95,8 +103,37 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // A session remount owns the entire read/queue lifetime, never a view change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  useEffect(() => {
+    if (!ready) return
+    const controller = new AbortController()
+    transport.current = controller
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const active = () => !controller.signal.aborted && valid()
+    const tick = async () => {
+      try {
+        if (!active() || sending.current || refreshing.current || !navigator.onLine || document.visibilityState === "hidden") return
+        const head = (await latest.current.queue.queue?.read())?.pending[0]
+        if (!active() || !head || ["blocked", "billing", "conflict"].includes(head.status)
+          || head.attempts >= 5 || head.nextAttemptAt > Date.now() || head.lease && head.lease.until > Date.now()) return
+        sending.current = true
+        await latest.current.queue.replay(intent => sendStorageCommand(intent, () => active() ? latest.current.currentScope() : null, controller.signal, localHarness), latest.current.catalog, async () => {
+          const fresh = await readCurrentCollectionNavigation(() => active() ? latest.current.currentScope() : null, localHarness)
+          if (!active() || fresh.evidence.kind !== "complete") throw new Error("inventory_read_scope_changed")
+          setRead(fresh)
+          await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts })
+          if (!active()) throw new Error("inventory_read_scope_changed")
+          return fresh.evidence.snapshot
+        }, active)
+      } catch { if (active()) setNotice("Sync unavailable. Pending edits are retained.") }
+      finally { sending.current = false; if (active()) timer = setTimeout(() => { void tick() }, 1000) }
+    }
+    void tick()
+    return () => { controller.abort(); clearTimeout(timer) }
+    // One sender belongs to this session, independent of view/record refreshes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
   const receive: SlotCommandSink = async draft => {
-    if (!valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
+    if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     return latest.current.queue.enqueue(draft.intent, catalog)
   }
   // An optimistic projection is cached evidence, never a complete remote read or ACK.
@@ -116,7 +153,17 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const display = snapshot && binder && layout ? { inventory: snapshot, binder,
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
         return renderSurface({ surface: { ...surface, header: <>
-          {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync. Remote commands remain unavailable.</p>}
+          {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
+          {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
+            {queue.record.pending[0].status === "conflict" ? "Storage changed or this operation ID was already used. Review is required; the original edit is retained."
+              : queue.record.pending[0].status === "billing" ? "Sync is paused by billing. Your edit is retained; retry after restoring access."
+              : "Sync was rejected. Your edit is retained; check account access before retrying."}
+          </p>}
+          {queue.record?.pending[0] && <button type="button" className="min-h-9 px-4 text-sm underline" onClick={() => {
+            const head = latest.current.queue.record?.pending[0]
+            if (!head || !valid()) return
+            void latest.current.queue.queue?.resume(head.intent.request.operationId).then(() => latest.current.queue.refresh()).catch(() => { if (valid()) setNotice("This edit needs reconciliation, or a send is still in progress. The original command is retained.") })
+          }}>Retry pending sync</button>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
           {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, pending: queue.record?.pending.length ?? 0 })
       }} />

@@ -314,3 +314,5 @@ and focused zero-warning lint passed. Real Chromium with synthetic authenticatio
 proved owner inheritance plus per-binder overrides, catalog-time grid/non-key
 membership conflicts and the unchanged 435 cached/inflight/session/offline/SW
 regressions. No UI matrix, full e2e, hosted access/application or production claim.
+
+The [first-party browser command transport](browser-command-transport.md) now invokes this actual private read handler from the loopback/server-gated HTTP harness after a matching command receipt. The browser starts its own all-stream reconstruction after that reply and the queue checks its start fence, scope/lease and returned commit-revision lower bound before ACK. A cached IDB snapshot or synthetic ledger receipt remains insufficient. Production read routes and admission remain denied; this local synthetic proof does not establish hosted auth/RLS, conversion or installed-PWA relaunch.
