@@ -1,6 +1,6 @@
 # Internal authenticated complete inventory reads
 
-`lib/server/inventory-read.ts` adds `readOwnerInventorySnapshot(client?, options?)` for the #376 read prerequisite of #363 and later #361/#365/#379 bootstrap. It returns the existing branded `CompleteInventorySnapshot`, never a page advertised as a complete owner view. No route, REST/MCP operation, OpenAPI schema, public-share capability, conversion, mutation, SQL or grant is added. All staged routes remain unconditional private/no-store 503, and the fourteen 074/075 SQL prototypes remain runtime-denied. Legacy collection APIs and startup remain authoritative.
+`lib/server/inventory-read.ts` adds `readOwnerInventorySnapshot(client?, options?)` for the #376 read prerequisite of #363 and later #361/#365/#379 bootstrap. It returns the existing branded `CompleteInventorySnapshot`, never a page advertised as a complete owner view. No route, REST/MCP operation, OpenAPI schema, public-share capability, conversion or mutation is added. The narrow authenticated grid-read RPC/grant in 086 is documented below. All staged routes remain unconditional private/no-store 503, and the fourteen 074/075 SQL prototypes remain runtime-denied. Legacy collection APIs and startup remain authoritative.
 
 ## Authentication and private boundary
 
@@ -167,12 +167,56 @@ catalog work too. A changed setting/layout/revision retries the entire read unde
 the existing attempts/deadline/request budget, then returns conflict. Missing or
 invalid dimensions omit that layout, so location pages remain unknown.
 
-**Current partner limitation:** 033's `user_settings` SELECT policy is owner-only.
-An empty partner query is not proof that the owner has no settings. Fully explicit
-per-binder dimensions are usable; inherited dimensions stay unknown when RLS hides
-the owner's settings. The partner's own settings are never substituted. There is
-no new admin client, policy, grant or privilege bypass. An approved owner-settings
-read boundary is still required for those partner page links before enablement.
+### Narrow partner grid boundary (086)
+
+`public.inventory_grid_read_v1()` is a no-argument, STABLE security-definer RPC,
+explicitly executable only by `authenticated`. It derives actor from `auth.uid()`
+and verifies the active authenticated role, matching first-party JWT subject, live
+`auth.sessions` row, expiry and non-OAuth session. It resolves zero or one current
+partnership and checks the existing `billing_partner_allowed` app policy. Ambiguous
+or malformed membership, revoked/expired/unlinked former-owner access, MCP OAuth,
+API keys and unsupported roles cannot authorize another owner's grid. An unlinked
+actor can only read their newly resolved own grid, which conflicts with the old
+owner scope in the reader. No caller-supplied owner or actor is accepted.
+
+The exact internal JSON result is `{owner_user_id, partnership, settings}`.
+`partnership` is null or `{id, owner_user_id, user1_id, user2_id}` for membership
+comparison; `settings` is null **only when the resolved owner row is absent**, or
+`{binder_rows, binder_cols, updated_at}` from that actual row. No other settings,
+credentials, account metadata or private helpers are exposed. Existing table RLS,
+table/column ACLs and prototype/executor privileges are unchanged. This read
+performs no mutation, lock-based execution, ledger write or audit event.
+
+The existing metadata reader invokes this RPC through its cookie/RLS client. It
+compares resolved owner and every membership field with the initial scope, validates
+the result shape, and fences current grid values/existence/timestamp before and
+after catalog work under the same read deadline, request budget and whole-snapshot
+retry limit. Invalid dimensions stay unknown; partial/malformed RPC envelopes fail
+closed. Each binder override still wins independently. Proven row absence permits
+only `settingsFromRow`'s canonical current defaults (4×4), never guessed 3×3 or the
+partner's own preferences. The actual JSON/browser/navigation adapter now resolves
+stable-ID pages for inherited partner grids without any host or route enablement.
+
+If 086 is not installed (`PGRST202`, or `42883` naming this exact missing RPC), the reader retains 439's safe table-read
+behavior: owners can prove absence, partners cannot; fully explicit binder grids
+remain usable. Auth/permission/query failures never trigger that compatibility path.
+The RPC comparison evidence stays server-side; private wire v2, nonce/JWT/device
+lifecycle and pre-network read-start identity are unchanged. Public slot/inventory
+routes remain unconditional 503 until #379. This app-only RPC is not a supported
+REST/MCP registry operation; those credentials still require #376's dedicated grants
+and projections. No OpenAPI regeneration is needed.
+
+086 is reserved for this lane; 085 belongs to default recovery. Parent owns fresh
+backup, exact-head review, serialized **085 then 086** hosted application, release
+and production verification. No hosted access/application or publication was done
+in this implementation lane. The private socket proof uses port 55587 in a new
+local cluster, replays all available earlier numbered migrations and applies 086
+twice, checks owner/partner/stranger/anon and membership/session/billing changes,
+compares existing definitions/ACLs/RLS/data, and verifies denied private executors.
+The synthetic-auth browser proof covers inherited pages, per-binder overrides,
+concurrent grid/membership rejection and 435 cached/inflight/offline/SW regressions.
+085 was not yet published into this dependency base, so combined 085→086 replay
+remains the parent's serialized integration proof. No full e2e or hosted proof.
 
 Catalog evidence reads only public `tcg_cards`, `tcg_sets` and `tcg_card_dex_ids`
 through the same RLS client, using actual item/target/wanted printing IDs and
@@ -259,3 +303,14 @@ and the real service-worker privacy proof. This is local synthetic read evidence
 not hosted RLS/load or production enablement proof.
 
 Parent catalog regression: fallback alias/canonical probes page every matching row using stable ID keysets within the existing budget, before language-specific resolution. A later matching printing cannot be hidden by a two-row probe; missing/rejected later pages fail instead of publishing partial catalog evidence. Both 501-row alias/canonical regressions failed on the original source and pass after the fix. Parent verification:54 focused tests, actual Chromium/IDB/SW proof, typecheck, lint at55 existing warnings and production build. No hosted authentication or enabled runtime proof.
+
+
+Partner-grid 086 checks: 74 focused tests across eight files passed, including the
+opted-in private SQL proof with 82 prior numbered files replayed and 086 applied
+twice. Full unit run: 1,449 passing entries across 272 files (socket-only tests
+require their opt-in environment; the 086 database proof was run separately).
+Typecheck, production build/docs CSS, full lint at the unchanged 55-warning cap
+and focused zero-warning lint passed. Real Chromium with synthetic authentication
+proved owner inheritance plus per-binder overrides, catalog-time grid/non-key
+membership conflicts and the unchanged 435 cached/inflight/session/offline/SW
+regressions. No UI matrix, full e2e, hosted access/application or production claim.
