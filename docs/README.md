@@ -12,6 +12,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Agent-readable API docs](public-api/agent-docs.md): generated Markdown, `llms.txt`, full-text exports and OpenAPI discovery.
 - [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, auth, PWA scope and legacy URLs.
 - [Staged atomic slot operations](atomic-slot-operations.md): disabled structural commands, revisioned pages, billing/legacy compatibility and audit/offline/API/recovery gates.
+- [Staged safe collection recovery](safe-collection-recovery.md): private reviewed inverse/apply, linked immutable history, local proof and remaining Activity/API/legacy rollout gates (#396).
 - [Editable binder contracts](binder-slot-contracts.md): internal slot/snapshot, target/matching, copied preset and pure layout contracts, with explicit adapter and rollout boundaries.
 - [Collection Activity](collection-activity-ui.md): first-party session adapter, read-only history, private device cache and parent release handoff.
 - [Multiple binders](multiple-binders.md), [binder history](binder-history.md), [collection import](collection-import.md).
