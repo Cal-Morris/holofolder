@@ -25,6 +25,12 @@ async function main() {
     browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) })
     for (const scenario of ["cached", "inflight", "swap", "offline"]) {
       const f = fixture(1031)
+      f.tables.storage_collection_state[0].kind = "custom"
+      f.tables.storage_collection_state[0].default_presentation = "list"
+      f.tables.storage_collection_state[0].location = "Synthetic private shelf"
+      f.tables.inventory_items[0].legacy_source = { original: "Synthetic immutable source" }
+      f.tables.binders[0].binder_rows = 2
+      f.tables.binders[0].binder_cols = 4
       const context = await browser.newContext({ serviceWorkers: "block" })
       let hold = false, release: (() => void) | undefined, started: (() => void) | undefined
       let cached: { body: string; headers: Record<string, string>; status: number } | undefined
@@ -43,6 +49,23 @@ async function main() {
       await page.goto("https://synthetic-inventory.test/app")
       await page.addScriptTag({ content: bundle })
       assert.deepEqual(await page.evaluate(() => window.inventoryReadProof.seed()), { count: 1031, branded: true, jsonBranded: false })
+      const navigation = await page.evaluate(() => window.inventoryReadProof.navigation())
+      assert.equal(navigation.indexKind, "complete")
+      assert.equal(navigation.privateLocation, "Synthetic private shelf")
+      assert.deepEqual(navigation.source, { original: "Synthetic immutable source" })
+      assert.equal(navigation.location.kind, "assigned")
+      if (navigation.location.kind === "assigned") {
+        assert.equal(navigation.location.page, 129)
+        assert.equal(navigation.location.intent.slotId, "synthetic-01030")
+      }
+      const partner = "33333333-3333-4333-8333-333333333333"
+      f.setActor(partner)
+      f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
+      await page.evaluate(() => window.inventoryReadProof.partner())
+      const partnerNavigation = await page.evaluate(() => window.inventoryReadProof.navigation())
+      assert.equal(partnerNavigation.scope.accountUserId, partner)
+      assert.equal(partnerNavigation.scope.ownerUserId, owner)
+      assert.equal(partnerNavigation.indexKind, "complete")
       await page.evaluate(() => window.inventoryReadProof.enqueue())
       // Synthetic backend commit represented by actual table rows/revisions, not a complete JSON cast.
       f.tables.inventory_owner_state[0].inventory_revision = 8

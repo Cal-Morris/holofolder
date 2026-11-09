@@ -72,7 +72,7 @@ test("interrupted pages, uninitialized/legacy states, auth-session change and de
 test("malformed payload/count/version/owner/session/nonce and cacheable responses fail closed", async () => {
   const base = await (await handleInventoryCompleteRead(request(), fixture(2).client)).json()
   const mutations = [
-    (b: typeof base) => { b.version = 2 },
+    (b: typeof base) => { b.version = 3 },
     (b: typeof base) => { b.snapshot.items.pop() },
     (b: typeof base) => { b.evidence.items++ },
     (b: typeof base) => { b.evidence.inventoryRevision++ },
@@ -210,13 +210,15 @@ test("missing authenticated session identity rejects before any owner data read"
   assert.equal(f.requests.length, 0)
 })
 
-test("private JSON retains recorded canonical metadata without inventing 083 location/export fields", async () => {
+test("private JSON retains recorded canonical metadata including 083 location and immutable source", async () => {
   const f = fixture(2)
   const grade = { provider: { kind: "custom", name: "Synthetic grading" }, grade: "recorded", scale: null, designation: null,
     subgrades: [], certificate: "synthetic-private-certificate", holder: "synthetic holder", label: { variant: null, assetIds: ["synthetic-private-asset"] } }
   f.tables.inventory_items[1].grading = grade
   f.tables.inventory_items[1].acquired_at = "2026-01-01T00:00:00Z"
   f.tables.inventory_items[1].legacy_source = "synthetic-source-not-selected"
+  f.tables.storage_collection_state[0].kind = "custom"
+  f.tables.storage_collection_state[0].default_presentation = "list"
   f.tables.storage_collection_state[0].location = "synthetic private shelf"
   await withFetch(async set => {
     set(async input => handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), f.client))
@@ -225,7 +227,7 @@ test("private JSON retains recorded canonical metadata without inventing 083 loc
     if (result.status !== "complete") return
     assert.deepEqual(result.snapshot.items[1].grading, grade)
     assert.equal(result.snapshot.items[1].acquiredAt, "2026-01-01T00:00:00Z")
-    assert.equal("location" in result.snapshot.collections[0], false)
-    assert.ok(!JSON.stringify(result).includes("synthetic-source-not-selected"))
+    assert.equal(result.snapshot.collections[0].location, "synthetic private shelf")
+    assert.equal(result.snapshot.items[1].legacySource, "synthetic-source-not-selected")
   })
 })

@@ -1,13 +1,13 @@
 import { appPath } from "@/lib/app-path"
 import { readCompleteInventorySnapshot, type CompleteInventorySnapshot, type InventorySnapshotReaders } from "@/lib/collection/slot-snapshot"
-import { isInventoryReadScope, parseInventoryReadEnvelope, sameInventoryReadScope, type InventoryReadEnvelope, type InventoryReadScope } from "@/lib/collection/inventory-read-transport"
+import { isInventoryReadScope, parseInventoryReadEnvelope, sameInventoryReadScope, type InventoryNavigationEvidence, type InventoryReadEnvelope, type InventoryReadScope } from "@/lib/collection/inventory-read-transport"
 
 const errorCodes = new Set(["inventory_sign_in_required", "inventory_read_forbidden", "inventory_read_unavailable",
   "inventory_not_initialized", "legacy_inventory_incomplete", "inventory_read_conflict", "inventory_read_deadline",
   "inventory_operations_staged", "inventory_read_scope_changed", "inventory_read_invalid_response"])
 
 export type BrowserInventoryReadResult =
-  | { status: "complete"; scope: InventoryReadScope; snapshot: CompleteInventorySnapshot }
+  | { status: "complete"; scope: InventoryReadScope; snapshot: CompleteInventorySnapshot; navigation: InventoryNavigationEvidence }
   | { status: "conflict" | "unavailable"; code: string }
 
 /** Call with the auth host's LIVE scope getter, never IDs from saved UI state.
@@ -55,7 +55,7 @@ export async function fetchCurrentInventorySnapshot(currentScope: () => Inventor
     resolve(body)
     const snapshot = await complete
     assertCurrent()
-    return { status: "complete", scope, snapshot }
+    return { status: "complete", scope, snapshot, navigation: body.navigation }
   } catch (error) {
     reject(error)
     await complete.catch(() => {})
