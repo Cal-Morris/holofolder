@@ -17,6 +17,10 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Google Analytics](google-analytics.md), [collector funnel](collector-funnel.md): separate telemetry systems and their privacy/configuration boundaries.
 - [Database migrations](../scripts/MIGRATIONS.md): historical schema, fresh-project prerequisites and execution requirements.
 
+## Feature delivery
+
+Every feature includes its API/docs under [feature-api-docs](../.agents/skills/feature-api-docs/SKILL.md). After merging and verifying a user-facing feature block on main, complete [CMS release posts and changelog](../.agents/skills/release-posts-and-changelog/SKILL.md) and [Framer feature-page updates/publication](../.agents/skills/framer-feature-updates/SKILL.md). [Release-and-deploy](../.agents/skills/release-and-deploy/SKILL.md) connects the workflows and records pending channels honestly.
+
 ## Publication and attribution
 
 - [Open-source readiness](open-source-readiness.md): audited scope, decisions, history scrub and remaining publication gates.
