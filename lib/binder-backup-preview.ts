@@ -48,7 +48,10 @@ export function previewBinderBackupImport(input: {
   const precondition = backupContentKey(current)
   const unresolved: string[] = []
   const decisions = structuredClone(input.decisions ?? [])
-  const proposed = hydrateBackupSnapshot(backup, current.ownerUserId, input.partnerUserId)
+  // Additional copies discard source arrangements and wants, so no partner remapping applies.
+  const proposed: InventorySnapshot = input.mode === "additional-copies"
+    ? { ownerUserId: current.ownerUserId, inventoryRevision: current.inventoryRevision, items: [], placements: [], collections: [], binders: [] }
+    : hydrateBackupSnapshot(backup, current.ownerUserId, input.partnerUserId)
   proposed.inventoryRevision = current.inventoryRevision
   let addedCopies = 0
   let addedWants = 0

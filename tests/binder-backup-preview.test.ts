@@ -72,3 +72,20 @@ test("full restore and over-bound additions have no executable partial command",
   assert.equal(p.execution.kind, "blocked")
   assert.ok(!("request" in p.execution))
 })
+
+test("additional copies ignore discarded partner wants while arrangement still requires resolution", () => {
+  const o = options()
+  const backup = JSON.parse(o.text)
+  backup.binders[0].slots[3].wantedCards[0].wantedRoles = ["partner"]
+  const text = JSON.stringify(backup)
+  const added = previewBinderBackupImport({ ...o, text })
+  assert.equal(added.execution.kind, "inventory-command")
+  assert.equal(added.addedCopies, backup.items.length)
+  assert.equal(added.addedWants, 0)
+  assert.deepEqual(added.proposed.binders, [])
+  assert.deepEqual(added.proposed.placements, [])
+  assert.deepEqual(added.proposed.collections, [])
+  assert.deepEqual(added.backup.binders[0].slots[3].wantedCards[0].wantedRoles, ["partner"])
+  assert.throws(() => previewBinderBackupImport({ ...o, text, mode: "arrangement", destinationCollectionId: o.current.collections[0].id }), /partner wanted assignment/)
+  assert.throws(() => previewBinderBackupImport({ ...o, text, mode: "restore-current-owner", decisions: [], trustedSource: o.current }), /partner wanted assignment/)
+})
