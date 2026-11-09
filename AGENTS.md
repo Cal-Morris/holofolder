@@ -190,10 +190,21 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 - Pages don't `await` the session or cookies at the top level: pass a promise to a client component and `use()` it inside `<Suspense>`, so the page stays in the static shell. Read the user with `getSessionUser`/`getClaims` (local JWT check), not `getUser()`, except in write routes. See [`nextjs-conventions`](.agents/skills/nextjs-conventions/SKILL.md).
 - Modals and rarely used views load with `next/dynamic`. An SSR-kept dynamic view needs a `loading` option so it gets its own Suspense boundary; without one, the whole shell (including the dock) suspends.
 
+## Feature delivery and marketing
+
+Cal authorizes completing each feature through ready PR merges and verified production deployment, then publishing the matching Framer marketing updates. API implementation and docs ship with **every feature delivery**; release posts/changelog and evergreen site updates ship after **each coherent user-facing feature block**, using current implemented behavior. Keep these as repeatable workflows:
+
+1. [feature-api-docs](.agents/skills/feature-api-docs/SKILL.md): shared REST/MCP contracts, generated OpenAPI/reference/Markdown/LLM exports and current help docs with the feature PR.
+2. [release-posts-and-changelog](.agents/skills/release-posts-and-changelog/SKILL.md): existing Framer Blog CMS and a visible CMS-backed changelog for verified shipped blocks.
+3. [framer-feature-updates](.agents/skills/framer-feature-updates/SKILL.md): affected homepage, feature/audience pages, copy, screenshots and links, reusing current CMS/components/styles and publishing to production.
+
+Prepare release drafts during implementation. Merge one ready PR at a time under the release policy, verify the enabled main deployment, then finish the scoped Framer updates/publication and record live links on the issue/project. A quota-blocked merge stays deployment-pending and must not be announced as shipped. Internal-only changes may record why no marketing update is warranted. These instructions do not authorize publishing unrelated collaborator edits. Do not call a user-facing feature block complete while its required API/docs or marketing publication is pending.
+
 ## Definition of done
 
 - [ ] One concern per PR and commit, on a short-lived branch off the latest `main`; independent features use separate branches wherever possible
 - [ ] Commit and push, open a PR, and merge once Typecheck, Vercel and required reviews pass
+- [ ] API/docs ship with each feature; matching Framer feature pages and CMS release/changelog updates are published and verified after each user-facing feature block, with live evidence on its issue/project
 - [ ] Run focused local checks as needed; no full local test, build or e2e run required by default
 - [ ] New logic has unit coverage in `tests/`; no new lint warnings, and the cap is lowered if warnings were removed
 - [ ] UI changes were checked at 375, 390 and 430 with insets; overlays use `useOverlay` and meet the dismissal requirements
@@ -219,6 +230,9 @@ UI craft skills from [Emil Kowalski](.agents/skills/EMIL-SOURCE.md) are vendored
 | [pricing-signal-changes](.agents/skills/pricing-signal-changes/SKILL.md) | Touching providers, confidence, Rising or Breakout |
 | [offline-and-caching](.agents/skills/offline-and-caching/SKILL.md) | Touching `sw.js`, IndexedDB or the offline queue |
 | [mobile-ui-verification](.agents/skills/mobile-ui-verification/SKILL.md) | Any UI change |
+| [feature-api-docs](.agents/skills/feature-api-docs/SKILL.md) | Every feature delivery: shared API parity, generated references and current help docs |
+| [release-posts-and-changelog](.agents/skills/release-posts-and-changelog/SKILL.md) | Shipped feature blocks: CMS blog posts and visible changelog |
+| [framer-feature-updates](.agents/skills/framer-feature-updates/SKILL.md) | Shipped feature blocks: current Framer feature pages and production publication |
 | [release-and-deploy](.agents/skills/release-and-deploy/SKILL.md) | Opening, checking and merging PRs on the Hobby plan |
 | [nextjs-conventions](.agents/skills/nextjs-conventions/SKILL.md) | Adding or changing pages, layouts, `proxy.ts`, `next.config` or heavy client dependencies (static shells, getClaims, first-load JS) |
 
