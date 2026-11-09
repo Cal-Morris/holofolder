@@ -234,7 +234,7 @@ test("private JSON retains recorded canonical metadata including 083 location an
 
 test("numeric catalog species evidence survives JSON, old absence stays unknown and malformed IDs reject", async () => {
   await withFetch(async set => {
-    for (const ids of [[143, 143], [], undefined, [0], [-1], ["143"], [1.5]]) {
+    for (const ids of [[143], [143, 143], [], undefined, [0], [-1], ["143"], [1.5]]) {
       set(async input => {
         const response = await handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), fixture(1).client)
         const body = await response.json()
@@ -242,7 +242,7 @@ test("numeric catalog species evidence survives JSON, old absence stays unknown 
         return Response.json(body, { headers: { "Cache-Control": "private, no-store" } })
       })
       const result = await fetchCurrentInventorySnapshot(() => scope)
-      if (ids?.some(id => typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0)) assert.equal(result.status, "unavailable")
+      if (ids && (ids.some(id => typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) || new Set<string | number>(ids).size !== ids.length)) assert.equal(result.status, "unavailable")
       else {
         assert.equal(result.status, "complete")
         if (result.status === "complete") assert.deepEqual(result.navigation.catalog[0].pokemonIds, ids === undefined ? undefined : [...new Set<string | number>(ids)])

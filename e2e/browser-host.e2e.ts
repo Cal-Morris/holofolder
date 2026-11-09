@@ -20,19 +20,20 @@ function syntheticSnapshot() {
   snapshot.placements.forEach(p => { p.collectionId = storageId(p.collectionId); p.slotId = slots.get(p.slotId)! })
   return snapshot
 }
-test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
-  if (standalone) await emulateStandalone(page, insets)
-  await mockBackends(page, context, { signedIn: true, baseURL })
-  await page.route("**/app/api/inventory?*", async route => {
-    const url = new URL(route.request().url()), snapshot = syntheticSnapshot()
+async function fulfillInventory(route: import("@playwright/test").Route, catalog = inventoryBrowseCatalog, snapshot = syntheticSnapshot()) {
+    const url = new URL(route.request().url())
     await route.fulfill({ headers: { "Cache-Control": "private, no-store" }, json: { version: 2,
       requestId: url.searchParams.get("requestId"), scope: { actorUserId: E2E_USER.id, ownerUserId: E2E_USER.id,
         authSessionId: "synthetic-e2e-auth-session", sessionId: url.searchParams.get("sessionId") }, snapshot,
-      navigation: { catalog: inventoryBrowseCatalog, layouts },
+      navigation: { catalog, layouts },
       evidence: { inventoryRevision: snapshot.inventoryRevision, items: snapshot.items.length, placements: snapshot.placements.length,
         collections: snapshot.collections.length, binders: snapshot.binders.length, slots: snapshot.binders.reduce((n, b) => n + b.slots.length, 0),
         storage: snapshot.binders.map(b => ({ collectionId: b.collectionId, collectionVersion: 1, layoutRevision: b.layoutRevision, slotCount: b.slots.length })) } } })
-  })
+}
+test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
+  if (standalone) await emulateStandalone(page, insets)
+  await mockBackends(page, context, { signedIn: true, baseURL })
+  await page.route("**/app/api/inventory?*", route => fulfillInventory(route))
 })
 const entry = "/app/e2e-harness?signedIn=1&browserHost=1"
 const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Main navigation", exact: true })
@@ -215,4 +216,27 @@ test("malformed device preferences cannot break admission, read-only routes stay
   await page.goto(`${entry}&readOnly=1`)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
   await expect(nav(page).getByRole("button", { name: "List", exact: true })).toBeVisible()
+})
+
+
+test("actual host displays recorded languages and leaves ambiguous aliases unknown", async ({ page }) => {
+  const snapshot = syntheticSnapshot()
+  snapshot.items[1].identity = { kind: "card", cardId: "base1-4", language: "ja", finish: "holo" }
+  snapshot.binders[0].slots[0].target = { kind: "card", cardId: "base1-4", language: "ja" }
+  // Put the occupied cells and translated target on the first page of each real grid.
+  snapshot.binders.forEach(b => { b.slots = [...b.slots.slice(9), ...b.slots.slice(0, 9)] })
+  const en = { ...inventoryBrowseCatalog[0], pokemonIds: [6] }
+  const ja = { ...en, card: { ...en.card, name: "Synthetic Japanese title", language: "ja" as const } }
+  await page.route("**/app/api/inventory?*", route => fulfillInventory(route, [en, ja], snapshot))
+  await page.goto(`${entry}&binder=${alpha}`)
+  await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toHaveAttribute("aria-label", /Charizard/)
+  await expect(page.locator(`[data-slot-id="${slotId(0)}"]`)).toHaveAttribute("aria-label", /Synthetic Japanese title/)
+  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption(trades)
+  await expect(page.locator(`[data-slot-id="${slotId(109)}"]`)).toHaveAttribute("aria-label", /Synthetic Japanese title/)
+  await page.unroute("**/app/api/inventory?*")
+  const conflicting = { ...en, card: { ...en.card, id: "synthetic-conflicting", aliasIds: ["base1-4"], name: "Synthetic ambiguous title" } }
+  await page.route("**/app/api/inventory?*", route => fulfillInventory(route, [en, conflicting], snapshot))
+  await page.goto(`${entry}&binder=${alpha}`)
+  await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toHaveAttribute("aria-label", /base1-4/)
+  await expect(page.getByText("Synthetic ambiguous title", { exact: true })).toHaveCount(0)
 })

@@ -175,7 +175,7 @@ export default function BinderApp(props: BinderAppProps) {
   const router = useRouter()
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const closeSlotDetail = useCallback(() => setSelectedSlotId(null), [])
-  const orderedDisplaySlots = useMemo(() => stagedSlotDisplay ? buildSlotDisplay(stagedSlotDisplay.binder, stagedSlotDisplay.inventory, id => stagedSlotDisplay.catalog[id]) : undefined, [stagedSlotDisplay])
+  const orderedDisplaySlots = useMemo(() => stagedSlotDisplay ? buildSlotDisplay(stagedSlotDisplay.binder, stagedSlotDisplay.inventory, stagedSlotDisplay.resolveCard ?? (id => stagedSlotDisplay.catalog[id])) : undefined, [stagedSlotDisplay])
   const selectedDisplaySlot = orderedDisplaySlots ? resolveDisplaySelection(orderedDisplaySlots, selectedSlotId) : null
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonSummary | null>(null)
   const [wantedDetail, setWantedDetail] = useState<{ pokemonId: number; card: WantedCard } | null>(null)

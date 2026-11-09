@@ -7,7 +7,7 @@ import { readCurrentCollectionNavigation } from "@/lib/collection/inventory-navi
 import { parseNavigationEvidence, sameInventoryReadScope, type InventoryReadScope } from "@/lib/collection/inventory-read-transport"
 import type { CollectionNavigationRead } from "@/lib/collection-navigation"
 import { getOfflineStore } from "@/lib/offline-store/kv"
-import { browserHostCatalog } from "@/lib/collection/browser-host-catalog"
+import { browserHostCatalog, browserHostDisplayCatalog } from "@/lib/collection/browser-host-catalog"
 import type { SlotDisplayInput } from "@/lib/binder-display-model"
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import { isSlotContractId } from "@/lib/domain/binder-slots"
@@ -114,7 +114,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         // Cached slots may be displayed, but current pages require a matching saved grid.
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
         const display = snapshot && binder && layout ? { inventory: snapshot, binder,
-          catalog: Object.fromEntries(visibleRead.catalog.flatMap(c => [c.card.id, c.card.canonicalId, ...(c.card.aliasIds ?? [])].filter((id): id is string => Boolean(id)).map(id => [id, c.card]))) } : undefined
+          catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
         return renderSurface({ surface: { ...surface, header: <>
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync. Remote commands remain unavailable.</p>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
