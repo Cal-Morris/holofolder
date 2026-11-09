@@ -10,10 +10,14 @@ import { buildInventoryBrowseIndex, inventoryGradingLabel, queryInventory, resto
   type InventoryBrowseCursor, type InventoryBrowseIndex } from "@/lib/inventory-query"
 import { inventoryLocationLabel } from "@/lib/inventory-location"
 import { normalizeInventoryViewState, type InventoryViewState } from "@/lib/collection-navigation"
+import { selectInventoryCollection, valueInventoryCollection } from "@/lib/collection/inventory-projection"
+import { useInventoryPrices } from "@/hooks/use-inventory-prices"
+import type { PricingRegion } from "@/lib/pricing-region"
 import styles from "./inventory.module.css"
 
 const InventoryDetail = dynamic(() => import("./inventory-detail"), { ssr: false })
 export interface InventoryViewProps {
+  pricingRegion?: PricingRegion
   initialBrowseState?: InventoryViewState
   onBrowseStateChange?: (state: InventoryViewState) => void
   scope: InventoryBrowseScope
@@ -23,16 +27,16 @@ export interface InventoryViewProps {
   /** Host re-resolves the stable IDs against current authorized evidence before navigating. */
   onOpenLocation?: (intent: InventoryLocationIntent) => void
 }
-export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation, initialBrowseState, onBrowseStateChange }: InventoryViewProps) {
+export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation, initialBrowseState, onBrowseStateChange, pricingRegion = "UK" }: InventoryViewProps) {
   const index = useMemo(() => buildInventoryBrowseIndex(scope, evidence, catalog, layouts), [scope, evidence, catalog, layouts])
   // Synchronous remount prevents even a single paint of another account's selection/query/cursor.
-  return <InventoryResults key={index.key} index={index} onOpenLocation={onOpenLocation} initialBrowseState={initialBrowseState} onBrowseStateChange={onBrowseStateChange} />
+  return <InventoryResults key={index.key} index={index} pricingRegion={pricingRegion} onOpenLocation={onOpenLocation} initialBrowseState={initialBrowseState} onBrowseStateChange={onBrowseStateChange} />
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className={styles.field}><span>{label}</span>{children}</label>
 }
-function InventoryResults({ index, onOpenLocation, initialBrowseState, onBrowseStateChange }: Pick<InventoryViewProps, "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange"> & { index: InventoryBrowseIndex }) {
+function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, initialBrowseState, onBrowseStateChange }: Pick<InventoryViewProps, "pricingRegion" | "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange"> & { index: InventoryBrowseIndex }) {
   const [initial] = useState(() => {
     const state = normalizeInventoryViewState(initialBrowseState)
     return { query: state.query, ...restoreInventoryWindow(index, state.query, state.window) }
@@ -55,6 +59,9 @@ function InventoryResults({ index, onOpenLocation, initialBrowseState, onBrowseS
   const grades = [...new Set(index.rows.filter(r => !query.provider || r.provider === query.provider).flatMap(r => r.grade ? [r.grade] : []))].sort()
   const change = (patch: Partial<InventoryBrowseQuery>) => { setQuery(q => ({ ...q, ...patch })); setCursor(null); setPrevious([]); setSelected(null) }
   const count = index.rows.length
+  const projection = useMemo(() => index.projection ? selectInventoryCollection(index.projection, query.collectionId) : null, [index, query.collectionId])
+  const prices = useInventoryPrices(index.projection?.priceRequests ?? [])
+  const valuation = projection ? valueInventoryCollection(projection, prices, pricingRegion) : null
   return <section className={styles.view} aria-label="Inventory">
     <header><h1>Inventory</h1><p>What you own and where it is stored.</p></header>
     {index.kind === "unavailable" ? <div role="status" className={styles.notice}>
@@ -62,6 +69,16 @@ function InventoryResults({ index, onOpenLocation, initialBrowseState, onBrowseS
     </div> : <>
       {index.kind === "cached" && <p role="status" className={styles.notice}>Cached only. Showing saved copies, not your whole inventory. Uncached copies and current locations may be missing.</p>}
       <p aria-live="polite">{index.kind === "cached" ? `${count} cached copies` : `${count} owned ${count === 1 ? "copy" : "copies"}`} · {result.total} matching</p>
+      {projection && valuation && <section aria-label="Storage totals" className={styles.notice}>
+        <h2>{query.collectionId ? "This storage" : "All storage"}{index.kind === "cached" ? " · Cached only" : ""}</h2>
+        <p>{projection.owned.length} owned {projection.owned.length === 1 ? "copy" : "copies"} · {projection.wants.length} explicit wants · {projection.speciesIds.length} known species</p>
+        {projection.unknownSpeciesCopies > 0 && <p>{projection.unknownSpeciesCopies} {projection.unknownSpeciesCopies === 1 ? "copy has" : "copies have"} unknown species metadata</p>}
+        <p>Saved raw value: {valuation.rawPricedCopies ? `£${valuation.rawTotalGbp.toFixed(2)}` : "Unknown"} · {valuation.rawPricedCopies} priced · {valuation.rawUnknownCopies} raw unpriced</p>
+        {valuation.gradedUnknownCopies > 0 && <p>{valuation.gradedUnknownCopies} graded {valuation.gradedUnknownCopies === 1 ? "value" : "values"} unknown, excluded from raw total</p>}
+        <p>Saved evidence only. Totals follow storage scope, before search and copy filters.</p>
+        {projection.wants.length > 0 && <details><summary>Explicit wants by destination</summary><ul aria-label="Explicit wants">{projection.wants.map(w =>
+          <li key={JSON.stringify([w.collectionId, w.slotId, w.index])}>{w.card.card_name} · {w.card.card_language ?? "Language unknown"} · {w.card.card_finish ?? "Finish unknown"} · Slot {w.slotId}</li>)}</ul></details>}
+      </section>}
       <Field label="Search inventory"><input type="search" value={query.search ?? ""} onChange={e => change({ search: e.target.value })} placeholder="Card, Pokémon, set or number" /></Field>
       <div className={styles.filters}>
         <Field label="Storage"><select value={query.collectionId ?? ""} onChange={e => change({ collectionId: e.target.value })}>
@@ -87,17 +104,22 @@ function InventoryResults({ index, onOpenLocation, initialBrowseState, onBrowseS
       </div>
       {!result.total ? <div role="status" className={styles.notice}><h2>{count ? "No matching copies" : index.kind === "cached" ? "No copies cached" : "No owned copies"}</h2>
         <p>{count ? "Try another search or filter." : index.kind === "cached" ? "Connect to load your inventory. This does not mean you own no cards." : "Targets, wants and showcase references do not count as owned copies."}</p></div> : <>
-        <ul className={styles.list} aria-label="Owned copies">{result.rows.map(r => <li key={r.itemId}>
+        <ul className={styles.list} aria-label="Owned copies">{result.rows.map(r => {
+          const value = valuation?.copies.find(c => c.itemId === r.itemId)
+          return <li key={r.itemId}>
           <button type="button" className={styles.copy} data-item-id={r.itemId} onClick={() => setSelected(r.itemId)}>
             <span className={styles.art}>{r.image ? <CardImage src={r.image} alt="" sizes="56px" width={56} height={78} /> : <span>Image<br />unknown</span>}</span>
             <span className={styles.copyText}><strong>{r.name ?? (r.speciesNames.length ? r.speciesNames.join(", ") : "Unknown card")}</strong>
               <span>{r.setName ?? "Set unknown"} · {r.number ? `#${r.number}` : "Number unknown"}</span>
               <span>{r.language ?? "Language unknown"} · {r.finish ?? "Finish unknown"}</span>
+              {value?.referenceGbp != null
+                ? <span>{value.basis === "raw-reference" ? "Raw reference, not graded value" : "Saved raw quote"}: £{value.referenceGbp.toFixed(2)} · {value.quote?.confidence} confidence · {value.quote?.updatedAt ? `Updated ${value.quote.updatedAt.slice(0, 10)}` : "Date unknown"}</span>
+                : <span>{r.graded ? "Graded value unknown" : "Raw value unknown"}</span>}
               <span className={styles.grading}>{inventoryGradingLabel(r)}</span>
               <span>{index.kind === "cached" ? "Last saved: " : ""}{inventoryLocationLabel(r.location)}</span>
             </span>
           </button>
-        </li>)}</ul>
+        </li> })}</ul>
         <nav aria-label="Inventory pages" className={styles.pagination}>
           {previous.length > 0 && <button type="button" onClick={() => { setCursor(previous.at(-1) ?? null); setPrevious(p => p.slice(0, -1)) }}>Previous copies</button>}
           <span>{previous.length * 40 + 1}–{previous.length * 40 + result.rows.length} of {result.total}</span>

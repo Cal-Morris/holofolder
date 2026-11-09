@@ -69,3 +69,7 @@ This is a new standalone surface, so there is no previous production layout to m
 | New repeated browse interactions | Instant query, keyboard and sheet entry; shared swipe primitive and direct press feedback | No decorative or keyboard-triggered motion was introduced |
 
 UI and motion self-review: approve for the internal read-only slice. Current page/slot presentation, six dismissal paths, long grading strings and privacy projection are covered. Enabled production behavior, offline reload and native phone gestures remain the documented parent rollout gates.
+
+## Staged collection totals
+
+The existing view now consumes the [#374 collection projection](inventory-collection-projection.md) for scoped totals, explicit wants, known species counts and saved exact-finish raw references. This is still internal preparation, with no public enablement. That document specifies host/API boundaries, cached-only limits and remaining Show/refresh/legacy consumer integration.
