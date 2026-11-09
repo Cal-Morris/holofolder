@@ -29,7 +29,7 @@ function fakeSessionCookieValue() {
   const expiresAt = Math.floor(Date.now() / 1000) + 3600
   const accessToken = [
     base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" })),
-    base64Url(JSON.stringify({ sub: E2E_USER.id, aud: "authenticated", role: "authenticated", exp: expiresAt, email: E2E_USER.email })),
+    base64Url(JSON.stringify({ sub: E2E_USER.id, session_id: "synthetic-e2e-auth-session", aud: "authenticated", role: "authenticated", exp: expiresAt, email: E2E_USER.email })),
     "e2e",
   ].join(".")
   const session = { access_token: accessToken, token_type: "bearer", expires_in: 3600, expires_at: expiresAt, refresh_token: "e2e-refresh", user: E2E_USER }

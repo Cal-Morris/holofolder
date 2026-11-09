@@ -18,9 +18,9 @@ export function ActivityButton({ pokemonId, onOpen }: {pokemonId?:number; onOpen
   return <button type="button" className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted" onClick={()=>{onOpen?.();open({pokemonId})}}><History className="h-4 w-4" aria-hidden />Activity</button>
 }
 
-export function CollectionActivityProvider({accountId,ownerId,binderId,binders,collection,pendingCount,isOnline,onOpenPokemon,children}: {
+export function CollectionActivityProvider({accountId,ownerId,binderId,binders,collection,pendingCount,isOnline,onOpenPokemon,onRecovered,children}: {
   accountId:string|null; ownerId:string|null; binderId:string|null; binders:readonly Binder[]; collection:readonly CollectedPokemon[]
-  pendingCount:number; isOnline:boolean; onOpenPokemon:(pokemonId:number)=>void; children:ReactNode
+  pendingCount:number; isOnline:boolean; onOpenPokemon:(pokemonId:number)=>void; onRecovered:()=>Promise<void>; children:ReactNode
 }) {
   const [scope,setScope] = useState<ActivityScope|null>(null)
   const [opened,setOpened] = useState<ActivityInitialFilter|null>(null)
@@ -66,6 +66,6 @@ export function CollectionActivityProvider({accountId,ownerId,binderId,binders,c
   const open = useCallback((filter:ActivityInitialFilter)=>{closeAllOverlays();setScope(null);setOpened(filter);setRevision(v=>v+1)},[])
   return <ActivityContext.Provider value={allowed ? open : null}>
     {children}
-    {opened && allowed && <ActivitySheet key={JSON.stringify([visibleScope,opened])} scope={visibleScope} initialFilter={opened} binderId={binderId} binders={binders} collection={collection} pendingCount={pendingCount} isOnline={isOnline} onClose={close} onInvalidScope={invalidate} onVerify={verify} onOpenPokemon={onOpenPokemon} />}
+    {opened && allowed && <ActivitySheet key={JSON.stringify([visibleScope,opened])} scope={visibleScope} initialFilter={opened} binderId={binderId} binders={binders} collection={collection} pendingCount={pendingCount} isOnline={isOnline} onClose={close} onInvalidScope={invalidate} onVerify={verify} onOpenPokemon={onOpenPokemon} onRecovered={onRecovered} />}
   </ActivityContext.Provider>
 }

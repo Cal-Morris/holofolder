@@ -3,7 +3,7 @@ export type ActivityChange = { table: string; id: string; before: ActivityState 
 export type ActivityEvent = {
   id: string; recorded_at: string; format_version: number; actor_kind: string; actor_user_id?: string | null
   actor_job?: string | null; source: string; client_id?: string | null; action: string
-  operation_id?: string | null; batch_id?: string | null; client_occurred_at?: string | null
+  operation_id?: string | null; batch_id?: string | null; client_occurred_at?: string | null; recovery_of_event_id?: string | null
   pokemon_id?: number | null; pokemon_name?: string | null; before_state?: ActivityState | null; after_state?: ActivityState | null
   affected_entities: Record<string, string[]>; changes: ActivityChange[]
 }

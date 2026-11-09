@@ -13,7 +13,7 @@ function sessionLifetime() {
     token: () => epoch, isActive: (token = epoch) => active && token === epoch }
 }
 
-/** Staged adapter only. No current browse/bootstrap path imports this hook, and no automatic upload.
+/** Shared durable adapter. The actual browser host binds it behind denied production admission; no automatic upload.
  * Remount on session changes, including unlink/relink to the same owner. */
 export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string) {
   const { deviceId, workspaceId, accountId, ownerUserId } = scope

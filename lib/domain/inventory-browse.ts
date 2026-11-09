@@ -10,7 +10,7 @@ export type InventoryBrowseEvidence =
   | { kind: "unavailable" }
 
 /** Catalog associations are supplied, never guessed from names or species. No private copy fields. */
-export interface InventoryCatalogEvidence { card: TCGCard; speciesNames: readonly string[] }
+export interface InventoryCatalogEvidence { card: TCGCard; speciesNames: readonly string[]; pokemonIds?: readonly number[] }
 /** Verified settings for this exact ordered binder revision, never a default 3×3. */
 export interface InventoryLayoutEvidence { collectionId: string; layoutRevision: number; rows: number; cols: number }
 export interface InventoryLocationIntent {

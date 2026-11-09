@@ -1,5 +1,8 @@
 # Staged safe collection recovery (#396)
 
+Migration 087 separately delivers [checked ordinary card/want-list row Undo](../content/docs/collection-history.mdx) through Activity, REST and MCP. The native/structural recovery described below remains internal; this does not lift its rollout or latency gates.
+
+
 Current additive slice: [084 native creation recovery](native-collection-creation-recovery.md) supports complete untouched nondefault 083 events, including first-native creation beside a legacy default, retaining and advancing owner authority. First/default creation and unsafe/incomplete dependencies remain explicit conflicts. The service-only 082 bridge remains internal; #396/#379 are incomplete and Activity stays read-only.
 
 Migration **077** adds SQL-owner-only preview/apply to the deployed 076 recorder. It is a **partial internal implementation**, not enabled recovery. Activity remains read-only, including the accepted #395 release published at Framer version `ca377c12f`. There is no recovery HTTP route, shared REST/MCP registry entry, app wrapper, permission grant, environment toggle or Undo integration in this PR. The existing slot/inventory app routes remain unconditional private/no-store 503; all fourteen 074/075 functions and every private audit/recovery function remain denied to anon, authenticated, holo_mcp and service_role. No real binder is converted.

@@ -183,7 +183,7 @@ export function renderMainContentView(ctx: MainContentContext) {
         <span role="status" className="text-[10px] text-muted-foreground">{binderAppearance.message}</span>
       )}
 
-      <div ref={mainViewRef} className={`flex min-h-0 flex-1 flex-col space-y-2 ${
+      <div id="collection-browser-scroll" ref={mainViewRef} className={`flex min-h-0 flex-1 flex-col space-y-2 ${
           activeMainView === "binder"
             ? binderDimension === "3d" ? "overflow-y-auto overflow-x-hidden" : "overflow-y-auto overflow-x-hidden md:overflow-visible"
             : "overflow-hidden"

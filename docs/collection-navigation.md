@@ -30,7 +30,7 @@ browser reader, reconstructs completeness through the shared complete reader and
 binds account/owner/lifecycle scope plus the fenced grid/catalog evidence.
 Failures preserve status/code and the existing host refresh-failure path; cached
 subsets are never upgraded. The adapter rechecks live scope after the browser read.
-No production host imports it yet and the public routes remain unconditional 503.
+The actual BinderApp caller is now wired behind explicit denied production admission; see [the binding contract](binder-browser-host.md). Public routes remain unconditional 503.
 
 See [the complete-read contract](inventory-complete-read.md) for private v2 wire,
 083 location/source preservation, catalog batching and metadata fences. Grids come
@@ -47,16 +47,13 @@ cached-only bootstrap remain rollout gaps. Catalog unknowns remain unknown.
 
 Navigation preferences and browser history are device-only UI, so no REST/MCP operation, shared operation, permission, OpenAPI schema or generated API page changes. The existing public operation registry and generated discovery remain unchanged. Supported inventory/slot data read/write parity and its actual authorization/projection/errors remain tracked under #376/#379. This read-only host writes no card/target/order/grade/location data and emits no audit/recovery event. 086 adds only the narrow read RPC, with hosted application reserved for the parent. No hosted data write was performed in this lane.
 
-The local-only existing Inventory harness adds `?navigation=1`; the same E2E plus loopback/non-hosted gate applies. It uses synthetic owner/partner/copies, the real Inventory view/detail, shared OrderedSlot, LayoutToolbar and existing DexListView with missing Pokémon. Layout intent callbacks deliberately do not save anything. This proves navigation teardown around actual staged controls; it does not prove queue replay, Undo, mutation persistence, full drag/bulk editing or complete BinderApp integration. No production caller imports the host. An independent browser/device starts with empty navigation storage; profiles do not synchronize.
+The local-only existing Inventory harness adds `?navigation=1`; the same E2E plus loopback/non-hosted gate applies. It uses synthetic owner/partner/copies, the real Inventory view/detail, shared OrderedSlot, LayoutToolbar and existing DexListView with missing Pokémon. Layout intent callbacks deliberately do not save anything. This proves navigation teardown around actual staged controls; it does not prove queue replay, Undo, mutation persistence, full drag/bulk editing or complete BinderApp integration. The actual BinderApp binding now exercises this host locally; production admission remains denied. An independent browser/device starts with empty navigation storage; profiles do not synchronize.
 
 [Unpublished release copy](releases/collection-navigation-draft.md) belongs to the eventual enabled #386/#379 block. No live feature/help/Framer link or shipped claim exists for this hidden slice. Parent owns review, merge, migrations/backup if required by other PRs, deployment and enabled production verification.
 
 ## Remaining production-binding gates
 
-- Bind the delivered authenticated browser transport and navigation adapter to the live auth lifecycle. Review/apply 086's narrow inherited-grid boundary and implement safe cached-only offline bootstrap/index. Do not serialize away completeness or guess a grid.
-- Bind the host to the real BinderApp header/dock/content and existing auth/deep-link dispatch without removing Wanted, Search, Browse, showcase or legacy missing-Pokémon access. Public share/auth destinations must be handled before private remembered state is consulted; this staged host never mounts on those routes.
-- Bind the production collection adapter's page/filter/scroll/highlight and session teardown to the durable queue/session owned by #363/#427. Navigation must retain pending edits; this slice deliberately never reads or changes that queue. Full Edit layout/drag/bulk/Undo acceptance remains #369/#386.
-- Slabs stays unavailable until #390. #379 remains the sole rollout/conversion authority; slot/inventory routes stay unconditional 503. #384/#385/#369 native blockers remain open.
+The actual BinderApp/dock/auth/device/queue binding now exists behind denied admission. [The dedicated host contract](binder-browser-host.md#exact-remaining-authentic-admission-gates) records the precise remaining production capability, command dispatch/replay, native offline bootstrap, consumer/API/recovery parity and hosted conversion/old-client proof. Slabs remains unavailable until #390. #379 remains the sole rollout authority and public inventory/slot routes remain unconditional 503.
 
 ## Verification
 
@@ -67,3 +64,5 @@ The local-only existing Inventory harness adds `?navigation=1`; the same E2E plu
 Local source verification: 39 focused unit tests across collection-navigation, inventory-query and inventory-server-read; 60 affected Playwright cases across all six phone projects using port 3396 and two workers; full typecheck; focused ESLint with zero warnings; full lint at the unchanged 55-warning cap; production-mode harness build and docs CSS verification. No full e2e suite.
 
 Parent review reproduced the private-host-remount overlay/dock race on the original source. The shared primitive now identifies cleanup pop events before or after its listener flushes deferred pushes, and the host ignores them without changing normal navigation timing. Final integration passed 46 focused units, 66 affected phone cases with no retries, typecheck, focused zero-warning lint and the production-mode E2E build. No full e2e or hosted data writes.
+
+The actual BinderApp/dock lifecycle binding and its precise admission/transport/offline gaps are now documented in [BinderApp browser host binding](binder-browser-host.md). Production admission remains denied; the earlier standalone harness remains useful isolated navigation evidence.

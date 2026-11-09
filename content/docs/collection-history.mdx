@@ -1,45 +1,62 @@
 ---
 title: Collection history
-description: Inspect private collection Activity in the app, REST or MCP.
+description: See what changed and safely undo card and want-list edits.
 ---
-
-Use `list_collection_audit` or `GET /collection/audit` with `collection:read` to inspect your shared owner's committed changes. Current developer entitlement, credential grants and linked membership apply on every request. History is private and responses use `no-store`.
-
-```bash
-curl 'https://app.holofolder.com/app/api/v1/collection/audit?limit=50' \
-  -H 'Authorization: Bearer <collection-read-key>'
-```
-
-Follow `nextCursor` with the same filters. Lists contain up to 100 entries and use stable event ID keysets, including histories longer than 1,000 events. Event IDs are strings. Optional filters are `collectionId`, `itemId`, `slotId`, `actorId`, `action`, `since` and `until`. Date bounds use server time.
-
-`get_collection_audit` or `GET /collection/audit/{id}` returns one entry. Entries include the recorded actor/source, operation and batch IDs, server time, optional original client time, affected entities and safe before/after changes. Structural events can contain many touched entities in one operation. Deleting an item or collection retains its recorded safe evidence for the owner's account lifetime. Private certificates, label assets, uploaded artwork references and share tokens are omitted.
-
-Older entries have Unknown actor/source; history does not guess who made them. Their original Pokémon states remain available, but stable entity filters cannot find IDs that were never recorded. A service write without established attribution also stays Unknown. Local offline pending actions are separate from committed history.
-
-This API requires migration 076. Before application it returns `503 audit_unavailable`. The app provides read-only Activity; version-safe recovery remains separate rollout work. These read operations do not restore anything or enable structural inventory commands. Server `recorded_at` is measured at the transaction's commit boundary, separately from optional client occurrence time.
 
 ## Activity in the app
 
-Sign in, open the binder switcher, and choose **Activity**. A card's detail sheet also has an **Activity** button, which starts with that Pokémon's recorded changes in the current collection. Use **Filters** to select **All collections**, another collection, or exact retained collection/item/slot/card IDs. A deleted collection's ID can be entered in **Collection ID**. Actor and action filters use the identifiers shown in entry details. Date ranges are inclusive UTC days; the displayed server timestamp uses your device's timezone.
+Open the binder switcher and choose **Activity**, or open **Activity** from a card’s details to see just that Pokémon. Entries are grouped by day and say what happened, such as **Removed Bulbasaur from My binder**, with the printing, person and local time.
 
-**Older page** and **Newer page** follow server keysets. Filters apply to the entire recorded history, not only the visible page. The card printing filter uses the recorded catalog ID; duplicate printings remain distinguishable by owned item and slot IDs. Pokémon filtering includes original legacy states and bulk legacy deltas. Older entries without a stable collection/item ID cannot be found using an ID that was never recorded. Clear the collection filter to inspect those entries across the owner history.
+Choose **Details** for the changed values and links to available collections. Bulk changes expand a few at a time. IDs, source, full timestamps and the recorded before/after evidence are under **Technical details**. A previous member is labelled **Previous member**; an unattributed entry stays **Unknown**. These labels do not invent historical profile names.
 
-Each entry shows the recorded actor account, source and server time. Account IDs identify accountable actors without claiming a current or historical display name. An old or unattributed event says **Unknown**; an explicitly attributed service job says **System**. A provider refresh is not presented as a human acquisition. Removed entities keep their recorded names and IDs. **View changes** expands the safe before/after fields, with **Show more changes** for bulk events. Unassignment keeps ownership; removing ownership and deleting a slot are different recorded changes. Existing current destinations can be opened, while deleted or unsupported inventory destinations retain their information without an invented link.
+**Filters** searches the complete recorded history, including deleted cards. Choose a collection, person, action or inclusive UTC date range. **Advanced filters** accepts exact retained card, collection, item and slot IDs. **Older page** and **Newer page** follow server cursors, including histories longer than 1,000 events. Displayed times use your device’s timezone.
 
-Activity is read-only. Recovery and linked undo/recovery actions are not available. Local undo controls elsewhere in the app are separate from shared committed history.
+## Undo a mistake
 
-## Access and offline limits
+Choose **Undo**, review what will be restored or removed, then choose **Undo this change**. Complete recorded card and want-list row edits are supported, including removing a card, changing its printing/status and editing wanted cards. A supported bulk event is undone together.
 
-Website Activity uses the existing first-party session and database owner/partner read policy. Standard owner history does not require a developer API subscription or API key. A linked partner's access follows the existing membership and billing policy. Public share views have no Activity entry or anonymous audit access.
+Undo restores the original row identity and recorded card details. It checks current access, collection format, current limits and later changes to the same Pokémon. It refuses a newer edit even if the visible card was subsequently changed back. Unrelated later changes survive. There is no force overwrite.
 
-Locally pending edits are shown separately as a count for the open collection; they become shared history only after the server accepts a mutation. Retries, cancelled edits and local undo queue entries are not fabricated committed events.
+Undo adds a new history entry and keeps the original. **View undo in activity**, **View original change** and **View undo history** let you follow those entries. The short-lived Undo for an acknowledged card edit uses the same checked recovery command. Unsynced edits keep their existing device undo path.
 
-The device keeps up to eight exact history query pages, scoped to the signed-in account, resolved owner and last verified membership. Offline pages show **Cached history** and their last sync time. Uncached pages explicitly need a connection, and a cached empty page is not a claim that no other events exist. Membership is rechecked online when opening Activity and on focus/visibility refresh. Offline membership cannot be reverified until reconnection. Logout, observed membership/owner changes and account switches clear private cache visibility. No private history HTML is cached by the service worker.
+Collection creation/deletion, settings, sharing, native inventory/slot operations, collection-format changes and older entries without complete evidence cannot be undone through this release. Activity explains when a change is unsupported or conflicts with newer work. Internal native recovery preparation remains separately gated.
 
-## Additional read filters
+## Offline and connection failures
 
-`pokemonId` (positive Pokémon number) searches legacy states and touched legacy rows, including bulk events. `cardId` searches the recorded printing in legacy states and touched item/slot identity or target deltas. Both filters are available through the same REST/MCP list operation, and are bound into its cursor. They do not perform a live catalog lookup or guess unrecorded identities.
+Previously opened activity pages remain available on this device, with their last-update time. They are saved pages, not a complete offline history. Reconnect to load another page or undo a change. Pending local edits must sync before Activity Undo is available.
 
-Choose a person or action in Filters for routine searches. Advanced filters accept exact recorded IDs, including removed entities. Current members can appear as You or Collection partner; expanded details retain the recorded account ID. These labels do not claim a historical profile name.
+If a connection fails while Undo is being applied, choose **Retry Undo**. The app retains the exact request before sending it and checks the same operation again, including after closing Activity or reloading. A retry cannot apply it twice. It refreshes the collection before showing **Change undone**. If the write succeeded but the refresh failed, it says the undo was saved and offers verification again.
 
-Recovery is still unavailable in the app, REST and MCP. Internal recovery preparation does not add a supported command or change this read-only contract. Linked original/recovery event presentation and recovery conflict controls remain part of the pending recovery rollout.
+## REST and MCP
+
+Developer access requires current entitlement, credential grants and owner/linked-partner access. The app uses its signed-in session. Responses are private and use `no-store`. Public share links have no private Activity.
+
+`list_collection_audit` (`GET /collection/audit`) and `get_collection_audit` (`GET /collection/audit/{id}`) require `collection:read`. Event IDs are strings. Lists return `data` and `nextCursor`, with up to 100 entries. Keep the same filters when following a cursor. Filters include `collectionId`, `pokemonId`, `cardId`, `itemId`, `slotId`, `actorId`, `action`, `since`, `until` and `recoveryOfEventId`. The last filter finds undo events linked to an original. An undo entry also includes `recovery_of_event_id`.
+
+`preview_collection_recovery` (`POST /collection/recovery/preview`) and `apply_collection_recovery` (`POST /collection/recovery/apply`) require `collection:read`, `collection:write` and `binders:write`. They share the app’s supported scope and checks. Preview changes no collection data. Its response includes `supported`, `unsupported`, `conflicts`, safe `changes`, `planVersion` and `planToken`. A conflict or unsupported event has no usable token.
+
+Synthetic preview example:
+
+```bash
+curl 'https://app.holofolder.com/app/api/v1/collection/recovery/preview' \
+  -H 'Authorization: Bearer <key>' \
+  -H 'Content-Type: application/json' \
+  -d '{"eventId":"123","restoreUnassignedItemIds":[]}'
+```
+
+After reviewing the preview, apply that exact token with explicit confirmation and a new operation ID. Preserve this entire request for retries:
+
+```json
+{
+  "eventId": "123",
+  "restoreUnassignedItemIds": [],
+  "planVersion": 1,
+  "planToken": "<64-character token from preview>",
+  "operationId": "<unique retry-stable operation ID>",
+  "confirmed": true
+}
+```
+
+Apply returns `{ "eventId": "<new undo entry>", "recoveredEventId": "123" }`. After an unknown outcome, retry the same request, account and owner. Never generate another operation ID to retry. A later edit invalidates the reviewed token (`409`); current permission or allowance checks can also reject recovery. Rejected recovery leaves the collection and history unchanged. No acquisition notification or sharing token is replayed.
+
+The history recorder requires migration 076; linked recovery reads require 077 and the supported recovery command requires 087. Missing schema returns a temporary-unavailability response. Private certificates, label assets, uploaded artwork references and share tokens are excluded from public history and recovery responses.

@@ -75,7 +75,7 @@ export function parseInventoryReadEnvelope(value: unknown, requestId: string, sc
 }
 
 /** Strict public catalog DTOs and exact snapshot grid revisions, never arbitrary private JSON. */
-function parseNavigationEvidence(value: unknown, snapshot: InventorySnapshot): InventoryNavigationEvidence | undefined {
+export function parseNavigationEvidence(value: unknown, snapshot: InventorySnapshot): InventoryNavigationEvidence | undefined {
   if (!isContractRecord(value, ["catalog", "layouts"]) || !Array.isArray(value.catalog) || !Array.isArray(value.layouts)) return undefined
   const layouts: InventoryLayoutEvidence[] = [], catalog: InventoryCatalogEvidence[] = []
   for (const l of value.layouts) {
@@ -86,7 +86,8 @@ function parseNavigationEvidence(value: unknown, snapshot: InventorySnapshot): I
     layouts.push({ collectionId: l.collectionId, layoutRevision: l.layoutRevision, rows: l.rows, cols: l.cols })
   }
   for (const e of value.catalog) {
-    if (!isContractRecord(e, ["card", "speciesNames"]) || !Array.isArray(e.speciesNames) || !e.speciesNames.every(isSlotContractId)) return undefined
+    if (!isContractRecord(e, ["card", "speciesNames", "pokemonIds"]) || !Array.isArray(e.speciesNames) || !e.speciesNames.every(isSlotContractId)
+      || "pokemonIds" in e && (!Array.isArray(e.pokemonIds) || !e.pokemonIds.every(id => typeof id === "number" && Number.isSafeInteger(id) && id > 0) || new Set(e.pokemonIds).size !== e.pokemonIds.length)) return undefined
     const c = e.card
     if (!isContractRecord(c, ["id", "localId", "name", "set", "language", "canonicalId", "aliasIds", "image"])
       || ![c.id, c.localId, c.name].every(isSlotContractId) || !isContractRecord(c.set, ["id", "name"])
@@ -97,7 +98,7 @@ function parseNavigationEvidence(value: unknown, snapshot: InventorySnapshot): I
     if (catalog.some(x => x.card.id === c.id && x.card.language === c.language)) return undefined
     catalog.push({ card: { id: c.id as string, localId: c.localId as string, name: c.name as string, set: { id: c.set.id, name: c.set.name },
       ...(isCardLanguage(c.language) ? { language: c.language } : {}), ...(typeof c.canonicalId === "string" ? { canonicalId: c.canonicalId } : {}),
-      ...(Array.isArray(c.aliasIds) ? { aliasIds: [...c.aliasIds] as string[] } : {}), ...(typeof c.image === "string" ? { image: c.image } : {}) }, speciesNames: [...e.speciesNames] })
+      ...(Array.isArray(c.aliasIds) ? { aliasIds: [...c.aliasIds] as string[] } : {}), ...(typeof c.image === "string" ? { image: c.image } : {}) }, speciesNames: [...e.speciesNames], ...(Array.isArray(e.pokemonIds) ? { pokemonIds: [...e.pokemonIds] as number[] } : {}) })
   }
   return { catalog, layouts }
 }
