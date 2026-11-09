@@ -1687,7 +1687,6 @@ function readTimestamp(value: unknown) {
 function humanizeVariantLabel(value: string) {
   return value
     .replaceAll("-", " ")
-    .replaceAll("1st", "1st")
     .replace(/\b\w/g, (match) => match.toUpperCase())
 }
 

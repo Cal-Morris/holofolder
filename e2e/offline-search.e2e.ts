@@ -60,7 +60,7 @@ async function mockNetwork(context: BrowserContext, page: Page) {
   await context.route("**/app/api/card-image-proxy**", guard((route) => {
     const source = new URL(route.request().url()).searchParams.get("url") ?? ""
     // Since #48 the binder's Pokémon artwork goes through the proxy too; only card thumbnails count here.
-    if (!source.includes("raw.githubusercontent.com")) network.proxyImages.push(source)
+    if (new URL(source).hostname !== "raw.githubusercontent.com") network.proxyImages.push(source)
     return route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg("saved", network.proxyImages.length) })
   }))
   const rawImage = guard((route) => route.fulfill({ contentType: "image/svg+xml", body: placeholderSvg("card", 1) }))

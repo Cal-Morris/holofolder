@@ -183,7 +183,7 @@ test("a missing localized card cannot borrow its English product price", async (
   // Synthetic provider responses distinguish English product evidence from Japanese absence.
   globalThis.fetch = (async (url: string | URL | Request) => {
     requests.push(String(url))
-    return String(url).includes("tcgdex.net")
+    return new URL(String(url)).hostname === "api.tcgdex.net"
       ? new Response("not found", { status: 404 })
       : Response.json({ productId: 685563, marketPrice: 20, lowestPrice: 18 })
   }) as typeof fetch
