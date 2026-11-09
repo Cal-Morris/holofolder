@@ -57,8 +57,10 @@ export type InventorySnapshotReaders = {
 /** Fetch all private streams before publishing any snapshot. The binder reader must itself collect
  * every slot page under inventory+collection+layout revisions, never return a partial BinderSnapshot.
  * A server reader may fence the completed streams before branding; failed fences publish nothing. */
-export async function readCompleteInventorySnapshot(ownerUserId: string, inventoryRevision: number, readers: InventorySnapshotReaders, beforeBrand?: () => Promise<void>): Promise<CompleteInventorySnapshot> {
+export async function readCompleteInventorySnapshot(ownerUserId: string, revision: number | Promise<number>, readers: InventorySnapshotReaders, beforeBrand?: () => Promise<void>): Promise<CompleteInventorySnapshot> {
   const started = ++readStartSequence
+  // Transport reads reserve freshness before HTTP, whose fenced revision arrives later.
+  const inventoryRevision = await revision
   const [items, placements, collections, binders] = await Promise.all([
     readCompleteSnapshotRows(readers.items, inventoryRevision, i => i.id),
     readCompleteSnapshotRows(readers.placements, inventoryRevision, p => p.inventoryItemId),

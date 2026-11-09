@@ -1,3 +1,7 @@
+import { readInventoryCatalog } from "@/lib/server/inventory-read-catalog"
+import { isBinderGridSize, withBinderLayout } from "@/lib/binder-layout"
+import { settingsFromRow } from "@/lib/settings"
+import type { InventoryNavigationEvidence, InventoryReadEvidence } from "@/lib/collection/inventory-read-transport"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { isSlotContractId, isSlotRevision, normalizeBinderSlot, normalizeBinderSnapshot } from "@/lib/domain/binder-slots"
 import { normalizeInventoryItem, normalizePlacement, normalizeStorageCollection } from "@/lib/domain/inventory"
@@ -6,7 +10,7 @@ import {
   type CompleteInventorySnapshot, type SnapshotPage,
 } from "@/lib/collection/slot-snapshot"
 
-/** Private first-party state only. Never serialize this through share/REST/MCP. */
+/** Private first-party state only. Never serialize through share or developer REST/MCP. */
 export class InventoryReadError extends Error {
   constructor(readonly code: "inventory_sign_in_required" | "inventory_read_forbidden" | "inventory_read_unavailable"
     | "inventory_not_initialized" | "legacy_inventory_incomplete" | "inventory_read_conflict" | "inventory_read_deadline",
@@ -14,7 +18,7 @@ export class InventoryReadError extends Error {
 }
 type Row = Record<string, unknown>
 const PAGE = 500
-const STATE = "collection_id,owner_user_id,kind,default_presentation,version,layout_revision,preset_manifest,authority"
+const STATE = "collection_id,owner_user_id,kind,default_presentation,version,layout_revision,preset_manifest,authority,location"
 const SLOT = "id,owner_user_id,collection_id,position,target,status,wanted_cards,preset_origin,version"
 const fail = (code: InventoryReadError["code"], status: InventoryReadError["status"]): never => { throw new InventoryReadError(code, status) }
 const conflict = (): never => fail("inventory_read_conflict", 409)
@@ -36,6 +40,17 @@ export interface InventoryReadOptions {
  * With no client, creates the standard server session client. Each invocation reads current state;
  * queue integration must invoke AFTER successful ledger replay, never use the retained SQL result. */
 export async function readOwnerInventorySnapshot(client?: SupabaseClient, options: InventoryReadOptions = {}): Promise<CompleteInventorySnapshot> {
+  return (await readOwnerInventoryState(client, options)).snapshot
+}
+
+/** Same authoritative read, retaining independent server fences for private HTTP serialization. */
+export async function readOwnerInventoryState(client?: SupabaseClient, options: InventoryReadOptions = {}): Promise<{
+  snapshot: CompleteInventorySnapshot
+  actorUserId: string
+  authSessionId: string
+  evidence: InventoryReadEvidence
+  navigation: InventoryNavigationEvidence
+}> {
   const attempts = options.attempts ?? 2, timeoutMs = options.timeoutMs ?? 15_000, maxRequests = options.maxRequests ?? 512
   if (!Number.isInteger(attempts) || attempts < 1 || attempts > 3 || !Number.isInteger(timeoutMs) || timeoutMs < 0 || timeoutMs > 30_000
     || !Number.isInteger(maxRequests) || maxRequests < 1 || maxRequests > 4096) return unavailable()
@@ -61,6 +76,8 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
         check()
         const claims = await db.auth.getClaims()
         if (claims.error || !claims.data?.claims.sub || claims.data.claims.client_id || claims.data.claims.role !== "authenticated") fail("inventory_sign_in_required", 401)
+        const authSessionId = claims.data!.claims.session_id
+        if (!isSlotContractId(authSessionId)) return fail("inventory_sign_in_required", 401)
         check()
         const user = await db.auth.getUser()
         const actor = user.data.user?.id
@@ -80,7 +97,7 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
         // Unlike legacy compatibility, missing billing policy never silently allows new reads.
         if (access.error || typeof access.data !== "boolean") return unavailable()
         if (!access.data) return fail("inventory_read_forbidden", 403)
-        return { actor, owner, partnership: p ?? null }
+        return { actor, owner, authSessionId, partnership: p ?? null }
       }
       const initialScope = await scope()
       const owner = initialScope.owner
@@ -118,27 +135,43 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
       async function metadata(rev: number) {
         const stateTotal = await count("storage_collection_state"), binderTotal = await count("binders")
         const states = await readCompleteSnapshotRows(reader("storage_collection_state", STATE, "collection_id", rev, stateTotal), rev, r => String(r.collection_id))
-        const binders = await readCompleteSnapshotRows(reader("binders", "id,owner_user_id,name", "id", rev, binderTotal), rev, r => String(r.id))
+        const binders = await readCompleteSnapshotRows(reader("binders", "id,owner_user_id,name,binder_rows,binder_cols,updated_at", "id", rev, binderTotal), rev, r => String(r.id))
         if (stateTotal !== binderTotal || binders.some(b => !states.some(s => s.collection_id === b.id)) || states.some(s => s.authority !== "slots")) {
           // A concurrent conversion/create is retryable; stable legacy is an honest boundary.
           if (await revision() !== rev) conflict()
           return fail("legacy_inventory_incomplete", 503)
         }
         if (states.some(s => !isSlotRevision(s.version) || !isSlotRevision(s.layout_revision))) return unavailable()
-        return { states, binders }
+        check()
+        const settings = await db.from("user_settings").select("user_id,binder_rows,binder_cols,updated_at").eq("user_id", owner).limit(2).abortSignal(controller.signal)
+        if (settings.error) return unavailable()
+        const settingsRows = rows(settings.data)
+        if (settingsRows.length > 1 || settingsRows.some(r => r.user_id !== owner)) return unavailable()
+        return { states, binders, stateTotal, binderTotal, settings: settingsRows[0] ?? null }
       }
       for (let attempt = 0; attempt < attempts; attempt++) {
         try {
           await sameScope()
           const rev = await revision(), meta = await metadata(rev)
+          const sourceCount = await count("binder_legacy_rows")
+          const sourceRows = await readCompleteSnapshotRows(reader("binder_legacy_rows", "legacy_row_id,owner_user_id,collection_id,slot_id,source_row", "legacy_row_id", rev, sourceCount), rev, r => String(r.legacy_row_id))
+          const sourceBySlot = new Map(sourceRows.map(r => [r.slot_id, r]))
+          if (sourceBySlot.size !== sourceRows.length) return unavailable()
+          const sourceForSlot = (slot: Row) => {
+            const source = sourceBySlot.get(slot.id)
+            if (!source) return null
+            if (source.collection_id !== slot.collection_id) return unavailable()
+            return { legacyRowId: source.legacy_row_id, sourceRow: source.source_row }
+          }
           const itemCount = await count("inventory_items"), placementCount = await count("inventory_placements"), slotCount = await count("binder_slots")
           const placementRows = await readCompleteSnapshotRows(reader("inventory_placements", "inventory_item_id,owner_user_id,collection_id,slot_id,version", "inventory_item_id", rev, placementCount), rev, r => String(r.inventory_item_id))
           const placements = placementRows.map(r => valid(normalizePlacement({ inventoryItemId: r.inventory_item_id, collectionId: r.collection_id, slotId: r.slot_id, version: r.version })))
           const collections = meta.states.map(s => valid(normalizeStorageCollection({ id: s.collection_id, ownerUserId: owner,
-            name: meta.binders.find(b => b.id === s.collection_id)!.name, kind: s.kind, defaultPresentation: s.default_presentation, version: s.version })))
-          const itemReader = reader("inventory_items", "id,owner_user_id,identity,grading,acquired_at,version", "id", rev, itemCount)
-          const collectionReader = reader("storage_collection_state", STATE, "collection_id", rev, meta.states.length)
+            name: meta.binders.find(b => b.id === s.collection_id)!.name, kind: s.kind, defaultPresentation: s.default_presentation, location: s.location, version: s.version })))
+          const itemReader = reader("inventory_items", "id,owner_user_id,identity,grading,acquired_at,version,legacy_source", "id", rev, itemCount)
+          const collectionReader = reader("storage_collection_state", STATE, "collection_id", rev, meta.stateTotal)
           let snapshotSlotCount = 0
+          const storage: InventoryReadEvidence["storage"] = []
           const binderReader = async (after: string | null) => {
             const page = await collectionReader(after)
             const binders = []
@@ -163,9 +196,11 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
               })
               if (loaded !== slotCount || await count("binder_slots", collectionId) !== slotCount) conflict()
               snapshotSlotCount += loaded
+              storage.push({ collectionId, collectionVersion: s.version as number, layoutRevision: s.layout_revision as number, slotCount })
               binders.push(valid(normalizeBinderSnapshot({ ownerUserId: owner, collectionId, layoutRevision: s.layout_revision as number, presetManifest: s.preset_manifest,
                 slots: slotPage.slots.map(r => valid(normalizeBinderSlot({ id: r.id, ownerUserId: r.owner_user_id, collectionId: r.collection_id,
                   target: r.target, status: r.status, wantedCards: r.wanted_cards, version: r.version, presetOrigin: r.preset_origin,
+                  legacySource: sourceForSlot(r),
                   inventoryItemId: placements.find(p => p.slotId === r.id)?.inventoryItemId ?? null }))) })))
             }
             return { ...page, rows: binders }
@@ -173,7 +208,7 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
           // Shared completeness validation and final fences all precede branding/publication.
           const snapshot = await readCompleteInventorySnapshot(owner, rev, {
             items: async after => { const page = await itemReader(after); return { ...page, rows: page.rows.map(r => valid(normalizeInventoryItem({ id: r.id,
-              ownerUserId: r.owner_user_id, identity: r.identity, grading: r.grading, acquiredAt: r.acquired_at, version: r.version }))) } },
+              ownerUserId: r.owner_user_id, identity: r.identity, grading: r.grading, acquiredAt: r.acquired_at, version: r.version, legacySource: r.legacy_source }))) } },
             placements: async after => {
               // Already consumed every actual placement page above to project occupied slots.
               const start = after === null ? 0 : placements.findIndex(p => p.inventoryItemId === after) + 1
@@ -192,7 +227,28 @@ export async function readOwnerInventorySnapshot(client?: SupabaseClient, option
             await sameScope()
             check()
           })
-          return snapshot
+          if (sourceRows.some(source => !snapshot.binders.some(b => b.collectionId === source.collection_id && b.slots.some(slot => slot.id === source.slot_id)))) return unavailable()
+          const catalog = await readInventoryCatalog(db, snapshot, controller.signal, check)
+          const layouts: InventoryNavigationEvidence["layouts"] = []
+          for (const b of meta.binders) {
+            const settings = meta.settings
+            const known = (v: unknown) => v === null || isBinderGridSize(v)
+            // Missing columns/invalid data are unknown, unlike a successfully read absent settings row.
+            if (!known(b.binder_rows) || !known(b.binder_cols)) continue
+            // Existing user_settings RLS is owner-only. An empty partner result is not proof of defaults.
+            const ownerDimensionKnown = (key: "binder_rows" | "binder_cols") => settings ? known(settings[key]) : initialScope.actor === owner
+            if (b.binder_rows === null && !ownerDimensionKnown("binder_rows") || b.binder_cols === null && !ownerDimensionKnown("binder_cols")) continue
+            const grid = withBinderLayout(settingsFromRow(settings), { rows: b.binder_rows as number | null, cols: b.binder_cols as number | null })
+            layouts.push({ collectionId: String(b.id), layoutRevision: snapshot.binders.find(s => s.collectionId === b.id)!.layoutRevision, rows: grid.binderRows, cols: grid.binderCols })
+          }
+          if (JSON.stringify(await metadata(rev)) !== JSON.stringify(meta) || await revision() !== rev) conflict()
+          if (await count("binder_legacy_rows") !== sourceCount) conflict()
+          const finalSources = await readCompleteSnapshotRows(reader("binder_legacy_rows", "legacy_row_id,owner_user_id,collection_id,slot_id,source_row", "legacy_row_id", rev, sourceCount), rev, r => String(r.legacy_row_id))
+          if (JSON.stringify(finalSources) !== JSON.stringify(sourceRows)) conflict()
+          await sameScope()
+          return { snapshot, navigation: { catalog, layouts }, actorUserId: initialScope.actor, authSessionId: initialScope.authSessionId,
+            evidence: { inventoryRevision: rev, items: itemCount, placements: placementCount,
+              collections: meta.stateTotal, binders: meta.binderTotal, slots: slotCount, storage } }
         } catch (error) {
           if (error instanceof InventoryReadError && error.code === "inventory_read_conflict" && attempt + 1 < attempts) continue
           // Shared validators' details and PostgREST errors never cross this private API boundary.

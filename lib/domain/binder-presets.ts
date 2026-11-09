@@ -1,3 +1,4 @@
+import type { CardFinish, CardLanguage } from "@/lib/domain/cards"
 import {
   isContractRecord, isSlotContractId, normalizeSlotTarget,
   type BinderSnapshot, type SlotTarget,
@@ -55,4 +56,22 @@ export function instantiatePreset(
       presetOrigin: { source: { ...manifest.source }, entryId: entry.id },
     })),
   }
+}
+
+/** Internal draft evidence, kept alongside the 083-compatible copied target manifest. */
+export interface SetChecklistScope {
+  setId: string
+  setName: string
+  language: CardLanguage
+  finishes: CardFinish[]
+  capturedAt: string
+  officialCardCount: number | null
+  cards: { cardId: string; setId: string; localId: string; name: string; languageConfirmed: boolean; verifiedFinishes: CardFinish[] }[]
+  promoCardIds: string[]
+  excludedCardIds: string[]
+  warnings: string[]
+}
+export interface SetChecklist {
+  manifest: PresetManifest
+  scope: SetChecklistScope
 }

@@ -66,6 +66,7 @@ function isOcrAssetUrl(url) {
 
 function isCacheableResponse(response) {
   return Boolean(response) && (response.ok || response.type === "opaque")
+    && !/\b(?:private|no-store)\b/i.test(response.headers?.get("cache-control") ?? "")
 }
 
 function isImagePath(pathname) {
@@ -428,6 +429,8 @@ async function warmCacheUrl(rawUrl) {
     return
   }
 
+  if (/^\/(?:app\/)?api\/(?:inventory|binder-slots)(?:\/|$)/.test(url.pathname)) return
+
   // Pages aren't cached per user any more; warming "/" means "make sure the offline shell is ready".
   if (url.origin === self.location.origin && (APP_ENTRY_PATHS.includes(url.pathname))) {
     if (!(await getOfflineAppShell())) {
@@ -544,7 +547,7 @@ self.addEventListener("fetch", (event) => {
 
   // Private data and signed artwork always use the network, even with image-like paths.
   if (url.searchParams.has("X-Amz-Signature")) return
-  if (request.headers?.has("Authorization") || /^\/(?:app\/)?(?:api\/(?:v1|developer|oauth|binder-appearance)(?:\/|$)|mcp(?:\/|$)|oauth(?:\/|$))/.test(url.pathname)) return
+  if (request.headers?.has("Authorization") || /^\/(?:app\/)?(?:api\/(?:v1|developer|oauth|binder-appearance|inventory|binder-slots)(?:\/|$)|mcp(?:\/|$)|oauth(?:\/|$))/.test(url.pathname)) return
 
   if (request.mode === "navigate") {
     if (url.origin !== self.location.origin || (!/^\/app(?:\/|$)/.test(url.pathname) && !(LEGACY_BINDER_ORIGIN && APP_ENTRY_PATHS.includes(url.pathname)))) return

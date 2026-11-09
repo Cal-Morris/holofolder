@@ -1,55 +1,8 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { createClient } from "@supabase/supabase-js"
+import { fixture, owner, collection } from "./fixtures/inventory-read-server"
 import { isCompleteInventorySnapshot } from "../lib/collection/slot-snapshot"
 import { readOwnerInventorySnapshot } from "../lib/server/inventory-read"
-
-const owner = "11111111-1111-4111-8111-111111111111"
-const collection = "22222222-2222-4222-8222-222222222222"
-type Row = Record<string, unknown>
-function fixture(size = 1031) {
-  const tables: Record<string, Row[]> = {
-    partnerships: [], inventory_owner_state: [{ owner_user_id: owner, inventory_revision: 7 }],
-    binders: [{ id: collection, owner_user_id: owner, name: "Synthetic storage" }],
-    storage_collection_state: [{ collection_id: collection, owner_user_id: owner, kind: "binder", default_presentation: "binder", version: 3, layout_revision: 4, authority: "slots", preset_manifest: null }],
-    inventory_items: [], inventory_placements: [], binder_slots: [],
-  }
-  for (let n = 0; n < size; n++) {
-    const id = `synthetic-${String(n).padStart(5, "0")}`
-    tables.inventory_items.push({ id, owner_user_id: owner, identity: n % 3 ? { kind: "card", cardId: n % 2 ? "legacy-unknown" : "synthetic-energy" } : { kind: "pokemon", pokemonId: 25 }, grading: null, acquired_at: null, version: n })
-    tables.inventory_placements.push({ inventory_item_id: id, owner_user_id: owner, collection_id: collection, slot_id: id, version: n })
-    tables.binder_slots.push({ id, owner_user_id: owner, collection_id: collection, position: n * 2, target: null, status: "collected", wanted_cards: [], preset_origin: null, version: n })
-  }
-  let actor = owner, allowed = true, oauth = false
-  const requests: { table: string; url: URL; method: string; headers: Headers }[] = []
-  let intercept: ((table: string, url: URL) => Response | void) | undefined
-  const client = createClient("https://synthetic.supabase.test", "synthetic-key", { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: async (input, init) => {
-    const url = new URL(String(input)), table = url.pathname.split("/").at(-1)!
-    const method = init?.method ?? "GET"
-    requests.push({ table, url, method, headers: new Headers(init?.headers) })
-    const overridden = intercept?.(table, url)
-    if (overridden) return overridden
-    if (table === "billing_partner_allowed") return Response.json(allowed)
-    let rows = [...(tables[table] ?? [])]
-    for (const [key, filter] of url.searchParams) {
-      if (filter.startsWith("eq.")) rows = rows.filter(r => String(r[key]) === filter.slice(3))
-      if (filter.startsWith("gt.")) rows = rows.filter(r => typeof r[key] === "number" ? Number(r[key]) > Number(filter.slice(3)) : String(r[key]) > filter.slice(3))
-    }
-    if (url.searchParams.has("order")) {
-      const key = url.searchParams.get("order")!.split(".")[0]
-      rows.sort((a, b) => a[key]! < b[key]! ? -1 : a[key]! > b[key]! ? 1 : 0)
-    }
-    const count = rows.length
-    const limit = Math.min(1000, Number(url.searchParams.get("limit") ?? 1000))
-    rows = rows.slice(0, limit)
-    const select = url.searchParams.get("select")
-    if (select && select !== "*") rows = rows.map(r => Object.fromEntries(select.split(",").filter(k => k in r).map(k => [k, r[k]])))
-    return new Response(method === "HEAD" ? null : JSON.stringify(rows), { status: 200, headers: { "Content-Type": "application/json", "Content-Range": `0-${Math.max(0, rows.length - 1)}/${count}` } })
-  } } })
-  client.auth.getClaims = async () => ({ data: { claims: { sub: actor, role: "authenticated", ...(oauth ? { client_id: "synthetic-oauth" } : {}) } }, error: null }) as never
-  client.auth.getUser = async () => ({ data: { user: { id: actor } }, error: null }) as never
-  return { client, tables, requests, setActor: (id: string) => { actor = id }, deny: () => { allowed = false }, oauth: () => { oauth = true }, intercept: (fn: typeof intercept) => { intercept = fn } }
-}
 
 test("authenticated table requests collect >1025 copies and ordered slots, then brand", async () => {
   const f = fixture()
@@ -67,7 +20,7 @@ test("authenticated table requests collect >1025 copies and ordered slots, then 
   assert.ok(slotRequests.every(r => r.url.searchParams.get("limit") === "500"))
   assert.ok(slotRequests.every(r => r.url.searchParams.get("order") === "position.asc" && r.url.searchParams.get("owner_user_id") === `eq.${owner}`))
   assert.ok(slotRequests.some(r => r.url.searchParams.get("position")?.startsWith("gt.")))
-  assert.ok(f.requests.every(r => !r.url.search.includes("select=*") && !/slot_page|recovery|command_evidence|legacy_source/.test(r.url.href)))
+  assert.ok(f.requests.every(r => !r.url.search.includes("select=*") && !/slot_page|recovery|command_evidence/.test(r.url.href)))
 })
 
 test("zero slots and no inventory are real complete state only with initialized owner", async () => {
@@ -138,12 +91,12 @@ test("recorded grades and unknown printing identities survive without catalog/pr
     f.tables.inventory_items[i].grading = { provider: i < 4 ? { kind: "known", id: providers[i] } : { kind: "custom", name: "Synthetic provider" },
       grade: "recorded not numeric", scale: "recorded", designation: null, subgrades: [{ name: "Surface", grade: "A" }], certificate: "synthetic-private-certificate",
       holder: "recorded", label: { variant: null, assetIds: ["synthetic-private-label-id"] } }
-    f.tables.inventory_items[i].legacy_source = { secret: "must not select" }
+    f.tables.inventory_items[i].legacy_source = { original: "synthetic private source" }
   }
   const result = await readOwnerInventorySnapshot(f.client)
   assert.deepEqual(result.items.map(i => i.grading), f.tables.inventory_items.map(i => i.grading))
-  assert.ok(f.requests.every(r => !/tcg_|provider|certificate/.test(r.table)))
-  assert.ok(!JSON.stringify(result).includes("must not select"))
+  assert.ok(f.requests.every(r => !/provider|certificate/.test(r.table)))
+  assert.deepEqual(result.items[0].legacySource, { original: "synthetic private source" })
 })
 
 test("spacers, empty collections and initialized empty owner retain honest zero state", async () => {
@@ -233,7 +186,7 @@ test("all storage kinds, collection streams beyond 1000 and independent layouts 
     const id = `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`
     f.tables.binders.push({ id, owner_user_id: owner, name: `Synthetic ${n}` })
     f.tables.storage_collection_state.push({ collection_id: id, owner_user_id: owner, kind: ["binder", "slab", "custom"][n % 3],
-      default_presentation: ["binder", "slabs", "list"][n % 3], version: n, layout_revision: n + 1, authority: "slots", preset_manifest: null })
+      default_presentation: ["binder", "slabs", "list"][n % 3], version: n, layout_revision: n + 1, authority: "slots", preset_manifest: null, location: null })
   }
   const result = await readOwnerInventorySnapshot(f.client, { maxRequests: 4096, timeoutMs: 30_000 })
   assert.equal(result.collections.length, 1031)

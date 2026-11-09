@@ -1,3 +1,4 @@
+import { normalizeInventorySource, type InventorySource } from "@/lib/domain/inventory-source"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import {
   isContractRecord, isSlotContractId, isSlotRevision, normalizeBinderSnapshot, getBinderCompletion,
@@ -21,6 +22,8 @@ export interface GradingRecord {
 }
 
 export interface InventoryItem {
+  /** Omitted in pre-extension snapshots; null means the server read no source. Private. */
+  legacySource?: InventorySource
   id: string
   ownerUserId: string
   identity: InventoryIdentity
@@ -39,6 +42,8 @@ export interface Placement {
 export type StorageKind = "binder" | "slab" | "custom"
 export type StoragePresentation = "binder" | "slabs" | "list"
 export interface StorageCollection {
+  /** Omission is unknown on old snapshots, null is a recorded absence. Owner/partner only. */
+  location?: string | null
   id: string
   ownerUserId: string
   name: string
@@ -102,19 +107,23 @@ export function normalizeGradingRecord(value: unknown): GradingRecord | null | u
 }
 
 export function normalizeInventoryItem(value: unknown): InventoryItem | undefined {
-  if (!isContractRecord(value, ["id", "ownerUserId", "identity", "grading", "acquiredAt", "version"])
+  if (!isContractRecord(value, ["id", "ownerUserId", "identity", "grading", "acquiredAt", "version", "legacySource"])
     || !isSlotContractId(value.id) || !isSlotContractId(value.ownerUserId) || !isSlotRevision(value.version)
     || (value.acquiredAt !== null && (typeof value.acquiredAt !== "string" || !Number.isFinite(Date.parse(value.acquiredAt))))) return undefined
+  const legacySource = "legacySource" in value ? normalizeInventorySource(value.legacySource) : undefined
+  if ("legacySource" in value && legacySource === undefined) return undefined
   const identity = normalizeInventoryIdentity(value.identity), grading = normalizeGradingRecord(value.grading)
   if (!identity || grading === undefined || (identity.kind === "pokemon" && grading !== null)) return undefined
-  return { id: value.id, ownerUserId: value.ownerUserId, identity, grading, acquiredAt: value.acquiredAt, version: value.version }
+  return { id: value.id, ownerUserId: value.ownerUserId, identity, grading, acquiredAt: value.acquiredAt, version: value.version, ...("legacySource" in value ? { legacySource } : {}) }
 }
 
 export function normalizeStorageCollection(value: unknown): StorageCollection | undefined {
-  if (!isContractRecord(value, ["id", "ownerUserId", "name", "kind", "defaultPresentation", "version"])
+  if (!isContractRecord(value, ["id", "ownerUserId", "name", "kind", "defaultPresentation", "version", "location"])
     || !isSlotContractId(value.id) || !isSlotContractId(value.ownerUserId) || !text(value.name) || !isSlotRevision(value.version)
     || !["binder", "slab", "custom"].includes(value.kind as string) || !["binder", "slabs", "list"].includes(value.defaultPresentation as string)) return undefined
-  return { id: value.id, ownerUserId: value.ownerUserId, name: value.name, kind: value.kind as StorageKind, defaultPresentation: value.defaultPresentation as StoragePresentation, version: value.version }
+  if ("location" in value && value.location !== null && (value.kind !== "custom" || typeof value.location !== "string"
+    || !value.location.length || value.location.length > 200 || value.location.trim() !== value.location)) return undefined
+  return { ...("location" in value ? { location: value.location as string | null } : {}), id: value.id, ownerUserId: value.ownerUserId, name: value.name, kind: value.kind as StorageKind, defaultPresentation: value.defaultPresentation as StoragePresentation, version: value.version }
 }
 
 export function normalizePlacement(value: unknown): Placement | undefined {

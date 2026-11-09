@@ -1,0 +1,233 @@
+import { test } from "node:test"
+import assert from "node:assert/strict"
+import { handleInventoryCompleteRead } from "../lib/server/inventory-read-http"
+import { fetchCurrentInventorySnapshot } from "../lib/collection/inventory-read-browser"
+import { captureCompleteInventoryReadFence, isCompleteInventoryReadAfter, isCompleteInventorySnapshot } from "../lib/collection/slot-snapshot"
+import { fixture, owner, collection } from "./fixtures/inventory-read-server"
+import type { InventoryReadScope } from "../lib/collection/inventory-read-transport"
+
+const scope: InventoryReadScope = { actorUserId: owner, ownerUserId: owner, authSessionId: "synthetic-auth-session", sessionId: "synthetic-lifecycle" }
+const request = (query = "requestId=synthetic-request&sessionId=synthetic-lifecycle") => new Request(`https://synthetic.test/app/api/inventory?${query}`)
+async function withFetch(run: (set: (fn: typeof fetch) => void) => Promise<void>) {
+  const saved = globalThis.fetch
+  try { await run(fn => { globalThis.fetch = fn }) } finally { globalThis.fetch = saved }
+}
+
+test("actual authenticated handler -> JSON -> browser complete reconstruction retains >1000 records and independent fences", async () => {
+  const f = fixture()
+  const response = await handleInventoryCompleteRead(request(), f.client)
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get("cache-control"), "private, no-store")
+  const json = await response.json()
+  assert.equal(isCompleteInventorySnapshot(json.snapshot), false)
+  assert.deepEqual(json.evidence, { inventoryRevision: 7, items: 1031, placements: 1031, collections: 1, binders: 1, slots: 1031,
+    storage: [{ collectionId: collection, collectionVersion: 3, layoutRevision: 4, slotCount: 1031 }] })
+  await withFetch(async set => {
+    set(async (input, init) => {
+      assert.equal(init?.credentials, "same-origin"); assert.equal(init?.cache, "no-store"); assert.equal(init?.redirect, "error")
+      return handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test"), init), f.client)
+    })
+    const result = await fetchCurrentInventorySnapshot(() => scope)
+    assert.equal(result.status, "complete")
+    if (result.status !== "complete") return
+    assert.ok(isCompleteInventorySnapshot(result.snapshot))
+    assert.equal(result.snapshot.items.length, 1031)
+    assert.equal(result.snapshot.binders[0].slots.length, 1031)
+  })
+})
+
+test("handler auth resolves owner/partner/unlinked actors, never caller identity", async () => {
+  const f = fixture(0), partner = "33333333-3333-4333-8333-333333333333"
+  f.oauth()
+  assert.equal((await handleInventoryCompleteRead(request(), f.client)).status, 401)
+  const linked = fixture(0)
+  linked.setActor(partner)
+  linked.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
+  const response = await handleInventoryCompleteRead(request(), linked.client)
+  assert.deepEqual((await response.json()).scope, { ...scope, actorUserId: partner })
+  linked.tables.partnerships = []
+  assert.equal((await handleInventoryCompleteRead(request(), linked.client)).status, 503)
+  assert.equal((await handleInventoryCompleteRead(request(`requestId=a&sessionId=b&ownerUserId=${owner}`), linked.client)).status, 400)
+  for (const query of ["requestId=a", "requestId=a&requestId=b&sessionId=c", "requestId=a&sessionId=b&actorUserId=forged"]) {
+    assert.equal((await handleInventoryCompleteRead(request(query), linked.client)).status, 400)
+  }
+})
+
+test("interrupted pages, uninitialized/legacy states, auth-session change and denied reads never publish a complete HTTP result", async () => {
+  for (const mode of ["page", "uninitialized", "legacy", "session", "permission"]) {
+    const f = fixture(mode === "page" ? 1031 : 0)
+    if (mode === "page") f.intercept((table, url) => table === "inventory_items" && url.searchParams.has("id") ? Response.json([]) : undefined)
+    if (mode === "uninitialized") f.tables.inventory_owner_state = []
+    if (mode === "legacy") f.tables.storage_collection_state[0].authority = "legacy"
+    if (mode === "permission") f.deny()
+    if (mode === "session") f.intercept(table => {
+      if (table === "inventory_items") f.client.auth.getClaims = async () => ({ data: { claims: { sub: owner, role: "authenticated", session_id: "synthetic-new-auth-session" } }, error: null }) as never
+    })
+    const response = await handleInventoryCompleteRead(request(), f.client)
+    assert.ok(response.status >= 400, mode)
+    assert.equal("snapshot" in await response.json(), false)
+  }
+})
+
+test("malformed payload/count/version/owner/session/nonce and cacheable responses fail closed", async () => {
+  const base = await (await handleInventoryCompleteRead(request(), fixture(2).client)).json()
+  const mutations = [
+    (b: typeof base) => { b.version = 3 },
+    (b: typeof base) => { b.snapshot.items.pop() },
+    (b: typeof base) => { b.evidence.items++ },
+    (b: typeof base) => { b.evidence.inventoryRevision++ },
+    (b: typeof base) => { b.evidence.storage[0].slotCount++ },
+    (b: typeof base) => { b.evidence.storage[0].collectionVersion++ },
+    (b: typeof base) => { b.evidence.storage[0].layoutRevision++ },
+    (b: typeof base) => { b.snapshot.ownerUserId = "wrong" },
+    (b: typeof base) => { b.scope.actorUserId = "wrong" },
+    (b: typeof base) => { b.scope.ownerUserId = "wrong" },
+    (b: typeof base) => { b.scope.authSessionId = "wrong" },
+    (b: typeof base) => { b.scope.sessionId = "wrong" },
+    (b: typeof base) => { b.requestId = "replayed" },
+    (b: typeof base) => { b.snapshot.items[0].version = -1 },
+    (b: typeof base) => { b.evidence.untrusted = true },
+  ]
+  await withFetch(async set => {
+    for (const mutate of mutations) {
+      set(async input => {
+        const body = structuredClone(base)
+        body.requestId = new URL(String(input), "https://synthetic.test").searchParams.get("requestId")
+        mutate(body)
+        return Response.json(body, { headers: { "Cache-Control": "private, no-store" } })
+      })
+      assert.equal((await fetchCurrentInventorySnapshot(() => scope)).status, "unavailable")
+    }
+    set(async input => {
+      const body = structuredClone(base)
+      body.requestId = new URL(String(input), "https://synthetic.test").searchParams.get("requestId")
+      return Response.json(body)
+    })
+    assert.equal((await fetchCurrentInventorySnapshot(() => scope)).status, "unavailable")
+  })
+})
+
+test("account/owner/lifecycle swap while HTTP or JSON is pending rejects even same-owner relink", async () => {
+  await withFetch(async set => {
+    for (const field of ["actorUserId", "ownerUserId", "authSessionId", "sessionId"] as const) {
+      let live: InventoryReadScope | null = { ...scope }
+      let release!: () => void
+      const wait = new Promise<void>(resolve => { release = resolve })
+      set(async input => {
+        const response = await handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), fixture(0).client)
+        await wait
+        return response
+      })
+      const pending = fetchCurrentInventorySnapshot(() => live)
+      live = { ...scope, [field]: "changed" }; release()
+      assert.equal((await pending).status, "conflict")
+    }
+  })
+})
+
+test("nonce replay and cached replies cannot be reconstructed as a newly requested read", async () => {
+  await withFetch(async set => {
+    let cached: Response | undefined
+    set(async input => {
+      cached ??= await handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), fixture(0).client)
+      return cached.clone()
+    })
+    const first = await fetchCurrentInventorySnapshot(() => scope)
+    assert.equal(first.status, "complete")
+    const fence = captureCompleteInventoryReadFence()
+    if (first.status === "complete") assert.equal(isCompleteInventoryReadAfter(first.snapshot, fence), false)
+    assert.equal((await fetchCurrentInventorySnapshot(() => scope)).status, "unavailable")
+  })
+})
+
+test("JSON arriving after a command reply retains the BEFORE-fetch read-start fence", async () => {
+  await withFetch(async set => {
+    let release!: () => void
+    const wait = new Promise<void>(resolve => { release = resolve })
+    set(async input => {
+      const response = await handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), fixture(0).client)
+      await wait
+      return response
+    })
+    const pending = fetchCurrentInventorySnapshot(() => scope)
+    const afterCommand = captureCompleteInventoryReadFence()
+    release()
+    const earlier = await pending
+    assert.equal(earlier.status, "complete")
+    if (earlier.status === "complete") assert.equal(isCompleteInventoryReadAfter(earlier.snapshot, afterCommand), false)
+    const fresh = await fetchCurrentInventorySnapshot(() => scope)
+    assert.equal(fresh.status, "complete")
+    if (fresh.status === "complete") assert.ok(isCompleteInventoryReadAfter(fresh.snapshot, afterCommand))
+  })
+})
+
+test("session teardown during JSON decoding never brands the pending response", async () => {
+  await withFetch(async set => {
+    let live: InventoryReadScope | null = scope
+    let decoding!: () => void, release!: () => void
+    const began = new Promise<void>(resolve => { decoding = resolve })
+    const pendingJson = new Promise<void>(resolve => { release = resolve })
+    set(async input => {
+      const response = await handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), fixture(0).client)
+      const decode = response.json.bind(response)
+      response.json = async () => { decoding(); await pendingJson; return decode() }
+      return response
+    })
+    const pending = fetchCurrentInventorySnapshot(() => live)
+    await began
+    live = null; release()
+    assert.equal((await pending).status, "conflict")
+  })
+})
+
+test("the reusable handler cannot open either public staging route", async () => {
+  const inventory = await import("../app/api/inventory/route")
+  const slots = await import("../app/api/binder-slots/route")
+  for (const route of [inventory, slots]) {
+    for (const method of ["GET", "POST", "PATCH", "DELETE"] as const) {
+      const response = await route[method]()
+      assert.equal(response.status, 503)
+      assert.match(response.headers.get("cache-control") ?? "", /private.*no-store/)
+    }
+  }
+})
+
+test("browser preserves honest conflict/legacy/uninitialized/staging errors and sanitizes unknown details", async () => {
+  await withFetch(async set => {
+    for (const [status, code] of [[409, "inventory_read_conflict"], [503, "legacy_inventory_incomplete"], [503, "inventory_not_initialized"], [401, "inventory_sign_in_required"], [403, "inventory_read_forbidden"], [503, "inventory_operations_staged"]] as const) {
+      set(async () => Response.json({ error: code }, { status }))
+      assert.deepEqual(await fetchCurrentInventorySnapshot(() => scope), { status: status === 409 ? "conflict" : "unavailable", code })
+    }
+    set(async () => Response.json({ error: "synthetic private database detail" }, { status: 503 }))
+    assert.deepEqual(await fetchCurrentInventorySnapshot(() => scope), { status: "unavailable", code: "inventory_read_unavailable" })
+  })
+})
+
+test("missing authenticated session identity rejects before any owner data read", async () => {
+  const f = fixture(0)
+  f.client.auth.getClaims = async () => ({ data: { claims: { sub: owner, role: "authenticated" } }, error: null }) as never
+  assert.equal((await handleInventoryCompleteRead(request(), f.client)).status, 401)
+  assert.equal(f.requests.length, 0)
+})
+
+test("private JSON retains recorded canonical metadata including 083 location and immutable source", async () => {
+  const f = fixture(2)
+  const grade = { provider: { kind: "custom", name: "Synthetic grading" }, grade: "recorded", scale: null, designation: null,
+    subgrades: [], certificate: "synthetic-private-certificate", holder: "synthetic holder", label: { variant: null, assetIds: ["synthetic-private-asset"] } }
+  f.tables.inventory_items[1].grading = grade
+  f.tables.inventory_items[1].acquired_at = "2026-01-01T00:00:00Z"
+  f.tables.inventory_items[1].legacy_source = "synthetic-source-not-selected"
+  f.tables.storage_collection_state[0].kind = "custom"
+  f.tables.storage_collection_state[0].default_presentation = "list"
+  f.tables.storage_collection_state[0].location = "synthetic private shelf"
+  await withFetch(async set => {
+    set(async input => handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test")), f.client))
+    const result = await fetchCurrentInventorySnapshot(() => scope)
+    assert.equal(result.status, "complete")
+    if (result.status !== "complete") return
+    assert.deepEqual(result.snapshot.items[1].grading, grade)
+    assert.equal(result.snapshot.items[1].acquiredAt, "2026-01-01T00:00:00Z")
+    assert.equal(result.snapshot.collections[0].location, "synthetic private shelf")
+    assert.equal(result.snapshot.items[1].legacySource, "synthetic-source-not-selected")
+  })
+})

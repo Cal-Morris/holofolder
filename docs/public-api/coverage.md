@@ -91,9 +91,26 @@ Internal backup/import preparation (#365): [JSON v2 serialization and immutable 
 
 ### Staged collection navigation (#386)
 
-[Collection navigation](../collection-navigation.md) adds an internal host for device/account/owner-local presentation, Inventory return context, stable-ID location refresh and scoped history/deep links. Navigation preferences are device-only UI, with no REST/MCP/registry/OpenAPI or audit operation. Its complete-read input is an in-memory private contract; runtime branding does not survive JSON. Authenticated browser transport/reconstruction and production BinderApp/dock/queue binding remain #376/#379/#386 blockers. No slot/inventory route, conversion or Slabs presentation is enabled, and unpublished release copy makes no shipped claim.
+[Collection navigation](../collection-navigation.md) adds an internal host for device/account/owner-local presentation, Inventory return context, stable-ID location refresh and scoped history/deep links. Navigation preferences are device-only UI, with no REST/MCP/registry/OpenAPI or audit operation. Its complete-read input is an in-memory private contract; runtime branding does not survive JSON. The private browser reconstruction and real navigation adapter now supply fenced grid/catalog data; production BinderApp/dock/queue/lifecycle binding and partner inherited grids hidden by owner-only settings RLS remain #376/#379/#386 blockers. No slot/inventory route, conversion or Slabs presentation is enabled, and unpublished release copy makes no shipped claim.
 Internal grading editor (#387): [manual grading drafts and provider navigation](../manual-grading.md) consume canonical per-copy grading and the existing 075 edit intent through supplied draft/commit callbacks. There is no production caller, durable sink, new REST/MCP operation or generated schema. Official outbound lookup/record links are private UI only; certificates, certificate-bearing hrefs and private labels are not added to public serializers. #385/#376/#379 retain integration, API and rollout ownership.
 
+### Private browser complete-read transport (#376/#379 preparation)
+
+[The first-party handler and browser reconstruction adapter](../inventory-complete-read.md#private-browser-transport-still-behind-379)
+transport the authoritative reader's private domain plus independent completeness
+fences, bound to current actor/owner/auth session/device lifecycle and a fresh
+nonce. They are deliberately unwired behind the unchanged unconditional 503 routes.
+This app-only boundary accepts cookie/RLS authentication, not API keys or MCP OAuth,
+and contains private grading metadata unsuitable for public/share projection.
+No shared registry operation, permission, OpenAPI schema or generated discovery is
+added. Supported REST/MCP parity remains tracked here in #376; #379 owns exposure.
+Private wire v2 now preserves 083 location and immutable item/slot source metadata,
+with real public mirror catalog and fenced per-binder/owner grids. The actual
+`readCurrentCollectionNavigation` callback supplies the existing host contract.
+RLS-hidden inherited grids for partners stay unknown; no permission widening or
+default guess occurs. JSON-v2 backup compatibility is documented, but appearance
+and asset packaging/full restore are not delivered. No customer availability or
+audit/recovery mutation is claimed.
 ### Private bulk layout preparation (#370)
 
 The opt-in bulk toolbar consumes existing internal parsed slot create/move requests and the real device-commit acceptance sink. One bounded group is one request, not independently accepted chunks. It supplies no new public REST/MCP operation, grant or OpenAPI schema while routes remain gated. Stable selection, stale-copy evidence, host props and remaining Undo/fill/cross-storage/enablement gates are documented in [bulk layout editing](../bulk-slot-layout-editing.md); staged help is `/app/docs/bulk-layout`. #376/#379 own public parity/enablement, #393 owns publication after the feature block is enabled. This is not a claim of authenticated server execution or customer availability.
@@ -101,3 +118,6 @@ The opt-in bulk toolbar consumes existing internal parsed slot create/move reque
 ### Explicit default creation recovery preparation (085)
 
 [Internal v2 contract and proof limits](../explicit-default-creation-recovery.md) add `recovery.preview.v2` / `recovery.apply.v2` only to the existing service-only gateway and strict internal parser. A nominated accessible same-owner native collection with current canonical 075 preconditions receives default atomically with untouched default-creation removal. No implicit selection, cleanup or authority rewind; version-1 requests/plans remain unchanged. No public registry/REST/MCP/OpenAPI, grant, route enablement, Activity/Undo/UI, browser-read transport or Framer change. #396/#384/#379 remain open; the inherited converted 4,096-copy 10s timeout remains a rollout gap. [Release copy](../releases/native-creation-recovery-draft.md) stays unpublished.
+## Copied set checklist drafts (#372/#373)
+
+The [set preset slice](../set-preset-checklists.md) reuses full mirrored app set reads and existing supported `list_sets`/`get_set` and paged `list_cards`/`get_card` catalog operations. Exact target/scope generation is an internal UI draft callback, not a new REST/MCP mutation. OpenAPI and public creation schemas are unchanged. 083 remains the execution boundary; detailed scope metadata requires an accepted durable contract before #379 enablement. No saved creation, hosted partner execution or persistent offline replay is claimed. [Help](../../content/docs/set-checklist-drafts.mdx).

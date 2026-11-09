@@ -395,6 +395,7 @@ export async function getMirroredSetDexSlots(
       name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
       image,
       language,
+      languageConfirmed: typeof card.name_json?.[language] === "string" && card.name_json[language].trim().length > 0,
       set: setSummary,
       rarity: typeof card.rarity === "string" ? card.rarity : undefined,
       variants: card.variants_json && typeof card.variants_json === "object" ? card.variants_json : undefined,
