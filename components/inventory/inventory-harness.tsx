@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import NavigationHarness from "@/components/collection-navigation/navigation-harness"
 import InventoryView from "./inventory-view"
 import { closeAllOverlays } from "@/hooks/use-overlay"
 import type { CompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
@@ -10,6 +11,11 @@ import { completeInventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowse
 
 /** Isolated synthetic host adapter. No account, API, storage, queue or production caller. */
 export default function InventoryHarness() {
+  const [navigation, setNavigation] = useState(false)
+  useEffect(() => { queueMicrotask(() => setNavigation(new URLSearchParams(window.location.search).has("navigation"))) }, [])
+  return navigation ? <NavigationHarness /> : <InventoryBrowseHarness />
+}
+function InventoryBrowseHarness() {
   const [snapshot, setSnapshot] = useState<CompleteInventorySnapshot | null>(null)
   const [mode, setMode] = useState("complete")
   const [account, setAccount] = useState("synthetic-owner")
