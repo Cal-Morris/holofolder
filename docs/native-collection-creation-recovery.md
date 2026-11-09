@@ -1,5 +1,7 @@
 # Native creation recovery, partial internal slice (084)
 
+The inherited converted maximum now has separate [same-state committed transaction controls](converted-recovery-performance.md). The original failures below remain recorded; this evidence does not change the native contract or enable recovery.
+
 Related: #396, #384, #379. Depends on PR #428, published head `12433cdb0e0e0b4d8be1f30df9469b08a7f7ee8e`, advanced by parent to `f9978258cd5b41bbc3ae3334a3c5335945491dbc` for current-main integration, and installed 083 after 081/082. The 083 SQL source is identical at both heads. Parent merged #428 during implementation, so this PR targets main directly. Migrations 073–083 are unchanged. Parent owns review, hosted backup/application and release. No hosted SQL, runtime enablement, merge, watch or publication is performed by this worker.
 
 ## Supported inverse

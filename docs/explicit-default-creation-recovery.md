@@ -1,5 +1,7 @@
 # Explicit default creation recovery (085, internal only)
 
+Later [full-workload transaction controls](converted-recovery-performance.md) preserve the recorded timeout evidence below and compare unchanged 085 against an identical committed fixture. They change no SQL or exposure gate; parent acceptance and the wider rollout remain pending.
+
 Related: #396, #384, #379. Based on merged #432, main `95f2550ae54486cf4a83eabe18f5fc9bb04a9fd0`. This extends [084 native creation recovery](native-collection-creation-recovery.md) without changing migrations 073–084 or any version-1 function, request, receipt or plan. Parent owns independent review, a fresh restore-verified backup, hosted application and release. No hosted access, grants, route enablement, conversion, merge/watch or Framer publication is part of this slice.
 
 ## Eligibility and consequences

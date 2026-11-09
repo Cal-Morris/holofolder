@@ -1,5 +1,7 @@
 # Converted collection and mapped-slot recovery (081)
 
+For the later complete converted regression and its transaction-setup control, see [converted recovery performance](converted-recovery-performance.md). The historical isolated measurement below is not the full-regression headroom proof.
+
 Related #396/#383, base `f6595ff1793b97f25f7d55504782a93df1e2fdea`, including accepted fixed 080 from `ae6306c1654ceae6365aafca7fa47d0a74edb7c3`. Internal SQL preparation only. Neither issue is complete. Parent owns independent review, CI, a fresh restore-verified hosted backup/application, serialized merge and production verification. No hosted access, runtime grants, real conversion, API/UI enablement or Framer publication was performed by this worker.
 
 ## Supported whole events
