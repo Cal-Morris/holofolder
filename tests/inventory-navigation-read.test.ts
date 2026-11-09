@@ -44,7 +44,6 @@ test("real binder overrides inherit owner dimensions individually and fence conc
 })
 test("genuine JSON reconstruction supplies partner scope and stable-ID navigation", async () => {
   const f = metadata(), partner = "33333333-3333-4333-8333-333333333333"
-  f.tables.binders[0].binder_cols = 4
   f.setActor(partner); f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
   const saved = globalThis.fetch
   try {
@@ -139,12 +138,12 @@ test("old v2 files preserve omitted metadata, malformed source input fails inste
   assert.equal(normalizeInventorySnapshot(invalid), undefined)
 })
 
-test("partner RLS-hidden owner settings are unknown, never defaults or the partner's own grid", async () => {
+test("partner inherits the actual owner grid, never their own settings", async () => {
   const f = metadata(), partner = "33333333-3333-4333-8333-333333333333"
   f.setActor(partner)
   f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
   f.tables.user_settings.push({ user_id: partner, binder_rows: 8, binder_cols: 8 })
-  assert.deepEqual((await readOwnerInventoryState(f.client)).navigation.layouts, [])
+  assert.deepEqual((await readOwnerInventoryState(f.client)).navigation.layouts, [{ collectionId: collection, layoutRevision: 4, rows: 2, cols: 4 }])
   f.tables.binders[0].binder_cols = 3
   assert.deepEqual((await readOwnerInventoryState(f.client)).navigation.layouts, [{ collectionId: collection, layoutRevision: 4, rows: 2, cols: 3 }])
 })
@@ -239,3 +238,60 @@ for (const kind of ["alias", "canonical"] as const) {
     await assert.rejects(readOwnerInventoryState(f.client), { code: "inventory_read_unavailable" })
   })
 }
+
+
+test("086 absent retains safe unknown partner inheritance and explicit per-dimension overrides", async () => {
+  for (const code of ["PGRST202", "42883"]) {
+    const f = metadata(), partner = "33333333-3333-4333-8333-333333333333"
+    f.setActor(partner); f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
+    f.intercept(table => table === "inventory_grid_read_v1" ? Response.json({ code, message: "function public.inventory_grid_read_v1() does not exist" }, { status: 404 }) : undefined)
+    assert.deepEqual((await readOwnerInventoryState(f.client)).navigation.layouts, [])
+    f.tables.binders[0].binder_cols = 3
+    assert.equal((await readOwnerInventoryState(f.client)).navigation.layouts[0].cols, 3)
+    f.setActor(owner)
+    f.tables.binders[0].binder_cols = null
+    assert.equal((await readOwnerInventoryState(f.client)).navigation.layouts[0].cols, 4)
+  }
+})
+
+test("RPC proves partner row absence, validates partial/malformed values and rejects denied reads", async () => {
+  const f = metadata(), partner = "33333333-3333-4333-8333-333333333333"
+  f.setActor(partner); f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
+  f.tables.user_settings = [{ user_id: partner, binder_rows: 8, binder_cols: 8 }]
+  assert.equal((await readOwnerInventoryState(f.client)).navigation.layouts[0].cols, 4)
+  for (const settings of [{ binder_rows: 3 }, { binder_rows: 3, binder_cols: 0, updated_at: null },
+    { binder_rows: 3, binder_cols: "4", updated_at: null }]) {
+    f.intercept(table => table === "inventory_grid_read_v1" ? Response.json({ owner_user_id: owner, partnership: f.tables.partnerships[0], settings }) : undefined)
+    if (!("binder_cols" in settings)) await assert.rejects(readOwnerInventoryState(f.client), { code: "inventory_read_unavailable" })
+    else assert.deepEqual((await readOwnerInventoryState(f.client)).navigation.layouts, [])
+  }
+  f.intercept(table => table === "inventory_grid_read_v1" ? Response.json({ code: "42883", message: "function private_helper() does not exist" }, { status: 404 }) : undefined)
+  await assert.rejects(readOwnerInventoryState(f.client), { code: "inventory_read_unavailable" })
+  f.intercept(table => table === "inventory_grid_read_v1" ? Response.json({ code: "42501" }, { status: 403 }) : undefined)
+  await assert.rejects(readOwnerInventoryState(f.client), { code: "inventory_read_unavailable" })
+  assert.equal(f.requests.filter(r => r.table === "user_settings").length, 0)
+})
+
+test("partner owner grid and non-key membership changes during catalog work reject under the shared budget", async () => {
+  for (const change of ["grid", "membership", "unlink"]) {
+    const f = metadata(), partner = "33333333-3333-4333-8333-333333333333"
+    f.setActor(partner); f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
+    f.intercept(table => {
+      if (table !== "tcg_cards") return
+      if (change === "grid") f.tables.user_settings[0].binder_cols = Number(f.tables.user_settings[0].binder_cols) + 1
+      if (change === "membership") f.tables.partnerships[0].user1_id = "44444444-4444-4444-8444-444444444444"
+      if (change === "unlink") f.tables.partnerships = []
+    })
+    await assert.rejects(readOwnerInventoryState(f.client, { attempts: 1 }), { code: "inventory_read_conflict" })
+  }
+})
+
+
+test("grid RPC auth failures preserve first-party status and never use the table fallback", async () => {
+  for (const [message, status] of [["inventory_sign_in_required", 401], ["inventory_read_forbidden", 403]] as const) {
+    const f = fixture(1)
+    f.intercept(table => table === "inventory_grid_read_v1" ? Response.json({ code: "42501", message }, { status: 403 }) : undefined)
+    await assert.rejects(readOwnerInventoryState(f.client), { code: message, status })
+    assert.ok(f.requests.every(r => r.table !== "user_settings"))
+  }
+})

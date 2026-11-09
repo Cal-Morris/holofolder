@@ -91,7 +91,7 @@ Internal backup/import preparation (#365): [JSON v2 serialization and immutable 
 
 ### Staged collection navigation (#386)
 
-[Collection navigation](../collection-navigation.md) adds an internal host for device/account/owner-local presentation, Inventory return context, stable-ID location refresh and scoped history/deep links. Navigation preferences are device-only UI, with no REST/MCP/registry/OpenAPI or audit operation. Its complete-read input is an in-memory private contract; runtime branding does not survive JSON. The private browser reconstruction and real navigation adapter now supply fenced grid/catalog data; production BinderApp/dock/queue/lifecycle binding and partner inherited grids hidden by owner-only settings RLS remain #376/#379/#386 blockers. No slot/inventory route, conversion or Slabs presentation is enabled, and unpublished release copy makes no shipped claim.
+[Collection navigation](../collection-navigation.md) adds an internal host for device/account/owner-local presentation, Inventory return context, stable-ID location refresh and scoped history/deep links. Navigation preferences are device-only UI, with no REST/MCP/registry/OpenAPI or audit operation. Its complete-read input is an in-memory private contract; runtime branding does not survive JSON. The private browser reconstruction and real navigation adapter now supply fenced grid/catalog data; production BinderApp/dock/queue/lifecycle binding remains a #376/#379/#386 blocker. 086 adds a narrow app-only authenticated grid RPC for partner inheritance, pending parent review/application. No slot/inventory route, conversion or Slabs presentation is enabled, and unpublished release copy makes no shipped claim.
 Internal grading editor (#387): [manual grading drafts and provider navigation](../manual-grading.md) consume canonical per-copy grading and the existing 075 edit intent through supplied draft/commit callbacks. There is no production caller, durable sink, new REST/MCP operation or generated schema. Official outbound lookup/record links are private UI only; certificates, certificate-bearing hrefs and private labels are not added to public serializers. #385/#376/#379 retain integration, API and rollout ownership.
 
 ### Private browser complete-read transport (#376/#379 preparation)
@@ -107,8 +107,10 @@ added. Supported REST/MCP parity remains tracked here in #376; #379 owns exposur
 Private wire v2 now preserves 083 location and immutable item/slot source metadata,
 with real public mirror catalog and fenced per-binder/owner grids. The actual
 `readCurrentCollectionNavigation` callback supplies the existing host contract.
-RLS-hidden inherited grids for partners stay unknown; no permission widening or
-default guess occurs. JSON-v2 backup compatibility is documented, but appearance
+086 supplies inherited partner grids through a no-argument, authenticated-only
+security-definer projection of actual owner grid fields/existence and minimal
+membership/timestamp fences. Table RLS/ACLs and denied helpers stay unchanged.
+Before application those grids remain unknown; no default guess occurs. JSON-v2 backup compatibility is documented, but appearance
 and asset packaging/full restore are not delivered. No customer availability or
 audit/recovery mutation is claimed.
 ### Private bulk layout preparation (#370)

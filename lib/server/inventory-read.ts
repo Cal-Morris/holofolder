@@ -143,11 +143,34 @@ export async function readOwnerInventoryState(client?: SupabaseClient, options: 
         }
         if (states.some(s => !isSlotRevision(s.version) || !isSlotRevision(s.layout_revision))) return unavailable()
         check()
+        const grid = await db.rpc("inventory_grid_read_v1").abortSignal(controller.signal)
+        if (!grid.error) {
+          const value: unknown = grid.data
+          const keys = (v: unknown, expected: string[]): v is Row => !!v && typeof v === "object" && !Array.isArray(v)
+            && Object.keys(v).length === expected.length && expected.every(key => Object.hasOwn(v, key))
+          if (!keys(value, ["owner_user_id", "partnership", "settings"])) return unavailable()
+          if (value.owner_user_id !== owner) conflict()
+          const p = value.partnership
+          if (p !== null && !keys(p, ["id", "owner_user_id", "user1_id", "user2_id"])) return unavailable()
+          if (p === null ? initialScope.partnership !== null : initialScope.partnership === null
+            || Object.entries(p).some(([key, v]) => initialScope.partnership![key] !== v)) conflict()
+          const settings = value.settings
+          if (settings !== null && (!keys(settings, ["binder_rows", "binder_cols", "updated_at"])
+            || settings.updated_at !== null && typeof settings.updated_at !== "string")) return unavailable()
+          return { states, binders, stateTotal, binderTotal, settings, settingsKnown: true }
+        }
+        if (grid.error.code === "42501" && grid.error.message === "inventory_sign_in_required") return fail("inventory_sign_in_required", 401)
+        if (grid.error.code === "42501" && grid.error.message === "inventory_read_forbidden") return fail("inventory_read_forbidden", 403)
+        // Only an uninstalled RPC retains 439's safe behavior; permission/auth failures fail closed.
+        const missingGrid = grid.error.code === "PGRST202" || grid.error.code === "42883"
+          && grid.error.message === "function public.inventory_grid_read_v1() does not exist"
+        if (!missingGrid) return unavailable()
+        check()
         const settings = await db.from("user_settings").select("user_id,binder_rows,binder_cols,updated_at").eq("user_id", owner).limit(2).abortSignal(controller.signal)
         if (settings.error) return unavailable()
         const settingsRows = rows(settings.data)
         if (settingsRows.length > 1 || settingsRows.some(r => r.user_id !== owner)) return unavailable()
-        return { states, binders, stateTotal, binderTotal, settings: settingsRows[0] ?? null }
+        return { states, binders, stateTotal, binderTotal, settings: settingsRows[0] ?? null, settingsKnown: initialScope.actor === owner }
       }
       for (let attempt = 0; attempt < attempts; attempt++) {
         try {
@@ -235,8 +258,8 @@ export async function readOwnerInventoryState(client?: SupabaseClient, options: 
             const known = (v: unknown) => v === null || isBinderGridSize(v)
             // Missing columns/invalid data are unknown, unlike a successfully read absent settings row.
             if (!known(b.binder_rows) || !known(b.binder_cols)) continue
-            // Existing user_settings RLS is owner-only. An empty partner result is not proof of defaults.
-            const ownerDimensionKnown = (key: "binder_rows" | "binder_cols") => settings ? known(settings[key]) : initialScope.actor === owner
+            // Only the narrow RPC (or an owner table read) can prove row absence.
+            const ownerDimensionKnown = (key: "binder_rows" | "binder_cols") => settings ? known(settings[key]) : meta.settingsKnown
             if (b.binder_rows === null && !ownerDimensionKnown("binder_rows") || b.binder_cols === null && !ownerDimensionKnown("binder_cols")) continue
             const grid = withBinderLayout(settingsFromRow(settings), { rows: b.binder_rows as number | null, cols: b.binder_cols as number | null })
             layouts.push({ collectionId: String(b.id), layoutRevision: snapshot.binders.find(s => s.collectionId === b.id)!.layoutRevision, rows: grid.binderRows, cols: grid.binderCols })

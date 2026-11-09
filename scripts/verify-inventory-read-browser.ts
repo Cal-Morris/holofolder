@@ -61,11 +61,32 @@ async function main() {
       const partner = "33333333-3333-4333-8333-333333333333"
       f.setActor(partner)
       f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
+      f.tables.binders[0].binder_cols = null
+      f.tables.user_settings = [{ user_id: owner, binder_rows: 3, binder_cols: 5, updated_at: "synthetic-grid-1" },
+        { user_id: partner, binder_rows: 8, binder_cols: 8, updated_at: "synthetic-partner-grid" }]
       await page.evaluate(() => window.inventoryReadProof.partner())
       const partnerNavigation = await page.evaluate(() => window.inventoryReadProof.navigation())
       assert.equal(partnerNavigation.scope.accountUserId, partner)
       assert.equal(partnerNavigation.scope.ownerUserId, owner)
       assert.equal(partnerNavigation.indexKind, "complete")
+      assert.equal(partnerNavigation.location.kind, "assigned")
+      if (partnerNavigation.location.kind === "assigned") {
+        assert.equal(partnerNavigation.location.page, 104, "2-row binder override inherits the owner's 5 columns")
+        assert.equal(partnerNavigation.location.intent.slotId, "synthetic-01030")
+      }
+      for (const change of ["grid", "membership"]) {
+        let changes = 0
+        f.intercept(table => {
+          if (table !== "tcg_cards") return
+          if (change === "grid") f.tables.user_settings[0].updated_at = `synthetic-concurrent-grid-${++changes}`
+          else { f.tables.partnerships[0].user1_id = partner; f.tables.partnerships[0].user2_id = owner }
+        })
+        assert.equal(await page.evaluate(async () => {
+          try { await window.inventoryReadProof.navigation(); return "unexpected complete" }
+          catch (error) { return (error as { code: string }).code }
+        }), "inventory_read_conflict")
+        f.intercept(undefined)
+      }
       await page.evaluate(() => window.inventoryReadProof.enqueue())
       // Synthetic backend commit represented by actual table rows/revisions, not a complete JSON cast.
       f.tables.inventory_owner_state[0].inventory_revision = 8

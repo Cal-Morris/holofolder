@@ -26,6 +26,14 @@ export function fixture(size = 1031) {
     requests.push({ table, url, method, headers: new Headers(init?.headers) })
     const overridden = intercept?.(table, url)
     if (overridden) return overridden
+    if (table === "inventory_grid_read_v1") {
+      const membership = tables.partnerships.filter(p => p.user1_id === actor || p.user2_id === actor)
+      const resolved = membership[0]?.owner_user_id ?? actor
+      const settings = tables.user_settings.filter(s => s.user_id === resolved)
+      if (!allowed || oauth || membership.length > 1 || settings.length > 1) return Response.json({ code: "42501" }, { status: 403 })
+      return Response.json({ owner_user_id: resolved, partnership: membership[0] ?? null,
+        settings: settings[0] ? Object.fromEntries(["binder_rows", "binder_cols", "updated_at"].map(k => [k, settings[0][k] ?? null])) : null })
+    }
     if (table === "billing_partner_allowed") return Response.json(allowed)
     let rows = [...(tables[table] ?? [])]
     // Current 033 policy exposes user_settings only to its user, not their partner.
