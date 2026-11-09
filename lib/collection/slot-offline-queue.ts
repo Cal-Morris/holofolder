@@ -146,11 +146,11 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       await update(record => { if (!record.legacy.some(a => sameValue(a, saved))) record.legacy.push(saved) })
     },
     /** Explicit retry keeps the original operation ID even after an unknown outcome. */
-    async resume(operationId: string) {
+    async resume(operationId: string, now = Date.now()) {
       await update(record => {
         const p = record.pending.find(p => p.intent.request.operationId === operationId)
-        if (!p || p.lease || p.status === "conflict") fail("reconciliation-required")
-        p.status = "pending"; p.attempts = 0; p.nextAttemptAt = 0
+        if (!p || (p.lease && p.lease.until > now) || p.status === "conflict") fail("reconciliation-required")
+        p.status = "pending"; p.attempts = 0; p.nextAttemptAt = 0; p.lease = null
       })
     },
     async replay(send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>, activeScope: () => SlotOfflineScope | null, now = Date.now(), catalog: InventoryCatalogResolver = () => undefined) {

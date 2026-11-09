@@ -64,6 +64,24 @@ describe("staged durable slot intent", () => {
     assert.equal(state.pending[0].attempts, 5)
     assert.deepEqual(state.pending[0].intent, intent())
   })
+  test("an expired fifth send lease can explicitly resume the same operation after restart", async () => {
+    const store = createMemoryStore(), q = createSlotOfflineQueue(store, scope)
+    await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+    for (let i = 0; i < 4; i++) await q.replay(async () => ({ status: 503 }), () => scope, i * 400000)
+    let active = true
+    const committed = await complete(projectSlotIntent(snapshot(), intent(), catalog))
+    await q.replay(async () => { active = false; return { status: 200, operationId: "operation-one", snapshot: committed } }, () => active ? scope : null, 1600000)
+    const reopened = createSlotOfflineQueue(store, scope)
+    assert.equal((await reopened.read()).pending[0].attempts, 5)
+    await assert.rejects(reopened.resume("operation-one", 1659999), /reconciliation/)
+    await reopened.resume("operation-one", 1660000)
+    await reopened.replay(async sent => {
+      assert.deepEqual(sent, intent())
+      return { status: 200, operationId: "operation-one", snapshot: committed }
+    }, () => scope, 1660000)
+    assert.equal((await reopened.read()).pending.length, 0)
+    assert.equal((await reopened.read()).receipts[0].operationId, "operation-one")
+  })
   test("account switch during response cannot write or expose another owner's state", async () => {
     const store = createMemoryStore(), q = createSlotOfflineQueue(store, scope)
     await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)

@@ -4,7 +4,7 @@ import { parseInventoryCommand, type InventoryCommandRequest, type InventoryItem
 import { normalizeInventorySnapshot, inventoryItemCandidate, type InventorySnapshot, type InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { planInsertSlots, planMoveSlots, planClearSlots, planRemoveSlots, planChangeSlotTarget } from "@/lib/binder-slot-plans"
 import { planAssignInventory, planMoveInventory, planUnassignInventory, planEditInventoryMetadata, previewInventoryMoves } from "@/lib/inventory-plans"
-import { isContractRecord, isSlotRevision } from "@/lib/domain/binder-slots"
+import { isContractRecord, isSlotRevision, matchesSlotTarget } from "@/lib/domain/binder-slots"
 
 export type SlotOfflineIntent = { kind: "slots"; request: SlotCommandRequest; context: OperationIntentContext }
   | { kind: "inventory"; request: InventoryCommandRequest; context: OperationIntentContext }
@@ -55,9 +55,11 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
     else if (placement) return fail("placement-conflict")
   }
   if (intent.kind === "slots") {
-    const id = intent.request.collectionId
+    const id = intent.request.collectionId, used = new Set<string>()
     for (const command of intent.request.commands) {
       const binder = state.binders.find(b => b.collectionId === id)!
+      const ids = command.kind === "create" ? command.ids : (command.kind === "update" ? [command.slot] : command.slots).map(s => s.id)
+      for (const slotId of ids) { if (used.has(slotId)) return fail("duplicate-slot"); used.add(slotId) }
       if (command.kind !== "create") for (const ref of command.kind === "update" ? [command.slot] : command.slots) checkSlotRef(original, id, ref)
       let plan: ReturnType<typeof planMoveSlots>
       if (command.kind === "create") {
@@ -112,12 +114,17 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
           if (c.occupied === "swap" && displaced && placement) {
             const source = state.binders.find(b => b.collectionId === c.item.placement!.collectionId)!.slots.find(s => s.id === c.item.placement!.slot.id)!
             apply(planAssignInventory(state, { ...input(), selection: { kind: "existing", inventoryItemId: displaced.id, itemVersion: displaced.version }, destination: { collectionId: source.collectionId, slotId: source.id, slotVersion: source.version, layoutRevision: state.binders.find(b => b.collectionId === source.collectionId)!.layoutRevision } }, catalog))
+            // SQL versions each swapped slot once, including the cleared source.
+            state.binders.find(b => b.collectionId === source.collectionId)!.slots.find(s => s.id === source.id)!.version = source.version
             state.placements.find(p => p.inventoryItemId === displaced.id)!.version = placement.version + 1
           }
         }
         if (c.fulfillWant) {
           const slot = state.binders.find(b => b.collectionId === c.destination.collectionId)!.slots.find(s => s.id === c.destination.slot.id)!
           if (!sameValue(slot.wantedCards[c.fulfillWant.index], c.fulfillWant.expected)) return fail("wanted-conflict")
+          const assigned = state.items.find(i => i.id === slot.inventoryItemId)!
+          const candidate = inventoryItemCandidate(assigned, catalog), want = c.fulfillWant.expected
+          if (!candidate || !matchesSlotTarget(candidate, { kind: "card", cardId: want.card_id, ...(want.card_language ? { language: want.card_language } : {}), ...(want.card_finish ? { finish: want.card_finish } : {}) })) return fail("wanted-conflict")
           slot.wantedCards.splice(c.fulfillWant.index, 1)
         }
       } else {

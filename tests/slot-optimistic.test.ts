@@ -45,6 +45,11 @@ test("swap is explicit, target-compatible and retains both physical copies", () 
   assert.deepEqual(next.items, s.items)
   assert.equal(next.binders[0].slots[0].inventoryItemId, "raw"); assert.equal(next.binders[1].slots[0].inventoryItemId, "graded")
   assert.equal(next.placements.find(p => p.inventoryItemId === "raw")!.version, 2)
+  assert.deepEqual(next.binders.map(b => b.slots[0].version), [7, 7])
+  const committed = structuredClone(next)
+  committed.binders[0].slots[0].version = 7
+  const followup = intent(next, [{ kind: "unassign", item: { itemId: "raw", itemVersion: 2, placement: ref(next, 0) } }])
+  assert.equal(projectSlotIntent(committed, followup, catalog).placements.length, 1)
 })
 test("selected wants are exact, never remove another entry; a failed batch leaves its input unchanged", () => {
   const s = state(), want = { card_id: "synthetic-card", card_name: "Synthetic", added_at: "2026-01-01T00:00:00Z" }
@@ -80,4 +85,21 @@ test("independent item, placement, slot, layout and collection predicates each r
     (copy: InventorySnapshot) => copy.binders[0].slots[0].version++, (copy: InventorySnapshot) => copy.binders[1].layoutRevision++,
     (copy: InventorySnapshot) => copy.collections[0].version++,
   ]) { const copy = structuredClone(s); mutate(copy); assert.throws(() => projectSlotIntent(copy, originalIntent, catalog), /conflict/) }
+})
+
+test("a selected want must match the assigned printing and explicit finish", () => {
+  for (const want of [
+    { card_id: "synthetic-other", card_name: "Synthetic", added_at: "2026-01-01T00:00:00Z" },
+    { card_id: "synthetic-card", card_name: "Synthetic", card_finish: "reverse_holo" as const, added_at: "2026-01-01T00:00:00Z" },
+  ]) {
+    const s = state(); s.binders[1].slots[0].wantedCards = [want]
+    assert.throws(() => projectSlotIntent(s, intent(s, [{ kind: "assign", selection: { kind: "existing", inventoryItemId: "raw", itemVersion: 2 }, destination: ref(s, 1), occupied: "cancel", fulfillWant: { index: 0, expected: want } }]), catalog), /wanted-conflict/)
+  }
+})
+test("slot batches reject touching the same slot twice, matching the executor", () => {
+  const s = state(), slot = ref(s, 0).slot
+  assert.throws(() => projectSlotIntent(s, { kind: "slots", context: intent(s, []).context, request: {
+    collectionId: ids[0], operationId: "synthetic-operation", inventoryRevision: 7, collectionVersion: 3, layoutRevision: 5,
+    commands: [{ kind: "clear", slots: [slot] }, { kind: "remove", slots: [slot] }],
+  } }, catalog), /duplicate-slot/)
 })
