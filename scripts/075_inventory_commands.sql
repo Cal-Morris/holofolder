@@ -171,12 +171,18 @@ BEGIN
        WHERE i.owner_user_id=owner_id AND i.identity->>'kind'='card' AND i.identity->'language' IS NOT DISTINCT FROM identity_value->'language'
          AND i.identity->'finish' IS NOT DISTINCT FROM identity_value->'finish' AND NOT i.id=ANY(all_items)
          AND NOT EXISTS(SELECT 1 FROM public.inventory_placements p WHERE p.inventory_item_id=i.id)
-         AND (public.slot_catalog_card_v1(i.identity->>'cardId')).id=card.id;
+         AND (CASE WHEN jsonb_typeof(card.external_ids_json->'catalog'->'canonicalId')='string'
+           AND length(card.external_ids_json->'catalog'->>'canonicalId') BETWEEN 1 AND 200
+           THEN card.external_ids_json->'catalog'->>'canonicalId' ELSE card.id END)
+           =ANY(public.slot_catalog_ids_v1(public.slot_catalog_card_v1(i.identity->>'cardId')));
        IF groups>1 THEN RAISE EXCEPTION 'inventory_copy_choice_required' USING ERRCODE='40001'; END IF;
        SELECT i.* INTO chosen FROM public.inventory_items i WHERE i.owner_user_id=owner_id AND i.identity->>'kind'='card'
          AND i.identity->'language' IS NOT DISTINCT FROM identity_value->'language' AND i.identity->'finish' IS NOT DISTINCT FROM identity_value->'finish'
          AND NOT i.id=ANY(all_items) AND NOT EXISTS(SELECT 1 FROM public.inventory_placements p WHERE p.inventory_item_id=i.id)
-         AND (public.slot_catalog_card_v1(i.identity->>'cardId')).id=card.id ORDER BY i.id COLLATE "C" LIMIT 1 FOR UPDATE;
+         AND (CASE WHEN jsonb_typeof(card.external_ids_json->'catalog'->'canonicalId')='string'
+           AND length(card.external_ids_json->'catalog'->>'canonicalId') BETWEEN 1 AND 200
+           THEN card.external_ids_json->'catalog'->>'canonicalId' ELSE card.id END)
+           =ANY(public.slot_catalog_ids_v1(public.slot_catalog_card_v1(i.identity->>'cardId'))) ORDER BY i.id COLLATE "C" LIMIT 1 FOR UPDATE;
        IF chosen.id IS NULL THEN
          chosen.id:=selection->>'newItemId'; chosen.identity:=jsonb_set(identity_value,'{cardId}',to_jsonb(CASE WHEN jsonb_typeof(card.external_ids_json->'catalog'->'canonicalId')='string' AND length(card.external_ids_json->'catalog'->>'canonicalId') BETWEEN 1 AND 200 THEN card.external_ids_json->'catalog'->>'canonicalId' ELSE card.id END));
          chosen.grading:=NULL; chosen.acquired_at:=NULL; chosen.version:=0;

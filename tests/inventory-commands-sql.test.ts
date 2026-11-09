@@ -31,6 +31,8 @@ test("private inventory SQL: copies, selection, cross-storage, selected wants, r
     await db.query("INSERT INTO public.tcg_series(id) VALUES('synthetic-inventory-series')")
     await db.query("INSERT INTO public.tcg_sets(id,series_id) VALUES('synthetic-inventory-set','synthetic-inventory-series')")
     await db.query("INSERT INTO public.tcg_cards(id,series_id,set_id,local_id,external_ids_json) VALUES($1,'synthetic-inventory-series','synthetic-inventory-set','1','{\"catalog\":{\"canonicalId\":\"synthetic-canonical\",\"aliasIds\":[\"synthetic-alias\"]}}')", [identity.cardId])
+    // Both physical catalog rows exist: a reviewed alias must reuse the canonical-owned copy.
+    await db.query("INSERT INTO public.tcg_cards(id,series_id,set_id,local_id,external_ids_json) VALUES('synthetic-canonical','synthetic-inventory-series','synthetic-inventory-set','2','{\"catalog\":{\"aliasIds\":[\"synthetic-inventory-card\",\"synthetic-alias\"]}}')")
     await db.query("INSERT INTO public.binder_slots(id,collection_id,owner_user_id,position,wanted_cards) VALUES('inv-a',$1,$3,0,$4),('inv-b',$2,$3,0,$4),('inv-c',$2,$3,1,'[]'),('inv-foreign',$5,$6,0,'[]')", [binder, slab, owner, JSON.stringify([want, want]), foreign, other])
     const rejected = async (action: () => Promise<unknown>, pattern: RegExp) => {
       await db.query("SAVEPOINT rejected")
@@ -117,7 +119,7 @@ test("private inventory SQL: copies, selection, cross-storage, selected wants, r
     assert.equal((await item("copy-b")).placement, null)
     await send([select(await ref("inv-b"), { kind: "existing", inventoryItemId: "copy-b", itemVersion: 1 })], "synthetic-reassign-for-delete")
     // Free placement tolerates missing persisted catalog. New catalog creation never does.
-    await db.query("DELETE FROM public.tcg_cards WHERE id=$1", [identity.cardId])
+    await db.query("DELETE FROM public.tcg_cards WHERE id=ANY($1::text[])", [[identity.cardId, "synthetic-canonical"]])
     await send([{ kind: "move", item: await item("copy-b"), destination: await ref("inv-c"), occupied: "cancel", fulfillWant: null }], "synthetic-no-catalog-free")
     await rejected(async () => send([add("unknown-new")], "synthetic-no-catalog-new"), /catalog_unavailable/)
     // Storage deletion releases ownership and does not touch another collection's wants.
