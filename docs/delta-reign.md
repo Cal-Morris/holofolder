@@ -43,3 +43,7 @@ bun scripts/mirror-card-images.ts --set me06 --lang en --quality high --concurre
 ```
 
 This is a proposed 200-operation/50 MB ceiling, not evidence of available account allowance. Inspect usage first, then record planned/existing/uploaded counts and verify a sample `x-card-image-source: r2`. Do not run a broad backfill.
+
+## Read-only set-preset recheck, 2026-11-09
+
+At implementation time, the official launch announcement still identifies Delta Reign and its 2026-11-06 release. `https://api.tcgdex.net/v2/en/sets/me06` now returns 200 with ID `me06`, official count 103 and total 141; this differs from the historical 404 above. The live mirror `https://holofolder.com/app/api/tcg-set-slots?setId=me06&language=en` independently returns `me06`, Delta Reign and 141 full-card rows. IDs are `me06-001` through `me06-141`; the set was not substituted. All 141 mirrored `variants` objects were empty at this read, so this evidence cannot generate a verified finish-specific master checklist. Base any-finish targets remain distinct from a Normal finish claim. The new generator additionally requires exact-language confirmation from the deployed catalog read adapter, absent in older responses. No sync/backfill, image proxy fetch, per-card provider read or hosted data write was performed for this recheck.

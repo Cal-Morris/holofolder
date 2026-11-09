@@ -14,6 +14,8 @@ export interface TCGSetSlotCard extends CardCatalogIdentity {
   name: string
   image?: string
   language: CardLanguage
+  /** Explicit catalog language evidence; a requested/fallback language alone is insufficient. */
+  languageConfirmed?: boolean
   set: TCGSetSummary
   rarity?: string
   variants?: {

@@ -1,6 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import SetPopulationView from "@/components/set-population-view"
+import { syntheticPresetSet } from "@/tests/fixtures/set-preset"
+import { SetChecklistScopePreview } from "@/components/set-preset-picker"
+import { parseSetChecklist } from "@/lib/set-preset"
 import BinderSwitcherSheet from "@/components/binder-switcher-sheet"
 import { BinderGoalProgress } from "@/components/binder-goal-progress"
 import { instantiatePreset } from "@/lib/domain/binder-presets"
@@ -12,6 +16,7 @@ import type { Binder } from "@/lib/binders/model"
 
 /** Synthetic UI evidence only. No executor, durable state, audit event or queue ACK. */
 export default function PresetCreationHarness() {
+  const [browseSet, setBrowseSet] = useState(false)
   const [open, setOpen] = useState(false)
   const [online, setOnline] = useState(true)
   const [draft, setDraft] = useState<BinderCreationDraft | null>(null)
@@ -33,11 +38,15 @@ export default function PresetCreationHarness() {
     <h1 className="text-lg font-semibold">Synthetic preset preview</h1>
     <p className="text-sm">Internal draft demo. Nothing here is saved.</p>
     <button className="min-h-11 rounded-xl border px-3" onClick={() => setWorstCase(v => !v)}>{worstCase ? "Demo data" : "Worst case"}</button>
+    <button className="min-h-11 rounded-xl border px-3" onClick={() => setBrowseSet(v => !v)}>Browse synthetic set</button>
+    {browseSet && <SetPopulationView pricingEnabled={false} initialSet={syntheticPresetSet} collectionByPokemonId={new Map()} formatPrice={() => null} onSelectSlot={() => {}} onBrowseCard={() => {}} onCollectCard={() => {}} onWantCard={() => {}} readOnly={false} stagedCreation={{ ownerUserId, onDraft: receive, isOnline: online }} />}
     <BinderGoalProgress inventory={data.inventory} binder={data.binder} catalog={id => { const card = data.cards.find(c => c.id === id); return card ? pickerCandidate(card) : undefined }} />
+    {draft?.setChecklist && <SetChecklistScopePreview binder={data.binder} checklist={parseSetChecklist(JSON.parse(JSON.stringify(draft.setChecklist)))} />}
     <output aria-label="Prepared creation draft" className="block break-words text-xs">{draft ? JSON.stringify(draft) : "No draft"}</output>
-    <div className="flex flex-wrap gap-2">{["Remove last target", "Make last target free", "Retarget last to Pikachu"].map((label, index) => <button key={label} className="min-h-10 rounded-xl border px-3 text-sm" onClick={() => setData(previous => {
+    <div className="flex flex-wrap gap-2">{["Remove last target", "Make last target free", "Retarget last to Pikachu", "Append free extra", "Append Energy target"].map((label, index) => <button key={label} className="min-h-10 rounded-xl border px-3 text-sm" onClick={() => setData(previous => {
       const next = structuredClone(previous)
-      if (index === 0) next.binder.slots.pop()
+      if (index >= 3) next.binder.slots.push({ ...next.binder.slots[0], id: `synthetic-extra-${next.binder.slots.length}`, target: index === 3 ? null : { kind: "card", cardId: "synthetic-energy", language: "en" }, inventoryItemId: null, presetOrigin: null, wantedCards: [], status: null, version: 0 })
+      else if (index === 0) next.binder.slots.pop()
       else if (next.binder.slots.length) next.binder.slots.at(-1)!.target = index === 1 ? null : { kind: "pokemon", pokemonId: 25 }
       next.inventory.binders = [next.binder]
       return next
