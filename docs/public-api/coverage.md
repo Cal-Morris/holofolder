@@ -66,3 +66,7 @@ The staged owner-only picker emits existing parsed inventory `assign` and slot `
 ### Explicit Edit layout (#369 preparation)
 
 [Edit layout's internal callback contract](../explicit-slot-layout-editing.md) generalizes PR418's existing draft sink for parsed slot create/move intents, including null-selection append. Stable anchors and complete saved-layout positions are resolved through canonical pure projections. This is synthetic preparation only, with no authenticated execution, durable acceptance/replay ACK, audit success or partner sync. No app route, REST/MCP registry, OpenAPI, grant, schema or production bootstrap change is introduced. Undo/removal/drag/bulk/offline and enabled rollout remain explicit #369 gaps. Staged help and unpublished enabled-release copy accompany the slice; no Framer publication applies.
+
+### Trusted storage bridge staging (082)
+
+[Internal authenticated command/recovery execution](../trusted-storage-execution.md) now binds the real service-only RPC, existing app/API-key/OAuth authentication, current membership/paid scopes, trusted attribution, bounded receipts and sanitized errors. This is server preparation only: both public POSTs remain hard 503, no registry/OpenAPI/MCP operation is added, and existing public behavior is preserved. Parent owns hosted grant review/application; #379 owns simultaneous exposure/docs/smoke and #363/#396 own durable readback and Activity/Undo integration. No conversion, provider spending or public recovery claim is enabled.
