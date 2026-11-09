@@ -6,25 +6,33 @@ import { IMMUTABLE_IMAGE_CACHE_HEADERS } from "@/lib/http-cache"
 
 export const instant = false
 
+// Select a literal origin so a request parameter can only supply the image path and query.
+function getImageOrigin(hostname: string) {
+  switch (hostname) {
+    case "assets.tcgdex.net": return "https://assets.tcgdex.net"
+    case "product-images.tcgplayer.com": return "https://product-images.tcgplayer.com"
+    case "images.pokemontcg.io": return "https://images.pokemontcg.io"
+    case "images.scrydex.com": return "https://images.scrydex.com"
+    case "limitlesstcg.nyc3.cdn.digitaloceanspaces.com": return "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com"
+    case "cdn.shopify.com": return "https://cdn.shopify.com"
+    case "raw.githubusercontent.com": return "https://raw.githubusercontent.com"
+    default: return null
+  }
+}
+
 export function isAllowedImageHost(hostname: string) {
-  return (
-    hostname === "assets.tcgdex.net" ||
-    hostname.endsWith(".tcgdex.net") ||
-    getCardImageSourceForHost(hostname) !== null
-  )
+  return hostname !== "raw.githubusercontent.com" && getImageOrigin(hostname) !== null
 }
 
 // Pokémon artwork and sprites (PokeAPI on GitHub). Only this repository path: raw.githubusercontent.com serves anything.
-const POKEAPI_SPRITES_HOST = "raw.githubusercontent.com"
 const POKEAPI_SPRITES_PATH_PREFIX = "/PokeAPI/sprites/master/sprites/pokemon/"
 
 export function isAllowedImageUrl(url: URL) {
-  if (!["https:", "http:"].includes(url.protocol)) return false
+  if (url.protocol !== "https:" || url.port || url.username || url.password) return false
   if (getCardImageSourceForHost(url.hostname)) return isCardImageSourceUrl(url)
-  if (isAllowedImageHost(url.hostname)) return true
+  if (url.hostname === "assets.tcgdex.net") return true
   return (
-    url.protocol === "https:" &&
-    url.hostname === POKEAPI_SPRITES_HOST &&
+    url.hostname === "raw.githubusercontent.com" &&
     url.pathname.startsWith(POKEAPI_SPRITES_PATH_PREFIX) &&
     !url.pathname.includes("..") &&
     /\.(?:png|svg|gif|webp)$/i.test(url.pathname)
@@ -110,12 +118,23 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  const upstream = await fetch(url.toString(), {
-    headers: {
-      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-    },
-    next: { revalidate: 60 * 60 * 24 },
-  })
+  const origin = getImageOrigin(url.hostname)
+  if (!origin) {
+    return NextResponse.json({ error: "Image host is not allowed" }, { status: 400 })
+  }
+
+  let upstream: Response
+  try {
+    upstream = await fetch(`${origin}${url.pathname}${url.search}`, {
+      redirect: "error",
+      headers: {
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      },
+      next: { revalidate: 60 * 60 * 24 },
+    })
+  } catch {
+    return NextResponse.json({ error: "Upstream image unavailable" }, { status: 502 })
+  }
 
   if (!upstream.ok) {
     return NextResponse.json({ error: `Upstream image fetch failed with ${upstream.status}` }, { status: upstream.status })

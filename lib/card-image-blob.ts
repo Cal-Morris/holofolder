@@ -262,6 +262,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
   async function fetchFromTcgdex(ref: TcgdexCardImageRef) {
     const response = await deps.fetch(buildTcgdexCardImageUrl(ref), {
       headers: { Accept: "image/avif,image/webp,image/*;q=0.8" },
+      redirect: "error",
     })
     if (!response.ok) {
       throw Object.assign(new Error(`TCGdex image fetch failed with ${response.status}`), { status: response.status })
@@ -274,6 +275,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     // No AVIF: some origins (Scrydex) negotiate it, and the runtime's sharp cannot decode it for the WebP conversion.
     const response = await deps.fetch(ref.url, {
       headers: { Accept: SOURCE_IMAGE_ACCEPT },
+      redirect: "error",
       signal: AbortSignal.timeout(20_000),
     })
     if (!response.ok) {

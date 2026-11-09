@@ -49,12 +49,14 @@ test('appearance card artwork exposes an opaque stable reference and R2-only dis
  const design=defaultBinderDesign();design.surfaces.cover.artwork='/app/api/card-image-proxy?url='+encodeURIComponent('https://assets.tcgdex.net/en/base/base1/1/high.webp')
  design.surfaces.back.artwork='upload:9ade73fb-d75e-4174-86a1-9e4769b85f30'
  const result=await serializeDeveloperAppearance({design,revision:1},async()=>({url:'https://synthetic-r2.test/cards/en/base1/1/high.webp',availability:'available'}))
- assert.ok(result.design)
- assert.equal(result.design.surfaces.cover.artwork,'tcgdex:en/base/base1/1/high.webp')
- assert.equal(result.design.surfaces.cover.artworkImage?.url,'https://synthetic-r2.test/cards/en/base1/1/high.webp')
- assert.equal(result.design.surfaces.back.artwork,design.surfaces.back.artwork)
- assert.equal(JSON.stringify(result).includes('card-image-proxy'),false)
- assert.equal(JSON.stringify(result).includes('assets.tcgdex.net'),false)
+ assert.deepEqual({...result},{
+  revision:1,
+  design:{...design,surfaces:{...design.surfaces,cover:{
+   ...design.surfaces.cover,
+   artwork:'tcgdex:en/base/base1/1/high.webp',
+   artworkImage:{url:'https://synthetic-r2.test/cards/en/base1/1/high.webp',availability:'available'},
+  }}},
+ })
  const restored=restoreDeveloperAppearance(result.design)
  assert.equal(restored.surfaces.cover.artwork,design.surfaces.cover.artwork)
 })

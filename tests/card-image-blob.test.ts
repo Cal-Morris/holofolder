@@ -38,7 +38,7 @@ function fakeDeps(options: { existing?: string[]; tcgdexStatus?: number; putDela
       calls.list += 1
       return [...store.keys()].filter((pathname) => pathname.startsWith(prefix))
     },
-    fetch: (async (input: RequestInfo | URL) => {
+    fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.startsWith(BLOB_BASE)) {
         calls.blobGet += 1
@@ -48,6 +48,7 @@ function fakeDeps(options: { existing?: string[]; tcgdexStatus?: number; putDela
           : new Response("missing", { status: 404, headers: { "content-type": "text/plain" } })
       }
       if (url.startsWith("https://assets.tcgdex.net/")) {
+        assert.equal(init?.redirect, "error")
         calls.tcgdex += 1
         const status = options.tcgdexStatus ?? 200
         return status === 200
@@ -211,4 +212,22 @@ describe("set image backfill", () => {
     assert.throws(() => parseCardImageBackfillRequest(new URLSearchParams("lang=english")), InvalidBackfillRequestError)
     assert.throws(() => parseCardImageBackfillRequest(new URLSearchParams("cursor=../x")), InvalidBackfillRequestError)
   })
+})
+
+test("fallback image mirror refuses redirects to an untrusted destination", async () => {
+  const { deps } = fakeDeps()
+  let calls = 0
+  deps.fetch = (async (input, init) => {
+    calls += 1
+    assert.equal(String(input), "https://product-images.tcgplayer.com/12345.jpg")
+    assert.equal(init?.redirect, "error")
+    throw new TypeError("unexpected redirect")
+  }) as typeof fetch
+  const mirror = createCardImageMirror(deps)
+  await assert.rejects(mirror.loadSourceImage({
+    source: "tcgplayer",
+    url: "https://product-images.tcgplayer.com/12345.jpg",
+    pathname: "cards/src/tcgplayer/12345.webp",
+  }), /unexpected redirect/)
+  assert.equal(calls, 1)
 })
