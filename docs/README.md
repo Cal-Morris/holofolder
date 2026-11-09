@@ -15,6 +15,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Staged atomic inventory operations](atomic-inventory-operations.md): exclusive full-collection deletion bounds, Unassigned retention, audit/recovery proof and unsupported payload/latency gates (#383).
 - [Converted ordinary-edit recovery](converted-content-recovery.md): unchanged conversion provenance, frozen-source dependencies, local proof and explicit remaining recovery gates (080).
 - [Staged safe collection recovery](safe-collection-recovery.md): private reviewed inverse/apply, linked immutable history, local proof and remaining Activity/API/legacy rollout gates (#396).
+- [Native cached startup preparation](native-cached-startup.md): local-only canonical queue/metadata relaunch, inherited device-session and partner-cache policy, cached-only rendering and reconnect fences. Production admission remains denied.
 - [Staged collection navigation](collection-navigation.md): scoped local view state, deep links/history, stable location refresh and explicit authenticated transport/rollout blockers.
 - [Read-only Inventory browse preparation](inventory-browse.md): complete/cached evidence, per-copy queries/current locations, local-only synthetic harness and authenticated binding/navigation gates.
 - [Explicit-slot picker preparation](explicit-slot-picker.md): private parsed-intent callback, synthetic UI proof, cached non-dex search and remaining authenticated/queue/rollout gates (#366).

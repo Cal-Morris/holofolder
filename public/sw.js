@@ -1,5 +1,5 @@
 // Holo Folder card logo update; keep cache and message identifiers compatible with existing installs.
-const CACHE_VERSION = "binderdex-v5"
+const CACHE_VERSION = "binderdex-v6"
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`
 const DATA_CACHE = "binderdex-v4-data"
 // Images keep their v3 name so the cards people already cached survive this upgrade.
@@ -366,7 +366,17 @@ function refreshAppShellSoon() {
 
 async function getOfflineAppShell() {
   const cache = await caches.open(APP_SHELL_CACHE)
-  return cache.match(APP_SHELL_URL)
+  const shell = await cache.match(APP_SHELL_URL)
+  if (!shell) return null
+  // Cache eviction can remove a boot chunk while leaving the HTML. Do not strand
+  // the user on a skeleton, and never try to repair this using private HTML/data.
+  const assets = getAppShellAssetUrls(await shell.clone().text())
+  for (const url of assets) if (!(await cache.match(url))) return offlineStartupUnavailable()
+  return shell
+}
+
+function offlineStartupUnavailable() {
+  return new Response('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Reconnect to open Holo Folder</title><body style="font-family:system-ui;padding:calc(env(safe-area-inset-top,0px) + 24px) 24px"><main><h1>Reconnect to open Holo Folder</h1><p role="status">Offline app files are incomplete. Reconnect to reopen this device’s saved data. Pending edits have not been removed.</p></main></body></html>', { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } })
 }
 
 function fetchWithTimeout(request, timeoutMs) {
@@ -407,6 +417,7 @@ async function handleNavigation(event) {
     if (shell) {
       return shell
     }
+    if (canUseShell) return offlineStartupUnavailable()
     throw error
   }
 }
