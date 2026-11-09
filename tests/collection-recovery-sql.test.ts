@@ -1,5 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
+import { privateRecoveryDatabase } from "./private-recovery-db"
 import { readFileSync } from "node:fs"
 
 const socket = process.env.COLLECTION_RECOVERY_TEST_SOCKET
@@ -10,13 +11,16 @@ const source = { source: "app", clientId: null, batchId: null, clientOccurredAt:
 // All fixtures below are synthetic, and all fixture writes roll back.
 test("private recovery SQL: reviewed inverse, stable copies, conflicts, atomic audit and bounded bulk", { skip: !socket, timeout: 60000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue396-local/socket")
   const { Client } = await import("pg")
-  const db = new Client({ host: socket, port: 55496, user: "issue396_test", database: "postgres" })
+  const db = new Client(privateRecoveryDatabase(socket, { socket: "/Users/cal/.local/share/holofolder/issue396-local/socket", port: 55496, user: "issue396_test" }))
   await db.connect()
   try {
     const migration = readFileSync(new URL("../scripts/077_safe_collection_recovery.sql", import.meta.url), "utf8")
     await db.query(migration); await db.query(migration)
+    if (socket.includes("issue396-perf-local")) {
+      const performanceMigration = readFileSync(new URL("../scripts/079_bounded_collection_recovery.sql", import.meta.url), "utf8")
+      await db.query(performanceMigration); await db.query(performanceMigration)
+    }
     await db.query("BEGIN; SET LOCAL statement_timeout='30s'")
     const flush = () => db.query("SET CONSTRAINTS ALL IMMEDIATE; SET CONSTRAINTS ALL DEFERRED")
     const rejected = async (run: () => Promise<unknown>, error: RegExp) => {
@@ -79,6 +83,12 @@ test("private recovery SQL: reviewed inverse, stable copies, conflicts, atomic a
     assert.deepEqual((await db.query("SELECT recovery_state FROM public.collection_activity WHERE id=$1", [first.id])).rows[0].recovery_state, first.recovery_state)
     // A newer move of the same copy blocks the old inverse, even if it is moved back later.
     const second = await assign("synthetic/copy-a", "synthetic/slot-0", "synthetic-assign-0003")
+    await db.query("SAVEPOINT aba")
+    const acquisition = (await db.query("SELECT acquired_at FROM public.inventory_items WHERE id='synthetic/copy-a'")).rows[0].acquired_at
+    await db.query("UPDATE public.inventory_items SET acquired_at='2021-01-01' WHERE id='synthetic/copy-a'"); await flush()
+    await db.query("UPDATE public.inventory_items SET acquired_at=$1 WHERE id='synthetic/copy-a'", [acquisition]); await flush()
+    assert.ok((await preview(second.id)).conflicts.some((c: { reason: string }) => c.reason === "later_entity_change"), "ABA conflicts even when the entire current item state is back to its original value")
+    await db.query("ROLLBACK TO SAVEPOINT aba")
     await send([{ kind: "move", item: await item("synthetic/copy-a"), destination: await ref("synthetic/slot-2"), occupied: "cancel", fulfillWant: null }], "synthetic-move-0001")
     const stale = await preview(second.id)
     assert.ok(stale.conflicts.some((c: { entity: string }) => c.entity.includes("synthetic/copy-a")))
@@ -167,6 +177,13 @@ test("private recovery SQL: reviewed inverse, stable copies, conflicts, atomic a
     await db.query("INSERT INTO public.binders(id,owner_user_id,name) VALUES($1,$2,'Synthetic full Dex')", [dex, owner])
     await db.query("INSERT INTO public.storage_collection_state(collection_id,owner_user_id,authority) VALUES($1,$2,'slots')", [dex, owner])
     await db.query("INSERT INTO public.binder_slots(id,collection_id,owner_user_id,position,target) SELECT 'synthetic/dex-'||n,$1,$2,n-1,jsonb_build_object('kind','pokemon','pokemonId',n) FROM generate_series(1,1025) n", [dex, owner]); await flush()
+    await db.query("SAVEPOINT missing_layout")
+    await db.query("DELETE FROM public.binder_slots WHERE id='synthetic/dex-1'")
+    await db.query("UPDATE public.storage_collection_state SET layout_revision=layout_revision+1 WHERE collection_id=$1", [binder]); await flush()
+    const missingLayout = await preview((await event()).id)
+    assert.equal(missingLayout.supported, false)
+    assert.ok(missingLayout.unsupported.includes("missing_layout_evidence"), "another collection's layout root cannot authorize structural restoration")
+    await db.query("ROLLBACK TO SAVEPOINT missing_layout")
     await db.query("DELETE FROM public.binder_slots WHERE collection_id=$1", [dex])
     await db.query("UPDATE public.storage_collection_state SET version=version+1,layout_revision=layout_revision+1 WHERE collection_id=$1", [dex]); await flush()
     const dexRemove = await event()
@@ -254,9 +271,8 @@ test("private recovery SQL: reviewed inverse, stable copies, conflicts, atomic a
 
 test("private recovery SQL: two concurrent committed replays produce one inverse and one linked event", { skip: !socket, timeout: 30000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue396-local/socket")
   const { Client } = await import("pg")
-  const config = { host: socket, port: 55496, user: "issue396_test", database: "postgres" }
+  const config = privateRecoveryDatabase(socket, { socket: "/Users/cal/.local/share/holofolder/issue396-local/socket", port: 55496, user: "issue396_test" })
   const db = new Client(config), other = new Client(config)
   await db.connect(); await other.connect()
   const account = "03960000-0000-4000-8000-000000000021"
@@ -288,9 +304,8 @@ test("private recovery SQL: two concurrent committed replays produce one inverse
 // Synthetic committed accounts are removed through the account privacy cascade.
 test("private recovery SQL: owner restoration holds wanted partner membership through commit", { skip: !socket, timeout: 30000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue396-local/socket")
   const { Client } = await import("pg")
-  const config = { host: socket, port: 55496, user: "issue396_test", database: "postgres" }
+  const config = privateRecoveryDatabase(socket, { socket: "/Users/cal/.local/share/holofolder/issue396-local/socket", port: 55496, user: "issue396_test" })
   const db = new Client(config), unlink = new Client(config)
   await db.connect(); await unlink.connect()
   const account = "03960000-0000-4000-8000-000000000031"

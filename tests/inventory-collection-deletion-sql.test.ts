@@ -1,5 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
+import { privateRecoveryDatabase } from "./private-recovery-db"
 import { readFileSync } from "node:fs"
 import { parseInventoryCommand } from "../lib/domain/inventory-commands"
 
@@ -14,9 +15,8 @@ const want = { card_id: "synthetic/delete-card", card_name: "Synthetic", added_a
 // Requires a privately restored, 077-installed local database. Never installs 073-077 or accesses hosted state.
 test("private atomic collection deletion: full Dex, capacity, recorder, replay and genuine 077 inverse", { skip: !socket, timeout: 600000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue383-atomic-local/socket")
   const { Client } = await import("pg")
-  const db = new Client({ host: socket, port: 55583, user: "atomic383_test", database: "postgres" })
+  const db = new Client(privateRecoveryDatabase(socket, { socket: "/Users/cal/.local/share/holofolder/issue383-atomic-local/socket", port: 55583, user: "atomic383_test" }))
   await db.connect()
   const flush = () => db.query("SET CONSTRAINTS ALL IMMEDIATE; SET CONSTRAINTS ALL DEFERRED")
   const rejected = async (run: () => Promise<unknown>, pattern: RegExp) => {
@@ -34,6 +34,13 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
       await db.query(migration); await db.query(migration)
     }
     assert.deepEqual(await protectedBodies(), protectedBefore, "076 recorder and 077 recovery definitions unchanged")
+    const performanceSlice = socket.includes("issue396-perf-local")
+    if (performanceSlice) {
+      const migration = readFileSync(new URL("../scripts/079_bounded_collection_recovery.sql", import.meta.url), "utf8")
+      const protectedDefinitions = await protectedBodies()
+      await db.query(migration); await db.query(migration)
+      assert.deepEqual((await protectedBodies()).filter(p => !p.name.includes("recovery_plan_v1")), protectedDefinitions.filter(p => !p.name.includes("recovery_plan_v1")), "079 changes only private plan computation, including no recorder or executor replacement")
+    }
     const installed = (await db.query("SELECT pg_get_functiondef('public.inventory_command_v1(uuid,uuid,jsonb,jsonb)'::regprocedure) b")).rows[0].b
     assert.match(installed, /collection_audit_private.command_result/)
     for (const role of ["anon", "authenticated", "holo_mcp", "service_role"]) {
@@ -105,15 +112,49 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
       await rejected(() => db.query("UPDATE public.collection_activity SET source='mcp' WHERE id=$1", [event.id]), /audit_immutable/)
       await rejected(() => execute({ ...request, commands: [{ ...request.commands[0], slots: slots.slice(1) }] }, caller), /idempotency_conflict/)
       if (allOwned) await db.query("DELETE FROM public.partnerships WHERE owner_user_id=$1", [owner])
+      if (performanceSlice) {
+        // Genuine later history, retained in full. These unrelated edits must coexist with recovery.
+        for (let n = 0; n < 512; n++) {
+          await db.query("UPDATE public.binder_slots SET version=version+1 WHERE id='synthetic/remaining-slot'")
+          await flush()
+        }
+        if (process.env.COLLECTION_RECOVERY_COMPARE === "1") {
+          const rawPlan = () => db.query("SELECT collection_audit_private.recovery_plan_v1($1,$2,$3,'{}') p", [caller, owner, event.id])
+          const candidateStarted = performance.now()
+          const candidate = (await rawPlan()).rows[0].p
+          const candidatePlanMs = performance.now() - candidateStarted
+          await db.query("SAVEPOINT compare_plan")
+          const original = readFileSync(new URL("../scripts/077_safe_collection_recovery.sql", import.meta.url), "utf8")
+          await db.query(original.slice(original.indexOf("CREATE OR REPLACE FUNCTION collection_audit_private.recovery_plan_v1"), original.indexOf("CREATE OR REPLACE FUNCTION collection_audit_private.recovery_preview_v1")))
+          const baselineStarted = performance.now()
+          const baseline = (await rawPlan()).rows[0].p
+          const baselinePlanMs = performance.now() - baselineStarted
+          console.info(JSON.stringify({ syntheticSlots: count, laterEvents: 512, candidatePlanMs, baselinePlanMs }))
+          assert.deepEqual(candidate, baseline, "exact original inverse, conflict ordering, dependencies and token material")
+          await db.query("ROLLBACK TO SAVEPOINT compare_plan")
+        }
+        // 074/075 already specify a 10s intent budget. Enforce it at invocation, never
+        // rely on a function-local setting to cancel a statement or truncate its history scan.
+        await db.query("SET LOCAL statement_timeout='10s'")
+      }
       const previewStarted = performance.now()
       const preview = (await db.query("SELECT collection_audit_private.recovery_preview_v1($1,$2,$3,'{}') p", [caller, owner, event.id])).rows[0].p
       const previewMs = performance.now() - previewStarted
       assert.equal(preview.supported, true); assert.deepEqual(preview.conflicts, [])
       const recovery = { eventId: event.id, planVersion: 1, planToken: preview.planToken, operationId: `synthetic-recover-${count}`, restoreUnassignedItemIds: [], confirmed: true }
+      if (performanceSlice) {
+        const beforeDeadline = await snapshot()
+        await db.query("SET LOCAL statement_timeout='1ms'")
+        await rejected(() => db.query("SELECT collection_audit_private.recovery_apply_v1($1,$2,$3,$4)", [caller, owner, recovery, intent]), /statement timeout/)
+        await db.query("SET LOCAL statement_timeout='10s'")
+        assert.deepEqual(await snapshot(), beforeDeadline, "deadline failure leaves the whole intent unapplied")
+        assert.equal((await db.query("SELECT count(*)::int n FROM public.developer_idempotency WHERE actor_id=$1 AND request_key=$2", [caller, recovery.operationId])).rows[0].n, 0)
+      }
       const recoveryStarted = performance.now()
       const recovered = (await db.query("SELECT collection_audit_private.recovery_apply_v1($1,$2,$3,$4) r", [caller, owner, recovery, intent])).rows[0].r
       await flush()
       const recoveryWithFlushMs = performance.now() - recoveryStarted
+      if (performanceSlice) await db.query("SET LOCAL statement_timeout='300s'")
       const restored = await snapshot()
       assert.deepEqual(restored.items, before.items)
       assert.equal(restored.slots.length, before.slots.length)
@@ -123,6 +164,16 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
         const { version: _v, created_at: _c, updated_at: _u, ...data } = s
         const { version: _ov, created_at: _oc, updated_at: _ou, ...originalData } = original
         assert.deepEqual(data, originalData)
+      }
+      if (performanceSlice) {
+        await rejected(async () => {
+          await db.query("UPDATE public.binder_slots SET status=NULL WHERE id='synthetic/delete-slot-0'")
+          await flush()
+        }, /Slot ownership requires exactly one placement/)
+        await rejected(async () => {
+          await db.query("UPDATE public.binder_slots SET status='collected' WHERE id='synthetic/remaining-slot'")
+          await flush()
+        }, /Slot ownership requires exactly one placement/)
       }
       const inverseEvent = (await db.query("SELECT recovery_of_event_id,actor_user_id FROM public.collection_activity WHERE owner_user_id=$1 AND operation_id=$2", [owner, recovery.operationId])).rows[0]
       assert.equal(inverseEvent.recovery_of_event_id, event.id); assert.equal(inverseEvent.actor_user_id, caller)
@@ -159,9 +210,8 @@ test("private atomic collection deletion: full Dex, capacity, recorder, replay a
 
 test("private full 1025-target Dex and empty native collection deletion, cross-owner and capacity refusal", { skip: !socket, timeout: 30000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue383-atomic-local/socket")
   const { Client } = await import("pg")
-  const db = new Client({ host: socket, port: 55583, user: "atomic383_test", database: "postgres" })
+  const db = new Client(privateRecoveryDatabase(socket, { socket: "/Users/cal/.local/share/holofolder/issue383-atomic-local/socket", port: 55583, user: "atomic383_test" }))
   await db.connect()
   const owner = "03837800-0000-4000-8000-000000000101", stranger = "03837800-0000-4000-8000-000000000103"
   const collection = "03837800-0000-4000-8000-000000000111", remaining = "03837800-0000-4000-8000-000000000112"

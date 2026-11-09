@@ -1,5 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
+import { privateRecoveryDatabase } from "./private-recovery-db"
 import { readFileSync } from "node:fs"
 
 const socket = process.env.COLLECTION_AUDIT_TEST_SOCKET
@@ -10,9 +11,8 @@ const binder = "03940000-0000-4000-8000-000000000011"
 
 test("private SQL audit: atomicity, provenance, immutability, bulk, retention, pagination and legacy preservation", { skip: !socket, timeout: 60000 }, async () => {
   if (!socket) return
-  assert.equal(socket, "/Users/cal/.local/share/holofolder/issue394-local/socket")
   const { Client } = await import("pg")
-  const db = new Client({ host: socket, port: 55494, user: "issue394_test", database: "postgres" })
+  const db = new Client(privateRecoveryDatabase(socket, { socket: "/Users/cal/.local/share/holofolder/issue394-local/socket", port: 55494, user: "issue394_test" }))
   await db.connect()
   try {
     const original = () => db.query(`SELECT id,owner_user_id,pokemon_id,pokemon_name,recorded_at,before_state,after_state FROM public.collection_activity ORDER BY id`)
