@@ -68,6 +68,7 @@ async function main() {
       else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
       else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
       if (forged !== undefined) return Response.json(forged)
+      if (terminal && operation.includes('apply')) result = { outcome: 'rejected', operationId: request.operationId, code: 'recovery_plan_conflict', inventoryRevision: 2 }
       if (terminal && ['slots', 'inventory'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
       // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
       if (request.operationId) {
@@ -244,6 +245,33 @@ async function main() {
       assert.equal(lost.result.error.rejection, undefined)
       const retried = await call(transport, name, { ...value, operationId: value.operationId + '-lost' })
       assert.equal(retried.result.error, undefined, 'unknown lost reply retains original accepted replay')
+    }
+    if (wired) for (const name of ['apply_storage_recovery','apply_storage_recovery_v2']) {
+      const value={...values[name],operationId:'synthetic-terminal-'+name+'-'+transport}
+      terminal=true
+      const rejected=await call(transport,name,value)
+      assert.equal(rejected.result.error.code,'storage_recovery_rejected',JSON.stringify(rejected.raw))
+      const proof=rejected.result.error.rejection
+      assert.deepEqual(proof,{outcome:'rejected',operationId:value.operationId,code:'recovery_plan_conflict',inventoryRevision:2})
+      if(transport==='mcp')assert.equal(rejected.raw.result.isError,true)
+      else assert.equal(rejected.status,409)
+      terminal=false
+      assert.deepEqual((await call(transport,name,value)).result.error.rejection,proof)
+      assert.equal((await call(transport,name,{...value,planToken:'d'.repeat(64)})).result.error.code,'storage_conflict')
+      terminal=true;loseReply=true
+      const lost={...value,operationId:value.operationId+'-lost'}
+      assert.equal((await call(transport,name,lost)).result.error.rejection,undefined)
+      terminal=false
+      assert.equal((await call(transport,name,lost)).result.error.rejection.operationId,lost.operationId)
+      for(const malformed of [{...proof,certificate:'private'},{...proof,operationId:'other-id'},{...proof,code:'40001'}]) {
+        forged=malformed
+        assert.equal((await call(transport,name,value)).result.error.code,'storage_unavailable')
+      }
+      forged=undefined
+      for(const code of ['40001','57014','HF402','42501']) {
+        error=code;assert.equal((await call(transport,name,value)).result.error.rejection,undefined)
+      }
+      error=null
     }
     // Assertion mode reaches the existing executor as the same canonical intent, with no reads/reconstruction.
     const emptySlot = { id: 'synthetic-destination', version: 3, inventoryItemId: null, itemVersion: null, placementVersion: null }

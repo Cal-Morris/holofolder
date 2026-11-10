@@ -1,5 +1,7 @@
 "use client"
 
+import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ActivityButton } from "@/components/collection-activity-context"
 import dynamic from "next/dynamic"
@@ -94,7 +96,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       // Persist through the canonical queue, which reapplies every unresolved local intent.
       const resolver = browserHostCatalog(fresh.catalog)
       const record = await latest.current.queue.queue?.read()
-      const pending = record?.pending.length || record?.recovery?.some(r => !r.synchronized)
+      const pending = record?.pending.length || record?.recovery?.some(recoveryUnresolved)
       if (!pending) await latest.current.queue.saveSnapshot(fresh.evidence.snapshot, resolver)
       if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
       setRead(fresh); setNotice("")
@@ -134,7 +136,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     const active = () => !controller.signal.aborted && valid()
     const tick = async () => {
       try {
-        if (!active() || sending.current || refreshing.current || (await latest.current.queue.queue?.read())?.recovery?.some(r => !r.synchronized) || !navigator.onLine || document.visibilityState === "hidden") return
+        if (!active() || sending.current || refreshing.current || (await latest.current.queue.queue?.read())?.recovery?.some(recoveryUnresolved) || !navigator.onLine || document.visibilityState === "hidden") return
         const head = (await latest.current.queue.queue?.read())?.pending[0]
         if (!active() || !head || ["blocked", "billing", "conflict"].includes(head.status)
           || head.attempts >= 5 || head.nextAttemptAt > Date.now() || head.lease && head.lease.until > Date.now()) return
@@ -197,8 +199,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const receiveBulkFill: SlotCommandSink = async draft => {
     if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId || draft.intent.kind !== "inventory") throw new Error("inactive-or-unavailable-session")
     // #469 adds recovery to this same record; unresolved recovery must fence new work.
-    const record: { pending: unknown[]; recovery?: { synchronized: boolean }[] } | undefined = await latest.current.queue.queue?.read()
-    if (!valid() || !navigator.onLine || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(r => !r.synchronized)) throw new Error("fresh-scoped-read-required")
+    const record: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | undefined = await latest.current.queue.queue?.read()
+    if (!valid() || !navigator.onLine || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
     return latest.current.queue.enqueue(draft.intent, catalog)
   }
 
@@ -211,7 +213,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     refresh: async () => {
       await latest.current.queue.refresh()
       const record = await latest.current.queue.queue?.read()
-      if (!record?.recovery?.some(r => !r.synchronized)) {
+      if (!record?.recovery?.some(recoveryUnresolved)) {
         if (valid() && recoveryRead.current) { setRead(recoveryRead.current); recoveryRead.current = null }
         else await refresh()
       }
@@ -236,18 +238,20 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       const projected = queue.record?.optimistic?.binders.find(b => b.collectionId === layout.collectionId)
       return base?.layoutRevision === layout.layoutRevision && projected ? { ...layout, layoutRevision: projected.layoutRevision } : layout
     }) } : !online && read.evidence.kind === "complete" ? { ...read, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : read
-  const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean }[] } | null = queue.record
-  const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(r => !r.synchronized))
+  const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | null = queue.record
+  const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(recoveryUnresolved))
   if (!ready) return <p role="status">Opening saved storage…</p>
+
   const gradingItem = grading?.snapshot.items.find(i => i.id === grading.itemId)
-  const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(r => !r.synchronized)
+  const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(recoveryUnresolved)
   return <><CollectionNavigationHost onEditGrading={canEditGrading ? itemId => {
-    if (!valid() || read.evidence.kind !== "complete" || latest.current.queue.record?.pending.length || latest.current.queue.record?.recovery?.some(r => !r.synchronized)) return
+    if (!valid() || read.evidence.kind !== "complete" || latest.current.queue.record?.pending.length || latest.current.queue.record?.recovery?.some(recoveryUnresolved)) return
     try {
       inventoryGradingReference(read.evidence.snapshot, itemId)
       setGrading({ snapshot: structuredClone(read.evidence.snapshot), itemId, intent: null })
     } catch { setNotice("This copy needs a current complete inventory read before grading can be edited.") }
-  } : undefined} stagedSlabs={localHarness} scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(r => !r.synchronized)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+  } : undefined} stagedSlabs={localHarness} scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot
         const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)
@@ -257,7 +261,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
         return renderSurface({ analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
           <div className="px-4"><ActivityButton /></div>
-          {queue.record?.recovery?.some(r => !r.synchronized) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
+          {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
           {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
             {queue.record.pending[0].status === "conflict" ? "Storage changed. The original edit is retained; confirmed rejections can be reviewed, unknown outcomes need an exact retry."

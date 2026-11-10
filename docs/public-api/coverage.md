@@ -210,6 +210,15 @@ draft. Parent retains #370/#369 final acceptance and rollout ownership.
 
 
 
+
+### Prepared native recovery rejection
+
+Native recovery remains staged and returns `503 native_operations_staged` before execution. The prepared v1/v2 apply contract declares REST `409 storage_recovery_rejected`, or MCP `isError:true`, only for a committed strict `error.rejection` containing `outcome:"rejected"`, the original `operationId`, known `code` and `inventoryRevision`. Codes are `recovery_plan_conflict` and `recovery_dependency_conflict`. Arbitrary 409/SQL errors, missing receipts, cancellation and billing/access errors are not noncommit proof. Exact accepted/rejected replay requires current authority and precedes mutable plan reconstruction.
+
+In the staged app, durable proof permits a separately fresh complete current owner/session read and explicit **Discard noncommitted recovery**. Discard preserves original request/proof with a distinct discarded state, never accepted/synchronized. **Review new recovery** then needs a new preview and explicit confirmation with a new operation ID. Unknown and accepted requests never gain discard/rebase. The existing legacy Undo contract is unchanged; no private inverse, evidence, certificates or assets are exposed. This preparation is not an enabled capability or release announcement.
+
+
 ## Repeatable release smoke coverage
 
 The [operator smoke guide](../api-smoke.md) distinguishes 56 admitted functional checks from 15 fixed native staging denials (five reads, two presets and eight storage POST contracts). Every staged operation has explicit synthetic schema-valid denial input; missing/new fixtures, incorrect HTTP status/error bodies or failed assertions fail coverage. Local real REST/MCP HTTP/SDK tests use synthetic authority dependencies and prove zero executor/data RPCs under the unchanged admission gate. Native `verified` and latency acceptance remain unproven. Parent owns reviewed deployed smoke and exact fixture cleanup; pending or unknown cleanup cannot pass. This internal reporting fix enables no API operation, SQL, native write, Inventory or BrowserSession behavior and closes no #376/#379 rollout gate.
+

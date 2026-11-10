@@ -1,4 +1,5 @@
 import "server-only"
+import { isRecoveryRejection } from "@/lib/collection/recovery-rejection"
 import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { requireExpectedAppearanceOwner } from "@/lib/server/binder-appearance"
 import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
@@ -64,8 +65,9 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
     const { data, error } = await client.rpc("storage_execute_v1", { operation, owner_id: ownerId, request: input }).abortSignal(AbortSignal.timeout(10000))
     if (error) throw storageExecutionError(error)
     if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
+    if ((operation === "recovery.apply" || operation === "recovery.apply.v2") && isRecoveryRejection(data, operationId)) return { ...data }
     // A malformed terminal row must never fall through to an accepted receipt projection.
-    if ((operation === "slots" || operation === "inventory") && data && typeof data === "object" && "outcome" in data) throw storageExecutionError(null)
+    if (data && typeof data === "object" && "outcome" in data) throw storageExecutionError(null)
     return normalizeStorageResult(operation, data)
   })
 }

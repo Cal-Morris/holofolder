@@ -1,3 +1,4 @@
+import { isRecoveryRejection, recoveryUnresolved } from '@/lib/collection/recovery-rejection'
 import { parseNativeRecoveryIntent, parseNativeRecoveryReceipt, type NativeRecoveryIntent, type RetainedRecovery } from "@/lib/collection/native-recovery-intent"
 import { isStorageCommandRejection, type StorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { captureCompleteInventoryReadFence, isCompleteInventoryReadAfter, isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
@@ -97,13 +98,16 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
   const recovery = raw.recovery === undefined ? [] : raw.recovery
   if (!Array.isArray(recovery)) return fail("malformed-recovery-intents")
   const retained = recovery.map(r => {
-    if (!isContractRecord(r, ["intent", "receipt", "synchronized", "lease"]) || typeof r.synchronized !== "boolean"
+    if (!isContractRecord(r, ["intent", "receipt", "synchronized", "lease", "rejection", "resolution"]) || typeof r.synchronized !== "boolean"
       || !(r.lease === null || isContractRecord(r.lease, ["id", "until"]) && isSlotContractId(r.lease.id) && isSlotRevision(r.lease.until))) return fail("malformed-recovery-intent")
     const intent = parseNativeRecoveryIntent(r.intent)
     if (intent.context.clientId !== scope.deviceId) return fail("recovery-device-mismatch")
     const receipt = r.receipt === null ? null : parseNativeRecoveryReceipt(r.receipt, intent.request.eventId)
+    const rejection = r.rejection == null ? null : r.rejection
+    if (rejection !== null && !isRecoveryRejection(rejection, String(intent.request.operationId))) return fail("malformed-recovery-rejection")
+    if (r.resolution != null && r.resolution !== 'discarded' || receipt && rejection || r.resolution === 'discarded' && (!rejection || r.synchronized || r.lease)) return fail("malformed-recovery-resolution")
     if (r.synchronized && !receipt) return fail("missing-recovery-receipt")
-    return { intent, receipt, synchronized: r.synchronized, lease: r.lease } as RetainedRecovery
+    return { intent, receipt, synchronized: r.synchronized, lease: r.lease, ...(r.rejection === undefined ? {} : {rejection}), ...(r.resolution === undefined ? {} : {resolution:r.resolution}) } as RetainedRecovery
   })
   const recoveryIds = retained.map(r => r.intent.request.operationId)
   if (new Set([...ids, ...recoveryIds]).size !== ids.length + recoveryIds.length) return fail("duplicate-recovery-operation")
@@ -154,15 +158,15 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
   }
   return {
     read,
-    /** Recovery is retained in the SAME atomic record. It has no optimistic projection,
-     * cancellation, expiry or status-based rebase. Unknown outcomes only permit exact retry. */
+    /** Recovery is retained in the SAME atomic record, without an optimistic inverse
+     * or status-based rebase. Unknown outcomes only permit exact retry. */
     async retainRecovery(raw: NativeRecoveryIntent, activeScope: () => SlotOfflineScope | null) {
       const intent = parseNativeRecoveryIntent(raw)
       await update(record => {
         if (!scope.accountId || !scope.ownerUserId || !sameValue(activeScope(), scope) || intent.context.clientId !== scope.deviceId) fail("inactive-recovery-scope")
         const existing = record.recovery?.find(r => r.intent.request.operationId === intent.request.operationId)
         if (existing) { if (!sameValue(existing.intent, intent)) fail("idempotency-conflict"); return }
-        if (record.pending.length || record.recovery?.some(r => !r.synchronized) || record.receipts.some(r => r.operationId === intent.request.operationId)) fail("queue-reconciliation-required")
+        if (record.pending.length || record.recovery?.some(recoveryUnresolved) || record.receipts.some(r => r.operationId === intent.request.operationId)) fail("queue-reconciliation-required")
         ;(record.recovery ??= []).push({ intent, receipt: null, synchronized: false, lease: null })
       })
     },
@@ -173,19 +177,23 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       let claimed: RetainedRecovery | undefined
       await update(record => {
         const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
-        if (!active() || !r || r.synchronized || record.pending.length || r.lease && r.lease.until > now) return
+        if (!active() || !r || !recoveryUnresolved(r) || record.pending.length || r.lease && r.lease.until > now) return
         r.lease = lease; claimed = structuredClone(r)
       })
       if (!claimed || !active()) return
       const intent = (claimed as RetainedRecovery).intent
       try {
         // A retained accepted receipt can resume verification without resending apply.
-        const receipt = (claimed as RetainedRecovery).receipt ?? parseNativeRecoveryReceipt(await send(intent), intent.request.eventId)
+        const retained = claimed as RetainedRecovery
+        const result = retained.rejection ?? retained.receipt ?? await send(intent)
+        const rejection = isRecoveryRejection(result, operationId) ? result : null
+        const receipt = rejection ? null : parseNativeRecoveryReceipt(result, intent.request.eventId)
         if (!active()) return
         await update(record => {
           const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
           if (!active() || !r || r.lease?.id !== lease.id || !sameValue(r.intent, intent)) fail("inactive-recovery-scope")
-          r.receipt = receipt
+          if (rejection) r.rejection = rejection
+          else r.receipt = receipt
         })
         const fence = captureCompleteInventoryReadFence()
         const fresh = await readCurrent()
@@ -194,8 +202,46 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         await update(record => {
           const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
           if (!active() || !r || r.lease?.id !== lease.id || !sameValue(r.intent, intent) || record.pending.length
-            || snapshot.inventoryRevision < Math.max(receipt.inventoryRevision, record.snapshot?.inventoryRevision ?? 0)) fail("stale-recovery-read")
-          r.synchronized = true; r.lease = null; record.snapshot = snapshot; record.optimistic = snapshot
+            || snapshot.inventoryRevision < Math.max((rejection ?? receipt)!.inventoryRevision, record.snapshot?.inventoryRevision ?? 0)) fail("stale-recovery-read")
+          if (rejection) {
+            if (!sameValue(r.rejection, rejection)) fail("recovery-proof-changed")
+            // A fresh read permits review, never automatic cancellation or acceptance.
+            r.lease = null
+          } else { r.synchronized = true; r.lease = null; record.snapshot = snapshot; record.optimistic = snapshot }
+        })
+        return true
+      } finally {
+        if (active()) await update(record => {
+          const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
+          if (r?.lease?.id === lease.id) r.lease = null
+        })
+      }
+    },
+    /** Explicit user decision only. Re-read after durable proof and fence concurrent tabs. */
+    async discardRecovery(operationId: string, readCurrent: () => Promise<unknown>, activeScope: () => SlotOfflineScope | null, now = Date.now()) {
+      const active = () => sameValue(activeScope(), scope)
+      const lease = { id: crypto.randomUUID(), until: now + 60000 }
+      let claimed: RetainedRecovery | undefined
+      await update(record => {
+        const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
+        if (!active() || !r || !recoveryUnresolved(r) || r.receipt || !isRecoveryRejection(r.rejection,operationId)
+          || record.pending.length || record.recovery?.some(other => other !== r && recoveryUnresolved(other))
+          || r.lease && r.lease.until > now) fail("recovery-discard-proof-required")
+        r.lease = lease; claimed = structuredClone(r)
+      })
+      const original = claimed!
+      try {
+        const fence = captureCompleteInventoryReadFence()
+        const fresh = await readCurrent()
+        if (!active() || !isCompleteInventoryReadAfter(fresh,fence)) fail("fresh-complete-recovery-read-required")
+        const snapshot = scopedSnapshot(fresh,scope)
+        await update(record => {
+          const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
+          if (!active() || !r || r.receipt || r.lease?.id !== lease.id || !sameValue(r.intent,original.intent)
+            || !sameValue(r.rejection,original.rejection) || record.pending.length
+            || snapshot.inventoryRevision < Math.max(original.rejection!.inventoryRevision,record.snapshot?.inventoryRevision ?? 0)) fail("stale-recovery-read")
+          r.resolution = 'discarded'; r.lease = null
+          record.snapshot = snapshot; record.optimistic = snapshot
         })
       } finally {
         if (active()) await update(record => {
@@ -220,7 +266,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         const existing = record.pending.find(p => p.intent.request.operationId === intent.request.operationId)?.intent
           ?? record.receipts.find(r => r.operationId === intent.request.operationId)?.intent
         if (existing) { if (!sameValue(existing, intent)) fail("idempotency-conflict"); return }
-        if (record.recovery?.some(r => !r.synchronized)) fail("recovery-pending")
+        if (record.recovery?.some(recoveryUnresolved)) fail("recovery-pending")
         if (!record.optimistic || record.pending.some(p => ["conflict", "blocked", "billing"].includes(p.status))) fail("queue-reconciliation-required")
         const next = projectSlotIntent(record.optimistic, intent, catalog)
         record.pending.push({ intent, base: record.optimistic, status: "pending", attempts: 0, nextAttemptAt: 0, lease: null, conflict: null })
@@ -247,7 +293,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       let claimed: SlotOfflineIntent | null = null
       await update(record => {
         const p = record.pending[0]
-        if (record.recovery?.some(r => !r.synchronized)) return
+        if (record.recovery?.some(recoveryUnresolved)) return
         if (!p || !active() || ["conflict", "blocked", "billing"].includes(p.status) || p.attempts >= 5 || p.nextAttemptAt > now || (p.lease && p.lease.until > now)) return
         p.status = "sending"; p.attempts++; p.lease = { id: leaseId, until: now + 60000 }; claimed = structuredClone(p.intent)
       })

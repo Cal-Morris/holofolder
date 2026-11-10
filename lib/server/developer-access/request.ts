@@ -1,5 +1,5 @@
-import { StorageCommandRejectedError } from './storage-command-error'
-import { storageCommandErrorSchema } from '@/lib/developer-api/storage'
+import { StorageRecoveryRejectedError, StorageCommandRejectedError } from './storage-command-error'
+import { recoveryErrorSchema, storageCommandErrorSchema } from '@/lib/developer-api/storage'
 import {BinderAccessError} from '@/lib/server/binders'
 import {BillingAccessError} from '@/lib/billing'
 import {AppearanceError} from '@/lib/server/binder-appearance'
@@ -36,6 +36,7 @@ export function knownDeveloperError(error:unknown):DeveloperAccessError|null {
 }
 export function developerErrorPayload(error: unknown, requestId: string) {
  const safe=knownDeveloperError(error)
+ if(safe instanceof StorageRecoveryRejectedError) return recoveryErrorSchema.parse({error:{code:safe.code,message:safe.message,requestId,rejection:safe.rejection}})
  if(safe instanceof StorageCommandRejectedError) return storageCommandErrorSchema.parse({error:{code:safe.code,message:safe.message,requestId,rejection:safe.rejection}})
  return {error:{code:safe?safe.code:'temporarily_unavailable',message:safe?safe.message:'This operation is temporarily unavailable.',requestId}}
 }
