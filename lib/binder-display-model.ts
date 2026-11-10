@@ -73,3 +73,16 @@ export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, "card" | "pokem
   const name = slot.card?.name ?? (slot.pokemon ? slot.pokemon.name : slot.target?.kind === "pokemon" ? `Pokémon ${slot.target.pokemonId}` : "Free slot")
   return `${name}, ${slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}`
 }
+
+/** Saved occupied pockets count once; spacers are outside completion goals. */
+export function nativeBinderCoverStats(binder: BinderSnapshot) {
+  let collected = 0, total = 0, perfect = 0
+  for (const slot of binder.slots) {
+    if (slot.target || slot.inventoryItemId) total++
+    if (slot.inventoryItemId) {
+      collected++
+      if (slot.status === "finalized") perfect++
+    }
+  }
+  return { collected, total, percentage: total ? Math.round(collected / total * 100) : 0, needed: total - collected, perfect }
+}

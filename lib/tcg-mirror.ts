@@ -6,7 +6,7 @@ import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog
 import { createAdminClient } from "@/lib/supabase/admin"
 import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type TCGSetSummary } from "@/lib/tcg-set-slots"
 import { cacheLife, cacheTag } from "next/cache"
-import { buildTcgdexAssetImageUrl, pickLocalizedText, TCGDEX_LANGUAGE_FALLBACKS } from "@/lib/tcgdex-shared"
+import { buildTcgdexAssetImageUrl, pickImageLanguage, pickLocalizedText } from "@/lib/tcgdex-shared"
 import { pickExternalCardImageUrl } from "@/lib/card-image-sources"
 import {
   compareBrowseCards,
@@ -98,7 +98,6 @@ const MIRRORED_CARD_SELECT = `
   )
 `
 
-const IMAGE_LANGUAGE_FALLBACKS = TCGDEX_LANGUAGE_FALLBACKS
 const MIRROR_CACHE_LIFE = "days"
 const HIDDEN_SET_IDS = new Set(["jumbo"])
 const MIRROR_CACHE_VERSION = "v5-catalog-printings"
@@ -112,29 +111,6 @@ function buildCardImageUrl(language: string, seriesId: string, setId: string, lo
 }
 
 export { pickExternalCardImageUrl }
-
-function pickImageLanguage(value: unknown, requestedLanguage: MirrorLanguage) {
-  if (!Array.isArray(value)) {
-    return null
-  }
-
-  const languages = value.filter((candidate): candidate is string => typeof candidate === "string" && candidate.length > 0)
-  if (languages.length === 0) {
-    return null
-  }
-
-  if (languages.includes(requestedLanguage)) {
-    return requestedLanguage
-  }
-
-  for (const fallback of IMAGE_LANGUAGE_FALLBACKS) {
-    if (languages.includes(fallback)) {
-      return fallback
-    }
-  }
-
-  return languages[0] || null
-}
 
 function compareLocalIds(a: MirroredTCGCard, b: MirroredTCGCard) {
   const aNumeric = Number.parseInt(a.localId.replace(/\D+/g, ""), 10)

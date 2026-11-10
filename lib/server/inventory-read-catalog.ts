@@ -5,6 +5,8 @@ import type { InventorySnapshot } from "@/lib/domain/inventory"
 import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
 import { readCatalogMetadata } from "@/lib/card-catalog"
 import { formatPokemonDisplayName, getPokemonById } from "@/lib/pokemon-catalog"
+import { buildTcgdexAssetImageUrl, pickImageLanguage } from "@/lib/tcgdex-shared"
+import { pickExternalCardImageUrl } from "@/lib/card-image-sources"
 
 type Row = Record<string, unknown>
 /** Public mirror only. No owner filter, private cache key, upstream lookup or sync. */
@@ -34,7 +36,7 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
       } while (after !== null)
     }
   }
-  await read("tcg_cards", "id,set_id,local_id,name_en,name_json,external_ids_json", "id", ids, cards, "id")
+  await read("tcg_cards", "id,series_id,set_id,local_id,name_en,name_json,image_languages_json,external_ids_json", "id", ids, cards, "id")
   // Alias IDs are mirror evidence too. Ambiguous matches remain separate and cannot resolve a card.
   for (const id of ids.filter(id => !cards.some(c => c.id === id))) {
     for (const canonical of [false, true]) {
@@ -42,7 +44,7 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
       const seen = new Set<string>()
       do {
         check()
-        let query = db.from("tcg_cards").select("id,set_id,local_id,name_en,name_json,external_ids_json").order("id").limit(500)
+        let query = db.from("tcg_cards").select("id,series_id,set_id,local_id,name_en,name_json,image_languages_json,external_ids_json").order("id").limit(500)
         query = canonical ? query.eq("external_ids_json->catalog->>canonicalId", id) : query.contains("external_ids_json", { catalog: { aliasIds: [id] } })
         if (after !== null) query = query.gt("id", after)
         const response = await query.abortSignal(signal)
@@ -87,15 +89,21 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
       const pokemon = typeof l.dex_id === "number" ? getPokemonById(l.dex_id) : undefined
       return pokemon ? [formatPokemonDisplayName(pokemon.name)] : []
     }))]
+    const imageForLanguage = (language: string) => {
+      const imageLanguage = pickImageLanguage(raw.image_languages_json, language)
+      return metadata.image ?? (imageLanguage && isSlotContractId(raw.series_id)
+        ? buildTcgdexAssetImageUrl(imageLanguage, raw.series_id, String(set.id), String(raw.local_id))
+        : pickExternalCardImageUrl(raw.external_ids_json)) ?? undefined
+    }
     const translations = raw.name_json && typeof raw.name_json === "object" ? raw.name_json as Record<string, unknown> : {}
     // Only attested languages, never infer a printing's language from the owner's preference.
     const languages = Object.keys(translations).filter(l => typeof translations[l] === "string" && String(translations[l]).trim())
     for (const language of languages.filter(isCardLanguage)) result.push({ card: { id: raw.id, localId: metadata.localId ?? raw.local_id,
       name: String(translations[language]), language, set: { id: set.id, name: set.name_en },
       ...(metadata.canonicalId ? { canonicalId: metadata.canonicalId } : {}), ...(metadata.aliasIds ? { aliasIds: metadata.aliasIds } : {}),
-      ...(metadata.image ? { image: metadata.image } : {}) }, speciesNames: names, pokemonIds })
+      image: imageForLanguage(language) }, speciesNames: names, pokemonIds })
     if (!languages.length) result.push({ card: { id: raw.id, localId: metadata.localId ?? raw.local_id, name: raw.name_en,
-      set: { id: set.id, name: set.name_en }, ...(metadata.canonicalId ? { canonicalId: metadata.canonicalId } : {}),
+      set: { id: set.id, name: set.name_en }, image: imageForLanguage("en"), ...(metadata.canonicalId ? { canonicalId: metadata.canonicalId } : {}),
       ...(metadata.aliasIds ? { aliasIds: metadata.aliasIds } : {}) }, speciesNames: names, pokemonIds })
   }
   return result
