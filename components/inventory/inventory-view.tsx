@@ -7,7 +7,7 @@ import { runAfterOverlayHistory } from "@/hooks/use-overlay"
 import CardImage from "@/components/card-image"
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseScope, InventoryCatalogEvidence,
   InventoryLayoutEvidence, InventoryLocationIntent } from "@/lib/domain/inventory-browse"
-import { buildInventoryBrowseIndex, inventoryGradingLabel, inventoryWantSlotKey, queryInventory, restoreInventoryWindow,
+import { buildInventoryBrowseIndex, inventoryGradingLabel, inventorySelectLabels, inventoryWantSlotKey, queryInventory, restoreInventoryWindow,
   type InventoryBrowseCursor, type InventoryBrowseIndex } from "@/lib/inventory-query"
 import { inventoryLocationLabel } from "@/lib/inventory-location"
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
@@ -80,6 +80,7 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
     runAfterOverlayHistory(() => onOpenLocation?.(intent))
   }, [selected, onOpenLocation])
   const result = queryInventory(index, query, cursor)
+  const selectLabels = inventorySelectLabels(result.rows)
   const row = index.rows.find(r => r.itemId === selected)
   const providers = [...new Set(index.rows.flatMap(r => r.provider ? [r.provider] : []))].sort()
   const grades = [...new Set(index.rows.filter(r => !query.provider || r.provider === query.provider).flatMap(r => r.grade ? [r.grade] : []))].sort()
@@ -144,9 +145,10 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
       {!result.total ? <div role="status" className={styles.notice}><h2>{count ? "No matching copies" : index.kind === "cached" ? "No copies cached" : "No owned copies"}</h2>
         <p>{count ? "Try another search or filter." : index.kind === "cached" ? "Connect to load your inventory. This does not mean you own no cards." : "Targets, wants and showcase references do not count as owned copies."}</p></div> : <>
         <ul className={styles.list} aria-label="Owned copies">{result.rows.map(r => {
+          const selectLabel = selectLabels.get(r.itemId)
           const value = valuation?.copies.find(c => c.itemId === r.itemId)
           return <li key={r.itemId} className={styles.row}>
-          {ownership?.available && <label className={styles.bulkSelect} title={r.graded ? gradedBulkNote : undefined}><input type="checkbox" aria-label={`Select copy ${r.itemId}`} aria-describedby={r.graded ? "inventory-graded-bulk-note" : undefined} disabled={r.graded} checked={bulkIds.includes(r.itemId)} onChange={e => setBulkIds(ids => e.target.checked ? [...ids, r.itemId] : ids.filter(id => id !== r.itemId))} /></label>}
+          {ownership?.available && <label className={styles.bulkSelect} title={r.graded ? gradedBulkNote : undefined}><input type="checkbox" aria-label={selectLabel} aria-describedby={r.graded ? "inventory-graded-bulk-note" : undefined} disabled={r.graded} checked={bulkIds.includes(r.itemId)} onChange={e => setBulkIds(ids => e.target.checked ? [...ids, r.itemId] : ids.filter(id => id !== r.itemId))} /></label>}
           <button type="button" className={styles.copy} data-item-id={r.itemId} onClick={() => setSelected(r.itemId)}>
             <span className={styles.art}>{r.image ? <CardImage src={r.image} alt="" sizes="56px" width={56} height={78} /> : <span>Image<br />unknown</span>}</span>
             <span className={styles.copyText}><strong>{r.name ?? (r.speciesNames.length ? r.speciesNames.join(", ") : "Unknown card")}</strong>
