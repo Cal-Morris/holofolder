@@ -23,6 +23,16 @@ describe("stable binder display", () => {
     const equivalent = { slots: entries, ...rest }
     assert.deepEqual(buildSlotDisplay(equivalent, inventory, id => catalog[id]).map(s => s.id), slots.map(s => s.id))
   })
+  test("card detail retains human catalog metadata alongside the exact copy reference", () => {
+    const { binder, inventory } = syntheticSlotDisplaySnapshot()
+    const card = { name: "Synthetic Snorlax", image: "https://assets.tcgdex.net/en/synthetic/1/high.webp", localId: "1", set: { name: "Synthetic set" } }
+    const slot = buildSlotDisplay(binder, inventory, () => card)[0]
+    assert.equal(slot.card, card)
+    assert.equal(slot.card?.set?.name, "Synthetic set")
+    assert.equal(slot.card?.localId, "1")
+    assert.equal(slot.item?.id, "item-a")
+    assert.equal(slot.id, "slot-a")
+  })
   test("all 1–8 dimensions preserve order, stored blanks and stable identity", () => {
     const { binder, inventory, catalog } = syntheticSlotDisplaySnapshot()
     const slots = buildSlotDisplay(binder, inventory, id => catalog[id])

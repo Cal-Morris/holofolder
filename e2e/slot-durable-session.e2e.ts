@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures"
+import { test, expect, Harness, mockBackends, emulateStandalone } from "./fixtures"
 import type { Page } from "@playwright/test"
 import { syntheticSlotPickerSnapshot } from "../tests/fixtures/slot-picker"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
@@ -23,7 +23,12 @@ const open = async (page: Page) => {
 
 // All identities/transport results are synthetic. Storage and transactions are real IndexedDB.
 test.describe("isolated durable slot session", () => {
-  test.use({ signedIn: true })
+  test.use({ signedIn: true, harness: async ({ page, context, standalone, insets, baseURL }, provide) => {
+    if (standalone) await emulateStandalone(page, insets)
+    await mockBackends(page, context, { signedIn: true, baseURL })
+    // These staged specs open their explicit synthetic slot surface, not authenticated startup.
+    await provide(new Harness(page, insets, true))
+  } })
 
   test("offline acceptance, reload, 503, interrupted retry and fresh complete ACK preserve exact IDs", async ({ harness, context }) => {
     const { page } = harness
@@ -153,7 +158,8 @@ test.describe("isolated durable slot session", () => {
     await open(page)
     await page.locator('button[data-slot-id="slot-a"]').click()
     const dialog = page.getByRole("dialog", { name: /details$/ })
-    await dialog.getByRole("button", { name: "Clear contents", exact: true }).click()
+    await dialog.locator("summary").filter({ hasText: "Edit slot" }).click()
+    await dialog.getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
     await expect.poll(async () => (await record(page))?.pending.length).toBe(1)
     const r = (await record(page))!
     expect(r.optimistic!.binders[0].slots[0].inventoryItemId).toBeNull()
@@ -271,7 +277,7 @@ test.describe("isolated durable slot session", () => {
     await expect(slot).toBeVisible(); await slot.click()
     const dialog = page.getByRole("dialog", { name: /details$/ })
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByRole("button", { name: "Clear contents" })).toHaveCount(0)
+    await expect(dialog.getByRole("button", { name: "Move card to Unassigned" })).toHaveCount(0)
     await expect(toolbar(page)).toHaveCount(0)
     expect((await record(page))!.pending).toHaveLength(0)
   })

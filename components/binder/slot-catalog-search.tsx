@@ -1,5 +1,6 @@
 "use client"
 
+import CardImage from "@/components/card-image"
 import { CARD_PICKER_LANGUAGES } from "@/lib/card-picker-filters"
 import type { CardLanguage } from "@/lib/domain/cards"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
@@ -15,6 +16,6 @@ export default function SlotCatalogSearch({ query, language, cards, loading, off
     {offline && <p role="status" className="text-sm text-muted-foreground">Searching cached cards on this device only. Uncached catalog coverage is unavailable offline.</p>}
     {loading && <p role="status">Searching…</p>}
     {!loading && query.length >= 2 && !cards.length && <p>No matching cached or available catalog cards.</p>}
-    <div className="grid gap-2">{cards.map(c => <button type="button" className="min-h-10 rounded-xl border border-border px-3 py-2 text-left text-sm active:scale-[0.98] break-words [overflow-wrap:anywhere] disabled:opacity-50" key={`${c.id}:${c.language ?? "unknown"}`} disabled={disabled} onClick={() => onSelect(c)}>{c.name} · {c.set.name} · {c.localId} · {c.language ?? "Unknown language"}</button>)}</div>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{cards.map(c => <button type="button" className="min-h-10 rounded-xl border border-border px-3 py-2 text-left text-sm active:scale-[0.98] break-words [overflow-wrap:anywhere] disabled:opacity-50" key={`${c.id}:${c.language ?? "unknown"}`} disabled={disabled} onClick={() => onSelect(c)}>{c.image && <span className="trading-card relative mx-auto mb-2 block w-full max-w-28 overflow-hidden rounded-lg bg-muted"><CardImage src={c.image} alt={c.name} fill sizes="112px" className="object-contain" /></span>}<span className="block font-medium">{c.name} · {c.set.name} · {c.localId} · {c.language ?? "Unknown language"}</span></button>)}</div>
   </div>
 }

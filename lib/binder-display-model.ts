@@ -4,7 +4,7 @@ import type { CardLanguage, CollectedPokemon, WantedCard } from "@/lib/domain/ca
 import { isBinderGridSize } from "@/lib/binder-layout"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
 
-export interface DisplayCatalogCard { name: string; image?: string }
+export interface DisplayCatalogCard { name: string; image?: string; localId?: string; set?: { name: string }; rarity?: string; illustrator?: string }
 /** Ephemeral read model. The item is a reference, never slot-local ownership. */
 export interface BinderDisplaySlot {
   id: string

@@ -1,7 +1,12 @@
-import { test, expect } from "./fixtures"
+import { test, expect, Harness, mockBackends, emulateStandalone } from "./fixtures"
 
 test.describe("staged explicit layout editing", () => {
-  test.use({ signedIn: true })
+  test.use({ signedIn: true, harness: async ({ page, context, standalone, insets, baseURL }, provide) => {
+    if (standalone) await emulateStandalone(page, insets)
+    await mockBackends(page, context, { signedIn: true, baseURL })
+    // These staged specs open their explicit synthetic slot surface, not authenticated startup.
+    await provide(new Harness(page, insets, true))
+  } })
   const sheet = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: /details$/ })
   const slot = (page: import("@playwright/test").Page, id: string) => page.locator(`button[data-slot-id="${id}"]`)
   const toolbar = (page: import("@playwright/test").Page) => page.getByRole("region", { name: "Layout editing", exact: true })
@@ -56,7 +61,7 @@ test.describe("staged explicit layout editing", () => {
     await dialog.getByRole("spinbutton", { name: "Saved position", exact: true }).press("Enter")
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("2")
     await expect(dialog).toContainText("Slot 8 of 8")
-    await expect(dialog).toContainText("item-a")
+    await expect(dialog).not.toContainText("item-a")
     await expect(dialog).toContainText("Snorlax A")
     await expect(dialog.getByRole("button", { name: "Move later", exact: true })).toBeDisabled()
     await harness.expectWithinSafeViewport(dialog)
