@@ -3,6 +3,8 @@
 // Show mode's home: the "Hunting" list. The want list grouped by Pokémon (most wanted or dearest first), with
 // era/set and illustrator filters to match how a dealer's binder is sorted. Every card shows what to pay up to;
 // one tap opens the deal check. Built from the collection on this device, so it works offline.
+import NativeWantedEntries from "@/components/native-wanted-entries"
+import type { NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { ChevronRight, Heart, Target, TrendingDown } from "lucide-react"
 import { PriceDropBadge } from "@/components/price-drop-badge"
@@ -419,4 +421,7 @@ const HuntGroupSection = memo(function HuntGroupSection({
   )
 })
 
-export default memo(ShowHunt)
+export default memo(function ShowHuntConsumer(props: ShowHuntProps & { nativeConsumer?: NativeConsumerBinding }) {
+  if (props.nativeConsumer) return <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><NativeWantedEntries binding={props.nativeConsumer} onCheck={(card, finish) => props.onPickCard(card, { id: card.dexIds?.[0] ?? 0, name: card.name }, finish ?? null)} /></div>
+  return <ShowHunt {...props} />
+})
