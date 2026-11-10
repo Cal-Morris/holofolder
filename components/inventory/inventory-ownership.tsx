@@ -8,10 +8,11 @@ import { useCardSearch } from "@/hooks/use-card-search"
 import { buildOfflineCardIndex } from "@/lib/offline-card-index"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import { isCardLanguage, type CardFinish, type CardLanguage } from "@/lib/domain/cards"
-import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
+import type { SlotTarget } from "@/lib/domain/binder-slots"
+import type { InventorySnapshot, InventoryCatalogResolver } from "@/lib/domain/inventory"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import { pickerCandidate, pickerFinishes } from "@/lib/slot-picker"
-import { inventoryActionDestinations, inventoryActionItemRef, prepareInventoryAction, type InventoryAction, type InventoryOwnershipBinding } from "@/lib/inventory-actions"
+import { inventoryActionDestinations, inventoryActionItemRef, inventoryOccupiedChoices, prepareInventoryAction, type InventoryAction, type InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import styles from "./inventory.module.css"
 
 const context = () => ({ source: "app" as const, clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() })
@@ -52,33 +53,85 @@ function Confirmation({ review, children, details }: { review: ReturnType<typeof
   </section>
 }
 
+function targetLabel(target: SlotTarget | null): string {
+  if (!target) return "Free slot"
+  if (target.kind === "pokemon") return `Pokémon ${target.pokemonId} target`
+  return `Printing ${target.cardId}${target.language ? ` · ${target.language}` : ""}${target.finish ? ` · ${target.finish}` : ""}`
+}
+
+function CopyPlacementReview({ draft }: { draft: ReturnType<typeof prepareInventoryAction> }) {
+  const command = draft.intent.request.commands[0]
+  if (command.kind !== "move" && command.kind !== "assign") return null
+  const selectedId = command.kind === "move" ? command.item.itemId : command.selection.kind === "existing" ? command.selection.inventoryItemId : null
+  const displacedId = command.destination.slot.inventoryItemId
+  const location = (snapshot: InventorySnapshot, id: string) => {
+    const p = snapshot.placements.find(p => p.inventoryItemId === id)
+    return p ? `${snapshot.collections.find(c => c.id === p.collectionId)?.name ?? "Storage"}, slot ${p.slotId}` : "Unassigned"
+  }
+  const ids = [selectedId, displacedId].filter((id): id is string => id !== null)
+  const slots = [command.kind === "move" ? command.item.placement : null, command.destination].filter(p => p !== null)
+  return <>
+    <h3>{command.occupied === "swap" ? "Swap these exact copies?" : displacedId ? "Move the occupied copy to Unassigned?" : "Place this exact copy?"}</h3>
+    {ids.map(id => {
+      const item = draft.before.items.find(i => i.id === id)!
+      return <div key={id}>
+        <p>Copy {id} · {item.identity.kind === "card" ? item.identity.cardId : `Pokémon ${item.identity.pokemonId}`} · {item.identity.kind === "card" ? item.identity.language ?? "Language unknown" : "Language unknown"} · {item.identity.kind === "card" ? item.identity.finish ?? "Finish unknown" : "Finish unknown"}</p>
+        <p>{item.grading ? `${item.grading.provider.kind === "known" ? item.grading.provider.id : item.grading.provider.name} · ${item.grading.grade ?? "Grade unknown"}` : "Raw"}. From {location(draft.before, id)} to {location(draft.preview, id)}.</p>
+      </div>
+    })}
+    <details><summary>Review slot targets and wants</summary>{slots.map(p => {
+      const slot = draft.before.binders.find(b => b.collectionId === p.collectionId)!.slots.find(s => s.id === p.slot.id)!
+      return <div key={slot.id}><p>Slot {slot.id}: {targetLabel(slot.target)}. {slot.wantedCards.length} explicit wants retained.</p>
+        {slot.wantedCards.map((want, i) => <p key={i}>{want.card_name} · {want.card_id} · {want.card_language ?? "Language unknown"} · {want.card_finish ?? "Finish unknown"}</p>)}</div>
+    })}</details>
+    <p>Ownership stays unchanged. {command.kind === "move" && command.occupied !== "swap" ? "The former slot becomes unfilled. " : ""}Targets, wants, provenance and slot order stay unchanged. No want is fulfilled. {displacedId ? "Both copies retain their" : "The copy retains its"} identity, grading, certificate, acquisition and source metadata.</p>
+    <p>After sync and a fresh complete read, use Find acknowledged change to locate the exact Activity event. Recovery requires a supported preview and current permission and version checks; newer edits may prevent it.</p>
+  </>
+}
+
 export function InventoryCopyActions({ binding, itemId, onAccepted }: { binding: InventoryOwnershipBinding; itemId: string; onAccepted: () => void }) {
   const [placing, setPlacing] = useState(false)
   const [destination, setDestination] = useState("")
+  const [occupied, setOccupied] = useState<"" | "unassign" | "swap">("")
   const review = useActionReview(binding, onAccepted)
   const item = binding.snapshot.items.find(i => i.id === itemId)
   if (!item || item.grading !== null) return null
   const ref = inventoryActionItemRef(binding.snapshot, itemId)
   const destinations = inventoryActionDestinations(binding.snapshot, itemId, binding.catalog)
+  const selectedDestination = destinations.find(d => d.slot.id === destination)
+  const choices = selectedDestination ? inventoryOccupiedChoices(binding.snapshot, itemId, selectedDestination, binding.catalog) : []
   const command = review.draft?.intent.request.commands[0]
   const source = ref.placement
   const location = source ? `${binding.snapshot.collections.find(c => c.id === source.collectionId)?.name ?? "Storage"}, slot ${source.slot.id}` : "Unassigned"
   return <section aria-label="Raw copy ownership" className={styles.ownership}>
     {review.error && <p role="alert">{review.error}</p>}
     {command ? <Confirmation review={review} details={command.kind === "removeOwned" ? <p>After sync, open Activity to review recovery of this exact copy and its saved metadata. Recovery checks current versions; if the former slot is occupied, explicitly choose Unassigned. Recovery may be unavailable if history or current permissions cannot be verified.</p> : undefined}>
+      {(command.kind === "assign" || command.kind === "move") && review.draft ? <CopyPlacementReview draft={review.draft} /> : <>
       <h3>{command.kind === "removeOwned" ? "Remove this owned copy?" : command.kind === "unassign" ? "Keep this copy Unassigned?" : "Place this exact copy?"}</h3>
       <p>Copy {itemId} · {location}</p>
       {command.kind === "removeOwned" ? <p>Ownership decreases by one. {source ? "Its placement is cleared. The former slot, target, wants and order remain." : "No storage slot changes."} Other copies stay unchanged.</p>
-        : command.kind === "unassign" ? <p>Ownership stays unchanged. The former slot becomes unfilled; its target, wants and order remain.</p>
-          : "destination" in command && <><p>Destination: {binding.snapshot.collections.find(c => c.id === command.destination.collectionId)?.name}, slot {command.destination.slot.id}.</p>
-            <p>Ownership stays unchanged. {source ? "The former slot becomes unfilled. " : ""}Targets, wants and slot order stay unchanged. No other copy is moved.</p></>}
+        : <p>Ownership stays unchanged. The former slot becomes unfilled; its target, wants and order remain.</p>}
+      </>}
     </Confirmation> : <fieldset disabled={!binding.available} className={styles.actions}>
       {placing ? <>
-        <label className={styles.field}>Compatible empty slot<select aria-label="Compatible empty slot" value={destination} onChange={e => setDestination(e.target.value)}>
-          <option value="">Choose a destination</option>{destinations.map(d => <option key={d.slot.id} value={d.slot.id}>{binding.snapshot.collections.find(c => c.id === d.collectionId)?.name} · Slot {d.slot.id}</option>)}
+        <label className={styles.field}>Compatible slot<select aria-label="Compatible slot" value={destination} onChange={e => { setDestination(e.target.value); setOccupied("") }}>
+          <option value="">Choose a destination</option>{destinations.map(d => <option key={d.slot.id} value={d.slot.id}>{binding.snapshot.collections.find(c => c.id === d.collectionId)?.name} · Slot {d.slot.id}{d.slot.inventoryItemId ? " · Occupied" : " · Empty"}</option>)}
         </select></label>
-        {!destinations.length && <p>No compatible empty slots are available. Occupied slots require a separate displacement decision and are not offered here.</p>}
-        <button type="button" disabled={!destination} onClick={() => { const d = destinations.find(s => s.slot.id === destination); if (d) review.review({ kind: "place", itemId, collectionId: d.collectionId, slotId: d.slot.id }) }}>Review placement</button>
+        {!destinations.length && <p>No compatible slots are available. Unknown printing or missing metadata cannot satisfy constrained targets.</p>}
+        {selectedDestination?.slot.inventoryItemId && <>
+          <p>Occupied by copy {selectedDestination.slot.inventoryItemId}. Choose what happens to it before reviewing.</p>
+          <label className={styles.field}>Occupied destination decision<select aria-label="Occupied destination decision" value={occupied} onChange={e => setOccupied(e.target.value as typeof occupied)}>
+            <option value="">Choose explicitly</option>
+            {choices.includes("unassign") && <option value="unassign">Move occupied copy to Unassigned</option>}
+            {choices.includes("swap") && <option value="swap">Swap copies</option>}
+          </select></label>
+          {!choices.includes("swap") && <p>Swap unavailable: this copy needs a source slot, and both copies must match their resulting targets.</p>}
+          {!choices.length && <p>This destination cannot be safely reviewed. Cancel and refresh current Inventory.</p>}
+        </>}
+        <button type="button" disabled={!selectedDestination || (selectedDestination.slot.inventoryItemId !== null && (!occupied || !choices.includes(occupied)))} onClick={() => {
+          const d = selectedDestination
+          if (d) review.review({ kind: "place", itemId, collectionId: d.collectionId, slotId: d.slot.id, ...(occupied ? { occupied } : {}) })
+        }}>Review placement</button>
         <button type="button" onClick={() => setPlacing(false)}>Cancel placement</button>
       </> : <>
         <button type="button" onClick={() => setPlacing(true)}>{source ? "Move copy" : "Assign copy"}</button>

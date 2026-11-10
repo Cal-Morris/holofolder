@@ -351,7 +351,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       const record = await latest.current.queue.queue?.read()
       if (!valid() || !ownershipReady.current || !navigator.onLine || !record || record.pending.length || record.legacy.length
         || record.recovery?.some(recoveryUnresolved) || record.snapshot?.inventoryRevision !== intent.request.inventoryRevision) throw new Error("pending-reconciliation")
-      return latest.current.queue.enqueue(intent, selectedCatalog, undefined, valid)
+      const fresh = await refresh()
+      if (!valid() || !navigator.onLine || fresh.evidence.kind !== "complete"
+        || fresh.evidence.snapshot.inventoryRevision !== intent.request.inventoryRevision) throw new Error("ownership-review-changed")
+      const current = await latest.current.queue.queue?.read()
+      if (!valid() || !ownershipReady.current || sending.current || refreshing.current || !navigator.onLine || !current
+        || current.pending.length || current.legacy.length || current.recovery?.some(recoveryUnresolved)
+        || current.snapshot?.inventoryRevision !== intent.request.inventoryRevision) throw new Error("pending-reconciliation")
+      return latest.current.queue.enqueue(intent, selectedCatalog, fresh.evidence.snapshot, () => valid() && navigator.onLine && ownershipReady.current)
     },
   } : undefined
 

@@ -6,7 +6,7 @@ import type { SlotLocalAcceptance } from "@/lib/binder-slot-editing"
 import { parseSlotIntent, projectSlotIntent, type SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
 
 export type InventoryAction = { kind: "add"; itemId: string; identity: Extract<InventoryIdentity, { kind: "card" }> }
-  | { kind: "place"; itemId: string; collectionId: string; slotId: string }
+  | { kind: "place"; itemId: string; collectionId: string; slotId: string; occupied?: "unassign" | "swap" }
   | { kind: "unassign" | "removeOwned"; itemId: string }
 export interface InventoryOwnershipBinding {
   snapshot: InventorySnapshot
@@ -27,15 +27,21 @@ export function inventoryActionItemRef(snapshot: InventorySnapshot, itemId: stri
     slot: { id: slot.id, version: slot.version, inventoryItemId: itemId, itemVersion: item.version, placementVersion: placement.version } } }
 }
 
-/** Only explicit empty, compatible stable slots. Unknown metadata cannot satisfy a constrained target. */
+/** Explicit compatible stable slots, excluding the selected copy. A listed occupied slot still needs a decision. */
 export function inventoryActionDestinations(snapshot: InventorySnapshot, itemId: string, catalog: InventoryCatalogResolver): InventorySlotRef[] {
   inventoryActionItemRef(snapshot, itemId)
   const item = snapshot.items.find(i => i.id === itemId)!
   const candidate = inventoryItemCandidate(item, catalog)
-  return snapshot.binders.flatMap(b => b.slots.filter(s => s.inventoryItemId === null && s.ownerUserId === snapshot.ownerUserId
+  return snapshot.binders.flatMap(b => b.slots.filter(s => s.inventoryItemId !== itemId && s.ownerUserId === snapshot.ownerUserId
     && snapshot.collections.some(c => c.id === b.collectionId && c.ownerUserId === snapshot.ownerUserId)
     && (s.target === null || candidate && matchesSlotTarget(candidate, s.target)))
-    .map(s => ({ collectionId: b.collectionId, slot: { id: s.id, version: s.version, inventoryItemId: null, itemVersion: null, placementVersion: null } })))
+    .flatMap(s => {
+      const occupant = s.inventoryItemId === null ? null : snapshot.items.find(i => i.id === s.inventoryItemId && i.ownerUserId === snapshot.ownerUserId)
+      const placement = snapshot.placements.find(p => p.inventoryItemId === s.inventoryItemId && p.collectionId === b.collectionId && p.slotId === s.id)
+      if (s.inventoryItemId !== null && (!occupant || !placement)) return []
+      return [{ collectionId: b.collectionId, slot: { id: s.id, version: s.version, inventoryItemId: s.inventoryItemId,
+        itemVersion: occupant?.version ?? null, placementVersion: placement?.version ?? null } }]
+    }))
 }
 
 /** Existing command parser and atomic projector own invariants; this adds no mutation protocol. */
@@ -50,10 +56,13 @@ export function prepareInventoryAction(snapshot: InventorySnapshot, action: Inve
     if (item.placement) collections.add(item.placement.collectionId)
     if (action.kind === "place") {
       const destination = inventoryActionDestinations(snapshot, action.itemId, catalog).find(d => d.collectionId === action.collectionId && d.slot.id === action.slotId)
-      if (!destination) throw new Error("compatible-empty-slot-required")
+      if (!destination) throw new Error("compatible-slot-required")
+      const occupied = destination.slot.inventoryItemId !== null
+      if (occupied ? !action.occupied : action.occupied) throw new Error("explicit-occupied-decision-required")
+      if (!item.placement && action.occupied === "swap") throw new Error("swap-source-required")
       collections.add(destination.collectionId)
-      command = item.placement ? { kind: "move", item, destination, occupied: "cancel", fulfillWant: null }
-        : { kind: "assign", selection: { kind: "existing", inventoryItemId: item.itemId, itemVersion: item.itemVersion }, destination, occupied: "cancel", fulfillWant: null }
+      command = item.placement ? { kind: "move", item, destination, occupied: action.occupied ?? "cancel", fulfillWant: null }
+        : { kind: "assign", selection: { kind: "existing", inventoryItemId: item.itemId, itemVersion: item.itemVersion }, destination, occupied: action.occupied === "unassign" ? "unassign" : "cancel", fulfillWant: null }
     } else {
       if (action.kind === "unassign" && !item.placement) throw new Error("already-unassigned")
       command = { kind: action.kind, item }
@@ -65,5 +74,17 @@ export function prepareInventoryAction(snapshot: InventorySnapshot, action: Inve
       const binder = snapshot.binders.find(b => b.collectionId === collectionId)!
       return { collectionId, version: collection.version, layoutRevision: binder.layoutRevision }
     }), commands: [command] } })
-  return { intent, preview: projectSlotIntent(snapshot, intent, catalog) }
+  return { intent, preview: projectSlotIntent(snapshot, intent, catalog), before: structuredClone(snapshot) }
+}
+
+/** Offer only decisions accepted by the existing atomic projector, including reverse target matching. */
+export function inventoryOccupiedChoices(snapshot: InventorySnapshot, itemId: string, destination: InventorySlotRef, catalog: InventoryCatalogResolver): ("unassign" | "swap")[] {
+  if (destination.slot.inventoryItemId === null) return []
+  return (["unassign", "swap"] as const).filter(occupied => {
+    try {
+      prepareInventoryAction(snapshot, { kind: "place", itemId, collectionId: destination.collectionId, slotId: destination.slot.id, occupied },
+        { source: "app", clientId: null, operationId: "inventory-decision-preview", batchId: null, clientOccurredAt: null }, catalog)
+      return true
+    } catch { return false }
+  })
 }

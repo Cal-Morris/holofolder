@@ -200,7 +200,14 @@ or deliberately add another raw copy. Existing graded copies are never relabelle
 or reused as raw. Missing printing, language and finish metadata remain unknown.
 
 From an exact raw copy, **Assign copy** or **Move copy** asks you to select a
-compatible empty stable slot. **Unassign copy** retains ownership and leaves its
+compatible stable slot. An occupied destination requires an explicit choice:
+**Move occupied copy to Unassigned**, or **Swap copies** when the selected copy
+has a source slot and both copies match their resulting targets. Nothing is
+selected by default. Review both copy IDs, their exact former and resulting
+locations, and the retained slot targets and explicit wants before confirming.
+A recorded graded destination copy retains its private metadata; unsupported
+choices stay unavailable. No copy is acquired or removed and no want is fulfilled.
+Cancel leaves both copies in place. **Unassign copy** retains ownership and leaves its
 former slot's target and wants intact. **Remove owned copy** separately previews
 which copy and placement are removed, the ownership decrement and the unchanged
 slot goals and other copies. After sync, Activity provides version-checked recovery
@@ -212,7 +219,11 @@ creation or recovery. Cached Inventory is read-only. Device acceptance and remot
 sync are separate; unknown outcomes retain the exact original request. The device
 flow composes existing inventory command and recovery REST/MCP operations, with
 no new API operation. Native production admission remains closed with 503.
-Occupied-slot decisions and bulk actions remain outside this raw preparation.
+After a separately fresh complete ACK, expand **Review synchronized changes**.
+**Find acknowledged change** looks up
+that exact operation's Activity event. Recovery requires a supported current
+engine preview; missing history never promises Undo. Bulk actions and selected
+graded-copy ownership management remain outside this raw preparation.
 
 
 ### Prepared collection deletion review
