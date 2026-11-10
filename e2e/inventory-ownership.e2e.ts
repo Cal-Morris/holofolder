@@ -36,7 +36,7 @@ async function selectAdd(page: Page) {
 async function place(page: Page, itemId: string, slotId: string, receipts: number) {
   const dialog = await detail(page, itemId)
   await dialog.getByRole("button", { name: /^(Assign|Move) copy$/ }).click()
-  await dialog.getByRole("combobox", { name: "Compatible empty slot" }).selectOption(slotId)
+  await dialog.getByRole("combobox", { name: "Compatible slot" }).selectOption(slotId)
   await dialog.getByRole("button", { name: "Review placement" }).click()
   await expect(dialog).toContainText(`slot ${slotId}`)
   await confirm(page, receipts)
@@ -340,4 +340,139 @@ test("a synchronized add reopens from IDB when all fresh inventory reads fail an
   expect((await record(page)).snapshot!.items).toHaveLength(5)
   const d = await detail(page)
   await expect(d.getByRole("button", { name: "Remove owned copy", exact: true })).toHaveCount(0)
+})
+
+async function occupiedReview(page: Page, itemId: string, slotId: string, decision: "swap" | "unassign") {
+  const dialog = await detail(page, itemId)
+  await dialog.getByRole("button", { name: /^(Assign|Move) copy$/ }).click()
+  await dialog.getByRole("combobox", { name: "Compatible slot", exact: true }).selectOption(slotId)
+  await expect(dialog.getByRole("button", { name: "Review placement" })).toBeDisabled()
+  await dialog.getByRole("combobox", { name: "Occupied destination decision" }).selectOption(decision)
+  await dialog.getByRole("button", { name: "Review placement" }).click()
+  return dialog
+}
+for (const decision of ["unassign", "swap"] as const) test(`occupied ${decision} reviews both copies, cancels safely and ACK links exact Activity`, async ({ page, insets }) => {
+  const sent: { commands: { kind: string; occupied: string; fulfillWant: null }[] }[] = []
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { sent.push(route.request().postDataJSON()); await route.continue() })
+  await open(page)
+  // Assign the second real copy to a different collection through the existing empty-slot flow.
+  await place(page, "synthetic-raw-copy-1", "synthetic-other-slot", 1)
+  const before = (await record(page)).snapshot!
+  const history = page.getByLabel("Acknowledged command history", { exact: true })
+  const historyBox = await history.boundingBox()
+  expect(historyBox!.height).toBeLessThanOrEqual(72)
+  const selectedCopy = page.locator('[data-item-id="synthetic-raw-copy-1"]')
+  await selectedCopy.scrollIntoViewIfNeeded()
+  const rowBox = (await selectedCopy.boundingBox())!, dockBox = (await page.locator('[data-dock="true"]').boundingBox())!
+  expect(rowBox.y + rowBox.height / 2).toBeLessThan(dockBox.y)
+  console.log(`occupied history geometry ${test.info().project.name}`, JSON.stringify({ historyBox, rowBox, dockTop: dockBox.y }))
+  const d = await occupiedReview(page, "synthetic-raw-copy-1", "synthetic-slot-0", decision)
+  await expect(d).toContainText(`Copy ${copy}`)
+  await expect(d).toContainText("Copy synthetic-raw-copy-1")
+  await expect(d).toContainText("From Synthetic second storage, slot synthetic-other-slot to Synthetic storage, slot synthetic-slot-0")
+  await expect(d).toContainText(decision === "swap" ? "to Synthetic second storage, slot synthetic-other-slot" : "to Unassigned")
+  await expect(d).toContainText("No want is fulfilled")
+  await d.getByText("Review slot targets and wants", { exact: true }).click()
+  await expect(d).toContainText("Pokémon 143 target")
+  const h = new Harness(page, insets, true)
+  await h.expectWithinSafeViewport(d)
+  const confirmButton = d.getByRole("button", { name: "Confirm change", exact: true })
+  await h.expectMinTapTarget(confirmButton)
+  await h.expectWithinSafeViewport(confirmButton)
+  await h.expectHittable(confirmButton)
+  await h.expectNoHorizontalOverflow()
+  await d.getByRole("button", { name: "Cancel change" }).click()
+  expect(sent).toHaveLength(1)
+  expect((await record(page)).snapshot).toEqual(before)
+  await d.getByRole("button", { name: "Review placement" }).click()
+  await confirm(page, 2)
+  const after = (await record(page)).snapshot!
+  expect(after.items).toEqual(before.items)
+  expect(after.placements.find(p => p.inventoryItemId === "synthetic-raw-copy-1")!.slotId).toBe("synthetic-slot-0")
+  expect(after.placements.find(p => p.inventoryItemId === copy)?.slotId).toBe(decision === "swap" ? "synthetic-other-slot" : undefined)
+  expect(after.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin]))).toEqual(before.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin])))
+  expect(sent[1].commands).toHaveLength(1)
+  expect(sent[1].commands[0]).toMatchObject({ kind: "move", occupied: decision, fulfillWant: null })
+  const operationId = (await record(page)).receipts[1].operationId
+  const activityScope = { accountId: E2E_USER.id, ownerId: E2E_USER.id, membershipKey: JSON.stringify([null, E2E_USER.id]), memberIds: [E2E_USER.id] }
+  await page.route("**/app/api/collection-activity**", route => {
+    const query = new URL(route.request().url()).searchParams
+    if (!query.has("scope")) expect(query.get("operationId")).toBe(operationId)
+    return route.fulfill({ json: query.has("scope") ? { scope: activityScope } : { scope: activityScope, data: [], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
+  })
+  await page.getByText("Review synchronized changes", { exact: true }).click()
+  await page.getByRole("combobox", { name: "Synchronized change" }).selectOption(operationId)
+  await page.getByRole("button", { name: "Find acknowledged change" }).click()
+  const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
+  await expect(activity).toContainText("Exact operation history is unavailable")
+  await expect(activity.getByRole("button", { name: "Confirm recovery" })).toHaveCount(0)
+})
+
+test("occupied assignment has no swap, and lost committed reply retries exact decision without duplicate ownership", async ({ page }) => {
+  let lost = true, failRead = false
+  const bodies: string[] = []
+  await page.route("**/app/e2e-harness/storage/inventory", async route => {
+    bodies.push(route.request().postData()!)
+    const response = await route.fetch()
+    if (lost) { lost = false; failRead = true; await route.abort("failed") } else await route.fulfill({ response })
+  })
+  await page.route("**/app/e2e-harness/storage/inventory?*", route => failRead ? route.abort("failed") : route.continue())
+  await open(page)
+  const before = (await record(page)).snapshot!
+  const d = await detail(page, "synthetic-raw-copy-1")
+  await d.getByRole("button", { name: "Assign copy" }).click()
+  await d.getByRole("combobox", { name: "Compatible slot", exact: true }).selectOption("synthetic-slot-0")
+  await expect(d.getByRole("option", { name: "Swap copies" })).toHaveCount(0)
+  await d.getByRole("combobox", { name: "Occupied destination decision" }).selectOption("unassign")
+  await d.getByRole("button", { name: "Review placement" }).click()
+  await d.getByRole("button", { name: "Confirm change", exact: true }).click()
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
+  const original = (await record(page)).pending[0].intent
+  await expect(page.getByRole("button", { name: "Find acknowledged change" })).toHaveCount(0)
+  await page.reload(); await inventory(page)
+  expect((await record(page)).pending[0].intent).toEqual(original)
+  await expect(page.getByRole("button", { name: "Add owned card", exact: true })).toHaveCount(0)
+  failRead = false
+  await page.getByRole("button", { name: "Retry pending sync" }).click()
+  await expect.poll(async () => (await record(page)).receipts.length).toBe(1)
+  expect(new Set(bodies).size).toBe(1)
+  const after = (await record(page)).snapshot!
+  expect(after.items).toEqual(before.items)
+  expect(after.placements.find(p => p.inventoryItemId === "synthetic-raw-copy-1")!.slotId).toBe("synthetic-slot-0")
+  expect(after.placements.some(p => p.inventoryItemId === copy)).toBe(false)
+})
+
+for (const decision of ["swap", "unassign"] as const) test(`occupied graded destination ${decision} retains private copy metadata`, async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `raw-occupied-grade-${crypto.randomUUID()}`, url: baseURL! }])
+  await open(page)
+  const before = (await record(page)).snapshot!
+  const d = await occupiedReview(page, copy, "synthetic-other-slot", decision)
+  await expect(d).toContainText("Copy synthetic-raw-copy-2")
+  await expect(d).toContainText("Grade unknown")
+  await confirm(page, 1)
+  const after = (await record(page)).snapshot!
+  expect(after.items).toEqual(before.items)
+  expect(after.placements.find(p => p.inventoryItemId === "synthetic-raw-copy-2")?.slotId).toBe(decision === "swap" ? "synthetic-slot-0" : undefined)
+})
+
+for (const changed of ["revision", "membership", "session", "incomplete"] as const) test(`occupied confirmation fences changed ${changed} before dispatch`, async ({ page }) => {
+  let posts = 0
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { posts++; await route.continue() })
+  await open(page)
+  const before = (await record(page)).snapshot!
+  const d = await occupiedReview(page, "synthetic-raw-copy-1", "synthetic-slot-0", "unassign")
+  await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
+    const response = await route.fetch(), body = await response.json()
+    if (changed === "revision") { body.snapshot.inventoryRevision++; body.evidence.inventoryRevision++ }
+    if (changed === "membership") body.scope.ownerUserId = "33333333-3333-4333-8333-333333333333"
+    if (changed === "session") body.scope.authSessionId = "synthetic-changed-session"
+    if (changed === "incomplete") body.snapshot.items.pop()
+    await route.fulfill({ response, json: body })
+  })
+  await d.getByRole("button", { name: "Confirm change", exact: true }).click()
+  if (changed === "revision") await expect(d).toBeHidden()
+  else await expect(d.getByRole("alert")).toContainText("Could not confirm saving")
+  expect(posts).toBe(0)
+  expect((await record(page)).pending).toHaveLength(0)
+  expect((await record(page)).snapshot!.items).toEqual(before.items)
 })

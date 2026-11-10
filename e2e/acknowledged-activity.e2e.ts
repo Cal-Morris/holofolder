@@ -48,8 +48,11 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
 })
 test('fresh command ACK finds exact operation then inspects supported recovery without changing original receipt', async ({ page, insets }) => {
   await history(page, 'single'); await remove(page)
+  await expect(page.getByText('Review synchronized changes', { exact: true })).toBeVisible()
+  await page.getByText('Review synchronized changes', { exact: true }).click()
   await expect(button(page, 'Find acknowledged change')).toBeVisible()
   const original = (await record(page))!.receipts[0]
+  if (!await button(page, 'Find acknowledged change').isVisible()) await page.getByText('Review synchronized changes', { exact: true }).click()
   await button(page, 'Find acknowledged change').click()
   const dialog = page.getByRole('dialog', { name: 'Collection Activity', exact: true })
   await expect(dialog).toContainText('One event matches')
@@ -70,6 +73,7 @@ test('fresh command ACK finds exact operation then inspects supported recovery w
 })
 for (const mode of ['missing', 'multiple', 'mismatch', 'detail-mismatch', 'unavailable', 'unsupported', 'revoked']) test(`${mode} operation history never guesses recovery`, async ({ page }) => {
   await history(page, mode); await remove(page)
+  if (!await button(page, 'Find acknowledged change').isVisible()) await page.getByText('Review synchronized changes', { exact: true }).click()
   await button(page, 'Find acknowledged change').click()
   const dialog = page.getByRole('dialog', { name: 'Collection Activity', exact: true })
   if (mode === 'revoked') { await expect(dialog).toHaveCount(0); return }
@@ -107,9 +111,11 @@ test('accepted reply without fresh complete ACK has no operation history handoff
 })
 test('offline reopening cannot use cached operation matches as recovery authority', async ({ page, context }) => {
   await history(page, 'single'); await remove(page)
+  if (!await button(page, 'Find acknowledged change').isVisible()) await page.getByText('Review synchronized changes', { exact: true }).click()
   await button(page, 'Find acknowledged change').click()
   await expect(button(page, 'Open exact entry 101')).toBeVisible()
   await button(page, 'Close Activity').click(); await context.setOffline(true)
+  if (!await button(page, 'Find acknowledged change').isVisible()) await page.getByText('Review synchronized changes', { exact: true }).click()
   await button(page, 'Find acknowledged change').click()
   await expect(page.getByRole('dialog', { name: 'Collection Activity', exact: true })).toContainText('Exact operation history is unavailable')
   await expect(button(page, 'Open exact entry 101')).toHaveCount(0)
@@ -128,6 +134,8 @@ test('maximum command operation ID wraps and new controls stay above the dock', 
     } })
   })
   await button(page, 'Remove selected slots').click(); await button(page, 'Confirm slot removal').click()
+  await expect(page.getByText('Review synchronized changes', { exact: true })).toBeVisible()
+  await page.getByText('Review synchronized changes', { exact: true }).click()
   await expect(button(page, 'Find acknowledged change')).toBeVisible()
   expect((await record(page))!.receipts[0].operationId).toHaveLength(100)
   const h = new Harness(page, insets)
@@ -135,6 +143,7 @@ test('maximum command operation ID wraps and new controls stay above the dock', 
   await h.expectMinTapTarget(button(page, 'Find acknowledged change'))
   await h.expectWithinSafeViewport(button(page, 'Find acknowledged change'))
   await h.expectNoHorizontalOverflow()
+  if (!await button(page, 'Find acknowledged change').isVisible()) await page.getByText('Review synchronized changes', { exact: true }).click()
   await button(page, 'Find acknowledged change').click()
   await expect(button(page, 'Open exact entry 101')).toBeVisible()
   await h.expectMinTapTarget(button(page, 'Open exact entry 101'))
@@ -149,12 +158,15 @@ test('acknowledged collection deletion finds its original operation after naviga
   await button(page, 'Review collection deletion').click()
   await page.getByRole('dialog', { name: 'Delete collection', exact: true }).getByRole('checkbox').check()
   await button(page, 'Confirm collection deletion').click()
+  await expect(page.getByText('Review synchronized changes', { exact: true })).toBeVisible()
+  await page.getByText('Review synchronized changes', { exact: true }).click()
   await expect(button(page, 'Find acknowledged change')).toBeVisible()
   const receipt = (await record(page))!.receipts[0]
   expect(receipt.outcome).toBe('acknowledged')
   if (receipt.intent.kind !== 'inventory') throw new Error('Expected original inventory deletion intent')
   expect(receipt.intent.request.commands[0].kind).toBe('deleteCollection')
   expect((await record(page))!.snapshot!.collections.some(c => c.id === collection)).toBe(false)
+  if (!await button(page, 'Find acknowledged change').isVisible()) await page.getByText('Review synchronized changes', { exact: true }).click()
   await button(page, 'Find acknowledged change').click()
   await expect(button(page, 'Review recovery')).toHaveCount(0)
   await button(page, 'Open exact entry 101').click()
@@ -164,6 +176,7 @@ test('acknowledged collection deletion finds its original operation after naviga
 
 test('the final page of a multiple-event operation never claims a unique match', async ({ page }) => {
   await history(page, 'paginated'); await remove(page)
+  if (!await button(page, 'Find acknowledged change').isVisible()) await page.getByText('Review synchronized changes', { exact: true }).click()
   await button(page, 'Find acknowledged change').click()
   const dialog = page.getByRole('dialog', { name: 'Collection Activity', exact: true })
   await expect(dialog).toContainText('Multiple events match')
