@@ -121,17 +121,19 @@ export function createR2Deps(config: R2Config, options: { fetch?: typeof fetch; 
       if (response.status === 404) return null
       if (!response.ok) throw await r2ResponseError("HEAD", response)
       await options.onObjects?.([pathname])
-      return { url: `${baseUrl}${pathname}` }
+      const metadata = Object.fromEntries([...response.headers].flatMap(([name, value]) => name.startsWith("x-amz-meta-") ? [[name.slice(11), value]] : []))
+      return { url: `${baseUrl}${pathname}`, metadata }
     },
-    async put(pathname, body, contentType) {
+    async put(pathname, body, contentType, putOptions) {
       const response = await signedFetch(`${endpoint}${pathname}`, {
         method: "PUT",
         body,
         headers: {
           "content-type": contentType,
           "cache-control": `public, max-age=${CARD_IMAGE_CACHE_SECONDS}, immutable`,
-          // Never overwrite: concurrent writers get 412 and reuse the existing object.
-          "if-none-match": "*",
+          // Never overwrite (unless refreshing): concurrent writers get 412 and reuse the existing object.
+          ...(putOptions?.overwrite ? {} : { "if-none-match": "*" }),
+          ...Object.fromEntries(Object.entries(putOptions?.metadata ?? {}).map(([key, value]) => [`x-amz-meta-${key}`, value])),
         },
       })
       if (!response.ok) throw await r2ResponseError("PUT", response)

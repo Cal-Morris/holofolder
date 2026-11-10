@@ -3,13 +3,15 @@
  * (`external_ids_json.pokemoncom.image`), so the app serves them from R2 and never calls pokemon.com at runtime.
  * Only the asset CDN is fetched (URLs built from our own set and card ids), never the pokemon.com HTML pages.
  *
- *   bun scripts/mirror-pokemoncom-images.ts [--set a,b] [--concurrency 6] [--max-class-a 200000] [--max-gb 8] [--dry-run]
+ *   bun scripts/mirror-pokemoncom-images.ts [--set a,b] [--concurrency 6] [--max-class-a 200000] [--max-gb 8] [--dry-run] [--recheck]
  *
  * Env: CARD_IMAGE_STORE=r2 and the R2_* variables, POSTGRES_URL_NON_POOLING (or DATABASE_URL), and
  * SUPABASE_SERVICE_ROLE_KEY for the image inventory. --dry-run HEADs pokemon.com and writes nothing (R2 optional).
  *
- * Idempotent: one R2 LIST per set skips copies already there, uploads never overwrite, and the database is only
- * written where the recorded URL changes. A set whose first cards all 404 is treated as not on pokemon.com.
+ * Idempotent: one R2 LIST per set skips copies already there without contacting pokemon.com, uploads never overwrite,
+ * and the database is only written where the recorded URL changes. Every copy is tagged with its origin (R2 metadata:
+ * source, source-url, source-etag, source-sha256). --recheck also HEADs each stored copy and its origin and replaces
+ * only those whose origin ETag (an MD5 of the file on pokemon.com's S3 bucket) has changed. A set whose first cards all 404 is treated as not on pokemon.com.
  * Rerun after `sync-card-db` picks up a new set.
  */
 import { Client } from "pg"
@@ -42,6 +44,7 @@ async function mapWithConcurrency<T>(items: T[], concurrency: number, run: (item
 async function main() {
   await loadProjectEnvFiles()
   const dryRun = process.argv.includes("--dry-run")
+  const recheck = process.argv.includes("--recheck")
   const concurrency = Number(arg("concurrency") ?? 6)
   const config = getCardImageStoreKind() === "r2" ? getR2Config() : null
   if (!config && !dryRun) throw new Error("Set CARD_IMAGE_STORE=r2 and the R2_* variables (this script only targets R2)")
@@ -60,7 +63,7 @@ async function main() {
     .map((row) => row.id)
     .filter((id) => !requested.size || requested.has(id))
 
-  const totals = { sets: 0, setsMissing: [] as string[], cards: 0, existing: 0, uploaded: 0, notFound: 0, failed: 0, recorded: 0 }
+  const totals = { sets: 0, setsMissing: [] as string[], cards: 0, existing: 0, uploaded: 0, replaced: 0, unchanged: 0, notFound: 0, failed: 0, recorded: 0 }
   for (const setId of setIds) {
     const code = pokemonComSetCode(setId)
     if (!code) continue
@@ -111,6 +114,29 @@ async function main() {
       continue
     }
     await mapWithConcurrency(missing.slice(probe.length), concurrency, copy)
+
+    if (recheck && deps && mirror) {
+      await mapWithConcurrency(cards.filter((card) => stored.has(card.ref.pathname)), concurrency, async (card) => {
+        try {
+          const [origin, copy] = await Promise.all([
+            fetch(card.ref.url, { method: "HEAD", signal: AbortSignal.timeout(20_000) }),
+            deps.head(card.ref.pathname),
+          ])
+          const originEtag = origin.headers.get("etag")?.replaceAll('"', "")
+          if (!origin.ok || !originEtag || copy?.metadata?.["source-etag"] === originEtag) {
+            totals.unchanged += 1
+            return
+          }
+          if (dryRun) return void (totals.replaced += 1)
+          const image = await mirror.fetchFromSource(card.ref)
+          await deps.put(card.ref.pathname, image.body, image.contentType, { metadata: image.metadata, overwrite: true })
+          totals.replaced += 1
+        } catch (error) {
+          failed += 1
+          console.warn(`[pokemoncom] recheck ${card.id}: ${error instanceof Error ? error.message : error}`)
+        }
+      })
+    }
 
     const changed = cards.filter((card) => found.has(card.id) && card.image !== card.ref.url)
     if (!dryRun && changed.length) {

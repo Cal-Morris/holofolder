@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { parseSourceCardImageUrl, pickExternalCardImageUrl } from "../lib/card-image-sources"
+import { parseSourceCardImageUrl, pickCardImageUrl, pickExternalCardImageUrl } from "../lib/card-image-sources"
 import { pokemonComCardImageUrl } from "../lib/pokemoncom-card-images"
 
 const BASE = "https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web"
@@ -37,5 +37,21 @@ describe("pokemoncom image source", () => {
   test("is preferred over pokemontcg.io for cards without a TCGdex image", () => {
     const url = `${BASE}/BW10/BW10_EN_8.png`
     assert.equal(pickExternalCardImageUrl({ pokemoncom: { image: url }, pokemon_tcg: { imageLarge: "https://images.pokemontcg.io/bw10/8_hires.png" } }), url)
+  })
+})
+
+describe("pickCardImageUrl", () => {
+  const official = `${BASE}/BW10/BW10_EN_8.png`
+
+  test("prefers the official scan over TCGdex in English, but keeps TCGdex for other languages", () => {
+    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, "en", "tcgdex:en"), official)
+    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, "ja", "tcgdex:ja"), "tcgdex:ja")
+    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, null, null), official)
+  })
+
+  test("a reviewed catalog image still wins, and a non-pokemon.com URL is ignored", () => {
+    const reviewed = "https://images.pokemontcg.io/bw10/8_hires.png"
+    assert.equal(pickCardImageUrl({ catalog: { image: reviewed }, pokemoncom: { image: official } }, "en", "tcgdex:en"), reviewed)
+    assert.equal(pickCardImageUrl({ pokemoncom: { image: "https://evil.test/x.png" } }, "en", "tcgdex:en"), "tcgdex:en")
   })
 })

@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { selectRecentSetSummaries, type TCGSetDexSlot, type TCGSetSlotCard, type TCGSetSummary } from "@/lib/tcg-set-slots"
 import { cacheLife, cacheTag } from "next/cache"
 import { buildTcgdexAssetImageUrl, pickImageLanguage, pickLocalizedText } from "@/lib/tcgdex-shared"
-import { pickExternalCardImageUrl } from "@/lib/card-image-sources"
+import { pickCardImageUrl, pickExternalCardImageUrl } from "@/lib/card-image-sources"
 import {
   compareBrowseCards,
   inferCardFinish,
@@ -154,9 +154,7 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
       }
 
       const imageLanguage = pickImageLanguage(card.image_languages_json, language)
-      const image = readCatalogMetadata(card.external_ids_json).image ?? (imageLanguage
-        ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
-        : pickExternalCardImageUrl(card.external_ids_json))
+      const image = pickCardImageUrl(card.external_ids_json, imageLanguage, imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id))
 
       return {
         id: card.id,
@@ -353,9 +351,7 @@ export async function getMirroredSetDexSlots(
     }
 
     const imageLanguage = pickImageLanguage(card.image_languages_json, language)
-    const image = readCatalogMetadata(card.external_ids_json).image ?? (imageLanguage
-      ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
-      : pickExternalCardImageUrl(card.external_ids_json))
+    const image = pickCardImageUrl(card.external_ids_json, imageLanguage, imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id))
     const setSummary: TCGSetSummary = {
       id: card.tcg_sets.id,
       name: pickLocalizedText(card.tcg_sets.name_json, language) || card.tcg_sets.name_en || card.tcg_sets.id,
@@ -450,9 +446,7 @@ export function toSearchCardResult(card: any, language: MirrorLanguage, includeN
     aliasIds: readCatalogMetadata(card.external_ids_json).aliasIds,
     localId: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
     name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
-    image: readCatalogMetadata(card.external_ids_json).image ?? (imageLanguage
-      ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
-      : pickExternalCardImageUrl(card.external_ids_json)),
+    image: pickCardImageUrl(card.external_ids_json, imageLanguage, imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)),
     language: !includeNonPokemon || confirmedLanguage ? language : undefined,
     set: {
       id: set.id,
@@ -700,9 +694,7 @@ function toIllustratorCard(card: IllustratorCardRow, language: MirrorLanguage): 
     aliasIds: metadata.aliasIds,
     localId: metadata.localId ?? card.local_id,
     name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
-    image: metadata.image ?? (imageLanguage
-      ? buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)
-      : pickExternalCardImageUrl(card.external_ids_json)),
+    image: pickCardImageUrl(card.external_ids_json, imageLanguage, imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)),
     language,
     set: {
       id: set.id,
