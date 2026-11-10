@@ -6,13 +6,13 @@ import { readOwnerInventoryState } from '@/lib/server/inventory-read'
 import { requireDeveloperSettingsUser } from '@/lib/server/developer-access/first-party'
 import { requireExpectedAppearanceOwner } from '@/lib/server/binder-appearance'
 import { DeveloperAccessError } from '@/lib/developer-api/permissions'
-import { executeAppStorageRequest } from './storage-execution'
+import { checkedLocalStorageUser, executeAppStorageRequest } from './storage-execution'
 
 /** Internal first confirmation only. Evidence is read through authenticated RLS, never file/DTO/cache.
  * The selected collection/slot IDs are explicit current-state choices, not historical provenance.
  */
-export async function prepareAppRawContentRestore(request: Request, input: Pick<Parameters<typeof planRawContentRestore>[0], 'text' | 'choices' | 'operationId' | 'savedEntryRemaining'>) {
-  const { client } = await requireDeveloperSettingsUser(request, true)
+export async function prepareAppRawContentRestore(request: Request, input: Pick<Parameters<typeof planRawContentRestore>[0], 'text' | 'choices' | 'operationId'> & { savedEntryRemaining?: number }, localClients?: Parameters<typeof executeAppStorageRequest>[2]) {
+  const { client } = await (localClients ? checkedLocalStorageUser(request, localClients.session) : requireDeveloperSettingsUser(request, true))
   const read = await readOwnerInventoryState(client)
   requireExpectedAppearanceOwner(request, read.snapshot.ownerUserId)
   if (request.headers.get('X-Binder-Auth-Session') !== read.authSessionId) throw new DeveloperAccessError('storage_session_changed', 'Review restore in the current session.', 403)
@@ -22,23 +22,31 @@ export async function prepareAppRawContentRestore(request: Request, input: Pick<
   }
   const scope = { actorUserId: read.actorUserId, ownerUserId: read.snapshot.ownerUserId, source: 'app' as const, credentialId: null,
     authSessionId: read.authSessionId, partnershipId: membership.partnershipId, partnerUserId: read.partnerUserId }
-  return planRawContentRestore({ ...input, current: read.snapshot, layouts: read.navigation.layouts, evidence: scope, currentScope: scope })
+  let savedEntryRemaining = input.savedEntryRemaining
+  if (savedEntryRemaining === undefined) {
+    const { getBillingAccess } = await import('@/lib/server/billing')
+    const access = await getBillingAccess(read.snapshot.ownerUserId, localClients?.admin)
+    savedEntryRemaining = !access.enforced || access.tier === 'paid' ? 1024 : Math.max(0, (access.cardLimit ?? 0) - access.savedCardCount)
+  }
+  return planRawContentRestore({ ...input, savedEntryRemaining, current: read.snapshot, layouts: read.navigation.layouts, evidence: scope, currentScope: scope })
 }
 
 /** Retained original request delivery. Do not reconstruct after unknown outcomes, accepted/rejected
  * replay must reach SQL before mutable reads. A receipt is historical, never an offline read ACK.
  */
-export function deliverAppRawContentRestore(request: Request, plan: RawContentRestorePlan) {
+export function deliverAppRawContentRestore(request: Request, plan: Pick<RawContentRestorePlan, 'request' | 'scope'>, localClients?: Parameters<typeof executeAppStorageRequest>[2]) {
   requireExpectedAppearanceOwner(request, plan.scope.ownerUserId)
-  return executeAppStorageRequest(new Request(request, { method: 'POST', body: JSON.stringify(plan.request) }), 'backup.restore.raw')
+  return executeAppStorageRequest(new Request(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(plan.request) }), 'backup.restore.raw', localClients)
 }
-export async function confirmAppRawContentRestore(request: Request, plan: RawContentRestorePlan) {
-  const { client } = await requireDeveloperSettingsUser(request, true)
+export async function confirmAppRawContentRestore(request: Request, plan: RawContentRestorePlan, localClients?: Parameters<typeof executeAppStorageRequest>[2], deferDelivery = false) {
+  const { client } = await (localClients ? checkedLocalStorageUser(request, localClients.session) : requireDeveloperSettingsUser(request, true))
   const read = await readOwnerInventoryState(client)
   const membership = await resolveCollectionMembership(client, read.actorUserId)
-  if (membership.partnershipId !== plan.scope.partnershipId || backupContentKey(read.snapshot) !== plan.precondition || read.actorUserId !== plan.scope.actorUserId || read.authSessionId !== plan.scope.authSessionId
+  const layout = read.navigation.layouts.find(l => l.collectionId === plan.request.collection.collectionId)
+  if (!layout || layout.rows !== plan.request.configuration.rows || layout.cols !== plan.request.configuration.cols
+    || layout.layoutRevision !== plan.request.collection.layoutRevision || membership.partnershipId !== plan.scope.partnershipId || backupContentKey(read.snapshot) !== plan.precondition || read.actorUserId !== plan.scope.actorUserId || read.authSessionId !== plan.scope.authSessionId
     || read.snapshot.ownerUserId !== plan.scope.ownerUserId || read.partnerUserId !== plan.scope.partnerUserId) {
     throw new DeveloperAccessError('storage_conflict', 'Restore preview changed. Review the complete current collection again.', 409)
   }
-  return deliverAppRawContentRestore(request, plan)
+  return deferDelivery ? plan : deliverAppRawContentRestore(request, plan, localClients)
 }

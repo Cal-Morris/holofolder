@@ -5,17 +5,23 @@ import { X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { binderBackupFilename } from "@/lib/binder-backup"
 import { inspectNativeBackup, prepareNativeBackup, readNativeBackup, readNativeBackupFile, type NativeBackupBinding } from "@/lib/native-backup"
+import { inspectRawRestore, type NativeRawRestoreBinding } from '@/lib/native-raw-restore'
+import type { RawRestoreCommand } from '@/lib/domain/raw-restore'
 import type { BinderBackupV2 } from "@/lib/binder-backup-v2"
 
-export default function NativeBackup({ binding, collectionId, onClose }: { binding: NativeBackupBinding; collectionId: string | null; onClose: () => void }) {
+export default function NativeBackup({ binding, restore, collectionId, onClose }: { binding: NativeBackupBinding; restore?: NativeRawRestoreBinding; collectionId: string | null; onClose: () => void }) {
   const panel = useRef<HTMLDivElement>(null), alive = useRef(false), generation = useRef(0), running = useRef(false)
   const latest = useRef(binding), urls = useRef(new Set<string>())
   const [scope, setScope] = useState<BinderBackupV2["scope"]>("all-inventory")
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("")
   const [preview, setPreview] = useState<ReturnType<typeof inspectNativeBackup> | null>(null)
+  const [fileText, setFileText] = useState<string | null>(null)
+  const [rawReview, setRawReview] = useState<Awaited<ReturnType<typeof inspectRawRestore>> | null>(null)
+  const [releaseConsent, setReleaseConsent] = useState<string[]>([])
+  const [command, setCommand] = useState<RawRestoreCommand | null>(null)
   const contextKey = JSON.stringify([binding.available, binding.revisionKey])
   const [context, setContext] = useState(contextKey)
-  if (context !== contextKey) { setContext(contextKey); setPreview(null); setMessage("") }
+  if (context !== contextKey) { setContext(contextKey); setPreview(null); setRawReview(null); setCommand(null); setReleaseConsent([]); setFileText(null); setMessage("") }
   useOverlay(true, onClose, { containerRef: panel })
   const swipe = useSwipeToDismiss(panel, onClose, true)
   useLayoutEffect(() => { latest.current = binding })
@@ -26,7 +32,7 @@ export default function NativeBackup({ binding, collectionId, onClose }: { bindi
     alive.current = true
     const ownedUrls = urls.current
     const cancel = () => { alive.current = false; generation.current++ }
-    const invalidate = () => { generation.current++; setPreview(null); setMessage("") }
+    const invalidate = () => { generation.current++; setPreview(null); setRawReview(null); setCommand(null); setFileText(null); setMessage("") }
     window.addEventListener("offline", invalidate)
     return () => {
       cancel()
@@ -77,12 +83,13 @@ export default function NativeBackup({ binding, collectionId, onClose }: { bindi
           <input aria-label="Select backup file" type="file" accept=".json,application/json" className="block min-h-10 w-full min-w-0 text-sm file:min-h-10" disabled={busy || !binding.available} onChange={e => {
             const file = e.currentTarget.files?.[0]; e.currentTarget.value = ""
             if (!file) return
+            setFileText(null); setRawReview(null); setCommand(null); setReleaseConsent([])
             void run(async active => {
               const text = await readNativeBackupFile(file)
               if (!active()) return
               const { read, assertCurrent } = await readNativeBackup(latest.current, active)
               const value = inspectNativeBackup(text, read)
-              assertCurrent(); if (active()) setPreview(value)
+              assertCurrent(); if (active()) { setFileText(text); setPreview(value) }
             })
           }} />
           {preview && <div role="region" aria-label="Backup preview" className="space-y-2 break-words rounded-lg border p-3">
@@ -95,6 +102,42 @@ export default function NativeBackup({ binding, collectionId, onClose }: { bindi
             <p>Inspection only. No restore plan admitted. Same-owner provenance, remapping, copy/move decisions, current allowance, settings and asset packaging require separate restore review. Nothing has been saved or restored.</p>
           </div>}
         </section>
+        {restore && collectionId && fileText && (preview?.scope === "collection" || rawReview) && <section className="space-y-3" aria-label="Bounded raw collection restore">
+          <h3 className="font-medium">Restore raw collection content</h3>
+          <p>One current raw collection only, with the same slots, configuration and grid. No new copies, grades, converted data, settings or assets. Matching file IDs do not prove provenance.</p>
+          {!rawReview && <button className={buttonClass} disabled={busy || !binding.available} onClick={() => void run(async active => {
+            const review = await inspectRawRestore(latest.current, fileText!, collectionId, active)
+            if (active()) { setRawReview(review); setReleaseConsent([]); setCommand(null) }
+          })}>Review raw collection locally</button>}
+          {rawReview && <div className="space-y-3 break-words [overflow-wrap:anywhere]">
+            <p>Current collection: {collectionId}. Ordered slots and grid stay unchanged. Released copies remain owned in Unassigned.</p>
+            {rawReview.placements.map(p => <p key={p.itemId}>Copy {p.itemId}: {p.from ?? 'Unassigned'} → {p.to ?? 'Unassigned'}</p>)}
+            {rawReview.choices.releaseItemIds.map(id => <label key={id} className="flex min-h-10 items-center gap-2">
+              <input type="checkbox" className="h-5 w-5 shrink-0" disabled={busy || !!command} checked={releaseConsent.includes(id)} onChange={e => setReleaseConsent(values => e.target.checked ? [...values, id] : values.filter(v => v !== id))} />
+              <span>Release copy {id} to Unassigned, keep ownership</span>
+            </label>)}
+            <details><summary className="min-h-10 cursor-pointer py-2">Exact targets, status and wanted choices</summary>
+              {rawReview.slots.map((slot, n) => <div key={slot.before.id} className="my-2 rounded-lg border p-2">
+                <p>Slot {n + 1}: {slot.before.id}</p>
+                <p>Before target: {JSON.stringify(slot.before.target)}, status: {slot.before.status ?? 'empty'}, wants: {JSON.stringify(slot.before.wantedCards)}</p>
+                <p>After target: {JSON.stringify(slot.after.target)}, status: {slot.after.status ?? 'empty'}, wants: {JSON.stringify(slot.after.wantedCards)}</p>
+              </div>)}
+            </details>
+            <p>Private server review is a separate action. It sends this file and your explicit choices to the authenticated planner. No file cache, server backup store or provider lookup is created. Review makes no collection changes.</p>
+            {!command && <button className={buttonClass} disabled={busy || !binding.available || releaseConsent.length !== rawReview.choices.releaseItemIds.length} onClick={() => void run(async active => {
+              const planned = await restore.plan({ text: fileText!, choices: rawReview.choices, operationId: crypto.randomUUID() }, active)
+              if (planned.inventoryRevision !== rawReview.base.inventoryRevision) throw new Error('Current storage changed. Close and review the file again.')
+              if (active()) setCommand(planned)
+            })}>Send private file for restore review</button>}
+            {command && <>
+              <p>Reviewed operation {command.operationId}. Confirm saves the original bounded command on this device before delivery. While unresolved, all storage editing is paused. A receipt alone does not finish sync.</p>
+              <button className={buttonClass} disabled={busy || !binding.available} onClick={() => void run(async active => {
+                await restore.retain(command, rawReview.base, active)
+                if (active()) { setFileText(null); setRawReview(null); setCommand(null); setMessage('Restore saved on device. Editing stays paused until a matching reply and fresh complete read reconcile it.') }
+              })}>Confirm and save raw restore</button>
+            </>}
+          </div>}
+        </section>}
         {message && <p role="status" className="break-words">{message}</p>}
       </div>
     </div>

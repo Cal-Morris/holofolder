@@ -69,7 +69,7 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
     async replay(send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>, catalog: InventoryCatalogResolver, readCurrent: () => Promise<unknown>, isCurrent: () => boolean = () => true) {
       if (!active() || !session.queue) return
       const token = session.token()
-      await session.queue.replay(send, () => session.isActive(token) && isCurrent() ? session.scope : null, Date.now(), catalog, readCurrent)
+      await session.queue.replay(send, () => session.isActive(token) && isCurrent() ? session.scope : null, Date.now(), catalog, readCurrent, authSessionId)
       if (session.isActive(token)) await refresh()
     },
     async saveSnapshot(snapshot: unknown, catalog: InventoryCatalogResolver) {

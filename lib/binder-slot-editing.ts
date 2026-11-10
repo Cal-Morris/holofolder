@@ -6,7 +6,7 @@ import { parseSlotIntent, projectSlotIntent, type SlotOfflineIntent } from "@/li
 /** Shared private draft sink for picker and layout preparation, not a transport or acceptance receipt. */
 export interface StagedSlotCommandIntent {
   scope: { ownerUserId: string; collectionId: string; slotId: string | null }
-  intent: Exclude<SlotOfflineIntent, { kind: "creation" }>
+  intent: Exclude<SlotOfflineIntent, { kind: "creation" | "raw-restore" }>
 }
 /** Resolves at local transaction commit, never at remote execution or audit success. */
 export interface SlotLocalAcceptance { status: "saved-on-device"; operationId: string; refreshError: string | null }
