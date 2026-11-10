@@ -23,6 +23,7 @@ async function useRun() {
   let claimActor = "synthetic-account", claimSession = "synthetic-auth"
   let owner = claimActor, claimsChecks = 0, membershipChecks = 0
   let billing = true
+  let membershipError: { message: string; code: string } | null = null
   let claimsError: Error | null = null
   let membershipBarrier: Promise<void> | null = null
   let barrier: Promise<void> | null = null
@@ -31,7 +32,7 @@ async function useRun() {
       onAuthStateChange: (cb: (event?: string, session?: { user: { id: string } }) => void) => { authCallback = cb; return { data: { subscription: { unsubscribe() {} } } } },
       getClaims: async () => { claimsChecks++; await barrier; return { data: { claims: { sub: claimActor, role: "authenticated", session_id: claimSession } }, error: claimsError } },
     },
-    from: () => ({ select: () => ({ or: () => ({ limit: () => ({ maybeSingle: async () => { membershipChecks++; const data = owner === claimActor ? null : { id: "synthetic-partnership", owner_user_id: owner, user1_id: claimActor, user2_id: owner }; await membershipBarrier; return { data, error: null } } }) }) }) }),
+    from: () => ({ select: () => ({ or: () => ({ limit: () => ({ maybeSingle: async () => { membershipChecks++; const data = owner === claimActor ? null : { id: "synthetic-partnership", owner_user_id: owner, user1_id: claimActor, user2_id: owner }; await membershipBarrier; return { data: membershipError ? null : data, error: membershipError } } }) }) }) }),
     rpc: async () => ({ data: billing, error: null }),
   }
   mock.module("../../lib/supabase/client", () => ({ createClient: () => client }))
@@ -110,10 +111,37 @@ async function useRun() {
   const shared = useBrowserCollectionScope(claimActor, owner, true)
   const sharedCleanup = effects.slice(start).map(effect => effect())
   await settle()
-  assert.equal(shared.currentScope(), null, "cached or denied entitlement cannot authorize reconnect")
+  const paused = shared.currentScope()!
+  assert.equal(paused.ownerUserId, claimActor, "a definite billing denial opens only the actor's own collection")
+  assert.equal((state as { partnerPaused: boolean }).partnerPaused, true, "the paused partner sees why")
   billing = true
   signalMembershipLifecycle("recheck"); await settle()
-  assert.equal(shared.currentScope()!.ownerUserId, owner)
+  assert.equal(shared.currentScope()!.ownerUserId, owner, "restored billing reopens the shared owner")
+  assert.notEqual(shared.currentScope()!.sessionId, paused.sessionId, "own and shared scopes never share an epoch")
+  assert.equal((state as { partnerPaused: boolean }).partnerPaused, false)
+  const sharedOpen = shared.currentScope()!
+  billing = false
+  target.dispatchEvent(new Event("focus")); await settle()
+  assert.equal(shared.currentScope()!.ownerUserId, claimActor, "a focus recheck that finds billing lapsed leaves the shared scope")
+  assert.notEqual(shared.currentScope()!.sessionId, sharedOpen.sessionId)
+  billing = true
+  membershipError = { message: "Synthetic membership read failed", code: "57014" }
+  signalMembershipLifecycle("recheck"); await settle()
+  assert.equal(shared.currentScope(), null, "a failed membership read never falls back to own or shared scope")
+  assert.deepEqual(state, { message: "Synthetic membership read failed", accessCheck: true }, "membership failures are retryable access checks")
+  target.dispatchEvent(new Event("focus")); await settle()
+  assert.equal(shared.currentScope(), null, "a failed retry stays closed")
+  membershipError = null
+  target.dispatchEvent(new Event("focus")); await settle()
+  assert.equal(shared.currentScope()!.ownerUserId, owner, "a later successful check recovers the shared scope")
+  billing = false
+  membershipBarrier = new Promise<void>(resolve => { release = resolve })
+  target.dispatchEvent(new Event("focus")); await settle()
+  claimActor = "other-account"
+  authCallback("SIGNED_IN", { user: { id: claimActor } })
+  release(); membershipBarrier = null; await settle()
+  assert.equal(shared.currentScope(), null, "an in-flight denied read cannot open own storage after the account changed")
+  claimActor = "synthetic-account"; billing = true
   sharedCleanup.forEach(stop => stop?.())
   owner = claimActor
   membershipBarrier = new Promise<void>(resolve => { release = resolve })

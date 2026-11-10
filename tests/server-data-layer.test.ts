@@ -118,3 +118,18 @@ test("strict native membership rejects denied partner billing instead of falling
   await assert.rejects(() => resolveCollectionOwnerUserId(client, "partner", { strictBilling: true }))
   assert.equal(await resolveCollectionOwnerUserId(client, "partner"), "partner")
 })
+
+test("own-when-denied membership opens only the actor's collection on a definite denial", async () => {
+  const { resolveCollectionMembership } = await import("../lib/server/collection-owner")
+  const { client } = fakeClient({ partnerships: { data: { id: "p", owner_user_id: "shared-owner", user1_id: "shared-owner", user2_id: "partner" }, error: null } })
+  const options = { strictBilling: true, ownWhenDenied: true }
+  Object.assign(client, { rpc: async () => ({ data: false, error: null }) })
+  assert.deepEqual(await resolveCollectionMembership(client, "partner", options),
+    { ownerUserId: "partner", memberIds: ["partner"], partnershipId: null, partnerAccessDenied: true })
+  Object.assign(client, { rpc: async () => ({ data: true, error: null }) })
+  assert.equal((await resolveCollectionMembership(client, "partner", options)).ownerUserId, "shared-owner")
+  Object.assign(client, { rpc: async () => ({ data: null, error: { code: "PGRST202", message: "missing" } }) })
+  await assert.rejects(() => resolveCollectionMembership(client, "partner", options), "an unavailable billing check never selects own storage")
+  const failing = fakeClient({ partnerships: { data: null, error: new Error("transient") } })
+  await assert.rejects(() => resolveCollectionMembership(failing.client, "partner", options), /transient/)
+})

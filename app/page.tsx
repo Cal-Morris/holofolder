@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { BinderStart, type ServerBinderBoot } from "@/components/binder-start"
 import { loadBinderBootstrap } from "@/lib/server/binder-bootstrap"
-import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
+import { resolveCollectionMembership } from "@/lib/server/collection-owner"
 import { getSessionUser } from "@/lib/supabase/session-user"
 import { resolveActiveBinder } from "@/lib/server/binders"
 import { ACTIVE_BINDER_COOKIE } from "@/lib/binders/model"
@@ -21,21 +21,27 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
   const cookieStore = await cookies()
   const user = await getSessionUser(supabase)
 
+  const empty = {
+    initialUser: null,
+    initialBinders: [],
+    initialBinderId: null,
+    initialCollection: [],
+    initialCollectionOwnerUserId: null,
+    initialSettings: getDefaultBinderSettings(),
+    initialHasStoredSettings: false,
+    initialDarkMode: true,
+  } satisfies ServerBinderBoot
   // Signed-out visitors are redirected by the proxy; the client handles a session that ended since.
-  if (!user) {
-    return {
-      initialUser: null,
-      initialBinders: [],
-      initialBinderId: null,
-      initialCollection: [],
-      initialCollectionOwnerUserId: null,
-      initialSettings: getDefaultBinderSettings(),
-      initialHasStoredSettings: false,
-      initialDarkMode: true,
-    }
-  }
+  if (!user) return empty
 
-  const collectionOwnerUserId = await resolveCollectionOwnerUserId(supabase, user.id, { strictBilling: true })
+  let collectionOwnerUserId: string
+  try {
+    // A paused partner opens their own collection, as storage_execute_v1 does.
+    collectionOwnerUserId = (await resolveCollectionMembership(supabase, user.id, { strictBilling: true, ownWhenDenied: true })).ownerUserId
+  } catch {
+    // No owner hint: the client's own fresh check opens the right scope, or offers a retry.
+    return { ...empty, initialUser: user, initialDarkMode: cookieStore.get(THEME_COOKIE)?.value !== "light" }
+  }
   const requestedBinder = (await searchParams).binder
   const { binders, activeBinder } = await resolveActiveBinder(
     supabase,

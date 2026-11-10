@@ -176,6 +176,8 @@ export default function BinderApp(props: BinderAppProps) {
   const [resetting, setResetting] = useState(false)
   const [startupOnline, setStartupOnline] = useState(true)
   const opened = Boolean(scope && completedSession === scope.sessionId)
+  // A failed membership or billing read is retried from the page below, never by clearing offline data.
+  const accessRetry = browserScope.accessCheckFailed && startupOnline
   const failStartup = useCallback((reason: string) => {
     if (!navigator.onLine) return
     setStartupError(reason)
@@ -197,15 +199,15 @@ export default function BinderApp(props: BinderAppProps) {
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update) }
   }, [])
   useEffect(() => {
-    if (!nativeHost || opened || !startupOnline || !navigator.onLine) return
+    if (!nativeHost || opened || accessRetry || !startupOnline || !navigator.onLine) return
     const timer = setTimeout(() => failStartup(CHECKED_STARTUP_TIMEOUT_ERROR), CHECKED_STARTUP_TIMEOUT_MS)
     return () => clearTimeout(timer)
-  }, [nativeHost, opened, startupOnline, failStartup])
+  }, [nativeHost, opened, accessRetry, startupOnline, failStartup])
   useEffect(() => {
-    if (!nativeHost || opened || !browserScope.error) return
+    if (!nativeHost || opened || !browserScope.error || browserScope.accessCheckFailed) return
     const timer = setTimeout(() => failStartup(browserScope.error!), 0)
     return () => clearTimeout(timer)
-  }, [nativeHost, opened, browserScope.error, failStartup])
+  }, [nativeHost, opened, browserScope.error, browserScope.accessCheckFailed, failStartup])
   if (!nativeHost) return <BinderAppSurface {...props} />
   if (startupError && startupOnline && !opened) return <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
     <p role="alert">{resetting ? "Clearing offline data and reopening storage…" : `Could not open storage: ${startupError}`}</p>
@@ -214,15 +216,15 @@ export default function BinderApp(props: BinderAppProps) {
   const admission = browserHostAdmission(Boolean(props.localBrowserHost), "1", false, host, scope)
   // Only an actual failed check gets a page of its own; it says what to do next.
   const failed = browserScope.error ? <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
-    <p role="status">{browserScope.cachedFallbackAllowed
-      ? "Could not check your account. Connect and try again. Saved copies and pending edits are retained."
+    <p role="status">{accessRetry ? "Could not check your collection access. Try again in a moment. Saved copies and pending edits are retained."
+      : browserScope.cachedFallbackAllowed ? "Could not check your account. Connect and try again. Saved copies and pending edits are retained."
       : "Saved storage is paused. Connect to check your account and collection access. Pending edits are retained."}</p>
     <button type="button" className="min-h-10 self-start rounded-lg border px-3" onClick={() => window.location.reload()}>Try again</button>
     <a className="flex min-h-10 items-center self-start underline" href={appPath("/auth/logout")}>Sign out</a>
   </main> : null
   // While the check runs: the binder's skeleton, or this device's saved copy when the first check allows it.
   const loading = failed ?? <BinderSkeleton rows={props.initialSettings.binderRows} cols={props.initialSettings.binderCols} />
-  const placeholder = browserScope.cachedFallbackAllowed ? <CachedNativeStartup legacyProps={props} whileChecking>{loading}</CachedNativeStartup> : loading
+  const placeholder = browserScope.cachedFallbackAllowed && !accessRetry ? <CachedNativeStartup legacyProps={props} whileChecking>{loading}</CachedNativeStartup> : loading
   const session = scope && admission.admitted ? scope : null
   // The placeholder keeps its place (and its saved copy) until the session has something to paint,
   // so a reload goes skeleton or saved copy → binder once, never saved copy → skeleton → binder.
@@ -235,7 +237,8 @@ export default function BinderApp(props: BinderAppProps) {
       const layout = context?.read.layouts.find(l => l.collectionId === context.collectionId && l.layoutRevision === binding.display?.binder.layoutRevision)
       return <><NativeStartupRecorder scope={session} /><BinderAppSurface {...props}
         key={JSON.stringify([session.sessionId, binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
-        localBrowserHost={false} browserSurface={binding} browserHeader={binding.surface.header}
+        localBrowserHost={false} browserSurface={binding} browserHeader={<>{browserScope.partnerPaused && <p role="status" className="px-4 text-sm">
+          Shared collection paused: partners need the owner on Premium. You&apos;re in your own collection; edits saved for the shared one stay on this device.</p>}{binding.surface.header}</>}
         onBrowserSignOut={async () => { await clearPushDevice().catch(() => undefined); window.location.assign(appPath("/auth/logout")) }}
         initialCollectionOwnerUserId={session.ownerUserId} initialCollection={[]}
         initialBinderId={context?.collectionId ?? null}

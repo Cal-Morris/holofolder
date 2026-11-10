@@ -40,7 +40,8 @@ export async function readOwnerInventoryState(client?: SupabaseClient, options: 
     const access = await db.rpc("billing_partner_allowed", { owner_id: owner, actor_id: actor }).abortSignal(signal)
     // Unlike legacy compatibility, missing billing policy never silently allows new reads.
     if (access.error || typeof access.data !== "boolean") return unavailable()
-    if (!access.data) return fail("inventory_read_forbidden", 403)
+    // A paused partner reads their own collection, matching storage_execute_v1's owner selection.
+    if (!access.data) return owner === actor ? fail("inventory_read_forbidden", 403) : { actor, owner: actor, authorityId: authSessionId, partnership: null, partnerPaused: true }
     return { actor, owner, authorityId: authSessionId, partnership: p ?? null }
   } }, options)
   const { authorityId, slotPositions: _slotPositions, collectionMetadata, ...state } = result

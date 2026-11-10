@@ -41,6 +41,8 @@ export interface InventoryReadOptions {
 export interface InventoryReadAuthority {
   scope: (check: () => void, signal: AbortSignal) => Promise<{
     actor: string; owner: string; authorityId: string; partnership: Record<string, unknown> | null
+    /** Billing-denied partner on their own collection. inventory_grid_read_v1 still selects the partner owner. */
+    partnerPaused?: true
   }>
   privateSettings: boolean
 }
@@ -131,7 +133,7 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
           return fail("legacy_inventory_incomplete", 503)
         }
         if (states.some(s => !isSlotRevision(s.version) || !isSlotRevision(s.layout_revision))) return unavailable()
-        if (!authority.privateSettings) {
+        if (!authority.privateSettings && !initialScope.partnerPaused) {
           check()
           const grid = await db.rpc("inventory_grid_read_v1").abortSignal(controller.signal)
           if (!grid.error) {

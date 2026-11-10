@@ -11,6 +11,7 @@ import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/pe
 import type { OperationContext } from "@/lib/developer-api/types"
 import { withAuditActor, withAuditOperation } from "@/lib/server/audit-context"
 import { resolveCollectionMembership } from "@/lib/server/collection-owner"
+import { BillingAccessError } from "@/lib/billing"
 import { requireDeveloperSettingsUser } from "@/lib/server/developer-access/first-party"
 import { requireRestContext, requireMcpContext } from "@/lib/server/developer-access/principal"
 import { readDeveloperJson } from "@/lib/server/developer-access/request"
@@ -35,7 +36,9 @@ export async function executeAppStorageRequest(request: Request, operation: Stor
     || claims.data.claims.session_id !== expectedSession) throw new DeveloperAccessError("storage_session_changed", "Sign in again before retrying this operation.", 403)
   const { createAdminClient } = await import("@/lib/supabase/admin")
   const client = localClients?.admin ?? createAdminClient()
-  const membership = await resolveCollectionMembership(client, user.id, { strictBilling: true })
+  const membership = await resolveCollectionMembership(client, user.id, { strictBilling: true, ownWhenDenied: true })
+  // A paused partner's command bound to the shared owner keeps its billing pause; it is never retargeted.
+  if (membership.partnerAccessDenied && request.headers.get("X-Binder-Owner") !== membership.ownerUserId) throw new BillingAccessError()
   requireExpectedAppearanceOwner(request, membership.ownerUserId)
   const input = parseStorageRequest(operation, await readDeveloperJson(request, storageRequestBytes(operation)))
   if (operation === 'backup.restore.raw') {

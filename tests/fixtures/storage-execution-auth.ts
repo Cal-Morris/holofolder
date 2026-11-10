@@ -10,6 +10,7 @@ async function main() {
   mock.module("server-only", () => ({}))
   const actor = "00820000-0000-4000-8000-000000000002", owner = "00820000-0000-4000-8000-000000000001"
   let oauthSession = false, signedIn = true, revoked = false, paid = true, readonly = false, errorCode: string | null = null
+  let partnerAllowed = true, billingRpcFails = false
   const credentialId = createHash("sha256").update("synthetic").digest("hex")
   const permissions = () => readonly ? ["collection:read", "binders:read"] : ["collection:write", "binders:write"]
   mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: {
@@ -33,11 +34,11 @@ async function main() {
     })
     if (url.pathname.endsWith("/resolve_developer_access")) return Response.json({ owner_user_id: owner, member_ids: [owner, actor], billing_access: { perpetual: paid }, budget: { allowed: true } })
     if (url.pathname.endsWith("/partnerships")) return Response.json({ owner_user_id: owner, user1_id: owner, user2_id: actor })
-    if (url.pathname.endsWith("/billing_partner_allowed")) return Response.json(true)
+    if (url.pathname.endsWith("/billing_partner_allowed")) return billingRpcFails ? Response.json({ code: "57014", message: "synthetic timeout" }, { status: 500 }) : Response.json(partnerAllowed)
     if (url.pathname.endsWith("/storage_execute_v1")) {
       assert.ok(init?.signal instanceof AbortSignal)
       assert.equal(init.signal.aborted, false)
-      assert.equal(body.owner_id, owner)
+      assert.equal(body.owner_id, partnerAllowed ? owner : actor)
       assert.deepEqual(header?.actor, { kind: "user", userId: actor })
       assert.equal(header?.operationId, "synthetic-bridge-auth")
       assert.equal(header?.batchId, "synthetic-bridge-auth")
@@ -116,5 +117,16 @@ async function main() {
   await assert.rejects(executeAppStorageRequest(request({}, { ...creation, ownerUserId: actor }), "collection.create"))
   assert.equal(count(), before)
   assert.ok(calls.every(c => c.header?.source !== "migration"))
+  // Billing-denied partner: the shared owner's command keeps its billing pause, own storage opens.
+  partnerAllowed = false
+  before = count()
+  await assert.rejects(executeAppStorageRequest(request(), "inventory"), { code: "upgrade_required" })
+  assert.equal(count(), before, "a command bound to the shared owner is never retargeted")
+  await executeAppStorageRequest(request({ "X-Binder-Owner": actor }), "inventory")
+  assert.equal(calls.at(-1)?.body.owner_id, actor)
+  partnerAllowed = true; billingRpcFails = true
+  before = count()
+  await assert.rejects(executeAppStorageRequest(request({ "X-Binder-Owner": actor }), "inventory"))
+  assert.equal(count(), before, "an unavailable billing check never falls back to own storage")
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })
