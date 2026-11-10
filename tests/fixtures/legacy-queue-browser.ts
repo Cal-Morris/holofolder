@@ -55,6 +55,21 @@ const cancelStore = createIndexedDbStore(indexedDB, `${name}-cancel`)
 const cancelRuntime = createLegacyQueueRuntime(cancelStore, () => ({ session, origin }))
 const api = {
   queue, origin,
+  async reviewedAckAbort() {
+    const db = createIndexedDbStore(factory, `${name}-reviewed-ack-abort`)
+    let sends = 0, rejected = false
+    const instance = createLegacyQueueRuntime(db, () => ({ session, origin }), async () => { sends++; abortAfterPut = true; return new Response('{"success":true}') })
+    await instance.initialize({ getItem: () => JSON.stringify([1, 2].map(pokemonId => ({ id: `ack-${pokemonId}`, type: "delete", pokemonId, queuedAt: "synthetic", base: null }))) })
+    await instance.refresh()
+    const review = await instance.prepareReview(origin)
+    await instance.acceptReview(review, [1, 2].map((pokemonId, ordinal) => ({ sourceId: review.projections[0].sourceId, ordinal, input: input(pokemonId) })))
+    try { await instance.flush() } catch { rejected = true } finally { abortAfterPut = false }
+    await instance.flush()
+    const beforeExpiry = instance.view()!.entries.map(e => e.state)
+    await instance.queue.claim(origin, session, "second-tab", Date.now() + 60001)
+    await instance.refresh()
+    return { rejected, sends, beforeExpiry, afterExpiry: instance.view()!.entries.map(e => e.state) }
+  },
   async cancellationSeed() {
     await cancelRuntime.initialize({ getItem: () => JSON.stringify([1, 2].map(pokemonId => ({ id: `cancel-${pokemonId}`, type: "delete", pokemonId, base: null, queuedAt: "synthetic" }))) })
     await cancelRuntime.refresh()

@@ -103,6 +103,59 @@ test.describe("durable hook offline writes", () => {
   })
 })
 
+test.describe("durable acceptance cancellation", () => {
+  test.use({ signedIn: true })
+  test("cancel cannot miss an acceptance transaction, including after closing review", async ({ harness }) => {
+    const { page } = harness
+    await page.addInitScript(() => {
+      const state = globalThis as unknown as { holdAcceptance: boolean; acceptanceHeld?: boolean }
+      state.holdAcceptance = true
+      const put = IDBObjectStore.prototype.put
+      IDBObjectStore.prototype.put = function(value, key) {
+        const request = put.call(this, value, key), get = this.get.bind(this)
+        if (key === "legacy-collection-queue:v2" && value.entries?.some((entry: { state: string; operation: { recoverySource?: unknown } }) => entry.state === "ready" && entry.operation.recoverySource)) {
+          request.addEventListener("success", () => {
+            if (!state.holdAcceptance) return
+            state.acceptanceHeld = true
+            const keepAlive = () => { get(key).addEventListener("success", () => { if (state.holdAcceptance) keepAlive() }) }
+            keepAlive()
+          }, { once: true })
+        }
+        return request
+      }
+    })
+    let writes = 0
+    await page.route("**/app/api/collection", route => { writes++; return route.fulfill({ json: { item } }) })
+    await page.route("**/app/api/collection/review-destination**", route => {
+      const selected = new URL(route.request().url()).searchParams.get("binderId")
+      return route.fulfill({ json: { recipient: { ...recipient, binderId: selected }, memberIds: [actor], binders: [{ id: binder, name: "My binder" }], ...(selected ? { collection: [] } : {}) } })
+    })
+    await seed(page, JSON.stringify([record]))
+    await page.evaluate(() => { Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false }); dispatchEvent(new Event("offline")) })
+    await page.getByRole("button", { name: "Review changes", exact: true }).click()
+    const dialog = page.getByRole("dialog", { name: "Review device changes" })
+    await dialog.getByRole("combobox").selectOption(binder)
+    await dialog.getByRole("checkbox").check()
+    await dialog.getByRole("button", { name: "Add 1 reviewed changes to My binder" }).click()
+    await expect.poll(() => page.evaluate(() => (globalThis as unknown as { acceptanceHeld?: boolean }).acceptanceHeld)).toBe(true)
+    await expect(dialog.getByRole("button", { name: "Cancel upload", exact: true })).toBeDisabled()
+    await dialog.getByRole("button", { name: "Cancel upload", exact: true }).evaluate(button => (button as HTMLButtonElement).click())
+    await expect(dialog.getByText(/Upload stopped/)).toHaveCount(0)
+    await dialog.getByRole("button", { name: "Close device changes" }).click()
+    await page.evaluate(() => { (globalThis as unknown as { holdAcceptance: boolean }).holdAcceptance = false })
+    await page.getByRole("button", { name: "Review changes", exact: true }).click()
+    await expect(dialog.getByRole("button", { name: "Cancel upload", exact: true })).toBeEnabled()
+    await dialog.getByRole("button", { name: "Cancel upload", exact: true }).click()
+    await expect(dialog.getByText(/Upload stopped/)).toBeVisible()
+    const states = await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open("binderdex-offline"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+      return await new Promise<string[]>((resolve, reject) => { const request = db.transaction("records").objectStore("records").get("legacy-collection-queue:v2"); request.onsuccess = () => { db.close(); resolve(request.result.entries.filter((entry: { operation: { recoverySource?: unknown } }) => entry.operation.recoverySource).map((entry: { state: string }) => entry.state)) }; request.onerror = () => reject(request.error) })
+    })
+    expect(states).toEqual(["paused"])
+    expect(writes).toBe(0)
+  })
+})
+
 test.describe("durable host storage failure and privacy", () => {
   test.use({ signedIn: true })
   for (const fault of ["abort", "quota"]) test(`${fault} prevents optimistic save and transport, retains an explicit retry draft`, async ({ harness }) => {

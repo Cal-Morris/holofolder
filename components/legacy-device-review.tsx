@@ -26,6 +26,8 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId, durableQueue, d
   const [selectedBinder, setSelectedBinder] = useState("")
   const [choices, setChoices] = useState<Record<string, boolean>>({})
   const [busy, setBusy] = useState(false)
+  const [accepting, setAccepting] = useState(false)
+  const acceptanceLock = useRef<symbol | null>(null)
   const [error, setError] = useState<string | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const epoch = useRef(0)
@@ -130,8 +132,9 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId, durableQueue, d
   }
   const selected = entries.filter(entry => entry.operation && choices[key(entry)])
   async function accept() {
-    if (!destination?.collection || !selectedBinder || !queueAtReview || !selected.length) return
+    if (acceptanceLock.current || !destination?.collection || !selectedBinder || !queueAtReview || !selected.length) return
     const ticket = ++epoch.current, startedIdentity = currentIdentity.current
+    const acceptanceToken = Symbol()
     const reviewEpoch = crypto.randomUUID()
     setBusy(true); setError(null)
     try {
@@ -152,23 +155,28 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId, durableQueue, d
       if (durableEnabled) {
         const review = durableReview.current
         if (!durableQueue || !review) throw new Error("Reload destination and review again.")
+        acceptanceLock.current = acceptanceToken; setAccepting(true)
         await durableQueue.acceptReview(review, selected.map((entry, index) => {
           const projection = review.projections.find(source => source.legacyQueueSource.raw === entry.source.legacyQueueSource.raw)
           if (!projection) throw new Error("Original source changed.")
           const { recoverySource: _source, ...input } = operations[index]
           return { sourceId: projection.sourceId, ordinal: entry.ordinal, input }
         }))
+        if (currentIdentity.current === startedIdentity) acceptedReview.current = review
         if (ticket !== epoch.current || currentIdentity.current !== startedIdentity) return
-        acceptedReview.current = review
         window.dispatchEvent(new Event("holofolder-legacy-reviewed"))
       } else acceptLegacyQueueReview(queueAtReview, sources, operations)
       acceptedEpoch.current = reviewEpoch
       setError("Reviewed changes queued for this binder. Original data is retained. Cancelling cannot undo a request already sent.")
       setChoices({}); setEntries(reviewEntries(sources, actorId)); setQueueAtReview(null)
     } catch (e) { if (ticket === epoch.current && startedIdentity === currentIdentity.current) { setChoices({}); setQueueAtReview(null); setError(e instanceof Error ? e.message : "Upload could not start. Original data is retained.") } }
-    finally { if (ticket === epoch.current) setBusy(false) }
+    finally {
+      if (acceptanceLock.current === acceptanceToken) { acceptanceLock.current = null; setAccepting(false) }
+      if (ticket === epoch.current) setBusy(false)
+    }
   }
   async function cancelUpload() {
+    if (acceptanceLock.current) return
     epoch.current++; setBusy(false)
     if (durableEnabled) {
       try { if (acceptedReview.current && durableQueue) await durableQueue.cancelReview(acceptedReview.current) }
@@ -225,7 +233,8 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId, durableQueue, d
           })}</ul>
           {error && <p role="status" className="mt-3">{error}</p>}
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2 border-t border-border pt-3"><button className={`${button} bg-primary text-primary-foreground`} disabled={busy || !selected.length || !destination?.collection || !queueAtReview} onClick={() => void accept()}>Add {selected.length} reviewed changes to {destination?.binders.find(b => b.id === selectedBinder)?.name ?? "binder"}</button><button className={button} onClick={cancelUpload}>Cancel upload</button><button className={button} onClick={close}>Keep on this device</button></div>
+        {accepting && <p role="status">Saving reviewed changes on this device. Cancellation becomes available when saving finishes.</p>}
+        <div className="flex shrink-0 flex-wrap gap-2 border-t border-border pt-3"><button className={`${button} bg-primary text-primary-foreground`} disabled={busy || accepting || !selected.length || !destination?.collection || !queueAtReview} onClick={() => void accept()}>Add {selected.length} reviewed changes to {destination?.binders.find(b => b.id === selectedBinder)?.name ?? "binder"}</button><button className={button} disabled={accepting} onClick={cancelUpload}>Cancel upload</button><button className={button} onClick={close}>Keep on this device</button></div>
       </div>
     </div>}
   </>

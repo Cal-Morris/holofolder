@@ -57,6 +57,15 @@ unknown. Lease expiry cannot authorize another attempt, and reviewed-batch
 siblings pause atomically. The corrected PR500 compatibility settlement/review
 barrier and complete-entry privacy checks remain active.
 
+Parent review closed two additional races: cancellation is unavailable during
+the acceptance transaction, with the accepted batch handle retained even if its
+review sheet closes; a sending reviewed item blocks later claims in the same
+exact-origin batch until its local settlement commits. Thus an ACK persistence
+failure cannot send its next reviewed sibling before lease expiry. The original
+request stays frozen; expiry marks it unknown and pauses ready siblings. Browser
+transaction and six-phone acceptance tests cover these boundaries. Dismissal
+does not cancel an already accepted upload, and cancellation cannot undo a sent request.
+
 ## Required parent-owned trusted server adapter
 
 No private context/audit semantics, route rejection, SQL or public API schema

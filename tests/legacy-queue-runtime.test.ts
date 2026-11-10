@@ -6,6 +6,26 @@ import { createLegacyQueueRuntime } from "@/lib/collection/legacy-queue-runtime"
 import { LEGACY_QUEUE_KEY } from "@/lib/collection/legacy-queue-record"
 const origin = { kind: "account" as const, actorUserId: "synthetic-a", ownerUserId: "synthetic-a", binderId: "synthetic-binder" }
 const storage = { getItem: () => " [] \n" }
+test("failed ACK persistence cannot send a reviewed sibling before lease expiry", async () => {
+  const base = createMemoryStore()
+  let abort = false, sends = 0
+  const store = { ...base, update: async (...args: Parameters<typeof base.update>) => { if (abort) throw new Error("synthetic ACK abort"); await base.update(...args) } }
+  const runtime = createLegacyQueueRuntime(store, () => ({ session: "one", origin }), async () => { sends++; abort = true; return new Response('{"success":true}') })
+  await runtime.initialize({ getItem: () => JSON.stringify([1, 2].map(pokemonId => ({ id: `guest-${pokemonId}`, type: "delete", pokemonId, queuedAt: "synthetic", base: null }))) })
+  await runtime.refresh()
+  const review = await runtime.prepareReview(origin)
+  await runtime.acceptReview(review, [1, 2].map((pokemonId, ordinal) => ({ sourceId: review.projections[0].sourceId, ordinal, input: { type: "delete", pokemonId, origin, binderId: origin.binderId, base: null } })))
+  await assert.rejects(runtime.flush(), /ACK abort/)
+  abort = false
+  await runtime.flush()
+  assert.equal(sends, 1)
+  const entries = runtime.view()!.entries
+  assert.equal(entries[0].state, "sending")
+  assert.equal(entries[1].state, "ready")
+  assert.equal(await runtime.queue.claim(origin, "one", "other-tab", Date.now() + 60001), null)
+  await runtime.refresh()
+  assert.deepEqual(runtime.view()!.entries.map(e => e.state), ["unknown", "paused"])
+})
 test("guest workspace allocation commits once across callers and guest review never sends automatically", async () => {
   const store = createMemoryStore()
   const queue = createLegacyQueue(store, () => null)

@@ -257,7 +257,9 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
         if (envelope.entries.some(entry => entry.state !== "completed" && compatibilityBarrier(entry) && entry.operation.binderId === scope.binderId
           && (!entry.operation.origin || (entry.operation.origin.kind === "account" && entry.operation.origin.ownerUserId === scope.ownerUserId)))) return { result: null, changed }
         const entry = envelope.entries.find((entry, index) => entry.state === "ready" && sameCollectionOrigin(entry.operation.origin, scope)
-          && !envelope.entries.slice(0, index).some(previous => previous.state !== "completed" && sameLegacySlot(previous.operation, entry.operation)))
+          && !envelope.entries.slice(0, index).some(previous => previous.state !== "completed" && sameLegacySlot(previous.operation, entry.operation))
+          && !(entry.operation.recoverySource?.reviewEpoch && envelope.entries.some(previous => previous.state === "sending"
+            && sameCollectionOrigin(previous.operation.origin, scope) && previous.operation.recoverySource?.reviewEpoch === entry.operation.recoverySource?.reviewEpoch)))
         if (!entry) return { result: null, changed }
         entry.request = freezeLegacyRequest(entry.operation, 2); entry.state = "sending"; entry.revision = envelope.revision + 1
         entry.lease = { token, holder, until: now + LEGACY_LEASE_MS, session }
