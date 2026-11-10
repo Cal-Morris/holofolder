@@ -18,6 +18,7 @@ import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 
 export interface BrowserSurfaceBinding {
+  analytics: { scope: import("@/lib/collection-navigation").CollectionNavigationScope; read: CollectionNavigationRead }
   surface: NavigationSurface
   display?: SlotDisplayInput
   catalog: InventoryCatalogResolver
@@ -190,7 +191,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
         const display = snapshot && binder && layout ? { inventory: snapshot, binder,
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
-        return renderSurface({ surface: { ...surface, header: <>
+        return renderSurface({ analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
           {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
             {queue.record.pending[0].status === "conflict" ? "Storage changed. The original edit is retained; confirmed rejections can be reviewed, unknown outcomes need an exact retry."
