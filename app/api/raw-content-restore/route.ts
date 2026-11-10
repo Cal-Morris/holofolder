@@ -1,4 +1,5 @@
-/** #379 owns admission. No environment variable or request can enable native restore. */
-export async function POST() {
-  return Response.json({ error: 'storage_operations_staged' }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
+import { handleRawRestore } from "@/lib/server/raw-restore-http"
+
+export async function POST(request: Request) {
+  return handleRawRestore(request)
 }

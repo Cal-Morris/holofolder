@@ -1,7 +1,7 @@
 import { rawRestoreFixture } from './raw-restore'
 import { planRawContentRestore } from '../../lib/raw-restore-plan'
 import assert from 'node:assert/strict'
-import {assertSmokeResponse,assertStagedSmokeResponse,assertTerminalStorageSmokeResponse} from '../../scripts/api-smoke-assertions'
+import {assertSmokeResponse,assertTerminalStorageSmokeResponse} from '../../scripts/api-smoke-assertions'
 import { createHash } from 'node:crypto'
 import { createDeveloperKey } from '../../lib/server/developer-access/key-secret'
 import { DeveloperAccessError } from '../../lib/developer-api/permissions'
@@ -15,8 +15,6 @@ async function main() {
   // @ts-expect-error Bun module mocks are isolated to this subprocess.
   const { mock } = await import('bun:test')
   mock.module('server-only', () => ({}))
-  const wired = process.argv.includes('--wired')
-  if (wired) mock.module('../../lib/server/operations/native-developer-admission', () => ({ requireNativeDeveloperAdmission() {} }))
   const actor = '00820000-0000-4000-8000-000000000002', owner = '00820000-0000-4000-8000-000000000001'
   let currentActor = actor, currentOwner = owner, readonly = false, paid = true, revoked = false, budget = true
   let terminal = false, forged: unknown = undefined
@@ -151,12 +149,7 @@ async function main() {
       const value = { ...values[op.name] }
       if ('operationId' in value) value.operationId += '-' + transport
       const first = await call(transport, op.name, value)
-      if (!wired) {
-        assertStagedSmokeResponse(op.name, first.result)
-        assert.equal(first.status, transport === 'rest' ? 503 : 200)
-        if (transport === 'mcp') assert.equal(first.raw.result.isError, true)
-      }
-      else {
+      {
         assert.equal(first.status, 200, JSON.stringify(first.raw))
         assertSmokeResponse(op.name, first.result, value)
         assert.equal(first.result.error, undefined, JSON.stringify(first.raw))
@@ -174,12 +167,12 @@ async function main() {
     const reordered = { ...raw, version: 3, operationId: 'synthetic-v3-' + transport,
       slotOrder: { before: raw.slots.map(p => p.before.id), after: raw.slots.map(p => p.after.id).reverse() } }
     const v3 = await call(transport, 'restore_raw_collection_content', reordered)
-    if (wired) {
+    {
       assert.equal(v3.result.version, 3, JSON.stringify(v3.raw))
       assert.deepEqual(v3.result.slotOrder, reordered.slotOrder)
       assert.deepEqual((await call(transport, 'restore_raw_collection_content', reordered)).result, v3.result)
-    } else assertStagedSmokeResponse('restore_raw_collection_content', v3.result)
-    if (wired) {
+    }
+    {
       const value = { ...reordered, operationId: 'synthetic-restore-terminal-' + transport }
       terminal = true
       const rejected = await call(transport, 'restore_raw_collection_content', value)
@@ -199,7 +192,7 @@ async function main() {
       }
       error = null
     }
-    if (wired) for (const [name, intent] of [['execute_slot_commands', slots], ['execute_inventory_commands', inventory], ['create_storage_collection', creation], ['import_storage_arrangement', arrangement]] as const) {
+    for (const [name, intent] of [['execute_slot_commands', slots], ['execute_inventory_commands', inventory], ['create_storage_collection', creation], ['import_storage_arrangement', arrangement]] as const) {
       const value = { ...intent, operationId: 'synthetic-terminal-' + name + '-' + transport }
       terminal = true
       const rejected = await call(transport, name, value)
@@ -282,7 +275,7 @@ async function main() {
       const retried = await call(transport, name, { ...value, operationId: value.operationId + '-lost' })
       assert.equal(retried.result.error, undefined, 'unknown lost reply retains original accepted replay')
     }
-    if (wired) for (const name of ['apply_storage_recovery','apply_storage_recovery_v2']) {
+    for (const name of ['apply_storage_recovery','apply_storage_recovery_v2']) {
       const value={...values[name],operationId:'synthetic-terminal-'+name+'-'+transport}
       terminal=true
       const rejected=await call(transport,name,value)
@@ -320,10 +313,10 @@ async function main() {
       commands: [{ kind: 'update', slot: emptySlot, target: null }] }
     for (const [name, intent] of [['execute_inventory_commands', safeInventory], ['execute_slot_commands', safeSlots]] as const) {
       const preserving = { ...intent, privateFields: 'preserve', expectedOwnerUserId: owner }
-      if (wired) loseReply = true
+      loseReply = true
       const lost = await call(transport, name, preserving)
       assert.ok(lost.result?.error || lost.raw.error || lost.raw.result?.isError)
-      if (wired) {
+      {
         assert.deepEqual(calls.at(-1)?.request, intent, 'assertion is removed without adding private defaults')
         // A different later operation succeeds. Retrying the original must still send exactly the old intent.
         const later = await call(transport, name, { ...preserving, operationId: intent.operationId + '-later', inventoryRevision: 8 })
@@ -345,7 +338,7 @@ async function main() {
         assert.equal(changedRecipient.result.error.code, 'storage_owner_changed', 'same operation must not retarget another owner')
         assert.equal(calls.length, beforeOwnerMismatch, 'recipient is fenced before SQL, including an uncommitted unknown outcome')
         currentOwner = owner
-      } else assert.equal(lost.result.error.code, 'native_operations_staged')
+      }
     }
     for (const [index, commands] of [
       ...[null, { kind: 'existing', inventoryItemId: 'synthetic-unassigned', itemVersion: 3 },
@@ -358,12 +351,12 @@ async function main() {
       const originalIntent = { ...safeInventory, commands, operationId: 'synthetic-transactional-patch-' + transport + '-' + index }
       const supplied = { ...originalIntent, privateFields: 'preserve', expectedOwnerUserId: owner }
       const result = await call(transport, 'execute_inventory_commands', supplied)
-      if (wired) {
+      {
         assert.equal(result.result.error, undefined)
         assert.deepEqual(calls.at(-1)?.request, originalIntent, 'both transports forward original public intent, never reconstructed private JSON')
         const replay = await call(transport, 'execute_inventory_commands', supplied)
         assert.deepEqual(replay.result, result.result)
-      } else assert.equal(result.result.error.code, 'native_operations_staged')
+      }
     }
     const unsupported = [
       ['execute_inventory_commands', { ...safeInventory, commands: [{ kind: 'edit', item: placedItem, grading: null }] }],
@@ -376,7 +369,7 @@ async function main() {
       assert.ok(rejected.result?.error || rejected.raw.error || rejected.raw.result?.isError)
     }
     assert.equal(calls.length, beforeUnsupported, 'unsafe redacted replacement never reaches the executor')
-    if (wired) for (const [index, [name, value]] of unsupported.entries()) {
+    for (const [index, [name, value]] of unsupported.entries()) {
       const replacement = { ...value, operationId: 'synthetic-explicit-replace-' + transport + '-' + index }
       const accepted = await call(transport, name, { ...replacement, privateFields: 'replace' })
       assert.equal(accepted.result.error, undefined, 'explicit clearing/full expected want keeps existing authorization and SQL semantics')
@@ -406,8 +399,8 @@ async function main() {
       slotIds: Array.from({ length: 1025 }, (_, i) => 'synthetic-slot-' + i) }
     assert.ok(Buffer.byteLength(JSON.stringify(largeCreation)) > 65536)
     const large = await call(transport, 'create_storage_collection', largeCreation)
-    assert.equal(large.result.error?.code, wired ? undefined : 'native_operations_staged', JSON.stringify(large.raw))
-    if (wired) {
+    assert.equal(large.result.error?.code, undefined, JSON.stringify(large.raw))
+    {
       for (const [sql, expected] of [['40001', 'storage_conflict'], ['42501', 'storage_access_denied'], ['HF402', 'premium_required'], ['0A000', 'recovery_unsupported'], ['22023', 'invalid_input'], ['XX000', 'storage_unavailable']]) {
         error = sql
         const result = await call(transport, 'execute_inventory_commands', inventory)
@@ -429,7 +422,5 @@ async function main() {
       currentOwner = owner
     }
   }
-  if (!wired) assert.equal(calls.length, 0, 'production gate never invokes the executor')
-  console.log(wired ? 'wired synthetic transports passed' : 'fixed admission passed')
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

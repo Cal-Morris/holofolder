@@ -10,7 +10,7 @@ import { DeveloperAccessError } from '@/lib/developer-api/permissions'
 import type { executeAppStorageRequest } from '@/lib/server/operations/storage-execution'
 
 const privateHeaders = { 'Cache-Control': 'private, no-store', Vary: 'Cookie', 'X-Content-Type-Options': 'nosniff' }
-/** Internal handler. The only caller is the non-hosted loopback synthetic harness. */
+/** First-party bounded raw restore boundary. */
 export async function handleRawRestore(request: Request, clients?: Parameters<typeof executeAppStorageRequest>[2]) {
   const requestId = randomUUID(), headers = new Headers(privateHeaders)
   try {

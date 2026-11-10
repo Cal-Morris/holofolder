@@ -55,10 +55,10 @@ This app-only protocol identifies a supported server code path, not authenticati
 
 ## Staged native storage
 
-[Native storage contracts](/docs/native-storage) declare their fixed 503 admission, exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy or expose developer inventory reads. Existing collection and Activity Undo operations remain available under their current contract.
+[Native storage contracts](/docs/native-storage) use authenticated execution with exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy. Native developer reads expose a separate redacted projection. Existing collection and Activity Undo operations remain available under their current contract.
 
 ## Native read staging
 
 [Native developer reads](/docs/native-reads) declare a private redacted copy/storage/slot projection with signed scope/filter/revision-bound cursors. They remain fixed-denied until #379. A response page is never a complete planning snapshot or a fresh-read queue ACK. Existing legacy collection and Activity/Undo contracts stay available.
 
-[Copied preset previews](/docs/preset-previews) declare staged discovery and bounded read-only manifests through the same registry/dispatcher and fixed native 503 boundary. Preset entry IDs are provenance, not slot/collection/operation identities. No private planning state, ownership, autosync or durable set/master-set scope is implied.
+[Copied preset previews](/docs/preset-previews) provide authenticated discovery and bounded read-only manifests through the same registry/dispatcher. Preset entry IDs are provenance, not slot/collection/operation identities. No private planning state, ownership, autosync or durable set/master-set scope is implied.

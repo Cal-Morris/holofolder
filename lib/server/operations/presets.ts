@@ -9,7 +9,6 @@ import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/pe
 import type { OperationContext } from "@/lib/developer-api/types"
 import { developerReadAuthority } from "@/lib/server/developer-access/native-read"
 import { readPresetPrintings } from "@/lib/server/preset-catalog"
-import { requireNativeDeveloperAdmission } from "./native-developer-admission"
 
 export async function executePresetOperation(context: OperationContext, name: string, input: unknown) {
   const operation = PRESET_OPERATIONS.find(op => op.name === name)
@@ -17,7 +16,6 @@ export async function executePresetOperation(context: OperationContext, name: st
   requirePermissions(context.principal.permissions, operation.permissions)
   const parsed = operation.schema.safeParse(input)
   if (!parsed.success) throw new DeveloperAccessError("invalid_input", "Invalid or oversized preset query.", 400)
-  requireNativeDeveloperAdmission()
   const controller = new AbortController(), deadline = Date.now() + limits.timeoutMs
   let requests = 0, bytes = 0
   const exhausted = () => new DeveloperAccessError("preset_read_unavailable", "Preset preview exceeded its finite read budget. No partial preview was returned.", 503)

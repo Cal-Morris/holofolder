@@ -3,7 +3,7 @@ import { fixture, owner, collection } from "./inventory-read-server"
 import { createDeveloperKey } from "../../lib/server/developer-access/key-secret"
 import type { OperationContext } from "../../lib/developer-api/types"
 import { PRESET_OPERATIONS, PRESET_PERMISSIONS, PRESET_PREVIEW_LIMITS } from "../../lib/developer-api/presets"
-import { assertSmokeResponse, assertStagedSmokeResponse } from "../../scripts/api-smoke-assertions"
+import { assertSmokeResponse } from "../../scripts/api-smoke-assertions"
 import { parseBinderCreationDraft } from "../../lib/binder-creation-draft"
 import { parseCollectionCreation } from "../../lib/domain/storage-creation"
 import { captureCompleteInventoryReadFence, isCompleteInventoryReadAfter, isCompleteInventorySnapshot } from "../../lib/collection/slot-snapshot"
@@ -15,8 +15,6 @@ async function main() {
   // @ts-expect-error Bun mocks stay isolated to this synthetic subprocess.
   const { mock } = await import("bun:test")
   mock.module("server-only", () => ({}))
-  const admitted = process.argv.includes("--admitted")
-  if (admitted) mock.module("../../lib/server/operations/native-developer-admission", () => ({ requireNativeDeveloperAdmission() {} }))
   const key = createDeveloperKey(), partner = "33333333-3333-4333-8333-333333333333", grantId = "44444444-4444-4444-8444-444444444444"
   const oauth = { sessionId: "55555555-5555-4555-8555-555555555555", clientId: "66666666-6666-4666-8666-666666666666", expiresAt: Date.now() / 1000 + 3600 }
   let permissions: readonly string[] = PRESET_PERMISSIONS, paid = true, grant = true, allowed = true, budget = true, actor = owner
@@ -69,14 +67,7 @@ async function main() {
   for (const op of PRESET_OPERATIONS) for (const transport of ["rest", "mcp"] as const) {
     const input = op.name === "preview_storage_preset" ? { presetId: "blank", version: "1" } : {}
     const { result } = await call(transport, op.name, input)
-    if (admitted) assertSmokeResponse(op.name, result, input)
-    else assertStagedSmokeResponse(op.name, result)
-  }
-  if (!admitted) {
-    assert.equal(operationQueries, 0, "fixed admission precedes all scope/catalog queries and execution")
-    for (const op of PRESET_OPERATIONS) await assert.rejects(executeDeveloperOperation(context("rest"), op.name, op.name.startsWith("preview") ? { presetId: "blank", version: "1" } : {}), { code: "native_operations_staged" })
-    assert.equal(operationQueries, 0)
-    return
+    assertSmokeResponse(op.name, result, input)
   }
   const preview = (input: Record<string, unknown>, ctx = context("rest")) => executeDeveloperOperation(ctx, "preview_storage_preset", { version: "1", ...input }) as Promise<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   const read = (input: Record<string, unknown> = {}) => executeDeveloperOperation(context("rest"), "list_storage_presets", input) as Promise<any> // eslint-disable-line @typescript-eslint/no-explicit-any

@@ -6,7 +6,6 @@ import { StorageRestoreRejectedError, StorageCreationRejectedError, StorageImpor
 import type { OperationContext } from '@/lib/developer-api/types'
 import { DeveloperAccessError, requirePermissions } from '@/lib/developer-api/permissions'
 import { NATIVE_DEVELOPER_OPERATIONS, nativeCommandIntent } from '@/lib/developer-api/storage'
-import { requireNativeDeveloperAdmission } from './native-developer-admission'
 import { executeDeveloperStorageOperation } from './storage-execution'
 import type { StorageOperation } from './storage-contract'
 
@@ -25,7 +24,6 @@ export async function executeNativeDeveloperOperation(context: OperationContext,
   requirePermissions(context.principal.permissions, operation.permissions)
   const parsed = operation.schema.safeParse(input)
   if (!parsed.success) throw new DeveloperAccessError('invalid_input', 'Invalid or oversized native storage request.', 400)
-  requireNativeDeveloperAdmission()
   if ('expectedOwnerUserId' in parsed.data && parsed.data.expectedOwnerUserId !== undefined
     && parsed.data.expectedOwnerUserId !== context.ownerUserId) {
     throw new DeveloperAccessError('storage_owner_changed', 'The original collection owner is no longer the current scope. Keep the original operation for reconciliation.', 409)

@@ -1,5 +1,7 @@
 # Agent-readable developer documentation
 
+Current server admission: supported native operations now use the existing authenticated bridges. See [the direct-cutover handoff](../native-direct-server-handoff.md). The historical slice notes below describe earlier staging and do not define the current fixed-503 policy. Hosted/app acceptance remains separate.
+
 Public documentation is available without a login:
 
 | URL | Content |

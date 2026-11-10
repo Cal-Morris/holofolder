@@ -4,7 +4,7 @@ import { InventoryReadError, readOwnerInventoryState } from "@/lib/server/invent
 import type { InventoryReadEnvelope } from "@/lib/collection/inventory-read-transport"
 
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" }
-/** Reusable private handler, deliberately NOT exported by any production route until #379.
+/** First-party private complete read, using cookie/RLS authority.
  * client is trusted server/test injection only, otherwise uses the request cookie/RLS client.
  * Request identifiers correlate a read; neither authenticates the actor or selects an owner. */
 export async function handleInventoryCompleteRead(request: Request, client?: SupabaseClient): Promise<Response> {

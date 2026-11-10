@@ -77,17 +77,6 @@ export function assertSmokeResponse(operation:string,value:unknown,input:Row) {
  check(object(value),input)
 }
 
-/** Staging evidence is separate from successful execution and latency coverage. */
-export function assertStagedSmokeResponse(operation:string,value:unknown) {
- assert.ok([...NATIVE_DEVELOPER_OPERATIONS,...NATIVE_READ_OPERATIONS,...PRESET_OPERATIONS].some(op=>op.name===operation&&op.admission==='staged'),'Operation is not staged')
- const body=object(value),error=object(body.error)
- assert.deepEqual(Object.keys(body),['error'])
- assert.deepEqual(Object.keys(error).sort(),['code','message','requestId'])
- assert.equal(error.code,'native_operations_staged')
- assert.equal(error.message,'Native storage operations are not enabled. Complete developer reads and rollout acceptance under #379 are still required.')
- string(error.requestId);assert.ok(String(error.requestId).trim().length>0,'Missing request ID')
-}
-
 /** Terminal rejection is an error outcome, never successful execution coverage or an inferred conflict. */
 export function assertTerminalStorageSmokeResponse(operation:string,value:unknown,input:Row) {
  const registered=NATIVE_DEVELOPER_OPERATIONS.find(op=>op.name===operation)
@@ -97,15 +86,10 @@ export function assertTerminalStorageSmokeResponse(operation:string,value:unknow
  assert.equal(parsed.error.rejection.operationId,input.operationId,'Terminal proof must bind the original operation ID')
 }
 
-/** Called before a sample is marked passed or persisted, including staged error-body checks. */
-export function assertSmokeHttpResponse(operation:string,status:number,value:unknown,input:Row,expectedStatus:number,scenario:string) {
+/** Called before a sample is marked passed or persisted, including error-body checks. */
+export function assertSmokeHttpResponse(operation:string,status:number,value:unknown,input:Row,expectedStatus:number,_scenario:string) {
  assert.ok(API_SMOKE_ASSERTIONS[operation],'Missing response assertion for '+operation)
  assert.equal(status,expectedStatus,`Unexpected HTTP status for ${operation}`)
- const staged=[...NATIVE_DEVELOPER_OPERATIONS,...NATIVE_READ_OPERATIONS,...PRESET_OPERATIONS].some(op=>op.name===operation&&op.admission==='staged')
- if(staged) {
-  assert.equal(scenario,'native-staged','Native smoke is denial-only')
-  assert.equal(expectedStatus,503,'Native smoke requires fixed 503 admission')
-  assertStagedSmokeResponse(operation,value)
- } else if(expectedStatus<400)assertSmokeResponse(operation,value,input)
+ if(expectedStatus<400)assertSmokeResponse(operation,value,input)
  else {const error=object(object(value).error);string(error.code)}
 }

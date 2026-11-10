@@ -63,6 +63,6 @@ test('generated API and agent reference exports describe preserve and replacemen
     assert.match(op.description, /full-replacement/)
     const markdown = formatEndpointMarkdown({ title: op.operationId, url: '/docs/reference/collection/' + op.operationId.replaceAll('_', '-'), method: 'POST', path, operation: op })
     assert.match(markdown, /privateFields/)
-    assert.match(markdown, /native_operations_staged/)
+    assert.doesNotMatch(markdown, /native_operations_staged/)
   }
 })

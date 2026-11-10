@@ -11,8 +11,6 @@ async function main() {
   // @ts-expect-error Bun module mocks stay in this isolated subprocess.
   const { mock } = await import("bun:test")
   mock.module("server-only", () => ({}))
-  const admitted = process.argv.includes("--admitted")
-  if (admitted) mock.module("../../lib/server/operations/native-developer-admission", () => ({ requireNativeDeveloperAdmission() {} }))
   const key = createDeveloperKey(), partner = "33333333-3333-4333-8333-333333333333"
   const grantId = "44444444-4444-4444-8444-444444444444"
   const permissions = ["collection:read", "binders:read"] as const
@@ -78,11 +76,10 @@ async function main() {
   for (const op of NATIVE_READ_OPERATIONS) {
     for (const transport of ["rest", "mcp"] as const) {
       const result = await call(transport, op.name, inputs[op.name])
-      assert.equal(result.result.error?.code, admitted ? undefined : "native_operations_staged", JSON.stringify(result))
-      if (admitted) { assert.ok(op.responseSchema!.safeParse(result.result).success); assert.equal(result.result.completeSnapshot, false) }
+      assert.equal(result.result.error?.code, undefined, JSON.stringify(result))
+      { assert.ok(op.responseSchema!.safeParse(result.result).success); assert.equal(result.result.completeSnapshot, false) }
     }
   }
-  if (!admitted) { assert.equal(f.requests.length, 0, "fixed denial precedes all inventory queries"); console.log("fixed gate passed"); return }
   const read = (name = "list_inventory_items", input: Record<string, unknown> = {}, transport: "rest" | "mcp" = "rest") => executeDeveloperOperation(context(transport), name, input) as Promise<Record<string, any>> // eslint-disable-line @typescript-eslint/no-explicit-any
   const fence = captureCompleteInventoryReadFence()
   // Every immutable source stream also crosses the PostgREST 1000-row cap.

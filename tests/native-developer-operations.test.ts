@@ -23,7 +23,7 @@ test('native slot contract is registered once and rejects missing revisions and 
   assert.equal(DEVELOPER_OPERATIONS.find(op => op.name === 'apply_collection_recovery')?.path, '/collection/recovery/apply')
 })
 test('native registry executes real REST/MCP transports and the trusted bridge with synthetic dependencies', () => {
-  for (const args of [[], ['--wired']]) execFileSync(process.execPath, [new URL('./fixtures/native-developer-round-trips.ts', import.meta.url).pathname, ...args], { stdio: 'pipe' })
+  execFileSync(process.execPath, [new URL('./fixtures/native-developer-round-trips.ts', import.meta.url).pathname], { stdio: 'pipe' })
 })
 
 test('native recovery versions, replacement scope and immutable creation IDs are strict', () => {
@@ -44,24 +44,24 @@ test('native recovery versions, replacement scope and immutable creation IDs are
   for (const change of [{ slotIds: [] }, { version: 2 }, { ownerUserId: collectionId }, { name: ' needs normalization ' }, { defaultPresentation: 'slabs' }]) {
     assert.equal(schema('create_storage_collection').safeParse({ ...creation, ...change }).success, false)
   }
-  // Reads have their own staged adapter; no legacy read alias is substituted.
+  // Reads have their own authenticated adapter; no legacy read alias is substituted.
   for (const path of ['/storage/inventory', '/storage/slots']) assert.equal(matchRestOperation('GET', path), null)
-  assert.equal(matchRestOperation('GET', '/storage/collections')?.operation.admission, 'staged')
+  assert.equal(matchRestOperation('GET', '/storage/collections')?.operation.admission, undefined)
 })
 
-test('generated native references and agent Markdown preserve staging, scopes and actual receipt schemas', () => {
+test('generated native references and agent Markdown preserve admission, scopes and actual receipt schemas', () => {
   const paths = spec.paths as Record<string, Record<string, { 'x-admission'?: string; responses: Record<string, { description: string; content?: unknown }> }>>
-  for (const op of DEVELOPER_OPERATIONS.filter(op => op.admission === 'staged')) {
+  for (const op of DEVELOPER_OPERATIONS.filter(op => op.responseSchema)) {
     const documented = paths[op.path][op.method.toLowerCase()]
-    assert.equal(documented['x-admission'], 'staged')
-    assert.match(documented.responses['503'].description, /native_operations_staged/)
-    assert.match(documented.responses['200'].description, /Currently returns 503/)
+    assert.equal(documented['x-admission'], undefined)
+    assert.doesNotMatch(documented.responses['503'].description, /native_operations_staged/)
+    assert.equal(documented.responses['200'].description, 'Success')
     assert.ok(documented.responses['200'].content)
     assert.ok(documented.responses['403'].content)
     assert.equal(op.idempotent, true)
     const markdown = formatEndpointMarkdown({ title: op.name, url: '/docs/reference/collection/' + op.name.replaceAll('_', '-'), method: op.method, path: op.path, operation: documented })
-    assert.match(markdown, /"x-admission": "staged"/)
-    assert.match(markdown, /native_operations_staged/)
+    assert.doesNotMatch(markdown, /"x-admission": "staged"/)
+    assert.doesNotMatch(markdown, /native_operations_staged/)
   }
 })
 

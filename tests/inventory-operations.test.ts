@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parseInventoryCommand, inventoryStagingResponse } from "../lib/server/operations/inventory"
+import { parseInventoryCommand } from "../lib/server/operations/inventory"
 
 const request = { operationId: "synthetic-inventory-001", inventoryRevision: 0, collections: [],
   commands: [{ kind: "add", itemId: "synthetic-copy", identity: { kind: "card", cardId: "synthetic-card" }, grading: null, acquiredAt: null }] }
@@ -13,16 +13,6 @@ test("strict inventory command preserves copy identity and rejects spoofed autho
     { ...request, commands: [{ ...request.commands[0], certificate: "clone" }] },
     { ...request, commands: [{ ...request.commands[0], grading: {} }] },
     { ...request, commands: Array(101).fill(request.commands[0]) }]) assert.throws(() => parseInventoryCommand(bad))
-})
-test("every app method remains hard 503 without parsing or SQL, including malicious input", async () => {
-  const route = await import("../app/api/inventory/route")
-  for (const handler of [route.GET, route.POST, route.PATCH, route.DELETE]) {
-    const response = handler()
-    assert.equal(response.status, 503)
-    assert.equal(response.headers.get("Cache-Control"), "private, no-store")
-    assert.equal((await response.json()).code, "inventory_operations_staged")
-  }
-  assert.equal(inventoryStagingResponse().status, 503)
 })
 
 test("bulk move preview consumes accepted plans, retains explicit pairing and rejects the whole mixed/occupied batch", async () => {

@@ -180,17 +180,6 @@ test("session teardown during JSON decoding never brands the pending response", 
   })
 })
 
-test("the reusable handler cannot open either public staging route", async () => {
-  const inventory = await import("../app/api/inventory/route")
-  const slots = await import("../app/api/binder-slots/route")
-  for (const route of [inventory, slots]) {
-    for (const method of ["GET", "POST", "PATCH", "DELETE"] as const) {
-      const response = await route[method]()
-      assert.equal(response.status, 503)
-      assert.match(response.headers.get("cache-control") ?? "", /private.*no-store/)
-    }
-  }
-})
 
 test("browser preserves honest conflict/legacy/uninitialized/staging errors and sanitizes unknown details", async () => {
   await withFetch(async set => {

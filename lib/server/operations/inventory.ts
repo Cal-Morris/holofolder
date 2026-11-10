@@ -16,8 +16,3 @@ export async function executeInventoryCommand(
   if (!uuid(owner) || !trusted || trusted.actor.kind !== "user" || !uuid(trusted.actor.userId) || trusted.operationId !== parsed.operationId) return invalid()
   return rpc(trusted.actor.userId, owner, parsed, { source: trusted.source, clientId: trusted.clientId, batchId: trusted.batchId, clientOccurredAt: trusted.clientOccurredAt })
 }
-
-export function inventoryStagingResponse() {
-  return Response.json({ error: "Inventory operations are not enabled", code: "inventory_operations_staged", gates: [394, 396, 363, 376, 379] },
-    { status: 503, headers: { "Cache-Control": "private, no-store" } })
-}

@@ -10,7 +10,7 @@ import { readDeveloperJson, developerErrorResponse } from '@/lib/server/develope
 import { DeveloperAccessError } from '@/lib/developer-api/permissions'
 
 const headers = { 'Cache-Control': 'private, no-store', Vary: 'Cookie', 'X-Content-Type-Options': 'nosniff' }
-/** Internal first-party bridge. Only the existing loopback harness calls this handler. */
+/** First-party recovery boundary over the trusted executor. */
 export async function handleNativeRecovery(request: Request, localClients?: Parameters<typeof executeAppStorageRequest>[2]) {
   const requestId = randomUUID()
   try {

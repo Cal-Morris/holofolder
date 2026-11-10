@@ -1,5 +1,7 @@
 # Trusted native developer reads, staged (#376)
 
+Current server admission: supported native operations now use the existing authenticated bridges. See [the direct-cutover handoff](native-direct-server-handoff.md). The historical slice notes below describe earlier staging and do not define the current fixed-503 policy. Hosted/app acceptance remains separate.
+
 This slice delivers five real shared read operations and their strict projections/pagination in the existing registry/dispatcher and REST/MCP transports. `requireNativeDeveloperAdmission()` is fixed denied with no production override. The implementation is exercised only by isolated synthetic admission tests. No SQL, schema/grant, hosted access/write, conversion, scanner, first-party command/browser session, startup/offline shell or service-worker change belongs to this slice. Migration 087 remains the separate legacy Activity recovery release.
 
 ## Trusted boundary and reused core
