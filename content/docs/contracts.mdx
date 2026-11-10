@@ -49,6 +49,10 @@ The app shows “Saved on this device. Sync needs a compatible client.” These 
 
 This protection does not recover missing historical recipient bindings or provide guest-import acceptance or multi-tab durability. Native routes remain staged behind `503`; #363 and #379 are still open gates.
 
+The first-party app's `/app/api/collection` adapter accepts `X-Holo-Legacy-Queue: 2` only after authentication and exact recipient checks. Explicit unsupported values return `503`, `collection_queue_upgrade_required`, and `retainOnDevice: true`. Missing headers stay compatible and untagged while the database legacy-write fence is inactive; after its separate operator activation, the database rejects those untagged writes. Recognized database pauses return the same retention-safe 503. Keep the original change on the device, without treating a pause as a successful upload or a row conflict to merge. Older deployments may report the database pause as a retryable 500.
+
+This app-only protocol identifies a supported server code path, not authentication, durable device storage or an idempotency receipt. It adds no REST/MCP header requirement or public operation. Existing authenticated developer principals keep their current source, credential, permission, recipient and conflict checks. Production queue delivery and fence activation require separate verification.
+
 ## Staged native storage
 
 [Native storage contracts](/docs/native-storage) declare their fixed 503 admission, exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy or expose developer inventory reads. Existing collection and Activity Undo operations remain available under their current contract.

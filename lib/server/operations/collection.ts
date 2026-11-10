@@ -1,3 +1,4 @@
+import { legacyWritePausedResponse } from "@/lib/server/legacy-write-fence"
 import { recipientAccessErrorResponse } from "@/lib/server/collection-recipient"
 import { legacySlotCompatibilityResponse, legacySlotAuthorityResponse } from "@/lib/server/operations/binder-slots"
 import {normalizeStoredDeveloperImage} from '@/lib/developer-api/image-identity'
@@ -156,6 +157,8 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
     }
     const { data, error } = await admin.from("pokemon_collection").upsert(row, { onConflict: "binder_id,pokemon_id" }).select("*").single()
 
+    const paused = legacyWritePausedResponse(error)
+    if (paused) return paused
     if (isBillingError(error)) throw new BillingAccessError("card_limit_reached")
     if (error) {
       const compatibility = legacySlotCompatibilityResponse(error)
@@ -168,6 +171,8 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
     scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, body?.origin === "import" ? "import" : "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
+    const paused = legacyWritePausedResponse(error)
+    if (paused) return paused
     const recipientFailure = (!!verifiedMembership && !requireAtomic) ? recipientAccessErrorResponse(error) : null
     if (recipientFailure) return recipientFailure
     const compatibility = legacySlotCompatibilityResponse(error)
@@ -233,6 +238,8 @@ export async function updateCollectionStatus(request: NextRequest, actor: User, 
       .single()
 
     if (error) {
+      const paused = legacyWritePausedResponse(error)
+      if (paused) return paused
       const compatibility = legacySlotCompatibilityResponse(error)
       if (compatibility) return compatibility
       console.error("[holofolder] API collection status update failed:", error)
@@ -243,6 +250,8 @@ export async function updateCollectionStatus(request: NextRequest, actor: User, 
     scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
+    const paused = legacyWritePausedResponse(error)
+    if (paused) return paused
     const recipientFailure = (!!verifiedOwnerId) ? recipientAccessErrorResponse(error) : null
     if (recipientFailure) return recipientFailure
     const compatibility = legacySlotCompatibilityResponse(error)
@@ -286,6 +295,8 @@ export async function deleteCollectionItem(request: NextRequest, actor: Pick<Use
       ? await admin.rpc("developer_delete_collection", { actor: actor.id, owner_id: ownerUserId, binder: binder.binderId, pokemon: pokemonId, expected: previous?.data ?? null })
       : await scopeCollectionQuery(admin.from("pokemon_collection").delete(), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId)
     const { error } = result
+    const paused = legacyWritePausedResponse(error)
+    if (paused) return paused
     if ("data" in result && result.data?.conflict) {
       const { data: current, error: readError } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId).maybeSingle()
       if (readError) throw readError
@@ -303,6 +314,8 @@ export async function deleteCollectionItem(request: NextRequest, actor: Pick<Use
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    const paused = legacyWritePausedResponse(error)
+    if (paused) return paused
     const recipientFailure = (strictRecipient || (!!verifiedOwnerId && !atomicDelete)) ? recipientAccessErrorResponse(error) : null
     if (recipientFailure) return recipientFailure
     const compatibility = legacySlotCompatibilityResponse(error)
