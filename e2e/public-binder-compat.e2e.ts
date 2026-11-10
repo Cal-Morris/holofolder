@@ -10,6 +10,8 @@ const PATHS = ['/app/share/synthetic-token', '/app/u/synthetic-owner/mixed']
 
 for (const path of PATHS) {
   test(`real share route keeps order, privacy and revocation in the read-only binder: ${path}`, async ({ page, request, standalone, insets }) => {
+    const priceRequests: string[] = []
+    page.on('request', r => { if (/card-prices|pokepulse|tcgplayer|cardmarket/i.test(r.url())) priceRequests.push(r.url()) })
     const phone = await open(page, request, path, standalone, insets, '')
     const response = phone.response
     expect(response.status()).toBe(200)
@@ -25,10 +27,18 @@ for (const path of PATHS) {
     ])
     await expect(page.getByText('Shared binder', { exact: true })).toBeVisible()
     await phone.expectNoHorizontalOverflow()
+    // Prices off: no saved estimate in details and no price reads anywhere.
+    await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click()
+    const unpriced = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })
+    await expect(unpriced).toContainText('Owned copy')
+    await expect(unpriced).not.toContainText('£')
+    await expect(unpriced).not.toContainText('market estimate')
+    await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Next binder page', exact: true }).click()
     await expect(page.getByRole('button', { name: 'snorlax, Unfilled target' })).toBeVisible()
     const calls = await (await request.get(`${backend}/_synthetic/calls`)).json()
     expect(calls.filter((c: { table: string }) => c.table === 'card_prices')).toHaveLength(0)
+    expect(priceRequests).toEqual([])
     await request.get(`${backend}/_synthetic/reset?rows=3&cols=8&light=1&stress=1`)
     await page.reload()
     await expect(page.getByRole('region', { name: 'Scrollable binder page 1' })).toBeVisible({ timeout: 30_000 })
@@ -65,6 +75,12 @@ for (const path of PATHS) {
     await expect(current).toHaveAttribute('data-binder-page', '1')
     // An owned copy with a stored want previews the want dimmed in Mixed, as the private binder does.
     await expect(page.locator('[data-slot-id="public-0"] img')).toHaveClass(/grayscale/)
+    // Prices on: the owner's saved estimate from the share payload, with no live price request.
+    await page.locator('[data-slot-id="public-0"]').tap()
+    const priced = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })
+    await expect(priced).toContainText('Saved market estimate: £12.34')
+    await page.keyboard.press('Escape')
+    await expect(priced).toHaveCount(0)
     // One swipe moves exactly one of three pages; the last page is a hard stop; vertical drags never turn.
     await phone.swipe(-90)
     await expect(current).toHaveAttribute('data-binder-page', '2')

@@ -5,7 +5,11 @@ import { isBinderGridSize } from "@/lib/binder-layout"
 import { getOfficialArtworkUrl, getPokemonSummary } from "@/lib/pokemon-catalog"
 import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 
-export interface DisplayCatalogCard { name: string; image?: string; localId?: string; set?: { name: string }; rarity?: string; illustrator?: string }
+export interface DisplayCatalogCard {
+  name: string; image?: string; localId?: string; set?: { name: string }; rarity?: string; illustrator?: string
+  /** Public shares only: the owner-opted-in saved GBP market estimate already in the share payload. */
+  savedMarketGBP?: number
+}
 /** Ephemeral read model. The item is a reference, never slot-local ownership. */
 export interface BinderDisplaySlot {
   id: string

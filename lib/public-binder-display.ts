@@ -33,7 +33,7 @@ export function publicBinderDisplayInput(binder: PublicBinder): SlotDisplayInput
     if (slot.item) {
       inventoryItemId = `public-item-${index}`
       const identity = slot.card
-        ? { kind: "card" as const, cardId: remember(slot.card.id ?? `public-card-${index}`, slot.card.language, { name: slot.card.name, ...(slot.card.image ? { image: slot.card.image } : {}) }, true), ...(slot.card.language ? { language: slot.card.language } : {}) }
+        ? { kind: "card" as const, cardId: remember(slot.card.id ?? `public-card-${index}`, slot.card.language, { name: slot.card.name, ...(slot.card.image ? { image: slot.card.image } : {}), ...(slot.marketGBP !== undefined ? { savedMarketGBP: slot.marketGBP } : {}) }, true), ...(slot.card.language ? { language: slot.card.language } : {}) }
         : { kind: "pokemon" as const, pokemonId: slot.pokemon?.id ?? (slot.target?.kind === "pokemon" ? slot.target.pokemonId : 0) }
       const grade = slot.item.grading?.grade
       items.push({ id: inventoryItemId, ownerUserId: PUBLIC_DISPLAY_OWNER, identity, version: 1, acquiredAt: null,

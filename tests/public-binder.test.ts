@@ -245,3 +245,21 @@ test('read-only BinderApp input is built from the public projection alone', asyn
     }
   }
 })
+
+test('opted-in saved prices reach read-only owned details, and nothing price-related without opt-in', async () => {
+  const { publicBinderDisplayInput } = await import('../lib/public-binder-display')
+  const { buildSlotDisplay } = await import('../lib/binder-display-model')
+  for (const legacy of [false, true]) for (const prices of [false, true]) {
+    const db = syntheticPublicDatabase({ legacy, prices })
+    if (legacy) db.tables.pokemon_collection.push({ user_id: 'PRIVATE-owner', binder_id: 'binder-allowed', pokemon_id: 143, status: 'collected', card_id: 'synthetic-mon', card_language: 'en' })
+    else db.tables.binder_slots[5].target = { kind: 'card', cardId: 'synthetic-mon' }
+    const input = publicBinderDisplayInput(await loadPublicBinder({ token: 'synthetic-token' }, db.client))
+    const display = buildSlotDisplay(input.binder, input.inventory, input.resolveCard!)
+    const owned = display[legacy ? 142 : 0]
+    assert.equal(owned.card?.savedMarketGBP, prices ? 12.34 : undefined, `${legacy} ${prices}`)
+    // An unfilled target of the same printing has no item, so SlotDetail shows no estimate for it.
+    if (!legacy) assert.equal(display[5].item, null)
+    if (!prices) assert.ok(!JSON.stringify(input).includes('savedMarketGBP'))
+    assert.equal(db.calls.some(c => c.table === 'card_prices'), prices)
+  }
+})
