@@ -1,3 +1,4 @@
+import { parseCollectionCreation, type CollectionCreationCommand } from "@/lib/domain/storage-creation"
 import { normalizeAuditContext, type OperationIntentContext } from "@/lib/domain/audit-context"
 import { parseSlotCommand, type SlotCommandRequest, type SlotPrecondition } from "@/lib/domain/slot-commands"
 import { parseInventoryCommand, type InventoryCommandRequest, type InventoryItemRef, type InventorySlotRef, INVENTORY_INSERT_LIMITS } from "@/lib/domain/inventory-commands"
@@ -6,16 +7,19 @@ import { planInsertSlots, planMoveSlots, planClearSlots, planRemoveSlots, planCh
 import { planAssignInventory, planMoveInventory, planUnassignInventory, planEditInventoryMetadata, previewInventoryMoves } from "@/lib/inventory-plans"
 import { isContractRecord, isSlotRevision, matchesSlotTarget } from "@/lib/domain/binder-slots"
 
-export type SlotOfflineIntent = { kind: "slots"; request: SlotCommandRequest; context: OperationIntentContext }
+export type SlotOfflineIntent = { kind: "creation"; request: CollectionCreationCommand; context: OperationIntentContext }
+  | { kind: "slots"; request: SlotCommandRequest; context: OperationIntentContext }
   | { kind: "inventory"; request: InventoryCommandRequest; context: OperationIntentContext }
 export const sameValue = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 function fail(reason: string): never { throw new Error(reason) }
+export function parseSlotIntent<K extends SlotOfflineIntent["kind"]>(value: { kind: K; request: unknown; context: unknown }): Extract<SlotOfflineIntent, { kind: K }>
+export function parseSlotIntent(value: unknown): SlotOfflineIntent
 export function parseSlotIntent(value: unknown): SlotOfflineIntent {
   if (!isContractRecord(value, ["kind", "request", "context"]) || !isContractRecord(value.context, ["source", "clientId", "operationId", "batchId", "clientOccurredAt"])) return fail("invalid-intent")
   const context = normalizeAuditContext({ ...value.context, actor: { kind: "unknown" }, affectedEntities: { inventoryItemIds: [], slotIds: [], collectionIds: [] } })
   if (!context) return fail("invalid-intent")
   const { actor: _actor, affectedEntities: _entities, ...intentContext } = context
-  const request = value.kind === "slots" ? parseSlotCommand(value.request) : value.kind === "inventory" ? parseInventoryCommand(value.request) : fail("invalid-intent")
+  const request = value.kind === "slots" ? parseSlotCommand(value.request) : value.kind === "inventory" ? parseInventoryCommand(value.request) : value.kind === "creation" ? parseCollectionCreation(value.request) : fail("invalid-intent")
   if (request.operationId !== context.operationId) return fail("operation-id-mismatch")
   return { kind: value.kind, request, context: intentContext } as SlotOfflineIntent
 }
@@ -32,6 +36,8 @@ export function checkSlotRef(snapshot: InventorySnapshot, collectionId: string, 
 export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineIntent, catalog: InventoryCatalogResolver): InventorySnapshot {
   const intent = parseSlotIntent(raw)
   let state = normalizeInventorySnapshot(base) ?? fail("invalid-snapshot")
+  // Pending creation is intent only. Never fabricate a usable collection or owned copies.
+  if (intent.kind === "creation") return state
   const original = structuredClone(state), touched = new Set<string>(), structural = new Set<string>()
   const { request } = intent
   if (request.inventoryRevision !== state.inventoryRevision) return fail("inventory-conflict")

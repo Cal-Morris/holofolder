@@ -14,7 +14,7 @@ const base = (): InventorySnapshot => ({ ownerUserId: owner, inventoryRevision: 
   items: [{ id: 'synthetic-copy', ownerUserId: owner, identity, grading: null, acquiredAt: '2020-01-01T00:00:00Z', version: 3 }], placements: [] })
 const command = (): InsertAssignCommand => ({ kind: 'insertAssign', collectionId, slotId: 'synthetic-new-slot', before: { id: 'first', version: 0, inventoryItemId: null, itemVersion: null, placementVersion: null }, target: null,
   selection: { kind: 'existing', inventoryItemId: 'synthetic-copy', itemVersion: 3 } })
-function intent(s: InventorySnapshot, commands = [command()]): SlotOfflineIntent {
+function intent(s: InventorySnapshot, commands = [command()]): Extract<SlotOfflineIntent, { kind: "inventory" }> {
   return { kind: 'inventory', context: { source: 'app', clientId: 'synthetic-device', operationId: 'synthetic-insert-operation', batchId: null, clientOccurredAt: null },
     request: { operationId: 'synthetic-insert-operation', inventoryRevision: s.inventoryRevision, collections: [{ collectionId, version: 0, layoutRevision: 0 }], commands } }
 }

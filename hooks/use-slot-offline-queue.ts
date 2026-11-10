@@ -5,7 +5,7 @@ import { getOfflineStore } from "@/lib/offline-store/kv"
 import { createSlotOfflineQueue, type SlotOfflineScope, type SlotOfflineRecord, type SlotReplayResult } from "@/lib/collection/slot-offline-queue"
 import type { SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
 import type { SlotLocalAcceptance } from "@/lib/binder-slot-editing"
-import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
+import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
 
 function sessionLifetime() {
   let active = false, epoch = 0
@@ -52,10 +52,10 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string) 
     record: loaded?.session === session ? loaded.record : null,
     error: loaded?.session === session ? loaded.error : null,
     queue: session.queue,
-    async enqueue(intent: SlotOfflineIntent, catalog: InventoryCatalogResolver) {
+    async enqueue(intent: SlotOfflineIntent, catalog: InventoryCatalogResolver, planningBase?: InventorySnapshot, isCurrent: () => boolean = () => true) {
       if (!active() || !session.queue) throw new Error("inactive-or-unavailable-session")
       const token = session.token()
-      await session.queue.enqueue(intent, catalog)
+      await session.queue.enqueue(intent, catalog, planningBase, () => active(token) && isCurrent() ? session.scope : null)
       // Commit is irreversible acceptance even when a later read/notification fails.
       let refreshError: string | null = null
       if (active(token)) {

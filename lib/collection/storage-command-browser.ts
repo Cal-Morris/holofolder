@@ -14,7 +14,7 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
   const scope = { ...current }, parsed = parseSlotIntent(intent)
   const valid = () => !signal.aborted && sameInventoryReadScope(currentScope(), scope)
   try {
-    const path = localHarness ? `/e2e-harness/storage/${parsed.kind}` : parsed.kind === "slots" ? "/api/binder-slots" : "/api/inventory"
+    const path = localHarness ? `/e2e-harness/storage/${parsed.kind}` : parsed.kind === "creation" ? "/api/storage-collections" : parsed.kind === "slots" ? "/api/binder-slots" : "/api/inventory"
     const response = await fetch(appPath(path), { method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error",
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
       headers: { "Content-Type": "application/json", Accept: "application/json", "X-Binder-Owner": scope.ownerUserId,
@@ -23,7 +23,7 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
     const body: unknown = await response.json()
     if (!valid()) return { status: 0 }
     const privateReply = response.headers.get("cache-control")?.split(/\s*,\s*/)
-    if (response.status === 409 && privateReply?.includes("private") && privateReply.includes("no-store")
+    if (parsed.kind !== "creation" && response.status === 409 && privateReply?.includes("private") && privateReply.includes("no-store")
       && response.headers.get("content-type")?.startsWith("application/json")
       && isContractRecord(body, ["version", "operationId", "rejection"]) && Object.keys(body).length === 3
       && body.version === 1 && body.operationId === parsed.request.operationId && isStorageCommandRejection(body.rejection, parsed.request.operationId)) {
@@ -37,11 +37,19 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
     const cache = response.headers.get("cache-control")?.split(/\s*,\s*/)
     if (!cache?.includes("private") || !cache.includes("no-store") || !response.headers.get("content-type")?.startsWith("application/json")
       || !isContractRecord(body, ["version", "operationId", "receipt"]) || body.version !== 1 || body.operationId !== parsed.request.operationId
-      || !validReceipt(body.receipt, parsed.kind)) return { status: 0 }
+      || !validReceipt(body.receipt, parsed)) return { status: 0 }
     return { status: 200, operationId: parsed.request.operationId, inventoryRevision: (body.receipt as { inventoryRevision: number }).inventoryRevision }
   } catch { return { status: 0 } }
 }
-function validReceipt(value: unknown, kind: SlotOfflineIntent["kind"]) {
+function validReceipt(value: unknown, intent: SlotOfflineIntent) {
+  const kind = intent.kind
+  if (kind === "creation") {
+    const fields = ["inventoryRevision", "collectionId", "collectionVersion", "layoutRevision", "changed", "slotIds", "recoverySupported"]
+    return isContractRecord(value, fields) && Object.keys(value).length === fields.length
+      && isSlotRevision(value.inventoryRevision) && isSlotRevision(value.collectionVersion) && isSlotRevision(value.layoutRevision)
+      && value.collectionId === intent.request.collectionId && value.changed === true && value.recoverySupported === false
+      && JSON.stringify(value.slotIds) === JSON.stringify(intent.request.slotIds)
+  }
   const fields = kind === "slots" ? ["inventoryRevision", "changed", "collectionVersion", "layoutRevision", "removedSlotIds"]
     : ["inventoryRevision", "changed", "selectedItemIds", "acquiredItemIds"]
   if (!isContractRecord(value, fields) || Object.keys(value).length !== fields.length || !isSlotRevision(value.inventoryRevision) || typeof value.changed !== "boolean") return false

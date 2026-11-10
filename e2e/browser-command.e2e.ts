@@ -149,7 +149,7 @@ test("offline enqueue stays durable then reconnect sends; billing/permanent erro
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Inventory", exact: true }).click()
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Binder", exact: true }).click()
   await edit(page)
-  expect((await record(page))?.pending[0]?.status).toBe("pending"); expect(ids).toHaveLength(0)
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("pending"); expect(ids).toHaveLength(0)
   await context.setOffline(false)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("billing")
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Inventory", exact: true }).click()

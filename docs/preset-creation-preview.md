@@ -1,6 +1,6 @@
 # Preset creation and current-target progress, staged
 
-Related: #367, #368. Public enablement remains #379. This slice is a reusable UI and pure draft/presentation boundary, not a working persisted creation operation.
+Related: #367, #368. Public enablement remains #379. This document records the original UI draft slice. The subsequent [durable native creation consumer](durable-copied-preset-creation.md) now connects that draft to the atomic queue and trusted bridge, with production admission still denied.
 
 ## What is implemented
 
@@ -16,7 +16,7 @@ The 16-row preview pages are presentation only. Blank has zero persisted entries
 
 `stagedCreation: { ownerUserId, onDraft }` receives `BinderCreationDraft`, parsed by `parseBinderCreationDraft`. Version 1 includes only `operationId`, owner scope, normalized name and a detached recursively frozen copied manifest. The callback is synchronous and signals only draft handoff. The UI explicitly says no binder was saved. Each Prepare action prepares a new intent; it does not retry or send an earlier draft. No mutable store, queue, ACK, audit event or fake success is added.
 
-The [083 backend slice](atomic-storage-creation.md) now provides the internal atomic command/receipt/SQL transaction, still blocked on native creation recovery and #379. The frontend has not been wired or saved. The backend lane must adapt this draft at the canonical authenticated shared operation boundary, not call legacy `create_binder` and then issue slot updates. That sequence could expose a half-created binder. Before enabling:
+The [083 backend slice](atomic-storage-creation.md) now provides the internal atomic command/receipt/SQL transaction, still blocked on native creation recovery and #379. The subsequent native consumer is wired as described above; the original standalone preview harness remains draft-only. The backend lane must adapt this draft at the canonical authenticated shared operation boundary, not call legacy `create_binder` and then issue slot updates. That sequence could expose a half-created binder. Before enabling:
 
 - Agree/parse the real versioned creation command. Validate current owner/partner membership and entitlement/cap admission on the server; never trust draft owner attribution.
 - Atomically create the named collection, slots and detached manifest with stable server-accepted IDs. Blank accepts zero slots. Preserve existing ordering and custom-grid entitlement rules.
