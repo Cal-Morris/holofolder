@@ -132,8 +132,9 @@ test("metadata versions, counts and names changing between streams restart all r
   for (const field of ["version", "layout_revision", "name"]) {
     const f = fixture(2)
     let changed = false
-    f.intercept(table => {
-      if (table !== "inventory_items" || changed) return
+    // The item page read follows the overlapped initial reads, so metadata has already been read once.
+    f.intercept((table, _url, init) => {
+      if (table !== "inventory_items" || init?.method === "HEAD" || changed) return
       changed = true
       if (field === "name") f.tables.binders[0].name = "Synthetic renamed"
       else f.tables.storage_collection_state[0][field] = 19

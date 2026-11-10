@@ -54,14 +54,15 @@ function catalogFixture(count: number) {
   return { ...f, snapshot }
 }
 
-function delayedClient(f: ReturnType<typeof fixture>, delays: (url: URL) => number) {
+function delayedClient(f: ReturnType<typeof fixture>, delays: (url: URL) => number, counted: (url: URL) => boolean = () => true) {
   let active = 0, peak = 0
   const client = createClient("https://synthetic.supabase.test", "synthetic-key", { auth: { persistSession: false }, global: { fetch: async (input, init) => {
-    active++; peak = Math.max(peak, active)
+    const url = new URL(String(input)), counts = counted(url)
+    if (counts) { active++; peak = Math.max(peak, active) }
     try {
-      await new Promise(resolve => setTimeout(resolve, delays(new URL(String(input)))))
+      await new Promise(resolve => setTimeout(resolve, delays(url)))
       return await f.transport(input, init)
-    } finally { active-- }
+    } finally { if (counts) active-- }
   } } })
   return { client, peak: () => peak }
 }
@@ -138,7 +139,8 @@ function binderStreamsFixture(binders = 6, slotsPer = 520) {
 }
 // delayedClient builds a fresh client, so carry over the fixture's synthetic auth.
 function delayedBinders(f: ReturnType<typeof binderStreamsFixture>, delays: (url: URL) => number) {
-  const delayed = delayedClient(f, delays)
+  // Peak counts slot requests only: other streams legitimately overlap the four binder streams.
+  const delayed = delayedClient(f, delays, url => url.pathname.endsWith("/binder_slots"))
   delayed.client.auth.getClaims = f.client.auth.getClaims
   delayed.client.auth.getUser = f.client.auth.getUser
   return delayed
@@ -156,6 +158,27 @@ test("binder slot streams run four at a time and publish the same snapshot in co
   assert.deepEqual(actual.snapshot.binders.map(b => b.collectionId), f.collections)
   assert.equal(f.requests.length - requests, requests)
   assert.equal(delayed.peak(), 4)
+})
+
+test("initial metadata, legacy source and placement reads overlap without changing the state or failure order", async () => {
+  const f = binderStreamsFixture(2, 10)
+  const expected = await readOwnerInventoryState(f.client, { attempts: 1 })
+  const requests = f.requests.length
+  const metadataTable = (url: URL) => ["binders", "storage_collection_state"].includes(url.pathname.split("/").at(-1)!)
+  // Metadata is slowest, so the other two initial reads finish first.
+  const delayed = delayedBinders(f, url => metadataTable(url) ? 15 : 1)
+  const actual = await readOwnerInventoryState(delayed.client, { attempts: 1 })
+  assert.equal(JSON.stringify(actual), JSON.stringify(expected))
+  assert.equal(f.requests.length - requests, requests)
+  const landed = f.requests.slice(requests).map(r => r.table)
+  for (const table of ["binder_legacy_rows", "inventory_placements"]) assert.ok(landed.indexOf(table) < landed.indexOf("binders"), `${table} overlaps metadata`)
+  // Metadata fails last but was first in the serial order, so its error still wins, and nothing is left running.
+  f.tables.storage_collection_state[0].authority = "legacy"
+  f.intercept((table, _url, init) => table === "binder_legacy_rows" && init?.method !== "HEAD" ? Response.json({ message: "Synthetic failure" }, { status: 500 }) : undefined)
+  await assert.rejects(readOwnerInventoryState(delayed.client, { attempts: 1 }), { message: "legacy_inventory_incomplete" })
+  const settled = f.requests.length
+  await new Promise(resolve => setTimeout(resolve, 60))
+  assert.equal(f.requests.length, settled)
 })
 
 test("binder streams fail closed without starting queued streams after a failure", async () => {
