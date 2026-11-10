@@ -59,6 +59,18 @@ export function catalogCardIds(card: CatalogCard): string[] {
   return [...new Set([card.id, ...(metadata.canonicalId ? [metadata.canonicalId] : []), ...(metadata.aliasIds ?? [])])]
 }
 
+/** Catalog entries by every ID they answer to (own, canonical, alias), each list in catalog order.
+ * `lookup.get(id)` holds exactly the entries `matchesCatalogCardId(entry.card, id)` accepts, read once per entry. */
+export function indexCatalogCardIds<E extends { card: CatalogCard }>(catalog: readonly E[]): Map<string, E[]> {
+  const lookup = new Map<string, E[]>()
+  for (const entry of catalog) for (const id of catalogCardIds(entry.card)) {
+    const entries = lookup.get(id)
+    if (entries) entries.push(entry)
+    else lookup.set(id, [entry])
+  }
+  return lookup
+}
+
 export function matchesCatalogCardId(card: CatalogCard, id: string | null | undefined) {
   return typeof id === "string" && catalogCardIds(card).includes(id)
 }

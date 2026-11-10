@@ -55,9 +55,18 @@ export function normalizeNavigationState(value: unknown): CollectionNavigationSt
   return { main: v.main === "collection" || v.main === "dex" ? v.main : "inventory", collectionId: typeof v.collectionId === "string" ? text(v.collectionId) : null,
     collections, inventory: { ...normalizeInventoryViewState(v.inventory), scroll: integer(object(v.inventory).scroll, 10000000) }, dexView: v.dexView === "wanted" || v.dexView === "sets" || v.dexView === "pokemon" || v.dexView === "analytics" ? v.dexView : "list", dexScroll: integer(v.dexScroll, 10000000), requestedSet }
 }
+// The navigation host asks for the index several times per render. One index is kept per read while its
+// evidence, catalog, layouts and both scopes are the same objects and values; it is released with the read.
+type NavigationIndex = ReturnType<typeof buildInventoryBrowseIndex>
+const navigationIndexes = new WeakMap<CollectionNavigationRead, Pick<CollectionNavigationRead, "scope" | "evidence" | "catalog" | "layouts"> & { requested: string; index: NavigationIndex }>()
 export function navigationIndex(scope: CollectionNavigationScope, read: CollectionNavigationRead) {
+  const requested = JSON.stringify(scope), saved = navigationIndexes.get(read)
+  if (saved && saved.requested === requested && saved.scope === read.scope && saved.evidence === read.evidence
+    && saved.catalog === read.catalog && saved.layouts === read.layouts) return saved.index
   const matches = Boolean(scope.sessionId) && read.scope.sessionId === scope.sessionId && read.scope.accountUserId === scope.accountUserId && read.scope.ownerUserId === scope.ownerUserId
-  return buildInventoryBrowseIndex(scope, matches ? read.evidence : { kind: "unavailable" }, read.catalog, read.layouts)
+  const index = buildInventoryBrowseIndex(scope, matches ? read.evidence : { kind: "unavailable" }, read.catalog, read.layouts)
+  navigationIndexes.set(read, { requested, scope: read.scope, evidence: read.evidence, catalog: read.catalog, layouts: read.layouts, index })
+  return index
 }
 /** Explicit links take priority, including old ?binder=&page= links. URL is not authorization. */
 export function resolveNavigation(state: CollectionNavigationState, scope: CollectionNavigationScope, read: CollectionNavigationRead, params?: URLSearchParams, stagedSlabs = false) {
