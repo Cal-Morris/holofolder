@@ -15,6 +15,7 @@ async function main() {
    return Response.json({item:{pokemon_id:1}})
  },updateCollectionStatus:async()=>Response.json({}),deleteCollectionItem:async()=>Response.json({})}))
  mock.module('../../lib/supabase/admin',()=>({createAdminClient:()=>({from(table:string){assert.equal(table,'collection_activity');const q={select(){return q},in(key:string,values:string[]){assert.equal(key,'operation_id');assert.deepEqual(values,ids.slice(-2));assert.notEqual(values[0],values[1]);return q},eq(){return q},order(){return q},limit(){return q},maybeSingle:async()=>{if(failed)throw new Error('Unavailable');return {data:{id:'123'}}}};return q}})}))
+ mock.module('../../lib/server/collection-recipient',()=>({checkFirstPartyCollectionRecipient:async()=>({membership:{ownerUserId:'synthetic-owner',memberIds:['synthetic-actor']},binderId:'synthetic-binder'})}))
  const {POST}=await import('../../app/api/collection/route')
  let response=await POST(new NextRequest('https://synthetic.test/app/api/collection',{method:'POST',body:'{}'}))
  assert.equal(response.status,200);assert.equal(response.headers.get('X-Activity-Event'),'123')

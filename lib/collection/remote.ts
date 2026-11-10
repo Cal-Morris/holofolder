@@ -1,7 +1,8 @@
+import type { CollectionOrigin } from "@/lib/collection/recipient"
 // Remote collection writes through /app/api/collection, plus error helpers.
 import type { AcquisitionIntent } from "@/lib/partner-push"
 import { COLLECTION_FINGERPRINT_VERSION } from "@/lib/collection/sync"
-import type { CollectedPokemon } from "@/lib/domain/cards"
+import { isSlotStatus, type CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItem } from "@/lib/collection/normalize"
 
 export function extractErrorMessage(error: unknown) {
@@ -64,6 +65,8 @@ export class CollectionWriteError extends Error {
 }
 
 export interface RemoteWriteOptions {
+  recipient?: CollectionOrigin
+  operationId?: string
   onCommittedEvent?: (eventId:string)=>void
   importOnly?: true
   acquisition?: AcquisitionIntent
@@ -109,6 +112,8 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
     },
     body: JSON.stringify({
       ...getCollectionRequestBody(item, options.binderId ?? null),
+      recipient: options.recipient,
+      operationId: options.operationId,
       ...(options.importOnly ? { origin: "import" } : {}),
       fingerprintVersion: COLLECTION_FINGERPRINT_VERSION,
       ...(options.acquisition ? { acquisition: options.acquisition } : {}),
@@ -121,13 +126,22 @@ export async function saveRemoteCollectionItem(item: CollectedPokemon, options: 
   }
 
   const payload = await readJsonResponse(response)
+  const saved = payload?.item
+  if (!saved || typeof saved !== "object" || typeof saved.id !== "string" || saved.pokemon_id !== item.pokemon_id
+    || typeof saved.pokemon_name !== "string" || !isSlotStatus(saved.status) || !Array.isArray(saved.wanted_cards) || typeof saved.collected_at !== "string")
+    throw new CollectionWriteError("The save reply was unreadable. Keep the original request on this device.", null)
   const eventId=response.headers.get('X-Activity-Event')
   if(eventId)options.onCommittedEvent?.(eventId)
-  return normalizeCollectionItem(payload?.item ?? item)
+  return normalizeCollectionItem(saved)
 }
 
 export async function deleteRemoteCollectionItem(pokemonId: number, options: RemoteWriteOptions = {}) {
   const params = new URLSearchParams({ pokemonId: String(pokemonId), fingerprintVersion: String(COLLECTION_FINGERPRINT_VERSION) })
+  if (options.recipient?.kind === "account") {
+    params.set("actorUserId", options.recipient.actorUserId)
+    params.set("ownerUserId", options.recipient.ownerUserId)
+  }
+  if (options.operationId) params.set("operationId", options.operationId)
   if (options.binderId) params.set("binderId", options.binderId)
   if (options.baseFingerprint !== undefined) params.set("baseFingerprint", options.baseFingerprint)
   const response = await sendCollectionWrite(`/app/api/collection?${params.toString()}`, {
@@ -137,6 +151,8 @@ export async function deleteRemoteCollectionItem(pokemonId: number, options: Rem
   if (!response.ok) {
     throw await toWriteError(response, "Failed to delete collection item")
   }
+  const payload = await readJsonResponse(response)
+  if (payload?.success !== true) throw new CollectionWriteError("The delete reply was unreadable. Keep the original request on this device.", null)
   const eventId=response.headers.get('X-Activity-Event')
   if(eventId)options.onCommittedEvent?.(eventId)
 }

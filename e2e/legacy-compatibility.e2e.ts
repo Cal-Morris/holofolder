@@ -2,11 +2,13 @@ import { test, expect, SEEDED_COLLECTION } from "./fixtures"
 
 const key = "pokemon_collection_pending_ops_v1"
 const code = "binder_converted_requires_slot_commands"
+const binder = "e2e00000-0000-4000-8000-000000000001"
+const origin = { kind: "account", actorUserId: "00000000-0000-4000-8000-0000000000e2", ownerUserId: "00000000-0000-4000-8000-0000000000e2", binderId: binder }
 
 for (const type of ["delete", "upsert", "import"] as const) for (const withBase of [false, true]) {
   test.describe(`${type} base=${withBase}`, () => {
     test.use({ signedIn: true })
-    test("retains incompatible legacy intent through reload without retrying or claiming success", async ({ harness }) => {
+    test("retains unbound historical intent through reload without sending or normalizing it", async ({ harness }) => {
       const { page } = harness
       let requests = 0
       await page.route("**/app/api/collection**", route => {
@@ -28,30 +30,18 @@ for (const type of ["delete", "upsert", "import"] as const) for (const withBase 
         }
       }, { key, value: `[${rawRecord}]` })
       await page.reload()
-      const chip = page.locator('[data-sync-status="compatibility"]')
-      await expect(chip).toHaveText("Saved on this device. Sync needs a compatible client.")
-      const saved = await page.evaluate(key => localStorage.getItem(key)!, key)
-      const [paused] = JSON.parse(saved)
-      const { compatibilityPause, ...retained } = paused
-      expect(retained).toEqual(record)
-      expect(compatibilityPause).toEqual({ code, rawRecord })
-      expect(requests).toBe(1)
-      await harness.expectWithinSafeViewport(chip)
+      const banner = page.getByRole("region", { name: "Device changes" })
+      await expect(banner).toBeVisible()
+      expect(requests).toBe(0)
       await harness.expectNoHorizontalOverflow()
       await page.reload()
-      await expect(chip).toBeVisible()
-      // Online/visibility/billing triggers must not resume incompatible replay.
+      await expect(banner).toBeVisible()
       await page.evaluate(() => {
         window.dispatchEvent(new Event("online"))
-        window.dispatchEvent(new Event("holofolder-billing-changed"))
         document.dispatchEvent(new Event("visibilitychange"))
       })
-      await expect.poll(() => page.evaluate(key => localStorage.getItem(key), key)).toBe(saved)
-      // Past the ordinary first retry window, with no retry timer and no extra request.
-      await page.waitForTimeout(3_000)
-      expect(requests).toBe(1)
-      await expect(chip).toHaveText("Saved on this device. Sync needs a compatible client.")
-      expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(saved)
+      expect(requests).toBe(0)
+      expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(`[${rawRecord}]`)
     })
   })
 }
@@ -65,6 +55,7 @@ test.describe("direct legacy write", () => {
       requests++
       return route.fulfill({ status: 409, json: { error: "Needs compatible client", code } })
     })
+    await page.goto("/app/e2e-harness?signedIn=1&binders=1")
     await page.locator('button[data-dex-id="4"]').first().click()
     const detail = page.getByRole("dialog", { name: /details$/i })
     await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
@@ -93,15 +84,17 @@ test.describe("pending legacy response", () => {
       await held
       await route.fulfill({ status: 409, json: { error: "Needs compatible client", code } })
     })
-    const original = { id: "original", type: "delete", pokemonId: 1, base: SEEDED_COLLECTION[0], binderId: null, queuedAt: "original-time" }
+    const { user_id: _userId, ...base } = SEEDED_COLLECTION[0]
+    const original = { id: "original", type: "delete", pokemonId: 1, base, binderId: binder, origin, intentProtocol: 1, queuedAt: "original-time" }
     const rawRecord = JSON.stringify(original, null, 2)
     await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key, value: `[${rawRecord}]` })
-    await page.reload()
+    await page.goto("/app/e2e-harness?signedIn=1&binders=1")
     await expect.poll(() => requests).toBe(1)
     const newer = { ...original, id: "newer", queuedAt: "later-time", base: null }
     await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key, value: JSON.stringify([newer]) })
     release()
     await expect(page.locator('[data-sync-status="compatibility"]')).toBeVisible()
+    await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).filter((op: { compatibilityPause?: unknown }) => op.compatibilityPause).length, key)).toBe(2)
     const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), key)
     expect(saved).toHaveLength(2)
     for (const [index, record] of [original, newer].entries()) {

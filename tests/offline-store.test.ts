@@ -124,8 +124,9 @@ test("pending edits from IndexedDB are restored only when localStorage lost them
     },
   }
   try {
-    assert.equal(restorePendingCollectionOperations([upsertPikachu]), 1)
-    assert.equal(readPendingCollectionOperations()[0]?.id, "op-1")
+    assert.equal(restorePendingCollectionOperations([upsertPikachu]), 0)
+    assert.deepEqual(readPendingCollectionOperations(), [])
+    assert.equal(values.get(LOCAL_COLLECTION_PENDING_OPS_KEY), JSON.stringify([upsertPikachu]), "historical source is retained without inferring a recipient")
 
     // "[]" means everything synced; don't resurrect old edits.
     values.set(LOCAL_COLLECTION_PENDING_OPS_KEY, "[]")

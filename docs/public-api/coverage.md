@@ -279,3 +279,16 @@ location already exist in the shared command schema. Device review and default
 presentation mapping add no operation, permission or generated OpenAPI change.
 Current native admission remains denied; first/default/mixed legacy and #390
 Slab exposure gates remain. See [the consumer boundary](../custom-storage-creation.md).
+
+
+## Legacy first-party device review
+
+`/app/api/collection` now requires immutable actor/owner/concrete-binder assertions
+for first-party POST/PATCH/DELETE. Missing older-client binding returns structured
+retention-safe 503, never a generic row conflict or permanent 4xx. Developer
+REST/MCP verified server context and atomic modes remain unchanged. The app-only
+`GET /app/api/collection/review-destination` reads a fresh explicit destination for
+device review; it does not accept or upload browser source data. Local acceptance
+uses the existing queue authority/uploader. See [recipient containment](../legacy-recipient-containment.md)
+and [device changes help](/app/docs/device-changes). Public native admission,
+bootstrap and conversion remain staged at 503. No SQL is included.

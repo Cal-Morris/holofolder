@@ -7,6 +7,8 @@ type AnySupabaseClient = SupabaseClient<any, any, any>
 interface ResolveCollectionOwnerOptions {
   /** When the partnership lookup fails, use the user's own id instead of throwing. */
   fallbackOnError?: boolean
+  /** First-party recipient checks require a working current entitlement authority. */
+  strictBilling?: boolean
 }
 
 /**
@@ -37,7 +39,7 @@ export async function resolveCollectionMembership(client: AnySupabaseClient, use
 
   if (partnership?.owner_user_id && typeof client.rpc === "function") {
     const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: partnership.owner_user_id, actor_id: userId })
-    if (accessError && !["PGRST202", "42883"].includes(accessError.code)) throw accessError
+    if (accessError && (options.strictBilling || !["PGRST202", "42883"].includes(accessError.code))) throw accessError
     if (!accessError && !allowed) return { ownerUserId: userId, memberIds: [userId], partnershipId: null }
   }
 

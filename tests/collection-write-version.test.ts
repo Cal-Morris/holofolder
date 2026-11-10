@@ -10,7 +10,7 @@ test('current queued saves and deletes identify the assignee-aware fingerprint p
   const original = globalThis.fetch
   globalThis.fetch = (async (input, init) => {
     calls.push({ url: String(input), init })
-    return init?.method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json({ item })
+    return init?.method === 'DELETE' ? Response.json({ success: true }) : Response.json({ item })
   }) as typeof fetch
   try {
     const baseFingerprint = collectionFingerprint(item)

@@ -1,3 +1,4 @@
+import { recipientAccessErrorResponse } from "@/lib/server/collection-recipient"
 import { legacySlotCompatibilityResponse, legacySlotAuthorityResponse } from "@/lib/server/operations/binder-slots"
 import {normalizeStoredDeveloperImage} from '@/lib/developer-api/image-identity'
 import {getR2Config,getR2BucketEndpoint} from '@/lib/card-image-r2'
@@ -19,10 +20,11 @@ import { matchesCollectionFingerprint } from "@/lib/collection/sync"
 import { scopeCollectionQuery } from "@/lib/collection/load"
 import { BinderAccessError, resolveWriteBinderId } from "@/lib/server/binders"
 
-async function checkLegacyBinderAuthority(admin: ReturnType<typeof createAdminClient>, ownerUserId: string, binderId: string | null) {
+async function checkLegacyBinderAuthority(admin: ReturnType<typeof createAdminClient>, ownerUserId: string, binderId: string | null, strict = false) {
   if (!binderId) return null
   const { data, error } = await admin.from("storage_collection_state").select("authority,conversion_version")
     .eq("collection_id", binderId).eq("owner_user_id", ownerUserId).maybeSingle()
+  if (strict && error) return NextResponse.json({ error: "The original binder authority is unavailable. Keep this change on this device.", code: "collection_recipient_inaccessible", retainOnDevice: true }, { status: 503 })
   return legacySlotAuthorityResponse(data, error)
 }
 
@@ -58,8 +60,13 @@ async function checkBaseFingerprint(
 }
 
 /** The binder this request writes to (the owner's default when none is named); a 404 response for someone else's. */
-async function resolveBinder(admin: ReturnType<typeof createAdminClient>, ownerUserId: string, requested: unknown) {
+async function resolveBinder(admin: ReturnType<typeof createAdminClient>, ownerUserId: string, requested: unknown, strict = false) {
   try {
+    if (strict) {
+      const { data, error } = await admin.from("binders").select("id").eq("id", requested).eq("owner_user_id", ownerUserId).maybeSingle()
+      if (!requested || error || !data) return { response: NextResponse.json({ error: "The original binder is unavailable. Keep this change on this device.", code: "collection_recipient_inaccessible", retainOnDevice: true }, { status: 503 }) }
+      return { binderId: String(requested) }
+    }
     return { binderId: await resolveWriteBinderId(admin, ownerUserId, requested) }
   } catch (error) {
     if (error instanceof BinderAccessError) {
@@ -93,10 +100,10 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
     const admin = createAdminClient()
     await assertCollectionWriteAccess(admin, user.id, body?.binderId)
     const { ownerUserId, memberIds } = verifiedMembership ?? await resolveCollectionMembership(admin, user.id)
-    const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
+    const binder = await resolveBinder(admin, ownerUserId, body?.binderId, !!verifiedMembership && !requireAtomic)
     if (binder.response) return binder.response
     const { binderId } = binder
-    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binderId)
+    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binderId, !!verifiedMembership && !requireAtomic)
     if (authority) return authority
     const { data: previousRow, error: previousError } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId)
       .eq("pokemon_id", pokemonId).maybeSingle()
@@ -136,7 +143,7 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
       actorName: notificationFirstName(user.user_metadata),
       pokemonId, row, expected: previousRow ?? null, acquisition,
     })
-    if (requireAtomic && !atomic) return NextResponse.json({ error: "Atomic collection writes are temporarily unavailable" }, { status: 503 })
+    if ((requireAtomic || verifiedMembership) && !atomic) return NextResponse.json({ error: "Atomic collection writes are temporarily unavailable" }, { status: 503 })
     if (atomic?.conflict) {
       const { data: current } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binderId).eq("pokemon_id", pokemonId).maybeSingle()
       return NextResponse.json({ error: "Collection item changed on the server", item: current ? normalizeCollectionItem(current) : null }, { status: 409 })
@@ -161,6 +168,8 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
     scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, body?.origin === "import" ? "import" : "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
+    const recipientFailure = (!!verifiedMembership && !requireAtomic) ? recipientAccessErrorResponse(error) : null
+    if (recipientFailure) return recipientFailure
     const compatibility = legacySlotCompatibilityResponse(error)
     if (compatibility) return compatibility
     if (isBillingError(error)) return billingErrorResponse(error)
@@ -172,7 +181,7 @@ export async function saveCollectionItem(request: NextRequest, actor: User, requ
   }
 }
 
-export async function updateCollectionStatus(request: NextRequest, actor: User) {
+export async function updateCollectionStatus(request: NextRequest, actor: User, verifiedOwnerId?: string) {
   try {
     const user = actor
     if (!user) {
@@ -193,11 +202,31 @@ export async function updateCollectionStatus(request: NextRequest, actor: User) 
 
     const admin = createAdminClient()
     await assertCollectionWriteAccess(admin, user.id, body?.binderId)
-    const ownerUserId = await resolveOwnerUserId(user.id)
-    const binder = await resolveBinder(admin, ownerUserId, body?.binderId)
+    const ownerUserId = verifiedOwnerId ?? await resolveOwnerUserId(user.id)
+    const binder = await resolveBinder(admin, ownerUserId, body?.binderId, !!verifiedOwnerId)
     if (binder.response) return binder.response
-    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binder.binderId)
+    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binder.binderId, !!verifiedOwnerId)
     if (authority) return authority
+    if (verifiedOwnerId) {
+      if (typeof body?.baseFingerprint !== "string" || !body.baseFingerprint.length)
+        return NextResponse.json({ error: "The original status change needs its reviewed base. Keep it on this device.", code: "collection_precondition_required", retainOnDevice: true }, { status: 503 })
+      const previous = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId).maybeSingle()
+      if (previous.error) throw previous.error
+      const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, body.baseFingerprint, previous.data ? normalizeCollectionItem(previous.data) : null, body.fingerprintVersion === undefined)
+      if (conflict) return conflict
+      if (!previous.data) return NextResponse.json({ error: "Collection item not found" }, { status: 404 })
+      const atomic = await saveCollectionWithAcquisition({ ownerId: ownerUserId, binderId: binder.binderId, actorId: user.id,
+        actorName: notificationFirstName(user.user_metadata), pokemonId, row: { ...previous.data, status }, expected: previous.data, acquisition: undefined })
+      if (!atomic) return NextResponse.json({ error: "Atomic collection writes are temporarily unavailable", retainOnDevice: true }, { status: 503 })
+      if (atomic.conflict) {
+        const current = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId).maybeSingle()
+        if (current.error) throw current.error
+        return NextResponse.json({ error: "Collection item changed on the server", item: current.data ? normalizeCollectionItem(current.data) : null }, { status: 409 })
+      }
+      const at = new Date().toISOString()
+      scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, "manual", at))
+      return NextResponse.json({ item: atomic.item })
+    }
     const { data, error } = await scopeCollectionQuery(admin.from("pokemon_collection").update({ status }), ownerUserId, binder.binderId)
       .eq("pokemon_id", pokemonId)
       .select("*")
@@ -214,6 +243,8 @@ export async function updateCollectionStatus(request: NextRequest, actor: User) 
     scheduleCollectorTracking(() => recordCollectorSave(user.id, ownerUserId, "manual", at))
     return NextResponse.json({ item: data })
   } catch (error) {
+    const recipientFailure = (!!verifiedOwnerId) ? recipientAccessErrorResponse(error) : null
+    if (recipientFailure) return recipientFailure
     const compatibility = legacySlotCompatibilityResponse(error)
     if (compatibility) return compatibility
     if (isBillingError(error)) return billingErrorResponse(error)
@@ -225,7 +256,7 @@ export async function updateCollectionStatus(request: NextRequest, actor: User) 
   }
 }
 
-export async function deleteCollectionItem(request: NextRequest, actor: Pick<User, "id">, atomicDelete = false, verifiedOwnerId?:string) {
+export async function deleteCollectionItem(request: NextRequest, actor: Pick<User, "id">, atomicDelete = false, verifiedOwnerId?:string, strictRecipient = false) {
   try {
     const user = actor
     if (!user) {
@@ -240,9 +271,9 @@ export async function deleteCollectionItem(request: NextRequest, actor: Pick<Use
     const admin = createAdminClient()
     await assertCollectionWriteAccess(admin, user.id, request.nextUrl.searchParams.get("binderId"))
     const ownerUserId = verifiedOwnerId ?? await resolveOwnerUserId(user.id)
-    const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"))
+    const binder = await resolveBinder(admin, ownerUserId, request.nextUrl.searchParams.get("binderId"), strictRecipient || (!!verifiedOwnerId && !atomicDelete))
     if (binder.response) return binder.response
-    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binder.binderId)
+    const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binder.binderId, strictRecipient || (!!verifiedOwnerId && !atomicDelete))
     if (authority) return authority
     const previous = atomicDelete
       ? await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId).maybeSingle()
@@ -255,9 +286,15 @@ export async function deleteCollectionItem(request: NextRequest, actor: Pick<Use
       ? await admin.rpc("developer_delete_collection", { actor: actor.id, owner_id: ownerUserId, binder: binder.binderId, pokemon: pokemonId, expected: previous?.data ?? null })
       : await scopeCollectionQuery(admin.from("pokemon_collection").delete(), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId)
     const { error } = result
-    if ("data" in result && result.data?.conflict) return NextResponse.json({ error: "Collection item changed on the server" }, { status: 409 })
+    if ("data" in result && result.data?.conflict) {
+      const { data: current, error: readError } = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId).maybeSingle()
+      if (readError) throw readError
+      return NextResponse.json({ error: "Collection item changed on the server", item: current ? normalizeCollectionItem(current) : null }, { status: 409 })
+    }
 
     if (error) {
+      const recipientFailure = strictRecipient ? recipientAccessErrorResponse(error) : null
+      if (recipientFailure) return recipientFailure
       const compatibility = legacySlotCompatibilityResponse(error)
       if (compatibility) return compatibility
       console.error("[holofolder] API collection delete failed:", error)
@@ -266,6 +303,8 @@ export async function deleteCollectionItem(request: NextRequest, actor: Pick<Use
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    const recipientFailure = (strictRecipient || (!!verifiedOwnerId && !atomicDelete)) ? recipientAccessErrorResponse(error) : null
+    if (recipientFailure) return recipientFailure
     const compatibility = legacySlotCompatibilityResponse(error)
     if (compatibility) return compatibility
     if (isBillingError(error)) return billingErrorResponse(error)

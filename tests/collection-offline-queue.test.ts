@@ -4,13 +4,17 @@ import {
   LOCAL_COLLECTION_PENDING_OPS_KEY,
   LOCAL_COLLECTION_SNAPSHOT_KEY,
   persistLocalCollectionState,
-  queuePendingCollectionOperation,
+  queuePendingCollectionOperation as queueOperation,
+  readLegacyQueueSources,
   readLocalCollectionSnapshot,
   readPendingCollectionOperations,
   removePendingCollectionOperation,
   writeLocalCollectionSnapshot,
 } from "../lib/collection/offline-queue"
 import type { CollectedPokemon } from "../lib/domain/cards"
+
+const origin = { kind: "account" as const, actorUserId: "actor", ownerUserId: "owner", binderId: "binder" }
+const queuePendingCollectionOperation = (input: Parameters<typeof queueOperation>[0]) => queueOperation({ ...input, origin: { ...origin, binderId: input.binderId ?? origin.binderId } })
 
 class MemoryStorage {
   values = new Map<string, string>()
@@ -95,11 +99,11 @@ test("corrupt or malformed snapshots are ignored", () => {
   })
 })
 
-test("quota failures on write are swallowed", () => {
+test("snapshot quota failures are mirrored, queue authority failures stop delivery", () => {
   withStorage((storage) => {
     storage.failWrites = true
     assert.doesNotThrow(() => writeLocalCollectionSnapshot({ ownerUserId: null, savedAt: "x", collection: [] }))
-    assert.doesNotThrow(() => queuePendingCollectionOperation({ type: "delete", pokemonId: 1 }))
+    assert.throws(() => queuePendingCollectionOperation({ type: "delete", pokemonId: 1 }))
   })
 })
 
@@ -131,7 +135,7 @@ test("removing an operation by id leaves the others", () => {
   })
 })
 
-test("invalid stored operations are dropped and upsert items are normalized", () => {
+test("unbound and malformed operations remain exact source evidence, never normalized into replay", () => {
   withStorage((storage) => {
     storage.setItem(LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify([
       null,
@@ -144,16 +148,9 @@ test("invalid stored operations are dropped and upsert items are normalized", ()
       { id: "f", type: "upsert", pokemonId: 7, item: { pokemon_id: 7, pokemon_name: "Squirtle", status: "bogus", card_finish: "gold" } },
     ]))
 
-    const operations = readPendingCollectionOperations()
-    assert.deepEqual(operations.map((operation) => operation.id), ["e", "f"])
-    const upsert = operations[1]
-    assert.equal(upsert.type, "upsert")
-    if (upsert.type === "upsert") {
-      assert.equal(upsert.item.status, "collected")
-      assert.equal(upsert.item.card_finish, "normal")
-      assert.equal(upsert.item.card_language, "en")
-    }
-    assert.ok(typeof operations[0].queuedAt === "string")
+    assert.deepEqual(readPendingCollectionOperations(), [])
+    const original = storage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
+    assert.equal(readLegacyQueueSources()[0].legacyQueueSource.raw, original)
 
     storage.setItem(LOCAL_COLLECTION_PENDING_OPS_KEY, "garbage")
     assert.deepEqual(readPendingCollectionOperations(), [])
@@ -179,7 +176,7 @@ test("queued edits are per binder slot and keep their binder", () => {
     queuePendingCollectionOperation({ type: "delete", pokemonId: 25, base: pikachu })
     const operations = readPendingCollectionOperations()
     assert.equal(operations.length, 3)
-    assert.deepEqual(operations.map((operation) => operation.binderId ?? null), ["binder-a", "binder-b", null])
+    assert.deepEqual(operations.map((operation) => operation.binderId ?? null), ["binder-a", "binder-b", "binder"])
     // A newer edit of the same binder slot replaces the older one.
     queuePendingCollectionOperation({ type: "delete", pokemonId: 25, base: pikachu, binderId: "binder-a" })
     const next = readPendingCollectionOperations()

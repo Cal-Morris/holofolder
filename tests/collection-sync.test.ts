@@ -139,19 +139,19 @@ test("the queue keeps one edit per Pokémon with the base of the first unsynced 
   globals.window = { localStorage: { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => void values.set(key, value) } }
   try {
     const original = row()
-    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: row({ status: "finalized" }), base: original })
-    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: row({ status: "considering" }), base: row({ status: "finalized" }) })
+    queuePendingCollectionOperation({ origin: { kind: "account", actorUserId: "actor", ownerUserId: "owner", binderId: "binder" }, type: "upsert", pokemonId: 25, item: row({ status: "finalized" }), base: original })
+    queuePendingCollectionOperation({ origin: { kind: "account", actorUserId: "actor", ownerUserId: "owner", binderId: "binder" }, type: "upsert", pokemonId: 25, item: row({ status: "considering" }), base: row({ status: "finalized" }) })
     let operations = readPendingCollectionOperations()
     assert.equal(operations.length, 1)
     assert.equal(operations[0].type === "upsert" && operations[0].item.status, "considering")
     assert.equal(operations[0].base?.status, "collected")
 
-    queuePendingCollectionOperation({ type: "delete", pokemonId: 25, base: row({ status: "considering" }) })
+    queuePendingCollectionOperation({ origin: { kind: "account", actorUserId: "actor", ownerUserId: "owner", binderId: "binder" }, type: "delete", pokemonId: 25, base: row({ status: "considering" }) })
     operations = readPendingCollectionOperations()
     assert.equal(operations[0].type, "delete")
     assert.equal(operations[0].base?.status, "collected")
 
-    rebasePendingCollectionOperation(25, null)
+    rebasePendingCollectionOperation(25, null, "binder", { kind: "account", actorUserId: "actor", ownerUserId: "owner", binderId: "binder" })
     assert.equal(readPendingCollectionOperations()[0].base, null)
   } finally {
     delete globals.window

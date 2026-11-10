@@ -1,9 +1,12 @@
-import { mergeQueuedAcquisition, normalizeAcquisition, type AcquisitionIntent } from "@/lib/partner-push"
+import { legacyReviewEntries } from "@/lib/collection/legacy-review"
+import { parseCollectionOrigin, sameCollectionOrigin, type CollectionOrigin } from "@/lib/collection/recipient"
+import { decodeQueueArray, isLegacyQueueSource, sourceDigest, type LegacyQueueSource } from "@/lib/collection/legacy-source"
+import { mergeQueuedAcquisition, type AcquisitionIntent } from "@/lib/partner-push"
 // Local-first persistence: the collection snapshot and the queue of pending remote writes,
 // both stored in localStorage so edits survive reloads and offline periods.
 import { writeLocalCollectedIds } from "@/lib/local-collection"
-import type { CollectedPokemon } from "@/lib/domain/cards"
-import { normalizeCollectionItem, normalizeCollectionItems } from "@/lib/collection/normalize"
+import { isSlotStatus, type CollectedPokemon } from "@/lib/domain/cards"
+import { normalizeCollectionItems } from "@/lib/collection/normalize"
 import { mirrorCollectionSnapshot, mirrorPendingOperations } from "@/lib/offline-store/collection-mirror"
 import { capBinderSnapshots, setItemMakingRoom } from "@/lib/storage/make-room"
 import { collectionSnapshotKey, hasOwnOfflineKeys, LEGACY_COLLECTION_SNAPSHOT_KEY, markBinderSavedOnDevice } from "@/lib/binders/offline"
@@ -17,8 +20,16 @@ export interface LocalCollectionSnapshot {
 }
 
 // `base` is the server row the edit was made against (null: no row). It is what conflict detection compares
-// with (see lib/collection/sync.ts). Edits queued before this field existed have no `base` and are written as-is.
-export type PendingCollectionOperation =
+// with (see lib/collection/sync.ts). Historical edits without a base remain review evidence.
+export type PendingCollectionOperation = {
+  intentProtocol?: 1
+  amendments?: string[]
+  origin?: CollectionOrigin
+  original?: { raw: string }
+  recipientPause?: string
+  deliveryUnknown?: boolean
+  recoverySource?: { digest: string; ordinal: number; reviewEpoch?: string }
+} & (
   | {
       id: string
       type: "upsert"
@@ -43,7 +54,12 @@ export type PendingCollectionOperation =
       binderId?: string | null
     }
 
-export type PendingCollectionOperationInput =
+)
+
+export type PendingCollectionOperationInput = {
+  origin?: CollectionOrigin
+  recoverySource?: { digest: string; ordinal: number; reviewEpoch?: string }
+} & (
   | {
       type: "upsert"
       acquisition?: AcquisitionIntent
@@ -60,26 +76,16 @@ export type PendingCollectionOperationInput =
       binderId?: string | null
     }
 
-/** The binder a queued edit targets; null (edits queued before binders) means the owner's default binder. */
+)
+
+/** Concrete delivery binder; null is unbound evidence and never resolves to a later default. */
 export function pendingOperationBinderId(operation: { binderId?: string | null }) {
   return typeof operation.binderId === "string" && operation.binderId ? operation.binderId : null
 }
 
-function sameSlot(operation: { pokemonId: number; binderId?: string | null }, pokemonId: number, binderId: string | null) {
+function sameSlot(operation: { pokemonId: number; binderId?: string | null; origin?: CollectionOrigin }, pokemonId: number, binderId: string | null, origin?: CollectionOrigin | null) {
   return operation.pokemonId === pokemonId && pendingOperationBinderId(operation) === binderId
-}
-
-function parseBinderId(operation: object): { binderId?: string } {
-  const binderId = pendingOperationBinderId(operation as { binderId?: string | null })
-  return binderId ? { binderId } : {}
-}
-
-function parseBase(operation: object): { base?: CollectedPokemon | null } {
-  if (!("base" in operation)) return {}
-  const base = (operation as { base?: unknown }).base
-  if (base === null) return { base: null }
-  if (base && typeof base === "object") return { base: normalizeCollectionItem(base as Partial<CollectedPokemon>) }
-  return {}
+    && sameCollectionOrigin(operation.origin, origin)
 }
 
 /** The default binder's snapshot (and the only one before binders). Other binders use `…:<binderId>`. */
@@ -139,6 +145,29 @@ export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot, 
   markBinderSavedOnDevice(window.localStorage, snapshot.ownerUserId, binderId)
 }
 
+const operationKeys = ["intentProtocol", "amendments", "origin", "original", "recipientPause", "deliveryUnknown", "recoverySource", "id", "type", "acquisition", "importOnly", "pokemonId", "item", "billingPause", "queuedAt", "base", "binderId", "compatibilityPause"]
+const rowKeys = ["id", "pokemon_id", "pokemon_name", "card_id", "card_name", "card_image", "card_set", "card_language", "card_finish", "wanted_cards", "status", "collected_at"]
+const wantedKeys = ["card_id", "card_name", "card_image", "card_set", "card_language", "card_finish", "rarity", "local_id", "set_total", "illustrator", "added_at", "wanted_by"]
+function boundRow(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false
+  const row = value as Record<string, unknown>
+  return Object.keys(row).every(key => rowKeys.includes(key)) && Number.isInteger(row.pokemon_id) && typeof row.pokemon_name === "string"
+    && isSlotStatus(row.status) && Array.isArray(row.wanted_cards) && row.wanted_cards.every(card => card && typeof card === "object"
+      && Object.keys(card).every(key => wantedKeys.includes(key)) && typeof card.card_id === "string" && typeof card.card_name === "string")
+}
+function boundOperation(value: unknown, entries: unknown[]) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false
+  const op = value as PendingCollectionOperation
+  const origin = parseCollectionOrigin(op.origin)
+  return op.intentProtocol === 1 && !!origin && Object.keys(op).every(key => operationKeys.includes(key))
+    && Object.keys(op.origin!).every(key => (origin.kind === "account" ? ["kind", "actorUserId", "ownerUserId", "binderId"] : ["kind", "workspaceId", "localBinderId"]).includes(key))
+    && (origin.kind !== "account" || op.binderId === origin.binderId)
+    && typeof op.id === "string" && !!op.id && entries.filter(entry => entry && typeof entry === "object" && "id" in entry && entry.id === op.id).length === 1
+    && typeof op.queuedAt === "string" && Number.isInteger(op.pokemonId) && op.pokemonId > 0
+    && (!("base" in op) || op.base === null || boundRow(op.base))
+    && (op.type === "delete" || (op.type === "upsert" && boundRow(op.item) && op.item.pokemon_id === op.pokemonId))
+}
+
 export function readPendingCollectionOperations(): PendingCollectionOperation[] {
   if (typeof window === "undefined") return []
 
@@ -161,33 +190,8 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
         return [operation as PendingCollectionOperation]
       }
 
-      if (item.type === "delete") {
-        return [{
-          id: item.id,
-          type: "delete",
-          pokemonId: item.pokemonId,
-          ...(typeof item.billingPause === "string" ? { billingPause: item.billingPause } : {}),
-          queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
-          ...parseBase(item),
-          ...parseBinderId(item),
-        }]
-      }
-
-      if (item.type === "upsert" && "item" in item && item.item) {
-        return [{
-          id: item.id,
-          type: "upsert",
-          pokemonId: item.pokemonId,
-          item: normalizeCollectionItem(item.item),
-          acquisition: normalizeAcquisition(item.acquisition),
-          ...(item.importOnly === true ? { importOnly: true as const } : {}),
-          ...(typeof item.billingPause === "string" ? { billingPause: item.billingPause } : {}),
-          queuedAt: typeof item.queuedAt === "string" ? item.queuedAt : new Date().toISOString(),
-          ...parseBase(item),
-          ...parseBinderId(item),
-        }]
-      }
-
+      if (boundOperation(item, parsed)) return [operation as PendingCollectionOperation]
+      // Unbound historical records are review evidence, never replayable edits.
       return []
     })
   } catch {
@@ -195,16 +199,26 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
   }
 }
 
-export function writePendingCollectionOperations(operations: PendingCollectionOperation[]) {
+/** Snapshot raw bytes before parsing. Unbound/unknown entries move atomically into evidence in this key. */
+export function readLegacyQueueSources(): LegacyQueueSource[] {
+  if (typeof window === "undefined") return []
+  const raw = window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
+  const entries = decodeQueueArray(raw)
+  const sources = (entries ?? []).filter(isLegacyQueueSource)
+  const ordinals = entries?.flatMap((entry, ordinal) => !isLegacyQueueSource(entry) && !boundOperation(entry, entries)
+    && !(entry && typeof entry === "object" && (entry as PendingCollectionOperation).compatibilityPause) ? [ordinal] : [])
+  if (raw !== null && (entries === null || ordinals?.length))
+    sources.push({ legacyQueueSource: { version: 1, raw, digest: sourceDigest(raw), ...(ordinals ? { ordinals } : {}) } })
+  return sources
+}
+
+export function writePendingCollectionOperations(operations: PendingCollectionOperation[], sources = readLegacyQueueSources()) {
   if (typeof window === "undefined") return
-
-  mirrorPendingOperations(operations)
-
-  try {
-    setItemMakingRoom(window.localStorage, LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(operations))
-  } catch {
-    // Still full: the IndexedDB mirror above keeps the queue.
-  }
+  const records = [...sources, ...operations.filter(op => !isLegacyQueueSource(op) && (parseCollectionOrigin(op.origin) || op.compatibilityPause))]
+  // Do not send an edit whose synchronous authority could not be persisted.
+  setItemMakingRoom(window.localStorage, LOCAL_COLLECTION_PENDING_OPS_KEY, JSON.stringify(records))
+  mirrorPendingOperations(records)
+  window.dispatchEvent?.(new Event("holofolder-legacy-queue-changed"))
 }
 
 /** Read original record bytes before a send can race a newer local edit. */
@@ -257,43 +271,59 @@ export function createPendingOperationId() {
 
 export function queuePendingCollectionOperation(operation: PendingCollectionOperationInput) {
   const existing = readPendingCollectionOperations()
-  const binderId = pendingOperationBinderId(operation)
-  const replaced = existing.find((queuedOperation) => !queuedOperation.compatibilityPause && sameSlot(queuedOperation, operation.pokemonId, binderId))
+  if (operation.origin?.kind === "account" && operation.binderId && operation.binderId !== operation.origin.binderId) throw new Error("Edit binder does not match its immutable origin")
+  const binderId = operation.origin?.kind === "account" ? operation.origin.binderId : pendingOperationBinderId(operation)
+  const replaced = existing.find((queuedOperation) => !queuedOperation.compatibilityPause && !queuedOperation.deliveryUnknown && !queuedOperation.recipientPause && sameSlot(queuedOperation, operation.pokemonId, binderId, operation.origin))
   // One edit per Pokémon: the newest wins, but it keeps the base of the first unsynced edit, because that
   // is the server state all of them were made against.
   const base = replaced ? replaced.base : operation.base
   const nextOperation = {
     ...operation,
+    intentProtocol: 1,
     ...(operation.type === "upsert" ? { acquisition: mergeQueuedAcquisition(base, operation.item, operation.acquisition, replaced?.type === "upsert" ? replaced.acquisition : undefined) } : {}),
     base,
     id: createPendingOperationId(),
     queuedAt: new Date().toISOString(),
   } as PendingCollectionOperation
   if (base === undefined) delete nextOperation.base
-  if (!binderId) delete nextOperation.binderId
-  const operations = existing.filter((queuedOperation) => Boolean(queuedOperation.compatibilityPause) || !sameSlot(queuedOperation, operation.pokemonId, binderId))
+  if (binderId) nextOperation.binderId = binderId
+  else delete nextOperation.binderId
+  const operations = existing.filter((queuedOperation) => Boolean(queuedOperation.compatibilityPause || queuedOperation.deliveryUnknown || queuedOperation.recipientPause) || !sameSlot(queuedOperation, operation.pokemonId, binderId, operation.origin))
 
-  writePendingCollectionOperations([...operations, nextOperation])
+  const captured = JSON.stringify(nextOperation)
+  if (replaced) {
+    nextOperation.id = replaced.id
+    nextOperation.queuedAt = replaced.queuedAt
+    nextOperation.original = replaced.original
+    nextOperation.amendments = [...(replaced.amendments ?? []), captured]
+  } else nextOperation.original = { raw: captured }
+  if (!nextOperation.origin) {
+    const raw = JSON.stringify([nextOperation])
+    writePendingCollectionOperations(operations, [...readLegacyQueueSources(), { legacyQueueSource: { version: 1, raw, digest: sourceDigest(raw) } }])
+  } else writePendingCollectionOperations([...operations, nextOperation])
   return nextOperation
 }
 
-export function hasPendingCollectionOperation(pokemonId: number, binderId: string | null = null) {
-  return readPendingCollectionOperations().some((operation) => sameSlot(operation, pokemonId, binderId))
+export function hasPendingCollectionOperation(pokemonId: number, binderId: string | null = null, origin?: CollectionOrigin | null) {
+  return readPendingCollectionOperations().some((operation) => sameSlot(operation, pokemonId, binderId, origin))
 }
 
 /** Replace a queued edit in place (after a conflict merge), keeping its position. */
 export function replacePendingCollectionOperation(operationId: string, next: PendingCollectionOperation) {
   writePendingCollectionOperations(
-    readPendingCollectionOperations().map((operation) => (operation.id === operationId && !operation.compatibilityPause ? next : operation)),
+    readPendingCollectionOperations().map((operation) => (operation.id === operationId && !operation.compatibilityPause
+      ? { ...next, id: operation.id, origin: operation.origin, original: operation.original, amendments: operation.amendments,
+        queuedAt: operation.queuedAt, binderId: operation.binderId, intentProtocol: operation.intentProtocol, recoverySource: operation.recoverySource }
+      : operation)),
   )
 }
 
 /** A newer edit for the same Pokémon is now based on what the server just stored. */
-export function rebasePendingCollectionOperation(pokemonId: number, base: CollectedPokemon | null, binderId: string | null = null) {
+export function rebasePendingCollectionOperation(pokemonId: number, base: CollectedPokemon | null, binderId: string | null = null, origin?: CollectionOrigin | null) {
   const operations = readPendingCollectionOperations()
-  if (!operations.some((operation) => sameSlot(operation, pokemonId, binderId))) return
+  if (!operations.some((operation) => sameSlot(operation, pokemonId, binderId, origin))) return
   writePendingCollectionOperations(
-    operations.map((operation) => (sameSlot(operation, pokemonId, binderId) && !operation.compatibilityPause ? { ...operation, base } : operation)),
+    operations.map((operation) => (sameSlot(operation, pokemonId, binderId, origin) && !operation.compatibilityPause && !operation.deliveryUnknown ? { ...operation, base } : operation)),
   )
 }
 
@@ -337,4 +367,61 @@ export function restorePendingCollectionOperations(operations: unknown[]) {
     return 0
   }
   return readPendingCollectionOperations().length
+}
+
+/** Freeze guest records into the same evidence authority before opening a review. No upload is authorized. */
+export function prepareLegacyQueueReview() {
+  const raw = window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
+  const operations = readPendingCollectionOperations()
+  const guests = operations.filter(op => op.origin?.kind === "guest" && !op.compatibilityPause)
+  const sources = readLegacyQueueSources()
+  if (raw && guests.length) {
+    const ordinals = (decodeQueueArray(raw) ?? []).flatMap((entry, ordinal) => entry && typeof entry === "object" && "id" in entry && guests.some(op => op.id === entry.id) ? [ordinal] : [])
+    const source = sources.find(source => source.legacyQueueSource.raw === raw)
+    if (source) source.legacyQueueSource.ordinals = [...new Set([...(source.legacyQueueSource.ordinals ?? []), ...ordinals])].sort((a, b) => a - b)
+    else sources.push({ legacyQueueSource: { version: 1, raw, digest: sourceDigest(raw), ordinals } })
+  }
+  writePendingCollectionOperations(operations.filter(op => !guests.includes(op)), sources)
+  return sources
+}
+
+/** One synchronous authority change: keep evidence, mark exact ordinals and enqueue only NEW reviewed actions. */
+export function acceptLegacyQueueReview(expectedQueue: string, sources: LegacyQueueSource[], operations: PendingCollectionOperationInput[]) {
+  if (window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY) !== expectedQueue) throw new Error("Device changes changed. Reload the destination and review again.")
+  const existing = readPendingCollectionOperations()
+  const currentSources = readLegacyQueueSources()
+  if (sources.length !== currentSources.length || sources.some((source, index) => (source.legacyQueueSource.raw !== currentSources[index].legacyQueueSource.raw || source.legacyQueueSource.digest !== currentSources[index].legacyQueueSource.digest))) throw new Error("Original source changed. Review again.")
+  const eligible = legacyReviewEntries(currentSources, existing.filter(op => op.compatibilityPause).map(op => op.binderId ?? null))
+  if (!operations.length) throw new Error("Choose at least one reviewed change.")
+  for (const input of operations) {
+    if (typeof input.recoverySource?.reviewEpoch !== "string" || !input.recoverySource.reviewEpoch || input.recoverySource.reviewEpoch !== operations[0].recoverySource?.reviewEpoch) throw new Error("Review acceptance epoch changed.")
+    if (input.origin?.kind !== "account" || input.binderId !== input.origin.binderId || !sameCollectionOrigin(input.origin, operations[0].origin)) throw new Error("Review destination changed.")
+    const matches = eligible.filter(entry => entry.source.legacyQueueSource.digest === input.recoverySource?.digest && entry.ordinal === input.recoverySource?.ordinal)
+    const entry = matches[0]
+    if (matches.length !== 1 || !entry?.operation || entry.unresolved || entry.operation.type !== input.type || entry.operation.pokemonId !== input.pokemonId
+      || (input.type === "upsert" && entry.operation.type === "upsert" && JSON.stringify(entry.operation.item) !== JSON.stringify(input.item)) || !("base" in input)) throw new Error("A source entry cannot be accepted as reviewed.")
+  }
+  for (const [index, source] of sources.entries()) {
+    const previous = currentSources[index].legacyQueueSource
+    const ordinals = operations.filter(input => input.recoverySource?.digest === previous.digest).map(input => input.recoverySource!.ordinal)
+    const expected = [...(previous.accepted ?? []), ...ordinals]
+    if (JSON.stringify(source.legacyQueueSource.accepted ?? []) !== JSON.stringify(expected) || new Set(expected).size !== expected.length) throw new Error("Reviewed source entries changed.")
+  }
+  const next = operations.map(input => {
+    const op = { ...input, intentProtocol: 1, id: createPendingOperationId(), queuedAt: new Date().toISOString() } as PendingCollectionOperation
+    op.original = { raw: JSON.stringify(op) }
+    return op
+  })
+  writePendingCollectionOperations([...existing, ...next], sources)
+  window.dispatchEvent?.(new Event("holofolder-legacy-reviewed"))
+}
+
+/** Stop the rest of this accepted batch after a failure; no later reconnect may resume it blindly. */
+export function pauseReviewedCollectionBatch(operationId: string, reason: string) {
+  const operations = readPendingCollectionOperations()
+  const failed = operations.find(op => op.id === operationId)
+  if (!failed?.recoverySource) return
+  writePendingCollectionOperations(operations.map(op => op.recoverySource && !op.compatibilityPause
+    && sameCollectionOrigin(op.origin, failed.origin) && op.recoverySource.reviewEpoch === failed.recoverySource!.reviewEpoch
+    ? { ...op, recipientPause: op.id === operationId ? reason : op.recipientPause ?? "review_batch_paused" } : op))
 }
