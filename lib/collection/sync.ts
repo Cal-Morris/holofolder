@@ -1,3 +1,4 @@
+import { RECIPIENT_RETENTION_CODES } from "@/lib/collection/recipient"
 // Offline write sync: how queued collection edits reach the server.
 //
 // Conflict model (no schema change needed): every queued edit remembers the server row it was based on
@@ -127,13 +128,14 @@ export function resolveConflict(edit: PendingEdit, serverItem: CollectedPokemon 
   return { action: "write", item: merged, base: serverItem }
 }
 
-export type WriteFailureKind = "retry" | "conflict" | "hard" | "paused" | "compatibility"
+export type WriteFailureKind = "retry" | "conflict" | "hard" | "paused" | "compatibility" | "recipient"
 
 /**
  * Network errors, timeouts, 5xx, 401 (session refresh), 408 and 429 are retried with backoff. 409 is a conflict.
  * Any other 4xx means the server will never accept this edit, so it is rolled back.
  */
 export function classifyWriteFailure(error: unknown): WriteFailureKind {
+  if (RECIPIENT_RETENTION_CODES.has(String((error as { code?: unknown } | null)?.code))) return "recipient"
   const status = typeof (error as { status?: unknown } | null)?.status === "number" ? (error as { status: number }).status : null
   if (status === null) return "retry"
   if (status === 402) return "paused"

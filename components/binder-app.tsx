@@ -1,4 +1,5 @@
 "use client"
+import { LegacyDeviceReview } from "@/components/legacy-device-review"
 
 import type { NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 
@@ -3689,6 +3690,7 @@ export default function BinderApp(props: BinderAppProps) {
         <button className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => openExclusively(() => setIsSettingsOpen(true))}>Settings</button>
         <button className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { void (onBrowserSignOut ?? handleSignOut)() }}>Sign out</button>
       </div></div> : legacyHeader}
+      {!readOnlyMode && <LegacyDeviceReview actorId={user?.id ?? null} ownerId={resolvedCollectionOwnerUserId ?? null} binderId={initialBinderId} />}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
       {browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"

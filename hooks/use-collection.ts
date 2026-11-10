@@ -1,12 +1,14 @@
 "use client"
 
+import { guestCollectionOrigin, sameCollectionOrigin, type CollectionOrigin } from "@/lib/collection/recipient"
+
 import { clearActivityCache } from "@/lib/collection-activity"
-import { BillingAccessError, countSavedCards, pendingCardDelta, canGrowCollection, resolveBillingAccess, savedCardWeight, FREE_CARD_LIMIT } from "@/lib/billing"
+import { countSavedCards, pendingCardDelta, canGrowCollection, resolveBillingAccess, savedCardWeight, FREE_CARD_LIMIT } from "@/lib/billing"
 import { BILLING_CHANGED, readBillingCache } from "@/lib/billing-cache"
 
 import { captureAcquisition, mergeQueuedAcquisition, readPushMembership, writePushMembership, type AcquisitionIntent } from "@/lib/partner-push"
 
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { readLocalCollectedIds, writeLocalCollectedIds } from "@/lib/local-collection"
 import { getOfflineStore } from "@/lib/offline-store/kv"
@@ -54,6 +56,7 @@ import {
   restorePendingCollectionOperations,
   readPendingCollectionOperations,
   queuePendingCollectionOperation,
+  pauseReviewedCollectionBatch,
   rebasePendingCollectionOperation,
   removePendingCollectionOperation,
   replacePendingCollectionOperation,
@@ -87,7 +90,7 @@ import {
 import { isOwnedCollectionItem, planOwnedRemoval, type OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { resolveWantedCardsAfterOwnedAdd } from "@/lib/collection/owned-add"
 import { editWantedCards } from "@/lib/collection/wanted-card-edit"
-import { loadCollectionRows, scopeCollectionQuery, syncCollectionRows } from "@/lib/collection/load"
+import { loadCollectionRows, syncCollectionRows } from "@/lib/collection/load"
 import { collectionBaselineRows, createCollectionBaseline, type CollectionSyncBaseline } from "@/lib/collection/delta-sync"
 
 /** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
@@ -143,28 +146,29 @@ export function useCollection(options: UseCollectionOptions = {}) {
     isDefaultBinder = true,
     readOnly = false,
   } = options
-  // Queued edits for this binder; edits for other binders still sync but never touch this screen.
-  const isEditForThisBinder = useCallback((operation: { binderId?: string | null }) => {
-    const operationBinderId = pendingOperationBinderId(operation)
-    return operationBinderId === binderId || (operationBinderId === null && isDefaultBinder)
-  }, [binderId, isDefaultBinder])
-  const readBinderPendingOperations = useCallback(
-    () => readPendingCollectionOperations().filter(isEditForThisBinder).map(operation =>
-      operation.compatibilityPause && operation.type === "upsert"
-        ? { ...operation, item: normalizeCollectionItem(operation.item) }
-        : operation),
-    [isEditForThisBinder],
-  )
   const [user, setUser] = useState<User | null>(initialUser)
   const [collection, setCollection] = useState<CollectedPokemon[]>(normalizeCollectionItems(initialCollection))
   // Undo callbacks outlive the render that created them.
   const collectionRef = useRef(collection)
   useLayoutEffect(() => { collectionRef.current = collection }, [collection])
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
+  const [ownerResolvedForUserId, setOwnerResolvedForUserId] = useState<string | null>(initialCollectionOwnerUserId ? initialUser?.id ?? null : null)
+  const editOrigin = useMemo<CollectionOrigin | null>(() => user
+    ? (ownerResolvedForUserId === user.id && collectionOwnerUserId && binderId
+      ? { kind: "account", actorUserId: user.id, ownerUserId: collectionOwnerUserId, binderId } : null)
+    : (typeof window === "undefined" ? null : guestCollectionOrigin(window.localStorage, binderId)), [user, ownerResolvedForUserId, collectionOwnerUserId, binderId])
+  const originKey = JSON.stringify(editOrigin)
+  const isEditForThisBinder = useCallback((operation: { origin?: CollectionOrigin; binderId?: string | null }) =>
+    sameCollectionOrigin(operation.origin, JSON.parse(originKey)), [originKey])
+  const readBinderPendingOperations = useCallback(
+    () => readPendingCollectionOperations().filter(isEditForThisBinder).map(operation =>
+      operation.compatibilityPause && operation.type === "upsert" ? { ...operation, item: normalizeCollectionItem(operation.item) } : operation),
+    [isEditForThisBinder],
+  )
   const recoveryIdentity=JSON.stringify([user?.id??null,collectionOwnerUserId,binderId])
   const recoveryIdentityRef=useRef<string|null>(recoveryIdentity)
-  useLayoutEffect(()=>{recoveryIdentityRef.current=recoveryIdentity;return()=>{recoveryIdentityRef.current=null}},[recoveryIdentity])
-  const [ownerResolvedForUserId, setOwnerResolvedForUserId] = useState<string | null>(initialCollectionOwnerUserId ? initialUser?.id ?? null : null)
+  const deliveryEpochRef = useRef(0)
+  useLayoutEffect(()=>{deliveryEpochRef.current++;recoveryIdentityRef.current=recoveryIdentity;return()=>{recoveryIdentityRef.current=null}},[recoveryIdentity])
   const authenticatedUserId = useRef(initialUser?.id ?? null)
   // Server rows last read, so refreshes can fetch only what changed (lib/collection/delta-sync.ts).
   // Seeded from the server-rendered rows; rows without updated_at (local snapshots) just mean a full first fetch.
@@ -239,8 +243,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [getSanitizedLocalCollectedIds])
 
   const refreshLocalPendingSyncCount = useCallback(() => {
-    setLocalPendingSyncCount(readPendingCollectionOperations().length)
-  }, [])
+    setLocalPendingSyncCount(readPendingCollectionOperations().filter(isEditForThisBinder).length)
+  }, [isEditForThisBinder])
 
   const applyLocalCollection = useCallback((nextCollection: CollectedPokemon[]) => {
     collectionRef.current = nextCollection
@@ -268,25 +272,6 @@ export function useCollection(options: UseCollectionOptions = {}) {
       void flushPendingCollectionOperationsRef.current()
     }, delay)
   }, [])
-
-  const queueLocalCollectionOperation = useCallback((operation: PendingCollectionOperationInput, options: { afterFailure?: boolean; compatibilityPause?: boolean } = {}) => {
-    const queued = queuePendingCollectionOperation(operation)
-    if (options.compatibilityPause) {
-      pauseLegacyCollectionOperation(queued.id)
-      setSyncStatus("compatibility")
-      refreshLocalPendingSyncCount()
-      return
-    }
-    if (options.afterFailure) {
-      // The server or network just failed this edit: back off before trying again.
-      scheduleSyncRetry()
-    } else {
-      // A new edit is a good moment to try again straight away.
-      cancelSyncRetry()
-      void Promise.resolve().then(() => flushPendingCollectionOperationsRef.current())
-    }
-    refreshLocalPendingSyncCount()
-  }, [cancelSyncRetry, refreshLocalPendingSyncCount, scheduleSyncRetry])
 
   useEffect(() => {
     if (readOnly) return
@@ -338,7 +323,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         return
       }
       // Never show another binder's slots (an empty new binder would otherwise pick up the last snapshot).
-      if (!isEditForThisBinder(snapshot)) {
+      if (snapshot.binderId !== binderId && !(!snapshot.binderId && isDefaultBinder)) {
         return
       }
 
@@ -378,7 +363,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return () => {
       cancelled = true
     }
-  }, [binderId, collectionOwnerUserId, isDefaultBinder, isEditForThisBinder, readOnly, refreshLocalPendingSyncCount, user?.id])
+  }, [binderId, collectionOwnerUserId, isDefaultBinder, readOnly, refreshLocalPendingSyncCount, user?.id])
 
   const reloadRemoteCollection = useCallback(async () => {
     if (readOnly) return
@@ -389,7 +374,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
       if (refreshPlan) {
         // A refresh can still be in flight when the account changes (sign-out, account switch): drop its rows
         // so the previous account's cards never show under the new one.
-        const isStale = () => authenticatedUserId.current !== refreshPlan.user.id
+        const refreshEpoch = deliveryEpochRef.current
+        const isStale = () => authenticatedUserId.current !== refreshPlan.user.id || (refreshPlan.knownOwnerUserId !== null && deliveryEpochRef.current !== refreshEpoch)
         const ownerUserId = refreshPlan.knownOwnerUserId ?? await resolveCollectionOwnerUserId(refreshPlan.user)
         if (isStale()) return
         const baseline = await syncCollectionRows(supabase, ownerUserId, collectionBaselineRef.current, binderId)
@@ -441,6 +427,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (authenticatedUserId.current !== (session?.user.id ?? null)) {
+        deliveryEpochRef.current++
+        recoveryIdentityRef.current = null
+        window.dispatchEvent(new Event("holofolder-legacy-scope-changed"))
         collectionBaselineRef.current = null
         setCollection([])
         setCollectionOwnerUserId(null)
@@ -458,9 +447,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
             const ownerUserId = await resolveCollectionOwnerUserId(sessionUser)
             if (authenticatedUserId.current !== sessionUser.id) return
             const baseline = await syncCollectionRows(supabase, ownerUserId, collectionBaselineRef.current, binderId)
-            if (authenticatedUserId.current !== sessionUser.id) return
+            if (authenticatedUserId.current !== sessionUser.id || recoveryIdentityRef.current !== JSON.stringify([sessionUser.id, ownerUserId, binderId])) return
             collectionBaselineRef.current = baseline
-            setCollection(applyPendingEdits(normalizeCollectionItems(collectionBaselineRows(baseline)), readBinderPendingOperations()))
+            setCollection(applyPendingEdits(normalizeCollectionItems(collectionBaselineRows(baseline)), readPendingCollectionOperations().filter(op => op.origin?.kind === "account"
+              && op.origin.actorUserId === sessionUser.id && op.origin.ownerUserId === ownerUserId && op.origin.binderId === binderId)))
           })().catch(error => console.error("[holofolder] Error refreshing signed-in collection:", error))
         }, 0)
       } else {
@@ -470,7 +460,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     })
 
     return () => subscription.unsubscribe()
-  }, [binderId, readBinderPendingOperations, readOnly, resolveCollectionOwnerUserId, supabase])
+  }, [binderId, readOnly, resolveCollectionOwnerUserId, supabase])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -534,24 +524,24 @@ export function useCollection(options: UseCollectionOptions = {}) {
    * Show the outcome of a write unless a newer local edit of the same slot is still queued. Edits for another
    * binder (queued before switching) only rebase their queue entry; this screen shows a different binder.
    */
-  const settleLocalItem = useCallback((pokemonId: number, item: CollectedPokemon | null, editBinderId: string | null = binderId) => {
-    if (hasPendingCollectionOperation(pokemonId, editBinderId)) {
+  const settleLocalItem = useCallback((pokemonId: number, item: CollectedPokemon | null, editBinderId: string | null = binderId, settledOrigin: CollectionOrigin | null = editOrigin) => {
+    if (hasPendingCollectionOperation(pokemonId, editBinderId, settledOrigin)) {
       // The newer edit is now based on what the server has.
-      rebasePendingCollectionOperation(pokemonId, item, editBinderId)
+      rebasePendingCollectionOperation(pokemonId, item, editBinderId, settledOrigin)
       return
     }
-    if (!isEditForThisBinder({ binderId: editBinderId })) return
+    if (!isEditForThisBinder({ binderId: editBinderId, origin: settledOrigin ?? undefined })) return
     setCollection((current) => (item ? upsertCollectionItem(current, item) : removeCollectionItem(current, pokemonId)))
-  }, [binderId, isEditForThisBinder])
+  }, [binderId, isEditForThisBinder, editOrigin])
 
   /** Undo an edit the server will never accept, and say so. */
-  const rollBackEdit = useCallback((operation: { pokemonId: number; item?: CollectedPokemon; base?: CollectedPokemon | null; binderId?: string | null }, error: unknown) => {
+  const rollBackEdit = useCallback((operation: { pokemonId: number; item?: CollectedPokemon; base?: CollectedPokemon | null; binderId?: string | null; origin?: CollectionOrigin }, error: unknown) => {
     console.error("[holofolder] Collection change rejected, rolled back:", {
       pokemonId: operation.pokemonId,
       message: extractErrorMessage(error),
     })
     if ("base" in operation && operation.base !== undefined) {
-      settleLocalItem(operation.pokemonId, operation.base, pendingOperationBinderId(operation))
+      settleLocalItem(operation.pokemonId, operation.base, pendingOperationBinderId(operation), operation.origin ?? null)
     } else {
       // Legacy edit without a known base: the next refresh brings back the server row.
       lastCollectionAutoRefreshAtRef.current = 0
@@ -561,12 +551,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   const flushPendingCollectionOperations = useCallback(async () => {
     if (readOnly || !user || !collectionOwnerUserId || isOffline()) return
-    if (isFlushingPendingOperationsRef.current) return
+    if (isFlushingPendingOperationsRef.current || activeRemoteCollectionWriteCountRef.current > 0) return
     // Backing off after a failure: only the retry timer, reconnecting, the app becoming visible or a new
     // edit start the next attempt (they clear the timer first).
     if (syncRetryTimerRef.current) return
 
-    const operations = readPendingCollectionOperations()
+    const operations = readPendingCollectionOperations().filter(op => op.origin?.kind === "account" && op.origin.actorUserId === user.id && op.origin.ownerUserId === collectionOwnerUserId)
     if (operations.length === 0) {
       if (localPendingSyncCount !== 0) {
         setLocalPendingSyncCount(0)
@@ -576,7 +566,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     const flushIdentity = recoveryIdentityRef.current
-    const isCurrentFlush = () => flushIdentity !== null && recoveryIdentityRef.current === flushIdentity
+    const flushEpoch = deliveryEpochRef.current
+    const isCurrentFlush = () => flushIdentity !== null && recoveryIdentityRef.current === flushIdentity && deliveryEpochRef.current === flushEpoch
     isFlushingPendingOperationsRef.current = true
     setSyncStatus("syncing")
     let didWriteRemoteCollection = false
@@ -585,8 +576,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
     let didPauseCompatibility = false
 
     try {
-      for (const queuedOperation of operations) {
+      for (const queuedSnapshot of operations) {
         if (!isCurrentFlush()) return
+        const queuedOperation = readPendingCollectionOperations().find(op => op.id === queuedSnapshot.id)
+        if (!queuedOperation) continue
+        if (queuedOperation.origin?.kind !== "account" || queuedOperation.recipientPause) { didPause = true; continue }
         if (queuedOperation.compatibilityPause) { didPauseCompatibility = true; continue }
         // A later edit must not bypass retained incompatible intent for the same binder.
         if (readPendingCollectionOperations().some(edit => edit.compatibilityPause
@@ -610,16 +604,18 @@ export function useCollection(options: UseCollectionOptions = {}) {
           const baseFingerprint = "base" in edit ? collectionFingerprint(edit.base) : undefined
           const editBinderId = pendingOperationBinderId(edit)
           try {
+            if (edit.recoverySource && edit.deliveryUnknown) { didPause = true; break }
+            replacePendingCollectionOperation(edit.id, { ...edit, deliveryUnknown: true })
             if (edit.type === "upsert") {
-              const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { baseFingerprint, binderId: editBinderId, acquisition: edit.acquisition, importOnly: edit.importOnly }))
+              const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { recipient: edit.origin, operationId: edit.id, baseFingerprint, binderId: editBinderId, acquisition: edit.acquisition, importOnly: edit.importOnly }))
               if (!isCurrentFlush()) return
               removePendingCollectionOperation(edit.id)
-              settleLocalItem(edit.pokemonId, savedItem, editBinderId)
+              settleLocalItem(edit.pokemonId, savedItem, editBinderId, edit.origin ?? null)
             } else {
-              await writeRemoteCollection(() => deleteRemoteCollectionItem(edit.pokemonId, { baseFingerprint, binderId: editBinderId }))
+              await writeRemoteCollection(() => deleteRemoteCollectionItem(edit.pokemonId, { recipient: edit.origin, operationId: edit.id, baseFingerprint, binderId: editBinderId }))
               if (!isCurrentFlush()) return
               removePendingCollectionOperation(edit.id)
-              settleLocalItem(edit.pokemonId, null, editBinderId)
+              settleLocalItem(edit.pokemonId, null, editBinderId, edit.origin ?? null)
             }
             didWriteRemoteCollection = true
             break
@@ -627,6 +623,19 @@ export function useCollection(options: UseCollectionOptions = {}) {
             if (!isCurrentFlush()) return
             const kind = classifyWriteFailure(error)
 
+            if (edit.recoverySource && kind !== "compatibility") {
+              replacePendingCollectionOperation(edit.id, { ...edit, deliveryUnknown: kind === "retry", recipientPause: kind === "retry" ? "delivery_unknown" : "review_changed" })
+              pauseReviewedCollectionBatch(edit.id, kind === "retry" ? "delivery_unknown" : "review_changed")
+              setSyncNotice("Review upload paused. Check the destination before making another change; cancelling cannot undo a request already sent.")
+              didPause = true
+              break
+            }
+            if (kind === "recipient") {
+              replacePendingCollectionOperation(operation.id, { ...operation, recipientPause: error instanceof CollectionWriteError ? error.code ?? "recipient" : "recipient" })
+              setSyncNotice("The original destination changed. Your changes are kept on this device.")
+              didPause = true
+              break
+            }
             if (kind === "compatibility") {
               pauseLegacyCollectionOperation(operation.id, originalRaw)
               didPauseCompatibility = true
@@ -644,13 +653,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
               const resolution = resolveConflict(operation, serverItem)
               if (resolution.action === "drop") {
                 removePendingCollectionOperation(operation.id)
-                settleLocalItem(operation.pokemonId, resolution.serverItem, editBinderId)
+                settleLocalItem(operation.pokemonId, resolution.serverItem, editBinderId, operation.origin ?? null)
                 break
               }
               const binderField = editBinderId ? { binderId: editBinderId } : {}
               const merged: PendingCollectionOperation = resolution.action === "write"
-                ? { id: operation.id, type: "upsert", pokemonId: operation.pokemonId, item: resolution.item, base: resolution.base, ...(operation.type === "upsert" && operation.importOnly ? { importOnly: true as const } : {}), acquisition: mergeQueuedAcquisition(resolution.base, resolution.item, undefined, operation.type === "upsert" ? operation.acquisition : undefined), queuedAt: operation.queuedAt, ...binderField }
-                : { id: operation.id, type: "delete", pokemonId: operation.pokemonId, base: resolution.base, queuedAt: operation.queuedAt, ...binderField }
+                ? { ...operation, id: operation.id, type: "upsert", pokemonId: operation.pokemonId, item: resolution.item, base: resolution.base, ...(operation.type === "upsert" && operation.importOnly ? { importOnly: true as const } : {}), acquisition: mergeQueuedAcquisition(resolution.base, resolution.item, undefined, operation.type === "upsert" ? operation.acquisition : undefined), queuedAt: operation.queuedAt, ...binderField }
+                : { ...operation, id: operation.id, type: "delete", pokemonId: operation.pokemonId, base: resolution.base, queuedAt: operation.queuedAt, ...binderField }
               replacePendingCollectionOperation(operation.id, merged)
               operation = merged
               continue
@@ -695,7 +704,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     syncRetryAttemptRef.current = 0
     if (didPauseCompatibility) { setSyncStatus("compatibility"); return }
     if (didPause) { setSyncStatus("waiting"); return }
-    if (readPendingCollectionOperations().length > 0) {
+    if (readPendingCollectionOperations().filter(isEditForThisBinder).some(op => !op.recipientPause && op.origin?.kind === "account")) {
       // Edits made while we were sending: go again.
       void Promise.resolve().then(() => flushPendingCollectionOperationsRef.current())
     } else {
@@ -703,6 +712,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
   }, [
     broadcastCollectionChanged,
+    isEditForThisBinder,
     collectionOwnerUserId,
     localPendingSyncCount,
     readOnly,
@@ -751,10 +761,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
 
     window.addEventListener(BILLING_CHANGED, syncNow)
+    window.addEventListener("holofolder-legacy-reviewed", syncNow)
     window.addEventListener("online", syncNow)
     document.addEventListener("visibilitychange", handleVisibility)
     return () => {
       window.removeEventListener(BILLING_CHANGED, syncNow)
+      window.removeEventListener("holofolder-legacy-reviewed", syncNow)
       window.removeEventListener("online", syncNow)
       document.removeEventListener("visibilitychange", handleVisibility)
       cancelSyncRetry()
@@ -823,9 +835,13 @@ export function useCollection(options: UseCollectionOptions = {}) {
    * A hard server rejection rolls the edit back; network/server failures and conflicts go to the queue.
    */
   const commitItemChange = useCallback(async (pokemonId: number, nextItem: CollectedPokemon | null, acquisition?: AcquisitionIntent, expected?: CollectedPokemon | null, importOnly = false) => {
+    const origin = authenticatedUserId.current === (user?.id ?? null) ? editOrigin : null
+    const identity = recoveryIdentityRef.current
+    const editEpoch = deliveryEpochRef.current
+    const isCurrentEdit = () => identity !== null && identity === recoveryIdentityRef.current && editEpoch === deliveryEpochRef.current
     const current = collectionRef.current
     const existingItem = current.find((item) => item.pokemon_id === pokemonId) ?? null
-    if (importOnly && hasPendingCollectionOperation(pokemonId, binderId)) {
+    if (importOnly && hasPendingCollectionOperation(pokemonId, binderId, origin)) {
       return { item: existingItem, queued: false as const, rolledBack: true as const, error: "This Pokémon has unsynced edits. Sync before importing." }
     }
     if (expected !== undefined && collectionFingerprint(existingItem) !== collectionFingerprint(expected)) {
@@ -835,22 +851,27 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const access = cachedAccess ?? resolveBillingAccess(collectionOwnerUserId ?? "guest", { enforced: true, ...(!user ? { free_card_limit: FREE_CARD_LIMIT } : {}) })
     const before = countSavedCards(current)
     const after = before - (existingItem ? savedCardWeight(existingItem) : 0) + (nextItem ? savedCardWeight(nextItem) : 0)
-    const totalBefore = Math.max(before, access.savedCardCount + pendingCardDelta(readPendingCollectionOperations()))
+    const totalBefore = Math.max(before, access.savedCardCount + pendingCardDelta(readPendingCollectionOperations().filter(isEditForThisBinder)))
     if (!canGrowCollection(access, totalBefore, totalBefore + after - before)) {
       setSyncNotice(`Your free account holds ${access.cardLimit} entries. Upgrade to save more.`)
       window.dispatchEvent(new Event("holofolder-upgrade"))
       return { item: existingItem, queued: false as const, error: "Upgrade to add more cards.", rolledBack: true as const }
     }
-    applyLocalCollection(nextItem ? upsertCollectionItem(current, nextItem) : removeCollectionItem(current, pokemonId))
-
     const binderField = binderId ? { binderId } : {}
-    const edit: PendingCollectionOperationInput = nextItem
-      ? { type: "upsert", pokemonId, item: nextItem, base: existingItem, acquisition, ...(importOnly ? { importOnly: true as const } : {}), ...binderField }
-      : { type: "delete", pokemonId, base: existingItem, ...binderField }
+    const input: PendingCollectionOperationInput = nextItem
+      ? { origin: origin ?? undefined, type: "upsert", pokemonId, item: nextItem, base: existingItem, acquisition, ...(importOnly ? { importOnly: true as const } : {}), ...binderField }
+      : { origin: origin ?? undefined, type: "delete", pokemonId, base: existingItem, ...binderField }
 
-    if (!user || !collectionOwnerUserId || isOffline() || hasPendingCollectionOperation(pokemonId, binderId)
+    const hadPending = hasPendingCollectionOperation(pokemonId, binderId, origin)
+    let edit: PendingCollectionOperation
+    try { edit = queuePendingCollectionOperation(input) } catch (error) {
+      setSyncNotice("Device storage is full. This edit was not sent. Download your saved data or free storage before retrying.")
+      return { item: existingItem, queued: false as const, rolledBack: true as const, error }
+    }
+    applyLocalCollection(nextItem ? upsertCollectionItem(current, nextItem) : removeCollectionItem(current, pokemonId))
+    refreshLocalPendingSyncCount()
+    if (!user || origin?.kind !== "account" || !collectionOwnerUserId || isOffline() || hadPending
       || readPendingCollectionOperations().some(edit => edit.compatibilityPause && isEditForThisBinder(edit))) {
-      queueLocalCollectionOperation(edit)
       return { item: nextItem, queued: true as const }
     }
 
@@ -858,27 +879,40 @@ export function useCollection(options: UseCollectionOptions = {}) {
     let activityEventId:string|undefined
     const onCommittedEvent=(id:string)=>{activityEventId=id}
     try {
+      replacePendingCollectionOperation(edit.id, { ...edit, deliveryUnknown: true })
       if (nextItem) {
-        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { baseFingerprint, binderId, acquisition, onCommittedEvent, ...(importOnly ? { importOnly: true } : {}) }))
+        const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(nextItem, { recipient: origin ?? undefined, operationId: edit.id, baseFingerprint, binderId, acquisition, onCommittedEvent, ...(importOnly ? { importOnly: true } : {}) }))
+        if (!isCurrentEdit()) return { item: nextItem, queued: true as const }
+        removePendingCollectionOperation(edit.id)
+        refreshLocalPendingSyncCount()
         settleLocalItem(pokemonId, savedItem)
         void broadcastCollectionChanged()
         window.dispatchEvent(new Event("holofolder-refresh-billing"))
         return { item: savedItem, queued: false as const, activityEventId }
       }
-      await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId, { baseFingerprint, binderId, onCommittedEvent }))
+      await writeRemoteCollection(() => deleteRemoteCollectionItem(pokemonId, { recipient: origin ?? undefined, operationId: edit.id, baseFingerprint, binderId, onCommittedEvent }))
+      if (!isCurrentEdit()) return { item: null, queued: true as const }
+      removePendingCollectionOperation(edit.id)
+      refreshLocalPendingSyncCount()
       void broadcastCollectionChanged()
       window.dispatchEvent(new Event("holofolder-refresh-billing"))
       return { item: null, queued: false as const, activityEventId }
     } catch (error) {
+      if (!isCurrentEdit()) return { item: nextItem, queued: true as const, error }
+      if (classifyWriteFailure(error) === "hard") { removePendingCollectionOperation(edit.id) }
       if (classifyWriteFailure(error) === "hard") {
-        rollBackEdit({ pokemonId, item: nextItem ?? undefined, base: existingItem, ...binderField }, error)
+        rollBackEdit({ origin: origin ?? undefined, pokemonId, item: nextItem ?? undefined, base: existingItem, ...binderField }, error)
         return { item: existingItem, queued: false as const, error, rolledBack: true as const }
       }
       // Conflicts are resolved by the queue right away; network/server failures wait for the backoff.
-      queueLocalCollectionOperation(edit, { afterFailure: classifyWriteFailure(error) === "retry", compatibilityPause: classifyWriteFailure(error) === "compatibility" })
+      if (classifyWriteFailure(error) === "compatibility") { pauseLegacyCollectionOperation(edit.id); setSyncStatus("compatibility") }
+      else if (classifyWriteFailure(error) === "recipient") replacePendingCollectionOperation(edit.id, { ...edit, recipientPause: error instanceof CollectionWriteError ? error.code ?? "recipient" : "recipient" })
+      else if (classifyWriteFailure(error) === "retry") { replacePendingCollectionOperation(edit.id, { ...edit, deliveryUnknown: true }); scheduleSyncRetry() }
+      else void Promise.resolve().then(() => flushPendingCollectionOperationsRef.current())
+      refreshLocalPendingSyncCount()
       return { item: nextItem, queued: true as const, error }
     }
-  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collectionOwnerUserId, isEditForThisBinder, queueLocalCollectionOperation, rollBackEdit, settleLocalItem, user, writeRemoteCollection])
+  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collectionOwnerUserId, isEditForThisBinder, rollBackEdit, settleLocalItem, user, writeRemoteCollection, editOrigin, refreshLocalPendingSyncCount, scheduleSyncRetry])
 
   const addToCollection = useCallback(async (
     pokemonId: number,
@@ -1028,125 +1062,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }, [addToCollection, collection, removeFromCollection])
 
   const syncLocalCollectionToDatabase = useCallback(async (
-    pokemonCatalog: PokemonCatalogEntry[],
-    options: SyncLocalCollectionOptions = {}
+    _pokemonCatalog: PokemonCatalogEntry[],
+    _options: SyncLocalCollectionOptions = {}
   ): Promise<{ data?: SyncLocalCollectionResult; error?: unknown }> => {
-    if (readOnly) return { error: "Read-only binder" }
-    if (!user || !collectionOwnerUserId) return { error: "Not logged in" }
-
-    const localIds = getSanitizedLocalCollectedIds()
-    const localSet = new Set(localIds)
-    const collectedRows = collection.filter((item) => item.status !== "wishlisted")
-    const wishlistedRows = collection.filter((item) => item.status === "wishlisted")
-    const remoteById = new Map(collectedRows.map((item) => [item.pokemon_id, item] as const))
-    const catalogNames = new Map(pokemonCatalog.map((pokemon) => [pokemon.id, pokemon.name] as const))
-    const replaceRemote = options.replaceRemote === true
-
-    const idsToAdd = localIds.filter((pokemonId) => !remoteById.has(pokemonId))
-    const idsToRemove = replaceRemote
-      ? collectedRows
-          .filter((item) => !localSet.has(item.pokemon_id))
-          .map((item) => item.pokemon_id)
-      : []
-
-    const binderRowField = binderId ? { binder_id: binderId } : {}
-    // Without a binder id the insert trigger files rows into the default binder before the conflict check.
-    const upsertConflictTarget = "binder_id,pokemon_id"
-
-    const access = readBillingCache(localStorage, user.id, collectionOwnerUserId) ?? resolveBillingAccess(collectionOwnerUserId, { enforced: true })
-    const proposed = new Map<number, Pick<CollectedPokemon, "status" | "wanted_cards">>((replaceRemote ? wishlistedRows : collection).map(item => [item.pokemon_id, item]))
-    for (const pokemonId of replaceRemote ? localIds : idsToAdd) proposed.set(pokemonId, { status: "collected", wanted_cards: [] })
-    const currentCount = countSavedCards(collection)
-    const totalBefore = Math.max(currentCount, access.savedCardCount + pendingCardDelta(readPendingCollectionOperations()))
-    if (!canGrowCollection(access, totalBefore, totalBefore + countSavedCards([...proposed.values()]) - currentCount)) {
-      window.dispatchEvent(new Event("holofolder-upgrade"))
-      return { error: new BillingAccessError("card_limit_reached") }
-    }
-
-    try {
-      if (replaceRemote && idsToRemove.length > 0) {
-        const { error } = await writeRemoteCollection(() => scopeCollectionQuery(
-          supabase.from("pokemon_collection").delete(),
-          collectionOwnerUserId,
-          binderId,
-        ).in("pokemon_id", idsToRemove))
-
-        if (error) throw error
-      }
-
-      let syncedRows: CollectedPokemon[] = []
-
-      if (replaceRemote && localIds.length > 0) {
-        const rowsToReplace = localIds.map((pokemonId) => ({
-          user_id: collectionOwnerUserId,
-          ...binderRowField,
-          pokemon_id: pokemonId,
-          pokemon_name: catalogNames.get(pokemonId) || remoteById.get(pokemonId)?.pokemon_name || `Pokemon #${pokemonId}`,
-          card_id: null,
-          card_name: null,
-          card_image: null,
-          card_set: null,
-          card_language: "en",
-          card_finish: "normal",
-          wanted_cards: [],
-          status: "collected" as SlotStatus,
-        }))
-
-        const { data, error } = await writeRemoteCollection(() => supabase
-          .from("pokemon_collection")
-          .upsert(rowsToReplace, {
-            onConflict: upsertConflictTarget,
-          })
-          .select())
-
-        if (error) throw error
-        syncedRows = normalizeCollectionItems(data)
-      } else if (idsToAdd.length > 0) {
-        const rowsToInsert = idsToAdd.map((pokemonId) => ({
-          user_id: collectionOwnerUserId,
-          ...binderRowField,
-          pokemon_id: pokemonId,
-          pokemon_name: catalogNames.get(pokemonId) || remoteById.get(pokemonId)?.pokemon_name || `Pokemon #${pokemonId}`,
-          card_language: "en",
-          card_finish: "normal",
-          wanted_cards: [],
-          status: "collected" as SlotStatus,
-        }))
-
-        const { data, error } = await writeRemoteCollection(() => supabase
-          .from("pokemon_collection")
-          .upsert(rowsToInsert, {
-            onConflict: upsertConflictTarget,
-          })
-          .select())
-
-        if (error) throw error
-        syncedRows = normalizeCollectionItems(data)
-      }
-
-      const keptRows = replaceRemote
-        ? wishlistedRows
-        : collection.filter((item) => !idsToRemove.includes(item.pokemon_id))
-      const nextCollection = [...keptRows, ...syncedRows].sort((a, b) => a.pokemon_id - b.pokemon_id)
-
-      applyLocalCollection(nextCollection)
-      void broadcastCollectionChanged()
-
-      return {
-        data: {
-          added: syncedRows.length,
-          removed: idsToRemove.length,
-          localCount: localIds.length,
-          remoteCountBefore: collectedRows.length,
-          remoteCountAfter: nextCollection.filter((item) => item.status !== "wishlisted").length,
-          mode: replaceRemote ? "replace" : "merge",
-        },
-      }
-    } catch (error) {
-      console.error("[holofolder] Error syncing local collection:", error)
-      return { error }
-    }
-  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collection, collectionOwnerUserId, getSanitizedLocalCollectedIds, readOnly, supabase, user, writeRemoteCollection])
+    return { error: "Use Review changes to choose an explicit binder. Older local IDs do not identify an upload recipient." }
+  }, [])
 
   const updateStatus = useCallback(async (pokemonId: number, status: SlotStatus) => {
     if (readOnly) return { error: "Read-only binder" }

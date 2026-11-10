@@ -1,3 +1,4 @@
+import { checkFirstPartyCollectionRecipient } from "@/lib/server/collection-recipient"
 import { withAuditActor, captureAuditOperations } from "@/lib/server/audit-context"
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from "next/server"
@@ -18,21 +19,33 @@ async function recordedWrite(actorId:string,run:()=>Promise<Response>) {
     return response
   }))
 }
+async function checkRecipient(request: NextRequest, actorId: string) {
+  const binding = request.method === "DELETE"
+    ? { recipient: { kind: "account", actorUserId: request.nextUrl.searchParams.get("actorUserId"), ownerUserId: request.nextUrl.searchParams.get("ownerUserId"), binderId: request.nextUrl.searchParams.get("binderId") }, binderId: request.nextUrl.searchParams.get("binderId") }
+    : await request.clone().json().catch(() => ({}))
+  return checkFirstPartyCollectionRecipient(createAdminClient(), actorId, binding?.recipient, binding?.binderId)
+}
 export async function POST(request: NextRequest) {
   const client = await createClient()
   const user = (await getFirstPartyUser(client)).data.user
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  return recordedWrite(user.id, () => saveCollectionItem(request, user))
+  const checked = await checkRecipient(request, user.id)
+  if ("response" in checked) return checked.response
+  return recordedWrite(user.id, () => saveCollectionItem(request, user, false, checked.membership))
 }
 export async function PATCH(request: NextRequest) {
   const client = await createClient()
   const user = (await getFirstPartyUser(client)).data.user
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  return recordedWrite(user.id, () => updateCollectionStatus(request, user))
+  const checked = await checkRecipient(request, user.id)
+  if ("response" in checked) return checked.response
+  return recordedWrite(user.id, () => updateCollectionStatus(request, user, checked.membership.ownerUserId))
 }
 export async function DELETE(request: NextRequest) {
   const client = await createClient()
   const user = (await getFirstPartyUser(client)).data.user
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  return recordedWrite(user.id, () => deleteCollectionItem(request, user))
+  const checked = await checkRecipient(request, user.id)
+  if ("response" in checked) return checked.response
+  return recordedWrite(user.id, () => deleteCollectionItem(request, user, true, checked.membership.ownerUserId, true))
 }

@@ -6,6 +6,7 @@
     "api-keys",
     "contracts",
     "collection-history",
+    "device-changes",
     "native-storage",
     "native-reads",
     "manual-grading",

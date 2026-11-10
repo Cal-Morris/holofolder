@@ -2,7 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { CollectionWriteError, saveRemoteCollectionItem, deleteRemoteCollectionItem } from "../lib/collection/remote"
 import { classifyWriteFailure } from "../lib/collection/sync"
-import { LOCAL_COLLECTION_PENDING_OPS_KEY, pauseLegacyCollectionOperation, readPendingCollectionOperations, writePendingCollectionOperations, queuePendingCollectionOperation, rebasePendingCollectionOperation, removePendingCollectionOperation } from "../lib/collection/offline-queue"
+import { LOCAL_COLLECTION_PENDING_OPS_KEY, pauseLegacyCollectionOperation, readPendingCollectionOperations, readLegacyQueueSources, writePendingCollectionOperations, queuePendingCollectionOperation, rebasePendingCollectionOperation, removePendingCollectionOperation } from "../lib/collection/offline-queue"
 import type { CollectedPokemon } from "../lib/domain/cards"
 
 const code = "binder_converted_requires_slot_commands"
@@ -24,7 +24,7 @@ for (const type of ["delete", "upsert", "import"] as const) for (const withBase 
     let calls = 0
     globalThis.fetch = (async () => { calls++; return Response.json({ error: "Use slot commands", code }, { status: 409 }) }) as typeof fetch
     try {
-      const operation = readPendingCollectionOperations()[0]
+      const operation = record
       await assert.rejects(type === "delete" ? deleteRemoteCollectionItem(25) : saveRemoteCollectionItem(item), error => {
         assert.ok(error instanceof CollectionWriteError)
         assert.equal(error.code, code)
@@ -83,11 +83,11 @@ test("a newer edit during a send cannot erase the rejected original record", () 
   globals.window = { localStorage: { getItem: () => stored, setItem: (_key: string, value: string) => { stored = value } } }
   try {
     pauseLegacyCollectionOperation(original.id, raw)
-    const [paused, retainedNewer] = JSON.parse(stored)
-    assert.equal(paused.compatibilityPause.rawRecord, raw)
+    const [paused] = readPendingCollectionOperations()
+    assert.equal(paused.compatibilityPause!.rawRecord, raw)
     const { compatibilityPause: _pause, ...retainedOriginal } = paused
     assert.deepEqual(retainedOriginal, original)
-    assert.deepEqual(retainedNewer, newer)
+    assert.deepEqual(JSON.parse(readLegacyQueueSources()[0].legacyQueueSource.raw), [newer])
   } finally { if (previous === undefined) delete globals.window; else globals.window = previous }
 })
 
