@@ -1,3 +1,5 @@
+import { isStorageCommandRejection } from '@/lib/collection/storage-command-rejection'
+import { StorageCommandRejectedError } from '@/lib/server/developer-access/storage-command-error'
 import type { OperationContext } from '@/lib/developer-api/types'
 import { DeveloperAccessError, requirePermissions } from '@/lib/developer-api/permissions'
 import { NATIVE_DEVELOPER_OPERATIONS, nativeCommandIntent } from '@/lib/developer-api/storage'
@@ -26,5 +28,8 @@ export async function executeNativeDeveloperOperation(context: OperationContext,
   }
   const intent = name === 'execute_slot_commands' || name === 'execute_inventory_commands'
     ? nativeCommandIntent(parsed.data) : parsed.data
-  return executeDeveloperStorageOperation(context, storageOperations[name], intent)
+  const result = await executeDeveloperStorageOperation(context, storageOperations[name], intent)
+  if ((name === 'execute_slot_commands' || name === 'execute_inventory_commands')
+    && isStorageCommandRejection(result, String(intent.operationId))) throw new StorageCommandRejectedError(result)
+  return result
 }

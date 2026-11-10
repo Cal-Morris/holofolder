@@ -1,3 +1,4 @@
+import { PRESET_OPERATIONS } from "./presets"
 import { NATIVE_READ_OPERATIONS } from "./native-read"
 import {DISPLAY_CURRENCIES,PRICING_REGIONS} from '@/lib/pricing-region'
 import {z} from 'zod'
@@ -8,10 +9,11 @@ import {NATIVE_DEVELOPER_OPERATIONS} from './storage'
 const id=z.string().min(1).max(200),binderId=z.uuid(),language=z.enum(CARD_LANGUAGES).optional()
 const paging={limit:z.number().int().min(1).max(100).optional(),cursor:z.string().max(1024).optional()}
 const catalog={...paging,language,q:z.string().max(80).optional(),set:id.optional(),series:id.optional(),illustrator:z.string().max(200).optional(),pokemon:z.number().int().positive().max(9999).optional()}
-export type DeveloperOperation={name:string;method:'GET'|'POST'|'PATCH'|'PUT'|'DELETE';path:string;description:string;permissions:readonly DeveloperPermission[];write:boolean;schema:z.ZodObject;maxBytes?:number;responseSchema?:z.ZodType;admission?:'staged';idempotent?:boolean;destructive?:boolean}
+export type DeveloperOperation={name:string;method:'GET'|'POST'|'PATCH'|'PUT'|'DELETE';path:string;description:string;permissions:readonly DeveloperPermission[];write:boolean;schema:z.ZodObject;maxBytes?:number;responseSchema?:z.ZodType;errorSchemas?:Readonly<Partial<Record<number,z.ZodType>>>;admission?:'staged';idempotent?:boolean;destructive?:boolean}
 export const DEVELOPER_OPERATIONS:readonly DeveloperOperation[]=[
  ...NATIVE_DEVELOPER_OPERATIONS,
  ...NATIVE_READ_OPERATIONS,
+ ...PRESET_OPERATIONS,
  {name:'list_cards',method:'GET',path:'/cards',description:'Browse and search the card catalog with pagination.',permissions:['catalog:read'],write:false,schema:z.object(catalog).strict()},
  {name:'get_card',method:'GET',path:'/cards/{id}',description:'Look up a card by its exact identifier.',permissions:['catalog:read'],write:false,schema:z.object({id,language}).strict()},
  {name:'list_sets',method:'GET',path:'/sets',description:'List card sets.',permissions:['catalog:read'],write:false,schema:z.object({...paging,language,series:id.optional()}).strict()},
@@ -46,7 +48,7 @@ export const DEVELOPER_OPERATIONS:readonly DeveloperOperation[]=[
  {name:'get_collection_audit',method:'GET',path:'/collection/audit/{id}',description:'Read one private committed audit event, including safe retained deltas and the original event ID for an undo.',permissions:['collection:read'],write:false,schema:z.object({id:z.string().regex(/^[1-9]\d{0,18}$/)}).strict()},
  {name:'preview_collection_recovery',method:'POST',path:'/collection/recovery/preview',description:'Preview a safe undo of complete recorded card and want-list row edits without changing collection data. Collection deletion, settings, native storage and incomplete older events remain unsupported. Returns supported, conflicts, safe changes and a reviewed planToken. Older incomplete events and unsupported dependencies have no token. Requires current access and all listed scopes.',permissions:['collection:read','collection:write','binders:write'],write:false,schema:recoveryPreviewSchema},
  {name:'apply_collection_recovery',method:'POST',path:'/collection/recovery/apply',description:'Undo the exact reviewed card or want-list event atomically with a linked new audit event. Structural/native storage recovery remains gated. Requires confirmed:true, planVersion:1, planToken and a retry-stable operationId. Newer edits, lost access and current limits can block undo. Retry the exact request after an unknown outcome; never generate a new operationId.',permissions:['collection:read','collection:write','binders:write'],write:true,schema:recoveryApplySchema},
- {name:'get_collection_analytics',method:'GET',path:'/analytics',description:'Read collection activity and available card price history.',permissions:['collection:read','prices:read'],write:false,schema:z.object({beforeId:z.string().max(30).optional(),cardId:id.optional(),language}).strict()},
+ {name:'get_collection_analytics',method:'GET',path:'/analytics',description:'Read legacy collection activity and available card price history. A retained native owner root, converted or mixed storage returns 503 native_analytics_staged; native analytics admission remains closed.',permissions:['collection:read','prices:read'],write:false,schema:z.object({beforeId:z.string().max(30).optional(),cardId:id.optional(),language}).strict()},
  {name:'resolve_import',method:'POST',path:'/imports/resolve',description:'Resolve import identities against actual catalog records without changing the collection.',permissions:['catalog:read'],write:false,schema:z.object({lookups:z.array(z.record(z.string(),z.unknown())).min(1).max(25)}).strict()},
  {name:'check_deal',method:'POST',path:'/deals/check',description:'Evaluate an asking price using existing saved market evidence.',permissions:['prices:read'],write:false,schema:z.object({cardId:id,language,askingPrice:z.number().positive().max(10000000),currency:z.enum(DISPLAY_CURRENCIES),region:z.enum(PRICING_REGIONS).optional(),finish:z.enum(['normal','holo','reverse_holo']).optional(),thresholds:z.object({greatPct:z.number().min(0).max(100),fairPct:z.number().min(0).max(100),walkAwayPct:z.number().min(0).max(1000)}).optional()}).strict()},
 

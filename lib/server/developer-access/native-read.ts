@@ -1,7 +1,7 @@
 import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { OperationContext } from "@/lib/developer-api/types"
-import { DeveloperAccessError, developerEntitled, normalizePermissions, requirePermissions } from "@/lib/developer-api/permissions"
+import { DeveloperAccessError, developerEntitled, normalizePermissions, requirePermissions, type DeveloperPermission } from "@/lib/developer-api/permissions"
 import { resolveBillingAccess } from "@/lib/billing"
 import type { InventoryReadAuthority } from "@/lib/server/inventory-read-core"
 
@@ -11,10 +11,10 @@ const unavailable = (): never => { throw new DeveloperAccessError("native_read_u
 
 /** Rechecks current credential, actor, membership and billing before any owner data and at final fences.
  * The context comes from the existing authenticator, never the request body or a browser session. */
-export function developerReadAuthority(db: SupabaseClient, context: OperationContext): InventoryReadAuthority {
+export function developerReadAuthority(db: SupabaseClient, context: OperationContext, required: readonly DeveloperPermission[] = NATIVE_READ_PERMISSIONS): InventoryReadAuthority {
   return { privateSettings: true, scope: async (check, signal) => {
     const p = context.principal
-    requirePermissions(p.permissions, NATIVE_READ_PERMISSIONS)
+    requirePermissions(p.permissions, required)
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (![p.actorId, p.credentialId, context.ownerUserId, ...context.memberIds].every(id => uuid.test(id))) return denied()
     check()
@@ -36,7 +36,7 @@ export function developerReadAuthority(db: SupabaseClient, context: OperationCon
       permissions = result.data.permissions
     } else return denied()
     const current = normalizePermissions(permissions)
-    requirePermissions(current, NATIVE_READ_PERMISSIONS)
+    requirePermissions(current, required)
     if (JSON.stringify(current.toSorted()) !== JSON.stringify([...p.permissions].toSorted())) return denied()
     check()
     const user = await db.auth.admin.getUserById(p.actorId)

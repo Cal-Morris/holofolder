@@ -58,12 +58,12 @@ export default function CachedNativeStartup({ localHarness = false, legacyProps,
       const layout = binder && read.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
       const display = snapshot && binder && layout ? { inventory: snapshot, binder, catalog: {}, resolveCard: browserHostDisplayCatalog(read.catalog) } : undefined
       const header = <><p role="status" className="px-4 text-sm">Saved on this device · Cached only. Access will be checked when you reconnect.{pending > 0 ? ` ${pending} pending edit${pending === 1 ? "" : "s"} retained.` : ""}</p>{surface.header}</>
-      return <BinderApp {...legacyProps} key={JSON.stringify([surface.visit, surface.state.main, surface.collection?.collectionId, surface.collection?.state.view])}
+      return <BinderApp {...legacyProps} key={JSON.stringify([surface.visit, surface.state.main, surface.state.dexView, surface.collection?.collectionId, surface.collection?.state.view])}
         localBrowserHost={false} initialCollectionOwnerUserId={read.scope.ownerUserId}
         initialBinderId={binder?.collectionId ?? legacyProps.initialBinderId}
         initialCollection={surface.state.main === "dex" ? legacyProps.initialCollection : []}
         initialSettings={{ ...legacyProps.initialSettings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
-        browserHeader={header} browserSurface={{ surface, display, catalog, pending, receive: async () => { throw new Error("cached-startup-read-only") } }}
+        browserHeader={header} browserSurface={{ analytics: { scope: read.scope, read }, surface, display, catalog, pending, receive: async () => { throw new Error("cached-startup-read-only") } }}
         stagedSlotDisplay={surface.state.main === "collection" ? display : undefined} stagedSlotSessionId={read.scope.sessionId} />
     }} />
 }

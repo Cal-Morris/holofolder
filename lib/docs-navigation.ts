@@ -14,7 +14,8 @@ const referenceGroups = {
     { name: 'Sharing & appearance', path: /^\/(binders\/\{binderId\}\/(identity|sharing)|appearance|artwork)(\/|$)/ },
     { name: 'Show purchases', path: /^\/show-purchases(\/|$)/ },
     { name: 'Inventory', path: /^\/inventory\// },
-    { name: 'Native storage', path: /^\/storage\// },
+    { name: 'Presets', path: /^\/storage\/presets(?:\/|$)/ },
+    { name: 'Native storage', path: /^\/storage\/(?!presets(?:\/|$))/ },
   ],
   'reference/prices-and-insights': [
     { name: 'Prices', path: /^\/(prices|price-checks)(\/|$)/ },
