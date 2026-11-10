@@ -43,3 +43,22 @@ export function summarizeApiPerformance(samples:readonly ApiPerformanceSample[])
   }
  })
 }
+
+/** Coverage is distinct from successful execution and its latency targets. */
+export function summarizeApiSmokeCoverage(samples:readonly ApiPerformanceSample[]) {
+ return summarizeApiPerformance(samples).map(row=>{
+  const staged=DEVELOPER_OPERATIONS.find(op=>op.name===row.operation)!.admission==='staged'
+  const measured=samples.filter(sample=>sample.operation===row.operation)
+  const stagedDenialVerified=staged&&measured.length>0&&measured.every(sample=>
+   sample.scenario==='native-staged'&&sample.status===503&&sample.expectedStatus===503&&sample.assertionsPassed===true)
+  const successVerified=!staged&&row.verified&&measured.every(sample=>sample.assertionsPassed===true)
+  return {operation:row.operation,successVerified,stagedDenialVerified,
+   coverage:successVerified?'successVerified' as const:stagedDenialVerified?'stagedDenialVerified' as const:'uncovered' as const}
+ })
+}
+
+export function apiSmokeExitCode(samples:readonly ApiPerformanceSample[],failures:readonly string[],cleanup:{users:boolean;artwork:readonly string[]},strictPerformance=false):0|1|2 {
+ if(failures.length||summarizeApiSmokeCoverage(samples).some(row=>row.coverage==='uncovered')||!cleanup.users)return 1
+ if(strictPerformance&&summarizeApiPerformance(samples).some(row=>row.targetMet===false))return 1
+ return cleanup.artwork.length?2:0
+}

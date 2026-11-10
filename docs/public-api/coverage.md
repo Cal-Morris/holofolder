@@ -208,3 +208,8 @@ Synthetic local authority/ledger tests are not hosted SQL or production proof.
 See the [private help](../../content/docs/bulk-layout.mdx) and unpublished release
 draft. Parent retains #370/#369 final acceptance and rollout ownership.
 
+
+
+## Repeatable release smoke coverage
+
+The [operator smoke guide](../api-smoke.md) distinguishes 56 admitted functional checks from 15 fixed native staging denials (five reads, two presets and eight storage POST contracts). Every staged operation has explicit synthetic schema-valid denial input; missing/new fixtures, incorrect HTTP status/error bodies or failed assertions fail coverage. Local real REST/MCP HTTP/SDK tests use synthetic authority dependencies and prove zero executor/data RPCs under the unchanged admission gate. Native `verified` and latency acceptance remain unproven. Parent owns reviewed deployed smoke and exact fixture cleanup; pending or unknown cleanup cannot pass. This internal reporting fix enables no API operation, SQL, native write, Inventory or BrowserSession behavior and closes no #376/#379 rollout gate.
