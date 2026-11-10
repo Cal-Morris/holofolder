@@ -82,3 +82,11 @@ Independent review and production acceptance of the staged developer read projec
 ## Staged read projection
 
 [Native developer reads](/docs/native-reads) now declare copy, storage and stable slot reads with current preconditions and revision-bound pagination. They share the fixed admission denial. A returned page cannot serve as a complete planning snapshot or a fresh-read queue acknowledgement.
+
+## JSON v2 arrangement import, staged
+
+`import_storage_arrangement` (`POST /app/api/v1/storage/imports/arrangement`) is registered with both write scopes and fixed `503 native_operations_staged` admission. It does not enable importing in Settings or replace the existing v1/Dex importer.
+
+The prepared backend imports one complete ordered arrangement into existing native storage with the same copied preset manifest. The destination must be empty or have only reviewed empty targets/spacers. Preview lists the replaced empty slots, every added physical copy and every explicit move of a trusted existing copy. Matching printings and certificates never merge ownership. Wants, spacers and recorded grading stay separate; private label assets and appearance/settings imports are unsupported.
+
+Keep the exact immutable operation and generated IDs after a timeout or lost response. Reconfirming a new plan can mean additional physical copies. A historical receipt needs a fresh complete read before showing the import as synchronized. Changed same-owner restore, multi-collection owner restore, CSV fill/append execution, asset packaging and offline import delivery remain unavailable. Current legacy Activity Undo does not undo native imports. The private native recovery planner can recover untouched generated events, including previous explicit placements and empty target layout; later edits or ABA conflict.

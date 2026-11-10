@@ -1,3 +1,4 @@
+import { parseBackupArrangementCommand, BACKUP_IMPORT_LIMITS } from "@/lib/domain/backup-import-command"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
 import { isContractRecord, isSlotContractId, isSlotRevision } from "@/lib/domain/binder-slots"
 import { parseInventoryCommand, type InventoryCommandRequest, type InventoryCommand } from "@/lib/domain/inventory-commands"
@@ -6,12 +7,13 @@ import { isBinderId } from "@/lib/binders/model"
 import { parseSlotCommand } from "@/lib/domain/slot-commands"
 import { isAuditId } from "./audit"
 
-export type StorageOperation = "inventory" | "slots" | "collection.create" | "recovery.preview" | "recovery.apply" | "recovery.preview.v2" | "recovery.apply.v2"
+export type StorageOperation = "backup.arrangement" | "inventory" | "slots" | "collection.create" | "recovery.preview" | "recovery.apply" | "recovery.preview.v2" | "recovery.apply.v2"
 export const STORAGE_RESULT_BYTES = 16777216
 const invalid = (): never => { throw new DeveloperAccessError("invalid_input", "Invalid or oversized storage request.", 400) }
 const ids = (v: unknown, limit = 16384): v is string[] => Array.isArray(v) && v.length <= limit && v.every(isSlotContractId)
 export function parseStorageRequest(operation: StorageOperation, input: unknown) {
   try {
+    if (operation === "backup.arrangement") return parseBackupArrangementCommand(input)
     if (operation === "collection.create") return parseCollectionCreation(input)
     if (operation === "inventory") return parseInventoryCommand(input)
     if (operation === "slots") return parseSlotCommand(input)
@@ -78,6 +80,12 @@ export function normalizeStorageResult(operation: StorageOperation, value: unkno
     return Object.fromEntries(["planVersion", "eventId", "supported", "unsupported", "conflicts", "planToken", "restoreUnassignedItemIds", "changes", "rootRevisionsAdvance"].map(k => [k, row[k]]))
   }
   const result: Record<string, unknown> = { inventoryRevision: revision("inventoryRevision") }
+  if (operation === "backup.arrangement") {
+    if (!isBinderId(row.collectionId) || row.changed !== true || !ids(row.slotIds, BACKUP_IMPORT_LIMITS.slots)
+      || new Set(row.slotIds).size !== row.slotIds.length || !ids(row.addedItemIds, BACKUP_IMPORT_LIMITS.items) || !ids(row.removedEmptySlotIds, BACKUP_IMPORT_LIMITS.slots)) return unavailable()
+    return { ...result, collectionId: row.collectionId, collectionVersion: revision("collectionVersion"), layoutRevision: revision("layoutRevision"), changed: true,
+      slotIds: [...row.slotIds], addedItemIds: [...row.addedItemIds], removedEmptySlotIds: [...row.removedEmptySlotIds] }
+  }
   if (operation === "collection.create") {
     if (!isBinderId(row.collectionId) || row.changed !== true || row.recoverySupported !== false
       || !ids(row.slotIds, COLLECTION_CREATION_LIMITS.capacity) || new Set(row.slotIds).size !== row.slotIds.length) return unavailable()
