@@ -8,6 +8,7 @@
     "collection-history",
     "native-storage",
     "native-reads",
+    "manual-grading",
     "slabs",
 
     "preset-previews",

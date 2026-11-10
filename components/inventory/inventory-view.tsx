@@ -17,6 +17,7 @@ import styles from "./inventory.module.css"
 
 const InventoryDetail = dynamic(() => import("./inventory-detail"), { ssr: false })
 export interface InventoryViewProps {
+  onEditGrading?: (itemId: string) => void
   pricingRegion?: PricingRegion
   initialBrowseState?: InventoryViewState
   onBrowseStateChange?: (state: InventoryViewState) => void
@@ -27,16 +28,16 @@ export interface InventoryViewProps {
   /** Host re-resolves the stable IDs against current authorized evidence before navigating. */
   onOpenLocation?: (intent: InventoryLocationIntent) => void
 }
-export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation, initialBrowseState, onBrowseStateChange, pricingRegion = "UK" }: InventoryViewProps) {
+export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation, onEditGrading, initialBrowseState, onBrowseStateChange, pricingRegion = "UK" }: InventoryViewProps) {
   const index = useMemo(() => buildInventoryBrowseIndex(scope, evidence, catalog, layouts), [scope, evidence, catalog, layouts])
   // Synchronous remount prevents even a single paint of another account's selection/query/cursor.
-  return <InventoryResults key={index.key} index={index} pricingRegion={pricingRegion} onOpenLocation={onOpenLocation} initialBrowseState={initialBrowseState} onBrowseStateChange={onBrowseStateChange} />
+  return <InventoryResults key={index.key} index={index} pricingRegion={pricingRegion} onOpenLocation={onOpenLocation} onEditGrading={onEditGrading} initialBrowseState={initialBrowseState} onBrowseStateChange={onBrowseStateChange} />
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className={styles.field}><span>{label}</span>{children}</label>
 }
-function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, initialBrowseState, onBrowseStateChange }: Pick<InventoryViewProps, "pricingRegion" | "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange"> & { index: InventoryBrowseIndex }) {
+function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditGrading, initialBrowseState, onBrowseStateChange }: Pick<InventoryViewProps, "pricingRegion" | "onEditGrading" | "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange"> & { index: InventoryBrowseIndex }) {
   const [initial] = useState(() => {
     const state = normalizeInventoryViewState(initialBrowseState)
     return { query: state.query, ...restoreInventoryWindow(index, state.query, state.window) }
@@ -46,6 +47,13 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, initial
   const [previous, setPrevious] = useState<(InventoryBrowseCursor | null)[]>(initial.previous)
   useEffect(() => { onBrowseStateChange?.({ query, window: previous.length }) }, [query, previous.length, onBrowseStateChange])
   const [selected, setSelected] = useState<string | null>(null)
+  const pendingGrading = useRef<string | null>(null)
+  useEffect(() => {
+    if (selected || !pendingGrading.current) return
+    const id = pendingGrading.current
+    pendingGrading.current = null
+    runAfterOverlayHistory(() => onEditGrading?.(id))
+  }, [selected, onEditGrading])
   const pendingLocation = useRef<InventoryLocationIntent | null>(null)
   useEffect(() => {
     if (selected || !pendingLocation.current) return
@@ -127,6 +135,6 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, initial
         </nav>
       </>}
     </>}
-    {row && <InventoryDetail row={row} cached={index.kind === "cached"} onClose={() => setSelected(null)} onOpenLocation={onOpenLocation ? intent => { pendingLocation.current = intent; setSelected(null) } : undefined} />}
+    {row && <InventoryDetail row={row} onEditGrading={onEditGrading ? () => { pendingGrading.current = row.itemId; setSelected(null) } : undefined} cached={index.kind === "cached"} onClose={() => setSelected(null)} onOpenLocation={onOpenLocation ? intent => { pendingLocation.current = intent; setSelected(null) } : undefined} />}
   </section>
 }
