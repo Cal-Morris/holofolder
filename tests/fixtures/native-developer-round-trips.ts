@@ -284,6 +284,10 @@ async function main() {
       } else assert.equal(lost.result.error.code, 'native_operations_staged')
     }
     for (const [index, commands] of [
+      ...[null, { kind: 'existing', inventoryItemId: 'synthetic-unassigned', itemVersion: 3 },
+        { kind: 'new', itemId: 'synthetic-explicit-acquisition', identity: { kind: 'pokemon', pokemonId: 25 }, grading: null, acquiredAt: null }].map(selection =>
+        [{ kind: 'insertAssign', collectionId, slotId: 'synthetic-inserted-slot', before: null, target: null, selection }]),
+      [{ kind: 'insertAssign', collectionId, slotId: 'synthetic-insert-before', before: placedSlot, target: { kind: 'pokemon', pokemonId: 25 }, selection: null }],
       [{ kind: 'patchGrading', item: placedItem, patch: { grade: null, labelVariant: 'Synthetic new label' } }],
       [{ ...safeInventory.commands[0], fulfillWant: { index: 1, expectedPublic: { card_id: 'synthetic-card', card_name: 'Synthetic', added_at: '2020-01-01' } } }],
     ].entries()) {

@@ -39,3 +39,14 @@ A rejected local handoff retains the exact original operation, IDs, revisions an
 Remaining #370/#369 acceptance: ordered catalog fill and mismatch/replacement previews; authoritative Undo with stale partner/assignment protection; bulk clear/remove consequence previews plus atomic undo; cross-storage operations (#383); actual authenticated execution, partner reconciliation UX and production startup/bootstrap/conversion/API grants and enablement. Existing atomic clear/remove contracts retain owned items as Unassigned, but exposing destructive execution before Undo/recovery is ready would not meet the feature contract, so this slice does not expose it. No synthetic fill, Undo, remote save or shipped customer capability is claimed. Recovery files and their independently owned contracts are untouched.
 
 API coverage: this is a private UI/device consumer of the already parsed internal slot command and acceptance boundary. No supported public REST/MCP capability or generated OpenAPI change applies until #376/#379 enable the feature with authentication, permissions/errors, audit/recovery and documentation parity. Staged user help is `content/docs/bulk-layout.mdx`. Enabled-release copy is prepared, unpublished, in `docs/releases/bulk-slot-layout-draft.md`; public Framer help/blog/changelog publication waits for the enabled feature block (#393).
+
+## Real-host recorded-copy fill extension
+
+The admitted BinderApp now binds `bulk` to the current saved page/grid/edit
+session. Optional `LayoutBoundary.bulkFill` (availability plus the guarded existing-queue sink) enables the shared review only
+for complete online browser evidence without pending inventory work; cached/native
+production admission is unchanged. The bulk-fill callback refuses new inventory
+fill against cached/offline/pending evidence and rechecks scope after IDB reads.
+See [bounded bulk fill](bulk-slot-fill.md) for the implemented UI/command boundary,
+matching, spacers, immutable retry, recovery integration and remaining gates. Older
+statements above describe the original #434 slice, not this additive composition.

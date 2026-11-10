@@ -185,7 +185,26 @@ legacy history: owner-wide native roots (including retained Unassigned copies), 
 before legacy activity is queried; unknown authority fails closed. Saved prices still
 use `get_prices`. See [native analytics boundary](../native-analytics-dashboard.md).
 
+
 ### Native Activity recovery UI preparation (#396)
 
 The [staged first-party journey](../native-activity-recovery-ui.md) joins existing safe Activity history, the native recovery v1/v2 bridge and an additive recovery intent in the existing atomic device queue. The new first-party `/app/api/native-recovery` remains unconditional private/no-store 503. Only the established local/nonhosted harness calls the real internal handler with synthetic clients. Existing public recovery schemas/REST/MCP/generated OpenAPI and their fixed admission remain unchanged. No native event can enter legacy 087 row Undo. Unknown outcomes retain exact original IDs/choices/recipient; accepted receipts need a separate scoped complete read before ACK. Safe recovery terminal noncommit proof is still a backend prerequisite for cancellation/replanning. Current help describes the staged boundary and [release copy](../releases/native-activity-recovery-draft.md) is unpublished; #396/#379 stay open. Preserve #466's independent preset operations during integration.
+
+
+`execute_inventory_commands` adds strict staged `insertAssign` (091), with exact existing before-anchor or append, target/free choice, and null/existing Unassigned/explicit new copy selection. Shared REST/MCP schemas/generated output and durable intent projection ship together; no new operation, permission, admission, complete-read or scanner UI capability is claimed. See [contract and local proof](../atomic-insert-assign.md).
+
+
+## Recorded-copy bulk fill (#370/#369), private browser composition
+
+[Bulk fill](../bulk-slot-fill.md) binds the existing real browser host, layout
+selection, inventory `assign` batch, durable IDB acceptance, HTTP sender, terminal
+rejection review and fresh complete-read ACK. Manual copy/destination review and
+opt-in compatible Unassigned proposals use the existing domain match contract.
+No new data operation, permission/schema/error, generated OpenAPI change or public
+admission is introduced. This UI cannot create inventory, overwrite/move assigned
+copies or invent a hosted inverse. REST/MCP continue to describe the underlying
+staged batch; production and cached-native startup remain denied/read-only.
+Synthetic local authority/ledger tests are not hosted SQL or production proof.
+See the [private help](../../content/docs/bulk-layout.mdx) and unpublished release
+draft. Parent retains #370/#369 final acceptance and rollout ownership.
 

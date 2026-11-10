@@ -26,7 +26,7 @@ export function storageCommandHarness(id: string) {
   state.tables.binders[0].binder_rows = 2; state.tables.binders[0].binder_cols = 2
   for (let i = 0; i < 4; i++) state.tables.binder_slots.push({ id: `synthetic-slot-${i}`, owner_user_id: owner, collection_id: collection,
     position: i, target: null, status: null, wanted_cards: [], preset_origin: null, version: 0 })
-  if (id.startsWith("scan-")) {
+  if (id.startsWith("scan-") || id.startsWith("fill-")) {
     // Synthetic scanner data, unrelated to any real card, owner or catalog provider.
     const cards = ["energy", "trainer", "snorlax"]
     state.tables.tcg_sets = [{ id: "synthetic", name_en: "Synthetic scanner set" }]
@@ -37,6 +37,7 @@ export function storageCommandHarness(id: string) {
       identity: { kind: "card", cardId: `synthetic-${kind}`, language: "en" }, grading: null, acquired_at: null, version: 0, legacy_source: null }))
     for (const slot of state.tables.binder_slots.slice(0, 2)) slot.target = { kind: "pokemon", pokemonId: 143 }
   }
+
   if (id.startsWith("grading-")) {
     state.tables.binder_slots[0].status = "collected"
     // Synthetic independent copies of the same unknown printing; private evidence must round-trip.
@@ -49,6 +50,16 @@ export function storageCommandHarness(id: string) {
         legacy_source: { unknown: { untouched: [null, "00007", { legacy: true }] } }, untouched_column: "synthetic-private-db-metadata" })
       if (n === 0) state.tables.inventory_placements.push({ inventory_item_id: itemId, owner_user_id: owner, collection_id: collection, slot_id: "synthetic-slot-0", version: 5 })
     }
+  }
+
+  if (id.startsWith("fill-")) {
+    // Synthetic mixed bulk-fill page with separate copies of a repeated printing.
+    state.tables.inventory_items.push({ ...state.tables.inventory_items[2], id: "synthetic-copy-snorlax-2" })
+    state.tables.binder_slots.push({ ...state.tables.binder_slots[3], id: "synthetic-slot-4", position: 4 })
+    state.tables.inventory_placements.push({ inventory_item_id: "synthetic-copy-trainer", owner_user_id: owner,
+      collection_id: collection, slot_id: "synthetic-slot-3", version: 0 })
+    state.tables.binder_slots[3].status = "collected"
+
   }
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
   const originalRpc = state.client.rpc.bind(state.client)

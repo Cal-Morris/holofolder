@@ -33,7 +33,11 @@ export interface BrowserSurfaceBinding {
   receive: SlotCommandSink
   pending: number
 
+  bulkFill?: { available: boolean; receive: SlotCommandSink }
+
+
   recovery?: NativeRecoveryBinding
+
 
   scan?: { detectPage?: NativePageScanAdmission["detectPage"]; available: boolean; online: boolean; rows?: number; cols?: number; sessionId: string; getOfflineCards: () => Promise<SearchCardResult[]>; receive: ScanDestinationAdmission["onCommandIntent"] }
 
@@ -189,6 +193,15 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     return latest.current.queue.enqueue(draft.intent, catalog)
   }
+
+  const receiveBulkFill: SlotCommandSink = async draft => {
+    if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId || draft.intent.kind !== "inventory") throw new Error("inactive-or-unavailable-session")
+    // #469 adds recovery to this same record; unresolved recovery must fence new work.
+    const record: { pending: unknown[]; recovery?: { synchronized: boolean }[] } | undefined = await latest.current.queue.queue?.read()
+    if (!valid() || !navigator.onLine || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(r => !r.synchronized)) throw new Error("fresh-scoped-read-required")
+    return latest.current.queue.enqueue(draft.intent, catalog)
+  }
+
   const recoveryRead = useRef<CollectionNavigationRead | null>(null)
   const recovery: NativeRecoveryBinding = {
     queue: queue.queue, deviceId, localHarness, scope,
@@ -214,6 +227,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         return fresh.evidence.snapshot
       } finally { refreshing.current-- }
     },
+
   }
   // An optimistic projection is cached evidence, never a complete remote read or ACK.
   const visibleRead: CollectionNavigationRead = queue.record?.optimistic && queue.record.pending.length
@@ -222,6 +236,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       const projected = queue.record?.optimistic?.binders.find(b => b.collectionId === layout.collectionId)
       return base?.layoutRevision === layout.layoutRevision && projected ? { ...layout, layoutRevision: projected.layoutRevision } : layout
     }) } : !online && read.evidence.kind === "complete" ? { ...read, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : read
+  const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean }[] } | null = queue.record
+  const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(r => !r.synchronized))
   if (!ready) return <p role="status">Opening saved storage…</p>
   const gradingItem = grading?.snapshot.items.find(i => i.id === grading.itemId)
   const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(r => !r.synchronized)
@@ -263,7 +279,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           }}>Retry pending sync</button>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
 
-          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, pending: queue.record?.pending.length ?? 0,
+          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
+
           scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
             ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,
             available: visibleRead.evidence.kind === "complete" && online, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })

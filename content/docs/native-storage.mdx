@@ -124,3 +124,24 @@ Independent review and production acceptance of the staged developer read projec
 The prepared backend imports one complete ordered arrangement into existing native storage with the same copied preset manifest. The destination must be empty or have only reviewed empty targets/spacers. Preview lists the replaced empty slots, every added physical copy and every explicit move of a trusted existing copy. Matching printings and certificates never merge ownership. Wants, spacers and recorded grading stay separate; private label assets and appearance/settings imports are unsupported.
 
 Keep the exact immutable operation and generated IDs after a timeout or lost response. Reconfirming a new plan can mean additional physical copies. A historical receipt needs a fresh complete read before showing the import as synchronized. Changed same-owner restore, multi-collection owner restore, CSV fill/append execution, asset packaging and offline import delivery remain unavailable. Current legacy Activity Undo does not undo native imports. The private native recovery planner can recover untouched generated events, including previous explicit placements and empty target layout; later edits or ABA conflict.
+
+
+## Atomic slot insertion and copy assignment, staged (091)
+
+`execute_inventory_commands` and `POST /app/api/v1/storage/inventory/commands` accept `insertAssign` through the same strict shared registry. Production still returns fixed `503 native_operations_staged`. Migration 091 must follow 090 before this intent can execute; the parent owns hosted application and release.
+
+Each command supplies `collectionId`, a stable **new** `slotId`, `before` as an exact existing slot precondition or explicit `null` to append, `target` as a declared target or explicit `null` for free, and `selection`. It shifts the full saved arrangement, preserving every following target, wants, item and spacer identity. It never replaces a pocket or searches for another destination.
+
+`selection:null` adds only a placeholder, with no ownership. `selection:{kind:"existing",inventoryItemId,itemVersion}` reuses exactly that Unassigned copy once, preserving grading, certificate, acquisition and immutable provenance. Assigned copies cannot be selected. `selection:{kind:"new",itemId,identity,grading,acquiredAt}` explicitly acquires one new copy with stable identity and declared metadata; unknown grading/acquisition are `null`. The caller must review eligible Raw/recorded-copy choices, never infer grading or acquire a duplicate merely because a transport reply was lost. This explicit new-copy form does not broaden the scanner's graded-only Raw policy.
+
+Synthetic example, **not an enabled endpoint**:
+
+```json
+{"privateFields":"preserve","expectedOwnerUserId":"00910000-0000-4000-8000-000000000001","operationId":"synthetic-append-001","inventoryRevision":3,"collections":[{"collectionId":"00910000-0000-4000-8000-000000000011","version":2,"layoutRevision":1}],"commands":[{"kind":"insertAssign","collectionId":"00910000-0000-4000-8000-000000000011","slotId":"synthetic-new-slot","before":null,"target":null,"selection":{"kind":"existing","inventoryItemId":"synthetic-unassigned-copy","itemVersion":4}}]}
+```
+
+Normal inventory limits remain 100 commands, 32 collections, 256 selected affected entities, 256 KiB request and 1 MiB receipt. Insertion additionally caps a collection at 4,096 slots and total order work at 8,192 rows per request, counting the entire current order plus each new slot. Audit/recovery evidence retains the existing 16,384-entity/16 MiB bound. The 10-second deadline is unchanged. No truncation, chunked partial success or timeout increase is used; stale anchors/copies, collisions, allowance or recorder failures roll back the whole request.
+
+One existing ledger receipt and one atomic history event cover the batch. Exact original replay precedes mutable reconstruction and cannot recreate a slot or copy after a later edit/recovery. Safe native recovery removes only the proved new slot/acquisition or returns the reused item to Unassigned; changed dependencies, layout or ABA reject. Restoring private asset metadata remains explicitly unsupported. A fresh preview decides support, not the insertion receipt. The original operation, slot and item IDs stay immutable through durable retry; only a separate fresh complete scoped read can acknowledge remote delivery. Public developer read pages cannot supply that snapshot.
+
+Scanner append selection is still unavailable: its confirmed batch builder and real app host must consume this intent after #470 integration, retain capture/current-layout/target/copy review, and prove real IDB persistence plus fresh-read ACK. This backend/typed planner delivery does not report a scanner save or enable production routes.

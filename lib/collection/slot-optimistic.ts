@@ -1,6 +1,6 @@
 import { normalizeAuditContext, type OperationIntentContext } from "@/lib/domain/audit-context"
 import { parseSlotCommand, type SlotCommandRequest, type SlotPrecondition } from "@/lib/domain/slot-commands"
-import { parseInventoryCommand, type InventoryCommandRequest, type InventoryItemRef, type InventorySlotRef } from "@/lib/domain/inventory-commands"
+import { parseInventoryCommand, type InventoryCommandRequest, type InventoryItemRef, type InventorySlotRef, INVENTORY_INSERT_LIMITS } from "@/lib/domain/inventory-commands"
 import { normalizeInventorySnapshot, inventoryItemCandidate, type InventorySnapshot, type InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { planInsertSlots, planMoveSlots, planClearSlots, planRemoveSlots, planChangeSlotTarget } from "@/lib/binder-slot-plans"
 import { planAssignInventory, planMoveInventory, planUnassignInventory, planEditInventoryMetadata, previewInventoryMoves } from "@/lib/inventory-plans"
@@ -84,17 +84,52 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
       state.placements = state.placements.filter(p => !plan.unassignedInventoryItemIds.includes(p.inventoryItemId))
     }
   } else {
-    const used = new Set<string>()
+    const used = new Set<string>(), usedItems = new Set<string>(), insertedItems = new Set<string>()
+    let insertionWork = 0
     for (const c of intent.request.commands) {
       if (c.kind === "patchGrading" || ("fulfillWant" in c && c.fulfillWant && "expectedPublic" in c.fulfillWant)) return fail("server-only-private-patch")
       const before = structuredClone(state)
+      if ("item" in c && insertedItems.has(c.item.itemId)) return fail("overlapping-command")
       const refs: InventorySlotRef[] = []
       if ("item" in c) { checkItem(c.item); if (c.item.placement) refs.push(c.item.placement) }
       if ("destination" in c) refs.push(c.destination)
       if (c.kind === "removeSlots") refs.push(...c.slots)
       if (c.kind === "deleteCollection") refs.push(...c.slots.map(slot => ({ collectionId: c.collectionId, slot })))
       for (const ref of refs) { checkSlotRef(original, ref.collectionId, ref.slot); if (used.has(ref.slot.id)) return fail("overlapping-command"); used.add(ref.slot.id) }
-      if (c.kind === "add") {
+      if (c.kind === "insertAssign") {
+        const binder = state.binders.find(b => b.collectionId === c.collectionId)!
+        if (c.target?.kind === "pokemon" && c.target.pokemonId > 1025) return fail("catalog-unavailable")
+        if (c.target?.kind === "card" && !catalog(c.target.cardId)) return fail("catalog-unavailable")
+        if (c.before) {
+          if (used.has(c.before.id)) return fail("overlapping-command")
+          checkSlotRef(original, c.collectionId, c.before)
+        }
+        const index = c.before === null ? binder.slots.length : binder.slots.findIndex(s => s.id === c.before!.id)
+        if (index < 0) return fail("slot-conflict")
+        insertionWork += binder.slots.length + 1
+        if (insertionWork > INVENTORY_INSERT_LIMITS.work || binder.slots.length >= INVENTORY_INSERT_LIMITS.slots) return fail("slot-capacity-exceeded")
+        if (used.has(c.slotId) || state.binders.some(b => b.slots.some(s => s.id === c.slotId))) return fail("slot-conflict")
+        used.add(c.slotId)
+        binder.slots.splice(index, 0, { id: c.slotId, ownerUserId: state.ownerUserId, collectionId: c.collectionId, target: c.target, inventoryItemId: null, wantedCards: [], status: null, version: 0, presetOrigin: null })
+        if (c.selection !== null) {
+          const selection = c.selection
+          const itemId = selection.kind === "new" ? selection.itemId : selection.inventoryItemId
+          if (usedItems.has(itemId)) return fail("overlapping-command")
+          usedItems.add(itemId); insertedItems.add(itemId)
+          if (selection.kind === "new") {
+            if (selection.identity.kind === "pokemon" && selection.identity.pokemonId > 1025) return fail("catalog-unavailable")
+            if (state.items.some(i => i.id === itemId)) return fail("item-conflict")
+            const candidate = selection.identity.kind === "card" ? catalog(selection.identity.cardId) : undefined
+            if (selection.identity.kind === "card" && !candidate) return fail("catalog-unavailable")
+            state.items.push({ id: itemId, ownerUserId: state.ownerUserId, identity: selection.identity.kind === "card" && candidate?.kind === "card"
+              ? { ...selection.identity, cardId: candidate.canonicalId ?? candidate.id } : selection.identity, grading: selection.grading, acquiredAt: selection.acquiredAt, version: 0 })
+          }
+          apply(planAssignInventory(state, { ...input(), destination: { collectionId: c.collectionId, slotId: c.slotId, slotVersion: 0, layoutRevision: binder.layoutRevision },
+            selection: { kind: "existing", inventoryItemId: itemId, itemVersion: selection.kind === "new" ? 0 : selection.itemVersion } }, catalog))
+        }
+        touched.add(c.collectionId); structural.add(c.collectionId)
+      } else if (c.kind === "add") {
+        usedItems.add(c.itemId)
         if (state.items.some(i => i.id === c.itemId)) return fail("item-conflict")
         state.items.push({ id: c.itemId, ownerUserId: state.ownerUserId, identity: c.identity, grading: c.grading, acquiredAt: c.acquiredAt, version: 0 })
       } else if (c.kind === "edit") apply(planEditInventoryMetadata(state, { ...input(), inventoryItemId: c.item.itemId, itemVersion: c.item.itemVersion, grading: c.grading }))
@@ -106,6 +141,10 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
         const displacedId = destination.inventoryItemId
         const displaced = state.items.find(i => i.id === displacedId), placement = state.placements.find(p => p.inventoryItemId === displacedId)
         if (displacedId !== null && c.occupied === "cancel") return fail("destination-occupied")
+        if (c.kind === "assign" && c.selection.kind === "existing") {
+          if (insertedItems.has(c.selection.inventoryItemId)) return fail("overlapping-command")
+          usedItems.add(c.selection.inventoryItemId)
+        }
         if (c.kind === "assign") apply(planAssignInventory(state, { ...input(), destination: slotRevision(c.destination), selection: c.selection }, catalog))
         else {
           const move = { ...placedInput(c.item), destination: slotRevision(c.destination), occupied: c.occupied }
@@ -145,6 +184,8 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
           if (c.replacementDefaultCollectionId) touched.add(c.replacementDefaultCollectionId)
         }
       }
+      if ("item" in c) usedItems.add(c.item.itemId)
+      for (const ref of refs) if (ref.slot.inventoryItemId !== null) usedItems.add(ref.slot.inventoryItemId)
       if (!sameValue(before, state)) for (const ref of refs) touched.add(ref.collectionId)
     }
   }
