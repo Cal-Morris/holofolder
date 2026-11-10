@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { isStorageCommandRejection } from '@/lib/collection/storage-command-rejection'
 import { normalizeStorageResult } from '@/lib/server/operations/storage-contract'
 
 const socket = process.env.PRIVATE_PATCH_TEST_SOCKET
@@ -12,10 +13,11 @@ const publicWant = { card_id: 'synthetic-090-card', card_name: 'Synthetic proof'
 const want = { ...publicWant, card_image: 'https://example.invalid/synthetic-private-image', wanted_by: [owner] }
 
 test('090 real SQL: original intent replay, private patch and selected want, races, atomic audit, ACLs and recovery gate', { skip: !socket, timeout: 60000 }, async () => {
-  assert.equal(socket, '/Users/cal/.local/share/holofolder/issue376-parity-090/socket')
+  const parentSocket = !!socket?.startsWith('/Users/cal/.local/share/holofolder/backups/') && socket.endsWith('/s')
+  assert.ok(parentSocket || socket === '/Users/cal/.local/share/holofolder/issue376-parity-090/socket')
   const { Client } = await import('pg')
   assert.match(process.env.PRIVATE_PATCH_TEST_DATABASE ?? '', /^parity090_[a-z0-9_]+$/)
-  const config = { host: socket, port: 55590, user: 'parity_test', database: process.env.PRIVATE_PATCH_TEST_DATABASE ?? 'postgres' }
+  const config = { host: socket, port: parentSocket ? 55482 : 55590, user: parentSocket ? 'backup_verify' : 'parity_test', database: process.env.PRIVATE_PATCH_TEST_DATABASE ?? 'postgres' }
   const db = new Client(config), concurrent = new Client(config)
   await db.connect(); await concurrent.connect()
   try {
@@ -23,6 +25,8 @@ test('090 real SQL: original intent replay, private patch and selected want, rac
       FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','auth','storage','collection_audit_private') ORDER BY 1,2`)).rows
     const funcs = async () => (await db.query(`SELECT p.oid::regprocedure::text name,p.proacl::text acl,md5(pg_get_functiondef(p.oid)) digest
       FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','collection_audit_private') ORDER BY 1`)).rows
+    const terminalMode = (await db.query("SELECT to_regprocedure('collection_audit_private.execute_command_v1(text,uuid,uuid,jsonb,jsonb)') IS NOT NULL enabled")).rows[0].enabled
+    const terminalReceipts = new Map<string, { actor: string; operation: string; id: string; result: unknown }>()
     const tables = await metadata(), before = await funcs()
     const migration = readFileSync(new URL('../scripts/090_private_preserving_inventory.sql', import.meta.url), 'utf8')
     await db.query(migration); const after = await funcs(); await db.query(migration)
@@ -69,7 +73,19 @@ test('090 real SQL: original intent replay, private patch and selected want, rac
       try {
         await header(client, input.operationId, actor)
         const result = (await client.query('SELECT public.storage_execute_v1($1,$2,$3) r', [operation, target, input])).rows[0].r
-        await client.query('COMMIT'); return result
+        await client.query('COMMIT')
+        if (isStorageCommandRejection(result, input.operationId)) {
+          assert.equal(terminalMode, true)
+          const ledgerOperation = operation === 'slots' ? 'binder_slots_v1' : 'inventory_v1'
+          const saved = (await client.query('SELECT result FROM public.developer_idempotency WHERE actor_id=$1 AND operation=$2 AND request_key=$3', [actor, ledgerOperation, input.operationId])).rows
+          assert.equal(saved.length, 1); assert.deepEqual(saved[0].result, result)
+          terminalReceipts.set(`${actor}:${ledgerOperation}:${input.operationId}`, { actor, operation: ledgerOperation, id: input.operationId, result })
+          // The fixture's conflict assertions work in both modes. In089 mode this
+          // error is raised only AFTER the actual terminal receipt committed and
+          // its exact lifetime ledger row was verified, never instead of SQL proof.
+          throw new Error(result.code)
+        }
+        return result
       } catch (e) { await client.query('ROLLBACK'); throw e }
     }
     const state = async () => (await db.query(`SELECT
@@ -77,7 +93,7 @@ test('090 real SQL: original intent replay, private patch and selected want, rac
       (SELECT jsonb_agg(to_jsonb(t)) FROM public.binder_slots t WHERE owner_user_id=$1) slots,
       (SELECT jsonb_agg(to_jsonb(t)) FROM public.inventory_placements t WHERE owner_user_id=$1) placements,
       (SELECT count(*)::int FROM public.collection_activity WHERE owner_user_id=$1) events,
-      (SELECT count(*)::int FROM public.developer_idempotency WHERE actor_id IN ($1,$2)) ledger,
+      (SELECT count(*)::int FROM public.developer_idempotency WHERE actor_id IN ($1,$2) AND result->>'outcome' IS DISTINCT FROM 'rejected') ledger,
       (SELECT inventory_revision::int FROM public.inventory_owner_state WHERE owner_user_id=$1) revision`, [owner, partner])).rows[0]
     const original = await request([await patch({ grade: '10', holder: null })], 'synthetic-090-original')
     const receipt = await run(original)
@@ -191,5 +207,11 @@ test('090 real SQL: original intent replay, private patch and selected want, rac
     assert.equal(preview.supported, false)
     assert.ok(preview.unsupported.includes('private_assets_unverifiable'), 'existing private-asset recovery gate remains explicit')
     await db.query('ROLLBACK')
+    // State comparisons above include accepted receipts. Check every committed
+    // terminal receipt separately so rejected rows are neither hidden nor lost.
+    const terminalRows = (await db.query("SELECT actor_id::text actor,operation,request_key id,result FROM public.developer_idempotency WHERE actor_id IN ($1,$2) AND result->>'outcome'='rejected' ORDER BY actor_id,operation,request_key", [owner, partner])).rows
+    const expectedTerminal = [...terminalReceipts.values()].sort((a, b) => `${a.actor}:${a.operation}:${a.id}`.localeCompare(`${b.actor}:${b.operation}:${b.id}`))
+    assert.deepEqual(terminalRows, expectedTerminal)
+    assert.equal(terminalRows.length > 0, terminalMode)
   } finally { await db.query('ROLLBACK'); await concurrent.end(); await db.end() }
 })

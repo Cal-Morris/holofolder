@@ -23,6 +23,14 @@ const body = await response.json()
 assert.equal(body.operationId, command.operationId); assert.equal(body.receipt.inventoryRevision, 8); assert.equal("snapshot" in body, false)
 const replay = await handleStorageCommand(request(), "slots", { session: client, admin: client })
 assert.deepEqual(await replay.json(), body)
+const staleId = "synthetic-http-terminal-rejection"
+const stale = request({ "X-Storage-Operation": staleId }, { ...command, operationId: staleId })
+const rejection = await handleStorageCommand(stale, "slots", { session: client, admin: client })
+assert.equal(rejection.status, 409)
+assert.equal(rejection.headers.get("cache-control"), "private, no-store")
+assert.deepEqual(await rejection.json(), { version: 1, operationId: staleId, rejection: {
+  outcome: "rejected", operationId: staleId, code: "slot_revision_conflict", inventoryRevision: 8,
+} })
 const proxied = request()
 const proxyHeaders = new Headers(proxied.headers); proxyHeaders.set("origin", "https://holofolder.com")
 const proxyReply = await handleStorageCommand(new Request("https://app.holofolder.com/app/api/binder-slots", {

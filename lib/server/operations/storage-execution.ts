@@ -1,4 +1,5 @@
 import "server-only"
+import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { requireExpectedAppearanceOwner } from "@/lib/server/binder-appearance"
 import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { randomUUID } from "node:crypto"
@@ -62,6 +63,7 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
   return withAuditOperation(operationId, async () => {
     const { data, error } = await client.rpc("storage_execute_v1", { operation, owner_id: ownerId, request: input }).abortSignal(AbortSignal.timeout(10000))
     if (error) throw storageExecutionError(error)
+    if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
     return normalizeStorageResult(operation, data)
   })
 }
