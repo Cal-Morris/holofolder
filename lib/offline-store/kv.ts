@@ -41,10 +41,13 @@ function openDatabase(factory: IDBFactory, name: string) {
   })
 }
 
+let browserDatabase: IDBDatabase | null = null
+
 export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME): AtomicOfflineStore {
   let databasePromise: Promise<IDBDatabase> | null = null
   const database = () => {
     databasePromise ??= openDatabase(factory, name).then((db) => {
+      if (name === OFFLINE_DB_NAME) browserDatabase = db
       // Another tab upgrading the schema: let it, and reopen on next use.
       db.onversionchange = () => {
         db.close()
@@ -192,4 +195,17 @@ export function getOfflineStore(): AtomicOfflineStore | null {
   if (browserStore !== undefined) return browserStore
   browserStore = typeof indexedDB === "undefined" ? null : createIndexedDbStore(indexedDB)
   return browserStore
+}
+
+/** Used only by the explicit online startup reset. Credentials are stored separately. */
+export async function deleteBrowserOfflineDatabase() {
+  browserDatabase?.close()
+  browserDatabase = null
+  browserStore = undefined
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(OFFLINE_DB_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error("offline_database_reset_blocked"))
+  })
 }

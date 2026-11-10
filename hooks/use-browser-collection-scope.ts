@@ -15,6 +15,7 @@ import type { InventoryReadScope } from "@/lib/collection/inventory-read-transpo
  * Invalidate synchronously in the auth callback before any claims/network await. */
 export function useBrowserCollectionScope(accountId: string | null, ownerUserId: string | null, enabled: boolean) {
   const [lifetime] = useState(() => collectionScopeLifetime<InventoryReadScope>())
+  const [error, setError] = useState<string | null>(null)
   const [cachedFallbackAllowed, setCachedFallbackAllowed] = useState(true)
   const [resolved, setResolved] = useState<{ accountId: string; ownerUserId: string; scope: InventoryReadScope } | null>(null)
   useLayoutEffect(() => {
@@ -30,6 +31,7 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
       return request
     }
     const refresh = (initial = false) => {
+      setError(null)
       if (!initial) setCachedFallbackAllowed(false)
       const request = invalidate()
       if (membershipChangePending()) { setCachedFallbackAllowed(false); return }
@@ -37,11 +39,12 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
       queueMicrotask(() => { void client.auth.getClaims().then(async ({ data, error }) => {
         if (!active || !lifetime.isCurrent(request)) return
         if (error) {
+          setError(error.message)
           if (!isAuthRetryableFetchError(error)) setCachedFallbackAllowed(false)
           return
         }
         if (data?.claims.sub !== accountId || data.claims.role !== "authenticated" || data.claims.client_id || typeof data.claims.session_id !== "string") {
-          setCachedFallbackAllowed(false)
+          setError("inventory_sign_in_required"); setCachedFallbackAllowed(false)
           return
         }
         const membership = await resolveCollectionMembership(client, accountId, { strictBilling: true })
@@ -50,12 +53,13 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
         if (ownerUserId !== accountId) {
           const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: ownerUserId, actor_id: accountId })
           if (!active || !lifetime.isCurrent(request)) return
-          if (accessError || allowed !== true) { setCachedFallbackAllowed(false); return }
+          if (accessError || allowed !== true) { setError(accessError?.message ?? "inventory_read_forbidden"); setCachedFallbackAllowed(false); return }
         }
         const scope = { actorUserId: accountId, ownerUserId, authSessionId: data.claims.session_id, sessionId: crypto.randomUUID() }
         if (!lifetime.establish(request, scope)) return
         setResolved({ accountId, ownerUserId, scope })
       }).catch(error => {
+        if (active && lifetime.isCurrent(request)) setError(error instanceof Error ? error.message : "account_access_check_failed")
         if (active && lifetime.isCurrent(request) && (error instanceof BillingAccessError
           || error?.status === 401 || error?.status === 403 || error?.code === "42501")) setCachedFallbackAllowed(false)
       }) })
@@ -79,5 +83,5 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
     return () => { active = false; lifetime.invalidate(); unsubscribeMembership(); window.removeEventListener("online", recheck); subscription.unsubscribe(); window.removeEventListener("focus", recheck) }
   }, [enabled, accountId, ownerUserId, lifetime])
   return { scope: enabled && resolved?.accountId === accountId ? resolved.scope : null,
-    cachedFallbackAllowed, currentScope: () => lifetime.current() }
+    error, cachedFallbackAllowed, currentScope: () => lifetime.current() }
 }

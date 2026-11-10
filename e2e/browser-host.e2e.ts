@@ -70,18 +70,15 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
   await expect(nav(page).getByRole("button", { name: "Inventory", exact: true })).toBeVisible()
 })
 
-test("503 preserves cached inventory on reload; unchecked production reads stay unavailable", async ({ page }) => {
+test("online startup 503 resets once and reports the second failure", async ({ page }) => {
   await page.goto(entry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("charizard")
   await page.route("**/app/e2e-harness/storage/inventory?*", route => route.fulfill({ status: 503, json: { error: "inventory_operations_staged" } }))
   await page.reload()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("charizard")
-  await expect(page.getByRole("status").filter({ hasText: "Cached only" })).toBeVisible()
-  await page.goto("/app/e2e-harness?signedIn=1&view=inventory")
+  await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toHaveText("Could not open storage: inventory_operations_staged", { timeout: 20_000 })
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
-  await expect(nav(page).getByRole("button", { name: "Inventory", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Retry opening storage", exact: true })).toBeVisible()
+  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v1"))).toBe("1")
 })
 
 test("pending real IDB edits survive Edit layout teardown, view changes and failed refresh", async ({ page }) => {
