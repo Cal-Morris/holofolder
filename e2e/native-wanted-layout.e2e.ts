@@ -53,12 +53,12 @@ for (const width of [1280, 1920]) test(`desktop ${width}px: bounded multi-column
   const art = (await rows.nth(0).getByRole("img").boundingBox())!
   expect(art.width, "readable artwork, well above the old 44px").toBeGreaterThanOrEqual(64)
   expect(art.height).toBeGreaterThanOrEqual(88)
-  // Occupied destinations are a normal state: no repeated instruction, a quiet Owned tag, and no add controls.
+  // Occupied destinations are a normal state: no repeated instruction, a quiet Upgrade tag, and no add controls.
   await expect(wants).not.toContainText("This pocket is occupied")
-  await expect(wants.getByText("Owned", { exact: true })).toHaveCount(want.occupied)
-  await expect(rows.filter({ hasText: "Owned" }).getByRole("combobox")).toHaveCount(0)
-  await expect(rows.filter({ hasText: "Owned" }).getByRole("button", { name: "Add to collection" })).toHaveCount(0)
-  await expect(rows.filter({ hasText: "Owned" }).getByRole("button", { name: "Check price" })).toHaveCount(want.occupiedWithCard)
+  await expect(wants.getByText("Upgrade", { exact: true })).toHaveCount(want.occupied)
+  await expect(rows.filter({ hasText: "Upgrade" }).getByRole("combobox")).toHaveCount(0)
+  await expect(rows.filter({ hasText: "Upgrade" }).getByRole("button", { name: "Add to collection" })).toHaveCount(0)
+  await expect(rows.filter({ hasText: "Upgrade" }).getByRole("button", { name: "Check price" })).toHaveCount(want.occupiedWithCard)
   // Add controls exist exactly for unoccupied entries with a known printing and language.
   await expect(wants.getByRole("combobox")).toHaveCount(want.editable)
   await expect(wants.getByRole("button", { name: "Add to collection" })).toHaveCount(want.editable)
@@ -142,7 +142,7 @@ test("an occupied destination never offers or performs Add to collection", async
   // Slot 1 is occupied (every third pocket): its only entry is the Pikachu at Page 1 · Pocket 2.
   const owned = wants.getByRole("listitem").filter({ hasText: "Page 1 · Pocket 2 · Wanted card 1" })
   await expect(owned).toHaveCount(1)
-  await expect(owned.getByText("Owned", { exact: true })).toBeVisible()
+  await expect(owned.getByText("Upgrade", { exact: true })).toBeVisible()
   await expect(owned.getByRole("combobox")).toHaveCount(0)
   await expect(owned.getByRole("button", { name: "Add to collection" })).toHaveCount(0)
   await expect(owned.getByRole("button", { name: "Check price" })).toBeVisible()

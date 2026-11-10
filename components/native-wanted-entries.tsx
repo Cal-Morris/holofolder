@@ -1,7 +1,6 @@
 "use client"
 
 import Image from "next/image"
-import { Check } from "lucide-react"
 import { useState } from "react"
 import { nativeCardConsumers, nativeWantSelections, prepareNativeWant, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
@@ -87,8 +86,8 @@ export default function NativeWantedEntries({ binding, card, finish, onCheck, pr
             <div className="min-w-0 space-y-1.5">
               <div className="flex min-w-0 items-start justify-between gap-2">
                 <div className="min-w-0">{details}</div>
-                {/* An owned pocket with an upgrade want is normal. Same Owned pill as the collection slot list; the add controls below stay hidden for it. */}
-                {entry.occupied && <span title="This pocket already holds a copy" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/35 bg-emerald-400/12 px-2 py-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300"><Check className="h-3 w-3" aria-hidden="true" />Owned</span>}
+                {/* An owned pocket with an upgrade want is normal. "Owned" would read as owning this wanted printing, so the tag names the want; the add controls below stay hidden for it. */}
+                {entry.occupied && <span title="This pocket already holds a copy" className="inline-flex shrink-0 items-center rounded-full border border-border/60 bg-muted/35 px-2 py-1 text-[10px] font-semibold text-muted-foreground">Upgrade</span>}
               </div>
               {destination}
               {actions}
