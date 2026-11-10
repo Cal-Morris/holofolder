@@ -1,16 +1,33 @@
 .view { max-width: 48rem; margin-inline: auto; padding: 1rem 1rem calc(var(--dock-clearance) + 1.5rem); color: var(--foreground); }
 .view h1 { font-size: 1.6rem; font-weight: 700; }
-.view header p, .view > p { margin-block: .5rem 1rem; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .25rem; }
+.add { flex-shrink: 0; min-height: 40px; padding-inline: .85rem; border: 1px solid var(--border); border-radius: .75rem; font-size: .875rem; touch-action: manipulation; }
+.count { margin-bottom: .75rem; font-size: .85rem; color: var(--muted-foreground); }
+.muted { color: var(--muted-foreground); }
+.totals { margin-bottom: .75rem; border-radius: .75rem; background: var(--muted); padding: 0 .85rem; font-size: .85rem; overflow-wrap: anywhere; }
+.totals > summary { display: flex; flex-direction: column; justify-content: center; gap: .1rem; min-height: 44px; padding-block: .55rem; cursor: pointer; list-style: none; }
+.totals > summary::-webkit-details-marker { display: none; }
+.totals > summary::after { content: "Details"; font-size: .75rem; color: var(--muted-foreground); }
+.totals[open] > summary::after { content: "Hide details"; }
+.totals > :not(summary) { margin-bottom: .5rem; }
+.totals details summary { min-height: 44px; padding-block: .65rem; cursor: pointer; }
+.wants { display: grid; gap: .35rem; padding-left: 1rem; list-style: disc; }
+.filterToggle { margin-block: .5rem; }
+.filterToggle > summary { display: flex; align-items: center; min-height: 44px; font-size: .875rem; font-weight: 500; cursor: pointer; }
+.selection { position: sticky; bottom: calc(var(--dock-clearance) + .5rem); z-index: 2; display: flex; align-items: center; gap: .5rem; margin-block: .5rem; padding: .5rem .5rem .5rem .75rem; border: 1px solid var(--border); border-radius: .85rem; background: var(--background); box-shadow: 0 8px 24px rgb(0 0 0 / .25); }
+.selection p { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .875rem; }
+.selection button { display: grid; place-items: center; flex-shrink: 0; min-height: 44px; min-width: 44px; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--background); color: inherit; font-size: .875rem; touch-action: manipulation; }
+.row { display: flex; align-items: stretch; gap: .25rem; min-width: 0; }
 .field { display: flex; flex-direction: column; min-width: 0; gap: .25rem; font-size: .8rem; }
 .field input, .field select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--border); border-radius: .6rem; padding: .5rem; background: var(--background); color: inherit; font-size: 16px; text-overflow: ellipsis; }
-.filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .65rem; margin-block: 1rem; }
+.filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .65rem; margin-block: .25rem 1rem; }
 .list { display: grid; gap: .5rem; list-style: none; padding: 0; }
 .copy { scroll-margin-bottom: calc(var(--dock-clearance) + .5rem); display: flex; gap: .8rem; width: 100%; min-width: 0; text-align: left; border: 1px solid var(--border); border-radius: .85rem; padding: .75rem; background: var(--card); color: inherit; touch-action: manipulation; }
 .copy:active, .pagination button:active, .sheet button:active { transform: scale(.98); }
-.copy:focus-visible, .view input:focus-visible, .view select:focus-visible, .view button:focus-visible, .sheet button:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px; }
+.copy:focus-visible, .view summary:focus-visible, .view input:focus-visible, .view select:focus-visible, .view button:focus-visible, .sheet button:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px; }
 .art { flex: 0 0 56px; width: 56px; min-height: 78px; font-size: .65rem; color: var(--muted-foreground); display: grid; place-items: center; border-radius: .3rem; background: var(--muted); overflow: hidden; }
 .art img { width: 56px; height: 78px; object-fit: contain; }
-.copyText { display: flex; flex-direction: column; gap: .2rem; min-width: 0; font-size: .8rem; overflow-wrap: anywhere; }
+.copyText { display: flex; flex-direction: column; gap: .15rem; min-width: 0; font-size: .8rem; overflow-wrap: anywhere; }
 .copyText strong { font-size: .95rem; }
 .grading { font-weight: 600; }
 .notice { background: var(--muted); padding: 1rem; border-radius: .75rem; margin-block: 1rem; overflow-wrap: anywhere; }
@@ -28,7 +45,6 @@
 .openLocation { width: 100%; font-weight: 600; }
 .identifier { font-size: .75rem; color: var(--muted-foreground); }
 
-.notice summary { min-height: 44px; padding-block: .65rem; cursor: pointer; }
 .actions { display: grid; gap: .65rem; min-width: 0; border: 0; padding: 0; }
 .ownership { margin-bottom: 1rem; }
 .actionReview { display: grid; gap: .65rem; padding: .75rem; border: 1px solid var(--border); border-radius: .75rem; background: var(--muted); }
@@ -39,5 +55,5 @@
 
 .actionReview > .actions { position: sticky; bottom: 0; z-index: 1; padding-block: .5rem; background: var(--muted); }
 
-.bulkSelect { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; }
+.bulkSelect { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; min-height: 44px; }
 .bulkSelect input { width: 20px; height: 20px; }

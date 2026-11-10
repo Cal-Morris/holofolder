@@ -4,7 +4,7 @@ import { isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
 import { normalizeInventorySnapshot } from "@/lib/domain/inventory"
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseRow, InventoryBrowseScope,
   InventoryCatalogEvidence, InventoryLayoutEvidence } from "@/lib/domain/inventory-browse"
-import { resolveInventoryLocation } from "@/lib/inventory-location"
+import { resolveInventoryLocation, slotLocationLabel } from "@/lib/inventory-location"
 
 export interface InventoryBrowseIndex {
   projection: InventoryCollectionProjection | null
@@ -14,7 +14,10 @@ export interface InventoryBrowseIndex {
   scope: InventoryBrowseScope
   rows: readonly InventoryBrowseRow[]
   collections: readonly { id: string; name: string }[]
+  /** Readable binder/page/slot per wanted slot, keyed by inventoryWantSlotKey. */
+  wantLocations: ReadonlyMap<string, string>
 }
+export const inventoryWantSlotKey = (want: { collectionId: string; slotId: string }) => JSON.stringify([want.collectionId, want.slotId])
 const fold = (value: string) => value.normalize("NFKC").toLowerCase().trim()
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0
 const compareKeys = (a: readonly string[], b: readonly string[]) => {
@@ -25,7 +28,7 @@ const compareKeys = (a: readonly string[], b: readonly string[]) => {
 /** A local projection, not a store or authentication boundary. Reject unbranded 'complete' payloads. */
 export function buildInventoryBrowseIndex(scope: InventoryBrowseScope, evidence: InventoryBrowseEvidence,
   catalog: readonly InventoryCatalogEvidence[], layouts: readonly InventoryLayoutEvidence[]): InventoryBrowseIndex {
-  const unavailable: InventoryBrowseIndex = { projection: null, kind: "unavailable", key: JSON.stringify([scope, "unavailable"]), scope, rows: [], collections: [] }
+  const unavailable: InventoryBrowseIndex = { projection: null, kind: "unavailable", key: JSON.stringify([scope, "unavailable"]), scope, rows: [], collections: [], wantLocations: new Map() }
   if (!scope.accountUserId || !scope.ownerUserId || evidence.kind === "unavailable"
     || evidence.snapshot.ownerUserId !== scope.ownerUserId
     || evidence.kind === "complete" && !isCompleteInventorySnapshot(evidence.snapshot)) return unavailable
@@ -50,13 +53,18 @@ export function buildInventoryBrowseIndex(scope: InventoryBrowseScope, evidence:
   })
   const collections = snapshot.collections.map(c => ({ id: c.id, name: c.name }))
   const projection = projectInventoryCollection(snapshot, catalog, undefined, catalogById)
+  const wantLocations = new Map<string, string>()
+  for (const want of projection.wants) {
+    const key = inventoryWantSlotKey(want)
+    if (!wantLocations.has(key)) wantLocations.set(key, slotLocationLabel(snapshot, want.collectionId, want.slotId, layouts, evidence.kind === "complete"))
+  }
   const key = JSON.stringify([scope, evidence.kind, snapshot.inventoryRevision,
     snapshot.items.map(i => [i.id, i.version]), snapshot.placements.map(p => [p.inventoryItemId, p.version]),
     snapshot.collections.map(c => [c.id, c.version]),
     snapshot.binders.map(b => [b.collectionId, b.layoutRevision, b.slots.map(s => [s.id, s.version])]), rows, collections,
     projection.owned.map(i => [i.itemId, i.pokemonIds, i.priceIdentity]),
-    projection.wants.map(w => [w.collectionId, w.slotId, w.index, w.card.card_id, w.card.card_name, w.card.card_language, w.card.card_finish])])
-  return { projection, kind: evidence.kind, key, scope, rows, collections }
+    projection.wants.map(w => [w.collectionId, w.slotId, w.index, w.card.card_id, w.card.card_name, w.card.card_language, w.card.card_finish]), [...wantLocations]])
+  return { projection, kind: evidence.kind, key, scope, rows, collections, wantLocations }
 }
 
 function queryKey(query: InventoryBrowseQuery) {

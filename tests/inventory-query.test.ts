@@ -1,7 +1,7 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { buildInventoryBrowseIndex, queryInventory, inventoryGradingLabel, type InventoryBrowseCursor } from "@/lib/inventory-query"
-import { inventoryLocationLabel, resolveInventoryLocation, resolveInventoryLocationIntent } from "@/lib/inventory-location"
+import { inventoryLocationLabel, resolveInventoryLocation, resolveInventoryLocationIntent, slotLocationLabel } from "@/lib/inventory-location"
 import { canShowInventoryHarness } from "@/lib/inventory-harness-gate"
 import type { InventoryBrowseQuery } from "@/lib/domain/inventory-browse"
 import { completeInventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseFixture, inventoryBrowseLayouts } from "./fixtures/inventory-browse"
@@ -114,6 +114,12 @@ describe("current storage locations", () => {
     assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, [])), /layout unknown/)
     assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, current.map(l => ({ ...l, rows: 0 })))), /layout unknown/)
     assert.deepEqual(initial.kind === "assigned" && initial.intent, { collectionId: "alpha", slotId: "slot-0", itemId: id })
+  })
+  test("wanted slots get readable binder, page and slot labels, never raw slot IDs", () => {
+    const snapshot = inventoryBrowseFixture()
+    assert.equal(slotLocationLabel(snapshot, "alpha", "alpha-empty-1", inventoryBrowseLayouts), "Alpha · Page 1 · Slot 2")
+    assert.equal(slotLocationLabel(snapshot, "alpha", "alpha-empty-1", []), "Alpha · Position 2 · layout unknown")
+    assert.equal(slotLocationLabel(snapshot, "alpha", "missing-slot", inventoryBrowseLayouts), "Location unavailable")
   })
   test("host re-resolves moved, unassigned and deleted copies without trusting old page or collection", () => {
     const snapshot = inventoryBrowseFixture(), id = snapshot.items[0].id

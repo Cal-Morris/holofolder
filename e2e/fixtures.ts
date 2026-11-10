@@ -116,6 +116,12 @@ export function mockIllustratorResponse(url: string) {
   return { illustrator: name, cards: MOCK_CARDS.filter((card) => card.illustrator === name) }
 }
 
+/** Inventory filters and sort sit behind a "Filter and sort" disclosure. Opens it if closed. */
+export async function openInventoryFilters(page: Page) {
+  const sort = page.getByRole("combobox", { name: "Sort", exact: true })
+  if (!await sort.isVisible()) await page.getByText("Filter and sort", { exact: false }).click()
+  await expect(sort).toBeVisible()
+}
 /** Make the page look like an installed PWA (display-mode: standalone, navigator.standalone, safe areas). */
 /** Native storage actions live in the Storage menu under the app header. Returns the open menu. */
 export async function openStorage(page: Page) {
