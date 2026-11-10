@@ -1,5 +1,5 @@
 "use client"
-import { resetStartupCaches, STARTUP_RESET_KEY } from "@/lib/startup-cache-reset"
+import { CHECKED_STARTUP_TIMEOUT_MS, CHECKED_STARTUP_TIMEOUT_ERROR, resetStartupCaches, STARTUP_RESET_KEY } from "@/lib/startup-cache-reset"
 import { LegacyDeviceReview } from "@/components/legacy-device-review"
 
 import type { NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
@@ -193,7 +193,7 @@ export default function BinderApp(props: BinderAppProps) {
   }, [])
   useEffect(() => {
     if (!nativeHost || opened || !startupOnline || !navigator.onLine) return
-    const timer = setTimeout(() => failStartup("Account and storage startup timed out after 10 seconds"), 10_000)
+    const timer = setTimeout(() => failStartup(CHECKED_STARTUP_TIMEOUT_ERROR), CHECKED_STARTUP_TIMEOUT_MS)
     return () => clearTimeout(timer)
   }, [nativeHost, opened, startupOnline, failStartup])
   useEffect(() => {
