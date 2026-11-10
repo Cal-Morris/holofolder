@@ -1,5 +1,7 @@
 "use client"
 
+import NativeWantedEntries from "@/components/native-wanted-entries"
+import { nativeCardConsumers, nativeCardState, nativeCardLabel, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import CardImage from "@/components/card-image"
 import CardImageZoom from "@/components/card-image-zoom"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -12,7 +14,7 @@ import { inferCardFinish, formatCardNumber, type SearchCardResult } from "@/lib/
 import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
 import UndoSnackbar from "@/components/undo-snackbar"
 import type { QuickCardAction, QuickCardState } from "@/components/quick-card-check"
-import type { CardFinish, WantedCard } from "@/lib/domain/cards"
+import { isCardLanguage, type CardFinish, type WantedCard } from "@/lib/domain/cards"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -29,8 +31,10 @@ import {
 } from "@/lib/pokemon-card-browse"
 
 export interface PokemonCardsBrowserProps {
+  nativeConsumer?: NativeConsumerBinding
   pricingEnabled?: boolean
-  pokemon: { id: number; name: string }
+  /** Null opens an exact non-Pokémon native cardDetails lookup, without a species query. */
+  pokemon: { id: number; name: string } | null
   collectionItem?: Omit<BrowseCollectionState, "wanted_cards"> & { wanted_cards?: WantedCard[] } | null
   /** Printings other binders hold, by card id ("In <binder>" badge). */
   ownedElsewhereByCard?: ReadonlyMap<string, readonly BinderRef[]>
@@ -67,6 +71,7 @@ function thumbnailUrl(image?: string) {
 }
 
 export default function PokemonCardsBrowser({
+  nativeConsumer,
   pricingEnabled = true,
   pokemon,
   collectionItem,
@@ -81,22 +86,24 @@ export default function PokemonCardsBrowser({
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
 }: PokemonCardsBrowserProps) {
+  const nativeModel = useMemo(() => nativeConsumer ? nativeCardConsumers(nativeConsumer) : null, [nativeConsumer])
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
   const { fetchCardsForPokemon, error: fetchError } = useTCGdex()
-  const [cards, setCards] = useState<TCGCard[] | null>(null)
+  const [cards, setCards] = useState<TCGCard[] | null>(() => nativeConsumer && !pokemon && cardDetails
+    ? [{ ...cardDetails.card, language: isCardLanguage(cardDetails.card.language) ? cardDetails.card.language : undefined }] : null)
   const [loadError, setLoadError] = useState(false)
   const [filter, setFilter] = useState<BrowseCardFilter>("all")
   const [textFilter, setTextFilter] = useState("")
   const [pendingCardId, setPendingCardId] = useState<string | null>(null)
-  const displayName = formatPokemonDisplayName(pokemon.name)
+  const displayName = pokemon ? formatPokemonDisplayName(pokemon.name) : cardDetails?.card.name ?? "Card"
   const [detailFinish, setDetailFinish] = useState<CardFinish>(cardDetails?.finish ?? "normal")
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
   const [detailUndo, setDetailUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
-  const detailState = cardDetails?.getState(detailFinish)
+  const detailState: QuickCardState | undefined = cardDetails ? nativeConsumer ? nativeCardState(nativeModel, cardDetails.card, detailFinish) : cardDetails.getState(detailFinish) : undefined
   const replacementKey = detailState?.replacing ? `${detailFinish}:${detailState.replacing}` : null
   const runDetailAction = async (action: QuickCardAction) => {
-    if (!cardDetails || pendingCardId || readOnly) return
+    if (!cardDetails || pendingCardId || readOnly || nativeConsumer) return
     setPendingCardId(cardDetails.card.id)
     try {
       const undo = await cardDetails.onAction(action, detailFinish)
@@ -109,9 +116,11 @@ export default function PokemonCardsBrowser({
   useOverlay(true, onClose, { containerRef: dialogRef })
   const swipe = useSwipeToDismiss(dialogRef, onClose, !isDesktop)
 
+  const pokemonId = pokemon?.id
   useEffect(() => {
+    if (pokemonId === undefined) return
     let cancelled = false
-    void fetchCardsForPokemon(pokemon.id).then((result) => {
+    void fetchCardsForPokemon(pokemonId).then((result) => {
       if (cancelled) return
       setCards(result)
       setLoadError(result.length === 0)
@@ -119,14 +128,14 @@ export default function PokemonCardsBrowser({
     return () => {
       cancelled = true
     }
-  }, [fetchCardsForPokemon, pokemon.id])
+  }, [fetchCardsForPokemon, pokemonId])
 
-  const allEntries = useMemo(() => buildBrowseEntries(cards ?? [], collectionItem), [cards, collectionItem])
+  const allEntries = useMemo(() => buildBrowseEntries(cards ?? [], nativeConsumer ? null : collectionItem).map(entry => nativeConsumer ? { ...entry, ...nativeCardState(nativeModel, entry.card) } : entry), [cards, collectionItem, nativeConsumer, nativeModel])
   const counts = useMemo(() => ({
     all: allEntries.length,
-    owned: allEntries.filter((entry) => entry.owned).length,
-    wanted: allEntries.filter((entry) => entry.wanted).length,
-  }), [allEntries])
+    owned: nativeModel ? nativeModel.copies.filter(copy => copy.card && allEntries.some(e => matchesCatalogCardId(e.card, copy.card!.canonicalId ?? copy.card!.id) && e.card.language === copy.card!.language)).length : allEntries.filter((entry) => entry.owned).length,
+    wanted: nativeModel ? nativeModel.wants.filter(w => w.card && allEntries.some(e => matchesCatalogCardId(e.card, w.card!.canonicalId ?? w.card!.id) && e.card.language === w.card!.language)).length : allEntries.filter((entry) => entry.wanted).length,
+  }), [allEntries, nativeModel])
   const visibleEntries = useMemo(() => {
     const byState = allEntries.filter((entry) => filter === "all" || (filter === "owned" ? entry.owned : entry.wanted))
     const needle = textFilter.trim().toLowerCase()
@@ -201,15 +210,15 @@ export default function PokemonCardsBrowser({
         >
           {!isDesktop ? <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30" aria-hidden="true" /> : null}
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-muted/30">
+            {pokemon && <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-muted/30">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={getOfficialArtworkUrl(pokemon.id)} alt="" className="h-full w-full object-contain p-1" />
-            </div>
+            </div>}
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{formatDexNumber(pokemon.id)}</p>
-              <h2 className="truncate text-lg font-bold leading-tight">{displayName} cards</h2>
+              {pokemon && <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{formatDexNumber(pokemon.id)}</p>}
+              <h2 className="truncate text-lg font-bold leading-tight">{displayName}{pokemon ? " cards" : ""}</h2>
               <p className="text-xs text-muted-foreground">
-                {cards === null ? "Loading cards…" : fetchError ? "Card catalogue unavailable" : `${counts.all} card${counts.all === 1 ? "" : "s"} · ${counts.owned} owned · ${counts.wanted} wanted`}
+                {nativeConsumer && !nativeModel ? "Storage evidence unavailable" : cards === null ? "Loading cards…" : fetchError ? "Card catalogue unavailable" : `${counts.all} card${counts.all === 1 ? "" : "s"} · ${counts.owned} owned${nativeConsumer ? " copies" : ""} · ${counts.wanted} wanted${nativeConsumer ? " entries" : ""}`}
               </p>
             </div>
             <button
@@ -263,14 +272,15 @@ export default function PokemonCardsBrowser({
                 <h3 className="break-words text-base font-bold">{cardDetails.card.name}</h3>
                 <p className="text-xs text-muted-foreground">{cardDetails.card.set.name} · {formatCardNumber(cardDetails.card)}</p>
                 <p className="mt-1 text-xs">{formatCardLanguageLabel(cardDetails.card.language)} · {formatCardFinishLabel(detailFinish)}</p>
-                <p className="mt-1 text-xs font-semibold">{detailState.owned ? "Owned" : "Not owned"} · {detailState.wanted ? "Wanted" : "Not wanted"}</p>
+                <p className="mt-1 text-xs font-semibold">{nativeConsumer ? nativeCardLabel(nativeCardState(nativeModel, cardDetails.card, detailFinish)) : `${detailState.owned ? "Owned" : "Not owned"} · ${detailState.wanted ? "Wanted" : "Not wanted"}`}</p>
               </div>
             </div>
+            {nativeConsumer && <NativeWantedEntries binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer} card={cardDetails.card} finish={detailFinish} />}
             {detailChoices.length > 1 && <div role="group" aria-label="Card detail variant" className="flex flex-wrap gap-2">
               {detailChoices.map(choice => <button key={choice.finish} type="button" aria-pressed={detailFinish === choice.finish} onClick={() => setDetailFinish(choice.finish)} className="min-h-9 rounded-xl border border-border/60 px-3 text-xs font-semibold aria-pressed:bg-primary aria-pressed:text-primary-foreground">{choice.label}</button>)}
             </div>}
-            <button type="button" onClick={() => cardDetails.onJumpToSlot(detailFinish)} className="min-h-11 w-full rounded-xl border border-primary/30 px-3 py-2 text-sm font-semibold">Jump to binder slot</button>
-            {!readOnly && <>
+            {!nativeConsumer && <button type="button" onClick={() => cardDetails.onJumpToSlot(detailFinish)} className="min-h-11 w-full rounded-xl border border-primary/30 px-3 py-2 text-sm font-semibold">Jump to binder slot</button>}
+            {!readOnly && !nativeConsumer && <>
               {detailState.replacing && <label className="flex min-h-11 items-center gap-2 text-sm">
                 <input type="checkbox" checked={replacementKey === confirmedReplacement} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} />
                 <span>Replace {detailState.replacing} in this binder</span>
@@ -314,7 +324,7 @@ export default function PokemonCardsBrowser({
                   <li
                     key={card.id}
                     data-card-id={card.id}
-                    aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ", owned" : ""}${entry.wanted ? ", wanted" : ""}`}
+                    aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${nativeConsumer ? `, ${nativeCardLabel(nativeCardState(nativeModel, card))}` : ""}${entry.owned ? ", owned" : ""}${entry.wanted ? ", wanted" : ""}`}
                     className={`flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-background/60 ${
                       isHighlighted
                         ? "border-primary/70 ring-2 ring-primary/40"
@@ -334,17 +344,17 @@ export default function PokemonCardsBrowser({
                       <div className="absolute left-1.5 top-1.5 flex flex-col gap-1">
                         {entry.owned ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white shadow">
-                            <Check className="h-3 w-3" /> Owned
+                            <Check className="h-3 w-3" /> Owned{nativeConsumer ? ` ×${nativeCardState(nativeModel, card).ownedCount}` : ""}
                           </span>
                         ) : null}
-                        {!entry.owned && formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], "In") ? (
+                        {!nativeConsumer && !entry.owned && formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], "In") ? (
                           <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-sky-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow" data-testid="card-owned-elsewhere">
                             {formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], "In")}
                           </span>
                         ) : null}
                         {entry.wanted ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white shadow">
-                            <Heart className="h-3 w-3 fill-current" /> Wanted
+                            <Heart className="h-3 w-3 fill-current" /> Wanted{nativeConsumer ? ` ×${nativeCardState(nativeModel, card).wantedCount}` : ""}
                           </span>
                         ) : null}
                       </div>
@@ -361,7 +371,7 @@ export default function PokemonCardsBrowser({
                           {[card.rarity, ...entry.variantLabels].filter(Boolean).join(" · ")}
                         </p>
                       ) : null}
-                      {showActions ? (
+                      {showActions && !nativeConsumer ? (
                         <div className="mt-auto grid grid-cols-2 gap-1 pt-1">
                           {onWantCard && wantedPrintings.length > 0 ? wantedPrintings.map(wanted => <button
                             key={wantedCardKey(wanted)} type="button" disabled={isPending}

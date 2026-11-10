@@ -3,6 +3,8 @@
 // The card check (Show mode and plain Quick mode): what you need at a stall, one-handed. Ownership state, the market price for the
 // chosen variant, an asking-price input with a verdict (lib/deal-check.ts), and big Bought / Add owned /
 // Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
+import NativeWantedEntries from "@/components/native-wanted-entries"
+import { nativeCardConsumers, nativeCardState, nativeCardLabel, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import { useBillingContext } from "@/hooks/use-billing"
 import { useGoogleAnalytics } from "@/components/google-analytics"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -54,6 +56,7 @@ export interface QuickBundleEntry {
 export type MoneyCurrency = Parameters<typeof formatMoney>[1]
 
 export interface QuickCardCheckProps {
+  nativeConsumer?: NativeConsumerBinding
   card: SearchCardResult
   pokemon: { id: number; name: string }
   state: QuickCardState
@@ -97,6 +100,7 @@ export function formatPriceAge(fetchedAt: number | undefined, now: number) {
 }
 
 export default function QuickCardCheck({
+  nativeConsumer,
   card,
   pokemon,
   state: initialState,
@@ -121,6 +125,7 @@ export default function QuickCardCheck({
   onAddToBundle,
   showTools = true,
 }: QuickCardCheckProps) {
+  const nativeModel = useMemo(() => nativeConsumer ? nativeCardConsumers(nativeConsumer) : null, [nativeConsumer])
   const trackGoogleEvent = useGoogleAnalytics()
   useEffect(() => {
     trackGoogleEvent("price_check_viewed", {})
@@ -140,7 +145,7 @@ export default function QuickCardCheck({
   const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any", snapshot?.finishPrices), [card.variants, inferred, snapshot?.finishPrices])
   const [finish, setFinish] = useState<CardFinish>(() =>
     initialFinish ?? finishChoices[0]?.finish ?? inferred)
-  const state = getState?.(finish) ?? initialState
+  const state: QuickCardState = nativeConsumer ? nativeCardState(nativeModel, card, finish) : getState?.(finish) ?? initialState
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
   const replacementKey = state.replacing ? `${card.id}:${finish}:${state.replacing}` : null
   const needsConfirmation = Boolean(replacementKey && confirmedReplacement !== replacementKey)
@@ -183,7 +188,7 @@ export default function QuickCardCheck({
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const run = async (action: QuickCardAction) => {
-    if (busy || (action !== "want" && action !== "remove-wanted" && needsConfirmation)) return
+    if (nativeConsumer || busy || (action !== "want" && action !== "remove-wanted" && needsConfirmation)) return
     setBusy(true)
     setActionError(null)
     try {
@@ -223,7 +228,7 @@ export default function QuickCardCheck({
   const soldMedian = usesSoldGuide ? null : toDisplay(soldGuide?.median)
   const inBundle = isInBundle(key)
   const thumb = card.image ? toCardImageSrc(card.image.replace(/\/high\.webp$/, "/low.webp")) : null
-  const statusLabel = state.owned ? "Owned" : state.wanted ? "Wanted" : "Not in binder"
+  const statusLabel = nativeConsumer ? nativeCardLabel(nativeCardState(nativeModel, card, finish)) : state.owned ? "Owned" : state.wanted ? "Wanted" : "Not in binder"
   const statusTone = state.owned
     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
     : state.wanted ? "bg-rose-500/15 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"
@@ -341,7 +346,7 @@ export default function QuickCardCheck({
         {/* Show mode (and the Wanted price lookup) is about the asking price, so it opens the keyboard;
             plain Quick shows the price, verdict and Own / Want first, and Asking opens the keyboard on tap. */}
         {showTools && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
-        {!readOnly && onChangeCard && (state.wanted || state.owned) && <div className="flex flex-col gap-2">
+        {!readOnly && !nativeConsumer && onChangeCard && (state.wanted || state.owned) && <div className="flex flex-col gap-2">
           {state.wanted && <>
             <button type="button" disabled={busy} onClick={() => onChangeCard("wishlist", finish)} className="min-h-11 rounded-xl border border-border/70 px-3 py-2 text-sm font-semibold">Change wanted card</button>
             <button type="button" disabled={busy} onClick={() => void run("remove-wanted")} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove from want list</button>
@@ -351,16 +356,17 @@ export default function QuickCardCheck({
             {onRemoveOwned && <button type="button" disabled={busy} onClick={onRemoveOwned} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove owned card</button>}
           </>}
         </div>}
+        {nativeConsumer && <NativeWantedEntries binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer} card={card} finish={finish} />}
         <DealPriceInput value={input} onChange={setInput} autoFocus={showTools} />
         {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
-          {showTools && !readOnly && (
+          {showTools && !readOnly && !nativeConsumer && (
             <button type="button" disabled={busy || needsConfirmation} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
               <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought
             </button>
           )}
-          {!readOnly && (state.wanted && !state.owned ? (
+          {!readOnly && !nativeConsumer && (state.wanted && !state.owned ? (
             <button type="button" disabled={busy || needsConfirmation} onClick={() => void run("got")} aria-label="Mark got" className={`${bigButton} border border-border/70 bg-card`}>
               <Check className="h-5 w-5 shrink-0" aria-hidden />Got it
             </button>
@@ -369,7 +375,7 @@ export default function QuickCardCheck({
               <Plus className="h-5 w-5 shrink-0" aria-hidden />{state.owned ? "Owned" : "Own"}
             </button>
           ))}
-          {!readOnly && !state.wanted && (
+          {!readOnly && !nativeConsumer && !state.wanted && (
             <button type="button" disabled={busy} onClick={() => void run("want")} aria-label="Want" className={`${bigButton} border border-border/70 bg-card`}>
               <Heart className="h-5 w-5 shrink-0" aria-hidden />Want
             </button>
