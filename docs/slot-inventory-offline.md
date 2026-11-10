@@ -96,3 +96,5 @@ cached/already-in-flight responses and offline failure, and ACKs only a genuinel
 fresh read. This is an internal synthetic integration; public routes remain 503,
 production queue execution/bootstrap stays unwired, and 083 location/grid/export
 read gaps remain explicit.
+
+The actual first-party BrowserCollectionSession sender is now bound through the [denied-production HTTP transport](browser-command-transport.md). HTTP receipts supply an additional committed inventory-revision lower bound for ACK; permanent body/media/method errors block without dropping intent. Generic storage_conflict still cannot authorize cancellation or a new operation ID. This is synthetic local handler/bridge/complete-read/IDB proof, not production admission or a replacement for legacy Activity Undo.

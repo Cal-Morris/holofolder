@@ -29,7 +29,7 @@ export interface SlotOfflineRecord {
   receipts: { operationId: string; intent: SlotOfflineIntent; outcome: "acknowledged" | "superseded" | "cancelled" }[]
   legacy: LegacySlotArchive[]
 }
-export type SlotReplayResult = { status: number; code?: string; operationId?: string; snapshot?: unknown }
+export type SlotReplayResult = { status: number; code?: string; operationId?: string; inventoryRevision?: number; snapshot?: unknown }
 function fail(reason: string): never { throw new Error(reason) }
 function validateScope(scope: SlotOfflineScope) {
   if (!isContractRecord(scope, ["deviceId", "workspaceId", "accountId", "ownerUserId"]) || !isSlotContractId(scope.deviceId) || !isSlotContractId(scope.workspaceId)
@@ -196,7 +196,8 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
             const minimumRevision = result.status === 200
               ? (record.pending[1]?.base ?? record.optimistic!).inventoryRevision
               : record.snapshot!.inventoryRevision
-            if (current.inventoryRevision < Math.max(record.snapshot!.inventoryRevision, minimumRevision)) current = null
+            if (result.inventoryRevision !== undefined && !isSlotRevision(result.inventoryRevision)) current = null
+            else if (current.inventoryRevision < Math.max(record.snapshot!.inventoryRevision, minimumRevision, result.inventoryRevision ?? 0)) current = null
           }
         } catch { current = null } // Invalid/partial response is never an acknowledgment.
         if (result.status === 200 && result.operationId === p.intent.request.operationId && current) {
@@ -207,7 +208,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           p.status = "conflict"; p.conflict = { reason: result.code ?? "unclassified-conflict", current, rejected }
         } else if (result.status === 402) {
           p.status = "billing"; p.conflict = { reason: "billing-paused", current: null, rejected: true }
-        } else if ([400, 401, 403, 404].includes(result.status)) {
+        } else if ([400, 401, 403, 404, 405, 413, 415, 422].includes(result.status)) {
           p.status = "blocked"; p.conflict = { reason: `http-${result.status}`, current: null, rejected: true }
         } else {
           p.status = "unavailable"
