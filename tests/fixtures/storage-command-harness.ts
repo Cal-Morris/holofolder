@@ -37,6 +37,14 @@ export function storageCommandHarness(id: string) {
       identity: { kind: "card", cardId: `synthetic-${kind}`, language: "en" }, grading: null, acquired_at: null, version: 0, legacy_source: null }))
     for (const slot of state.tables.binder_slots.slice(0, 2)) slot.target = { kind: "pokemon", pokemonId: 143 }
   }
+  if (id.startsWith("scan-destination-collision-")) {
+    state.tables.binder_slots[2].id = "append-free"
+    state.tables.binder_slots[3].id = "append-card"
+  }
+  if (id.startsWith("scan-copy-collision-")) {
+    state.tables.inventory_items[0].id = "raw"
+    state.tables.inventory_items[0].grading = { ...emptyGradingRecord(), provider: { kind: "known", id: "psa" }, grade: "9", certificate: "000-synthetic" }
+  }
   // Synthetic scanner boundary sizes, shared by actual HTTP reads and command projection.
   if (id.startsWith("scan-empty-")) state.tables.binder_slots = []
   if (id.startsWith("scan-partial-")) state.tables.binder_slots = state.tables.binder_slots.slice(0, 3)

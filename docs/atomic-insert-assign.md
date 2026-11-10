@@ -38,7 +38,7 @@ Pinned Bun1.3.14 checks: 97 focused unit/transport/docs and integrated native re
 
 Private evidence is retained outside Git in `/Users/cal/.local/share/holofolder/issue375-atomic-091`. Do not upload its dumps, hashes, inventories, certificates or restore logs. Repeats require a fresh `atomic091_*` database restored from the private archive on that lane's socket/port55591; the SQL test refuses other sockets/names and commits synthetic fixtures. It applies 091 twice and restores the original billing enforcement setting. Run the direct pinned Bun1.3.14 binary with `ATOMIC_INSERT_TEST_SOCKET` and `ATOMIC_INSERT_TEST_DATABASE`. Never target another worker's cluster or stop its server.
 
-## Delivery and remaining consumer gap
+## Delivery and scanner consumer
 
 The existing `execute_inventory_commands` REST/MCP registry, strict canonical parser, shared server gateway contract, durable optimistic projector, generated OpenAPI/derived Markdown/LLM discovery and current [help](../content/docs/native-storage.mdx) carry the same intent. No new operation, permission or private read projection is added. Public developer pages remain incomplete and cannot supply planner/ACK evidence. Old clients remain compatible before 091; new intents cannot execute until it is applied. All public native routes still deny execution.
 

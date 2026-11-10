@@ -156,3 +156,9 @@ Combined-main verification: **91 focused unit/contract tests across 14 suites pa
 E2E_BASE_URL=http://localhost:3597 bun run test:e2e:matrix e2e/native-scanner-host.e2e.ts e2e/inventory-grading.e2e.ts --workers=2
 E2E_BASE_URL=http://localhost:3597 bun run test:e2e:matrix e2e/binder-bulk-fill.e2e.ts --grep 'mixed targets/free/occupied' --workers=2
 ```
+
+## Parent review, collision correction and092 integration
+
+Independent review at785d6596dd57f3bcfd404ab13b83d46c5fdd5d14 found one P2: existing slot IDs append-free/append-card collided with append actions. Parent real-host regressions reproduced insertAssign instead of assign. A related recorded copy ID raw also collided with the Raw action and could not be selected as graded. Every real slot/copy option now has a disjoint prefix and strict decoding; all underlying stable IDs remain unchanged. Independent narrow re-review approved this correction.
+
+Parent integrated current main through092, preserving grading/bulk/Activity/recovery, recoveryUnresolved gates and both staged scanner/recovery help sections.1,583 unit tests passed with42 explicit SQL-gated skips; typecheck, lint55 and production build/docs CSS pass. The 336-case scanner/review/recovery phone matrix passed330 and failed six existing assertions still using old unprefixed option values. Those selectors were corrected without changing behavior/assertions; all six passed on the same production build. All336 distinct affected cases therefore pass across split runs, not a single all-green matrix. The18 new collision cases passed in the initial matrix. No full e2e, physical device/cold-SW or hosted scanner command proof is claimed.
