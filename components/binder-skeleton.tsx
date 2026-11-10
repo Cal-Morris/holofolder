@@ -22,8 +22,10 @@ export function BinderSkeleton({ rows = 3, cols = 3 }: { rows?: number; cols?: n
         <div className="pl-[var(--left-inset)] pr-[var(--right-inset)] sm:px-4">
           <div className="flex flex-wrap items-center gap-0 py-1 md:gap-2 md:px-3">
             <div className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 px-1.5 xl:flex-none">
+              {/* Lazy on purpose: React holds a boundary with an eager image back until the image loads, which
+                  would put the whole skeleton behind app/loading.tsx. In view, it still loads straight away. */}
               {/* eslint-disable-next-line @next/next/no-img-element -- the static shell paints before any script */}
-              <img src="/app/holofolder-mark.png" alt="" width={20} height={20} className="h-5 w-5 shrink-0" />
+              <img src="/app/holofolder-mark.png" alt="" width={20} height={20} loading="lazy" className="h-5 w-5 shrink-0" />
               <span className="truncate text-sm font-semibold">Holo Folder</span>
             </div>
             <div className="order-last hidden w-full items-center gap-1 border-t border-border/40 pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
