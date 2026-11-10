@@ -165,7 +165,8 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
       }
       for (let attempt = 0; attempt < attempts; attempt++) {
         try {
-          await sameScope()
+          // initialScope was read immediately before attempt 0; retries must reauthorize.
+          if (attempt > 0) await sameScope()
           const rootRevision = await revision(), rev = rootRevision ?? 0
           // Absence is a revision-zero planning base only for a proven untouched owner.
           // Never provision rows in GET; trusted first creation needs the parent 098 prerequisite.
