@@ -62,3 +62,5 @@ Files in `superpowers/plans/` and `superpowers/specs/`, [the rebrand checklist](
 - [Staged Slabs renderer/gallery](slab-rendering.md): explicit provider/version layouts, safe DTOs, navigation and the remaining #389/#390/#379 gates.
 
 - [Creation/import terminal noncommit (093)](creation-import-terminal-noncommit.md), staged backend proof and separate durable consumer/application gates.
+
+- [Empty-owner first creation (098)](empty-owner-first-creation.md): prerequisite, absent-root retry behavior and private SQL proof.

@@ -43,7 +43,7 @@ The executor bounds insertion to 4,096 slots and 8,192 insertion work rows, 100 
 
 ## Creation and arrangement import
 
-Creation saves the named collection, copied manifest and ordered stable slots in one transaction. Retain operation, collection and slot IDs. The first collection creates an owner inventory root from revision 0 and becomes default. Existing count/grid entitlements still apply. Empty goals create no ownership or wants. Creation receipts retain conservative `recoverySupported:false`; recovery preview determines supported evidence independently.
+Creation saves the named collection, copied manifest and ordered stable slots in one transaction. Retain operation, collection and slot IDs. The first collection requires database migration 098 to create an owner inventory root from revision 0 and become default. The server must prove that the owner has no binders, legacy collection rows, native content, source mappings or collection history. A missing root with existing data remains unavailable and never triggers automatic conversion. If a first creation fails without an owner root, retain the exact original request for retry or reconciliation; an unavailable response is not a terminal discard proof. Existing count/grid entitlements still apply. Empty goals create no ownership or wants. Creation receipts retain conservative `recoverySupported:false`; recovery preview determines supported evidence independently.
 
 Arrangement import requires an empty or target-only native destination with an already identical copied manifest. Every physical copy needs an explicit add or versioned existing-copy move. It does not replace collections/configuration, import assets, authorize backup-file IDs or restore arbitrary historical snapshots.
 
