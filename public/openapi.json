@@ -17293,7 +17293,7 @@
       "get": {
         "operationId": "list_collection_audit",
         "summary": "List collection audit",
-        "description": "Read private account-lifetime committed collection history. Keyset cursor is bound to filters; private certificates and label assets are redacted. Legacy actors are Unknown. Requires current collection access.\n\nRequired permissions: `collection:read`. MCP tool: `list_collection_audit`.",
+        "description": "Read private account-lifetime committed collection history. Filter operationId for the exact original acknowledged command; zero or multiple entries do not identify a single recovery event. Keyset cursor is bound to filters; private certificates and label assets are redacted. Legacy actors are Unknown. Requires current collection access.\n\nRequired permissions: `collection:read`. MCP tool: `list_collection_audit`.",
         "tags": [
           "Collection"
         ],
@@ -17320,6 +17320,17 @@
             "schema": {
               "type": "string",
               "maxLength": 1024
+            }
+          },
+          {
+            "name": "operationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^\\S(?:.*\\S)?$"
             }
           },
           {

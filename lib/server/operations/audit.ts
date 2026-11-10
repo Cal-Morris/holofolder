@@ -34,6 +34,7 @@ export async function readCollectionAudit(context: Pick<OperationContext, "owner
   ].join(","))
   if (groups.length) query = query.or(`and(${groups.map(group=>`or(${group})`).join(",")})`)
   if (input.actorId) query = query.eq("actor_user_id", String(input.actorId))
+  if (input.operationId) query = query.eq("operation_id", String(input.operationId))
   if (input.action) query = query.eq("action", String(input.action))
   if (input.recoveryOfEventId) query = query.eq('recovery_of_event_id', String(input.recoveryOfEventId))
   if (input.since) query = query.gte("recorded_at", String(input.since))

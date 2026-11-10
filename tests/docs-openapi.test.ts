@@ -27,3 +27,14 @@ test('native explorer pages cover the registry once and use the direct developer
   assert.equal(bundled.servers?.[0]?.url, 'https://app.holofolder.com/app/api/v1')
   assert.equal(docsOpenAPI.options.proxyUrl, undefined)
 })
+
+ test('operation history filter is present in generated discovery with read permission and no new authority', () => {
+  const operation = schema.paths['/collection/audit'].get
+  const parameter = operation.parameters.find(p => p.name === 'operationId')
+  assert.ok(parameter)
+  assert.equal(parameter.in, 'query')
+  assert.equal(parameter.required, false)
+  assert.equal(parameter.schema.maxLength, 200)
+  assert.match(operation.description, /zero or multiple/)
+  assert.match(operation.description, /collection:read/)
+ })

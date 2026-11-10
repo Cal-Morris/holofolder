@@ -11,6 +11,7 @@ import type { NativeBinderCreationBinding } from "@/components/native-binder-cre
 import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { AcknowledgedCommandActivity } from "@/components/acknowledged-command-activity"
 import { ActivityButton } from "@/components/collection-activity-context"
 import dynamic from "next/dynamic"
 import type { InventorySnapshot } from "@/lib/domain/inventory"
@@ -414,6 +415,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
                 create: draft => create(draft, surface.openCreated) } })}>New binder</button>
             {surface.state.main === "collection" && surface.state.collectionId && <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm" disabled={!deletionAvailable} onClick={() => { closeAllOverlays(); setDeleting(surface.state.collectionId) }}>Delete collection</button>}</div>
 
+          <AcknowledgedCommandActivity record={valid() ? queue.record : null} scope={{ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }} />
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
           {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">

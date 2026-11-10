@@ -16,6 +16,7 @@ export async function firstPartyActivity(request: Request) {
     const scope = { accountId:user.id, ownerId:membership.ownerUserId, memberIds:membership.memberIds,
       membershipKey:JSON.stringify([membership.partnershipId,...membership.memberIds.toSorted()]) }
     const params = new URL(request.url).searchParams
+    if ([...params.keys()].some(key => params.getAll(key).length !== 1)) return Response.json({error:"Choose valid Activity filters."},{status:400,headers})
     if (params.toString() === "scope=1") return Response.json({scope},{headers})
     const detail = params.has("id")
     const input: Record<string,unknown> = Object.fromEntries(params)
