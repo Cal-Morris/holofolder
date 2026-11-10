@@ -144,13 +144,14 @@ export interface BundleItem {
 
 /**
  * A bundle is one asking total for several cards, judged against the cards' combined market price. Cards
- * without a market price can't be valued, so the verdict covers the priced ones and says how many are unpriced.
+ * without a market price can't be valued. Native comparisons require every selected reference; legacy
+ * comparisons cover the priced ones and say how many are unpriced.
  */
-export function checkBundle(items: readonly BundleItem[], askingTotal: number | null, thresholds = DEFAULT_DEAL_THRESHOLDS) {
-  const priced = items.filter((item) => typeof item.marketPrice === "number" && item.marketPrice > 0)
+export function checkBundle(items: readonly BundleItem[], askingTotal: number | null, thresholds = DEFAULT_DEAL_THRESHOLDS, requireComplete = false) {
+  const priced = items.filter((item) => typeof item.marketPrice === "number" && Number.isFinite(item.marketPrice) && item.marketPrice > 0)
   const marketTotal = roundMoney(priced.reduce((sum, item) => sum + (item.marketPrice as number), 0))
   const unpricedCount = items.length - priced.length
-  const deal = askingTotal && askingTotal > 0 && priced.length > 0 ? checkDeal({ askingPrice: askingTotal, marketPrice: marketTotal, thresholds }) : null
+  const deal = askingTotal && askingTotal > 0 && priced.length > 0 && (!requireComplete || unpricedCount === 0) ? checkDeal({ askingPrice: askingTotal, marketPrice: marketTotal, thresholds }) : null
   if (deal && unpricedCount > 0) deal.notes.unshift(`${unpricedCount} card${unpricedCount === 1 ? " has" : "s have"} no price: judged on the rest`)
   return { marketTotal, unpricedCount, deal }
 }

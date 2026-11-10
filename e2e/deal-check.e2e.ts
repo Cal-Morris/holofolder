@@ -275,6 +275,10 @@ test.describe("manual bundle price checks", () => {
     let release: (() => void) | undefined
     const gate = new Promise<void>(resolve => { release = resolve })
     await harness.page.route("**/app/api/card-price-checks?**", async route => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({ json: { ebay: null, soldcomps: null, errors: {} } })
+        return
+      }
       calls++
       const query = new URL(route.request().url()).searchParams
       expect(route.request().method()).toBe("POST")

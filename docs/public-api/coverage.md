@@ -312,3 +312,16 @@ settlements are device-only operations; REST/MCP clients retain their own reques
 Generated OpenAPI and live device-change help remain unchanged. Parent-owned
 commit-time old-ingress/in-flight containment and the trusted server guard adapter
 block production admission; no durability or exactly-once capability is announced.
+
+### Native Show read-only bundle comparison (#374), staged
+
+Device-only composed pricing, no new public operation. Existing scoped inventory,
+card-price and saved-comparison reads feed QuickBundle. Explicit selected
+printing/language/finish entries retain repeats as offer quantities. Native
+copy/wanted labels use the host read; empty targets create neither. Missing
+exact-finish or mixed-currency evidence suppresses the bundle verdict. Native
+bundles cannot invoke provider refresh, purchase/acquisition/ownership changes or
+offline preparation. Loaded code and saved references work with cached read-only
+evidence. Registry/OpenAPI/permissions are unchanged; production admission remains
+false/503. Purchase/preparation parity, hosted rollout and full #374 acceptance
+remain parent-owned gates.

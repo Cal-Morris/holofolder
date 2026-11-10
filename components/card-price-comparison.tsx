@@ -18,8 +18,8 @@ import type { CardFinish } from "@/lib/domain/cards"
 
 const ComparisonChart = dynamic(() => import("@/components/card-price-comparison-chart"), { ssr: false, loading: () => <div className="h-56" aria-hidden="true" /> })
 
-export function CardPriceComparison({ cardId, searchCard, language = "en", finish, catalogMarketGbp, thresholds: givenThresholds, onSoldCheck, offerGbp, showBuyingScale = true }: {
-  cardId: string; searchCard: Omit<ListingSearchCard, "cardId">; language?: string; finish?: CardFinish; catalogMarketGbp?: number | null; thresholds?: DealThresholds; onSoldCheck?: (check: CardPriceCheck) => void; offerGbp?: number | null; showBuyingScale?: boolean
+export function CardPriceComparison({ cardId, searchCard, language = "en", finish, catalogMarketGbp, thresholds: givenThresholds, onSoldCheck, offerGbp, showBuyingScale = true, readOnly = false }: {
+  cardId: string; searchCard: Omit<ListingSearchCard, "cardId">; language?: string; finish?: CardFinish; catalogMarketGbp?: number | null; thresholds?: DealThresholds; onSoldCheck?: (check: CardPriceCheck) => void; offerGbp?: number | null; showBuyingScale?: boolean; readOnly?: boolean
 }) {
   const billing = useBillingContext()
   const premium = billing?.premium === true
@@ -82,7 +82,7 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
   }
 
   async function checkPrices(refresh = false) {
-    if (loading) return
+    if (readOnly || loading) return
     if (!navigator.onLine) { setError("Connect to the internet to check prices."); return }
     setError(null)
     setResult(previous => ({ ebay: null, soldcomps: null, ...previous, errors: {} }))
@@ -94,18 +94,19 @@ export function CardPriceComparison({ cardId, searchCard, language = "en", finis
     await Promise.all(stale.map(source => checkSource(source, controller.signal, refresh)))
   }
 
+  if (billing && !billing.premium && readOnly) return null
   if (billing && !billing.premium) return <section aria-label="Price comparisons" className="mt-2 rounded-xl border p-3"><p className="text-sm">Sold comps are included with Holo Folder Premium.</p><Button className="mt-2 min-h-11 w-full" onClick={billing.upgrade}>Unlock price comparisons</Button></section>
 
   return (
     <section aria-label="Price comparisons" className="mt-2 rounded-xl border border-border/45 bg-background/35 px-2.5 py-2 text-xs">
       <p className="font-semibold">eBay listings + sold comps</p>
-      <p className="mt-1 text-muted-foreground">Manual checks · saved permanently · refresh manually</p>
+      <p className="mt-1 text-muted-foreground">{readOnly ? "Saved evidence only · read-only comparison" : "Manual checks · saved permanently · refresh manually"}</p>
       <div className="flex flex-wrap gap-x-4">
         <a href={openUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View open listings ↗</a>
         <a href={soldUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-semibold underline">View sold listings ↗</a>
       </div>
       {error ? <p role="status" className="mt-2 text-muted-foreground">{error}</p> : null}
-      <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices(Boolean(result?.ebay || result?.soldcomps))} disabled={loading}>{loading ? "Checking prices…" : result?.ebay || result?.soldcomps ? "Refresh prices" : "Check prices"}</Button>
+      {!readOnly && <Button type="button" variant="outline" size="sm" className="mt-2 min-h-14 w-full rounded-2xl text-base font-bold" onClick={() => void checkPrices(Boolean(result?.ebay || result?.soldcomps))} disabled={loading}>{loading ? "Checking prices…" : result?.ebay || result?.soldcomps ? "Refresh prices" : "Check prices"}</Button>}
       {result ? <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1" aria-live="polite">
         {(["ebay", "soldcomps"] as const).map(source => <div key={source}>
           {pending[source] ? <p role="status">Checking {source === "ebay" ? "eBay" : "sold comps"}…</p> : null}

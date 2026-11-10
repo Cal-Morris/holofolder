@@ -42,7 +42,9 @@ export async function clearCardPriceCache(page: Page) {
 
 export async function mockCardPrices(page: Page, byCardId: Record<string, FixturePrice>) {
   await page.route("**/app/api/card-prices**", async (route) => {
-    const body = route.request().postDataJSON?.() ?? {}
+    const body = route.request().method() === "GET"
+      ? { cards: JSON.parse(new URL(route.request().url()).searchParams.get("cards") ?? "[]") }
+      : route.request().postDataJSON?.() ?? {}
     const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : []
     const updatedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     await route.fulfill({
