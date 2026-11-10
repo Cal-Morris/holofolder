@@ -92,26 +92,28 @@ for (const suite of suites) {
       await shot(page, "c2-saved-on-binder", prefix)
     })
 
-    test("d. a free pocket lands in catalog search", async ({ harness }) => {
+    test("d. a free pocket opens the same visual selector, searching every card", async ({ harness }) => {
       const { page } = harness
       await open(page)
       await slot(page, "slot-g").click()
-      const dialog = details(page)
-      await expect(dialog.getByRole("textbox", { name: "Search slot catalog" })).toBeVisible()
+      const dialog = selector(page)
+      await expect(details(page)).toHaveCount(0)
+      await expect(dialog.getByRole("searchbox", { name: "Search cards" })).toBeVisible()
       await expect(dialog.getByRole("button", { name: /Choose card|Edit slot|Cancel/ })).toHaveCount(0)
-      await expect(dialog.getByRole("heading", { name: "Add a card", exact: true })).toBeVisible()
+      await expect(dialog.getByRole("heading", { name: "Add a card", exact: true })).toHaveCount(1)
       await harness.expectWithinSafeViewport(dialog)
       await harness.expectNoHorizontalOverflow()
       await shot(page, "d-free-pocket-search", prefix)
     })
 
-    test("e. an owned pocket keeps the card-first detail", async ({ harness }) => {
+    test("e. an owned pocket opens the card's details", async ({ harness }) => {
       const { page } = harness
       await open(page)
       await slot(page, "slot-a").click()
       const dialog = details(page)
       await expect(dialog.getByRole("heading", { name: "Snorlax A", exact: true })).toBeVisible()
-      await expect(dialog).toContainText("Owned copy")
+      await expect(dialog).toContainText(/owned/i)
+      await expect(dialog.getByText(/Edit slot|Card options|Unassigned/)).toHaveCount(0)
       await expect(selector(page)).toHaveCount(0)
       await shot(page, "e-owned-card-first", prefix)
     })
@@ -121,9 +123,9 @@ for (const suite of suites) {
       await open(page, "slots=picker&readOnly=1&rows=2&cols=4")
       await slot(page, "slot-e").click()
       const dialog = details(page)
-      await expect(dialog).toContainText("Unfilled target")
+      await expect(dialog).toContainText("Not collected")
       await expect(selector(page)).toHaveCount(0)
-      await expect(dialog.getByRole("button", { name: /Choose card|Edit slot|Set target/ })).toHaveCount(0)
+      await expect(dialog.getByRole("button", { name: /Choose card|Edit slot|Set target|More card options/ })).toHaveCount(0)
       await shot(page, "f-readonly-empty-pocket", prefix)
     })
   })

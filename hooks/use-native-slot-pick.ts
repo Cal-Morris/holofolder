@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
 import { planNativePick, prepareSlotPickerIntent, type NativePickPlan, type SlotPickerAction, type SlotPickerBoundary, type SlotPickerIntent } from "@/lib/slot-picker"
-import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
+import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
 import { prepareInventoryAction } from "@/lib/inventory-actions"
 import { slotDraftFailureMessage } from "@/lib/slot-draft-failure"
 import type { CardFinish } from "@/lib/domain/cards"
@@ -53,8 +53,10 @@ export function useNativeSlotPick(boundary: SlotPickerBoundary, onSaved: () => v
  * collection, or changing what the pocket is reserved for. Same durable sink and exact-draft retry as a pick; the
  * host shows `failed` only on a real failure.
  */
-export function useNativeSlotAction(boundary: SlotPickerBoundary | undefined, onSaved: () => void) {
-  const acceptance = useSlotDraftAcceptance<SlotPickerIntent>(boundary?.onCommandIntent ?? (() => { throw new Error("inactive-or-unavailable-session") }), onSaved)
+export function useNativeSlotAction(boundary: SlotPickerBoundary | undefined, onSaved: (preview?: InventorySnapshot) => void) {
+  // What the collection looks like once this action is applied, for a host that keeps a selection across it.
+  const preview = useRef<InventorySnapshot | undefined>(undefined)
+  const acceptance = useSlotDraftAcceptance<SlotPickerIntent>(boundary?.onCommandIntent ?? (() => { throw new Error("inactive-or-unavailable-session") }), () => onSaved(preview.current))
   const [failure, setFailure] = useState<string | null>(null)
   const run = (action: Exclude<SlotPickerAction, { kind: "assign" }> | { kind: "removeOwned" }, selected?: InventoryCatalogResolver) => {
     if (!boundary || acceptance.pending || acceptance.busy) return
@@ -66,11 +68,13 @@ export function useNativeSlotAction(boundary: SlotPickerBoundary | undefined, on
         const itemId = boundary.snapshot.binders.find(b => b.collectionId === boundary.scope.collectionId)?.slots.find(s => s.id === boundary.scope.slotId)?.inventoryItemId
         if (!itemId) throw new Error("picker-scope-changed")
         const prepared = prepareInventoryAction(boundary.snapshot, { kind: "removeOwned", itemId }, context, boundary.catalog)
+        preview.current = prepared.preview
         acceptance.handoff({ scope: { ...boundary.scope }, intent: prepared.intent })
         return
       }
       const resolver = selected ?? boundary.catalog
       const prepared = prepareSlotPickerIntent(boundary.snapshot, boundary.scope, action, context, resolver)
+      preview.current = prepared.preview
       acceptance.handoff({ scope: prepared.scope, intent: prepared.intent }, selected)
     } catch (cause) { setFailure(slotDraftFailureMessage(cause)) }
   }

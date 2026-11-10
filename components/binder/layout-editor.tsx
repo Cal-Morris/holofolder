@@ -95,7 +95,11 @@ function LayoutBar({ boundary, host, start, onTap, onSelection, onDone }: {
   const blocked = busy || pending !== null
   const unavailable = blocked || state !== "current"
   const single = ids.length === 1 ? binder.slots.find(s => s.id === ids[0]) : undefined
-  const pocket = useNativeSlotAction(single ? { snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent } : undefined, () => setError(null))
+  const pocket = useNativeSlotAction(single ? { snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent } : undefined, preview => {
+    // The pocket stays selected across its own change, on the collection as it now is.
+    if (preview) { try { setSelection(captureBulkSelection(preview, scope, ids)) } catch { /* The next read settles it. */ } }
+    setError(null)
+  })
   const select = (next: readonly string[]) => {
     try { setSelection(captureBulkSelection(snapshot, scope, next)); setError(null) }
     catch { setError(`You can select up to ${SLOT_LIMITS.affected} pockets at once.`) }
