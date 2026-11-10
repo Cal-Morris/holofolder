@@ -33,3 +33,5 @@ reviewed changes does not remove that pause or its original record.
 
 Keep a download before clearing browser data. The existing device store does not
 provide a cross-tab or crash-proof transactional outbox.
+
+Downloads retain exact original bytes. If an original also contains changes from another account, that complete file stays on this device and cannot be downloaded from the current account. It is never silently redacted and presented as an exact original.

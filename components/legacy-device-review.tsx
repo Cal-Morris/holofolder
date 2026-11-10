@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
-import { acceptLegacyQueueReview, LOCAL_COLLECTION_PENDING_OPS_KEY, prepareLegacyQueueReview, readLegacyQueueSources, readPendingCollectionOperations, writePendingCollectionOperations, type PendingCollectionOperationInput, type PendingCollectionOperation } from "@/lib/collection/offline-queue"
+import { acceptLegacyQueueReview, LOCAL_COLLECTION_PENDING_OPS_KEY, prepareLegacyQueueReview, readLegacyQueueSources, readPendingCollectionOperationRaw, readPendingCollectionOperations, writePendingCollectionOperations, type PendingCollectionOperationInput, type PendingCollectionOperation } from "@/lib/collection/offline-queue"
+import { mayDownloadLegacyOriginal, sourceDigest } from "@/lib/collection/legacy-source"
 import { legacyReviewEntries, type LegacyReviewEntry } from "@/lib/collection/legacy-review"
 import { collectionFingerprint } from "@/lib/collection/sync"
 import type { CollectedPokemon } from "@/lib/domain/cards"
@@ -83,13 +84,15 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId }: { actorId: st
     } catch { setError("Could not retain the original data. Free some device storage before reviewing."); setOpen(true) }
   }
   function download() {
-    const sources = [...readLegacyQueueSources()]
-    const queue = localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
-    if (queue && blocked.length) sources.push({ legacyQueueSource: { version: 1, raw: queue, digest: "current-queue" } })
+    const originals = [...readLegacyQueueSources().map(source => source.legacyQueueSource.raw),
+      ...blocked.flatMap(operation => { const raw = readPendingCollectionOperationRaw(operation.id); return raw ? [raw] : [] })]
+    const sources = [...new Set(originals)].filter(raw => mayDownloadLegacyOriginal(raw, actorId))
+    if (originals.some(raw => !mayDownloadLegacyOriginal(raw, actorId)))
+      setError("Some original data could not be verified for this account and cannot be downloaded here. It remains on this device.")
     // Individual files contain the exact original string, including whitespace and invalid JSON.
-    for (const [index, source] of sources.entries()) {
-      const url = URL.createObjectURL(new Blob([source.legacyQueueSource.raw], { type: "application/json" }))
-      const anchor = document.createElement("a"); anchor.href = url; anchor.download = `holo-folder-original-${index + 1}-${source.legacyQueueSource.digest.replace(":", "-")}.json`; anchor.click(); URL.revokeObjectURL(url)
+    for (const [index, raw] of sources.entries()) {
+      const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }))
+      const anchor = document.createElement("a"); anchor.href = url; anchor.download = `holo-folder-original-${index + 1}-${sourceDigest(raw).replace(":", "-")}.json`; anchor.click(); URL.revokeObjectURL(url)
     }
   }
   const selected = entries.filter(entry => entry.operation && choices[key(entry)])

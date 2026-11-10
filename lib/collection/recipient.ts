@@ -25,4 +25,4 @@ export function guestCollectionOrigin(storage: Storage, binderId: string | null)
   return { kind: "guest", workspaceId, localBinderId: binderId ?? "guest-default" }
   } catch { return null }
 }
-export const RECIPIENT_RETENTION_CODES = new Set(["collection_recipient_required", "collection_recipient_changed", "collection_recipient_inaccessible"])
+export const RECIPIENT_RETENTION_CODES = new Set(["collection_recipient_required", "collection_recipient_changed", "collection_recipient_inaccessible", "collection_precondition_required"])

@@ -39,3 +39,9 @@ First-party saves and status changes use the existing `save_collection_with_acqu
 - `bun run typecheck`, `bun run lint` (55 existing warnings, no additions), production build and generated API docs. Public OpenAPI output is unchanged.
 - 102 affected production UI cases across 375×667, 390×844 and 430×932, in browser and standalone PWA mode with 59/34 px insets. Includes A→B→A stale responses, review invalidation, exact original downloads, cancel during an in-flight batch, and failed acceptance preserving both localStorage and real IndexedDB evidence. The review panel has a stable height while destination data arrives.
 - No full e2e suite, hosted/provider/physical-device or service-worker rollout proof. An exploratory full local unit run hit an unavailable private PostgreSQL integration fixture and subsequent Bun `node:test` nesting errors; the focused suites above pass. No integration database was started or modified.
+
+## Review corrections
+
+Full original downloads are checked for foreign account origins, including nested retained sources/original records. Mixed originals remain stored unchanged and are not exported under a different actor; blocked current-account requests are downloaded individually, never by exporting the entire shared queue. A redacted projection is not described as an exact original.
+
+Bound first-party PATCH requires a nonempty caller baseFingerprint. Missing preconditions return retention-safe503 collection_precondition_required; stale evidence returns genuine row-conflict409 before the atomic kernel. A matching fingerprint still uses the exact loaded row for SQL CAS, preserving read-to-write race checks.

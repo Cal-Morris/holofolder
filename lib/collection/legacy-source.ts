@@ -22,3 +22,27 @@ export function decodeQueueArray(raw: string | null): unknown[] | null {
   if (raw === null) return []
   try { const parsed: unknown = JSON.parse(raw); return Array.isArray(parsed) ? parsed : null } catch { return null }
 }
+
+/** A full original may include hidden account records, including nested retained sources. */
+export function mayDownloadLegacyOriginal(raw: string, actorId: string | null) {
+  const pending: unknown[] = [raw]
+  const parsed = new Set<string>()
+  let remaining = 100000
+  while (pending.length) {
+    if (--remaining < 0) return false
+    const value = pending.pop()
+    if (typeof value === "string") {
+      if (parsed.has(value)) continue
+      parsed.add(value)
+      if (!/^[\s]*[\[{\"]/.test(value)) continue
+      try { pending.push(JSON.parse(value)) } catch { /* Opaque historical data stays unchanged. */ }
+    } else if (value && typeof value === "object") {
+      const row = value as Record<string, unknown>
+      if (row.kind === "account" && typeof row.actorUserId === "string" && row.actorUserId !== actorId) return false
+      const values = Object.values(row)
+      if (values.length > remaining - pending.length) return false
+      pending.push(...values)
+    }
+  }
+  return true
+}

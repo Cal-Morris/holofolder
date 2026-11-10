@@ -2,7 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { queuePendingCollectionOperation, readPendingCollectionOperations, readLegacyQueueSources, removePendingCollectionOperation, rebasePendingCollectionOperation, replacePendingCollectionOperation, prepareLegacyQueueReview, acceptLegacyQueueReview, LOCAL_COLLECTION_PENDING_OPS_KEY, writePendingCollectionOperations, pauseReviewedCollectionBatch, restorePendingCollectionOperations } from "../lib/collection/offline-queue"
 import { legacyReviewEntries } from "../lib/collection/legacy-review"
-import { sourceDigest } from "../lib/collection/legacy-source"
+import { mayDownloadLegacyOriginal, sourceDigest } from "../lib/collection/legacy-source"
 import { sameCollectionOrigin } from "../lib/collection/recipient"
 import { classifyWriteFailure } from "../lib/collection/sync"
 import { CollectionWriteError, saveRemoteCollectionItem, deleteRemoteCollectionItem } from "../lib/collection/remote"
@@ -12,6 +12,17 @@ import type { CollectedPokemon } from "../lib/domain/cards"
 const a = { kind: "account" as const, actorUserId: "a", ownerUserId: "owner-a", binderId: "binder-a" }
 const b = { ...a, actorUserId: "b", ownerUserId: "owner-b" }
 const item: CollectedPokemon = { id: "synthetic-row", pokemon_id: 25, pokemon_name: "Synthetic Pikachu", status: "collected", wanted_cards: [], collected_at: "2026-11-10", card_language: "en", card_finish: "normal" }
+test("exact original downloads refuse mixed or nested foreign account data without changing source bytes", () => {
+  const raw = JSON.stringify([{ origin: a, item: { ...item, card_name: "PRIVATE_ACCOUNT_A_MARKER" } }, { id: "unknown", type: "delete", pokemonId: 1 }])
+  assert.equal(mayDownloadLegacyOriginal(raw, "b"), false)
+  assert.equal(mayDownloadLegacyOriginal(raw, null), false)
+  assert.equal(mayDownloadLegacyOriginal(raw, "a"), true)
+  assert.equal(mayDownloadLegacyOriginal(JSON.stringify([{ legacyQueueSource: { raw } }]), "b"), false)
+  assert.equal(mayDownloadLegacyOriginal(JSON.stringify({ compatibilityPause: { rawRecord: raw } }), "b"), false)
+  assert.equal(mayDownloadLegacyOriginal(" \n [ {\"future\":true} ] \n", "b"), true)
+  assert.equal(mayDownloadLegacyOriginal("opaque original invalid JSON", "b"), true)
+  assert.ok(raw.includes("PRIVATE_ACCOUNT_A_MARKER"), "stored original is retained, never redacted into a purported exact original")
+})
 function withQueue(run: (storage: Storage, fail: () => void) => void) {
   const previous = globalThis.window
   const map = new Map<string, string>(); let fail = false

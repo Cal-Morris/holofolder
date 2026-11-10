@@ -208,8 +208,12 @@ export async function updateCollectionStatus(request: NextRequest, actor: User, 
     const authority = await checkLegacyBinderAuthority(admin, ownerUserId, binder.binderId, !!verifiedOwnerId)
     if (authority) return authority
     if (verifiedOwnerId) {
+      if (typeof body?.baseFingerprint !== "string" || !body.baseFingerprint.length)
+        return NextResponse.json({ error: "The original status change needs its reviewed base. Keep it on this device.", code: "collection_precondition_required", retainOnDevice: true }, { status: 503 })
       const previous = await scopeCollectionQuery(admin.from("pokemon_collection").select("*"), ownerUserId, binder.binderId).eq("pokemon_id", pokemonId).maybeSingle()
       if (previous.error) throw previous.error
+      const conflict = await checkBaseFingerprint(admin, ownerUserId, binder.binderId, pokemonId, body.baseFingerprint, previous.data ? normalizeCollectionItem(previous.data) : null, body.fingerprintVersion === undefined)
+      if (conflict) return conflict
       if (!previous.data) return NextResponse.json({ error: "Collection item not found" }, { status: 404 })
       const atomic = await saveCollectionWithAcquisition({ ownerId: ownerUserId, binderId: binder.binderId, actorId: user.id,
         actorName: notificationFirstName(user.user_metadata), pokemonId, row: { ...previous.data, status }, expected: previous.data, acquisition: undefined })

@@ -61,6 +61,30 @@ test.describe("explicit device review", () => {
     await page.reload()
     expect(writes).toHaveLength(1)
   })
+  test("mixed original downloads never expose another account's retained data", async ({ harness }) => {
+    const { page } = harness
+    const privateIntent = { ...record, id: "foreign-private-request", intentProtocol: 1,
+      origin: { ...recipient, actorUserId: "00000000-0000-4000-8000-000000000099", ownerUserId: "00000000-0000-4000-8000-000000000099" },
+      binderId: binder, item: { ...item, card_name: "PRIVATE_ACCOUNT_A_MARKER" } }
+    const raw = JSON.stringify([{ ...privateIntent, original: { raw: JSON.stringify(privateIntent) } }, record])
+    await page.route("**/app/api/collection/review-destination**", route => route.fulfill({ json: { recipient: { ...recipient, binderId: null }, memberIds: [actor], binders: [{ id: binder, name: "My binder" }] } }))
+    await seed(page, raw)
+    await page.getByRole("button", { name: "Review changes", exact: true }).click()
+    const dialog = page.getByRole("dialog", { name: "Review device changes" })
+    await expect(dialog.getByText("PRIVATE_ACCOUNT_A_MARKER", { exact: false })).toHaveCount(0)
+    await page.evaluate(() => {
+      const original = URL.createObjectURL
+      Object.assign(window, { syntheticDownloadBlobs: [] as Blob[] })
+      URL.createObjectURL = value => { (window as unknown as { syntheticDownloadBlobs: Blob[] }).syntheticDownloadBlobs.push(value as Blob); return original(value) }
+    })
+    await dialog.getByRole("button", { name: "Download original data" }).click()
+    await expect(dialog.getByText(/could not be verified for this account/)).toBeVisible()
+    expect(await page.evaluate(() => (window as unknown as { syntheticDownloadBlobs: Blob[] }).syntheticDownloadBlobs.length)).toBe(0)
+    expect(await page.evaluate(queueKey => JSON.parse(localStorage.getItem(queueKey)!).find((entry: { legacyQueueSource?: { raw: string } }) => entry.legacyQueueSource)?.legacyQueueSource.raw, queueKey)).toBe(raw)
+    await dialog.getByRole("button", { name: "Close device changes" }).click()
+    await page.reload()
+    expect(await page.evaluate(queueKey => JSON.parse(localStorage.getItem(queueKey)!).find((entry: { legacyQueueSource?: { raw: string } }) => entry.legacyQueueSource)?.legacyQueueSource.raw, queueKey)).toBe(raw)
+  })
   test("reload invalidates choices; cancel and every dismissal preserve evidence without upload", async ({ harness }) => {
     const { page } = harness
     let writes = 0, reads = 0
