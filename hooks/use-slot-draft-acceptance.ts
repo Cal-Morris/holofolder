@@ -36,5 +36,7 @@ export function useSlotDraftAcceptance<T extends StagedSlotCommandIntent>(sink: 
     } catch (cause) { failed(cause) }
   }
   const retry = () => { if (pending) handoff(pending.draft, pending.selected) }
-  return { pending: pending?.draft ?? null, busy, message, handoff, retry }
+  /** Drops a draft that failed locally; never while a handoff is in flight. */
+  const discard = () => { if (lock.current) return; setPending(null); setMessage(null) }
+  return { pending: pending?.draft ?? null, busy, message, handoff, retry, discard }
 }

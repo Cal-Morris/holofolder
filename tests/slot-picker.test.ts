@@ -180,3 +180,29 @@ test("fulfilling a matched want keeps the exact want identity and slot versions 
   assert.equal(fulfil.preview.binders[0].slots[6].wantedCards.length, 0)
   assert.equal(plain.preview.binders[0].slots[6].wantedCards.length, 1)
 })
+
+test("a native pick saves at once only when no graded copy or slot want needs an explicit choice", async () => {
+  const { planNativePick } = await import("@/lib/slot-picker")
+  const { inventory, cards, resolve, scope } = setup()
+  const trainer = cards.find(c => c.name === "Trainer")!
+  const plain = planNativePick(inventory, scope, trainer, "normal", resolve, "new-id")
+  assert.equal(plain.choices.length, 0)
+  assert.deepEqual(plain.immediate, { kind: "catalog", identity: { kind: "card", cardId: trainer.id, language: "en", finish: "normal" }, newItemId: "new-id" })
+  // Snorlax A: an unplaced raw copy and an unplaced PSA 9, so the copy is an explicit choice.
+  const graded = planNativePick(inventory, scope, cards[0], "normal", resolve, "new-id")
+  assert.equal(graded.immediate, null)
+  assert.deepEqual(graded.choices.map(c => c.label), ["Raw", "PSA 9"])
+  // An unknown printing (not in the read catalog) still plans from the picked card's own evidence.
+  const unknown = { ...trainer, id: "synthetic-unowned", aliasIds: [] }
+  const plan = planNativePick(inventory, scope, unknown, "normal", () => undefined, "new-id")
+  assert.equal(plan.resolver("synthetic-unowned")?.id, "synthetic-unowned")
+  assert.ok(plan.immediate)
+  // A slot want this card matches always asks first.
+  const wanted = structuredClone(inventory)
+  wanted.binders[0].slots[6].wantedCards = [{ card_id: trainer.id, card_name: "Trainer", added_at: "2026-01-01" } as never]
+  const asks = planNativePick(wanted, scope, trainer, "normal", resolve, "new-id")
+  assert.equal(asks.immediate, null)
+  assert.deepEqual(asks.wants, [{ index: 0, name: "Trainer" }])
+  assert.deepEqual(asks.wanted(0), { index: 0, expected: wanted.binders[0].slots[6].wantedCards[0] })
+  assert.throws(() => planNativePick(inventory, { ...scope, slotId: "missing" }, trainer, "normal", resolve, "x"), /picker-scope-changed/)
+})

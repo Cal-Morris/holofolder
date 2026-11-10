@@ -215,7 +215,7 @@ test.describe("staged explicit layout editing", () => {
     await toolbar(page).getByRole("button", { name: "Edit layout", exact: true }).click()
     await page.evaluate(() => window.dispatchEvent(new Event("synthetic-layout-reject-once")))
     await toolbar(page).getByRole("button", { name: "Append free slot", exact: true }).click()
-    await expect(toolbar(page).getByRole("alert")).toContainText("Nothing is confirmed")
+    await expect(toolbar(page).getByRole("alert")).toContainText("Save not confirmed.")
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
     const rejected = JSON.parse((await page.getByLabel("Synthetic rejected draft").textContent())!)
     await toolbar(page).getByRole("button", { name: "Retry same draft", exact: true }).click()

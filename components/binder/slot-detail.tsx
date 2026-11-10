@@ -1,15 +1,15 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { displaySlotLabel, type BinderDisplaySlot } from "@/lib/binder-display-model"
-import SlotPicker, { type SlotPickerBoundary, type SlotPickerFlow } from "@/components/binder/slot-picker"
+import SlotPicker, { type SlotPickerBoundary } from "@/components/binder/slot-picker"
 import { LayoutActions, type LayoutBoundary } from "@/components/binder/layout-editor"
 import CardImage from "@/components/card-image"
 import CardImageZoom from "@/components/card-image-zoom"
 import { CARD_PICKER_LANGUAGES } from "@/lib/card-picker-filters"
 
-export default function SlotDetail({ slot, onClose, picker, flow, layout, onDoneLayout }: { slot: BinderDisplaySlot; onClose: () => void; picker?: SlotPickerBoundary; flow?: SlotPickerFlow; layout?: LayoutBoundary; onDoneLayout?: () => void }) {
+export default function SlotDetail({ slot, onClose, picker, layout, onDoneLayout }: { slot: BinderDisplaySlot; onClose: () => void; picker?: SlotPickerBoundary; layout?: LayoutBoundary; onDoneLayout?: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
@@ -23,14 +23,16 @@ export default function SlotDetail({ slot, onClose, picker, flow, layout, onDone
   const identity = slot.item?.identity.kind === "card" ? slot.item.identity : slot.target?.kind === "card" ? slot.target : null
   const language = CARD_PICKER_LANGUAGES.find(l => l.id === identity?.language)?.label
   const name = slot.card?.name ?? slot.pokemon?.name ?? "Empty slot"
-  // An editable empty pocket is only a selection step: the header already names it, so the body repeats nothing.
-  const selecting = Boolean(picker) && !layout && !slot.item
+  // An editable empty pocket is only a card search: one plain heading, no status or structural controls.
+  // Decided once on open: an owned pocket emptied from this sheet stays its detail, never turns into a search.
+  const [choosing] = useState(() => Boolean(picker) && !layout && !slot.item)
+  const selecting = choosing && Boolean(picker) && !layout && !slot.item
   return <div className="fixed inset-0 z-40">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
     <div ref={ref} role="dialog" aria-modal="true" aria-label={`${displaySlotLabel(slot)} details`} data-slot-id={slot.id}
       className="absolute inset-x-3 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xl">
       <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
-        <h2 className="min-w-0 break-words text-sm font-semibold">{displaySlotLabel(slot)}</h2>
+        <h2 className="min-w-0 break-words text-sm font-semibold">{selecting ? slot.pokemon || slot.card ? `Add card for ${name}` : "Add a card" : displaySlotLabel(slot)}</h2>
         {layout && <button type="button" onClick={onDoneLayout} className="min-h-10 shrink-0 rounded-xl border border-border px-3 text-sm">Done</button>}
         <button type="button" aria-label="Close slot details" onClick={onClose} className="h-10 w-10 shrink-0 rounded-full hover:bg-muted">✕</button>
       </header>
@@ -49,7 +51,8 @@ export default function SlotDetail({ slot, onClose, picker, flow, layout, onDone
           </div>
         </div>}
         {layout && <LayoutActions boundary={layout} onCancel={onClose} />}
-        {picker && <SlotPicker boundary={picker} flow={flow} onCancel={onClose} />}
+        {layout && <SlotPicker boundary={{ ...layout, scope: { ...layout.scope, slotId: slot.id } }} structural />}
+        {picker && !layout && <SlotPicker boundary={picker} choosing={selecting} onDone={onClose} />}
         {grade && <dl className="space-y-1 break-words"><dt>Recorded grading provider</dt><dd>{grade.provider.kind === "known" ? grade.provider.id.toUpperCase() : grade.provider.name}</dd><dt>Grade</dt><dd>{grade.grade ?? "Unknown"}{grade.scale ? ` / ${grade.scale}` : ""}</dd>{grade.designation && <><dt>Designation</dt><dd>{grade.designation}</dd></>}{grade.holder && <><dt>Holder</dt><dd>{grade.holder}</dd></>}{grade.subgrades.map((s, index) => <div key={index}><dt>{s.name}</dt><dd>{s.grade}</dd></div>)}</dl>}
       </div>
     </div>
