@@ -78,7 +78,7 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
       || !(p.conflict === null || (isContractRecord(p.conflict, ["reason", "current", "rejected", "rejection"]) && typeof p.conflict.reason === "string" && typeof p.conflict.rejected === "boolean"))) return fail("malformed-pending-intent")
     return { ...structuredClone(p), intent: parseSlotIntent(p.intent), base: scopedSnapshot(p.base, scope),
       conflict: p.conflict === null ? null : { ...p.conflict, current: p.conflict.current === null ? null : scopedSnapshot(p.conflict.current, scope),
-        rejected: p.conflict.rejected === true && isStorageCommandRejection(p.conflict.rejection, parseSlotIntent(p.intent).request.operationId) } } as PendingSlotIntent
+        rejected: parseSlotIntent(p.intent).kind !== "creation" && p.conflict.rejected === true && isStorageCommandRejection(p.conflict.rejection, parseSlotIntent(p.intent).request.operationId) } } as PendingSlotIntent
   })
   const receipts = raw.receipts.map(r => {
     if (!isContractRecord(r, ["operationId", "intent", "outcome"]) || !["acknowledged", "superseded", "cancelled"].includes(r.outcome as string)) return fail("malformed-receipt")
@@ -141,7 +141,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
   const refreshConflict = async (operationId: string, readCurrent: () => Promise<unknown>, activeScope: () => SlotOfflineScope | null) => {
     const active = () => sameValue(activeScope(), scope)
     const head = (await read()).pending[0]
-    if (!active() || !head || head.intent.request.operationId !== operationId || head.lease || !head.conflict?.rejected
+    if (!active() || !head || head.intent.kind === "creation" || head.intent.request.operationId !== operationId || head.lease || !head.conflict?.rejected
       || !isStorageCommandRejection(head.conflict.rejection, operationId)) fail("reconciliation-required")
     const proof = head.conflict.rejection, intent = head.intent
     const fence = captureCompleteInventoryReadFence()
@@ -255,18 +255,26 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       if (!isCompleteInventorySnapshot(raw)) fail("partial-or-unverified-snapshot")
       const snapshot = scopedSnapshot(raw, scope)
       await update(record => {
+        if (record.pending.some(p => p.intent.kind === "creation")) fail("creation-pending")
         if (record.snapshot && snapshot.inventoryRevision < record.snapshot.inventoryRevision) fail("stale-snapshot")
         record.snapshot = snapshot
         reproject(record, catalog)
       })
     },
-    async enqueue(raw: SlotOfflineIntent, catalog: InventoryCatalogResolver) {
+    async enqueue(raw: SlotOfflineIntent, catalog: InventoryCatalogResolver, planningBase?: InventorySnapshot, activeScope: () => SlotOfflineScope | null = () => scope) {
       const intent = parseSlotIntent(raw)
       await update(record => {
+        if (!sameValue(activeScope(), scope)) fail("inactive-queue-scope")
         const existing = record.pending.find(p => p.intent.request.operationId === intent.request.operationId)?.intent
           ?? record.receipts.find(r => r.operationId === intent.request.operationId)?.intent
         if (existing) { if (!sameValue(existing, intent)) fail("idempotency-conflict"); return }
         if (record.recovery?.some(recoveryUnresolved)) fail("recovery-pending")
+        if (record.pending.some(p => p.intent.kind === "creation")) fail("creation-pending")
+        if (intent.kind === "creation" && (!isCompleteInventorySnapshot(planningBase) || !planningBase.collections.length
+          || !scope.accountId || !scope.ownerUserId || intent.context.clientId !== scope.deviceId
+          || record.pending.length || !sameValue(record.snapshot, planningBase)
+          || intent.request.inventoryRevision !== planningBase.inventoryRevision
+          || planningBase.collections.some(c => c.id === intent.request.collectionId))) fail("verified-complete-native-base-required")
         if (!record.optimistic || record.pending.some(p => ["conflict", "blocked", "billing"].includes(p.status))) fail("queue-reconciliation-required")
         const next = projectSlotIntent(record.optimistic, intent, catalog)
         record.pending.push({ intent, base: record.optimistic, status: "pending", attempts: 0, nextAttemptAt: 0, lease: null, conflict: null })
@@ -334,9 +342,15 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
             else if (current.inventoryRevision < Math.max(record.snapshot!.inventoryRevision, minimumRevision, result.inventoryRevision ?? 0)) current = null
           }
         } catch { current = null } // Invalid/partial response is never an acknowledgment.
+        if (p.intent.kind === "creation" && (!isSlotRevision(result.inventoryRevision) || result.inventoryRevision <= p.intent.request.inventoryRevision)) current = null
         if (result.status === 200 && result.operationId === p.intent.request.operationId && current) {
           record.receipts.push({ operationId: p.intent.request.operationId, intent: p.intent, outcome: "acknowledged" })
           record.pending.shift(); record.snapshot = current; reproject(record, catalog)
+        } else if (p.intent.kind === "creation") {
+          // 093 owns terminal creation proof. HTTP status alone never permits cancellation/rebase.
+          p.status = result.status === 402 ? "billing" : [400, 401, 403, 404, 405, 413, 415, 422].includes(result.status) ? "blocked" : "unavailable"
+          p.nextAttemptAt = now + Math.min(300000, 1000 * 2 ** (p.attempts - 1))
+          p.conflict = { reason: result.code ?? "creation-outcome-unresolved", current: null, rejected: false }
         } else if (result.status === 409) {
           const rejection = isStorageCommandRejection(result.rejection, p.intent.request.operationId) ? result.rejection : undefined
           p.status = "conflict"; p.conflict = { reason: result.code ?? "unclassified-conflict", current: null, rejected: !!rejection, ...(rejection ? { rejection } : {}) }
@@ -351,7 +365,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         }
       })
       // Persist terminal proof before the read, so an interrupted read can resume after reload.
-      if (result.status === 409 && isStorageCommandRejection(result.rejection, (claimed as SlotOfflineIntent).request.operationId) && readCurrent && active()) {
+      if ((claimed as SlotOfflineIntent).kind !== "creation" && result.status === 409 && isStorageCommandRejection(result.rejection, (claimed as SlotOfflineIntent).request.operationId) && readCurrent && active()) {
         try { await refreshConflict((claimed as SlotOfflineIntent).request.operationId, readCurrent, activeScope) }
         catch { /* The retained proof and original intent remain reviewable after a later fresh read. */ }
       }
@@ -361,7 +375,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
     async reconcile(operationId: string, decision: { kind: "keep-remote" } | { kind: "replace"; intent: SlotOfflineIntent }, catalog: InventoryCatalogResolver) {
       await update(record => {
         const p = record.pending[0], current = p?.conflict?.current
-        if (!p || p.intent.request.operationId !== operationId || p.lease || !p.conflict?.rejected || !current || record.pending.length !== 1) fail("reconciliation-required")
+        if (!p || p.intent.kind === "creation" || p.intent.request.operationId !== operationId || p.lease || !p.conflict?.rejected || !current || record.pending.length !== 1) fail("reconciliation-required")
         if (decision.kind === "keep-remote") {
           record.receipts.push({ operationId, intent: p.intent, outcome: "cancelled" })
           record.pending = []; record.snapshot = current; record.optimistic = current
@@ -381,6 +395,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       await update(record => {
         const p = record.pending[0], remote = p?.conflict?.current
         if (!p || p.intent.request.operationId !== operationId || p.lease || !p.conflict?.rejected || !remote || record.pending.length !== 1) fail("reconciliation-required")
+        if (p.intent.kind === "creation") fail("creation-terminal-proof-required")
         const next = structuredClone(p.intent)
         if (next.kind === "slots") {
           if (next.request.commands.some(c => c.kind !== "update")) fail("structural-conflict-requires-explicit-intent")

@@ -175,3 +175,25 @@ test("navigation target and account teardown invalidate selected-file preview wi
   await expect(d).toBeHidden()
   await expect(page.getByRole("region", { name: "Backup preview" })).toHaveCount(0)
 })
+
+
+test("pending native creation blocks export and file preview in the combined host", async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `creation-backup-${crypto.randomUUID()}`, url: baseURL! }])
+  await page.route("**/app/e2e-harness/storage/creation", route => route.abort("failed"))
+  await page.goto(entry)
+  await page.getByRole("button", { name: "New binder", exact: true }).click()
+  const creating = page.getByRole("dialog", { name: "New binder", exact: true })
+  await creating.getByRole("textbox", { name: "New binder name" }).fill("Synthetic pending backup binder")
+  await creating.getByRole("combobox", { name: "Starting arrangement" }).selectOption("blank")
+  await creating.getByRole("button", { name: "Review binder", exact: true }).click()
+  await creating.getByRole("button", { name: "Confirm create binder", exact: true }).click()
+  await expect.poll(async () => (await records(page)).some(row => !!row && typeof row === "object" && "pending" in row
+    && (row.pending as { intent: { kind: string } }[]).some(pending => pending.intent.kind === "creation"))).toBe(true)
+  await creating.getByRole("button", { name: "Close new binder", exact: true }).click()
+  const retained = await records(page)
+  const d = await open(page)
+  await expect(d.getByRole("button", { name: "Download collection data", exact: true })).toBeDisabled()
+  await expect(d.getByLabel("Select backup file")).toBeDisabled()
+  await expect(d).toContainText("pending edits, creation or recovery")
+  expect(await records(page)).toEqual(retained)
+})

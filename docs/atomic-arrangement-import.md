@@ -47,3 +47,7 @@ Submitted local validation: Bun 1.3.14 full unit suite **1,502 pass / 34 environ
 ## Parent application evidence
 
 Parent applied only 088 after verified 086/087 at 2026-11-10 00:28:17 UTC. The fresh full hosted archive was restored before application with all 90 table counts and 35 core digests matching, SHA256 `123383c5bba50e057de540d619f066456b223a0b859b3878ddd8ef0b2803f473`. Earlier archives were retained. Local repeat application preserves compiled definitions. The hosted guard verified existing data, function owners/ACLs, table/column access and RLS, billing role reads, private audit/history and executor denials. Native tables remain empty, zero conversions, no hosted import executed. App/developer admission stays denied pending #379.
+
+## Terminal creation and import outcomes (093)
+
+The staged [093 contract](creation-import-terminal-noncommit.md) adds dedicated engine noncommit predicates and permanent accepted/rejected replay for native creation and arrangement import. Ordinary SQL/HTTP conflicts remain unknown. Both original namespaces, digest construction and accepted receipts are preserved; current authority precedes replay. REST/MCP errors are declared separately from accepted output schemas. Hosted application, creation/import durable consumer integration and #379 admission remain separate parent-owned gates; native production requests still return fixed 503.

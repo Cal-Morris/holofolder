@@ -1,3 +1,4 @@
+import { projectCollectionCreation, parseCollectionCreation } from "@/lib/domain/storage-creation"
 import { createClient } from "@supabase/supabase-js"
 import { fixture } from "./inventory-read-server"
 import { readOwnerInventorySnapshot } from "@/lib/server/inventory-read"
@@ -141,6 +142,23 @@ export function storageCommandHarness(id: string) {
       const snapshot = await readOwnerInventorySnapshot(state.client)
       if (request.inventoryRevision !== snapshot.inventoryRevision) {
         const result = { outcome: "rejected", operationId: key, code: input.operation === "slots" ? "slot_revision_conflict" : "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision }
+        ledger.set(key, { body, audit, result })
+        return Response.json(result)
+      }
+      if (input.operation === "collection.create") {
+        // Synthetic executor only, SQL correctness belongs to 083/093 proofs.
+        const command = parseCollectionCreation(request), binder = projectCollectionCreation(command, owner)
+        const first = state.tables.binders[0]
+        state.tables.binders.push({ ...first, id: command.collectionId, name: command.name, is_default: false, position: state.tables.binders.length,
+          binder_rows: command.grid?.rows ?? 2, binder_cols: command.grid?.cols ?? 2, storage_kind: command.kind,
+          default_presentation: command.defaultPresentation, location: command.location })
+        state.tables.storage_collection_state.push({ ...state.tables.storage_collection_state[0], collection_id: command.collectionId,
+          version: 0, layout_revision: 0, preset_manifest: command.manifest })
+        state.tables.binder_slots.push(...binder.slots.map((slot, position) => ({ id: slot.id, owner_user_id: owner, collection_id: command.collectionId,
+          position, target: slot.target, status: null, wanted_cards: [], preset_origin: slot.presetOrigin, version: 0 })))
+        state.tables.inventory_owner_state[0].inventory_revision = snapshot.inventoryRevision + 1
+        const result = { inventoryRevision: snapshot.inventoryRevision + 1, collectionId: command.collectionId, collectionVersion: 0,
+          layoutRevision: 0, changed: true, slotIds: command.slotIds, recoverySupported: false }
         ledger.set(key, { body, audit, result })
         return Response.json(result)
       }

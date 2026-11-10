@@ -10,7 +10,7 @@ import { executeAppStorageRequest } from "@/lib/server/operations/storage-execut
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie", "X-Content-Type-Options": "nosniff" }
 /** Internal handler only. Public production routes retain their unconditional staging response.
  * localClients is trusted server injection, never HTTP input or a production admission flag. */
-export async function handleStorageCommand(request: Request, operation: "slots" | "inventory",
+export async function handleStorageCommand(request: Request, operation: "slots" | "inventory" | "collection.create",
   localClients?: Parameters<typeof executeAppStorageRequest>[2]): Promise<Response> {
   const requestId = randomUUID()
   try {
@@ -28,7 +28,7 @@ export async function handleStorageCommand(request: Request, operation: "slots" 
     // The bridge parses the original body and establishes actor/source/membership/billing.
     // Compare the header to the same bounded body without accepting any caller audit context.
     const { readDeveloperJson } = await import("@/lib/server/developer-access/request")
-    const input = await readDeveloperJson(request, operation === "inventory" ? 8388608 : 1048576)
+    const input = await readDeveloperJson(request, operation === "inventory" ? 8388608 : operation === "collection.create" ? 2097152 : 1048576)
     if (input.operationId !== operationId) throw new DeveloperAccessError("invalid_input", "Operation identity does not match.", 400)
     const forwarded = new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify(input) })
     const receipt = await executeAppStorageRequest(forwarded, operation, localClients)

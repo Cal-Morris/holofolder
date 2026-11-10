@@ -77,9 +77,9 @@ With 083 alone, the unchanged 077–081 planner returns `supported: false` with 
 
 083 does not weaken that planner or add a recorder/reset/force bypass. The receipt deliberately says `recoverySupported: false`. Keep all creation app/REST/MCP exposure blocked until #396 proves an inverse over actual generated first/default and nondefault events, later-edit conflicts and maximum bounds. #379's existing unconditional first-party staging routes and fixed developer admission denial remain the hard runtime gates. No environment or request flag enables them. Parent's hosted migration review/application is distinct from enabling product writes.
 
-## Concrete draft, queue and API adapters still required
+## Draft, queue and API adapter integration
 
-The #422 `BinderCreationDraft` is immutable UI intent, **not** this command. Before #379, its owning adapter must:
+The #422 `BinderCreationDraft` is immutable UI intent, **not** this command. The [durable copied-preset consumer](durable-copied-preset-creation.md) now performs command adaptation, atomic device retention and post-reply fresh-read ACK in the admitted native host. It requires existing verified native authority and does not bootstrap first/native conversion. 093 terminal-proof/discard consumer integration and #379 admission remain gates. The original adapter requirements are:
 
 1. Authenticate and compare the draft's recipient with current membership as a mismatch check. Never forward `draft.ownerUserId` into the body or use it as authentication.
 2. Normalize the name, copy the existing detached manifest, choose storage kind/default and optional custom location/grid, and obtain a fresh complete owner revision. Do not run legacy `ensureDefaultBinder` as a creation prerequisite.
@@ -100,3 +100,7 @@ Actual SQL proof uses a new private socket-only cluster on port **55584**, user 
 Parent owns fresh restore-verified hosted backup, independent SQL review and application of 083 after 081/082, ACL/data verification and release ordering. This worker does not apply hosted SQL, modify 082, merge, watch, convert, publish or run full e2e. #384/#368 remain open for their other literal acceptance and integration gates. [Unpublished release copy](releases/atomic-storage-creation-draft.md) is preparation only.
 
 Submitted local evidence: 1,355 unit-suite entries pass, full typecheck/lint/production build pass, full lint retains 55 existing warnings and focused lint has none. The separate two-test actual SQL proof and complete numbered fresh-schema replay pass. SQL includes first/default and first-native-with-legacy-default creation, 1,025 targets and a 4,096-slot manifest larger than 1 MiB with long provenance/identities, paid/free caps/grids, real creation recovery rejection, historical-event recovery, mid-insert cancellation, recorder failure, role/attribution denial and real membership/replay races. All 90 source table counts and 35 core digests match after twice-applied 083 and rolled-back archive fixtures. The synthetic race database is disposable; no archive-data fixture is committed. These results are local proof, not hosted application or frontend completion.
+
+## Terminal creation and import outcomes (093)
+
+The staged [093 contract](creation-import-terminal-noncommit.md) adds dedicated engine noncommit predicates and permanent accepted/rejected replay for native creation and arrangement import. Ordinary SQL/HTTP conflicts remain unknown. Both original namespaces, digest construction and accepted receipts are preserved; current authority precedes replay. REST/MCP errors are declared separately from accepted output schemas. Hosted application, creation/import durable consumer integration and #379 admission remain separate parent-owned gates; native production requests still return fixed 503.

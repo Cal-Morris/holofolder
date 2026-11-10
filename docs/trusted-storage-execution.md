@@ -66,3 +66,7 @@ Before #379 exposure: wire app routes to the named authenticated adapter; add st
 ## First-party browser HTTP integration
 
 The [browser command transport](browser-command-transport.md) calls this existing bridge through an internal handler and a loopback/server-gated synthetic harness. Public production routes remain denied. The bridge checks the expected JWT session against its authenticated actor; typed local test clients are server capabilities and cannot come from HTTP. Generic storage_conflict remains insufficient for safe known-rejection reconciliation; no SQL/result contract change is included. Native work never dispatches through legacy Activity/recovery.
+
+## Terminal creation and import outcomes (093)
+
+The staged [093 contract](creation-import-terminal-noncommit.md) adds dedicated engine noncommit predicates and permanent accepted/rejected replay for native creation and arrangement import. Ordinary SQL/HTTP conflicts remain unknown. Both original namespaces, digest construction and accepted receipts are preserved; current authority precedes replay. REST/MCP errors are declared separately from accepted output schemas. Hosted application, creation/import durable consumer integration and #379 admission remain separate parent-owned gates; native production requests still return fixed 503.

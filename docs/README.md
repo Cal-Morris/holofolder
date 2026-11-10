@@ -57,3 +57,5 @@ Files in `superpowers/plans/` and `superpowers/specs/`, [the rebrand checklist](
 - [Staged scanner destination acceptance](scan-destinations.md): opt-in card/page scanner wiring, captured stable IDs, durable confirmed batches and unresolved append/host/runtime gates (#375).
 
 - [Staged Slabs renderer/gallery](slab-rendering.md): explicit provider/version layouts, safe DTOs, navigation and the remaining #389/#390/#379 gates.
+
+- [Creation/import terminal noncommit (093)](creation-import-terminal-noncommit.md), staged backend proof and separate durable consumer/application gates.
