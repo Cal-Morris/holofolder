@@ -50,7 +50,7 @@ export default function CachedNativeStartup({ localHarness = false, legacyProps,
   if (!saved) return <>{notice && <p role="status" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+0.5rem)] z-50 rounded-lg bg-card p-3 text-sm">{notice}</p>}{children(resumeLive)}</>
   const { read, pending } = saved
   const catalog = browserHostCatalog(read.catalog)
-  return <CollectionNavigationHost scope={read.scope} read={read} fallbackCollectionId={legacyProps.initialBinderId}
+  return <CollectionNavigationHost stagedSlabs={localHarness} scope={read.scope} read={read} fallbackCollectionId={legacyProps.initialBinderId}
     readCurrent={async () => { throw new Error("cached-startup-requires-checked-session") }} scrollContainerId="collection-browser-scroll"
     renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
       const snapshot = read.evidence.kind === "cached" ? read.evidence.snapshot : null

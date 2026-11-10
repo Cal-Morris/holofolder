@@ -7,6 +7,7 @@
     "contracts",
     "collection-history",
     "native-storage",
+    "slabs",
     "public-binder-links",
     "slot-selection",
     "scan-destinations",

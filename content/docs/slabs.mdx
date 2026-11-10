@@ -1,0 +1,16 @@
+---
+title: Slabs rendering (staged)
+description: Local provider-specific holder previews and the remaining graded-release boundaries.
+---
+
+Slabs presentation is staged and unavailable in the live app. It does not enable native storage, grading, uploads or public slab sharing.
+
+The local test flow opens **Collections → View → Slabs** using the existing owned-copy IDs and saved grading. PSA, explicitly supported current and historic CGC, and Beckett silver, gold and black each have a separate holder/label layout. A grade of 10 alone never selects Black Label or Pristine. Raw copies stay raw. Unknown versions keep their entered metadata in a neutral holder.
+
+A provider import or slab photo is not needed: the preview uses the catalog card image plus known provider/grade. Missing catalog images show a readable fallback. Exact ACE/custom artwork and unsupported historical labels are identified as unavailable. Custom labels use recorded text with one of four bounded neutral colors. No certificate, barcode, QR code, verification graphic, invented grade or estimated slab value is added.
+
+The gallery and enlarged detail are read-only. View/search/scroll are saved on this device within the signed-in account and collection-owner scope. Saved offline copies are identified as possibly incomplete. They cannot authorize a fresh read or mutation. Switching views does not move or regrade any copy.
+
+Certificates, private record links and original label/slab assets are omitted from renderer inputs and the displayed DOM. Certificate sharing remains off by default. This UI adds no public publishing path. Scoped publication, safe photo redaction, revocation, backup/API parity and rollout remain required in #390/#379; exact asset handling belongs to #389.
+
+This is a UI-only rendering and device-navigation boundary. REST/MCP operations and OpenAPI are unchanged; the native storage operations remain staged with their existing denial responses. No release has been announced for this hidden slice.

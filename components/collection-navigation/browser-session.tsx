@@ -144,7 +144,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       return base?.layoutRevision === layout.layoutRevision && projected ? { ...layout, layoutRevision: projected.layoutRevision } : layout
     }) } : !online && read.evidence.kind === "complete" ? { ...read, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : read
   if (!ready) return <p role="status">Opening saved storage…</p>
-  return <CollectionNavigationHost scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+  return <CollectionNavigationHost stagedSlabs={localHarness} scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot
         const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)

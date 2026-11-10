@@ -201,7 +201,7 @@ export default function BinderApp(props: BinderAppProps) {
   const quickPressTimerRef = useRef<number | null>(null)
   const quickPressFiredRef = useRef(false)
   const [isPriceMode, setIsPriceMode] = useState(pricingEnabled && initialPriceMode)
-  const [activeMainView, setActiveMainView] = useState<ActiveMainView>(browserSurface?.surface.state.main === "collection" ? browserSurface.surface.collection?.state.view ?? "binder" : browserSurface?.surface.state.main === "dex" ? browserSurface.surface.state.dexView ?? "list" : "binder")
+  const [activeMainView, setActiveMainView] = useState<ActiveMainView>(browserSurface?.surface.state.main === "collection" ? browserSurface.surface.collection?.state.view === "list" ? "list" : "binder" : browserSurface?.surface.state.main === "dex" ? browserSurface.surface.state.dexView ?? "list" : "binder")
   const trackGoogleEvent = useGoogleAnalytics()
   useEffect(() => {
     trackGoogleEvent("screen_view", { screen_name: activeMainView, show_mode: isShowModeOn, read_only: readOnlyMode })
@@ -3668,7 +3668,7 @@ export default function BinderApp(props: BinderAppProps) {
       </div></div> : legacyHeader}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
-      {browserSurface && activeMainView === "binder" && browserSurface.surface.state.main === "inventory"
+      {browserSurface && activeMainView === "binder" && (browserSurface.surface.state.main === "inventory" || browserSurface.surface.collection?.state.view === "slabs")
         ? <div id="collection-browser-scroll" className="min-h-0 flex-1 overflow-y-auto pb-[var(--dock-clearance)]">{browserSurface.surface.content}</div>
          : browserSurface?.surface.state.main === "collection" && activeMainView === "list" && orderedDisplaySlots
           ? <CollectionSlotList slots={orderedDisplaySlots} search={browserSurface.surface.collection?.state.search ?? ""}
