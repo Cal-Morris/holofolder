@@ -36,12 +36,12 @@ test("ignores corrupt storage and falls back to defaults", () => {
   assert.equal(state.darkMode, true)
 })
 
-test("signed out uses the snapshot and anonymous settings; theme cookie wins", () => {
+test("signed out never gets a collection; anonymous settings apply and the theme cookie wins", () => {
   const state = readOfflineShellState(storage({
     pokemon_collection_snapshot_v1: { ownerUserId: null, collection: [row] },
     "pokemon_binder_settings:anon": { binderRows: 5, darkMode: true },
   }), "a=1; binderdex_theme=light", null)
-  assert.equal(state.collection.length, 1)
+  assert.deepEqual(state.collection, [])
   assert.equal(state.collectionOwnerUserId, null)
   assert.equal(state.settings.binderRows, 5)
   assert.equal(state.darkMode, false)

@@ -8,7 +8,6 @@ import { activityChanges, activityActor, activityCacheKey, activityTime, parseAc
 import { activitySummary, activityReceipt, activityDay } from "@/lib/activity-presentation"
 import { NativeActivityRecovery, type NativeRecoveryBinding } from "@/components/native-activity-recovery"
 import { isNativeRecoveryEvent } from "@/lib/collection/native-recovery-intent"
-import { ActivityRecovery } from "@/components/activity-recovery"
 import type { ActivityInitialFilter } from "@/components/collection-activity-context"
 import type { Binder } from "@/lib/binders/model"
 import { operationActivityMatch } from "@/lib/acknowledged-activity"
@@ -18,7 +17,7 @@ interface Props {
   nativeRecovery?: NativeRecoveryBinding
   onSelectEvent?: (id:string)=>void
   scope:ActivityScope|null; initialFilter:ActivityInitialFilter; binderId:string|null; binders:readonly Binder[]; collection:readonly CollectedPokemon[]
-  pendingCount:number; isOnline:boolean; onRecovered:()=>Promise<void>; onClose:()=>void; onInvalidScope:()=>void; onVerify:()=>void; onOpenPokemon:(id:number)=>void
+  pendingCount:number; isOnline:boolean; onClose:()=>void; onInvalidScope:()=>void; onVerify:()=>void; onOpenPokemon:(id:number)=>void
 }
 const control = 'min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm'
 
@@ -133,14 +132,13 @@ function ActivityPageView({scope,pageQuery,isOnline,onInvalidScope,onNext,...pro
   </>
 }
 
-function ActivityEntry({event,day,undone,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,onRecovered,onInvalidScope,nativeRecovery,onSelectEvent,inspectOnly}:Props & {event:ActivityEvent;day?:string;undone:boolean;inspectOnly?:boolean}) {
+function ActivityEntry({event,day,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,nativeRecovery,onSelectEvent,inspectOnly}:Props & {event:ActivityEvent;day?:string;undone:boolean;inspectOnly?:boolean}) {
   const [expanded,setExpanded] = useState(false)
   const [count,setCount] = useState(10)
   const summary=activitySummary(event,binders)
   const receipt=activityReceipt(event)
   const changes=nativeRecovery ? activityChanges(event).map(c=>({...c,subtitle:''})) : receipt.changes
   const hasDetails=nativeRecovery ? changes.length>0 : receipt.hasDetails
-  const canUndo=receipt.canUndo
   const first=event.changes[0]
   const state=first?.after ?? first?.before
   const pokemonId=event.pokemon_id ?? (typeof state?.pokemon_id==='number' ? state.pokemon_id : null)
@@ -155,7 +153,6 @@ function ActivityEntry({event,day,undone,binders,collection,binderId,isOnline,pe
         {summary.subtitle && <p className="mt-1 text-xs text-muted-foreground">{summary.subtitle}</p>}
         <p className="mt-1 text-xs text-muted-foreground">{person.startsWith('Account ') ? 'Previous member' : person} · <time dateTime={event.recorded_at}>{new Date(event.recorded_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></p>
       </div>
-      {!inspectOnly && scope && !nativeRecovery && canUndo && <ActivityRecovery undone={undone} event={event} scope={scope} disabled={!isOnline||pendingCount>0} onRecovered={onRecovered} onInvalidScope={onInvalidScope}/>}
       {!inspectOnly && nativeRecovery && isNativeRecoveryEvent(event) && <NativeActivityRecovery event={event} binding={nativeRecovery} disabled={!isOnline||pendingCount>0}/>}
       {!inspectOnly && nativeRecovery && !isNativeRecoveryEvent(event) && <p className="col-span-2 mt-2 text-xs text-muted-foreground">Recovery is unavailable for this kind of change in this view. Open its original collection view to use supported Undo.</p>}
       {inspectOnly && <button type="button" className="col-span-2 mt-2 min-h-10 rounded-lg border border-border px-3 text-xs" onClick={()=>onSelectEvent?.(event.id)}>Open exact entry {event.id}</button>}

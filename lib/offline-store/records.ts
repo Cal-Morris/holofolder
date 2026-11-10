@@ -13,7 +13,6 @@ import {
 
 export const COLLECTION_RECORD_KEY = "collection"
 export const PRICES_RECORD_KEY = "prices"
-export const MIGRATION_RECORD_KEY = "meta:migrated-from-local-storage"
 const SET_QUERY_PREFIX = "sets:query:"
 export const MAX_STORED_SET_QUERIES = 40
 
@@ -152,48 +151,6 @@ export async function saveSetQuery(store: OfflineKeyValueStore, queryString: str
 export async function loadSetQuery(store: OfflineKeyValueStore, queryString: string): Promise<TCGSetSlotsResponse | null> {
   const value = await store.get<StoredSetQuery>(`${SET_QUERY_PREFIX}${queryString}`)
   return value && isSetSlotsResponse(value.payload) ? value.payload : null
-}
-
-/**
- * One-time copy of the localStorage collection snapshot and pending edits into IndexedDB. Skipped when
- * IndexedDB already has a collection (it is then kept in sync by the app) or when it already ran.
- */
-export async function migrateLocalStorageToOfflineStore(
-  storage: Pick<Storage, "getItem">,
-  store: OfflineKeyValueStore,
-  keys: { snapshot: string; pendingOperations?: string },
-  now = new Date(),
-) {
-  if (await store.get(MIGRATION_RECORD_KEY)) return "already-migrated" as const
-
-  let result: "migrated" | "nothing-to-migrate" | "kept-existing" = "nothing-to-migrate"
-  if (await store.get(COLLECTION_RECORD_KEY)) {
-    result = "kept-existing"
-  } else {
-    const snapshot = safeParse(storage.getItem(keys.snapshot)) as Partial<CollectionRecord> | null
-    if (snapshot && Array.isArray(snapshot.collection)) {
-      const pending = keys.pendingOperations ? safeParse(storage.getItem(keys.pendingOperations)) : null
-      await saveCollectionRecord(store, {
-        ownerUserId: typeof snapshot.ownerUserId === "string" ? snapshot.ownerUserId : null,
-        savedAt: typeof snapshot.savedAt === "string" ? snapshot.savedAt : now.toISOString(),
-        collection: normalizeCollectionItems(snapshot.collection),
-        ...(keys.pendingOperations ? { pendingOperations: Array.isArray(pending) ? pending : [] } : {}),
-      })
-      result = "migrated"
-    }
-  }
-
-  await store.set(MIGRATION_RECORD_KEY, { at: now.toISOString(), result })
-  return result
-}
-
-function safeParse(raw: string | null): unknown {
-  if (!raw) return null
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
 }
 
 // Illustrator browsing: the directory (for search) and the most recently opened illustrator card lists.

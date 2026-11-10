@@ -8,7 +8,7 @@ import { matchesCatalogCardId } from "@/lib/card-catalog"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/hooks/use-tcgdex"
-import type { CardFinish } from "@/hooks/use-collection"
+import type { CardFinish } from "@/lib/domain/cards"
 import { Button } from "@/components/ui/button"
 import { useOverlay } from "@/hooks/use-overlay"
 import CardPickerFiltersSheet from "@/components/card-picker-filters-sheet"

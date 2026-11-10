@@ -33,7 +33,6 @@ export const CollectionAnalyticsView = dynamic(loadCollectionAnalyticsView, { lo
 export const SetPopulationView = dynamic(loadSetPopulationView, { loading: () => null })
 export const WantedDashboard = dynamic(loadWantedDashboard, { loading: () => null })
 // The camera scanner only mounts while it is open, so its capture code loads on first use.
-export const PageScanner = dynamic(() => import("@/components/page-scanner"), { ssr: false })
 export const QuickMode = dynamic(() => import("@/components/quick-mode"), { ssr: false })
 export const PokemonBrowseView = dynamic(loadPokemonBrowseView, { loading: () => null })
 

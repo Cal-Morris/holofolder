@@ -4,7 +4,6 @@ import dynamic from "next/dynamic"
 
 import { BinderLayoutSettings } from "@/components/binder-layout-settings"
 import { OverlayLink } from "@/components/overlay-link"
-import { CollectionImport, type CollectionImportProps } from "@/components/collection-import"
 import { BillingSettings } from "@/components/billing-settings"
 import { AccountPasskeys } from "@/components/account-passkeys"
 import { AccountIdentitySettings } from "@/components/account-identity-settings"
@@ -16,7 +15,7 @@ import { PricingPreferencesSettings } from "@/components/pricing-preferences-set
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useShowMode } from "@/hooks/use-show-mode"
 import { DealThresholdSettings, ShowTallySettings } from "@/components/deal-settings"
-import { X, Grid3X3, CloudUpload, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone, Ticket } from "lucide-react"
+import { X, Grid3X3, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone, Ticket } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { BinderSettings } from "@/hooks/use-settings"
@@ -37,7 +36,6 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 interface SettingsModalProps {
-  collectionImport?: CollectionImportProps
   binderId?: string | null
   binderName?: string
   onPublicIdentityChange?: () => void
@@ -60,12 +58,6 @@ interface SettingsModalProps {
   isDarkMode: boolean
   onToggleDarkMode: () => void
   isSignedIn: boolean
-  cloudCollectedCount: number
-  localCollectedCount: number
-  localPendingSyncCount: number
-  isSyncingLocalCollection: boolean
-  localCollectionSyncMessage: string | null
-  onSyncLocalCollectionToCloud: () => void
   isOnline: boolean
   isInstalledApp: boolean
   canInstallApp: boolean
@@ -93,7 +85,6 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({
-  collectionImport,
   binderId,
   binderName,
   onPublicIdentityChange = () => {},
@@ -116,12 +107,6 @@ export default function SettingsModal({
   isDarkMode,
   onToggleDarkMode,
   isSignedIn,
-  cloudCollectedCount,
-  localCollectedCount,
-  localPendingSyncCount,
-  isSyncingLocalCollection,
-  localCollectionSyncMessage,
-  onSyncLocalCollectionToCloud,
   isOnline,
   isInstalledApp,
   canInstallApp,
@@ -618,9 +603,8 @@ export default function SettingsModal({
                 <Download className="h-4 w-4" />
                 {isBackingUp ? "Preparing backup…" : "Download backup"}
               </Button>
-              <p className="text-xs text-muted-foreground">This binder’s owned cards, wanted cards and settings, including unsynced edits. Saves a JSON file. Collection entries can be imported below.</p>
+              <p className="text-xs text-muted-foreground">This binder’s owned cards, wanted cards and settings, including unsynced edits. Saves a JSON file.</p>
               {backupMessage && <p role="status" className="text-xs text-muted-foreground">{backupMessage}</p>}
-              {isOpen && collectionImport && <CollectionImport key={collectionImport.scopeKey} {...collectionImport} />}
             </div>
           )}
 
@@ -628,68 +612,6 @@ export default function SettingsModal({
 
           {effectiveActiveTab === "account" && !isAccountReadOnly && (
             <PricingPreferencesSettings settings={settings} onUpdateSettings={onUpdateSettings} />
-          )}
-
-          {effectiveActiveTab === "account" && !isReadOnlyView && (
-          <div className="pt-4 border-t border-border space-y-4">
-            <div className="flex items-center gap-2">
-              <CloudUpload className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">Collection sync</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border border-border/50 bg-muted/25 px-3 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Cloud Binder
-                </p>
-                <p className="mt-1 text-lg font-bold tabular-nums">{cloudCollectedCount}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Canonical collected total in your signed-in binder.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/50 bg-muted/25 px-3 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Offline Cache
-                </p>
-                <p className="mt-1 text-lg font-bold tabular-nums">{localCollectedCount}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Browser-local owned cards kept for offline recovery and sync-back.
-                </p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-border/40 bg-muted/20 px-3 py-3">
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Owned cards and wanted cards are saved locally as you edit. If a cloud save cannot finish, the change stays queued and retries when you are signed in and online.
-              </p>
-              {localPendingSyncCount > 0 && (
-                <p className="mt-2 text-xs font-medium text-primary">
-                  {localPendingSyncCount} local change{localPendingSyncCount === 1 ? "" : "s"} waiting to sync.
-                </p>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2"
-              disabled={!isSignedIn || isSyncingLocalCollection}
-              onClick={onSyncLocalCollectionToCloud}
-            >
-              {isSyncingLocalCollection ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
-              Replace cloud binder with offline cache
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              This overwrites the cloud binder total of {cloudCollectedCount} with the offline cache total of {localCollectedCount}. Cloud-only collected entries will be removed.
-            </p>
-            {localCollectionSyncMessage && (
-              <p className="text-xs text-primary">
-                {localCollectionSyncMessage}
-              </p>
-            )}
-            {!isSignedIn && (
-              <p className="text-xs text-muted-foreground">
-                Sign in first to push the local collection to Supabase.
-              </p>
-            )}
-          </div>
           )}
 
           {/* About */}

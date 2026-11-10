@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
-import type { CardFinish } from "@/hooks/use-collection"
+import type { CardFinish } from "@/lib/domain/cards"
 
 const TARGET_FRAME_MS = 1000 / 30
 const REDUCED_MOTION_FRAME_MS = 1000 / 12

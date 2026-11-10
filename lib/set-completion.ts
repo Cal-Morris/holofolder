@@ -1,6 +1,6 @@
 import { catalogCardIds } from "@/lib/card-catalog"
 import { getSetChecklistCards } from "@/lib/set-checklist"
-import type { CollectedPokemon } from "@/hooks/use-collection"
+import type { CollectedPokemon } from "@/lib/domain/cards"
 import type { TCGSetSlotsResponse } from "@/lib/tcg-set-slots"
 
 export type SetCompletion = {

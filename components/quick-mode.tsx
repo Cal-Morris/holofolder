@@ -6,7 +6,6 @@
 import { nativeCardConsumers, nativeCardState, nativeCardLabel, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import dynamic from "next/dynamic"
-import type { UndoAction } from "@/components/undo-snackbar"
 import {
   BarChart3,
   Camera,
@@ -104,7 +103,6 @@ function readBundle(): QuickBundleEntry[] {
 export interface QuickCardCheckOptions {
   onRemoveOwned?: (pokemon: { id: number; name: string }) => void
   onChangeCard?: (mode: "collect" | "wishlist", card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => void
-  onUndoAvailable: (action: UndoAction) => void
   destinationName?: string
   budgetKey?: string | null
   revisitKey?: string | null
@@ -112,7 +110,7 @@ export interface QuickCardCheckOptions {
   fxRates?: DisplayFxRates | null
   readOnly?: boolean
   getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => QuickCardState
-  onAction: (action: QuickCardAction, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => Promise<(() => Promise<void>) | null>
+  onAction: (action: QuickCardAction, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => Promise<void>
   /** The collection on this device: Show mode's Hunting list and per-Pokémon view are built from it. */
   huntItems?: readonly HuntSourceItem[]
 }
@@ -408,8 +406,7 @@ function QuickMode({
       onOpenDetails={(finish) => nativeConsumer ? nativeConsumer.openCard(checking.card) : onSelectCard(checking.card, checking.pokemon, finish)}
       onRemoveOwned={cardCheck.onRemoveOwned ? () => cardCheck.onRemoveOwned?.(checking.pokemon) : undefined}
       onChangeCard={cardCheck.onChangeCard ? (mode, finish) => cardCheck.onChangeCard?.(mode, checking.card, checking.pokemon, finish) : undefined}
-      onUndoAvailable={cardCheck.onUndoAvailable}
-      onAction={(action, finish) => nativeConsumer ? Promise.resolve(null) : cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
+      onAction={(action, finish) => nativeConsumer ? Promise.resolve() : cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
       isInBundle={(key) => !nativeConsumer && bundle.some((entry) => entry.key === key)}
       onAddToBundle={(entry) => updateBundle(current => nativeConsumer
         ? [...current, { ...entry, key: crypto.randomUUID() }]
@@ -429,8 +426,7 @@ function QuickMode({
       onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
       onClear={() => updateBundle([])}
       onSoldCheck={(key, soldCheck) => updateBundle(current => current.map(entry => entry.key === key ? { ...entry, soldCheck } : entry))}
-      onUndoAvailable={show.onUndoAvailable}
-      onAction={(action, entry) => nativeConsumer ? Promise.resolve(null) : show.onAction(action, entry.card, entry.pokemon, entry.finish)}
+      onAction={(action, entry) => nativeConsumer ? Promise.resolve() : show.onAction(action, entry.card, entry.pokemon, entry.finish)}
     />
   ) : null
   const detailOpen = Boolean(checkView ?? bundleView)

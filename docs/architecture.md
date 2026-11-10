@@ -94,13 +94,7 @@ This race applies to the first boot. A later server boot, such as changing binde
 
 ## Collection writes and recovery
 
-`hooks/use-collection.ts` coordinates the live collection. Domain values and normalizers live in `lib/domain/` and `lib/collection/normalize.ts`.
-
-1. An edit updates the browser view and persists a pending operation through `lib/collection/offline-queue.ts`.
-2. `lib/collection/remote.ts` sends the edit to `/api/collection`, including the binder and base fingerprint.
-3. The route authenticates the actor, resolves collection membership and binder access, validates wanted-person assignments and compares the client's base to the current row. The migration 044 atomic save path keeps the final comparison and write together with acquisition metadata.
-4. A conflict returns `409` and the current row. `lib/collection/sync.ts` performs a three-way merge against the edit's original base. Retryable errors retain the queue and use backoff. Billing `402` responses pause edits without deleting them; hard permanent failures follow the rollback path.
-5. Realtime notifications and visibility/reconnect polling reconcile other screens. `lib/collection/load.ts` pages complete reads and uses delta reads when a valid baseline/count permits them, otherwise falling back to a full read.
+The app runs one collection model, native slot storage. Signed-in clients read the inventory through `/api/inventory` (`lib/collection/inventory-read-browser.ts`) and send storage commands from `lib/collection/storage-command-browser.ts`; the device keeps them in the IndexedDB command queue (`lib/collection/slot-offline-queue.ts`) and replays them exactly when back online, then confirms them with a fresh read. Signed-out guests are read-only: every collection edit opens the sign-up dialog, and nothing is queued for them. The legacy `/api/collection` route and its helpers (`lib/collection/{sync,load}.ts`) remain on the server until their own removal.
 
 Do not replace this with a second optimistic store or an unscoped queue. Collection, show-purchase and binder-history queues have different server contracts; sharing their persistence code without preserving those contracts risks replaying or losing edits.
 
@@ -149,7 +143,7 @@ Preserve existing `binderdex` storage keys and worker protocols when changing pr
 
 The 2026-11-08 source pass traced startup, collection authorization/sync, catalog/image sources, billing configuration and module imports. It found concrete fresh-schema replay failures, hosted-only integration assumptions and an unused Select primitive/dependency. Those are separate scoped fixes; [readiness](open-source-readiness.md) tracks completion.
 
-The largest orchestration files are `components/binder-app.tsx` and `hooks/use-collection.ts`. Their size makes changes harder to review, but it is not evidence that splitting them mechanically improves correctness. Extract a feature boundary when changing that feature, with existing queue/ownership tests protecting the contract. Keep pure domain logic out of components, avoid a new generic state framework, and preserve lazy feature imports so uncommon screens do not expand startup work.
+The largest orchestration file is `components/binder-app.tsx`. Their size makes changes harder to review, but it is not evidence that splitting them mechanically improves correctness. Extract a feature boundary when changing that feature, with existing queue/ownership tests protecting the contract. Keep pure domain logic out of components, avoid a new generic state framework, and preserve lazy feature imports so uncommon screens do not expand startup work.
 
 This pass is not a line-by-line security review of every module or production validation. Browser/PWA behaviour, provider terms, full Supabase integration and stochastic camera recognition require their own evidence.
 

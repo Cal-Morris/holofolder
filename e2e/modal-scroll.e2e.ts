@@ -266,7 +266,7 @@ for (const theme of ["light", "dark"] as const) {
       await harness.expectScrollUnlocked()
     })
 
-    test("secondary sheets: More, Partner, owned removal, want filters and actions", async ({ harness, hasTouch }) => {
+    test("secondary sheets: More, Partner, want filters and actions", async ({ harness, hasTouch }) => {
       const { page } = harness
       const view = await harness.openViewOptions()
       if (await range(scrollBody(view)) > 100) await ends(page, view)
@@ -284,14 +284,6 @@ for (const theme of ["light", "dark"] as const) {
       await harness.expectWithinSafeViewport(harness.closeControl(partner))
       await harness.closeControl(partner).click()
       await harness.expectScrollUnlocked()
-      const detail = await harness.openCardDetail()
-      await detail.getByRole("button", { name: "Remove owned card", exact: true }).click()
-      const remove = page.getByRole("dialog", { name: /Remove Bulbasaur/i })
-      await expect(remove).toBeVisible()
-      for (const name of ["Cancel", "Move back to Wanted", "Remove completely"]) {
-        await harness.expectWithinSafeViewport(remove.getByRole("button", { name: new RegExp(`^${name}`) }))
-      }
-      await remove.getByRole("button", { name: "Cancel", exact: true }).click()
       await seedWantList(page)
       await page.reload()
       await page.evaluate(value => document.documentElement.classList.toggle("dark", value === "dark"), theme)
