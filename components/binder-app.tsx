@@ -1,4 +1,5 @@
 "use client"
+import { resetStartupCaches, STARTUP_RESET_KEY } from "@/lib/startup-cache-reset"
 import { LegacyDeviceReview } from "@/components/legacy-device-review"
 
 import type { NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
@@ -164,8 +165,47 @@ export default function BinderApp(props: BinderAppProps) {
   const browserScope = useBrowserCollectionScope(props.initialUser?.id ?? null, props.initialCollectionOwnerUserId ?? null, nativeHost)
   const [host, setHost] = useState<string | null>(null)
   useEffect(() => { queueMicrotask(() => setHost(location.host)) }, [])
-  if (!nativeHost) return <BinderAppSurface {...props} />
   const scope = browserScope.scope
+  const [completedSession, setCompletedSession] = useState<string | null>(null)
+  const [startupError, setStartupError] = useState("")
+  const [resetting, setResetting] = useState(false)
+  const [startupOnline, setStartupOnline] = useState(true)
+  const opened = Boolean(scope && completedSession === scope.sessionId)
+  const failStartup = useCallback((reason: string) => {
+    if (!navigator.onLine) return
+    setStartupError(reason)
+    try {
+      if (sessionStorage.getItem(STARTUP_RESET_KEY)) return
+      sessionStorage.setItem(STARTUP_RESET_KEY, "1")
+    } catch { return } // Without a durable guard, never risk a reload loop.
+    setResetting(true)
+    let deadline: ReturnType<typeof setTimeout>
+    void Promise.race([
+      resetStartupCaches(),
+      new Promise<void>((_, reject) => { deadline = setTimeout(() => reject(new Error("offline_cache_reset_timed_out")), 3000) }),
+    ]).catch(() => {}).finally(() => { clearTimeout(deadline); window.location.reload() })
+  }, [])
+  useEffect(() => {
+    const update = () => setStartupOnline(navigator.onLine)
+    update()
+    window.addEventListener("online", update); window.addEventListener("offline", update)
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update) }
+  }, [])
+  useEffect(() => {
+    if (!nativeHost || opened || !startupOnline || !navigator.onLine) return
+    const timer = setTimeout(() => failStartup("Account and storage startup timed out after 10 seconds"), 10_000)
+    return () => clearTimeout(timer)
+  }, [nativeHost, opened, startupOnline, failStartup])
+  useEffect(() => {
+    if (!nativeHost || opened || !browserScope.error) return
+    const timer = setTimeout(() => failStartup(browserScope.error!), 0)
+    return () => clearTimeout(timer)
+  }, [nativeHost, opened, browserScope.error, failStartup])
+  if (!nativeHost) return <BinderAppSurface {...props} />
+  if (startupError && startupOnline && !opened) return <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
+    <p role="alert">{resetting ? "Clearing offline data and reopening storage…" : `Could not open storage: ${startupError}`}</p>
+    {!resetting && <button type="button" className="min-h-10 self-start rounded-lg border px-3" onClick={() => window.location.reload()}>Retry opening storage</button>}
+  </main>
   const admission = browserHostAdmission(Boolean(props.localBrowserHost), "1", false, host, scope)
   const waiting = <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
     <p role="status">{browserScope.cachedFallbackAllowed
@@ -176,7 +216,7 @@ export default function BinderApp(props: BinderAppProps) {
   </main>
   if (!scope || !admission.admitted) return browserScope.cachedFallbackAllowed
     ? <CachedNativeStartup legacyProps={props} whileChecking>{waiting}</CachedNativeStartup> : waiting
-  return <BrowserCollectionSession scope={scope} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null}
+  return <BrowserCollectionSession onReady={() => setCompletedSession(scope.sessionId)} onStartupFailure={failStartup} scope={scope} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null}
     localHarness={admission.evidence === "synthetic-local-only"} renderFallback={() => <p role="status">Device storage is unavailable. Enable storage and reopen the app. Pending edits have not been removed.</p>}
     renderSurface={binding => {
       const context = binding.surface.state.main === "collection" ? binding.surface.collection : null

@@ -60,7 +60,9 @@ export interface BrowserSurfaceBinding {
   scan?: { detectPage?: NativePageScanAdmission["detectPage"]; available: boolean; online: boolean; rows?: number; cols?: number; sessionId: string; getOfflineCards: () => Promise<SearchCardResult[]>; receive: ScanDestinationAdmission["onCommandIntent"] }
 
 }
-export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, localHarness = false }: {
+export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, localHarness = false, onReady, onStartupFailure }: {
+  onReady: () => void
+  onStartupFailure: (error: string) => void
   initialBinderId: string | null
   localHarness?: boolean
   renderFallback: () => ReactNode
@@ -75,13 +77,15 @@ export default function BrowserCollectionSession({ scope, currentScope, renderSu
       let id = localStorage.getItem(key)
       if (!isSlotContractId(id)) { id = crypto.randomUUID(); localStorage.setItem(key, id) }
       queueMicrotask(() => setDeviceId(id))
-    } catch { /* No durable identity means no native admission on this device. */ }
-  }, [])
+    } catch (error) { onStartupFailure(error instanceof Error ? error.message : "device_storage_unavailable") }
+  }, [onStartupFailure])
   if (!deviceId) return renderFallback()
   return <ScopedBrowserSession key={JSON.stringify([deviceId, scope.actorUserId, scope.ownerUserId, scope.authSessionId, scope.sessionId])}
-    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness }} />
+    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, onReady, onStartupFailure }} />
 }
-function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness }: {
+function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, onReady, onStartupFailure }: {
+  onReady: () => void
+  onStartupFailure: (error: string) => void
   initialBinderId: string | null
   localHarness: boolean
   scope: InventoryReadScope; currentScope: () => InventoryReadScope | null; deviceId: string
@@ -119,6 +123,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       // Persist through the canonical queue, which reapplies every unresolved local intent.
       const resolver = browserHostCatalog(fresh.catalog)
       const record = await latest.current.queue.queue?.read()
+      if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
       const pending = record?.pending.length || record?.recovery?.some(recoveryUnresolved)
       if (!pending) await latest.current.queue.saveSnapshot(fresh.evidence.snapshot, resolver)
       if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
@@ -149,9 +154,9 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         setRead({ scope: navigationScope, evidence: { kind: "cached", snapshot: record.optimistic }, catalog: safeMetadata?.catalog ?? [], layouts: safeMetadata?.layouts ?? [] })
       }
       cachedFinished = true
-      try { await refresh() } catch { /* refresh retains cached state and explains the failure. */ }
+      try { await refresh(); if (active && valid()) onReady() } catch (error) { if (active && valid()) onStartupFailure(error instanceof Error ? error.message : "storage_startup_failed") }
     }
-    void initial().catch(() => { if (active && valid()) { setNotice("Saved storage could not be opened. Pending edits have not been removed."); setReady(true) } })
+    void initial().catch(error => { if (active && valid()) { onStartupFailure(error instanceof Error ? error.message : "Saved storage could not be opened"); setReady(true) } })
     const disconnected = () => setOnline(false)
     const reconnect = () => { setOnline(navigator.onLine); if (cachedFinished && document.visibilityState !== "hidden") void refresh().catch(() => {}) }
     queueMicrotask(() => setOnline(navigator.onLine))
