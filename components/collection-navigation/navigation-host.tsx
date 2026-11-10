@@ -21,7 +21,8 @@ export interface NavigationSurface {
   collection: Parameters<CollectionNavigationHostProps["renderCollection"]>[0] | null
   openCreated: (collectionId: string, fresh: CollectionNavigationRead) => boolean
   onInventory: () => void
-  onCollection: () => void
+  /** Binder/home: the current collection in binder presentation, keeping its remembered page. */
+  onBinder: () => void
   onDex: () => void
   onLegacyView: (view: "wanted" | "sets" | "pokemon" | "analytics", requestedSet?: TCGSetSummary) => void
 }
@@ -262,7 +263,8 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     navigate({ ...visible, main: "collection", collectionId: id, collections: { ...visible.collections, [id]: defaultCollectionView(latest.evidence.snapshot.collections.find(c => c.id === id)!.defaultPresentation) } }, null, latest)
     return true
   }, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
-    onInventory: () => navigate({ ...visible, main: "inventory" }), onCollection: () => navigate({ ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
+    onInventory: () => navigate({ ...visible, main: "inventory" }),
+    onBinder: () => navigate(collectionId ? { ...visible, main: "collection", collections: { ...visible.collections, [collectionId]: { ...collectionState, view: "binder" } } } : { ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
     onLegacyView: (dexView, requestedSet) => navigate({ ...visible, main: "dex", dexView, requestedSet: requestedSet ?? null }) })
   return <div className={styles.host}><header className={styles.header}>{header}</header>{content}
     <nav aria-label="Collection navigation" className={styles.dock}>

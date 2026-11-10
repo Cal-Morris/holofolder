@@ -3308,6 +3308,11 @@ function BinderAppSurface(props: BinderAppProps) {
       browserSurface.surface.onLegacyView(view)
       return
     }
+    // Binder/home always means the current collection's binder, never the legacy global Dex binder.
+    if (browserSurface && view === "binder" && (browserSurface.surface.state.main !== "collection" || browserSurface.surface.collection?.state.view !== "binder")) {
+      browserSurface.surface.onBinder()
+      return
+    }
     cancelPageNavigation()
     const request = ++viewRequestRef.current
     setViewLoadError(null)
@@ -3744,7 +3749,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
 
-  const renderBottomNav = () => renderBottomNavView({ inventoryNavigation: browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory, collection: browserSurface.surface.onCollection } : undefined, activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
+  const renderBottomNav = () => renderBottomNavView({ inventoryNavigation: browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory } : undefined, activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
 
   // eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props
   const legacyMainContent = renderMainContent()
