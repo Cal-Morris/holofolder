@@ -145,3 +145,14 @@ Compared with the prior #470 recorded review bounds above, explanatory append-or
 All six profiles pass safe viewport, no horizontal overflow, reachable 36 px+ close/confirm/cancel controls, shared X/Escape/Back/backdrop/swipe/dock dismissal and scroll unlock. Existing motion/gesture primitives are reused, with no new animation. Boundary fixtures include empty storage and 4096 saved slots.
 
 No full e2e, hardware recognition, provider accuracy, cold-SW/physical-PWA, hosted SQL/data/ACL, authoritative SQL transaction, independent review, admission, conversion, merge/deployment or publication proof. Server-only audit/evidence bounds remain the existing authoritative refusal, not a client size estimate or generic-error noncommit proof. An aborted precommit IDB transaction cannot itself survive reload; exact retry is proved while review retains the original draft, and durable lost-reply reload is proved separately. Parent owns issue acceptance/status, review, merge and deployment; #375 remains open.
+
+### Current-main conflict integration
+
+GitHub reported PR #477 as `DIRTY` after the first checked push at `8fc0b60594b0119a7b4dfe3a4de6d63f1dc648c5`. Under the explicitly allowed conflict exception, this lane merged current main `9b1d1f7` (merged #471 manual grading and #474 staged API smoke work). The sole textual conflict was adjacent synthetic scanner-size and grading fixture blocks; both are retained. Grading's navigation/editor callbacks and bulk fill's additive session callbacks remain intact. This requires one conflict-resolution push in addition to the original push, not a retry commit or a PR merge.
+
+Combined-main verification: **91 focused unit/contract tests across 14 suites passed**; full typecheck, lint at 55 existing warnings and production harness build/docs CSS passed. The final six-phone scanner/grading matrix passed **210 cases** (144 scanner, 66 grading), followed by **six** mixed bulk-fill HTTP/fresh-read ACK cases. These 216 cases run against the integrated host/fixture code; prior broader 180-case evidence above predates this merge. No new skip, timeout increase, hosted action or expanded admission was introduced.
+
+```sh
+E2E_BASE_URL=http://localhost:3597 bun run test:e2e:matrix e2e/native-scanner-host.e2e.ts e2e/inventory-grading.e2e.ts --workers=2
+E2E_BASE_URL=http://localhost:3597 bun run test:e2e:matrix e2e/binder-bulk-fill.e2e.ts --grep 'mixed targets/free/occupied' --workers=2
+```

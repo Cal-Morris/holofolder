@@ -26,6 +26,7 @@ export interface NavigationSurface {
 export interface CollectionNavigationHostProps {
   /** Supplied only by the existing loopback-only harness admission, never a production flag. */
   stagedSlabs?: boolean
+  onEditGrading?: (itemId: string) => void
   renderSurface?: (surface: NavigationSurface) => ReactNode
   fallbackCollectionId?: string | null
   scrollContainerId?: string
@@ -43,7 +44,7 @@ export default function CollectionNavigationHost(props: CollectionNavigationHost
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>
   return <ScopedNavigation key={JSON.stringify([navigationStorageKey(props.scope), props.scope.sessionId])} {...props} scope={props.scope} />
 }
-function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, stagedSlabs = false }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
+function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, stagedSlabs = false, onEditGrading }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
   const scrollElement = useCallback(() => {
     const container = scrollContainerId ? document.getElementById(scrollContainerId) : null
     return container?.querySelector<HTMLElement>('[data-testid="view-scroller"], [data-testid="wanted-list"]') ?? container
@@ -216,7 +217,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   const content = <>
     {(notice || safe?.notice) && <p role="status" className={styles.notice}>{notice || safe?.notice}</p>}
     {visible.main === "inventory" ? <InventoryView key={visit} scope={scope} evidence={index.kind === "unavailable" ? { kind: "unavailable" } : currentRead.evidence}
-      catalog={currentRead.catalog} layouts={currentRead.layouts} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
+      catalog={currentRead.catalog} layouts={currentRead.layouts} onEditGrading={onEditGrading} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
       : visible.main === "dex" ? <div key="dex">{renderNationalDex()}</div>
       : collectionId && index.kind !== "unavailable" && collectionState.view === "slabs" && stagedSlabs ? <SlabsGallery key={`${destinationKey}:${visit}:${index.key}`} copies={slabCopies}
         name={index.collections.find(c => c.id === collectionId)?.name ?? "Collection"} cached={index.kind === "cached"} search={collectionState.search}

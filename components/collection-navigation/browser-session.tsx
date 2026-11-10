@@ -2,6 +2,10 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ActivityButton } from "@/components/collection-activity-context"
+import dynamic from "next/dynamic"
+import type { InventorySnapshot } from "@/lib/domain/inventory"
+import type { SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
+import { inventoryGradingReference, prepareInventoryGradingIntent } from "@/lib/grading/inventory-edit"
 import CollectionNavigationHost, { type NavigationSurface } from "./navigation-host"
 import { useSlotOfflineQueue } from "@/hooks/use-slot-offline-queue"
 import { readCurrentCollectionNavigation } from "@/lib/collection/inventory-navigation-read"
@@ -18,6 +22,8 @@ import type { NativePageScanAdmission } from "@/components/native-page-scanner"
 import type { ScanDestinationAdmission } from "@/lib/scan-destinations"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
+
+const GradingEditor = dynamic(() => import("@/components/grading/grading-editor"), { ssr: false })
 
 export interface BrowserSurfaceBinding {
   analytics: { scope: import("@/lib/collection-navigation").CollectionNavigationScope; read: CollectionNavigationRead }
@@ -67,6 +73,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const queue = useSlotOfflineQueue({ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }, scope.sessionId)
   const latest = useRef({ currentScope, queue, catalog: browserHostCatalog([]) })
   const [read, setRead] = useState<CollectionNavigationRead>({ scope: navigationScope, evidence: { kind: "unavailable" }, catalog: [], layouts: [] })
+  const [grading, setGrading] = useState<{ snapshot: InventorySnapshot; itemId: string; intent: SlotOfflineIntent | null } | null>(null)
   const [notice, setNotice] = useState("")
   const [ready, setReady] = useState(false)
   const [online, setOnline] = useState(true)
@@ -234,7 +241,15 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean }[] } | null = queue.record
   const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(r => !r.synchronized))
   if (!ready) return <p role="status">Opening saved storage…</p>
-  return <CollectionNavigationHost stagedSlabs={localHarness} scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(r => !r.synchronized)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+  const gradingItem = grading?.snapshot.items.find(i => i.id === grading.itemId)
+  const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(r => !r.synchronized)
+  return <><CollectionNavigationHost onEditGrading={canEditGrading ? itemId => {
+    if (!valid() || read.evidence.kind !== "complete" || latest.current.queue.record?.pending.length || latest.current.queue.record?.recovery?.some(r => !r.synchronized)) return
+    try {
+      inventoryGradingReference(read.evidence.snapshot, itemId)
+      setGrading({ snapshot: structuredClone(read.evidence.snapshot), itemId, intent: null })
+    } catch { setNotice("This copy needs a current complete inventory read before grading can be edited.") }
+  } : undefined} stagedSlabs={localHarness} scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(r => !r.synchronized)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot
         const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)
@@ -273,4 +288,15 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
             available: bulkFillAvailable, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })
 
       }} />
+    {grading && gradingItem && read.evidence.kind === "complete" && read.evidence.snapshot.inventoryRevision === grading.snapshot.inventoryRevision && <GradingEditor
+      key={`${scope.sessionId}:${grading.itemId}:${gradingItem.version}`} item={gradingItem}
+      itemRef={inventoryGradingReference(grading.snapshot, grading.itemId)} ownerEvidence={grading.snapshot.items}
+      onClose={() => setGrading(current => current === grading ? null : current)} onQueue={async command => {
+        if (!valid() || refreshing.current) throw new Error("The authenticated storage session changed. Your accepted edits remain on this device.")
+        // Allocate once before touching IDB. An aborted/lost local reply retries these exact bytes.
+        grading.intent ??= prepareInventoryGradingIntent(grading.snapshot, command, { source: "app", clientId: deviceId,
+          operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() })
+        return latest.current.queue.enqueue(grading.intent, latest.current.catalog)
+      }} />}
+  </>
 }

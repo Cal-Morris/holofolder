@@ -94,7 +94,7 @@ Internal backup/import preparation (#365): [JSON v2 serialization and immutable 
 ### Staged collection navigation (#386)
 
 [Collection navigation](../collection-navigation.md) adds an internal host for device/account/owner-local presentation, Inventory return context, stable-ID location refresh and scoped history/deep links. Navigation preferences are device-only UI, with no REST/MCP/registry/OpenAPI or audit operation. Its complete-read input is an in-memory private contract; runtime branding does not survive JSON. The private browser reconstruction and real navigation adapter now supply fenced grid/catalog data; production BinderApp/dock/queue/lifecycle binding remains a #376/#379/#386 blocker. 086 adds a narrow app-only authenticated grid RPC for partner inheritance, pending parent review/application. No slot/inventory route, conversion or Slabs presentation is enabled, and unpublished release copy makes no shipped claim.
-Internal grading editor (#387): [manual grading drafts and provider navigation](../manual-grading.md) consume canonical per-copy grading and the existing 075 edit intent through supplied draft/commit callbacks. There is no production caller, durable sink, new REST/MCP operation or generated schema. Official outbound lookup/record links are private UI only; certificates, certificate-bearing hrefs and private labels are not added to public serializers. #385/#376/#379 retain integration, API and rollout ownership.
+Internal grading editor (#387): [authenticated Inventory binding and provider navigation](../manual-grading.md) use complete private per-copy evidence and the existing full 075 `inventory.edit` command through the canonical durable queue/HTTP sender/fresh-read ACK. Device acceptance is explicitly pending sync, never remote persistence. Cached startup is read-only and production admission stays denied. This app-only session adapter adds no REST/MCP operation or generated schema: developer `patchGrading` remains the private-preserving public-field edit for redacted DTOs, not a certificate/raw-clear adapter. [Help](../../content/docs/manual-grading.mdx) describes that boundary. Official outbound links are private owner/partner UI only; scoped certificate publication stays OFF and unimplemented. #376/#379 retain API admission and rollout ownership.
 
 ### Private browser complete-read transport (#376/#379 preparation)
 
@@ -208,3 +208,8 @@ Synthetic local authority/ledger tests are not hosted SQL or production proof.
 See the [private help](../../content/docs/bulk-layout.mdx) and unpublished release
 draft. Parent retains #370/#369 final acceptance and rollout ownership.
 
+
+
+## Repeatable release smoke coverage
+
+The [operator smoke guide](../api-smoke.md) distinguishes 56 admitted functional checks from 15 fixed native staging denials (five reads, two presets and eight storage POST contracts). Every staged operation has explicit synthetic schema-valid denial input; missing/new fixtures, incorrect HTTP status/error bodies or failed assertions fail coverage. Local real REST/MCP HTTP/SDK tests use synthetic authority dependencies and prove zero executor/data RPCs under the unchanged admission gate. Native `verified` and latency acceptance remain unproven. Parent owns reviewed deployed smoke and exact fixture cleanup; pending or unknown cleanup cannot pass. This internal reporting fix enables no API operation, SQL, native write, Inventory or BrowserSession behavior and closes no #376/#379 rollout gate.
