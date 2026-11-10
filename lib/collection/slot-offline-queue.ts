@@ -1,3 +1,4 @@
+import { parseNativeRecoveryIntent, parseNativeRecoveryReceipt, type NativeRecoveryIntent, type RetainedRecovery } from "@/lib/collection/native-recovery-intent"
 import { isStorageCommandRejection, type StorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { captureCompleteInventoryReadFence, isCompleteInventoryReadAfter, isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
 import type { AtomicOfflineStore } from "@/lib/offline-store/kv"
@@ -28,6 +29,7 @@ export interface SlotOfflineRecord {
   optimistic: InventorySnapshot | null
   pending: PendingSlotIntent[]
   receipts: { operationId: string; intent: SlotOfflineIntent; outcome: "acknowledged" | "superseded" | "cancelled" }[]
+  recovery?: RetainedRecovery[]
   legacy: LegacySlotArchive[]
 }
 export type SlotReplayResult = { status: number; code?: string; operationId?: string; inventoryRevision?: number; snapshot?: unknown; rejection?: StorageCommandRejection }
@@ -63,7 +65,7 @@ function archive(input: Omit<LegacySlotArchive, "mapping">): LegacySlotArchive {
 }
 function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
   if (raw === undefined) return { version: 1, scope: structuredClone(scope), snapshot: null, optimistic: null, pending: [], receipts: [], legacy: [] }
-  if (!isContractRecord(raw, ["version", "scope", "snapshot", "optimistic", "pending", "receipts", "legacy"]) || raw.version !== 1 || !sameValue(raw.scope, scope)
+  if (!isContractRecord(raw, ["version", "scope", "snapshot", "optimistic", "pending", "receipts", "legacy", "recovery"]) || raw.version !== 1 || !sameValue(raw.scope, scope)
     || !Array.isArray(raw.pending) || !Array.isArray(raw.receipts) || !Array.isArray(raw.legacy)) return fail("unsupported-or-malformed-offline-record")
   const snapshot = raw.snapshot === null ? null : scopedSnapshot(raw.snapshot, scope)
   const optimistic = raw.optimistic === null ? null : scopedSnapshot(raw.optimistic, scope)
@@ -92,7 +94,20 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
     if (!sameValue(mapping, normalized.mapping) || normalized.workspaceId !== scope.workspaceId) return fail("malformed-legacy-mapping")
     return normalized
   })
-  return { version: 1, scope: structuredClone(scope), snapshot, optimistic, pending, receipts, legacy }
+  const recovery = raw.recovery === undefined ? [] : raw.recovery
+  if (!Array.isArray(recovery)) return fail("malformed-recovery-intents")
+  const retained = recovery.map(r => {
+    if (!isContractRecord(r, ["intent", "receipt", "synchronized", "lease"]) || typeof r.synchronized !== "boolean"
+      || !(r.lease === null || isContractRecord(r.lease, ["id", "until"]) && isSlotContractId(r.lease.id) && isSlotRevision(r.lease.until))) return fail("malformed-recovery-intent")
+    const intent = parseNativeRecoveryIntent(r.intent)
+    if (intent.context.clientId !== scope.deviceId) return fail("recovery-device-mismatch")
+    const receipt = r.receipt === null ? null : parseNativeRecoveryReceipt(r.receipt, intent.request.eventId)
+    if (r.synchronized && !receipt) return fail("missing-recovery-receipt")
+    return { intent, receipt, synchronized: r.synchronized, lease: r.lease } as RetainedRecovery
+  })
+  const recoveryIds = retained.map(r => r.intent.request.operationId)
+  if (new Set([...ids, ...recoveryIds]).size !== ids.length + recoveryIds.length) return fail("duplicate-recovery-operation")
+  return { version: 1, scope: structuredClone(scope), snapshot, optimistic, pending, receipts, legacy, ...(raw.recovery === undefined ? {} : { recovery: retained }) }
 }
 function reproject(record: SlotOfflineRecord, catalog: InventoryCatalogResolver) {
   let current = record.snapshot!
@@ -139,6 +154,56 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
   }
   return {
     read,
+    /** Recovery is retained in the SAME atomic record. It has no optimistic projection,
+     * cancellation, expiry or status-based rebase. Unknown outcomes only permit exact retry. */
+    async retainRecovery(raw: NativeRecoveryIntent, activeScope: () => SlotOfflineScope | null) {
+      const intent = parseNativeRecoveryIntent(raw)
+      await update(record => {
+        if (!scope.accountId || !scope.ownerUserId || !sameValue(activeScope(), scope) || intent.context.clientId !== scope.deviceId) fail("inactive-recovery-scope")
+        const existing = record.recovery?.find(r => r.intent.request.operationId === intent.request.operationId)
+        if (existing) { if (!sameValue(existing.intent, intent)) fail("idempotency-conflict"); return }
+        if (record.pending.length || record.recovery?.some(r => !r.synchronized) || record.receipts.some(r => r.operationId === intent.request.operationId)) fail("queue-reconciliation-required")
+        ;(record.recovery ??= []).push({ intent, receipt: null, synchronized: false, lease: null })
+      })
+    },
+    async replayRecovery(operationId: string, send: (intent: NativeRecoveryIntent) => Promise<unknown>,
+      readCurrent: () => Promise<unknown>, activeScope: () => SlotOfflineScope | null, now = Date.now()) {
+      const active = () => sameValue(activeScope(), scope)
+      const lease = { id: crypto.randomUUID(), until: now + 60000 }
+      let claimed: RetainedRecovery | undefined
+      await update(record => {
+        const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
+        if (!active() || !r || r.synchronized || record.pending.length || r.lease && r.lease.until > now) return
+        r.lease = lease; claimed = structuredClone(r)
+      })
+      if (!claimed || !active()) return
+      const intent = (claimed as RetainedRecovery).intent
+      try {
+        // A retained accepted receipt can resume verification without resending apply.
+        const receipt = (claimed as RetainedRecovery).receipt ?? parseNativeRecoveryReceipt(await send(intent), intent.request.eventId)
+        if (!active()) return
+        await update(record => {
+          const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
+          if (!active() || !r || r.lease?.id !== lease.id || !sameValue(r.intent, intent)) fail("inactive-recovery-scope")
+          r.receipt = receipt
+        })
+        const fence = captureCompleteInventoryReadFence()
+        const fresh = await readCurrent()
+        if (!active() || !isCompleteInventoryReadAfter(fresh, fence)) fail("fresh-complete-recovery-read-required")
+        const snapshot = scopedSnapshot(fresh, scope)
+        await update(record => {
+          const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
+          if (!active() || !r || r.lease?.id !== lease.id || !sameValue(r.intent, intent) || record.pending.length
+            || snapshot.inventoryRevision < Math.max(receipt.inventoryRevision, record.snapshot?.inventoryRevision ?? 0)) fail("stale-recovery-read")
+          r.synchronized = true; r.lease = null; record.snapshot = snapshot; record.optimistic = snapshot
+        })
+      } finally {
+        if (active()) await update(record => {
+          const r = record.recovery?.find(r => r.intent.request.operationId === operationId)
+          if (r?.lease?.id === lease.id) r.lease = null
+        })
+      }
+    },
     refreshConflict,
     async saveSnapshot(raw: unknown, catalog: InventoryCatalogResolver = () => undefined) {
       if (!isCompleteInventorySnapshot(raw)) fail("partial-or-unverified-snapshot")
@@ -155,6 +220,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         const existing = record.pending.find(p => p.intent.request.operationId === intent.request.operationId)?.intent
           ?? record.receipts.find(r => r.operationId === intent.request.operationId)?.intent
         if (existing) { if (!sameValue(existing, intent)) fail("idempotency-conflict"); return }
+        if (record.recovery?.some(r => !r.synchronized)) fail("recovery-pending")
         if (!record.optimistic || record.pending.some(p => ["conflict", "blocked", "billing"].includes(p.status))) fail("queue-reconciliation-required")
         const next = projectSlotIntent(record.optimistic, intent, catalog)
         record.pending.push({ intent, base: record.optimistic, status: "pending", attempts: 0, nextAttemptAt: 0, lease: null, conflict: null })
@@ -181,6 +247,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       let claimed: SlotOfflineIntent | null = null
       await update(record => {
         const p = record.pending[0]
+        if (record.recovery?.some(r => !r.synchronized)) return
         if (!p || !active() || ["conflict", "blocked", "billing"].includes(p.status) || p.attempts >= 5 || p.nextAttemptAt > now || (p.lease && p.lease.until > now)) return
         p.status = "sending"; p.attempts++; p.lease = { id: leaseId, until: now + 60000 }; claimed = structuredClone(p.intent)
       })

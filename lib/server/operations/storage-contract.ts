@@ -1,7 +1,8 @@
+import { parseNativeRecoveryRequest } from "@/lib/domain/native-recovery"
 import { parseBackupArrangementCommand, BACKUP_IMPORT_LIMITS } from "@/lib/domain/backup-import-command"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
 import { isContractRecord, isSlotContractId, isSlotRevision } from "@/lib/domain/binder-slots"
-import { parseInventoryCommand, type InventoryCommandRequest, type InventoryCommand } from "@/lib/domain/inventory-commands"
+import { parseInventoryCommand } from "@/lib/domain/inventory-commands"
 import { parseCollectionCreation, COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { isBinderId } from "@/lib/binders/model"
 import { parseSlotCommand } from "@/lib/domain/slot-commands"
@@ -17,27 +18,7 @@ export function parseStorageRequest(operation: StorageOperation, input: unknown)
     if (operation === "collection.create") return parseCollectionCreation(input)
     if (operation === "inventory") return parseInventoryCommand(input)
     if (operation === "slots") return parseSlotCommand(input)
-    const v2 = operation === "recovery.preview.v2" || operation === "recovery.apply.v2"
-    const applying = operation === "recovery.apply" || operation === "recovery.apply.v2"
-    if (!v2 && operation !== "recovery.preview" && operation !== "recovery.apply") return invalid()
-    const keys = ["eventId", "restoreUnassignedItemIds"]
-    if (v2) keys.push("planVersion", "replacementDefaultCollectionId", "inventoryRevision", "collections")
-    if (applying) keys.push("operationId", ...(v2 ? [] : ["planVersion"]), "planToken", "confirmed")
-    if (Buffer.byteLength(JSON.stringify(input) ?? "") > 1048576 || !isContractRecord(input, keys)
-      || Object.keys(input).length !== keys.length || !isAuditId(input.eventId)
-      || !ids(input.restoreUnassignedItemIds) || new Set(input.restoreUnassignedItemIds).size !== input.restoreUnassignedItemIds.length) return invalid()
-    if (v2) {
-      if (input.planVersion !== 2 || input.restoreUnassignedItemIds.length !== 0 || !Array.isArray(input.collections) || input.collections.length !== 1
-        || !isContractRecord(input.collections[0], ["collectionId", "version", "layoutRevision"]) || Object.keys(input.collections[0]).length !== 3
-        || input.collections[0].collectionId !== input.replacementDefaultCollectionId) return invalid()
-      // Reuse the canonical 075 deletion intent and collection preconditions.
-      const command: Extract<InventoryCommand, { kind: "deleteCollection" }> = { kind: "deleteCollection", collectionId: String(input.replacementDefaultCollectionId), slots: [], replacementDefaultCollectionId: null }
-      const canonical: InventoryCommandRequest = parseInventoryCommand({ operationId: "recovery-preview-v2", inventoryRevision: input.inventoryRevision, collections: input.collections, commands: [command] })
-      if (canonical.collections.length !== 1) return invalid()
-    }
-    if (applying && (!isSlotContractId(input.operationId) || input.operationId.length < 8 || input.operationId.length > 100
-      || input.planVersion !== (v2 ? 2 : 1) || input.confirmed !== true || typeof input.planToken !== "string" || !/^[a-f0-9]{64}$/.test(input.planToken))) return invalid()
-    return structuredClone(input)
+    return parseNativeRecoveryRequest(operation, input)
   } catch { return invalid() }
 }
 

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { History } from "lucide-react"
 import { closeAllOverlays } from "@/hooks/use-overlay"
 import { ACTIVITY_SCOPE_KEY, normalizeActivityScope, clearActivityCache, sameActivityScope, storedActivityScope, type ActivityScope } from "@/lib/collection-activity"
+import type { NativeRecoveryBinding } from "@/components/native-activity-recovery"
 import type { Binder } from "@/lib/binders/model"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 
@@ -18,7 +19,8 @@ export function ActivityButton({ pokemonId, onOpen }: {pokemonId?:number; onOpen
   return <button type="button" className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted" onClick={()=>{onOpen?.();open({pokemonId})}}><History className="h-4 w-4" aria-hidden />Activity</button>
 }
 
-export function CollectionActivityProvider({accountId,ownerId,binderId,binders,collection,pendingCount,isOnline,onOpenPokemon,onRecovered,children}: {
+export function CollectionActivityProvider({accountId,ownerId,binderId,binders,collection,pendingCount,isOnline,onOpenPokemon,onRecovered,children,nativeRecovery}: {
+  nativeRecovery?: NativeRecoveryBinding
   accountId:string|null; ownerId:string|null; binderId:string|null; binders:readonly Binder[]; collection:readonly CollectedPokemon[]
   pendingCount:number; isOnline:boolean; onOpenPokemon:(pokemonId:number)=>void; onRecovered:()=>Promise<void>; children:ReactNode
 }) {
@@ -66,6 +68,6 @@ export function CollectionActivityProvider({accountId,ownerId,binderId,binders,c
   const open = useCallback((filter:ActivityInitialFilter)=>{closeAllOverlays();setScope(null);setOpened(filter);setRevision(v=>v+1)},[])
   return <ActivityContext.Provider value={allowed ? open : null}>
     {children}
-    {opened && allowed && <ActivitySheet key={JSON.stringify([visibleScope,opened])} scope={visibleScope} initialFilter={opened} binderId={binderId} binders={binders} collection={collection} pendingCount={pendingCount} isOnline={isOnline} onClose={close} onInvalidScope={invalidate} onVerify={verify} onOpenPokemon={onOpenPokemon} onRecovered={onRecovered} />}
+    {opened && allowed && <ActivitySheet key={JSON.stringify([visibleScope,opened])} scope={visibleScope} nativeRecovery={nativeRecovery} initialFilter={opened} binderId={binderId} binders={binders} collection={collection} pendingCount={pendingCount} isOnline={isOnline} onClose={close} onInvalidScope={invalidate} onVerify={verify} onOpenPokemon={onOpenPokemon} onRecovered={onRecovered} />}
   </ActivityContext.Provider>
 }

@@ -13,11 +13,12 @@ const publicWant = { card_id: 'synthetic-090-card', card_name: 'Synthetic proof'
 const want = { ...publicWant, card_image: 'https://example.invalid/synthetic-private-image', wanted_by: [owner] }
 
 test('090 real SQL: original intent replay, private patch and selected want, races, atomic audit, ACLs and recovery gate', { skip: !socket, timeout: 60000 }, async () => {
+  const atomicSocket = socket === '/Users/cal/.local/share/holofolder/issue375-atomic-091/socket'
   const parentSocket = !!socket?.startsWith('/Users/cal/.local/share/holofolder/backups/') && socket.endsWith('/s')
-  assert.ok(parentSocket || socket === '/Users/cal/.local/share/holofolder/issue376-parity-090/socket')
+  assert.ok(atomicSocket || parentSocket || socket === '/Users/cal/.local/share/holofolder/issue376-parity-090/socket')
   const { Client } = await import('pg')
   assert.match(process.env.PRIVATE_PATCH_TEST_DATABASE ?? '', /^parity090_[a-z0-9_]+$/)
-  const config = { host: socket, port: parentSocket ? 55482 : 55590, user: parentSocket ? 'backup_verify' : 'parity_test', database: process.env.PRIVATE_PATCH_TEST_DATABASE ?? 'postgres' }
+  const config = { host: socket, port: atomicSocket ? 55591 : parentSocket ? 55482 : 55590, user: atomicSocket ? 'atomic_test' : parentSocket ? 'backup_verify' : 'parity_test', database: process.env.PRIVATE_PATCH_TEST_DATABASE ?? 'postgres' }
   const db = new Client(config), concurrent = new Client(config)
   await db.connect(); await concurrent.connect()
   try {

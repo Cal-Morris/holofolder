@@ -168,6 +168,7 @@ The two existing native command operations accept an additive `privateFields` as
 The [staged Slabs contract](../slab-rendering.md) and [help](../../content/docs/slabs.mdx) cover provider-specific static rendering and read-only gallery/detail through the existing navigation host/local BinderApp. This is device-local UI presentation over scoped inventory evidence, with no new authoritative data operation, permission or response schema, so REST/MCP registry and generated OpenAPI are unchanged. The renderer receives only safe catalog/grade metadata, never certificate, provider-record link or private label/slab asset fields. Certificate publication stays default OFF; public projections/assets/backups and native read/write parity remain gated by #390/#376/#379. #389 owns exact ACE/custom uploads. Production admission remains denied. Release copy is unpublished; no audit/recovery event, price estimate or provider fetch is introduced.
 
 
+
 Transactional extension (090): `execute_inventory_commands` now declares public `patchGrading` and exact selected-want `expectedPublic` intents through the same shared parser, dispatcher, REST/MCP and generated OpenAPI. SQL resolves private data only under existing transaction locks after lifetime original-intent replay lookup; receipts stay sanitized. These forms are accepted in preserve mode. Full replacement compatibility is unchanged. Staging is unconditional, with no new scopes or complete-read/ACK claims. Existing private-asset inverse recovery remains an explicit gate. The independent lane proof was augmented by parent combined 089+090 PostgreSQL proof and guarded hosted090 application, preserving90 counts/35 digests and existing access boundaries. Production code is verified separately from still-denied runtime admission. [Contract and handoff](../native-developer-operations.md#transactional-private-preserving-inventory-intents-090).
 
 ## Copied preset discovery/preview (#376), staged
@@ -184,6 +185,15 @@ legacy history: owner-wide native roots (including retained Unassigned copies), 
 before legacy activity is queried; unknown authority fails closed. Saved prices still
 use `get_prices`. See [native analytics boundary](../native-analytics-dashboard.md).
 
+
+### Native Activity recovery UI preparation (#396)
+
+The [staged first-party journey](../native-activity-recovery-ui.md) joins existing safe Activity history, the native recovery v1/v2 bridge and an additive recovery intent in the existing atomic device queue. The new first-party `/app/api/native-recovery` remains unconditional private/no-store 503. Only the established local/nonhosted harness calls the real internal handler with synthetic clients. Existing public recovery schemas/REST/MCP/generated OpenAPI and their fixed admission remain unchanged. No native event can enter legacy 087 row Undo. Unknown outcomes retain exact original IDs/choices/recipient; accepted receipts need a separate scoped complete read before ACK. Safe recovery terminal noncommit proof is still a backend prerequisite for cancellation/replanning. Current help describes the staged boundary and [release copy](../releases/native-activity-recovery-draft.md) is unpublished; #396/#379 stay open. Preserve #466's independent preset operations during integration.
+
+
+`execute_inventory_commands` adds strict staged `insertAssign` (091), with exact existing before-anchor or append, target/free choice, and null/existing Unassigned/explicit new copy selection. Shared REST/MCP schemas/generated output and durable intent projection ship together; no new operation, permission, admission, complete-read or scanner UI capability is claimed. See [contract and local proof](../atomic-insert-assign.md).
+
+
 ## Recorded-copy bulk fill (#370/#369), private browser composition
 
 [Bulk fill](../bulk-slot-fill.md) binds the existing real browser host, layout
@@ -197,3 +207,4 @@ staged batch; production and cached-native startup remain denied/read-only.
 Synthetic local authority/ledger tests are not hosted SQL or production proof.
 See the [private help](../../content/docs/bulk-layout.mdx) and unpublished release
 draft. Parent retains #370/#369 final acceptance and rollout ownership.
+
