@@ -1,0 +1,37 @@
+---
+title: Native developer reads
+description: Staged copy, storage and slot projections with revision-bound pagination.
+---
+
+Native developer reads are staged. Valid authorized requests currently return `503 native_operations_staged`. Production admission stays closed until the rollout acceptance in #379. Existing card/want-list Activity and Undo remain available under their existing contract.
+
+## Read operations
+
+The shared REST and MCP registry declares `list_inventory_items`, `get_inventory_item`, `list_storage_collections`, `list_storage_slots` and `get_storage_slot`. REST uses a personal API key; MCP uses OAuth. Both require `collection:read`, `binders:read`, current owner or partner access, and Premium or lifetime access. Read-only credentials can use these reads after admission. Neither credential impersonates a browser cookie session.
+
+After admission, copy reads retain each physical copy's stable ID, exact recorded card or Pokémon identity, item revision and current primary placement. Placement is identified by its inventory item, collection and stable slot IDs with a placement revision. No placement means Unassigned. Repeated cards remain separate copies, including Trainers and Energy; empty targets and wanted entries do not count as owned copies.
+
+Collection reads include name, storage kind, presentation, private recorded location, default/order metadata, update timestamp, slot count, collection revision, layout revision and resolved grid. Unknown older metadata remains null or omitted. Slot reads include the stable ID, actual persisted position, target, status, wanted printings and current collection, layout, item and placement preconditions. Free targets stay null. Collection/list/slot reads never invent a default binder or silently fall back to legacy species rows. A mixed legacy/native owner returns `legacy_inventory_incomplete` until its complete-read prerequisite is satisfied.
+
+## Private fields
+
+This is an authenticated developer projection, separate from public sharing. Recorded provider, grade, scale, designation, holder, subgrades and label variant are allowed. These strings are recorded metadata, not provider verification. Certificates, certificate lookup links, private label asset IDs/URLs, immutable legacy source JSON, protected audit/planning evidence, copied preset manifests, credential details and member IDs are omitted. Wanted entries retain printing identity, name, timestamps and catalog text, with image URLs and member attribution omitted. Public share redaction is unchanged. Redacted grades and wanted entries are read models, not lossless replacement-command payloads. Do not replace private certificate/asset metadata with guessed or empty values; use the explicit [private-preserving command mode](/docs/native-storage#preserve-private-fields) for target and placement changes. Grading patches and exact want-fulfilment parity still require transactional executor support.
+
+## Stable pages
+
+Use a limit from 1 to 100, then follow `nextCursor` with the same operation, filters and limit. Copy filters support exact `cardId`, `collectionId` and `assignment` (`assigned` or `unassigned`). Slot filters support exact `cardId` and `status` within the requested collection. A slot's card filter matches its target, wanted printings or assigned copy. IDs remain opaque; card aliases are not guessed.
+
+Synthetic example for the future admitted REST contract:
+
+```sh
+curl 'https://app.holofolder.com/app/api/v1/inventory/items?limit=50&assignment=unassigned' \
+  -H 'Authorization: Bearer hf_YOUR_KEY_ID.YOUR_SECRET'
+```
+
+A cursor is signed and bound to the current credential, actor, owner, membership, permissions, filters and the independently fenced inventory/content/layout/metadata read revision. Foreign, edited or malformed cursors return `invalid_pagination`; changed state returns `409 stale_native_cursor`. Restart without a cursor after a change. Cursors do not freeze concurrent edits or authorize access.
+
+Every page and detail response declares `projection: "developer-native-v1"`, `completeSnapshot: false`, `inventoryRevision` and an opaque `readRevision`. Pages also return `data`, matching `total` and `nextCursor`. Even the last page is not a complete planning snapshot or a fresh-read queue acknowledgement. Clients must not use it to clear pending commands.
+
+Reads check current authority before owner data and again before accepting the result. Mid-read unlink/revocation, changed independent revisions/counts, incomplete paging or backend errors fail closed. Each invocation permits one whole-owner read attempt, 15 seconds and 512 checked requests. Source pages contain at most 500 rows and have a cumulative 32 MiB budget; serialized developer responses have a 1 MiB limit. Use smaller response pages after `413 native_read_too_large`. Large owners that exhaust a complete-read budget are unavailable, never partially complete.
+
+Preset discovery/preview, native command sender/replay/fresh-read ACK, offline relaunch and hosted rollout acceptance have separate remaining gates. This reference does not enable those workflows.

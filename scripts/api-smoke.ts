@@ -1,10 +1,11 @@
+import {NATIVE_READ_OPERATIONS} from "../lib/developer-api/native-read"
 // Real HTTP checks against disposable, explicitly labelled accounts. Never uses a personal collection.
 import {writeFile} from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import {AwsClient} from 'aws4fetch'
 import {getPrivateArtworkConfig} from '../lib/server/binder-artwork-r2'
 import {getR2BucketEndpoint} from '../lib/card-image-r2'
-import {assertSmokeResponse} from './api-smoke-assertions'
+import {assertSmokeResponse,assertStagedSmokeResponse} from './api-smoke-assertions'
 import {randomUUID} from 'node:crypto'
 import {Client} from 'pg'
 import {createAdminClient} from '../lib/supabase/admin'
@@ -94,6 +95,11 @@ async function main() {
  try {
   const owner=await fixture(),partner=await fixture()
   const defaultBinder=(await db.query('SELECT public.ensure_default_binder($1) id',[owner.id])).rows[0].id as string
+  // Denial is staging proof, never successful native execution/performance coverage.
+  for(const operation of NATIVE_READ_OPERATIONS) {
+   const input={...(operation.schema.shape.collectionId?{collectionId:defaultBinder}:{}),...(operation.schema.shape.id?{id:'synthetic-native-record'}:{})}
+   assertStagedSmokeResponse(operation.name,await call(operation.name,input,owner,0,'native-staged',503))
+  }
   // Clearly synthetic owned data exercises nonempty collection lists and pagination.
   await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) SELECT $1,$2,n,'Synthetic performance slot '||n,'considering' FROM generate_series(1,1010) n",[owner.id,defaultBinder])
   await read('list_languages');await read('list_cards');await read('get_card',{id:'base1-1'})

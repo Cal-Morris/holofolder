@@ -20,7 +20,7 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
   let actor = owner, allowed = true, oauth = false
   const requests: { table: string; url: URL; method: string; headers: Headers }[] = []
   let intercept: ((table: string, url: URL, init?: RequestInit) => Response | void) | undefined
-  const client = createClient("https://synthetic.supabase.test", "synthetic-key", { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: async (input, init) => {
+  const transport: typeof fetch = async (input, init) => {
     const url = new URL(String(input)), table = url.pathname.split("/").at(-1)!
     const method = init?.method ?? "GET"
     requests.push({ table, url, method, headers: new Headers(init?.headers) })
@@ -64,8 +64,9 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
     const select = url.searchParams.get("select")
     if (select && select !== "*") rows = rows.map(r => Object.fromEntries(select.split(",").filter(k => k in r).map(k => [k, r[k]])))
     return new Response(method === "HEAD" ? null : JSON.stringify(rows), { status: 200, headers: { "Content-Type": "application/json", "Content-Range": `0-${Math.max(0, rows.length - 1)}/${count}` } })
-  } } })
+  }
+  const client = createClient("https://synthetic.supabase.test", "synthetic-key", { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport } })
   client.auth.getClaims = async () => ({ data: { claims: { sub: actor, session_id: authSessionId, role: "authenticated", ...(oauth ? { client_id: "synthetic-oauth" } : {}) } }, error: null }) as never
   client.auth.getUser = async () => ({ data: { user: { id: actor } }, error: null }) as never
-  return { client, tables, requests, setActor: (id: string) => { actor = id }, deny: () => { allowed = false }, oauth: () => { oauth = true }, intercept: (fn: typeof intercept) => { intercept = fn } }
+  return { client, transport, tables, requests, setActor: (id: string) => { actor = id }, deny: () => { allowed = false }, oauth: () => { oauth = true }, intercept: (fn: typeof intercept) => { intercept = fn } }
 }

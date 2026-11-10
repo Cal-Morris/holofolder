@@ -7,7 +7,7 @@ description: Staged inventory, slot, copied creation and native recovery contrac
 
 **Native developer operations are staged and unavailable.** Valid authenticated requests return `503 native_operations_staged`. Listing a schema or MCP tool does not enable it. There is no credential, environment option or request flag that bypasses this gate. Existing legacy collection and Activity Undo APIs keep their current behavior.
 
-The staged command contracts reuse the app's trusted native executor. Developer inventory, collection and slot reads are **not yet available**. The current complete reader requires a verified first-party cookie/RLS session and includes private planning evidence; a REST API key or MCP OAuth grant cannot substitute for that session. No paginated developer projection or complete export is claimed. Public binder links never grant access to private owner inventory, certificates, label assets or location.
+The staged command contracts reuse the app's trusted native executor. Five [staged developer reads](/docs/native-reads) declare redacted pages/details with current preconditions. They remain unavailable and always declare `completeSnapshot:false`; they never provide a private planner snapshot or queue acknowledgement. Public binder links never grant access to private owner inventory, certificates, label assets or location.
 
 ## Credentials and permissions
 
@@ -44,6 +44,29 @@ curl https://app.holofolder.com/app/api/v1/storage/slots/commands \
 
 MCP calls `execute_slot_commands` with that same JSON object as arguments. Native intents use body `operationId`, not the legacy creation `Idempotency-Key` convention. Reuse the same credential and transport for a retry; actor, credential, source and request-body changes can conflict with the permanent native ledger. A historical receipt is not a fresh read or proof of current placement. Unknown outcomes require exact replay followed by a fresh authoritative complete read before acknowledging the edit.
 
+## Preserve private fields
+
+For `execute_slot_commands` and `execute_inventory_commands`, set the optional top-level `privateFields` to `"preserve"` and include `expectedOwnerUserId` for the original recipient. This is an assertion checked by both transports and the dispatcher, not a merge with current server state. `expectedOwnerUserId` must match current authenticated owner scope; it never selects an owner or grants access. A changed scope returns `409 storage_owner_changed` before execution, even when an unknown first attempt never committed. The original full-replacement contract may also opt into this recipient fence. Valid permitted calls still return staging denial.
+
+| Preserve mode accepts | Preserved data |
+| --- | --- |
+| Slot `create`, reorder `move`, and `update` with only `target` | Existing wanted entries, including hidden attribution and images, are untouched |
+| Inventory `assign` or `move` with `fulfillWant:null`, and `unassign` | Existing grading, certificates, label assets, provenance and wants are untouched |
+| Inventory `add` | Creates only the supplied new copy, never reconstructs an existing copy |
+| Inventory `removeOwned` | Explicitly deletes that copy; unrelated copy metadata and wants remain untouched |
+
+Preserve mode rejects grading `edit`, wanted-array replacement, selected-want fulfilment, slot clear/removal and collection deletion as invalid input. Use the full-replacement contract only when intentionally replacing or clearing those fields. Omitting `privateFields` retains the existing contract; `"replace"` explicitly selects the same behavior. A grading `edit` replaces the **entire** grading object, including certificate and label assets; `grading:null` explicitly removes it. A slot `update` with `wantedCards` replaces the **entire** list; `wantedCards:[]` explicitly clears it. Neither is a patch. Existing full selected-want requests retain their exact index and full `expected` equality check. Never fill omitted private values with null or rebuild either replacement from the redacted read model.
+
+Synthetic target-only request for REST `/storage/slots/commands` or MCP `execute_slot_commands`:
+
+```json
+{"privateFields":"preserve","expectedOwnerUserId":"00820000-0000-4000-8000-000000000001","collectionId":"00830000-0000-4000-8000-000000000011","operationId":"synthetic-private-target-1","inventoryRevision":7,"collectionVersion":2,"layoutRevision":1,"commands":[{"kind":"update","slot":{"id":"synthetic-slot","version":3,"inventoryItemId":null,"itemVersion":null,"placementVersion":null},"target":null}]}
+```
+
+Keep this exact request, credential, transport and original recipient for unknown-outcome retries. The assertion and recipient precondition are stripped before the existing executor receives the unchanged canonical intent; no current hidden fields are read, defaulted or added to its permanent ledger digest. A receipt can describe an earlier successful operation after later edits and must never be treated as current state. Stale/conflicting requests remain conflicts; do not refresh revisions, change recipient or issue a new ID to escape an unknown outcome. Redacted pages/details remain `completeSnapshot:false` and cannot ACK a pending queue.
+
+Grading patches and exact selected-want fulfilment from redacted reads remain blocked on transactional executor support: replay must bind the **original patch/selection intent** before reading current private data, then apply it under the existing current-authority/version locks while retaining unrelated private fields. Rebuilding a replacement before ledger replay would produce a different digest after success or later changes. This API slice adds no SQL or alternate ledger and does not claim that parity is complete.
+
 ## Bounds and errors
 
 Ordinary slot/inventory batches allow at most 100 commands and 256 affected work under the canonical planner, with a 256 KiB intent limit. A sole whole-collection deletion has its own 4,096-slot, two-collection, 8 MiB bound. Copied creation allows 4,096 targets under 2 MiB. Native recovery has a 1 MiB request bound. Oversized requests fail as a whole; no truncated page or split batch is reported as complete.
@@ -54,4 +77,16 @@ Native recovery never falls back to the legacy Activity recovery facade. Unsuppo
 
 ## Remaining gates
 
-Reviewed developer authentication and private projection over the complete reader, bounded stable pagination, preset discovery/preview parity, original-recipient replay and fresh-read acknowledgement, native offline relaunch, compatibility/consumer integration, recovery/load proof and #379 rollout acceptance remain open. No hosted conversion, public share expansion or enabled native workflow is claimed. The OpenAPI receipt schemas describe the staged executor contract; they are not evidence of a current 200 response.
+Independent review and production acceptance of the staged developer read projection/pagination, preset discovery/preview parity, original-recipient replay and fresh-read acknowledgement, native offline relaunch, compatibility/consumer integration, recovery/load proof and #379 rollout acceptance remain open. No hosted conversion, public share expansion or enabled native workflow is claimed. The OpenAPI receipt schemas describe the staged executor contract; they are not evidence of a current 200 response.
+
+## Staged read projection
+
+[Native developer reads](/docs/native-reads) now declare copy, storage and stable slot reads with current preconditions and revision-bound pagination. They share the fixed admission denial. A returned page cannot serve as a complete planning snapshot or a fresh-read queue acknowledgement.
+
+## JSON v2 arrangement import, staged
+
+`import_storage_arrangement` (`POST /app/api/v1/storage/imports/arrangement`) is registered with both write scopes and fixed `503 native_operations_staged` admission. It does not enable importing in Settings or replace the existing v1/Dex importer.
+
+The prepared backend imports one complete ordered arrangement into existing native storage with the same copied preset manifest. The destination must be empty or have only reviewed empty targets/spacers. Preview lists the replaced empty slots, every added physical copy and every explicit move of a trusted existing copy. Matching printings and certificates never merge ownership. Wants, spacers and recorded grading stay separate; private label assets and appearance/settings imports are unsupported.
+
+Keep the exact immutable operation and generated IDs after a timeout or lost response. Reconfirming a new plan can mean additional physical copies. A historical receipt needs a fresh complete read before showing the import as synchronized. Changed same-owner restore, multi-collection owner restore, CSV fill/append execution, asset packaging and offline import delivery remain unavailable. Current legacy Activity Undo does not undo native imports. The private native recovery planner can recover untouched generated events, including previous explicit placements and empty target layout; later edits or ABA conflict.

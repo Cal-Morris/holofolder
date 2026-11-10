@@ -20,7 +20,7 @@ The internal first-party HTTP adapter returns private/no-store JSON:
 {"version":1,"operationId":"synthetic-command","rejection":{"outcome":"rejected","operationId":"synthetic-command","code":"slot_revision_conflict","inventoryRevision":12}}
 ```
 
-This envelope has status 409. The browser validates both IDs, bounded known code, revision, exact shape, content type, private/no-store headers and live authenticated session scope. Ordinary errors still use the existing error envelope; its code or status never creates proof. The shared internal REST/MCP execution boundary preserves the same terminal result as data, with current actor/source authority and existing write permissions. Supported public REST/MCP operations and OpenAPI remain staged, so no registry or generated schema changes are made by this slice.
+This envelope has status 409. The browser validates both IDs, bounded known code, revision, exact shape, content type, private/no-store headers and live authenticated session scope. Ordinary errors still use the existing error envelope; its code or status never creates proof. The shared internal REST/MCP execution boundary preserves the same terminal result as data, with current actor/source authority and existing write permissions. Supported public REST/MCP operations and OpenAPI remain staged, so no registry or generated schema changes are made by this slice. Their response schemas still describe accepted receipts only: forwarding terminal data internally is not supported public response parity. Explicit terminal-result/error serialization, registry schemas and actual transport contract tests are required under #376/#379 before public admission.
 
 ## Durable client states
 
