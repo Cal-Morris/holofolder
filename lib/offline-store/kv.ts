@@ -13,6 +13,7 @@ export interface OfflineKeyValueStore {
 /** Synchronous read/modify/write in one transaction, serialized across tabs. */
 export interface AtomicOfflineStore extends OfflineKeyValueStore {
   update(key: string, transform: (current: unknown) => unknown): Promise<void>
+  updateMany<T>(keys: string[], transform: (current: Record<string, unknown>) => { writes: Array<readonly [string, unknown]>; result: T }): Promise<T>
 }
 
 export const OFFLINE_DB_NAME = "binderdex-offline"
@@ -80,6 +81,32 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
   }
 
   return {
+    async updateMany<T>(keys: string[], transform: (current: Record<string, unknown>) => { writes: Array<readonly [string, unknown]>; result: T }) {
+      keys = [...keys]
+      if (!keys.length || new Set(keys).size !== keys.length) throw new Error("Invalid atomic keys")
+      const db = await database()
+      return await new Promise<T>((resolve, reject) => {
+        const tx = db.transaction(OFFLINE_DB_STORE, "readwrite")
+        let failure: unknown, result: T
+        tx.oncomplete = () => resolve(result)
+        tx.onerror = tx.onabort = () => reject(failure ?? tx.error ?? new Error("IndexedDB transaction aborted"))
+        const store = tx.objectStore(OFFLINE_DB_STORE), current: Record<string, unknown> = Object.create(null)
+        let remaining = keys.length
+        for (const key of keys) {
+          const request = store.get(key)
+          request.onsuccess = () => {
+            current[key] = request.result
+            if (--remaining) return
+            try {
+              const next = transform(current)
+              if (next.writes.some(([target]) => !keys.includes(target))) throw new Error("Atomic write outside named keys")
+              for (const [target, value] of next.writes) store.put(value, target)
+              result = structuredClone(next.result)
+            } catch (error) { failure = error; tx.abort() }
+          }
+        }
+      })
+    },
     async update(key, transform) {
       const db = await database()
       await new Promise<void>((resolve, reject) => {
@@ -123,6 +150,15 @@ export function createMemoryStore(initial: Record<string, unknown> = {}): Atomic
   const records = new Map<string, unknown>(Object.entries(initial))
   const clone = <T>(value: T): T => (value === undefined ? value : structuredClone(value))
   return {
+    async updateMany<T>(keys: string[], transform: (current: Record<string, unknown>) => { writes: Array<readonly [string, unknown]>; result: T }) {
+      keys = [...keys]
+      if (!keys.length || new Set(keys).size !== keys.length) throw new Error("Invalid atomic keys")
+      const next = transform(Object.fromEntries(keys.map(key => [key, clone(records.get(key))])))
+      if (next.writes.some(([target]) => !keys.includes(target))) throw new Error("Atomic write outside named keys")
+      const copies = next.writes.map(([key, value]) => [key, clone(value)] as const), result = clone(next.result)
+      for (const [key, value] of copies) records.set(key, value)
+      return result
+    },
     async update(key, transform) {
       const next = clone(transform(clone(records.get(key))))
       records.set(key, next)
