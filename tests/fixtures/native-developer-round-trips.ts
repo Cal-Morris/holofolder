@@ -58,6 +58,7 @@ async function main() {
         supported: false, unsupported: ['synthetic unsupported dependency'], conflicts: [], changes: privatePreview ? [{ certificate: 'private' }] : [],
         restoreUnassignedItemIds: [], rootRevisionsAdvance: true, planToken: null }
       else if (operation.includes('apply')) result = { inventoryRevision: 2, eventId: '13', recoveredEventId: request.eventId, collections: [] }
+      else if (operation === 'backup.arrangement') result = { inventoryRevision: 2, changed: true, collectionId: request.destinationCollectionId, collectionVersion: 1, layoutRevision: 1, slotIds: request.slots.map((s: { id: string }) => s.id), addedItemIds: [], removedEmptySlotIds: [], evidence: 'private' }
       else if (operation === 'collection.create') result = { inventoryRevision: 2, changed: true, collectionId: request.collectionId,
         collectionVersion: 0, layoutRevision: 0, slotIds: request.slotIds, recoverySupported: false, evidence: { certificate: 'private' } }
       else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
@@ -94,7 +95,10 @@ async function main() {
   const preview = { eventId: '12', restoreUnassignedItemIds: [] }
   const apply = { ...preview, operationId: 'synthetic-recovery-1', planVersion: 1, planToken: 'a'.repeat(64), confirmed: true }
   const v2 = { ...preview, planVersion: 2, replacementDefaultCollectionId: collectionId, inventoryRevision: 1, collections: [{ collectionId, version: 0, layoutRevision: 0 }] }
-  const values: Record<string, Record<string, unknown>> = { execute_inventory_commands: inventory, execute_slot_commands: slots, create_storage_collection: creation,
+  const arrangement = { version: 1, operationId: 'synthetic-arrangement-1', inventoryRevision: 1, destinationCollectionId: collectionId,
+    collections: [{ collectionId, version: 0, layoutRevision: 0 }], emptyDestinationSlots: [], manifest: null, copies: [],
+    slots: [{ id: 'synthetic-import-slot', target: null, status: null, wantedCards: [], inventoryItemId: null, presetOrigin: null }] }
+  const values: Record<string, Record<string, unknown>> = { import_storage_arrangement: arrangement, execute_inventory_commands: inventory, execute_slot_commands: slots, create_storage_collection: creation,
     preview_storage_recovery: preview, apply_storage_recovery: apply, preview_storage_recovery_v2: v2,
     apply_storage_recovery_v2: { ...v2, operationId: 'synthetic-recovery-v2', planToken: 'b'.repeat(64), confirmed: true } }
   async function call(transport: 'rest' | 'mcp', name: string, value: unknown) {

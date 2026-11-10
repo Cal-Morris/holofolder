@@ -31,7 +31,7 @@ export async function executeMcpStorageRequest(request: Request, operation: Stor
   const context = await requireMcpContext(request, STORAGE_PERMISSIONS, "write")
   return executeDeveloperStorageOperation(context, operation, input)
 }
-const storageRequestBytes = (operation: StorageOperation) => operation === "inventory" ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
+const storageRequestBytes = (operation: StorageOperation) => ["inventory", "backup.arrangement"].includes(operation) ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
 // Slots can change wanted cards and release placements; every operation needs both write scopes.
 const STORAGE_PERMISSIONS = ["collection:write", "binders:write"] as const
 

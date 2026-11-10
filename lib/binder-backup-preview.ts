@@ -1,3 +1,4 @@
+import { parseBackupArrangementCommand, type BackupArrangementCommand } from "@/lib/domain/backup-import-command"
 import { backupContentKey, createBinderBackupV2, freezeBackupPlan, hydrateBackupSnapshot, parseBinderBackupV2, type BinderBackupV2 } from "@/lib/binder-backup-v2"
 import { inventoryItemCandidate, normalizeInventorySnapshot, type InventoryCatalogResolver, type InventorySnapshot } from "@/lib/domain/inventory"
 import { matchesSlotTarget, isSlotContractId } from "@/lib/domain/binder-slots"
@@ -16,10 +17,11 @@ export interface BackupImportPreview {
   proposed: InventorySnapshot
   decisions: BackupCopyDecision[]
   moves: { itemId: string; from: string | null; to: string }[]
+  replacedEmptySlotIds: string[]
   addedCopies: number
   addedWants: number
   unresolved: string[]
-  execution: { kind: "noop" } | { kind: "inventory-command"; request: InventoryCommandRequest } | { kind: "blocked"; reasons: string[] }
+  execution: { kind: "noop" } | { kind: "inventory-command"; request: InventoryCommandRequest } | { kind: "arrangement-command"; request: BackupArrangementCommand } | { kind: "blocked"; reasons: string[] }
 }
 
 /** Internal only, never an authenticated route or a durable write store.
@@ -56,9 +58,10 @@ export function previewBinderBackupImport(input: {
   let addedCopies = 0
   let addedWants = 0
   const moves: BackupImportPreview["moves"] = []
+  const replacedEmptySlotIds: string[] = []
   const finish = (execution: BackupImportPreview["execution"]): BackupImportPreview => freezeBackupPlan({
     operationId: input.operationId, mode: input.mode, backup, precondition, proposed, decisions, moves,
-    addedCopies, addedWants, unresolved, execution,
+    addedCopies, addedWants, replacedEmptySlotIds, unresolved, execution,
   })
   if (input.mode === "restore-current-owner") {
     if (decisions.length) throw new Error("Restore cannot create additional copies implicitly")
@@ -124,7 +127,7 @@ export function previewBinderBackupImport(input: {
         slot.id = allocate(); slot.collectionId = destination.id; slot.version = 0
         slot.inventoryItemId = sourceItemId === null ? null : selected.get(sourceItemId) ?? null
         if (slot.inventoryItemId === null && ["collected", "finalized"].includes(slot.status ?? "")) slot.status = null
-        addedWants += slot.wantedCards.length || (slot.status === "wishlisted" ? 1 : 0)
+        addedWants += Math.max(slot.wantedCards.length, slot.status === "wishlisted" ? 1 : 0) + (slot.status === "considering" ? 1 : 0)
         if ((slot.target?.kind === "card" && !input.resolveCatalog(slot.target.cardId))
           || (slot.target?.kind === "pokemon" && !getPokemonById(slot.target.pokemonId))) unresolved.push(`Resolve target for ${slot.id}`)
         for (const want of slot.wantedCards) if (!input.resolveCatalog(want.card_id)) unresolved.push(`Resolve wanted printing for ${slot.id}`)
@@ -140,7 +143,34 @@ export function previewBinderBackupImport(input: {
     }
   }
   if (addedCopies + addedWants > input.savedEntryRemaining) unresolved.push("Import exceeds current saved-entry allowance")
-  if (input.mode === "arrangement") return finish({ kind: "blocked", reasons: [...unresolved, "Atomic arrangement import with copy moves/adds, ordered slots, preset provenance and appearance is not supported; do not split into partial commands"] })
+  if (input.mode === "arrangement") {
+    const destination = current.binders.find(b => b.collectionId === input.destinationCollectionId)!
+    if (backup.appearance.length) unresolved.push("Appearance/settings require a complete restore, not arrangement import")
+    if (decisions.length !== backup.items.length) unresolved.push("Choose an explicit copy decision for every source item")
+    if (destination.slots.some(s => s.inventoryItemId !== null || s.status !== null || s.wantedCards.length)) unresolved.push("Destination must contain only empty targets/spacers; recorded contents cannot be replaced")
+    replacedEmptySlotIds.push(...destination.slots.map(s => s.id))
+    if (backupContentKey(destination.presetManifest) !== backupContentKey(proposed.binders[0].presetManifest)) unresolved.push("Destination copied manifest must already match; config replacement is not supported")
+    if (proposed.items.some(i => i.legacySource != null)) unresolved.push("Frozen converted copy provenance is not portable import authority")
+    if (unresolved.length) return finish({ kind: "blocked", reasons: [...unresolved] })
+    const collectionIds = new Set([destination.collectionId])
+    const copies = proposed.items.map(i => {
+      const { ownerUserId: _owner, legacySource: _legacy, ...item } = i
+      if (!existing.has(i.id)) return { kind: "add" as const, item, ref: null }
+      const placement = current.placements.find(p => p.inventoryItemId === i.id)
+      const slot = placement ? current.binders.find(b => b.collectionId === placement.collectionId)!.slots.find(s => s.id === placement.slotId)! : null
+      if (placement) collectionIds.add(placement.collectionId)
+      return { kind: "existing" as const, item, ref: { itemId: i.id, itemVersion: i.version, placement: placement && slot ? {
+        collectionId: placement.collectionId, slot: { id: slot.id, version: slot.version, inventoryItemId: i.id, itemVersion: i.version, placementVersion: placement.version },
+      } : null } }
+    })
+    try {
+      const request = parseBackupArrangementCommand({ version: 1, operationId: input.operationId, inventoryRevision: current.inventoryRevision,
+        destinationCollectionId: destination.collectionId, collections: current.collections.filter(c => collectionIds.has(c.id)).map(c => ({ collectionId: c.id, version: c.version, layoutRevision: current.binders.find(b => b.collectionId === c.id)!.layoutRevision })),
+        emptyDestinationSlots: destination.slots.map(s => ({ id: s.id, version: s.version, inventoryItemId: null, itemVersion: null, placementVersion: null })),
+        manifest: proposed.binders[0].presetManifest, slots: proposed.binders[0].slots.map(({ ownerUserId: _owner, collectionId: _collection, version: _version, ...s }) => s), copies })
+      return finish({ kind: "arrangement-command", request })
+    } catch { return finish({ kind: "blocked", reasons: ["Whole arrangement exceeds supported atomic import constraints; no partial batches are allowed"] }) }
+  }
   if (unresolved.length) return finish({ kind: "blocked", reasons: [...unresolved] })
   if (!addedCopies) return finish({ kind: "noop" })
   try {
