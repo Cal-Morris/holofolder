@@ -1,6 +1,7 @@
+import { isCreationRejection, isImportRejection } from '@/lib/collection/creation-import-rejection'
 import { isRecoveryRejection } from '@/lib/collection/recovery-rejection'
 import { isStorageCommandRejection } from '@/lib/collection/storage-command-rejection'
-import { StorageRecoveryRejectedError, StorageCommandRejectedError } from '@/lib/server/developer-access/storage-command-error'
+import { StorageCreationRejectedError, StorageImportRejectedError, StorageRecoveryRejectedError, StorageCommandRejectedError } from '@/lib/server/developer-access/storage-command-error'
 import type { OperationContext } from '@/lib/developer-api/types'
 import { DeveloperAccessError, requirePermissions } from '@/lib/developer-api/permissions'
 import { NATIVE_DEVELOPER_OPERATIONS, nativeCommandIntent } from '@/lib/developer-api/storage'
@@ -34,5 +35,7 @@ export async function executeNativeDeveloperOperation(context: OperationContext,
     && isStorageCommandRejection(result, String(intent.operationId))) throw new StorageCommandRejectedError(result)
   if ((name === 'apply_storage_recovery' || name === 'apply_storage_recovery_v2')
     && isRecoveryRejection(result, String(intent.operationId))) throw new StorageRecoveryRejectedError(result)
+  if (name === 'create_storage_collection' && isCreationRejection(result, String(intent.operationId))) throw new StorageCreationRejectedError(result)
+  if (name === 'import_storage_arrangement' && isImportRejection(result, String(intent.operationId))) throw new StorageImportRejectedError(result)
   return result
 }

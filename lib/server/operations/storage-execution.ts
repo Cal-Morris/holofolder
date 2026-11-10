@@ -1,3 +1,4 @@
+import { isCreationRejection, isImportRejection } from '@/lib/collection/creation-import-rejection'
 import "server-only"
 import { isRecoveryRejection } from "@/lib/collection/recovery-rejection"
 import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
@@ -66,6 +67,8 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
     if (error) throw storageExecutionError(error)
     if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
     if ((operation === "recovery.apply" || operation === "recovery.apply.v2") && isRecoveryRejection(data, operationId)) return { ...data }
+    if (operation === "collection.create" && isCreationRejection(data, operationId)) return { ...data }
+    if (operation === "backup.arrangement" && isImportRejection(data, operationId)) return { ...data }
     // A malformed terminal row must never fall through to an accepted receipt projection.
     if (data && typeof data === "object" && "outcome" in data) throw storageExecutionError(null)
     return normalizeStorageResult(operation, data)

@@ -68,6 +68,7 @@ async function main() {
       else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
       else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
       if (forged !== undefined) return Response.json(forged)
+      if (terminal && ['collection.create', 'backup.arrangement'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'inventory_revision_conflict', inventoryRevision: 2 }
       if (terminal && operation.includes('apply')) result = { outcome: 'rejected', operationId: request.operationId, code: 'recovery_plan_conflict', inventoryRevision: 2 }
       if (terminal && ['slots', 'inventory'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
       // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
@@ -163,13 +164,13 @@ async function main() {
         }
       }
     }
-    if (wired) for (const [name, intent] of [['execute_slot_commands', slots], ['execute_inventory_commands', inventory]] as const) {
+    if (wired) for (const [name, intent] of [['execute_slot_commands', slots], ['execute_inventory_commands', inventory], ['create_storage_collection', creation], ['import_storage_arrangement', arrangement]] as const) {
       const value = { ...intent, operationId: 'synthetic-terminal-' + name + '-' + transport }
       terminal = true
       const rejected = await call(transport, name, value)
-      const proof = { outcome: 'rejected', operationId: value.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
+      const proof = { outcome: 'rejected', operationId: value.operationId, code: name === 'create_storage_collection' || name === 'import_storage_arrangement' ? 'inventory_revision_conflict' : 'slot_revision_conflict', inventoryRevision: 2 }
       assert.equal(rejected.status, transport === 'rest' ? 409 : 200)
-      assert.equal(rejected.result.error.code, 'storage_command_rejected', JSON.stringify(rejected.raw))
+      assert.equal(rejected.result.error.code, name === 'create_storage_collection' ? 'storage_creation_rejected' : name === 'import_storage_arrangement' ? 'storage_import_rejected' : 'storage_command_rejected', JSON.stringify(rejected.raw))
       assert.deepEqual(rejected.result.error.rejection, proof)
       const op = DEVELOPER_OPERATIONS.find(op => op.name === name)!
       assert.ok(op.errorSchemas?.[409]?.safeParse(rejected.result).success)
