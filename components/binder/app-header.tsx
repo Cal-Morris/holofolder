@@ -12,8 +12,10 @@ import type { Dispatch, JSX, RefObject, SetStateAction } from "react"
 import type { ActiveMainView, BeforeInstallPromptEvent } from "@/components/binder/binder-app-model"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 import type { Binder } from "@/lib/binders/model"
+import type { BottomNavContext } from "@/components/binder/bottom-nav"
 
 export interface AppHeaderContext {
+  inventoryNavigation?: BottomNavContext["inventoryNavigation"]
   activeBinder: Binder | null
   activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
   activeJumpPokemonList: PokemonEntry[]
@@ -86,12 +88,17 @@ export interface AppHeaderContext {
 
 export function renderAppHeaderView(ctx: AppHeaderContext) {
   const { activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderDimension, canGoToNextVisiblePage, canGoToPreviousVisiblePage, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, localPendingSyncCount, onJoin, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages } = ctx
+  const inventory = ctx.inventoryNavigation
   const destinations = [
     { id: "binder", label: "Binder", icon: Grid3X3 },
-    { id: "list", label: "List", icon: ListChecks },
+    { id: inventory ? "inventory" : "list", label: inventory ? "Inventory" : "List", icon: ListChecks },
     { id: "wanted", label: "Wanted", icon: Heart },
     { id: "sets", label: "Browse", icon: Layers3 },
   ] as const
+  // Same contract as the dock: native Inventory renders under the "binder" main view, so only one destination is pressed.
+  const isActive = (id: (typeof destinations)[number]["id"]) => !isSearchOpen && (id === "inventory" ? Boolean(inventory?.active)
+    : id === "binder" ? activeMainView === "binder" && !inventory?.active
+    : activeMainView === id || (id === "sets" && activeMainView === "pokemon"))
   const showStatus = showTally.count > 0 && showTally.currency
     ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}`
     : null
@@ -120,7 +127,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
 
           <div className="order-last hidden w-full items-center gap-1 border-t border-border/40 pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
             {destinations.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => void switchMainView(id === "sets" ? ctx.lastBrowseViewRef.current : id)} aria-pressed={!isSearchOpen && (activeMainView === id || (id === "sets" && activeMainView === "pokemon"))} className={`flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium ${!isSearchOpen && (activeMainView === id || (id === "sets" && activeMainView === "pokemon")) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
+              <button key={id} onClick={() => { if (id === "inventory") inventory?.open(); else void switchMainView(id === "sets" ? ctx.lastBrowseViewRef.current : id) }} aria-pressed={isActive(id)} className={`flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium ${isActive(id) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
                 <Icon className="h-3.5 w-3.5" aria-hidden />{label}
               </button>
             ))}
