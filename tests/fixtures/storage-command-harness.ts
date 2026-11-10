@@ -101,6 +101,20 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[4].status = "collected"
   }
 
+  if (id.startsWith("native-consumer-")) {
+    // Synthetic exact non-Pokémon printing, duplicate wants and separate owned copies.
+    state.tables.tcg_sets = [{ id: "synthetic-native", name_en: "Synthetic native set" }]
+    state.tables.tcg_cards = [{ id: "synthetic-native-trainer", set_id: "synthetic-native", local_id: "7",
+      name_en: "Synthetic Native Trainer", name_json: { en: "Synthetic Native Trainer" }, external_ids_json: {} }]
+    state.tables.tcg_card_dex_ids = []
+    const want = { card_id: "synthetic-native-trainer", card_name: "Synthetic Native Trainer", card_language: "en", card_finish: "normal", added_at: "2026-01-01", wanted_by: [owner] }
+    state.tables.binder_slots[0].wanted_cards = [want, { ...want }]
+    state.tables.binder_slots[1].wanted_cards = [{ ...want }]
+    state.tables.inventory_items = [0, 1].map(n => ({ id: `synthetic-native-copy-${n}`, owner_user_id: owner,
+      identity: { kind: "card", cardId: "synthetic-native-trainer", language: "en", finish: "normal" }, grading: null,
+      acquired_at: null, version: 0, legacy_source: null }))
+  }
+
   let creationRejected = false
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
   const originalRpc = state.client.rpc.bind(state.client)
