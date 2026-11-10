@@ -51,7 +51,7 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
     finally { running.current = false; if (alive.current) setBusy(false) }
   }
   const buttonClass = "min-h-10 rounded-lg border px-3 text-sm disabled:opacity-50"
-  return <div className="fixed inset-0 z-40 flex items-end justify-center pb-[var(--dock-clearance)] sm:items-center">
+  return <div className="fixed inset-0 z-[42] flex items-end justify-center pb-[var(--dock-clearance)] sm:items-center">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/50" onClick={onClose} />
     <div ref={panel} role="dialog" aria-modal="true" aria-label="Collection data backup" className="relative flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-12px)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border bg-background shadow-xl sm:rounded-2xl">
       <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center justify-between gap-2 p-4">

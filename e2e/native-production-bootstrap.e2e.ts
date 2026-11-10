@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, storageAction, closeStorage } from "./fixtures"
 import type { Route } from "@playwright/test"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
@@ -60,17 +60,62 @@ test("production host uses the native default, device view and explicit link wit
   expect(legacyWrites).toEqual([])
 })
 
+// Actual BinderStart page component with a server boot (no saved device data), production endpoint, empty IDB.
+test("fresh browser shows the server collection, refocus neither restarts the read nor blanks the app", async ({ page, insets }) => {
+  let requests = 0, release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  await page.route("**/app/api/inventory?*", async route => { if (++requests === 1) await held; await inventory(route) })
+  await page.goto("/app/e2e-harness/binder-start")
+  await expect.poll(() => requests).toBe(1)
+  // Tab refocus fires focus, visibility and Supabase SIGNED_IN for the same account.
+  const refocus = () => page.evaluate(user => {
+    window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange"))
+    const channel = new BroadcastChannel("sb-127-auth-token"); channel.postMessage({ event: "SIGNED_IN", session: { user } }); channel.close()
+  }, E2E_USER)
+  for (let i = 0; i < 3; i++) { await refocus(); await page.waitForTimeout(200) }
+  expect(requests, "a slow first read is not restarted by refocus").toBe(1)
+  release()
+  const select = page.getByRole("combobox", { name: "Collection", exact: true })
+  await expect(select).toHaveValue(trades)
+  await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible()
+  // Collection first: the old staging rows stay out of the page.
+  await expect(page.getByText("Inventory is what you own and where", { exact: false })).toHaveCount(0)
+  for (const name of ["Backup", "New storage", "Refresh storage", "Delete collection", "Settings", "Sign out", "National Dex"])
+    await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "Storage dashboard" })).toHaveCount(0)
+  await expect(page.getByRole("navigation", { name: "Binder navigation" })).toBeVisible()
+  const h = new Harness(page, insets, true)
+  await h.expectNoHorizontalOverflow()
+  for (const name of ["Storage", "Collection"]) {
+    const control = page.getByRole(name === "Storage" ? "button" : "combobox", { name, exact: true })
+    await h.expectMinTapTarget(control); await h.expectWithinSafeViewport(control); await h.expectHittable(control)
+  }
+  await page.evaluate(() => {
+    const seen = { blanked: false }; Object.assign(window, { syntheticSeen: seen })
+    new MutationObserver(() => { if (document.querySelector('[data-testid="binder-skeleton"]') || /Checking your account/.test(document.body.innerText)) seen.blanked = true })
+      .observe(document.body, { childList: true, subtree: true, characterData: true })
+  })
+  await refocus()
+  await expect.poll(() => requests).toBeGreaterThan(1)
+  await page.waitForTimeout(500)
+  expect(await page.evaluate(() => (window as unknown as { syntheticSeen: { blanked: boolean } }).syntheticSeen.blanked), "refocus after load keeps the collection on screen").toBe(false)
+  await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible()
+  await page.reload()
+  await expect(select).toHaveValue(trades)
+  await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible()
+})
+
 test("failed complete refresh retains the view, disables new edits and can recover", async ({ page }) => {
   await page.goto(entry)
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeEnabled()
+  await expect(await storageAction(page, "New storage")).toBeEnabled(); await closeStorage(page)
   await page.route("**/app/api/inventory?*", route => route.fulfill({ status: 503, json: { error: "inventory_read_unavailable" } }))
-  await page.getByRole("button", { name: "Refresh storage", exact: true }).click()
+  await (await storageAction(page, "Refresh storage")).click()
   await expect(page.getByRole("status").filter({ hasText: "Could not refresh storage" })).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
+  await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
   await page.route("**/app/api/inventory?*", route => inventory(route))
-  await page.getByRole("button", { name: "Refresh storage", exact: true }).click()
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeEnabled()
+  await (await storageAction(page, "Refresh storage")).click()
+  await expect(await storageAction(page, "New storage")).toBeEnabled(); await closeStorage(page)
 })
 
 for (const code of ["inventory_not_initialized", "legacy_inventory_incomplete"])
@@ -78,8 +123,8 @@ for (const code of ["inventory_not_initialized", "legacy_inventory_incomplete"])
     await page.route("**/app/api/inventory?*", route => route.fulfill({ status: 503, json: { error: code } }))
     await page.goto(entry)
     await expect(page.getByRole("status").filter({ hasText: /administrator/ })).toBeVisible()
-    await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
-    await expect(page.getByRole("button", { name: "Refresh storage", exact: true })).toBeEnabled()
+    await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
+    await expect(await storageAction(page, "Refresh storage")).toBeEnabled(); await closeStorage(page)
     await new Harness(page, insets, true).expectNoHorizontalOverflow()
   })
 
@@ -116,7 +161,7 @@ test("untouched revision-zero owner can review and persist the existing first st
   })
   await page.goto(entry)
   await expect(page.getByRole("status").filter({ hasText: "Create your first storage" })).toBeVisible()
-  await page.getByRole("button", { name: "New storage", exact: true }).click()
+  await (await storageAction(page, "New storage")).click()
   const dialog = page.getByRole("dialog", { name: "New storage", exact: true })
   await expect(dialog).toBeVisible()
   await dialog.getByRole("textbox", { name: "Storage name", exact: true }).fill("My first binder")
@@ -173,7 +218,7 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
     await expect(page.getByText("1 pending edit retained.", { exact: false })).toBeVisible()
     await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(alpha)
     await expect(page.getByRole("button", { name: "Edit layout", exact: true })).not.toBeVisible()
-    await expect(page.getByRole("button", { name: "New storage", exact: true })).not.toBeVisible()
+    await expect(page.getByRole("button", { name: "Storage", exact: true })).toHaveCount(0)
     expect(await savedQueue(page)).toEqual(before)
     expect(sends.length).toBe(sentBefore)
     const h = new Harness(page, insets, true)
@@ -206,7 +251,7 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
     if (outcome === "recovered") {
       await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toBeEnabled()
       // First reconcile the saved command before opening an unrelated creation plan.
-      await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
+      await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
       // Unavailable commands do not auto-retry, and a checked read cannot ACK them.
       expect(await savedQueue(page)).toEqual(before)
     } else {
@@ -216,24 +261,23 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
     }
   })
 
-// A superseded startup must release its HTTP body rather than holding it until the 30s timeout.
-test("focus during startup cancels superseded inventory reads and the latest read finishes opening", async ({ page, context }) => {
+// Focus during a slow startup keeps the one read in flight; restarting it on every focus meant it never finished.
+test("focus during startup keeps the single inventory read and it finishes opening", async ({ page, context }) => {
   await page.clock.install()
-  let requests = 0, abandoned: string | null = null
+  let requests = 0, release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
   const failed: string[] = []
   page.on("requestfailed", request => { if (request.url().includes("/api/inventory?")) failed.push(request.url()) })
-  await context.route("**/app/api/inventory?*", async route => {
-    requests++
-    if (requests === 1) { abandoned = route.request().url(); return }
-    await inventory(route)
-  })
+  await context.route("**/app/api/inventory?*", async route => { if (++requests === 1) await held; await inventory(route) })
   await page.unroute("**/app/api/inventory?*")
   await page.goto(entry)
   await expect.poll(() => requests).toBeGreaterThan(0)
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")))
-  await expect.poll(() => abandoned !== null && failed.includes(abandoned), { timeout: 4000 }).toBe(true)
+  await page.evaluate(() => { window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("focus")) })
+  release()
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeEnabled()
+  expect(requests).toBe(1)
+  expect(failed).toEqual([])
+  await expect(await storageAction(page, "New storage")).toBeEnabled(); await closeStorage(page)
   await page.clock.fastForward(46_000)
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
   expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBeNull()

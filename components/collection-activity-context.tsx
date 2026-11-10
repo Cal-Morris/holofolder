@@ -13,6 +13,9 @@ const ActivitySheet = dynamic(()=>import("@/components/collection-activity-sheet
 export type ActivityInitialFilter = { pokemonId?: number; inventoryItemId?: string; operationId?: string }
 const ActivityContext = createContext<((filter:ActivityInitialFilter)=>void) | null>(null)
 
+/** Opens Collection Activity, or null where Activity is unavailable. */
+export const useActivityOpener = () => useContext(ActivityContext)
+
 export function ActivityButton({ pokemonId, onOpen, filter, label = "Activity" }: {pokemonId?:number; onOpen?:()=>void; filter?:ActivityInitialFilter; label?:string}) {
   const open = useContext(ActivityContext)
   if (!open) return null

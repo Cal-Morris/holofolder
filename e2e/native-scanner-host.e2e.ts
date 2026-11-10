@@ -105,12 +105,12 @@ test("cached startup stays read-only and explains reconnect before scanner accep
   await expect(page.getByRole("button", { name: "Scan card", exact: true })).toBeEnabled()
   await context.setOffline(true)
   await expect(page.getByRole("button", { name: "Scan card", exact: true })).toBeDisabled()
-  await expect(page.getByText(/Reconnect and refresh complete storage before scanning/)).toBeVisible()
+  await expect(page.getByRole("button", { name: "Scan card", exact: true })).toHaveAttribute("title", /Reconnect and refresh storage to scan/)
   expect((await record(page))?.pending).toHaveLength(0)
 })
 for (const change of ["signout", "account", "owner"] as const) test(`${change} teardown discards unconfirmed review without queue writes`, async ({ page }) => {
   await page.goto(entry); await cardReview(page); await choose(page, 1, "trainer", "append-card")
-  if (change === "owner") await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-membership", owner_user_id: "33333333-3333-4333-8333-333333333333", user1_id: E2E_USER.id, user2_id: "33333333-3333-4333-8333-333333333333" }] }))
+  if (change === "owner") { await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-membership", owner_user_id: "33333333-3333-4333-8333-333333333333", user1_id: E2E_USER.id, user2_id: "33333333-3333-4333-8333-333333333333" }] })); await page.route("**/app/e2e-harness/storage/inventory?*", () => { /* New owner read stays pending: this test checks retention, not the startup reset. */ }) }
   await page.evaluate(({ change, user }) => {
     const channel = new BroadcastChannel("sb-127-auth-token")
     channel.postMessage(change === "signout" ? { event: "SIGNED_OUT", session: null } : { event: change === "account" ? "SIGNED_IN" : "TOKEN_REFRESHED", session: { user: change === "account" ? { ...user, id: "55555555-5555-4555-8555-555555555555" } : user } }); channel.close()

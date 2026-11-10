@@ -68,7 +68,7 @@ export default function CachedNativeStartup({ legacyProps, children, whileChecki
       const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)
       const layout = binder && read.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
       const display = snapshot && binder && layout ? { inventory: snapshot, binder, catalog: {}, resolveCard: browserHostDisplayCatalog(read.catalog) } : undefined
-      const header = <><p role="status" className="px-4 text-sm">Saved on this device · Cached only. {navigator.onLine ? "Access is being checked." : "Access will be checked when you reconnect."}{pending > 0 ? ` ${pending} pending edit${pending === 1 ? "" : "s"} retained.` : ""}</p>{surface.header}</>
+      const header = <><p role="status" className="px-4 text-sm">Saved on this device · Cached only. {navigator.onLine ? "Access is being checked." : "Access will be checked when you reconnect."}{pending > 0 ? ` ${pending} pending edit${pending === 1 ? "" : "s"} retained.` : ""}</p></>
       return <BinderApp {...legacyProps} key={JSON.stringify([surface.visit, surface.state.main, surface.state.dexView, surface.collection?.collectionId, surface.collection?.state.view])}
         localBrowserHost={false} initialCollectionOwnerUserId={read.scope.ownerUserId}
         initialBinderId={binder?.collectionId ?? legacyProps.initialBinderId}
@@ -76,7 +76,7 @@ export default function CachedNativeStartup({ legacyProps, children, whileChecki
         initialSettings={{ ...legacyProps.initialSettings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
         browserHeader={header} browserSurface={{ nativeConsumer: { scope: read.scope, read,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
-          editingAvailable: false, admit: () => null }, analytics: { scope: read.scope, read }, surface, display, catalog, editingAvailable: false, pending, receive: async () => { throw new Error("cached-startup-read-only") } }}
+          editingAvailable: false, admit: () => null }, analytics: { scope: read.scope, read }, surface, toolbar: surface.header, storageMenu: null, display, catalog, editingAvailable: false, pending, receive: async () => { throw new Error("cached-startup-read-only") } }}
         stagedSlotDisplay={surface.state.main === "collection" ? display : undefined} stagedSlotSessionId={read.scope.sessionId} />
     }} />
 }

@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, closeStorage } from "./fixtures"
 import type { Page, Route } from "@playwright/test"
 import { CHECKED_STARTUP_TIMEOUT_MS, CHECKED_STARTUP_TIMEOUT_ERROR } from "../lib/startup-cache-reset"
 import { SERVICE_WORKER_URL } from "../lib/service-worker-registration"
@@ -52,8 +52,9 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
 })
 
 async function ready(page: Page, timeout = 15_000) {
-  await expect(page.getByRole("button", { name: "Refresh storage", exact: true })).toBeVisible({ timeout })
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Storage", exact: true })).toBeVisible({ timeout })
+  await expect(await storageAction(page, "New storage")).toBeEnabled()
+  await closeStorage(page)
 }
 
 test("fresh storage opens representative owner through actual worker and saves all copies and slots", async ({ page, insets }) => {

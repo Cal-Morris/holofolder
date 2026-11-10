@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from './fixtures'
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, openStorage } from './fixtures'
 import type { Page } from '@playwright/test'
 import type { SlotOfflineRecord } from '../lib/collection/slot-offline-queue'
 
@@ -16,7 +16,7 @@ async function record(page: Page): Promise<SlotOfflineRecord> {
   })
 }
 async function review(page: Page, isDefault = true) {
-  await button(page, 'Delete collection').click()
+  await (await storageAction(page, 'Delete collection')).click()
   if (isDefault) {
     await expect(button(page, 'Review collection deletion')).toBeDisabled()
     await page.getByRole('combobox', { name: 'Replacement default collection', exact: true }).selectOption(remaining)
@@ -39,7 +39,7 @@ test('explicit default replacement and exact consequences retain duplicate raw, 
   await page.goto(entry)
   await expect.poll(async () => (await record(page))?.snapshot?.items.length).toBe(4)
   const before = (await record(page)).snapshot!
-  const browse = await button(page, 'Delete collection').boundingBox()
+  const browse = await page.getByRole('button', { name: 'Storage', exact: true }).boundingBox()
   await review(page)
   await expect(dialog(page)).toContainText('Synthetic storage')
   await expect(dialog(page)).toContainText('Slots to delete: 5 · Targets to delete: 2 · Explicit wants to delete: 2 · Owned copies retained Unassigned: 4')
@@ -160,7 +160,7 @@ test('offline and unknown default evidence refuse confirmation with concrete gui
   expect((await record(page)).pending).toHaveLength(0)
   await context.setOffline(false); await button(page, 'Cancel deletion').click()
   await context.addCookies([{ name: 'hf-storage-fixture', value: `delete-unknown-default-${crypto.randomUUID()}`, url: baseURL! }])
-  await page.reload(); await button(page, 'Delete collection').click()
+  await page.reload(); await (await storageAction(page, 'Delete collection')).click()
   await expect(dialog(page)).toContainText('default evidence are required')
   await expect(button(page, 'Review collection deletion')).toBeDisabled()
 })
@@ -171,11 +171,11 @@ for (const change of ['signout', 'account', 'owner'] as const) test(`${change} f
   await page.route('**/app/e2e-harness/storage/inventory', async route => { const response = await route.fetch(); started(); await barrier; await route.fulfill({ response }).catch(() => {}) })
   await page.goto(entry); await review(page); await confirm(page); await sending
   const original = (await record(page)).pending[0].intent
-  if (change === 'owner') await page.route('**/rest/v1/partnerships*', route => route.fulfill({ json: [{ id: 'synthetic-membership', owner_user_id: remaining, user1_id: E2E_USER.id, user2_id: remaining }] }))
+  if (change === 'owner') { await page.route('**/rest/v1/partnerships*', route => route.fulfill({ json: [{ id: 'synthetic-membership', owner_user_id: remaining, user1_id: E2E_USER.id, user2_id: remaining }] })); await page.route('**/app/e2e-harness/storage/inventory?*', () => { /* New owner read stays pending: this test checks retention, not the startup reset. */ }) }
   await page.evaluate(({ change, user }) => { const c = new BroadcastChannel('sb-127-auth-token')
     c.postMessage(change === 'signout' ? { event: 'SIGNED_OUT', session: null } : { event: change === 'account' ? 'SIGNED_IN' : 'TOKEN_REFRESHED', session: { user: change === 'account' ? { ...user, id: '55555555-5555-4555-8555-555555555555' } : user } }); c.close()
   }, { change, user: E2E_USER })
-  await expect(dialog(page)).toHaveCount(0); await expect(button(page, 'Delete collection')).not.toBeVisible()
+  await expect(dialog(page)).toHaveCount(0); await expect(page.getByRole('dialog', { name: 'Storage', exact: true })).toHaveCount(0)
   release(); expect((await record(page)).pending[0].intent).toEqual(original); expect((await record(page)).receipts).toHaveLength(0)
 })
 
@@ -215,6 +215,6 @@ test('mixed legacy/native owner fails complete-read admission, no deletion or au
   await page.route('**/app/e2e-harness/storage/inventory', route => { sends++; return route.continue() })
   await page.goto(entry)
   await expect(page.getByText('Could not refresh storage. Showing only saved copies; pending edits are retained.')).toBeVisible()
-  await expect(button(page, 'Delete collection')).toHaveCount(0)
+  await expect((await openStorage(page)).getByRole('button', { name: 'Delete collection', exact: true, disabled: false })).toHaveCount(0)
   expect(sends).toBe(0)
 })

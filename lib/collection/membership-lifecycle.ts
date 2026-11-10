@@ -43,6 +43,8 @@ export function collectionScopeLifetime<T>() {
     current: () => scope,
     isCurrent: (request: number) => request === generation,
     invalidate: () => { scope = null; return ++generation },
+    /** Fences older checks but keeps the current scope until a check proves it changed. */
+    recheck: () => ++generation,
     establish: (request: number, value: T) => {
       if (request !== generation) return false
       scope = value

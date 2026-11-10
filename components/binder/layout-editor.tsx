@@ -109,10 +109,12 @@ export interface BulkLayoutHost { pageIndex: number; rows: number; cols: number;
 export function LayoutToolbar({ editing, onToggle, boundary, bulk }: { editing: boolean; onToggle: () => void; boundary: LayoutBoundary; bulk?: BulkLayoutHost }) {
   const [bulkOpen, setBulkOpen] = useState(false)
   const showBulk = Boolean(bulk && (!bulk.collapsible || bulkOpen))
+  // Browsing is the normal state: one small control, not a panel above the binder.
+  if (!editing) return <section aria-label="Layout editing" className="flex shrink-0 justify-end"><LayoutButton aria-pressed={false} onClick={onToggle}>Edit layout</LayoutButton></section>
   return <section aria-label="Layout editing" className="shrink-0 rounded-xl border border-border bg-card px-3 py-2 text-foreground">
     <div className="flex items-center justify-between gap-2">
-      <p role="status" className="text-sm">{editing ? "Editing layout" : "Browse layout"}</p>
-      <LayoutButton aria-pressed={editing} onClick={onToggle}>{editing ? "Done" : "Edit layout"}</LayoutButton>
+      <p role="status" className="text-sm">Editing layout</p>
+      <LayoutButton aria-pressed onClick={onToggle}>Done</LayoutButton>
     </div>
     {editing && bulk?.collapsible && <div className="mt-2"><LayoutButton aria-expanded={bulkOpen} onClick={() => setBulkOpen(open => !open)}>{bulkOpen ? "Back to single slot" : "Select several pockets"}</LayoutButton></div>}
     {editing && showBulk && bulk?.onPageChange && <nav aria-label="Selection pages" className="mt-2 flex flex-wrap items-center gap-2">

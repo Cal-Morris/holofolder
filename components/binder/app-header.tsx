@@ -58,6 +58,9 @@ export interface AppHeaderContext {
   openSearch: () => void
   pageInputValue: string
   readOnlyMode: boolean
+  /** Native storage: collection choice and view live in the storage toolbar, not legacy filters or shares. */
+  nativeStorage?: boolean
+  onNationalDex?: () => void
   setIsAuthOpen: Dispatch<SetStateAction<boolean>>
   setIsBinderSwitcherOpen: Dispatch<SetStateAction<boolean>>
   setIsDesktopActionsOpen: Dispatch<SetStateAction<boolean>>
@@ -128,7 +131,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <Button variant="ghost" size="icon" className={`h-11 ${ctx.user ? "w-11" : "w-9 md:w-11"}`} onClick={isSpreadLayout ? goToNextSpread : goToNextPage} disabled={!canGoToNextVisiblePage} aria-label={isSpreadLayout ? "Next binder spread" : "Next binder page"}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           )}
-          {activeMainView !== "pokemon" && activeMainView !== "analytics" && (
+          {!ctx.nativeStorage && activeMainView !== "pokemon" && activeMainView !== "analytics" && (
             <Button variant="ghost" aria-label="View" className="h-11 min-w-9 gap-1.5 rounded-xl px-2 text-xs" onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileNavExpanded(true) })} aria-haspopup="dialog" aria-expanded={isMobileNavExpanded}>
               <SlidersHorizontal className="h-4 w-4" aria-hidden /><span className={ctx.user ? undefined : "hidden md:inline"}>View</span>
             </Button>
@@ -141,11 +144,12 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               { id: "previous-needed", label: `Previous ${activeJumpLabel.toLowerCase()}`, icon: <Sparkles />, onSelect: handleJumpToPreviousNeeded, disabled: activeJumpPokemonList.length === 0 },
               { id: "next-needed", label: `Next ${activeJumpLabel.toLowerCase()}`, icon: <Sparkles />, onSelect: handleJumpToNextNeeded, disabled: activeJumpPokemonList.length === 0 },
             ] : []),
+            ...(ctx.onNationalDex ? [{ id: "national-dex", label: "National Dex", icon: <ListChecks />, onSelect: ctx.onNationalDex }] : []),
             ...(!readOnlyMode ? [{ id: "analytics", label: "Analytics", icon: <ListChecks />, onSelect: () => { void switchMainView("analytics") } }] : []),
             ...(installPromptEvent && !isInstalledApp ? [{ id: "install", label: "Install app", icon: <Sparkles />, onSelect: () => { void handleInstallApp() } }] : []),
             ...(!readOnlyMode && ctx.user ? [
               { id: "partner", label: "Partner", icon: <Users />, onSelect: () => openExclusively(() => setIsPartnerOpen(true)) },
-              { id: "share", label: isShareEnabled ? "Copy share link" : "Create share link", icon: isShareLoading ? <Loader2 className="animate-spin" /> : <Link2 />, disabled: isShareLoading, keepOpen: true, onSelect: () => { if (isShareEnabled && fullShareUrl) void handleCopyReadOnlyShareLink(); else void handleEnableReadOnlyShare() } },
+              ...(ctx.nativeStorage ? [] : [{ id: "share", label: isShareEnabled ? "Copy share link" : "Create share link", icon: isShareLoading ? <Loader2 className="animate-spin" /> : <Link2 />, disabled: isShareLoading, keepOpen: true, onSelect: () => { if (isShareEnabled && fullShareUrl) void handleCopyReadOnlyShareLink(); else void handleEnableReadOnlyShare() } }]),
             ] : []),
             { id: "settings", label: "Settings", icon: <Settings />, onSelect: () => openExclusively(() => setIsSettingsOpen(true)) },
             { id: "theme", label: isDarkMode ? "Light mode" : "Dark mode", icon: isDarkMode ? <Sun /> : <Moon />, onSelect: toggleDarkMode },
