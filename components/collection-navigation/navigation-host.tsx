@@ -203,20 +203,16 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   if (!visible) return <p role="status">Opening saved view…</p>
   const collectionId = visible.collectionId
   const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
-  const header = <header className={styles.header}>
-      <label>Collection<select aria-label="Collection" value={collectionId ?? ""} onChange={e => navigate({ ...visible, main: "collection", collectionId: e.target.value })}>
-        {!collectionId && <option value="">No available storage</option>}{index.collections.map(c => {
-          const kind = currentRead.evidence.kind !== "unavailable" ? currentRead.evidence.snapshot.collections.find(collection => collection.id === c.id)?.kind : undefined
-          return <option key={c.id} value={c.id}>{c.name}{kind && ` · ${{ binder: "Binder", custom: "Custom storage", slab: "Slab collection" }[kind]}`}</option>
-        })}
-      </select></label>
-      {visible.main === "collection" && <label>View<select aria-label="Collection view" value={collectionState.view} onChange={e => navigate({ ...visible,
+  // Compact: the collection picker reads as the page title; National Dex and Inventory live in the dock.
+  const header = <div className="flex min-w-0 flex-1 items-center gap-1">
+      <select aria-label="Collection" className="h-9 min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 text-base font-semibold" value={collectionId ?? ""} onChange={e => navigate({ ...visible, main: "collection", collectionId: e.target.value })}>
+        {!collectionId && <option value="">No storage yet</option>}{index.collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+      {visible.main === "collection" && <select aria-label="Collection view" className="h-9 shrink-0 rounded-lg bg-transparent px-1 text-base text-muted-foreground" value={collectionState.view} onChange={e => navigate({ ...visible,
         collections: { ...visible.collections, [collectionId!]: { ...collectionState, view: e.target.value as CollectionViewState["view"], scroll: 0 } } })}>
         <option value="binder">Binder</option><option value="list">List</option>{stagedSlabs && <option value="slabs">Slabs</option>}
-      </select></label>}
-      <p>Inventory is what you own and where. Collections are your named storage arrangements.</p>
-      <button className="min-h-9 px-2" onClick={() => navigate({ ...visible, main: "dex", dexView: "list" })}>National Dex</button>
-    </header>
+      </select>}
+    </div>
   const collection = collectionId && index.kind !== "unavailable" ? { read: currentRead, collectionId, state: collectionState, highlight,
     onChange: (patch: Partial<CollectionViewState>) => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) } : null
   const slabCopies = collectionState.view === "slabs" && stagedSlabs && collectionId ? slabCollectionCopies(scope, currentRead, collectionId) : []
@@ -242,7 +238,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   }, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
     onInventory: () => navigate({ ...visible, main: "inventory" }), onCollection: () => navigate({ ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
     onLegacyView: dexView => navigate({ ...visible, main: "dex", dexView }) })
-  return <div className={styles.host}>{header}{content}
+  return <div className={styles.host}><header className={styles.header}>{header}</header>{content}
     <nav aria-label="Collection navigation" className={styles.dock}>
       <button aria-current={visible.main === "collection" ? "page" : undefined} disabled={!collectionId} onClick={() => navigate({ ...visible, main: "collection" })}>Collections</button>
       <button aria-current={visible.main === "inventory" ? "page" : undefined} onClick={() => navigate({ ...visible, main: "inventory" })}>Inventory</button>

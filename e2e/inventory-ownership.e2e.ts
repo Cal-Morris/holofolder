@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, openStorage } from "./fixtures"
 import type { Page } from "@playwright/test"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
 
@@ -117,7 +117,7 @@ test("assigned removal previews exact consequences and composes existing Activit
   await expect(dialog).toContainText("Activity")
   await confirm(page, 1)
   expect((await record(page)).snapshot!.items).toHaveLength(before.items.length - 1)
-  await page.getByRole("button", { name: "Activity", exact: true }).click()
+  await (await storageAction(page, "Activity")).click()
   const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
   await expect(activity.getByRole("button", { name: "Undo", exact: true })).toHaveCount(0)
   await activity.getByRole("checkbox", { name: `Restore ${copy} as Unassigned` }).check()
@@ -127,7 +127,7 @@ test("assigned removal previews exact consequences and composes existing Activit
   await expect(activity.getByRole("button", { name: "Retry exact recovery" })).toBeVisible()
   await activity.getByRole("button", { name: "Close Activity" }).click()
   await expect(page.getByRole("button", { name: "Add owned card", exact: true })).toHaveCount(0)
-  await page.getByRole("button", { name: "Activity", exact: true }).click()
+  await (await storageAction(page, "Activity")).click()
   await activity.getByRole("button", { name: "Retry exact recovery" }).click()
   await expect.poll(async () => (await record(page)).recovery?.[0]?.synchronized).toBe(true)
   const restored = (await record(page)).snapshot!
@@ -213,7 +213,7 @@ for (const change of ["signout", "account", "owner"] as const) test(`${change} t
   await dialog.getByRole("button", { name: "Unassign copy", exact: true }).click()
   await dialog.getByRole("button", { name: "Confirm change" }).click(); await sending
   const original = (await record(page)).pending[0].intent
-  if (change === "owner") await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-membership", owner_user_id: "33333333-3333-4333-8333-333333333333", user1_id: E2E_USER.id, user2_id: "33333333-3333-4333-8333-333333333333" }] }))
+  if (change === "owner") { await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-membership", owner_user_id: "33333333-3333-4333-8333-333333333333", user1_id: E2E_USER.id, user2_id: "33333333-3333-4333-8333-333333333333" }] })); await page.route("**/app/e2e-harness/storage/inventory?*", () => { /* New owner read stays pending: this test checks retention, not the startup reset. */ }) }
   await page.evaluate(({ change, user }) => { const channel = new BroadcastChannel("sb-127-auth-token")
     channel.postMessage(change === "signout" ? { event: "SIGNED_OUT", session: null } : { event: change === "account" ? "SIGNED_IN" : "TOKEN_REFRESHED", session: { user: change === "account" ? { ...user, id: "55555555-5555-4555-8555-555555555555" } : user } }); channel.close()
   }, { change, user: E2E_USER })
@@ -288,7 +288,7 @@ test("current partner authority edits the resolved owner's exact raw copy", asyn
 test("pending creation fences Inventory ownership without changing the creation lane", async ({ page }) => {
   await page.route("**/app/e2e-harness/storage/creation", route => route.fulfill({ status: 503, json: { error: "Synthetic unavailable creation" } }))
   await open(page)
-  await page.getByRole("button", { name: "New storage", exact: true }).click()
+  await (await storageAction(page, "New storage")).click()
   const dialog = page.getByRole("dialog", { name: "New storage", exact: true })
   await dialog.getByRole("textbox", { name: "Storage name" }).fill("Synthetic pending creation")
   await dialog.getByRole("button", { name: "Review storage", exact: true }).click()
@@ -359,9 +359,10 @@ for (const decision of ["unassign", "swap"] as const) test(`occupied ${decision}
   // Assign the second real copy to a different collection through the existing empty-slot flow.
   await place(page, "synthetic-raw-copy-1", "synthetic-other-slot", 1)
   const before = (await record(page)).snapshot!
+  // Synchronized history lives in the Storage menu, never above the collection.
   const history = page.getByLabel("Acknowledged command history", { exact: true })
-  const historyBox = await history.boundingBox()
-  expect(historyBox!.height).toBeLessThanOrEqual(72)
+  await expect(history).toHaveCount(0)
+  const historyBox = null
   const selectedCopy = page.locator('[data-item-id="synthetic-raw-copy-1"]')
   await selectedCopy.scrollIntoViewIfNeeded()
   const rowBox = (await selectedCopy.boundingBox())!, dockBox = (await page.locator('[data-dock="true"]').boundingBox())!
@@ -401,7 +402,7 @@ for (const decision of ["unassign", "swap"] as const) test(`occupied ${decision}
     if (!query.has("scope")) expect(query.get("operationId")).toBe(operationId)
     return route.fulfill({ json: query.has("scope") ? { scope: activityScope } : { scope: activityScope, data: [], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
   })
-  await page.getByText("Review synchronized changes", { exact: true }).click()
+  await (await openStorage(page)).getByText("Review synchronized changes", { exact: true }).click()
   await page.getByRole("combobox", { name: "Synchronized change" }).selectOption(operationId)
   await page.getByRole("button", { name: "Find acknowledged change" }).click()
   const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
@@ -513,7 +514,7 @@ for (const decision of ["swap", "unassign"] as const) test(`selected graded ${de
     const event = { id: "101", operation_id: operationId, recorded_at: "2026-11-10T12:00:00Z", format_version: 1, actor_kind: "user", actor_user_id: E2E_USER.id, source: "app", action: "inventory.move", affected_entities: { inventoryItemIds: [gradedCopy, copy], collectionIds: [collection], slotIds: ["synthetic-slot-0"] }, changes: [] }
     return route.fulfill({ json: { scope, data: [event], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
   })
-  await page.getByText("Review synchronized changes", { exact: true }).click()
+  await (await openStorage(page)).getByText("Review synchronized changes", { exact: true }).click()
   await page.getByRole("button", { name: "Find acknowledged change" }).click()
   const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
   await expect(activity).toContainText("One event matches")

@@ -117,6 +117,21 @@ export function mockIllustratorResponse(url: string) {
 }
 
 /** Make the page look like an installed PWA (display-mode: standalone, navigator.standalone, safe areas). */
+/** Native storage actions live in the Storage menu under the app header. Returns the open menu. */
+export async function openStorage(page: Page) {
+  const menu = page.getByRole("dialog", { name: "Storage", exact: true })
+  if (!await menu.isVisible()) await page.getByRole("button", { name: "Storage", exact: true }).click()
+  await expect(menu).toBeVisible()
+  return menu
+}
+export async function storageAction(page: Page, name: string) {
+  return (await openStorage(page)).getByRole("button", { name, exact: true })
+}
+export async function closeStorage(page: Page) {
+  const close = page.getByRole("button", { name: "Close storage", exact: true })
+  if (await close.isVisible()) await close.click()
+}
+
 export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
   await page.addInitScript(() => {
     const originalMatchMedia = window.matchMedia.bind(window)

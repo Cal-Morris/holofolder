@@ -13,6 +13,9 @@ const ActivitySheet = dynamic(()=>import("@/components/collection-activity-sheet
 export type ActivityInitialFilter = { pokemonId?: number; inventoryItemId?: string; operationId?: string }
 const ActivityContext = createContext<((filter:ActivityInitialFilter)=>void) | null>(null)
 
+/** Opens Collection Activity, or null where Activity is unavailable. */
+export const useActivityOpener = () => useContext(ActivityContext)
+
 export function ActivityButton({ pokemonId, onOpen, filter, label = "Activity" }: {pokemonId?:number; onOpen?:()=>void; filter?:ActivityInitialFilter; label?:string}) {
   const open = useContext(ActivityContext)
   if (!open) return null
@@ -68,6 +71,6 @@ export function CollectionActivityProvider({accountId,ownerId,binderId,binders,c
   const open = useCallback((filter:ActivityInitialFilter)=>{closeAllOverlays();setScope(null);setOpened(filter);setRevision(v=>v+1)},[])
   return <ActivityContext.Provider value={allowed ? open : null}>
     {children}
-    {opened && allowed && <ActivitySheet key={JSON.stringify([visibleScope,opened])} scope={visibleScope} nativeRecovery={nativeRecovery} initialFilter={opened} binderId={binderId} binders={binders} collection={collection} pendingCount={pendingCount} isOnline={isOnline} onClose={close} onInvalidScope={invalidate} onVerify={verify} onOpenPokemon={onOpenPokemon} onRecovered={onRecovered} />}
+    {opened && allowed && <ActivitySheet key={JSON.stringify([accountId,ownerId,opened])} scope={visibleScope} nativeRecovery={nativeRecovery} initialFilter={opened} binderId={binderId} binders={binders} collection={collection} pendingCount={pendingCount} isOnline={isOnline} onClose={close} onInvalidScope={invalidate} onVerify={verify} onOpenPokemon={onOpenPokemon} onRecovered={onRecovered} />}
   </ActivityContext.Provider>
 }

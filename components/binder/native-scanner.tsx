@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import dynamic from "next/dynamic"
+import { BookOpen, ScanLine } from "lucide-react"
 import { closeAllOverlays } from "@/hooks/use-overlay"
 import type { NativePageScanAdmission } from "@/components/native-page-scanner"
 
@@ -18,13 +19,9 @@ export default function NativeBinderScanner({ admission, online, available }: {
   const close = () => setOpened(null)
   const open = (kind: "page" | "card") => { closeAllOverlays(); setOpened(kind) }
   return <>
-    <div className="shrink-0 space-y-1 px-4 py-2">
-      <div className="flex flex-wrap gap-2">
-        <button className="min-h-9 rounded-lg border px-3 text-sm" disabled={!available} onClick={() => open("page")}>Scan page</button>
-        <button className="min-h-9 rounded-lg border px-3 text-sm" disabled={!available} onClick={() => open("card")}>Scan card</button>
-      </div>
-      {!available && <p role="status" className="text-xs text-muted-foreground">Reconnect and refresh complete storage before scanning. Pending edits must finish syncing and the saved grid must match.</p>}
-    </div>
+    {/* Disabled until storage is current, sync is idle and the saved grid matches. */}
+    <button type="button" aria-label="Scan page" title={available ? "Scan page" : "Reconnect and refresh storage to scan"} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60 disabled:opacity-40" disabled={!available} onClick={() => open("page")}><BookOpen className="h-4 w-4" aria-hidden /></button>
+    <button type="button" aria-label="Scan card" title={available ? "Scan card" : "Reconnect and refresh storage to scan"} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60 disabled:opacity-40" disabled={!available} onClick={() => open("card")}><ScanLine className="h-4 w-4" aria-hidden /></button>
     {opened === "page" && <PageScanner nativeAdmission={admission} onClose={close} />}
     {opened === "card" && <QuickCardScanner nativeAdmission={admission} getOfflineCards={admission.getOfflineCards} isOnline={online} onClose={close}
       onResult={() => { /* Native admission owns review; no legacy species write. */ }} />}

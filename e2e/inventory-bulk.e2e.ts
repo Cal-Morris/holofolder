@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, openStorage } from "./fixtures"
 import type { Page } from "@playwright/test"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
 
@@ -78,7 +78,7 @@ test("explicit bulk mapping cancels, moves and unassigns all copies, exact Activ
     else if (!query.has("scope")) expect(query.get("operationId")).toBe(operationId)
     return route.fulfill({ json: query.has("scope") ? { scope } : { scope, data: [{ id: "103", operation_id: operationId, recorded_at: "2026-11-10T12:00:00Z", format_version: 1, actor_kind: "user", actor_user_id: E2E_USER.id, source: "app", action: "inventory.bulk", affected_entities: { inventoryItemIds: [first, second], collectionIds: [collection], slotIds: ["synthetic-slot-1"] }, changes: [{ table: "inventory_placements", id: first, before: { slot_id: "synthetic-slot-1" }, after: null }] }], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
   })
-  await page.getByText("Review synchronized changes", { exact: true }).click()
+  await (await openStorage(page)).getByText("Review synchronized changes", { exact: true }).click()
   await page.getByRole("combobox", { name: "Synchronized change" }).selectOption(operationId)
   await page.getByRole("button", { name: "Find acknowledged change" }).click()
   const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })

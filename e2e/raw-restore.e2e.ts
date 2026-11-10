@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { test, expect, mockBackends, emulateStandalone, Harness } from './fixtures'
+import { test, expect, mockBackends, emulateStandalone, Harness, storageAction, closeStorage } from './fixtures'
 import type { Page } from '@playwright/test'
 import { parseBinderBackupV2 } from '../lib/binder-backup-v2'
 const collection = '22222222-2222-4222-8222-222222222222'
@@ -14,7 +14,7 @@ async function record(page: Page) {
   })
 }
 async function inspect(page: Page, reorder = false) {
-  await page.getByRole('button', { name: 'Backup', exact: true }).click()
+  await (await storageAction(page, 'Backup')).click()
   const d = dialog(page)
   await d.getByRole('combobox', { name: 'Export scope' }).selectOption('collection')
   const downloaded = page.waitForEvent('download')
@@ -96,7 +96,7 @@ test('lost committed reply survives reload as exact intent, fences sinks, retrie
   await expect.poll(async () => { const p = (await record(page))?.pending[0]; return p?.status === 'unavailable' && p.lease === null }).toBe(true)
   const pending = (await record(page))!.pending[0].intent
   await d.getByRole('button', { name: 'Close backup' }).click()
-  await expect(page.getByRole('button', { name: 'New storage', exact: true })).toBeDisabled()
+  await expect(await storageAction(page, 'New storage')).toBeDisabled(); await closeStorage(page)
   await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0)
   dropReply = false

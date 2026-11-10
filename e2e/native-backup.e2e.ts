@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises"
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction } from "./fixtures"
 import type { Page } from "@playwright/test"
 import { parseBinderBackupV2 } from "../lib/binder-backup-v2"
 const collection = "22222222-2222-4222-8222-222222222222"
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${collection}`
 const dialog = (page: Page) => page.getByRole("dialog", { name: "Collection data backup", exact: true })
 async function open(page: Page) {
-  await page.getByRole("button", { name: "Backup", exact: true }).click()
+  await (await storageAction(page, "Backup")).click()
   await expect(dialog(page)).toBeVisible()
   return dialog(page)
 }
@@ -133,7 +133,7 @@ test("backup dialog dismisses every way, restores focus and revokes its artifact
   await page.goto(entry); const h = new Harness(page, insets, true)
   let d = await open(page); await download(page)
   await d.getByRole("button", { name: "Close backup" }).click(); await expect(d).toBeHidden()
-  await expect(page.getByRole("button", { name: "Backup", exact: true })).toBeFocused()
+  await expect(page.getByRole("button", { name: "Storage", exact: true })).toBeFocused()
   expect(await page.evaluate(() => (window as unknown as { syntheticBackupUrls: Set<string> }).syntheticBackupUrls.size)).toBe(0)
   d = await open(page); await page.keyboard.press("Escape"); await expect(d).toBeHidden()
   d = await open(page); await h.tapBackdrop(d); await expect(d).toBeHidden()
@@ -154,7 +154,7 @@ test("session teardown during fresh export read cancels late artifact and local 
   await d.getByRole("button", { name: "Download collection data", exact: true }).click(); await reading
   await page.evaluate(() => { const c = new BroadcastChannel("sb-127-auth-token"); c.postMessage({ event: "SIGNED_OUT", session: null }); c.close() })
   await expect(d).toBeHidden(); release()
-  await expect(page.getByRole("button", { name: "Backup", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Storage", exact: true })).toHaveCount(0)
   expect(artifacts).toEqual([])
 })
 
@@ -181,7 +181,7 @@ test("pending native creation blocks export and file preview in the combined hos
   await context.addCookies([{ name: "hf-storage-fixture", value: `creation-backup-${crypto.randomUUID()}`, url: baseURL! }])
   await page.route("**/app/e2e-harness/storage/creation", route => route.abort("failed"))
   await page.goto(entry)
-  await page.getByRole("button", { name: "New storage", exact: true }).click()
+  await (await storageAction(page, "New storage")).click()
   const creating = page.getByRole("dialog", { name: "New storage", exact: true })
   await creating.getByRole("textbox", { name: "Storage name" }).fill("Synthetic pending backup binder")
   await creating.getByRole("combobox", { name: "Starting arrangement" }).selectOption("blank")

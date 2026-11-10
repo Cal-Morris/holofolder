@@ -5,7 +5,6 @@ import { collectionDeletionEvidence, type CollectionDeletionDraft } from "@/lib/
 import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import type { NativeRawRestoreBinding } from '@/lib/native-raw-restore'
 import type { NativeBackupBinding } from "@/lib/native-backup"
-import { closeAllOverlays } from "@/hooks/use-overlay"
 import { prepareBinderCreation, type BinderCreationDraft } from "@/lib/binder-creation-draft"
 import type { NativeBinderCreationBinding } from "@/components/native-binder-creation"
 
@@ -13,8 +12,9 @@ import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { AcknowledgedCommandActivity } from "@/components/acknowledged-command-activity"
-import { ActivityButton } from "@/components/collection-activity-context"
+import { StorageMenu } from "./storage-menu"
 import dynamic from "next/dynamic"
+import { BinderSkeleton } from "@/components/binder-skeleton"
 import type { InventorySnapshot } from "@/lib/domain/inventory"
 import type { SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
 import { inventoryGradingReference, prepareInventoryGradingIntent } from "@/lib/grading/inventory-edit"
@@ -45,6 +45,9 @@ export interface BrowserSurfaceBinding {
   nativeConsumer?: Omit<import("@/lib/collection/native-card-consumers").NativeConsumerBinding, "openCard">
   analytics: { scope: import("@/lib/collection-navigation").CollectionNavigationScope; read: CollectionNavigationRead }
   surface: NavigationSurface
+  /** Collection picker and view, shown in one row under the app header. */
+  toolbar: ReactNode
+  storageMenu: ReactNode
   display?: SlotDisplayInput
   catalog: InventoryCatalogResolver
   receive: SlotCommandSink
@@ -151,20 +154,25 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     alive.current = true
     let cachedFinished = false, active = true
     const initial = async () => {
+      // The server read starts first; this device's saved copy only fills the wait and never replaces it.
+      const startupRequest = sequence.current + 1
+      const network = refresh()
+      network.catch(() => {})
       const record = await latest.current.queue.queue?.read()
       const metadata = await getOfflineStore()?.get<{ catalog: CollectionNavigationRead["catalog"]; layouts: CollectionNavigationRead["layouts"] }>(metadataKey)
       if (!active || !valid()) return
       if (record?.optimistic) {
         const safeMetadata = record.snapshot ? parseNavigationEvidence(metadata, record.snapshot) : undefined
-        setRead({ scope: navigationScope, evidence: { kind: "cached", snapshot: record.optimistic }, catalog: safeMetadata?.catalog ?? [], layouts: safeMetadata?.layouts ?? [] })
+        const cached: CollectionNavigationRead = { scope: navigationScope, evidence: { kind: "cached", snapshot: record.optimistic }, catalog: safeMetadata?.catalog ?? [], layouts: safeMetadata?.layouts ?? [] }
+        setRead(previous => previous.evidence.kind === "unavailable" ? cached : previous)
       }
       cachedFinished = true
-      const startupRequest = sequence.current + 1
-      try { await refresh() } catch (error) { if (active && valid() && sequence.current === startupRequest) onStartupFailure(error instanceof Error ? error.message : "storage_startup_failed") }
+      try { await network } catch (error) { if (active && valid() && sequence.current === startupRequest) onStartupFailure(error instanceof Error ? error.message : "storage_startup_failed") }
     }
     void initial().catch(error => { if (active && valid()) { onStartupFailure(error instanceof Error ? error.message : "Saved storage could not be opened"); setReady(true) } })
     const disconnected = () => setOnline(false)
-    const reconnect = () => { setOnline(navigator.onLine); if (cachedFinished && document.visibilityState !== "hidden") void refresh().catch(() => {}) }
+    // A read already in flight is current enough; restarting it on every focus meant a slow read never finished.
+    const reconnect = () => { setOnline(navigator.onLine); if (cachedFinished && !refreshing.current && document.visibilityState !== "hidden") void refresh().catch(() => {}) }
     queueMicrotask(() => setOnline(navigator.onLine))
     window.addEventListener("offline", disconnected); window.addEventListener("online", reconnect); window.addEventListener("focus", reconnect); document.addEventListener("visibilitychange", reconnect)
     const invalidate = () => { alive.current = false; sequence.current++; readTransport.current?.abort() }
@@ -419,7 +427,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // The exact creation is consumed at most once in this mounted session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue.record, read])
-  if (!ready) return <p role="status">Opening saved storage…</p>
+  if (!ready) return <BinderSkeleton />
   const gradingItem = grading?.snapshot.items.find(i => i.id === grading.itemId)
   const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(recoveryUnresolved)
   return <><CollectionNavigationHost ownership={ownership} onEditGrading={canEditGrading ? itemId => {
@@ -439,18 +447,21 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
         return <>{deleting && <NativeCollectionDeletion key={`${scope.sessionId}:${deleting}`} collectionId={deleting} binding={{ read, available: deletionAvailable, receive: receiveDeletion }} onClose={() => setDeleting(null)} />}{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
-          editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
-          <div className="flex flex-wrap items-center gap-2 px-4"><ActivityButton /><button type="button" className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { closeAllOverlays(); setBackupOpen(true) }}>Backup</button>
-            <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold" disabled={!creationAvailable}
-              onClick={() => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, count: snapshot?.collections.length ?? 0, available: creationAvailable,
-                create: draft => create(draft, surface.openCreated) } })}>New storage</button>
-            {surface.state.main === "collection" && surface.state.collectionId && <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm" disabled={!deletionAvailable} onClick={() => { closeAllOverlays(); setDeleting(surface.state.collectionId) }}>Delete collection</button>}</div>
-
-          {surface.state.main === "collection" && binder?.presetManifest?.setScope && <details className="mx-4 rounded-xl border border-border px-3 text-sm">
-            <summary className="min-h-10 cursor-pointer py-2">Saved checklist scope</summary>
-            <div className="max-h-48 overflow-y-auto pb-3"><SetChecklistScopePreview checklist={{ manifest: binder.presetManifest, scope: binder.presetManifest.setScope }} binder={binder} /></div>
-          </details>}
-          <AcknowledgedCommandActivity record={valid() ? queue.record : null} scope={{ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }} />
+          editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, toolbar: surface.header,
+          storageMenu: <StorageMenu attention={Boolean(queue.record?.recovery?.some(recoveryUnresolved))} actions={[
+            { label: "Backup", onSelect: () => setBackupOpen(true) },
+            { label: "New storage", disabled: !creationAvailable, onSelect: () => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, count: snapshot?.collections.length ?? 0, available: creationAvailable,
+                create: draft => create(draft, surface.openCreated) } }) },
+            ...(surface.state.main === "collection" && surface.state.collectionId ? [{ label: "Delete collection", disabled: !deletionAvailable, onSelect: () => setDeleting(surface.state.collectionId) }] : []),
+            { label: "Refresh storage", disabled: !online, onSelect: () => { void refresh().catch(() => {}) } },
+          ]}>
+            {surface.state.main === "collection" && binder?.presetManifest?.setScope && <details className="rounded-xl px-3">
+              <summary className="min-h-11 cursor-pointer py-3 font-medium">Saved checklist scope</summary>
+              <div className="max-h-48 overflow-y-auto pb-3"><SetChecklistScopePreview checklist={{ manifest: binder.presetManifest, scope: binder.presetManifest.setScope }} binder={binder} /></div>
+            </details>}
+            <AcknowledgedCommandActivity record={valid() ? queue.record : null} scope={{ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }} />
+          </StorageMenu>,
+          surface: { ...surface, header: <>
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
           {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
@@ -480,11 +491,10 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
             if (!head || !valid()) return
             void latest.current.queue.queue?.resume(head.intent.request.operationId).then(() => latest.current.queue.refresh()).catch(() => { if (valid()) setNotice("This edit needs reconciliation, or a send is still in progress. The original command is retained.") })
           }}>Retry pending sync</button>}
-          <button type="button" className="min-h-10 self-start rounded-lg border px-3 text-sm" disabled={!online} onClick={() => { void refresh().catch(() => {}) }}>Refresh storage</button>
-          {read.evidence.kind === "complete" && !read.evidence.snapshot.collections.length && <p role="status" className="px-4 text-sm">Create your first storage with New storage. It becomes your default collection once current storage confirms it.</p>}
+          {read.evidence.kind === "complete" && !read.evidence.snapshot.collections.length && <p role="status" className="px-4 text-sm">Create your first storage from Storage, then New storage. It becomes your default collection once current storage confirms it.</p>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
 
-          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
+          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
 
           scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
             ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,

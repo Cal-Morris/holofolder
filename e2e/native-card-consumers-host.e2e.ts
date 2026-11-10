@@ -1,5 +1,5 @@
 import type { SlotOfflineRecord } from '../lib/collection/slot-offline-queue'
-import { test, expect, mockBackends, emulateStandalone, Harness } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, storageAction, closeStorage } from "./fixtures"
 import type { Page } from "@playwright/test"
 const entry = "/app/e2e-harness?signedIn=1&browserHost=1&binder=22222222-2222-4222-8222-222222222222"
 const card = { id: "synthetic-native-trainer", localId: "7", name: "Synthetic Native Trainer", language: "en", dexIds: [],
@@ -12,7 +12,7 @@ async function records(page: Page) {
   })
 }
 async function lookup(page: Page) {
-  await expect(page.getByRole("button", { name: "Backup", exact: true })).toBeVisible()
+  await expect(await storageAction(page, "Backup")).toBeVisible(); await closeStorage(page)
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Search", exact: true }).click()
   await page.getByRole("textbox", { name: "Search Pokémon, cards, sets, artists or dex number" }).fill("Synthetic Native Trainer")
   await page.getByRole("button", { name: /^Synthetic Native Trainer .*Wanted ×3/ }).click()
@@ -78,7 +78,7 @@ test("actual QuickMode Show lookup receives native duplicate wanted destinations
   let sends = 0
   page.on("request", r => { if (r.method() === "POST" && r.url().endsWith("/storage/inventory")) sends++ })
   await page.goto(entry)
-  await expect(page.getByRole("button", { name: "Backup", exact: true })).toBeVisible()
+  await expect(await storageAction(page, "Backup")).toBeVisible(); await closeStorage(page)
   await page.keyboard.press("Control+k")
   const quick = page.getByRole("dialog", { name: "Quick mode", exact: true })
   await quick.getByRole("searchbox").fill("card show")

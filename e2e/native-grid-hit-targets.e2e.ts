@@ -50,7 +50,7 @@ for (const size of [3, 4, 8]) test(`native ${size}x${size} grid keeps real Brows
   const toolbar = page.getByRole("region", { name: "Layout editing", exact: true })
   const dialog = page.getByRole("dialog", { name: /details$/ })
   await expect(toolbar.getByRole("button", { name: "Edit layout", exact: true })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Storage dashboard", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Storage dashboard", exact: true })).toHaveCount(0)
   await first.click()
   await expect(dialog).toHaveAttribute("data-slot-id", "alpha-empty-0")
   await expect(first).toHaveAttribute("aria-pressed", "true")

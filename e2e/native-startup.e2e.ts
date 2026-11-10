@@ -87,10 +87,8 @@ test("previously cached native pending layout survives genuine page close and of
     const button = dock.getByRole("button", { name, exact: true })
     await h.expectMinTapTarget(button); await h.expectWithinSafeViewport(button); await h.expectHittable(button)
   }
-  const dashboard = reopened.getByRole("region", { name: "Storage dashboard" })
-  await expect(dashboard).toContainText("Cached only")
-  await expect(dashboard).toContainText("1 physical copy")
-  await reopened.getByRole("button", { name: "View storage value in Analytics" }).click()
+  await reopened.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
+  await reopened.getByRole("menuitem", { name: "Analytics", exact: true }).click()
   const analytics = reopened.getByRole("region", { name: "Collection analytics", exact: true })
   await expect(analytics).toContainText("Cached only")
   await expect(analytics).toContainText("13 actual slots")

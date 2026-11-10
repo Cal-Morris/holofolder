@@ -28,7 +28,7 @@ export default function NativeBinderCreation({ binding, onClose }: { binding: Na
   const [attempted, setAttempted] = useState(false)
   const capped = binding.count >= MAX_BINDERS_PER_OWNER || Boolean(billing?.access && !canCreateOwnerBinder(billing.access, binding.count))
   const disabled = !binding.available || capped || billing?.loading || busy || saved
-  return createPortal(<div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/45" onClick={onClose}>
+  return createPortal(<div data-overlay-backdrop className="fixed inset-0 z-[42] bg-black/45" onClick={onClose}>
     <div ref={sheet} role="dialog" aria-modal="true" aria-label="New storage" onClick={e => e.stopPropagation()}
       className="absolute inset-x-0 mx-auto flex w-full max-w-md flex-col rounded-t-3xl border border-border bg-card shadow-xl"
       style={{ bottom: "var(--dock-clearance)", maxHeight: "calc(100dvh - var(--top-inset) - var(--dock-clearance) - 0.5rem)" }}>

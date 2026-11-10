@@ -54,11 +54,12 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
     await h.expectMinTapTarget(button); await h.expectWithinSafeViewport(button); await h.expectHittable(button)
   }
   await h.expectNoHorizontalOverflow()
-  for (const name of ["Settings", "Sign out"]) {
-    const control = page.getByRole("button", { name, exact: true })
-    await h.expectMinTapTarget(control); await h.expectWithinSafeViewport(control); await h.expectHittable(control)
-  }
-  await page.getByRole("button", { name: "Settings", exact: true }).click()
+  // Settings and Sign out live in the normal header More menu, not in extra rows above the binder.
+  const more = page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true })
+  await h.expectMinTapTarget(more); await h.expectWithinSafeViewport(more); await h.expectHittable(more)
+  await more.click()
+  await expect(page.getByRole("menuitem", { name: "Sign out", exact: true })).toBeVisible()
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
   await expect(page.getByRole("dialog", { name: /Settings/i })).toBeVisible()
   await nav(page).getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(page.getByRole("dialog")).not.toBeVisible()
@@ -66,7 +67,8 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
   await expect(page.getByRole("combobox", { name: "Collection view" })).toHaveValue("binder")
   await expect(page.getByRole("status").filter({ hasText: "Slabs view is not available" })).toBeVisible()
   await expect(page.locator(`[data-slot-id="${slotId(11)}"]`)).toBeVisible()
-  await page.getByRole("button", { name: "National Dex", exact: true }).click()
+  await page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "National Dex", exact: true }).click()
   await expect(nav(page).getByRole("button", { name: "Inventory", exact: true })).toBeVisible()
 })
 
@@ -156,7 +158,8 @@ test("a same-owner response bound to another session never supplies private rows
   await page.goto(entry)
   await expect(page.getByText("Inventory unavailable", { exact: true })).toBeVisible()
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
-  await page.getByRole("button", { name: "National Dex", exact: true }).click()
+  await page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "National Dex", exact: true }).click()
   await expect(page.getByRole("button", { name: /Missing/ }).first()).toBeVisible()
 })
 

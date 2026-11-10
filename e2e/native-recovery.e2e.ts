@@ -1,4 +1,4 @@
-import {test,expect,mockBackends,emulateStandalone,Harness,E2E_USER} from './fixtures'
+import {test,expect,mockBackends,emulateStandalone,Harness,E2E_USER,storageAction} from './fixtures'
 import type {Page} from '@playwright/test'
 test.use({actionTimeout:10000})
 const collection='22222222-2222-4222-8222-222222222222'
@@ -24,7 +24,7 @@ async function history(page:Page,id='101') {
   })
 }
 async function open(page:Page) {
-  await page.getByRole('button',{name:'Activity',exact:true}).click()
+  await (await storageAction(page,'Activity')).click()
   const dialog=page.getByRole('dialog',{name:'Collection Activity',exact:true})
   await expect(dialog.getByRole('button',{name:'Review recovery',exact:true}).first()).toBeVisible()
   return dialog
@@ -70,7 +70,7 @@ test('native event review, exact durable lost-reply retry, post-reply read ACK a
   await h.expectNoHorizontalOverflow()
 })
 async function openSaved(page:Page) {
-  await page.getByRole('button',{name:'Activity',exact:true}).click()
+  await (await storageAction(page,'Activity')).click()
   const dialog=page.getByRole('dialog',{name:'Collection Activity',exact:true})
   await expect(dialog.getByRole('button',{name:'Retry exact recovery'})).toBeVisible()
   return dialog
@@ -102,7 +102,7 @@ test('accepted receipt survives failed read and reload, verification never reapp
   await expect.poll(async()=>!!(await stored(page))[0]?.receipt).toBe(true)
   expect((await stored(page))[0].synchronized).toBe(false)
   failRead=false;await page.reload()
-  await page.getByRole('button',{name:'Activity',exact:true}).click()
+  await (await storageAction(page,'Activity')).click()
   dialog=page.getByRole('dialog',{name:'Collection Activity',exact:true})
   await dialog.getByRole('button',{name:'Verify current storage'}).click()
   await expect.poll(async()=>(await stored(page))[0]?.synchronized).toBe(true);expect(applied).toBe(1)
@@ -230,7 +230,7 @@ test('terminal noncommit survives failed read/reload, explicit discard retains p
   await expect(dialog.getByRole('button',{name:'Discard noncommitted recovery'})).toHaveCount(0)
   const original=(await stored(page))[0].intent.request
   failedRead=false;await page.reload()
-  await page.getByRole('button',{name:'Activity',exact:true}).click();dialog=page.getByRole('dialog',{name:'Collection Activity',exact:true})
+  await (await storageAction(page,'Activity')).click();dialog=page.getByRole('dialog',{name:'Collection Activity',exact:true})
   await expect(dialog.getByRole('button',{name:'Discard noncommitted recovery'})).toHaveCount(0)
   await dialog.getByRole('button',{name:'Refresh current storage',exact:true}).click()
   const discard=dialog.getByRole('button',{name:'Discard noncommitted recovery'})
@@ -262,4 +262,25 @@ test('terminal noncommit survives failed read/reload, explicit discard retains p
   await expect.poll(async()=>(await stored(page))[1]?.synchronized).toBe(true)
   expect(requests[1].operationId).not.toBe(original.operationId)
   expect((await stored(page))[0].intent.request).toEqual(original)
+})
+
+test('Activity keeps one overlay while access verification finishes, Back stays in the app', async ({page}) => {
+  await history(page)
+  let release!: () => void
+  const verifying = new Promise<void>(resolve => { release = resolve })
+  await page.route(/\/app\/api\/collection-activity\?scope=1$/, async route => {
+    await verifying
+    await route.fulfill({json:{scope}})
+  })
+  await page.goto(entry)
+  await (await storageAction(page,'Activity')).click()
+  const dialog = page.getByRole('dialog',{name:'Collection Activity',exact:true})
+  await expect(dialog).toBeVisible()
+  await dialog.evaluate(element => { Object.assign(window,{syntheticActivityPanel:element}) })
+  release()
+  await expect(dialog.getByRole('button',{name:'Review recovery',exact:true}).first()).toBeVisible()
+  expect(await dialog.evaluate(element => element === (window as unknown as {syntheticActivityPanel:Element}).syntheticActivityPanel)).toBe(true)
+  await page.goBack()
+  await expect(dialog).toBeHidden()
+  expect(page.url()).toContain('/e2e-harness')
 })

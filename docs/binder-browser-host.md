@@ -6,11 +6,17 @@ Related: #379/#386. This is the app/bootstrap lane for direct native cutover. Pa
 
 Signed-in private `BinderApp` enters `BrowserCollectionSession` before mounting the UI surface. The writable legacy `useCollection` lifetime is absent. The rendered UI uses read-only legacy hooks, with native controls bound to the existing canonical IndexedDB queue and sender. Legacy rows, queues and cached DTOs cannot authorize native edits or replay.
 
-`useBrowserCollectionScope` checks current JWT subject, authenticated role, absence of developer `client_id`, auth session ID, current membership and strict partner billing. Its owner comes from that check, not the bootstrap or device marker. Authentication, account, membership, focus and reconnect events invalidate the previous lifetime before asynchronous checks. The current-scope getter fences old reads, callbacks and sends. Owner changes open a new scoped session; failed checks show a retained-state notice with retry/sign-out instead of reopening writable legacy UI.
+`useBrowserCollectionScope` checks current JWT subject, authenticated role, absence of developer `client_id`, auth session ID, current membership and strict partner billing. Its owner comes from that check, not the bootstrap or device marker. Sign-out, a different account and local membership changes invalidate the previous lifetime synchronously, before asynchronous checks. Focus, reconnect and same-account Supabase events (which repeat `SIGNED_IN`/`TOKEN_REFRESHED` on every tab refocus) recheck in the background: the open scope, its session and its reads stay mounted unless the check proves the account, owner or auth session changed, which then opens a new scope. A dropped connection during such a recheck keeps the open collection; a definitive auth, membership or billing failure closes it. The current-scope getter fences old reads, callbacks and sends. Owner changes open a new scoped session; failed checks show a retained-state notice with retry/sign-out instead of reopening writable legacy UI.
 
 `browserHostAdmission` distinguishes authenticated-session from synthetic-local-only evidence. The synthetic server-gated loopback harness always selects synthetic endpoints. Production endpoint selection requires the checked scope. Admission opens a host only: editing still needs the actual private/no-store JSON-v2 HTTP response reconstructed through the complete reader in the current scope.
 
 The production bootstrap loads display settings/layout without reading legacy collection rows. A local native startup pointer can reach canonical IDB startup without a legacy row snapshot. It remains a display pointer, never session or complete-read authority.
+
+## Startup and layout
+
+The complete read starts as soon as the scope is checked, in parallel with this device's saved queue and metadata; the saved copy only fills an empty view and never replaces a server read. Until the first read finishes online, the binder skeleton shows. Focus and reconnect skip a refresh while one is already in flight, so a slow read is not restarted on every refocus.
+
+The native host uses the normal app header (title, page controls, Show, More with Settings, National Dex, Analytics and Sign out) and one compact row: collection picker, Binder/List/Slabs view, Scan page/card icons and a **Storage** menu. Storage holds Activity, Backup, New storage, Delete collection, Refresh storage, the saved checklist scope and synchronized-change review. Storage totals live in Analytics, not above the binder. Status lines appear only while something needs attention (pending sync, conflicts, recovery, refresh failure).
 
 ## Selection and retained state
 

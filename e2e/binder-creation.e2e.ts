@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, storageAction, closeStorage, openStorage } from "./fixtures"
 import type { Page } from "@playwright/test"
 
 // Synthetic RPC/auth transport. Actual BinderApp, HTTP bridge, complete reads and IndexedDB.
@@ -13,7 +13,7 @@ async function record(page: Page) {
   })
 }
 async function open(page: Page, mode = "blank", name = "Synthetic copied binder") {
-  await page.getByRole("button", { name: "New storage", exact: true }).click()
+  await (await storageAction(page, "New storage")).click()
   const dialog = page.getByRole("dialog", { name: "New storage", exact: true })
   await dialog.getByRole("textbox", { name: "Storage name" }).fill(name)
   await dialog.getByRole("combobox", { name: "Starting arrangement" }).selectOption(mode)
@@ -43,7 +43,7 @@ for (const [mode, count] of [["blank", 0], ["national", 1025], ["generation", 15
   const h = new Harness(page, insets, true)
   await h.expectMinTapTarget(dialog.getByRole("button", { name: "Review storage", exact: true }))
   await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow()
-  if (mode === "blank") await test.info().attach("creation-layout.json", { contentType: "application/json", body: JSON.stringify({ viewport: page.viewportSize(), insets, sheet: await dialog.boundingBox(), opener: await page.getByRole("button", { name: "New storage", exact: true }).boundingBox(), dock: await h.dock().boundingBox() }) })
+  if (mode === "blank") await test.info().attach("creation-layout.json", { contentType: "application/json", body: JSON.stringify({ viewport: page.viewportSize(), insets, sheet: await dialog.boundingBox(), opener: await page.getByRole("button", { name: "Storage", exact: true }).boundingBox(), dock: await h.dock().boundingBox() }) })
   expect(await dialog.getByRole("combobox", { name: "Starting arrangement" }).locator('option[value="set"]').isDisabled()).toBe(false)
   if (mode === "blank") {
     await dialog.getByRole("textbox", { name: "Storage name" }).focus(); await page.keyboard.press("Enter")
@@ -85,7 +85,7 @@ for (const status of [402, 403, 409]) test(`creation ${status} retains intent an
   await page.goto(entry); await open(page); await confirm(page)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe(status === 402 ? "billing" : status === 403 ? "blocked" : "unavailable")
   await page.getByRole("button", { name: "Close new storage", exact: true }).click()
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
+  await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
   await expect(page.getByRole("button", { name: "Use current storage", exact: true })).toHaveCount(0)
   expect((await record(page))?.receipts).toHaveLength(0)
 })
@@ -96,14 +96,14 @@ test("cached startup is read-only, overlay dismissals keep dock and keyboard usa
   await h.expectHittable(dialog.getByRole("button", { name: "Close new storage", exact: true }))
   await page.keyboard.press("Escape")
   await expect(dialog).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeFocused()
+  await expect(page.getByRole("button", { name: "Storage", exact: true })).toBeFocused()
   await open(page); await page.goBack(); await expect(dialog).toHaveCount(0)
   await open(page); await h.tapBackdrop(dialog); await expect(dialog).toHaveCount(0)
   await open(page); await h.swipeDown(dialog); await expect(dialog).toHaveCount(0)
   await open(page); await page.getByRole("button", { name: "Inventory", exact: true }).click(); await expect(dialog).toHaveCount(0)
   await page.route("**/app/e2e-harness/storage/inventory?*", route => route.abort("failed"))
   await page.reload()
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
+  await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
   await h.expectNoHorizontalOverflow()
 })
 
@@ -157,7 +157,8 @@ test("later user navigation wins while accepted creation waits for fresh complet
   })
   await page.goto(entry); await open(page); await confirm(page); await sent
   await page.getByRole("button", { name: "Close new storage", exact: true }).click()
-  await page.getByRole("button", { name: "National Dex", exact: true }).click()
+  await page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "National Dex", exact: true }).click()
   release()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("22222222-2222-4222-8222-222222222222")
@@ -193,7 +194,7 @@ test("auth teardown during creation retains sending lease and rejects the late r
     const channel = new BroadcastChannel("sb-127-auth-token")
     channel.postMessage({ event: "SIGNED_OUT", session: null }); channel.close()
   })
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Storage", exact: true })).toHaveCount(0)
   release()
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("sending")
   expect((await record(page))?.receipts).toHaveLength(0)
@@ -202,7 +203,7 @@ test("auth teardown during creation retains sending lease and rejects the late r
 for (const kind of ["binder", "custom"]) test(`${kind} current free allowance blocks confirmation without a legacy request`, async ({ page }) => {
   await page.route("**/app/api/billing", route => route.fulfill({ json: { access: { ownerUserId: "00000000-0000-4000-8000-0000000000e2", tier: "free", source: "free", paidThrough: null, savedCardCount: 0, freeCardLimit: 100, freeBinderLimit: 1, enforced: true }, canManage: true } }))
   await page.goto(entry)
-  await page.getByRole("button", { name: "New storage", exact: true }).click()
+  await (await storageAction(page, "New storage")).click()
   const dialog = page.getByRole("dialog", { name: "New storage", exact: true })
   await dialog.getByRole("combobox", { name: "Storage kind" }).selectOption(kind)
   await expect(dialog).toContainText("Your collection allowance is full")
@@ -213,7 +214,7 @@ for (const kind of ["binder", "custom"]) test(`${kind} current free allowance bl
 
 for (const discarded of [false, true]) test(`native creation respects ${discarded ? "explicit discarded" : "unresolved"} recovery in actual IDB`, async ({ page }) => {
   await page.goto(entry)
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeEnabled()
+  await expect(await storageAction(page, "New storage")).toBeEnabled(); await closeStorage(page)
   await page.evaluate(async discarded => {
     const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     await new Promise<void>((yes, no) => {
@@ -235,7 +236,7 @@ for (const discarded of [false, true]) test(`native creation respects ${discarde
     db.close()
     const channel = new BroadcastChannel("binderdex-slot-intent-v1"); channel.postMessage("changed"); channel.close()
   }, discarded)
-  const button = page.getByRole("button", { name: "New storage", exact: true })
+  const button = await storageAction(page, "New storage")
   if (discarded) {
     await expect(button).toBeEnabled()
     await open(page); await confirm(page)
@@ -325,7 +326,7 @@ for (const mutation of ["family", "delivery", "operation", "proof", "auth", "gen
     if (mutation === "generic") delete body.error.rejection
     if (mutation === "auth") {
       await page.evaluate(() => { const c = new BroadcastChannel("sb-127-auth-token"); c.postMessage({ event: "SIGNED_OUT", session: null }); c.close() })
-      await expect(page.getByRole("button", { name: "New storage", exact: true })).toHaveCount(0)
+      await expect(page.getByRole("button", { name: "Storage", exact: true })).toHaveCount(0)
     }
     await route.fulfill({ response, headers, json: body }).catch(() => {})
   })
@@ -438,7 +439,6 @@ for (const mode of ["blank", "species"]) test(`custom ${mode} copies targets, pr
   const collection = page.getByRole("combobox", { name: "Collection", exact: true }), view = page.getByRole("combobox", { name: "Collection view", exact: true })
   await expect(collection).toHaveValue(request.collectionId)
   await expect(view).toHaveValue("list")
-  await expect(collection.locator("option:checked")).toContainText("Custom storage")
   await view.selectOption("binder"); await expect(view).toHaveValue("binder")
   await page.reload(); await expect(view).toHaveValue("binder")
   await view.selectOption("list"); await page.reload(); await expect(view).toHaveValue("list")
@@ -493,14 +493,14 @@ for (const finishes of [false, true]) test(`set checklist durable ${finishes ? '
   const binder = saved.snapshot.binders.find(b => b.collectionId === id) as unknown as { presetManifest: unknown }
   expect(binder.presetManifest).toEqual(manifest)
   await page.getByRole('combobox', { name: 'Collection', exact: true }).selectOption(id)
-  await page.getByText('Saved checklist scope', { exact: true }).click()
+  await (await openStorage(page)).getByText('Saved checklist scope', { exact: true }).click()
   await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
   await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)
   await h.expectNoHorizontalOverflow()
   await page.route('**/app/e2e-harness/storage/inventory?*', route => route.abort('failed'))
   await page.reload()
-  await expect(page.getByRole('button', { name: 'New storage', exact: true })).toBeDisabled()
-  await page.getByText('Saved checklist scope', { exact: true }).click()
+  await expect(await storageAction(page, 'New storage')).toBeDisabled()
+  await (await openStorage(page)).getByText('Saved checklist scope', { exact: true }).click()
   await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
   await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)
   expect((await record(page))!.snapshot.items).toHaveLength(0)

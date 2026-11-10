@@ -37,7 +37,7 @@ export default function NativeCollectionDeletion({ binding, collectionId, onClos
   catch (e) { boundary = e instanceof Error ? e.message : 'Current native storage is unavailable.' }
   const blocked = !binding.available || !!boundary || stale || busy
   const rows = review?.rows.slice(page * 40, (page + 1) * 40) ?? []
-  return <div className="fixed inset-0 z-40">
+  return <div className="fixed inset-0 z-[42]">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
     <div ref={ref} role="dialog" aria-modal="true" aria-label="Delete collection" tabIndex={-1}
       className="absolute inset-x-3 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xl [overflow-wrap:anywhere]">

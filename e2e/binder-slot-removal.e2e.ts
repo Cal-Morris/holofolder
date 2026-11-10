@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction } from "./fixtures"
 import type { Page } from "@playwright/test"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
 
@@ -231,7 +231,7 @@ test("supported Activity entry point stays truthful when removal history recover
   })
   await page.goto(entry); await select(page); await confirm(page)
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
-  await button(page, "Activity").click()
+  await (await storageAction(page, "Activity")).click()
   const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
   await activity.getByRole("button", { name: "Review recovery", exact: true }).click()
   await expect(activity).toContainText("private_assets_unverifiable")

@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, storageAction, closeStorage } from "./fixtures"
 import type { Page } from "@playwright/test"
 
 // Synthetic transport, real native creation, owner-scoped complete reads and durable record.
@@ -20,7 +20,7 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await context.addCookies([{ name: "hf-storage-fixture", value: `creation-${crypto.randomUUID()}`, url: baseURL! }])
 })
 async function review(page: Page) {
-  await page.getByRole("button", { name: "New storage", exact: true }).click()
+  await (await storageAction(page, "New storage")).click()
   const dialog = page.getByRole("dialog", { name: "New storage", exact: true })
   await dialog.getByRole("combobox", { name: "Storage kind" }).selectOption("custom")
   await dialog.getByRole("textbox", { name: "Storage name" }).fill("Synthetic custom box")
@@ -70,7 +70,7 @@ test("retained legacy work arriving during Custom review fences confirmation and
   await expect(dialog.getByRole("button", { name: "Confirm create storage", exact: true })).toBeDisabled()
   expect((await saved(page)).pending).toHaveLength(0)
   await page.reload()
-  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
+  await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
   expect((await saved(page)).legacy).toHaveLength(1)
   expect((await saved(page)).receipts).toHaveLength(0)
 })
