@@ -35,6 +35,7 @@ import type { CollectedPokemon, SaveCollectionOptions, WantedCard } from "@/hook
 import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSummary } from "@/components/binder/binder-app-model"
 
 export interface MainContentContext {
+  nativeWanted?: import("react").ReactNode
   nativeAnalytics?: import("react").ReactNode
   layoutToolbar?: import("react").ReactNode
   orderedDisplaySlots?: (BinderDisplaySlot | null)[]
@@ -198,7 +199,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             {(["pokemon", "sets"] as const).map(view => <button key={view} type="button" aria-pressed={activeMainView === view} onClick={() => switchMainView(view)} className={`min-h-9 rounded-full border px-4 text-xs font-semibold ${activeMainView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-card/70"}`}>{view === "pokemon" ? "Pokémon" : "Sets"}</button>)}
           </div>
         ) : null}
-        {!readOnlyMode && (activeMainView === "list" || activeMainView === "wanted") && (
+        {!readOnlyMode && (activeMainView === "list" || activeMainView === "wanted" && !ctx.nativeWanted) && (
           <CollectionPriceCheck ownerId={user ? resolvedCollectionOwnerUserId ?? null : null} key={activeMainView} collection={collection} kind={activeMainView === "wanted" ? "wanted" : "owned"} isOnline={isOnline} />
         )}
         {activeMainView === "pokemon" ? (
@@ -222,7 +223,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             readOnly={readOnlyMode}
           />
         ) : activeMainView === "wanted" ? (
-          <WantedDashboard
+          ctx.nativeWanted ? <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{ctx.nativeWanted}</div> : <WantedDashboard
             user={readOnlyMode ? null : user}
             isOnline={isOnline}
             loadedBinderCount={allBinders?.loadedBinderIds?.length ?? 1}
