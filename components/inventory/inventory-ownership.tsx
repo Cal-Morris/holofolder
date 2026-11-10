@@ -13,6 +13,7 @@ import type { InventorySnapshot, InventoryCatalogResolver } from "@/lib/domain/i
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import { pickerCandidate, pickerFinishes } from "@/lib/slot-picker"
 import { inventoryActionDestinations, inventoryActionItemRef, inventoryOccupiedChoices, prepareInventoryAction, type InventoryAction, type InventoryOwnershipBinding } from "@/lib/inventory-actions"
+import { prepareInventoryBulkAction, type InventoryBulkAction } from "@/lib/inventory-bulk-actions"
 import styles from "./inventory.module.css"
 
 const context = () => ({ source: "app" as const, clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() })
@@ -24,10 +25,10 @@ function useActionReview(binding: InventoryOwnershipBinding, onAccepted: () => v
   const [busy, setBusy] = useState(false)
   const lock = useRef(false), alive = useRef(false)
   useLayoutEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
-  const review = (action: InventoryAction, catalog = binding.catalog) => {
+  const review = (action: InventoryAction | InventoryBulkAction, catalog = binding.catalog) => {
     if (lock.current || !binding.available || draft) return
-    try { setDraft({ ...prepareInventoryAction(binding.snapshot, action, context(), catalog), catalog }); setError("") }
-    catch { setError("This copy or destination is unavailable. Refresh current Inventory before trying again.") }
+    try { setDraft({ ...(action.kind === "move" || "itemIds" in action ? prepareInventoryBulkAction(binding.snapshot, action, context(), catalog) : prepareInventoryAction(binding.snapshot, action, context(), catalog)), catalog }); setError("") }
+    catch { setError(action.kind === "move" || "itemIds" in action ? "The entire selection could not be reviewed. Choose distinct raw copies and compatible empty slots within the command limits, or reduce the selection. Nothing was queued." : "This copy or destination is unavailable. Refresh current Inventory before trying again.") }
   }
   const submit = async () => {
     if (lock.current || !draft || !binding.available) return
@@ -177,6 +178,58 @@ export function InventoryAddOwned({ binding, onClose, onInspect }: { binding: In
                 ...(isCardLanguage(card.language) ? { language: card.language } : {}), ...(selectedFinish ? { finish: selectedFinish } : {}) } }, resolve)}>{duplicates.length ? "Add another raw copy" : "Add raw copy as Unassigned"}</button>
             </>}
           </fieldset>}
+      </div>
+    </div>
+  </div>
+}
+
+
+export function InventoryBulkReview({ binding, itemIds, onClose, onAccepted }: { binding: InventoryOwnershipBinding; itemIds: readonly string[]; onClose: () => void; onAccepted: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useOverlay(true, onClose, { containerRef: ref })
+  const swipe = useSwipeToDismiss(ref, onClose)
+  const [mapping, setMapping] = useState<Record<string, string>>({})
+  const review = useActionReview(binding, onAccepted)
+  const location = (snapshot: InventorySnapshot, id: string) => {
+    const p = snapshot.placements.find(p => p.inventoryItemId === id)
+    return p ? `${snapshot.collections.find(c => c.id === p.collectionId)?.name ?? "Storage"}, slot ${p.slotId}` : "Unassigned"
+  }
+  return <div className={styles.overlay}>
+    <div data-overlay-backdrop className={styles.backdrop} onClick={onClose} />
+    <div ref={ref} role="dialog" aria-modal="true" aria-label="Review selected raw copies" className={styles.sheet} tabIndex={-1}>
+      <header {...swipe} data-sheet-grabber className={styles.sheetHeader}><h2>{itemIds.length} selected raw copies</h2><button type="button" aria-label="Close bulk review" onClick={onClose}><X size={20} /></button></header>
+      <div className={styles.sheetBody}>
+        {review.error && <p role="alert">{review.error}</p>}
+        {review.draft ? <Confirmation review={review}>
+          <h3>Apply this entire ordered mapping?</h3>
+          <ol>{itemIds.map(id => {
+            const item = review.draft!.before.items.find(i => i.id === id)!
+            return <li key={id}><p>Copy {id} · {item.identity.kind === "card" ? item.identity.cardId : `Pokémon ${item.identity.pokemonId}`} · {item.identity.kind === "card" ? item.identity.language ?? "Language unknown" : "Language unknown"} · {item.identity.kind === "card" ? item.identity.finish ?? "Finish unknown" : "Finish unknown"} · Raw</p><p>From {location(review.draft!.before, id)} to {location(review.draft!.preview, id)}</p></li>
+          })}</ol>
+          <details><summary>Review retained slot targets and wants</summary>{[...new Set(review.draft.intent.request.commands.flatMap(c => ["item" in c ? c.item.placement?.slot.id : null, "destination" in c ? c.destination.slot.id : null]).filter((id): id is string => !!id))].map(id => {
+            const slot = review.draft!.before.binders.flatMap(b => b.slots).find(s => s.id === id)!
+            return <div key={id}><p>Slot {id}: {targetLabel(slot.target)}. {slot.wantedCards.length} explicit wants retained.</p>{slot.wantedCards.map((want, i) => <p key={i}>{want.card_name} · {want.card_id} · {want.card_language ?? "Language unknown"} · {want.card_finish ?? "Finish unknown"}</p>)}</div>
+          })}</details>
+          <p>One atomic request for all {itemIds.length} copies. Ownership, identity, grading, acquisition and source metadata stay unchanged. Former slots become unfilled; targets, explicit wants, provenance and order remain. No want is fulfilled.</p>
+          <p>After sync and a fresh complete read, use Find acknowledged change for this exact Activity event. Recovery needs a supported preview and current permission and version checks. There is no instant Undo.</p>
+        </Confirmation> : <fieldset disabled={!binding.available} className={styles.actions}>
+          <p>Only these explicitly selected copies are included, in selection order. Choose a different empty saved slot for every copy to move, or unassign all placed copies. Graded ownership actions are unavailable; inspect graded copies individually.</p>
+          {itemIds.map((id, index) => <label key={id} className={styles.field}>{index + 1}. Copy {id} · {location(binding.snapshot, id)}
+            <select aria-label={`Empty destination for ${id}`} value={mapping[id] ?? ""} onChange={e => setMapping(m => ({ ...m, [id]: e.target.value }))}>
+              <option value="">Choose an empty destination</option>
+              {inventoryActionDestinations(binding.snapshot, id, binding.catalog).filter(d => d.slot.inventoryItemId === null).map(d => {
+                const key = JSON.stringify([d.collectionId, d.slot.id])
+                return <option key={key} value={key} disabled={itemIds.some(other => other !== id && mapping[other] === key)}>{binding.snapshot.collections.find(c => c.id === d.collectionId)?.name} · Slot {d.slot.id} · Empty</option>
+              })}
+            </select>
+          </label>)}
+          <button type="button" disabled={!itemIds.every(id => mapping[id])} onClick={() => review.review({ kind: "move", mapping: itemIds.map(itemId => {
+            const [collectionId, slotId] = JSON.parse(mapping[itemId]) as [string, string]
+            return { itemId, collectionId, slotId }
+          }) })}>Review bulk Move</button>
+          <button type="button" disabled={!itemIds.every(id => binding.snapshot.placements.some(p => p.inventoryItemId === id))} onClick={() => review.review({ kind: "unassign", itemIds })}>Review bulk Unassign</button>
+          {!itemIds.every(id => binding.snapshot.placements.some(p => p.inventoryItemId === id)) && <p>Unassign requires every selected copy to be placed. Clear the selection and choose placed raw copies.</p>}
+        </fieldset>}
       </div>
     </div>
   </div>

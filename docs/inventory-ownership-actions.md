@@ -25,7 +25,7 @@ After a strict reply and separately fresh complete ACK, expand **Review synchron
 
 After synchronized removal, the existing Activity entry owns recovery preview and confirmation. The existing private event payload preserves the original item ID, metadata and placement; current permission, version, dependency, billing and plan-token checks still apply. A newer placement must never be displaced: Activity can explicitly restore the removed item as Unassigned. Unsupported/incomplete history is reported by that existing recovery boundary. This slice adds no local inverse, new restore operation, or instant Undo promise.
 
-Bulk ownership actions and graded-copy ownership management and new arbitrary unknown-printing creation are outside this raw slice. Unknown existing printing identities can be retained/moved/unassigned/removed without replacing them with guessed catalog cards. Complete current scope, hosted admission, conversion/old-client and independent production proof remain parent rollout gates. Creation proof from #481 must be retained when integrating this additive BrowserSession binding.
+Graded-copy ownership management, occupied bulk destinations and new arbitrary unknown-printing creation are outside this raw slice. Unknown existing printing identities can be retained/moved/unassigned/removed without replacing them with guessed catalog cards. Complete current scope, hosted admission, conversion/old-client and independent production proof remain parent rollout gates. Creation proof from #481 must be retained when integrating this additive BrowserSession binding.
 
 ## API composition
 
@@ -51,3 +51,21 @@ No entrance/exit motion or new gesture implementation is added. Existing shared
 swipe dismissal remains authoritative. Phone emulation and layout attachments
 cover geometry; real-device keyboard, touch and screen-reader behavior are not
 claimed.
+
+## Explicit raw multiselect, staged #383/#385
+
+Inventory retains only individually checked distinct raw IDs, in selection order, across current pages and filters. The selected count includes hidden selections; Clear selection clears all of them. There is no select-all or implicit unseen selection. Graded rows explain the raw-only ownership boundary and remain individually inspectable.
+
+Bulk review maps every selected copy explicitly to a distinct compatible empty saved slot, or unassigns every selected placed copy. It composes the per-copy planner against one base, then parses and projects the combined request once. Occupied destinations cannot be selected, even if another selected copy would leave them empty. #493's individual displacement/swap choices remain intact. Unknown identities retain original metadata and enter only free slots unless catalog evidence proves compatibility. The same complete references and no-inferred-want/acquisition semantics apply.
+
+One request must fit the existing 100 commands, 256 work units, 32 collections and 262144 UTF-8 bytes; 85 placed moves fit the work budget and 86 fail as a whole. No selection truncation, chunking or multiple sends implements a single review. The existing ownership receiver reauthenticates scope with a fresh complete read, then fences revisions, every exact command reference, ordinary/deletion/restore/creation/legacy pending intent and unresolved recovery at durable admission. A retained unacknowledged creation also blocks ownership. No queue/backend/SQL/restore-schema change is added.
+
+All commands use the same operation and durable receipt. Unknown results retain original bytes and ID through reload and retry. The existing exact acknowledged Activity link and authoritative conditional recovery own subsequent history, with no local inverse. REST/MCP callers compose the existing commands as one request with `privateFields:"preserve"`, exact references, `occupied:"cancel"` and `fulfillWant:null`. Generated registry/OpenAPI remains unchanged. Help is in `content/docs/native-storage.mdx`; unpublished release copy is `docs/releases/raw-inventory-bulk-draft.md`.
+
+| Before | After | Why |
+| --- | --- | --- |
+| Only single-copy actions | Individual 44 px selection labels and explicit total/clear controls | Keep paginated/filter-hidden selection visible |
+| No bulk review | Shared dock-aware sheet with ordered exact IDs and locations, explicit empty-slot choices and sticky confirmation | Keep every mapping reviewable on small phones |
+| One action per copy | One bounded combined request, whole-selection rejection | Preserve atomic intent without protocol changes |
+
+No new motion is introduced. Shared swipe/history/focus/backdrop dismissal is reused. Synthetic six-phone loopback tests are browser/IDB/HTTP/fresh-read evidence, not hosted SQL, provider, physical-device or production-enable evidence. Parent owns release, issue/project state and whole acceptance; #383/#385/#379 remain open.

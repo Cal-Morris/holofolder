@@ -16,7 +16,7 @@
 .notice { background: var(--muted); padding: 1rem; border-radius: .75rem; margin-block: 1rem; overflow-wrap: anywhere; }
 .notice h2 { font-weight: 600; margin-bottom: .5rem; }
 .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .65rem; margin-block: 1rem; font-size: .8rem; }
-.pagination button, .sheet button { min-height: 44px; min-width: 44px; padding: .6rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--background); color: inherit; touch-action: manipulation; }
+.pagination button, .sheet button, .ownership button { min-height: 44px; min-width: 44px; padding: .6rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--background); color: inherit; touch-action: manipulation; }
 .overlay { position: fixed; inset: 0; z-index: 40; }
 .backdrop { position: absolute; inset: 0; background: rgb(0 0 0 / .5); }
 .sheet { position: absolute; bottom: calc(var(--dock-clearance) + .5rem); left: .75rem; right: .75rem; max-width: 36rem; margin-inline: auto; max-height: calc(100dvh - env(safe-area-inset-top, 0px) - var(--dock-clearance) - 2rem); display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 1rem; background: var(--background); color: var(--foreground); overflow: hidden; }
@@ -38,3 +38,6 @@
 .actionReview summary { min-height: 44px; padding-block: .65rem; cursor: pointer; }
 
 .actionReview > .actions { position: sticky; bottom: 0; z-index: 1; padding-block: .5rem; background: var(--muted); }
+
+.bulkSelect { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; }
+.bulkSelect input { width: 20px; height: 20px; }
