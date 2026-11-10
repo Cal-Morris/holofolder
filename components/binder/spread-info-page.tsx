@@ -54,7 +54,7 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: "left
 
           <footer className={styles.footer}>
             <p><span>{activeCollectionFilterOption.label}</span><span>{totalBinderPages} pages</span><span>{ctx.native ? `${ctx.native.slotCount} slots` : `${filteredPokemonList.length} Pokémon`}</span>{!canEditBinder && <span>Read-only</span>}</p>
-            <p className={styles.hint}>{canEditBinder ? "Every empty pocket is a possibility." : ctx.native ? "Your saved collection." : "A collection to explore. Shared read-only."}</p>
+            {!canEditBinder && <p className={styles.hint}>{ctx.native ? "Your saved collection." : "A collection to explore. Shared read-only."}</p>}
           </footer>
         </div>
       </div>
