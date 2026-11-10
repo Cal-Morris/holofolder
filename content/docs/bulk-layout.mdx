@@ -14,3 +14,7 @@ Insert a number of free slots or a whole current-grid page at an exact saved anc
 The private durable session says **Saved on device · Pending sync** only after a local storage transaction accepts the complete group. That does not mean a server has saved it. A changed layout needs review. Changed selected copies block the whole group until you clear selection and choose again. Failed local saves retain the original group for retry. **Done** exits editing without discarding accepted device edits.
 
 Ordered card fill, bulk clear/remove with safe Undo, cross-storage moves, public sync and rollout remain unavailable in this slice.
+
+The local-only test host now exercises server command delivery as well as device saving. **Retry pending sync** preserves the original operation ID and request after a lost connection. A server receipt alone does not clear Pending sync: the session must read the complete current inventory after that reply. Billing and access failures pause the edit; conflicts retain it for review. An unknown outcome cannot be discarded or replaced to force a save.
+
+This test path is not production admission. Public inventory/slot routes and native REST/MCP mutations remain unavailable. Native edits do not use the currently supported legacy Activity Undo command; native recovery, startup/offline relaunch, public API parity and the remaining rollout checks must pass before enablement.

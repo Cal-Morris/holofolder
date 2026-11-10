@@ -82,6 +82,24 @@ describe("staged durable slot intent", () => {
     assert.equal((await reopened.read()).pending.length, 0)
     assert.equal((await reopened.read()).receipts[0].operationId, "operation-one")
   })
+  test("a fresh complete snapshot older than the commit receipt cannot acknowledge", async () => {
+    const q = createSlotOfflineQueue(createMemoryStore(), scope)
+    await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+    const projected = projectSlotIntent(snapshot(), intent(), catalog)
+    await q.replay(async () => ({ status: 200, operationId: "operation-one", inventoryRevision: projected.inventoryRevision + 1 }),
+      () => scope, 1000, catalog, () => complete(projected))
+    assert.equal((await q.read()).pending[0].status, "unavailable")
+    assert.equal((await q.read()).receipts.length, 0)
+  })
+  test("permanent media and body-limit errors block without removing intent", async () => {
+    for (const status of [405, 413, 415, 422]) {
+      const q = createSlotOfflineQueue(createMemoryStore(), scope)
+      await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+      await q.replay(async () => ({ status }), () => scope, 1000)
+      assert.equal((await q.read()).pending[0].status, "blocked")
+      assert.equal((await q.read()).receipts.length, 0)
+    }
+  })
   test("account switch during response cannot write or expose another owner's state", async () => {
     const store = createMemoryStore(), q = createSlotOfflineQueue(store, scope)
     await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)

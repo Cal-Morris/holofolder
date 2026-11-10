@@ -1,6 +1,7 @@
 import { docs } from '@/.source/server'
 import { loader } from 'fumadocs-core/source'
 import { docsOpenAPI } from '@/lib/docs-openapi'
+import { groupReferenceNavigation } from '@/lib/docs-navigation'
 
 export const docsSource = docsOpenAPI.staticSource({
   per: 'operation', baseDir: 'reference', groupBy: 'tag', meta: true,
@@ -13,5 +14,5 @@ export const docsSource = docsOpenAPI.staticSource({
 }).then(openapi => loader({
   baseUrl: '/docs',
   source: { openapi, docs: docs.toFumadocsSource() },
-  plugins: [docsOpenAPI.loaderPlugin()],
+  plugins: [docsOpenAPI.loaderPlugin(), { transformPageTree: { folder: groupReferenceNavigation } }],
 }))

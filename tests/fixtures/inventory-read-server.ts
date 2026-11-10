@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 export const owner = "11111111-1111-4111-8111-111111111111"
 export const collection = "22222222-2222-4222-8222-222222222222"
 type Row = Record<string, unknown>
-export function fixture(size = 1031) {
+export function fixture(size = 1031, owner = "11111111-1111-4111-8111-111111111111", authSessionId = "synthetic-auth-session") {
   const tables: Record<string, Row[]> = {
     partnerships: [], inventory_owner_state: [{ owner_user_id: owner, inventory_revision: 7 }],
     binders: [{ id: collection, owner_user_id: owner, name: "Synthetic storage", binder_rows: null, binder_cols: null, updated_at: null }],
@@ -19,12 +19,12 @@ export function fixture(size = 1031) {
   }
   let actor = owner, allowed = true, oauth = false
   const requests: { table: string; url: URL; method: string; headers: Headers }[] = []
-  let intercept: ((table: string, url: URL) => Response | void) | undefined
+  let intercept: ((table: string, url: URL, init?: RequestInit) => Response | void) | undefined
   const transport: typeof fetch = async (input, init) => {
     const url = new URL(String(input)), table = url.pathname.split("/").at(-1)!
     const method = init?.method ?? "GET"
     requests.push({ table, url, method, headers: new Headers(init?.headers) })
-    const overridden = intercept?.(table, url)
+    const overridden = intercept?.(table, url, init)
     if (overridden) return overridden
     if (table === "inventory_grid_read_v1") {
       const membership = tables.partnerships.filter(p => p.user1_id === actor || p.user2_id === actor)
@@ -66,7 +66,7 @@ export function fixture(size = 1031) {
     return new Response(method === "HEAD" ? null : JSON.stringify(rows), { status: 200, headers: { "Content-Type": "application/json", "Content-Range": `0-${Math.max(0, rows.length - 1)}/${count}` } })
   }
   const client = createClient("https://synthetic.supabase.test", "synthetic-key", { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport } })
-  client.auth.getClaims = async () => ({ data: { claims: { sub: actor, session_id: "synthetic-auth-session", role: "authenticated", ...(oauth ? { client_id: "synthetic-oauth" } : {}) } }, error: null }) as never
+  client.auth.getClaims = async () => ({ data: { claims: { sub: actor, session_id: authSessionId, role: "authenticated", ...(oauth ? { client_id: "synthetic-oauth" } : {}) } }, error: null }) as never
   client.auth.getUser = async () => ({ data: { user: { id: actor } }, error: null }) as never
   return { client, transport, tables, requests, setActor: (id: string) => { actor = id }, deny: () => { allowed = false }, oauth: () => { oauth = true }, intercept: (fn: typeof intercept) => { intercept = fn } }
 }

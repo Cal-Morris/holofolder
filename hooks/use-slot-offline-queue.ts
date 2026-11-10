@@ -13,7 +13,7 @@ function sessionLifetime() {
     token: () => epoch, isActive: (token = epoch) => active && token === epoch }
 }
 
-/** Shared durable adapter. The actual browser host binds it behind denied production admission; no automatic upload.
+/** Shared durable adapter. The actual browser host binds it behind denied production admission; the admitted host supplies its sender.
  * Remount on session changes, including unlink/relink to the same owner. */
 export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string) {
   const { deviceId, workspaceId, accountId, ownerUserId } = scope
@@ -66,10 +66,10 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string) 
       }
       return { status: "saved-on-device", operationId: intent.request.operationId, refreshError } satisfies SlotLocalAcceptance
     },
-    async replay(send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>, catalog: InventoryCatalogResolver, readCurrent: () => Promise<unknown>) {
+    async replay(send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>, catalog: InventoryCatalogResolver, readCurrent: () => Promise<unknown>, isCurrent: () => boolean = () => true) {
       if (!active() || !session.queue) return
       const token = session.token()
-      await session.queue.replay(send, () => session.isActive(token) ? session.scope : null, Date.now(), catalog, readCurrent)
+      await session.queue.replay(send, () => session.isActive(token) && isCurrent() ? session.scope : null, Date.now(), catalog, readCurrent)
       if (session.isActive(token)) await refresh()
     },
     async saveSnapshot(snapshot: unknown, catalog: InventoryCatalogResolver) {

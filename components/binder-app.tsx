@@ -3876,7 +3876,7 @@ export default function BinderApp(props: BinderAppProps) {
     </CollectionActivityProvider>
     </BillingContext.Provider>
   )
-  if (!browserSurface && browserScope.scope && hostAdmitted) return <BrowserCollectionSession scope={browserScope.scope} initialBinderId={initialBinderId} currentScope={browserScope.currentScope} renderFallback={() => legacySurface}
+  if (!browserSurface && browserScope.scope && hostAdmitted) return <BrowserCollectionSession localHarness={localBrowserHost} scope={browserScope.scope} initialBinderId={initialBinderId} currentScope={browserScope.currentScope} renderFallback={() => legacySurface}
     renderSurface={binding => {
       const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
       const layout = context?.read.layouts.find(l => l.collectionId === context.collectionId && l.layoutRevision === binding.display?.binder.layoutRevision)
