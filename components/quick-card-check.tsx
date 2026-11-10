@@ -21,6 +21,7 @@ import type { PricedCardFinish } from "@/lib/card-pricing"
 import type { CardFinish } from "@/lib/domain/cards"
 import { getPriceDataAgeDays } from "@/lib/price-freshness"
 import { getRisingMomentum, isMomentumEligibleConfidence } from "@/lib/price-momentum"
+import { nativeCatalogueQuote, nativeSoldEvidenceAllowed, type NativeBundleEvidence } from "@/lib/native-price-evidence"
 import { buildDealPriceBands, checkDeal, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
 import ShowBudget from "@/components/show-budget"
 import ShowRevisitForm from "@/components/show-revisit-form"
@@ -51,6 +52,7 @@ export interface QuickBundleEntry {
   catalogMarketGbp?: number | null
   gbpPerUnit?: number | null
   soldCheck?: CardPriceCheck
+  nativeEvidence?: NativeBundleEvidence
 }
 
 export type MoneyCurrency = Parameters<typeof formatMoney>[1]
@@ -138,6 +140,14 @@ export default function QuickCardCheck({
   const snapshot = pricesByCardId[getCardPriceKey(card.id, language)]
   const fxRates = fxRatesProp ?? hookRates ?? null
   const context = useMemo(() => ({ currency, fxRates }), [currency, fxRates])
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const refresh = () => setNow(Date.now())
+    const timer = window.setInterval(refresh, 60_000)
+    window.addEventListener("focus", refresh)
+    document.addEventListener("visibilitychange", refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh) }
+  }, [])
   const [thresholds] = useState(() => readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
   const { logPurchases, removePurchases } = useShowSession()
 
@@ -153,10 +163,12 @@ export default function QuickCardCheck({
   const finishPrices = useMemo(() => getRegionalFinishPrices(snapshot, pricingRegion), [pricingRegion, snapshot])
   // Native lookups require reliable exact-finish evidence; legacy keeps its headline fallback.
   const exactPrice = finishPrices[finish as PricedCardFinish]
-  const price = nativeConsumer ? (isMomentumEligibleConfidence(exactPrice?.confidence) ? exactPrice : undefined) : exactPrice ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
+  const nativeQuote = nativeCatalogueQuote(card, finish, exactPrice, now)
+  const nativeSoldAllowed = nativeSoldEvidenceAllowed(card, finish, Boolean(nativeQuote))
+  const price = nativeConsumer ? (nativeQuote && exactPrice ? { ...exactPrice, confidence: nativeQuote.confidence } : undefined) : exactPrice ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
 
   const comparisonKey = bundleKey(card, finish)
-  const soldGuide = buildSoldPriceGuide(premium && soldEvidence?.key === comparisonKey ? soldEvidence.check : null, price?.gbpAmount, finish, thresholds)
+  const soldGuide = buildSoldPriceGuide(premium && (!nativeConsumer || nativeSoldAllowed) && soldEvidence?.key === comparisonKey ? soldEvidence.check : null, price?.gbpAmount, finish, thresholds)
   const usesSoldGuide = soldGuide?.referenceGbp != null
 
   const toDisplay = useCallback((gbp: number | null | undefined) => (typeof gbp === "number" && gbp > 0 ? convertGbpForDisplay(gbp, context, snapshot) : null), [context, snapshot])
@@ -166,11 +178,6 @@ export default function QuickCardCheck({
   const moneyCurrency = market?.currency ?? currency
   const money = (amount: number) => formatMoney(amount, moneyCurrency)
 
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000)
-    return () => window.clearInterval(timer)
-  }, [])
   const dataAgeDays = getPriceDataAgeDays(usesSoldGuide ? soldEvidence?.check.checkedAt : price?.updatedAt ?? snapshot?.updatedAt, now)
   const isRising = !usesSoldGuide && Boolean(getRisingMomentum(snapshot, now))
   const cacheAge = formatPriceAge(snapshot?.fetchedAt, now)
@@ -324,7 +331,7 @@ export default function QuickCardCheck({
         </div>
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
-        <CardPriceComparison readOnly={Boolean(nativeConsumer)} key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
+        {(!nativeConsumer || nativeSoldAllowed) && <CardPriceComparison readOnly={Boolean(nativeConsumer)} key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => { if (!nativeConsumer || nativeSoldAllowed) setSoldEvidence({ key: comparisonKey, check }) }} />}
 
         <details className="group min-w-0 rounded-2xl border border-border/60 bg-card px-3">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
@@ -387,7 +394,8 @@ export default function QuickCardCheck({
             disabled={inBundle}
             onClick={() => {
               navigator.vibrate?.(10)
-              onAddToBundle({ key, card, pokemon, finish, marketPrice: market?.amount ?? null, currency: moneyCurrency, catalogMarketGbp: price?.gbpAmount ?? null, gbpPerUnit: getGbpPerUnit(moneyCurrency, fxRates, snapshot), soldCheck: premium && soldEvidence?.key === comparisonKey ? soldEvidence.check : undefined })
+              onAddToBundle({ key, card, pokemon, finish, marketPrice: market?.amount ?? null, currency: moneyCurrency, catalogMarketGbp: price?.gbpAmount ?? null, gbpPerUnit: getGbpPerUnit(moneyCurrency, fxRates, snapshot), soldCheck: premium && (!nativeConsumer || nativeSoldAllowed) && soldEvidence?.key === comparisonKey ? soldEvidence.check : undefined,
+                ...(nativeConsumer ? { nativeEvidence: { catalogue: nativeQuote, soldExact: nativeSoldAllowed } } : {}) })
             }}
             aria-label={inBundle ? "In bundle" : "Add to bundle"}
             className={`${bigButton} border border-border/70 bg-card`}

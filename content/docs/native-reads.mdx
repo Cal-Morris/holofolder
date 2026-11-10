@@ -72,6 +72,12 @@ The bundle compares one asking total with saved exact-finish references. Missing
 or weak catalogue evidence, unknown finishes and mixed currencies leave the
 comparison incomplete with no verdict. It never guesses prices for grades or FX.
 Saved qualified sold evidence keeps its existing access and freshness rules.
+The card language must be known. Saved sold checks are used only for English
+normal, holo or reverse-holo printings with an established exact finish, never an
+"any finish" fallback. Catalogue references retain their source, confidence and
+date; references older than 30 days or with an unknown date become unpriced,
+including in an open offline bundle. Prices older than seven days are capped at
+medium confidence. Reopening or refocusing the bundle rechecks retained evidence.
 
 This native comparison cannot record purchases, change ownership, request paid
 checks or prepare offline data. Cached storage stays read-only. Already-loaded

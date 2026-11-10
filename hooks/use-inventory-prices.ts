@@ -20,7 +20,9 @@ export async function readSavedInventoryPrices(requests: readonly CardPriceLooku
       if (!raw || typeof raw.cardId !== "string" || !isCardLanguage(raw.language)
         || !batch.some(r => r.cardId === raw.cardId && r.language === raw.language)) throw new Error("saved_inventory_prices_unavailable")
       const key = getCardPriceKey(raw.cardId, raw.language)
-      const price = normalizeFetchedCardPrice(raw)
+      // The general normalizer supports old quotes with default metadata. Native evidence must not.
+      const price = normalizeFetchedCardPrice({ ...raw, finishPrices: Array.isArray(raw.finishPrices) ? raw.finishPrices.filter((quote: unknown) =>
+        quote && typeof quote === "object" && "cardId" in quote && quote.cardId === raw.cardId && "language" in quote && quote.language === raw.language) : [] })
       if (!price || seen.has(key)) throw new Error("saved_inventory_prices_unavailable")
       seen.add(key); prices.push(price)
     }

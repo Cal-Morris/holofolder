@@ -49,7 +49,7 @@ import {
 } from "@/lib/quick-mode"
 import { formatMoney, type DisplayFxRates } from "@/lib/regional-price"
 import type { DisplayCurrency } from "@/lib/pricing-region"
-import type { CardFinish } from "@/lib/domain/cards"
+import { isCardLanguage, type CardFinish } from "@/lib/domain/cards"
 import type { QuickBundleEntry, QuickCardAction, QuickCardState } from "@/components/quick-card-check"
 import { CARD_STANDING_BADGES, getCardStanding, wantedToSearchCard, type HuntSourceItem, type PokemonCardStanding } from "@/lib/show-hunt"
 import { searchOfflineCards } from "@/lib/offline-card-index"
@@ -300,8 +300,8 @@ function QuickMode({
   const { pricesByCardId } = useRegionalCardPrices(stablePriceLookups, stablePriceLookups.length > 0, pricingRegion, Boolean(nativeConsumer))
   // "% down" / "% up" reorder the found cards by price momentum (per card + language); Default keeps the search's order.
   const sortedCardResults = useMemo(
-    () => applyMomentumSort<(typeof cardResults)[number]>(cardResults, moveSort, ({ card }) => pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]),
-    [cardResults, moveSort, pricesByCardId],
+    () => applyMomentumSort<(typeof cardResults)[number]>(cardResults, moveSort, ({ card }) => nativeConsumer && !isCardLanguage(card.language) ? undefined : pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]),
+    [cardResults, moveSort, pricesByCardId, nativeConsumer],
   )
   const illustrators = useIllustratorSearch(query, true).slice(0, 3)
   const setHits = useSetSearch(query, Boolean(onBrowseSet) && !show)
@@ -651,7 +651,7 @@ function QuickMode({
                 {formatPrice && cardResults.length > 1 && <MomentumSortChips value={moveSort} onChange={setMoveSort} className="mb-1.5" />}
                 {sortedCardResults.map(({ card, pokemon, standing }) => {
                   const thumb = cardThumbnail(card.image)
-                  const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]
+                  const priceSnapshot = nativeConsumer && !isCardLanguage(card.language) ? undefined : pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]
                   const priceLabel = formatPrice?.(priceSnapshot) ?? null
                   // Outside Show mode only Owned / Wanted are stamped; "Not in binder" on every other row is noise.
                   const shownStanding = standing && (show || standing !== "missing") ? standing : null

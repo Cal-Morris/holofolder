@@ -129,6 +129,38 @@ async function nativeBundlePrices(page: import("@playwright/test").Page) {
   })
 }
 
+for (const priceCase of ["unknown-language", "unsupported-finish"]) test(`native ${priceCase} cannot borrow saved English any-finish sold evidence`, async ({ page }) => {
+  await nativeBundlePrices(page)
+  let reads = 0
+  await page.route("**/app/api/card-price-checks**", route => {
+    reads++
+    const check = { checkedAt: new Date().toISOString(), summary: { kind: "sold", currency: "GBP", count: 12, low: 100, median: 100, high: 100 }, sales: Array.from({ length: 12 }, (_, i) => ({ amount: 100, soldAt: new Date(Date.now() - (i % 3 + 1) * 86400000).toISOString().slice(0, 10) })) }
+    return route.fulfill({ json: { ebay: null, soldcomps: check, errors: {} } })
+  })
+  await page.goto(`${entry}?mode=check&priceCase=${priceCase}`)
+  const check = page.getByTestId("quick-card-check")
+  await expect(check).toBeVisible()
+  await check.getByRole("textbox").fill("70")
+  await expect(check.getByTestId("quick-card-market-price")).not.toContainText("£100")
+  await expect(check.getByTestId("quick-pay-up-to")).toHaveText("Unknown")
+  await expect(check.getByTestId("deal-verdict")).not.toHaveAttribute("data-verdict", /great|good|fair|overpriced|walk-away/)
+  expect(reads).toBe(0)
+})
+
+test("native bundle rechecks retained catalogue age after a long offline visit", async ({ page }) => {
+  await nativeBundlePrices(page)
+  await page.goto(entry)
+  await addNativePrinting(page, "Synthetic Trainer")
+  await page.getByRole("button", { name: /Check bundle/ }).click()
+  const bundle = page.getByTestId("quick-bundle")
+  await expect(bundle.getByTestId("bundle-market-total")).toContainText("£3.00")
+  await bundle.getByRole("textbox", { name: /Bundle price/ }).fill("2")
+  await expect(bundle.getByTestId("bundle-verdict")).toHaveAttribute("data-verdict", "great")
+  await page.evaluate(() => { const future = Date.now() + 40 * 86400000; Date.now = () => future; dispatchEvent(new Event("focus")) })
+  await expect(bundle.getByTestId("bundle-market-total")).toContainText("1 unpriced")
+  await expect(bundle.getByTestId("bundle-verdict")).not.toHaveAttribute("data-verdict", /great|good|fair|overpriced|walk-away/)
+})
+
 test("native bundle compares repeated exact printings, removes one entry, and stays cached/offline read-only", async ({ page, context, insets }) => {
   await nativeBundlePrices(page)
   const writes: string[] = []

@@ -57,7 +57,17 @@ export default function QuickBundle({ nativeConsumer, budgetKey, entries, destin
   const moneyCurrency = entries[0]?.currency ?? currency
   const money = useCallback((amount: number) => formatMoney(amount, moneyCurrency), [moneyCurrency])
   const askingTotal = parseAskingPrice(input)
-  const guide = useMemo(() => buildBundlePriceGuide(entries, moneyCurrency, thresholds, undefined, premium), [entries, moneyCurrency, thresholds, premium])
+  const [now, setNow] = useState(() => Date.now())
+  const native = Boolean(nativeConsumer)
+  useEffect(() => {
+    if (!native) return
+    const refresh = () => setNow(Date.now())
+    const timer = window.setInterval(refresh, 60_000)
+    window.addEventListener("focus", refresh)
+    document.addEventListener("visibilitychange", refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh) }
+  }, [native])
+  const guide = useMemo(() => buildBundlePriceGuide(entries, moneyCurrency, thresholds, native ? now : undefined, premium, native), [entries, moneyCurrency, thresholds, premium, native, now])
   const pricedEntries = entries.map((entry, index) => ({ ...entry, marketPrice: guide.items[index].marketPrice }))
   const result = checkBundle(pricedEntries, askingTotal, thresholds, Boolean(nativeConsumer))
   const controller = useRef<AbortController | null>(null)

@@ -32,3 +32,12 @@ test("failed, malformed, duplicate and unrelated saved quotes fail closed", asyn
   }
   assert.deepEqual(await readSavedInventoryPrices(requests, new AbortController().signal, async () => Response.json({ prices: [] })), [])
 })
+
+test("saved native finish evidence never defaults a missing nested identity to English", async () => {
+  const root = inventoryProjectionPrices()[0]
+  const finish = { ...root, finish: "normal", variantKey: "normal", gbpAmount: 100 }
+  const requests = [{ cardId: root.cardId, language: root.language }]
+  const prices = await readSavedInventoryPrices(requests, new AbortController().signal, async () => Response.json({ prices: [{ ...root, finishPrices: [finish, { ...finish, language: undefined }, { ...finish, cardId: "other" }] }] }))
+  assert.equal(prices[0].finishPrices?.length, 1)
+  assert.equal(prices[0].finishPrices?.[0].cardId, root.cardId)
+})
