@@ -19,5 +19,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 export default async function NamedBinderPage({ params }: Props) {
   const { username, binderSlug } = await params
-  return <SharedBinder binder={await load(username, binderSlug)} />
+  return <SharedBinder binder={await load(username, binderSlug)} sharePath={`/@${username}/${binderSlug}`} />
 }
