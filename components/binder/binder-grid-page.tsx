@@ -189,8 +189,8 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
         <div
           className="relative h-full w-full p-2 sm:p-4"
           style={{
-            minWidth: scrollable ? settings.binderCols * 64 + (settings.binderCols - 1) * 6 + (isDesktopViewport ? 32 : 16) : undefined,
-            minHeight: scrollable ? settings.binderRows * 90 + (settings.binderRows - 1) * 6 + (isDesktopViewport ? 32 : 16) : undefined,
+            minWidth: settings.binderCols * (scrollable ? 64 : 36) + (settings.binderCols - 1) * 6 + (isDesktopViewport ? 32 : 16),
+            minHeight: settings.binderRows * (scrollable ? 90 : 36) + (settings.binderRows - 1) * 6 + (isDesktopViewport ? 32 : 16),
             display: "grid",
             gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${settings.binderRows}, minmax(0, 1fr))`,

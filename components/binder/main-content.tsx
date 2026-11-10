@@ -7,6 +7,7 @@ import { getCollectionItemPriceKey } from "@/components/binder/binder-app-model"
 import { CollectionAnalyticsView, DashboardBinderPreview, DexListView, PageScanner, PokemonBrowseView, SetPopulationView, WantedDashboard } from "@/components/binder/lazy-views"
 import { getCardPriceKey } from "@/hooks/use-card-prices"
 import { PAGE_TURN_MS } from "@/lib/binder-page-turn"
+import { TRADING_CARD_ASPECT_RATIO } from "@/lib/page-scan"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
@@ -142,7 +143,7 @@ export function renderMainContentView(ctx: MainContentContext) {
   const { pendingBinderPage, cancelPageNavigation, onHideBinderValue, assignWantedCard, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
-      {ctx.layoutToolbar}
+      {!ctx.orderedDisplaySlots && ctx.layoutToolbar}
       <input
         ref={pagePhotoInputRef}
         type="file"
@@ -190,6 +191,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             ? binderDimension === "3d" ? "overflow-y-auto overflow-x-hidden" : "overflow-y-auto overflow-x-hidden md:overflow-visible"
             : "overflow-hidden"
         }`}>
+        {ctx.orderedDisplaySlots && ctx.layoutToolbar}
         {viewLoadError ? <p role="alert" className="shrink-0 rounded-2xl border border-border/55 bg-card/70 p-3 text-sm">{viewLoadError}</p> : null}
         {activeMainView === "binder" && ctx.nativeDashboard}
         {activeMainView === "binder" && !ctx.nativeDashboard && !readOnlyMode && settings.showBinderValue !== false && <BinderValue onDismiss={onHideBinderValue} collection={collection} prices={pricesByCardId} loading={isLoadingPrices} onOpen={() => { rememberBinderScope("analytics", "binder"); void switchMainView("analytics") }} />}
@@ -365,7 +367,10 @@ export function renderMainContentView(ctx: MainContentContext) {
 
           {(settings.binderRows > 4 || settings.binderCols > 4) && <p className="shrink-0 text-center text-xs text-muted-foreground">Scroll inside the page to see every pocket. Use the arrows to turn pages.</p>}
           {/* Binder Grid */}
-          <div ref={setBinderStageRef} className={`relative flex min-h-0 flex-1 ${settings.binderRows > 4 || settings.binderCols > 4 ? "touch-auto" : "touch-pan-y"} items-center justify-center overflow-hidden overscroll-x-contain`}>
+          <div ref={setBinderStageRef}
+            // Native controls share the scrollport, so a short screen cannot crush the pockets.
+            style={{ minHeight: ctx.orderedDisplaySlots ? Math.min(settings.binderRows, 4) * (36 / TRADING_CARD_ASPECT_RATIO + 6) + 32 : undefined }}
+            className={`relative flex min-h-0 flex-1 ${settings.binderRows > 4 || settings.binderCols > 4 ? "touch-auto" : "touch-pan-y"} items-center justify-center overflow-hidden overscroll-x-contain`}>
             {pendingBinderPage !== null && (
               <div role="status" aria-label="Page loading" className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
                 <div className="holo-loading flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1 text-sm shadow-lg">
