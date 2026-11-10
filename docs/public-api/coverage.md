@@ -292,3 +292,7 @@ device review; it does not accept or upload browser source data. Local acceptanc
 uses the existing queue authority/uploader. See [recipient containment](../legacy-recipient-containment.md)
 and [device changes help](/app/docs/device-changes). Public native admission,
 bootstrap and conversion remain staged at 503. No SQL is included.
+
+## Internal legacy write prerequisite (096)
+
+Migration 096 installs an inactive shared database fence for legacy collection DML. It adds no public operation, permission, response schema or native admission. Existing independently authorized REST/MCP writers retain their current grants, membership, billing and CAS boundaries. Queue protocol/purpose is first-party server context, never an alternate developer API credential. See the [internal context and operator contract](../legacy-write-fence.md); activation, runtime error mapping and deployment remain separately gated. No public capability or marketing update applies to this prerequisite.

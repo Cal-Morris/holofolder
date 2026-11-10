@@ -1,0 +1,55 @@
+# Legacy collection write fence, migration 096
+
+Internal prerequisite for #363/#379 at source `31c26d5be9208a5ee2fa405db636ac5a26f30ee6`. **Inactive by default.** This migration does not enable the transactional sender, native admission, conversion, or any public capability. There is no marketing/changelog applicability. Parent owns independent review, fresh restore-verified backup, inactive hosted application and the later coordinated cutover. This lane performs no hosted access, application, merge or deployment.
+
+## Database boundary
+
+Two always-enabled triggers cover ordinary `public.pokemon_collection` INSERT/UPDATE/DELETE, including direct authenticated DML, historical service-role fallback DML, and existing save/delete RPCs. Existing RLS, grants, membership, billing, CAS, conversion authority and native admission remain in force. This is an additional rejection boundary, not permission to execute a command. Table owners/superusers remain database administrators; this does not defend against an administrator disabling triggers or replacing schema.
+
+Each statement and row locks the protected singleton with `SELECT ... FOR SHARE`. Shared locks last until transaction end. Activation updates that same row, conflicting with every participating writer. An already-writing transaction must finish before activation can commit; activation has a 3-second lock timeout and otherwise aborts. A request admitted by HTTP before activation but reaching its first DML afterward must check again. Installation takes `SHARE ROW EXCLUSIVE` on the collection table so even writers without the new triggers finish first; timeout rolls back the whole installation. Trigger replacement is transactional.
+
+Under READ COMMITTED the locking read sees the updated state, including after waiting. Under REPEATABLE READ or SERIALIZABLE, an outdated row version raises serialization failure instead of returning the old inactive value. The helper converts this failure and its lock timeout into the same paused-write error. An advisory lock plus a snapshot SELECT would not establish this guarantee. Tests observe actual `pg_blocking_pids` waits rather than using elapsed sleep as evidence of a drained transaction.
+
+The singleton is initialized only when its table is first created. Reapplying 096 never resets it or recreates a missing row. If the table disappears while its installed helper remains, reapplication aborts rather than creating a fresh inactive table. Enforcement is monotonic: true cannot become false, and DELETE/TRUNCATE fail. Missing/null state rejects writes even when no collection row matches. Runtime roles cannot read/write the singleton, call the activation/helper functions, or forge private pending authority. No new grants or caller-controlled GUC authority are introduced.
+
+## Minimal trusted context for parent integration
+
+The existing service-key audit header is the only server context seam. SQL first requires the actual effective role `service_role`, then reuses `collection_audit_private.context(owner)` for existing actor existence/membership validation. Inbound browser audit headers and JWT role claims cannot establish this authority. The service-key holder is already trusted to establish context; these fields are not cryptographic proof of a particular deployment.
+
+| Writer | Additional eligibility when active |
+| --- | --- |
+| Current first-party coordinated queue | Existing trusted user actor, `source:"app"`, **numeric** `legacyQueueGeneration:2`, `purpose:"legacy.queue"` in the server-generated audit context |
+| Authorized developer REST/MCP | Existing trusted user actor, `source:"rest"` or `"mcp"`, nonempty existing `clientId`; unchanged credential/grant/resource, permission, membership, entitlement, budget and CAS checks remain at their current boundaries |
+| Explicit legacy Activity recovery | 096 patches only the installed 087 facade to put its already validated and locked inverse in the existing private pending accumulator before DML. Guard checks transaction/owner/event/action and the exact before/after inverse for each row. A recovery-shaped header alone does nothing |
+| Staged converted recovery | Unchanged private `frozen_restore_v1(NEW)` authorizes only its exact frozen INSERT, under the existing reviewed recovery transaction. No native grants or admission change |
+| Binder/account deletion | DELETE only, and the referenced binder or account must actually be absent within the transaction. No trigger-depth or blanket app/service/unknown exemption |
+
+Unknown jobs, imports and generic app/service writes are deliberately rejected after activation. A future legitimate job needs separate narrow review. Queue generation is not authentication. Parent must add the fields **only after** existing first-party authentication, recipient checks and queue-protocol validation, never by copying a browser header/body/context. Existing `auditContextHeader()` does not emit these fields yet. This PR intentionally touches no runtime hook, queue, engine, route or audit-context TypeScript.
+
+Rejection is SQLSTATE **`PT503`**, message **`legacy_collection_write_paused`**, detail beginning **`retainOnDevice=true`**. PostgREST's [custom SQLSTATE mapping](https://docs.postgrest.org/en/v14/references/errors.html#raise-errors-with-http-status-codes) gives direct REST DML HTTP 503 rather than a terminal 4xx. Old app handlers may wrap it in a generic 500, also retryable; the parent must explicitly map the recognizable code/message to the coordinated sender's paused/retained response. Do not ACK, drop, rebind or automatically replay old evidence. A rejected statement rolls back all row/history/acquisition changes in that transaction. A committed pre-barrier write with a lost response remains unknown, not proved rejected by this fence.
+
+## Operator sequence and rollback
+
+1. Review 096 and its installed 087 integration independently. Take and restore-verify a fresh private backup. Verify actual hosted definitions, trigger ordering, roles/ACLs and all intended writers. Existing read-only evidence of five RLS policies and authenticated DML grants establishes authority to test, not accepted-DML proof.
+2. Parent may apply 096 **inactive only** after 095, as one transaction. Reapply safely if needed. Verify the singleton is false, both collection triggers are `tgenabled='A'`, existing protected ACLs/definitions remain unchanged except the documented 087 insertion, and original row counts/digests match. Do not run activation against original data in this lane.
+3. Independently deploy and verify validated first-party queue context/protocol rejection, retention mapping, authorized REST/MCP and explicit recovery/lifecycle paths. Keep runtime delivery paused. Verify both stable origins, Framer forwarding and downgrade behavior. No accepting hosted fixture is authorized here.
+4. **Future parent-owned activation only after those gates:** in an operator transaction call `collection_audit_private.activate_legacy_write_fence()`, commit, then verify true. Only the migration owner/admin can call it. A timeout/serialization/cancellation must roll back and be investigated; never skip the barrier or widen an exemption. A successful function call inside an uncommitted transaction is not activation proof.
+5. Release the independently verified coordinated sender only after committed enforcement. Preserve historical evidence with unknown outcomes. Native admission stays false; perform zero hosted conversions.
+
+Rollback pauses delivery while leaving the fence true. Forward-fix or deploy a compatible reader/export UI. Do not set false, delete the singleton, drop the triggers, or restore an old writable deployment as rollback. 096 reapplication preserves true. An administrator can override database objects, which is explicitly outside runtime authority and outside an acceptable rollback procedure.
+
+## Local proof and limits
+
+The private archive `2026-11-10T07-00-42Z-before-095` was restored on an owned Unix socket/port with source ACLs and service-role BYPASSRLS. All **90 counts and 35 critical digests** matched. Applied 095, then 096 twice inactive, preserving source rows and existing function ACLs. Active proof runs in a separate **schema-only restore with synthetic data**, never in the private data restore. Private logs/data stay outside Git under `release-evidence/legacy-cutover/096-local`.
+
+`tests/sql/legacy-write-fence.py` takes explicit socket/port/user/database arguments, requires an empty synthetic schema and a database name ending `_synthetic`, and never reads environment connection credentials. Use a disposable cluster owned by the operator: restore the archive schema only with required extensions, no owners, then restore its ACL TOC, configure the original runtime role attributes, and apply 095. Install psycopg 3 in an isolated environment. Example, with operator-selected local paths:
+
+```sh
+python tests/sql/legacy-write-fence.py --socket /private/local/socket --port 55496 --user local_admin --database fence_synthetic
+```
+
+The proof commits synthetic fixtures and activation, so recreate the synthetic schema database before each run. Its 19 proof groups exercise installation/idempotence; pre-trigger writer drain; activation drain and safe timeout; writer timeout; old READ COMMITTED and REPEATABLE READ snapshots; direct/fallback/kernel rejection; spoofed headers/JWT roles/GUCs and denied private writes; authorized developer CAS, partner membership and billing; current-protocol eligibility; explicit Activity replay; native converted whole-deletion/frozen inverse; binder/account cascades; monotonic downgrade rejection; missing row/table and reapplication after missing state; corrupt null state. Normal rejected writes compare collection digests plus history/acquisition/ledger counts before and after. No full e2e suite runs.
+
+This proves PostgreSQL transaction behavior on the local restored schema, not hosted PostgREST transport, production activation, real credential/grant enforcement at HTTP/MCP ingress, device durability, public routing or deploy rollback. Those remain parent-owned activation gates. The immutable earlier migrations, native grants, conversion and admission are unchanged.
+
+Verification: 19 real SQL proof groups and 19 focused contract tests passed; 1,741 tests across the 302 non-SQL test files passed. Typecheck, lint (existing 55 warnings, zero errors) and production build passed; the build used a synthetic loopback Supabase URL and synthetic keys. `EXPLAIN (ANALYZE,BUFFERS)` exercised an authorized active synthetic update inside a rolled-back transaction. The default `bun run test` is not green: installed Bun 1.3.12 ignores `node:test` boolean skip options, confirmed with an isolated `skip:true` test that still executes. The unmodified opt-in SQL suites consequently attempt missing unrelated local sockets and abort the runner. No fixture path, test runner or unrelated test was changed to hide this limitation. The 302 non-SQL files were selected explicitly, because this Bun also did not honor the attempted path-ignore pattern. Full e2e was not run.
