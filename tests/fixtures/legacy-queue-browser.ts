@@ -1,4 +1,5 @@
 import { createIndexedDbStore } from "@/lib/offline-store/kv"
+import { createLegacyQueueRuntime, type DurableReview } from "@/lib/collection/legacy-queue-runtime"
 import { createLegacyQueue } from "@/lib/collection/legacy-queue-store"
 import { LEGACY_QUEUE_KEY, type Claim } from "@/lib/collection/legacy-queue-record"
 
@@ -41,8 +42,40 @@ const factory = new Proxy(indexedDB, {
 const store = createIndexedDbStore(factory, name), queue = createLegacyQueue(store, () => ({ session, origin }))
 const singleQueue = createLegacyQueue(createIndexedDbStore(indexedDB, `${name}-single`), () => ({ session, origin }))
 const input = (pokemonId: number) => ({ origin, type: "delete" as const, pokemonId, binderId: origin.binderId, base: null })
+const runtimeStore = createIndexedDbStore(factory, `${name}-runtime`)
+let runtimeSends = 0, abortAck = false
+const runtime = createLegacyQueueRuntime(runtimeStore, () => ({ session, origin }), async () => {
+  runtimeSends++
+  const envelope = await runtimeStore.get<{ entries: { state: string }[] }>(LEGACY_QUEUE_KEY)
+  if (!envelope?.entries.some(entry => entry.state === "sending")) throw new Error("send preceded claim commit")
+  if (abortAck) { abortAck = false; abortAfterPut = true; return new Response('{"success":true}') }
+  return new Response('{"error":"synthetic lost reply"}', { status: 503 })
+})
+const cancelStore = createIndexedDbStore(indexedDB, `${name}-cancel`)
+const cancelRuntime = createLegacyQueueRuntime(cancelStore, () => ({ session, origin }))
 const api = {
   queue, origin,
+  async cancellationSeed() {
+    await cancelRuntime.initialize({ getItem: () => JSON.stringify([1, 2].map(pokemonId => ({ id: `cancel-${pokemonId}`, type: "delete", pokemonId, base: null, queuedAt: "synthetic" }))) })
+    await cancelRuntime.refresh()
+    const review = await cancelRuntime.prepareReview(origin)
+    await cancelRuntime.acceptReview(review, [1, 2].map((pokemonId, ordinal) => ({ sourceId: review.sources[0].sourceId, ordinal, input: input(pokemonId) })))
+    return review
+  },
+  cancellationClaim: () => cancelRuntime.queue.claim(origin, session, "racing-tab", 0),
+  cancellationCancel: (review: DurableReview) => cancelRuntime.cancelReview(review),
+  cancellationState: () => cancelStore.get(LEGACY_QUEUE_KEY),
+  async runtimeSeed() { await runtime.initialize({ getItem: () => " [] \n" }); await runtime.refresh() },
+  async runtimeAppend(pokemonId: number) { await runtime.refresh(); await runtime.enqueue(input(pokemonId)) },
+  async runtimeFlush() { await runtime.flush(); return runtimeSends },
+  runtimeState: () => runtimeStore.get(LEGACY_QUEUE_KEY),
+  async runtimeAbortEnqueue() { abortAfterPut = true; try { await runtime.enqueue(input(4)) } finally { abortAfterPut = false } },
+  async runtimeAbortClaim() { abortAfterPut = true; try { await runtime.flush() } finally { abortAfterPut = false } },
+  async runtimeAbortAck() { abortAck = true; try { await runtime.flush() } finally { abortAfterPut = false; abortAck = false } },
+  async runtimeOldSources() {
+    await runtimeStore.set("collection", { pendingOperations: [{ ...input(20), id: "late-old", queuedAt: "synthetic" }] })
+    await runtime.observe({ getItem: () => "[]" }, [" old-before-overwrite ", "[]"])
+  },
   async reviewRegressions() {
     const make = (suffix: string) => {
       const db = createIndexedDbStore(indexedDB, `${name}-${suffix}`)

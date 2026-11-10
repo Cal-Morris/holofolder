@@ -47,7 +47,7 @@ export function selectWantlist(collection: CollectedPokemon[]): WantlistEntry[] 
 }
 
 /** `key`: the default binder's record unless given (other binders: `collection:<binderId>`, lib/binders/offline.ts). */
-export async function saveCollectionRecord(store: OfflineKeyValueStore, record: CollectionRecord, key = COLLECTION_RECORD_KEY) {
+export async function saveCollectionRecord(store: OfflineKeyValueStore, record: Omit<CollectionRecord, "pendingOperations"> & { pendingOperations?: unknown[] }, key = COLLECTION_RECORD_KEY) {
   await store.set(key, record)
 }
 
@@ -161,7 +161,7 @@ export async function loadSetQuery(store: OfflineKeyValueStore, queryString: str
 export async function migrateLocalStorageToOfflineStore(
   storage: Pick<Storage, "getItem">,
   store: OfflineKeyValueStore,
-  keys: { snapshot: string; pendingOperations: string },
+  keys: { snapshot: string; pendingOperations?: string },
   now = new Date(),
 ) {
   if (await store.get(MIGRATION_RECORD_KEY)) return "already-migrated" as const
@@ -172,12 +172,12 @@ export async function migrateLocalStorageToOfflineStore(
   } else {
     const snapshot = safeParse(storage.getItem(keys.snapshot)) as Partial<CollectionRecord> | null
     if (snapshot && Array.isArray(snapshot.collection)) {
-      const pending = safeParse(storage.getItem(keys.pendingOperations))
+      const pending = keys.pendingOperations ? safeParse(storage.getItem(keys.pendingOperations)) : null
       await saveCollectionRecord(store, {
         ownerUserId: typeof snapshot.ownerUserId === "string" ? snapshot.ownerUserId : null,
         savedAt: typeof snapshot.savedAt === "string" ? snapshot.savedAt : now.toISOString(),
         collection: normalizeCollectionItems(snapshot.collection),
-        pendingOperations: Array.isArray(pending) ? pending : [],
+        ...(keys.pendingOperations ? { pendingOperations: Array.isArray(pending) ? pending : [] } : {}),
       })
       result = "migrated"
     }

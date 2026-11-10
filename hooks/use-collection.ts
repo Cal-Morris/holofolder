@@ -1,5 +1,6 @@
 "use client"
 
+import { useDurableLegacyQueue } from "@/hooks/use-durable-legacy-queue"
 import { guestCollectionOrigin, sameCollectionOrigin, type CollectionOrigin } from "@/lib/collection/recipient"
 
 import { clearActivityCache } from "@/lib/collection-activity"
@@ -51,10 +52,10 @@ import {
   LOCAL_COLLECTION_PENDING_OPS_KEY,
   pauseLegacyCollectionOperation,
   readPendingCollectionOperationRaw,
-  hasPendingCollectionOperation,
+  hasPendingCollectionOperation as hasOldPendingCollectionOperation,
   readLocalCollectionSnapshot,
   restorePendingCollectionOperations,
-  readPendingCollectionOperations,
+  readPendingCollectionOperations as readOldPendingCollectionOperations,
   queuePendingCollectionOperation,
   pauseReviewedCollectionBatch,
   rebasePendingCollectionOperation,
@@ -128,6 +129,7 @@ interface UseCollectionOptions {
   /** Whether that binder is the owner's default, which also receives edits queued before binders existed. */
   isDefaultBinder?: boolean
   readOnly?: boolean
+  stagedDurableQueue?: boolean
 }
 
 export interface SaveCollectionOptions {
@@ -145,6 +147,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     binderId = null,
     isDefaultBinder = true,
     readOnly = false,
+    stagedDurableQueue = false,
   } = options
   const [user, setUser] = useState<User | null>(initialUser)
   const [collection, setCollection] = useState<CollectedPokemon[]>(normalizeCollectionItems(initialCollection))
@@ -153,23 +156,23 @@ export function useCollection(options: UseCollectionOptions = {}) {
   useLayoutEffect(() => { collectionRef.current = collection }, [collection])
   const [collectionOwnerUserId, setCollectionOwnerUserId] = useState<string | null>(initialCollectionOwnerUserId)
   const [ownerResolvedForUserId, setOwnerResolvedForUserId] = useState<string | null>(initialCollectionOwnerUserId ? initialUser?.id ?? null : null)
+  const [durableGuest, setDurableGuest] = useState<Extract<CollectionOrigin, { kind: "guest" }> | null>(null)
   const editOrigin = useMemo<CollectionOrigin | null>(() => user
     ? (ownerResolvedForUserId === user.id && collectionOwnerUserId && binderId
       ? { kind: "account", actorUserId: user.id, ownerUserId: collectionOwnerUserId, binderId } : null)
-    : (typeof window === "undefined" ? null : guestCollectionOrigin(window.localStorage, binderId)), [user, ownerResolvedForUserId, collectionOwnerUserId, binderId])
+    : (stagedDurableQueue ? (durableGuest ? { ...durableGuest, localBinderId: binderId ?? "guest-default" } : null) : typeof window === "undefined" ? null : guestCollectionOrigin(window.localStorage, binderId)), [user, ownerResolvedForUserId, collectionOwnerUserId, binderId, stagedDurableQueue, durableGuest])
   const originKey = JSON.stringify(editOrigin)
   const isEditForThisBinder = useCallback((operation: { origin?: CollectionOrigin; binderId?: string | null }) =>
     sameCollectionOrigin(operation.origin, JSON.parse(originKey)), [originKey])
-  const readBinderPendingOperations = useCallback(
-    () => readPendingCollectionOperations().filter(isEditForThisBinder).map(operation =>
-      operation.compatibilityPause && operation.type === "upsert" ? { ...operation, item: normalizeCollectionItem(operation.item) } : operation),
-    [isEditForThisBinder],
-  )
   const recoveryIdentity=JSON.stringify([user?.id??null,collectionOwnerUserId,binderId])
   const recoveryIdentityRef=useRef<string|null>(recoveryIdentity)
   const deliveryEpochRef = useRef(0)
   useLayoutEffect(()=>{deliveryEpochRef.current++;recoveryIdentityRef.current=recoveryIdentity;return()=>{recoveryIdentityRef.current=null}},[recoveryIdentity])
   const authenticatedUserId = useRef(initialUser?.id ?? null)
+  const authEpochRef = useRef(0)
+  const ownerLookupRef = useRef(0)
+  const ownerScopeRef = useRef(initialCollectionOwnerUserId)
+  useLayoutEffect(() => { ownerScopeRef.current = collectionOwnerUserId }, [collectionOwnerUserId])
   // Server rows last read, so refreshes can fetch only what changed (lib/collection/delta-sync.ts).
   // Seeded from the server-rendered rows; rows without updated_at (local snapshots) just mean a full first fetch.
   const collectionBaselineRef = useRef<CollectionSyncBaseline | null>(
@@ -180,7 +183,22 @@ export function useCollection(options: UseCollectionOptions = {}) {
   const [localCollectedCount, setLocalCollectedCount] = useState(0)
   const [localPendingSyncCount, setLocalPendingSyncCount] = useState(0)
   const [syncStatus, setSyncStatus] = useState<CollectionSyncStatus>("idle")
+  const [unsavedDraft, setUnsavedDraft] = useState<{ pokemonId: number; nextItem: CollectedPokemon | null; acquisition?: AcquisitionIntent; expected: CollectedPokemon | null; importOnly: boolean; origin: CollectionOrigin; epoch: number } | null>(null)
   const [syncNotice, setSyncNotice] = useState<string | null>(null)
+  const durable = useDurableLegacyQueue(stagedDurableQueue && !readOnly, editOrigin, recoveryIdentity, authenticatedUserId, setSyncNotice)
+  const durableRuntime = durable.runtime
+  useEffect(() => { if (durable.guest) queueMicrotask(() => setDurableGuest(durable.guest)) }, [durable.guest])
+  const readPendingCollectionOperations = useCallback(() => stagedDurableQueue
+    ? (durableRuntime?.view()?.entries.filter(entry => entry.state !== "completed").map(entry => entry.operation) ?? [])
+    : readOldPendingCollectionOperations(), [stagedDurableQueue, durableRuntime])
+  const hasPendingCollectionOperation = useCallback((pokemonId: number, editBinder: string | null, origin: CollectionOrigin | null) => stagedDurableQueue
+    ? readPendingCollectionOperations().some(operation => operation.pokemonId === pokemonId && sameCollectionOrigin(operation.origin, origin))
+    : hasOldPendingCollectionOperation(pokemonId, editBinder, origin), [stagedDurableQueue, readPendingCollectionOperations])
+  const readBinderPendingOperations = useCallback(
+    () => readPendingCollectionOperations().filter(isEditForThisBinder).map(operation =>
+      operation.compatibilityPause && operation.type === "upsert" ? { ...operation, item: normalizeCollectionItem(operation.item) } : operation),
+    [isEditForThisBinder, readPendingCollectionOperations],
+  )
   const syncRetryAttemptRef = useRef(0)
   const syncRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const flushPendingCollectionOperationsRef = useRef<() => Promise<void>>(async () => undefined)
@@ -214,6 +232,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
       return null
     }
 
+    const ownerEpoch = authEpochRef.current
+    const lookup = ++ownerLookupRef.current
     const { data: partnership, error } = await supabase
       .from("partnerships")
       .select("id,owner_user_id,user1_id,user2_id")
@@ -229,12 +249,19 @@ export function useCollection(options: UseCollectionOptions = {}) {
       if (accessError && !["PGRST202", "42883"].includes(accessError.code)) throw accessError
       if (!accessError && !allowed) ownerUserId = currentUser.id
     }
-    if (authenticatedUserId.current === currentUser.id) {
+    if (authenticatedUserId.current === currentUser.id && ownerEpoch === authEpochRef.current && lookup === ownerLookupRef.current) {
+      if (ownerScopeRef.current && ownerScopeRef.current !== ownerUserId) {
+        deliveryEpochRef.current++; recoveryIdentityRef.current = null
+        window.dispatchEvent(new Event("holofolder-legacy-scope-changed"))
+        setCollection([]); setUnsavedDraft(null)
+      }
+      ownerScopeRef.current = ownerUserId
       setCollectionOwnerUserId(ownerUserId)
       const recipientId = partnership?.user1_id === currentUser.id ? partnership.user2_id : partnership?.user1_id
       writePushMembership(currentUser.id, partnership?.id && recipientId ? { actorId: currentUser.id, ownerId: ownerUserId, partnershipId: partnership.id, recipientId } : null)
       setOwnerResolvedForUserId(currentUser.id)
     }
+    if (authenticatedUserId.current !== currentUser.id || ownerEpoch !== authEpochRef.current || lookup !== ownerLookupRef.current) throw new Error("Collection scope changed while resolving its owner.")
     return ownerUserId
   }, [supabase])
 
@@ -244,14 +271,27 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   const refreshLocalPendingSyncCount = useCallback(() => {
     setLocalPendingSyncCount(readPendingCollectionOperations().filter(isEditForThisBinder).length)
-  }, [isEditForThisBinder])
+  }, [isEditForThisBinder, readPendingCollectionOperations])
+
+  useEffect(() => {
+    if (!stagedDurableQueue) return
+    const entries = durable.view?.entries.filter(entry => entry.state !== "completed") ?? []
+    queueMicrotask(() => {
+      setLocalPendingSyncCount(entries.length)
+      if (entries.some(entry => entry.operation.compatibilityPause || entry.settlement?.kind === "known-rejection" && entry.settlement.category === "compatibility")) setSyncStatus("compatibility")
+      else if (entries.some(entry => entry.state === "unknown" || entry.state === "paused")) {
+        setSyncStatus("waiting")
+        setSyncNotice("Changes are retained on this device. Delivery may be unknown; do not repeat the upload.")
+      } else setSyncStatus(entries.some(entry => entry.state === "sending") ? "syncing" : "idle")
+    })
+  }, [stagedDurableQueue, durable.view])
 
   const applyLocalCollection = useCallback((nextCollection: CollectedPokemon[]) => {
     collectionRef.current = nextCollection
     setCollection(nextCollection)
-    persistLocalCollectionState(nextCollection, collectionOwnerUserId, binderId, isDefaultBinder)
+    persistLocalCollectionState(nextCollection, collectionOwnerUserId, binderId, isDefaultBinder, stagedDurableQueue)
     refreshLocalCollectedCount()
-  }, [binderId, collectionOwnerUserId, isDefaultBinder, refreshLocalCollectedCount])
+  }, [binderId, collectionOwnerUserId, isDefaultBinder, refreshLocalCollectedCount, stagedDurableQueue])
 
   const cancelSyncRetry = useCallback(() => {
     if (syncRetryTimerRef.current) {
@@ -275,8 +315,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   useEffect(() => {
     if (readOnly) return
-    refreshLocalCollectedCount()
-    refreshLocalPendingSyncCount()
+    queueMicrotask(() => { refreshLocalCollectedCount(); refreshLocalPendingSyncCount() })
 
     const handleStorage = (event: StorageEvent) => {
       if (!event.key || event.key === "pokemon_collected" || event.key === LOCAL_COLLECTION_PENDING_OPS_KEY) {
@@ -302,11 +341,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     // The signed-out "collected ids" list mirrors the default binder only.
     if (isDefaultBinder && !numberArraysEqual(localIds, cloudCollectedIds)) {
-      writeLocalCollectedIds(cloudCollectedIds)
+      queueMicrotask(() => writeLocalCollectedIds(cloudCollectedIds))
     }
 
     if (localCollectedCount !== cloudCollectedIds.length) {
-      setLocalCollectedCount(cloudCollectedIds.length)
+      queueMicrotask(() => setLocalCollectedCount(cloudCollectedIds.length))
     }
   }, [collection, isDefaultBinder, localCollectedCount, readOnly, user])
 
@@ -316,6 +355,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const applySnapshot = (snapshot: { ownerUserId: string | null; binderId?: string | null; collection: CollectedPokemon[] }) => {
       const isOffline = typeof navigator !== "undefined" && navigator.onLine === false
       const ownerMatches = Boolean(collectionOwnerUserId && snapshot.ownerUserId === collectionOwnerUserId)
+      if (stagedDurableQueue && (user ? !ownerMatches : snapshot.ownerUserId !== null)) return
 
       const sharedAccess = snapshot.ownerUserId && snapshot.ownerUserId !== user?.id ? readBillingCache(localStorage, user?.id ?? null, snapshot.ownerUserId) : null
       if (snapshot.ownerUserId && snapshot.ownerUserId !== user?.id && (!sharedAccess || (sharedAccess.enforced && sharedAccess.tier !== "paid"))) return
@@ -350,7 +390,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       .then(([defaultRecord, ownRecord]) => {
         if (cancelled) return
         // Pending edits for every binder live in the default record.
-        if (defaultRecord && restorePendingCollectionOperations(defaultRecord.pendingOperations) > 0) {
+        if (!stagedDurableQueue && defaultRecord && restorePendingCollectionOperations(defaultRecord.pendingOperations ?? []) > 0) {
           refreshLocalPendingSyncCount()
         }
         const record = ownKey ? ownRecord : defaultRecord
@@ -363,7 +403,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return () => {
       cancelled = true
     }
-  }, [binderId, collectionOwnerUserId, isDefaultBinder, readOnly, refreshLocalPendingSyncCount, user?.id])
+  }, [binderId, collectionOwnerUserId, isDefaultBinder, readOnly, refreshLocalPendingSyncCount, stagedDurableQueue, user, user?.id])
 
   const reloadRemoteCollection = useCallback(async () => {
     if (readOnly) return
@@ -375,7 +415,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
         // A refresh can still be in flight when the account changes (sign-out, account switch): drop its rows
         // so the previous account's cards never show under the new one.
         const refreshEpoch = deliveryEpochRef.current
-        const isStale = () => authenticatedUserId.current !== refreshPlan.user.id || (refreshPlan.knownOwnerUserId !== null && deliveryEpochRef.current !== refreshEpoch)
+        const isStale = () => authenticatedUserId.current !== refreshPlan.user.id || (deliveryEpochRef.current !== refreshEpoch)
         const ownerUserId = refreshPlan.knownOwnerUserId ?? await resolveCollectionOwnerUserId(refreshPlan.user)
         if (isStale()) return
         const baseline = await syncCollectionRows(supabase, ownerUserId, collectionBaselineRef.current, binderId)
@@ -427,10 +467,12 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (authenticatedUserId.current !== (session?.user.id ?? null)) {
+        authEpochRef.current++
         deliveryEpochRef.current++
         recoveryIdentityRef.current = null
         window.dispatchEvent(new Event("holofolder-legacy-scope-changed"))
         collectionBaselineRef.current = null
+        setUnsavedDraft(null)
         setCollection([])
         setCollectionOwnerUserId(null)
         setOwnerResolvedForUserId(null)
@@ -460,7 +502,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     })
 
     return () => subscription.unsubscribe()
-  }, [binderId, readOnly, resolveCollectionOwnerUserId, supabase])
+  }, [binderId, readOnly, readPendingCollectionOperations, resolveCollectionOwnerUserId, supabase])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -511,14 +553,14 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
       void supabase.removeChannel(channel)
     }
-  }, [collectionOwnerUserId, localPendingSyncCount, readOnly, reloadRemoteCollection, supabase, user])
+  }, [collectionOwnerUserId, localPendingSyncCount, readOnly, readPendingCollectionOperations, reloadRemoteCollection, supabase, user])
 
   useEffect(() => {
     if (readOnly) return
     if (!collectionOwnerUserId && collection.length === 0) return
 
-    persistLocalCollectionState(collection, collectionOwnerUserId, binderId, isDefaultBinder)
-  }, [binderId, collection, collectionOwnerUserId, isDefaultBinder, readOnly])
+    if (!stagedDurableQueue || durableRuntime?.view()) persistLocalCollectionState(collection, collectionOwnerUserId, binderId, isDefaultBinder, stagedDurableQueue)
+  }, [binderId, collection, collectionOwnerUserId, durableRuntime, isDefaultBinder, readOnly, stagedDurableQueue])
 
   /**
    * Show the outcome of a write unless a newer local edit of the same slot is still queued. Edits for another
@@ -532,7 +574,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }
     if (!isEditForThisBinder({ binderId: editBinderId, origin: settledOrigin ?? undefined })) return
     setCollection((current) => (item ? upsertCollectionItem(current, item) : removeCollectionItem(current, pokemonId)))
-  }, [binderId, isEditForThisBinder, editOrigin])
+  }, [binderId, editOrigin, hasPendingCollectionOperation, isEditForThisBinder])
 
   /** Undo an edit the server will never accept, and say so. */
   const rollBackEdit = useCallback((operation: { pokemonId: number; item?: CollectedPokemon; base?: CollectedPokemon | null; binderId?: string | null; origin?: CollectionOrigin }, error: unknown) => {
@@ -551,6 +593,19 @@ export function useCollection(options: UseCollectionOptions = {}) {
 
   const flushPendingCollectionOperations = useCallback(async () => {
     if (readOnly || !user || !collectionOwnerUserId || isOffline()) return
+    if (stagedDurableQueue) {
+      if (!durableRuntime?.view()) return
+      const stagedEpoch = deliveryEpochRef.current
+      try {
+        await durableRuntime.flush((outcome, pokemonId, origin) => {
+          const successors = durableRuntime.view()?.entries.some(entry => entry.state !== "completed" && entry.operation.pokemonId === pokemonId)
+          if (!successors && sameCollectionOrigin(origin, editOrigin)) setCollection(current => outcome.item ? upsertCollectionItem(current, outcome.item) : removeCollectionItem(current, pokemonId))
+          window.dispatchEvent(new Event("holofolder-refresh-billing"))
+          void broadcastCollectionChanged()
+        })
+      } catch { if (stagedEpoch === deliveryEpochRef.current) setSyncNotice("Device storage could not record delivery. The original request is retained; it will not be resent.") }
+      return
+    }
     if (isFlushingPendingOperationsRef.current || activeRemoteCollectionWriteCountRef.current > 0) return
     // Backing off after a failure: only the retry timer, reconnecting, the app becoming visible or a new
     // edit start the next attempt (they clear the timer first).
@@ -710,32 +765,20 @@ export function useCollection(options: UseCollectionOptions = {}) {
     } else {
       setSyncStatus("idle")
     }
-  }, [
-    broadcastCollectionChanged,
-    isEditForThisBinder,
-    collectionOwnerUserId,
-    localPendingSyncCount,
-    readOnly,
-    refreshLocalPendingSyncCount,
-    rollBackEdit,
-    scheduleSyncRetry,
-    settleLocalItem,
-    user,
-    writeRemoteCollection,
-  ])
+  }, [readOnly, user, collectionOwnerUserId, stagedDurableQueue, readPendingCollectionOperations, isEditForThisBinder, durableRuntime, editOrigin, broadcastCollectionChanged, localPendingSyncCount, refreshLocalPendingSyncCount, writeRemoteCollection, settleLocalItem, rollBackEdit, scheduleSyncRetry])
 
   useEffect(() => {
     flushPendingCollectionOperationsRef.current = flushPendingCollectionOperations
   }, [flushPendingCollectionOperations])
 
   useEffect(() => {
-    if (!syncNotice) return
+    if (!syncNotice || stagedDurableQueue) return
     const timer = setTimeout(() => setSyncNotice(null), 10_000)
     return () => clearTimeout(timer)
-  }, [syncNotice])
+  }, [syncNotice, stagedDurableQueue])
 
   useEffect(() => {
-    flushPendingCollectionOperations()
+    queueMicrotask(() => { void flushPendingCollectionOperations() })
   }, [flushPendingCollectionOperations, localPendingSyncCount])
 
   // Queued edits made before a reload stay visible on top of whatever collection the page started with.
@@ -743,9 +786,9 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (readOnly) return
     const operations = readBinderPendingOperations()
     if (operations.length > 0) {
-      setCollection((current) => applyPendingEdits(current, operations))
+      queueMicrotask(() => setCollection((current) => applyPendingEdits(current, operations)))
     }
-  }, [readBinderPendingOperations, readOnly])
+  }, [readBinderPendingOperations, readOnly, durable.view])
 
   // Sync triggers besides new edits: coming back online and the app becoming visible again. Both reset the
   // backoff so a reconnect syncs straight away.
@@ -827,7 +870,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("online", handleOnline)
     }
-  }, [localPendingSyncCount, readOnly, reloadRemoteCollection, user])
+  }, [localPendingSyncCount, readOnly, readPendingCollectionOperations, reloadRemoteCollection, user])
 
   /**
    * Optimistic write shared by every edit: update the UI now, then send it. Offline, signed out, or with an
@@ -861,6 +904,26 @@ export function useCollection(options: UseCollectionOptions = {}) {
     const input: PendingCollectionOperationInput = nextItem
       ? { origin: origin ?? undefined, type: "upsert", pokemonId, item: nextItem, base: existingItem, acquisition, ...(importOnly ? { importOnly: true as const } : {}), ...binderField }
       : { origin: origin ?? undefined, type: "delete", pokemonId, base: existingItem, ...binderField }
+
+    if (stagedDurableQueue) {
+      if (!origin || !durableRuntime?.view() || !isCurrentEdit()) return { item: existingItem, queued: false as const, rolledBack: true as const, error: "Device changes are loading. This edit was not saved or sent." }
+      try {
+        await durableRuntime.enqueue(input)
+        if (!isCurrentEdit()) return { item: nextItem, queued: true as const }
+        const committed = durableRuntime.view() ? applyPendingEdits(collectionRef.current, readBinderPendingOperations()) : nextItem ? upsertCollectionItem(collectionRef.current, nextItem) : removeCollectionItem(collectionRef.current, pokemonId)
+        applyLocalCollection(committed)
+        setUnsavedDraft(null)
+        refreshLocalPendingSyncCount()
+        void flushPendingCollectionOperationsRef.current()
+        return { item: nextItem, queued: true as const }
+      } catch (error) {
+        if (isCurrentEdit()) {
+          setUnsavedDraft({ pokemonId, nextItem, acquisition, expected: existingItem, importOnly, origin, epoch: editEpoch })
+          setSyncNotice("This draft is unsaved. Retry when device storage is available; no new send was started here.")
+        }
+        return { item: existingItem, queued: false as const, rolledBack: true as const, error }
+      }
+    }
 
     const hadPending = hasPendingCollectionOperation(pokemonId, binderId, origin)
     let edit: PendingCollectionOperation
@@ -912,7 +975,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
       refreshLocalPendingSyncCount()
       return { item: nextItem, queued: true as const, error }
     }
-  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collectionOwnerUserId, isEditForThisBinder, rollBackEdit, settleLocalItem, user, writeRemoteCollection, editOrigin, refreshLocalPendingSyncCount, scheduleSyncRetry])
+  }, [user, editOrigin, hasPendingCollectionOperation, binderId, collectionOwnerUserId, readPendingCollectionOperations, isEditForThisBinder, stagedDurableQueue, applyLocalCollection, refreshLocalPendingSyncCount, durableRuntime, readBinderPendingOperations, writeRemoteCollection, broadcastCollectionChanged, settleLocalItem, rollBackEdit, scheduleSyncRetry])
 
   const addToCollection = useCallback(async (
     pokemonId: number,
@@ -1117,6 +1180,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
     if (readOnly) return
     clearActivityCache(window.localStorage)
     authenticatedUserId.current = null
+    authEpochRef.current++; deliveryEpochRef.current++; recoveryIdentityRef.current = null
+    window.dispatchEvent(new Event("holofolder-legacy-scope-changed"))
     setUser(null)
     setCollectionOwnerUserId(null)
     setCollection([])
@@ -1136,6 +1201,11 @@ export function useCollection(options: UseCollectionOptions = {}) {
   }
 
   return {
+    durableQueue: stagedDurableQueue ? durableRuntime : undefined,
+    retryUnsavedEdit: unsavedDraft && sameCollectionOrigin(unsavedDraft.origin, editOrigin)
+      ? () => unsavedDraft.epoch === deliveryEpochRef.current
+        ? commitItemChange(unsavedDraft.pokemonId, unsavedDraft.nextItem, unsavedDraft.acquisition, unsavedDraft.expected, unsavedDraft.importOnly)
+        : Promise.resolve({ error: "The draft belongs to an earlier session. Reopen this binder before editing." }) : undefined,
     refreshAfterRecovery,
     undoActivityEvent: async (eventId:string) => {
       const accountId=user?.id,ownerId=collectionOwnerUserId
@@ -1145,7 +1215,7 @@ export function useCollection(options: UseCollectionOptions = {}) {
     },
     user,
     collection,
-    isLoading: false,
+    isLoading: stagedDurableQueue && !durable.view,
     addToCollection,
     addWantedCard,
     removeFromCollection,

@@ -5,7 +5,7 @@
   "scripts": {
     "build": "next build && node scripts/verify-docs-css.mjs",
     "dev": "next dev",
-    "lint": "eslint . --max-warnings=55",
+    "lint": "eslint . --max-warnings=51",
     "sync-card-db": "bun scripts/sync-card-db.ts",
     "sync-card-prices": "bun scripts/sync-card-prices.ts",
     "sync-card-supplements": "bun scripts/sync-card-supplements.ts",

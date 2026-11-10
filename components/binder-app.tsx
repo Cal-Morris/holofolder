@@ -130,6 +130,7 @@ const SlotDetail = dynamic(() => import("@/components/binder/slot-detail"), { ss
 interface BinderAppProps {
   /** Minted only by the server-gated loopback harness. Production bootstrap never supplies this. */
   localBrowserHost?: boolean
+  stagedDurableQueue?: boolean
   browserSurface?: BrowserSurfaceBinding
   browserHeader?: ReactNode
   onBrowserSignOut?: () => Promise<void>
@@ -158,7 +159,7 @@ interface BinderAppProps {
 
 export default function BinderApp(props: BinderAppProps) {
   const {
-  localBrowserHost = false, browserSurface, browserHeader, onBrowserSignOut,
+  localBrowserHost = false, stagedDurableQueue = false, browserSurface, browserHeader, onBrowserSignOut,
   stagedSlotDisplay,
   onStagedSlotCommandIntent,
   stagedSlotCatalog,
@@ -337,6 +338,8 @@ export default function BinderApp(props: BinderAppProps) {
     syncNotice,
     dismissSyncNotice,
     resolvedCollectionOwnerUserId,
+    durableQueue,
+    retryUnsavedEdit,
   } = useCollection({
     initialUser,
     initialCollection,
@@ -344,6 +347,7 @@ export default function BinderApp(props: BinderAppProps) {
     binderId: initialBinderId,
     isDefaultBinder: !initialBinderId || initialBinders.find((binder) => binder.id === initialBinderId)?.isDefault !== false,
     readOnly: readOnlyMode,
+    stagedDurableQueue,
   })
   const [hostAdmitted, setHostAdmitted] = useState(false)
   useEffect(() => { queueMicrotask(() => {
@@ -357,7 +361,7 @@ export default function BinderApp(props: BinderAppProps) {
     setOwnedRemoveUndo(null)
     setQuickUndo({ ...action, id: crypto.randomUUID(), accountId: user?.id ?? null, ownerId: resolvedCollectionOwnerUserId })
   }, [user?.id, resolvedCollectionOwnerUserId])
-  useOfflineStoreSync(!readOnlyMode)
+  useOfflineStoreSync(!readOnlyMode, stagedDurableQueue)
 
   // The binder on screen is this device's last opened one (the server reads the cookie on the next visit).
   useEffect(() => {
@@ -3660,7 +3664,7 @@ export default function BinderApp(props: BinderAppProps) {
             </div>
           </TopBannerSlot>
         )
-      ) : user && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) ? (
+      ) : (user || stagedDurableQueue) && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) ? (
         <TopBannerSlot topClassName={isShowModeOn ? "top-[calc(var(--top-inset)+3.5rem)]" : undefined}>
           <div
             role="status"
@@ -3674,6 +3678,7 @@ export default function BinderApp(props: BinderAppProps) {
             ) : syncNotice ? (
               <>
                 <span>{syncNotice}</span>
+                {retryUnsavedEdit && <button type="button" className="min-h-9 shrink-0 underline" onClick={() => void retryUnsavedEdit()}>Retry draft</button>}
                 <button type="button" onClick={dismissSyncNotice} className="underline underline-offset-2">
                   Dismiss
                 </button>
@@ -3690,7 +3695,7 @@ export default function BinderApp(props: BinderAppProps) {
         <button className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => openExclusively(() => setIsSettingsOpen(true))}>Settings</button>
         <button className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { void (onBrowserSignOut ?? handleSignOut)() }}>Sign out</button>
       </div></div> : legacyHeader}
-      {!readOnlyMode && <LegacyDeviceReview actorId={user?.id ?? null} ownerId={resolvedCollectionOwnerUserId ?? null} binderId={initialBinderId} />}
+      {!readOnlyMode && <LegacyDeviceReview key={JSON.stringify([user?.id, resolvedCollectionOwnerUserId, initialBinderId])} durableQueue={durableQueue} durableEnabled={stagedDurableQueue} actorId={user?.id ?? null} ownerId={resolvedCollectionOwnerUserId ?? null} binderId={initialBinderId} />}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
       {browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"

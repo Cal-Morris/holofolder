@@ -50,3 +50,13 @@ description: Change holofolder offline behaviour, including the service worker (
    - wait for the worker to control the page and the shell to be cached, then go offline
    - cover reload, a stalled server and a slow first visit
 4. Run only the affected offline specs across all 6 projects with `bun run test:e2e:matrix e2e/<affected>.e2e.ts`. Repeat a focused test only when a failure or suspected flakiness justifies it. Run the full e2e suite only when Cal explicitly asks.
+
+## Staged legacy durability boundary
+
+Production still uses the legacy queue above. Only the existing loopback E2E
+harness with `?durableQueue=1` admits the coordinated transactional hook/review
+path. That path never writes/restores the LS queue or mirrored pending ops;
+old sources remain additive evidence. Both send triggers share one committed
+claim sender, and unknown outcomes never retry. See
+[`docs/legacy-queue-staged-runtime.md`](../../../docs/legacy-queue-staged-runtime.md)
+for proof limits and the parent-owned trusted-context/ingress cutover gate.
