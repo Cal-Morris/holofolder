@@ -10,7 +10,7 @@ import { pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
  */
 export const CARD_IMAGE_SOURCE_PREFIX = "cards/src"
 
-export type CardImageSource = "tcgplayer" | "pokemontcg" | "scrydex" | "limitless" | "playshop"
+export type CardImageSource = "tcgplayer" | "pokemontcg" | "scrydex" | "limitless" | "playshop" | "pokemoncom"
 
 export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> = {
   "product-images.tcgplayer.com": "tcgplayer",
@@ -19,13 +19,15 @@ export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> 
   "limitlesstcg.nyc3.cdn.digitaloceanspaces.com": "limitless",
   // Shared Shopify CDN: only the playshop.fr store path is a card image source (see PATH_RULES).
   "cdn.shopify.com": "playshop",
+  // Shared Pokémon asset CDN: only the TCG card image path is a card image source (see PATH_RULES).
+  "assets.pokemon.com": "pokemoncom",
 }
 
 /** Sources on a host that also serves other content: only URLs matching the source's path rule are card images. */
-const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop"])
+const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop", "pokemoncom"])
 
 /** Source priority when several are known for a card (best scans first). */
-export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = ["limitless", "scrydex", "pokemontcg", "tcgplayer", "playshop"]
+export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = ["pokemoncom", "limitless", "scrydex", "pokemontcg", "tcgplayer", "playshop"]
 
 /** Sources whose stored copy is trimmed of the plain white margin around the card (retailer photos). */
 export const TRIMMED_CARD_IMAGE_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop"])
@@ -49,6 +51,8 @@ const PATH_RULES: Record<CardImageSource, { pattern: RegExp; key: (match: RegExp
   limitless: { pattern: /^\/tpci\/([A-Z0-9]{1,10})\/([A-Za-z0-9][A-Za-z0-9_-]{0,63})\.(png|jpg|webp)$/, key: (m) => `${m[1]}/${m[2]}` },
   // https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png|jpg> (playshop.fr product scans of single cards)
   playshop: { pattern: /^\/s\/files\/1\/1015\/7057\/6719\/files\/([a-z0-9][a-z0-9-]{0,95})\.(png|jpg)$/, key: (m) => m[1] },
+  // https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/<SET>/<SET>_EN_<number>.png
+  pokemoncom: { pattern: /^\/static-assets\/content-assets\/cms2\/img\/cards\/web\/([A-Z0-9]{1,16})\/(\1_EN_[A-Z0-9]{1,12})\.png$/, key: (m) => `${m[1]}/${m[2]}` },
 }
 
 export function getCardImageSourceForHost(hostname: string): CardImageSource | null {
@@ -106,7 +110,8 @@ function pickTcgplayerProductId(tcgdex: Record<string, unknown> | null) {
 
 /**
  * Best image URL for a card without a TCGdex asset-manifest image: the reviewed catalog image, then the TCGdex
- * image recorded on the card, then pokemontcg.io / Scrydex, then the TCGplayer product image.
+ * image recorded on the card, then the official pokemon.com scan, then pokemontcg.io / Scrydex, then the TCGplayer
+ * product image.
  */
 export function pickExternalCardImageUrl(value: unknown) {
   const externalIds = asRecord(value)
@@ -117,6 +122,9 @@ export function pickExternalCardImageUrl(value: unknown) {
 
   const tcgdexImage = pickTcgdexImageFromExternalIds(externalIds)
   if (tcgdexImage) return tcgdexImage
+
+  const pokemonCom = asRecord(externalIds.pokemoncom)?.image
+  if (typeof pokemonCom === "string" && pokemonCom.length > 0) return pokemonCom
 
   const pokemonTcg = asRecord(externalIds.pokemon_tcg)
   for (const key of ["imageLarge", "imageSmall"] as const) {
