@@ -272,3 +272,10 @@ The existing refresh workflow now selects legacy/native/mixed authority through 
 ## Exact operation history lookup (#369/#370/#396)
 
 `list_collection_audit` now accepts bounded `operationId` across REST, MCP and the first-party RLS Activity adapter. It filters exact `operation_id` under the already authorized owner, retains filter-bound cursors and the existing safe projection, and adds no private evidence or ACK/planning authority. Zero results do not prove noncommit; multiple results require inspecting/selecting an exact event with `get_collection_audit`. The staged browser command-to-Activity entry point consumes only existing separately fresh complete ACK receipts. Native recovery still requires its own current preview and confirmation; all native production gates remain 503. See [native Activity boundaries](../native-activity-recovery-ui.md#exact-acknowledged-command-linkage-369370396).
+
+Staged #384 Binder/Custom creation UI composes existing `list_storage_presets`,
+`preview_storage_preset` and `create_storage_collection`; custom/list/private
+location already exist in the shared command schema. Device review and default
+presentation mapping add no operation, permission or generated OpenAPI change.
+Current native admission remains denied; first/default/mixed legacy and #390
+Slab exposure gates remain. See [the consumer boundary](../custom-storage-creation.md).

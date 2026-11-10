@@ -5,6 +5,7 @@ import type { SetChecklist } from "@/lib/domain/binder-presets"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { useState } from "react"
 import { blankPreset, speciesPreset, printingPreset, printingTarget, parseBinderCreationDraft, type BinderCreationDraft } from "@/lib/binder-creation-draft"
+import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { BINDER_NAME_MAX_LENGTH } from "@/lib/binders/model"
 import { CARD_LANGUAGES, type CardLanguage } from "@/lib/domain/cards"
 import { POKEMON_CATALOG, formatPokemonDisplayName } from "@/lib/pokemon-catalog"
@@ -22,6 +23,8 @@ export function BinderCreationPresets({ ownerUserId, onDraft, isOnline, disabled
   ownerUserId: string; onDraft: (draft: BinderCreationDraft) => void; isOnline: boolean; disabled?: boolean; initialSet?: TCGSetSummary; nativeCreation?: boolean
 }) {
   const [name, setName] = useState("")
+  const [kind, setKind] = useState<BinderCreationDraft["kind"]>("binder")
+  const [location, setLocation] = useState("")
   const [mode, setMode] = useState(initialSet ? "set" : "blank")
   const [setChecklist, setSetChecklist] = useState<SetChecklist | null>(null)
   const [generation, setGeneration] = useState(1)
@@ -57,14 +60,23 @@ export function BinderCreationPresets({ ownerUserId, onDraft, isOnline, disabled
     event.preventDefault()
     if (disabled || !isOnline || (mode === "set" && (!setChecklist || nativeCreation))) return
     try {
-      onDraft(parseBinderCreationDraft({ version: 1, operationId: crypto.randomUUID(), ownerUserId, name, manifest, ...(mode === "set" && setChecklist ? { setChecklist } : {}) }))
+      onDraft(parseBinderCreationDraft({ version: 1, operationId: crypto.randomUUID(), ownerUserId, name, manifest, ...(nativeCreation ? { kind, location: kind === "custom" ? location : null } : {}), ...(mode === "set" && setChecklist ? { setChecklist } : {}) }))
       setMessage(nativeCreation ? "Review the copied targets before confirming." : "Draft prepared only. No binder has been saved.")
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not prepare draft") }
   }}>
+    {nativeCreation && <>
+      <label className="block text-xs">Storage kind<select aria-label="Storage kind" value={kind} onChange={e => setKind(e.target.value as BinderCreationDraft["kind"])} className={`${control} mt-1 w-full`}>
+        <option value="binder">Binder</option><option value="custom">Custom storage</option>
+      </select></label>
+      <p className="text-xs text-muted-foreground">{kind === "custom" ? "Starts in List." : "Starts in Binder."} You can change the view later. Both use the same collection allowance.</p>
+    </>}
     <p className="text-sm font-semibold">Starting arrangement</p>
     <p className="text-xs text-muted-foreground">Targets stay editable. Selecting targets adds no owned cards or wanted entries.</p>
-    <label className="block text-xs">New binder name<input aria-label="New binder name" value={name} maxLength={BINDER_NAME_MAX_LENGTH} onChange={e => setName(e.target.value)} className={`${control} mt-1 w-full`} /></label>
-    <button type="submit" disabled={disabled || !isOnline || !name.trim() || (mode !== "blank" && manifest.entries.length === 0)} className="min-h-11 w-full rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-40">{nativeCreation ? "Review binder" : "Prepare draft"}</button>
+    <label className="block text-xs">{nativeCreation ? "Storage name" : "New binder name"}<input aria-label={nativeCreation ? "Storage name" : "New binder name"} value={name} maxLength={BINDER_NAME_MAX_LENGTH} onChange={e => setName(e.target.value)} className={`${control} mt-1 w-full`} /></label>
+    {nativeCreation && kind === "custom" && <label className="block text-xs">Location (optional)<input aria-label="Location (optional)" value={location} maxLength={COLLECTION_CREATION_LIMITS.location} onChange={e => setLocation(e.target.value)} className={`${control} mt-1 w-full`} />
+      <span className="mt-1 block text-xs text-muted-foreground">Up to {COLLECTION_CREATION_LIMITS.location} characters. Shared with your linked partner, never included in public sharing by this flow.</span>
+    </label>}
+    <button type="submit" disabled={disabled || !isOnline || !name.trim() || (mode !== "blank" && manifest.entries.length === 0)} className="min-h-11 w-full rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-40">{nativeCreation ? "Review storage" : "Prepare draft"}</button>
     <label className="block text-xs">Preset<select aria-label="Starting arrangement" value={mode} onChange={e => { setMode(e.target.value); setSetChecklist(null); setPreviewPage(0); setQuery(""); setMessage("") }} className={`${control} mt-1 w-full`}>
       <option value="set" disabled={nativeCreation}>Set / variant checklist{nativeCreation ? " · unavailable" : ""}</option><option value="blank">Blank</option><option value="national">National Dex</option><option value="generation">Generation</option><option value="species">Selected species</option><option value="printings">Selected printings</option>
     </select></label>
@@ -99,6 +111,6 @@ export function BinderCreationPresets({ ownerUserId, onDraft, isOnline, disabled
         <div className="mt-2 flex items-center justify-between gap-2"><button type="button" disabled={page === 0} className={`${control} text-xs disabled:opacity-40`} onClick={() => setPreviewPage(page - 1)}>Previous targets</button><span>Page {page + 1} of {pages}</span><button type="button" disabled={page + 1 === pages} className={`${control} text-xs disabled:opacity-40`} onClick={() => setPreviewPage(page + 1)}>Next targets</button></div>
       </>}
     </section>
-    <p role="status" className="text-xs text-muted-foreground">{message || (!isOnline ? "Preview only while offline. Connect before preparing creation." : (nativeCreation ? "A copy of these targets will be saved. Catalog changes will not change this binder." : "Internal preview only. Binder creation is not enabled."))}</p>
+    <p role="status" className="text-xs text-muted-foreground">{message || (!isOnline ? "Preview only while offline. Connect before preparing creation." : (nativeCreation ? "A copy of these targets will be saved. Catalog changes will not change this collection." : "Internal preview only. Binder creation is not enabled."))}</p>
   </form>
 }

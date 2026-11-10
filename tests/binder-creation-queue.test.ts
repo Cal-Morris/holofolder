@@ -247,3 +247,16 @@ test("new creation review must allocate independent operation, collection and sl
   assert.deepEqual(saved.creationDiscards![0], { intent, proof, resolution: "discarded" })
   assert.deepEqual(saved.pending[0].intent, next); assert.equal(saved.receipts.length, 0)
 })
+
+test("custom creation uses the same exact command, targets and identity without acquiring copies", async () => {
+  const snapshot = await complete()
+  const draft = parseBinderCreationDraft({ version: 1, operationId: context.operationId, ownerUserId: scope.ownerUserId, name: "Box", kind: "custom", location: "Private shelf", manifest: speciesPreset("Selected", [143]) })
+  const intent = prepareBinderCreation(draft, snapshot, context, newId, ["slot-one"])
+  assert.equal(intent.request.kind, "custom"); assert.equal(intent.request.defaultPresentation, "list")
+  assert.equal(intent.request.location, "Private shelf"); assert.equal(intent.request.grid, null)
+  assert.deepEqual(intent.request.manifest, draft.manifest)
+  assert.deepEqual(projectSlotIntent(snapshot, intent, () => undefined), snapshot)
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(snapshot); await q.enqueue(intent, () => undefined, snapshot)
+  assert.deepEqual((await q.read()).pending[0].intent, intent)
+})

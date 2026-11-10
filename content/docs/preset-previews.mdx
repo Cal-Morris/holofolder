@@ -46,3 +46,20 @@ Requests are at most 64 KiB; responses are at most 1 MiB. Each invocation has a 
 Unknown presets return `404 not_found`. Unsupported set/master-set scopes return `422 unsupported_preset_scope`; unavailable or ambiguous printing/language/finish evidence returns `422 preset_catalog_unavailable`. Invalid selections/version/extra fields return `400 invalid_input`; more than 25 unique printings returns `400 preset_scope_too_large`. Budget/deadline exhaustion returns `503 preset_read_unavailable`. Current credential revocation, owner/membership change and entitlement loss remain authoritative. No native admission is enabled by these schemas or by a request flag.
 
 The staged device Binder picker now adapts these copied manifest shapes into the existing creation command through its atomic device queue, after explicit confirmation and a verified complete native planning base. It remains denied in production. A device picker, catalog search or preset preview does not establish owner authority, allocate an owned copy, save a checklist scope, or acknowledge a server write. See [native storage](/docs/native-storage) for pending/replay and fresh-read requirements.
+
+### Choosing storage for copied targets
+
+The staged native **New storage** UI reuses these copied arrangements for Binder
+and Custom storage. Custom starts in List with an optional private location of up
+to 200 characters; the view can change later. The same targets and free slots
+remain editable without creating owned copies, wants or grading.
+
+API clients compose the existing `list_storage_presets` and
+`preview_storage_preset` with `create_storage_collection` (REST
+`POST https://app.holofolder.com/app/api/v1/storage/collections`). For Custom use
+`kind: "custom"`, `defaultPresentation: "list"` and a trimmed `location` or null.
+Retain the exact copied manifest, command IDs and original context for retries;
+preview provenance IDs do not replace operation, collection or slot IDs. Existing
+permissions, count/grid entitlements and current native planning evidence still
+apply. This UI adds no endpoint or schema and does not bypass fixed staged
+REST/MCP admission. Slab choices remain separately gated.
