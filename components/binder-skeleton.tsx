@@ -12,7 +12,7 @@ export function BinderSkeleton({ rows = 3, cols = 3 }: { rows?: number; cols?: n
   const page = (second: boolean) => (
     <div className={`${second ? "hidden xl:grid" : "grid"} h-full w-full gap-1.5 rounded-2xl border border-border/60 bg-card p-2 sm:p-4`}
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
-      {Array.from({ length: rows * cols }, (_, index) => <div key={index} className="rounded-md bg-muted/70" />)}
+      {Array.from({ length: rows * cols }, (_, index) => <div key={index} data-skeleton="pocket" className="rounded-md bg-muted/70" />)}
     </div>
   )
   return (

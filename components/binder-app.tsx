@@ -13,7 +13,7 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 import { createBinderBackup, downloadBinderBackup } from "@/lib/binder-backup"
 import { useCollectorAppOpen } from "@/components/collector-funnel"
 import type { Binder } from "@/lib/binders/model"
-import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
+import { binderHref, rememberBinderGrid, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
 import { allBindersCollection, allBindersWantedEntries, cardsOwnedElsewhere, formatOwnedIn, speciesOwnedElsewhere } from "@/lib/binders/all-binders"
 import { useAllBinders } from "@/hooks/use-all-binders"
@@ -166,6 +166,8 @@ interface BinderAppProps {
   /** The owner's binders and the one this page shows (null before migration 039). */
   initialBinders?: Binder[]
   initialBinderId?: string | null
+  /** Pockets per page of the binder this device opened last: the starting skeleton's grid. */
+  startGrid?: { rows: number; cols: number }
 }
 
 /** Authenticated lifetimes never mount the writable legacy collection hook. */
@@ -230,7 +232,7 @@ export default function BinderApp(props: BinderAppProps) {
     <a className="flex min-h-10 items-center self-start underline" href={appPath("/auth/logout")}>Sign out</a>
   </main> : null
   // While the check runs: the binder's skeleton, or this device's saved copy when the first check allows it.
-  const loading = failed ?? <BinderSkeleton rows={props.initialSettings.binderRows} cols={props.initialSettings.binderCols} />
+  const loading = failed ?? <BinderSkeleton rows={props.startGrid?.rows ?? props.initialSettings.binderRows} cols={props.startGrid?.cols ?? props.initialSettings.binderCols} />
   const placeholder = browserScope.cachedFallbackAllowed && !accessRetry ? <CachedNativeStartup legacyProps={props} whileChecking>{loading}</CachedNativeStartup> : loading
   const session = scope && admission.admitted ? scope : null
   // The placeholder keeps its place (and its saved copy) until the session has something to paint,
@@ -1259,6 +1261,9 @@ function BinderAppSurface(props: BinderAppProps) {
       else closeSlotDetail()
     })
   }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen, closeSlotDetail])
+  // The next start's skeleton shows this binder's grid. Only an owner's binder on screen counts.
+  const binderGridShown = !shareViewToken && !publicIndex && (browserSurface ? browserSurface.surface.state.main === "collection" && Boolean(stagedSlotDisplay) : !stagedSlotDisplay)
+  useEffect(() => { if (binderGridShown) rememberBinderGrid(settings.binderRows, settings.binderCols) }, [binderGridShown, settings.binderRows, settings.binderCols])
   // Arriving from a search result or Quick mode elsewhere in the app: open that pocket once its page is up.
   const arrivingSlot = browserSurface?.surface.collection?.highlight
   const arrivingSlotId = arrivingSlot?.open ? arrivingSlot.slotId : null

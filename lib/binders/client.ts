@@ -1,4 +1,4 @@
-import { ACTIVE_BINDER_COOKIE, isBinderId, type Binder } from "@/lib/binders/model"
+import { ACTIVE_BINDER_COOKIE, BINDER_GRID_COOKIE, isBinderId, parseBinderGrid, type Binder } from "@/lib/binders/model"
 
 export type BinderWithCount = Binder & { slotCount: number }
 
@@ -14,6 +14,13 @@ export function rememberLastOpenedBinder(binderId: string | null) {
   } catch {
     // Storage can be full or disabled; the cookie is enough.
   }
+}
+
+/** Remember the page grid of the binder on screen, so the next start's skeleton has the same pockets. */
+export function rememberBinderGrid(rows: number, cols: number) {
+  const value = `${rows}x${cols}`
+  if (typeof document === "undefined" || !parseBinderGrid(value)) return
+  document.cookie = `${BINDER_GRID_COOKIE}=${value}; Path=/; Max-Age=${ONE_YEAR_SECONDS}; SameSite=Lax`
 }
 
 export function readLastOpenedBinder(): string | null {

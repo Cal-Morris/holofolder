@@ -17,6 +17,13 @@ export interface Binder {
 
 /** Cookie holding the binder last opened on this device (read by the server bootstrap). */
 export const ACTIVE_BINDER_COOKIE = "binderdex_binder"
+/** Cookie holding that binder's pockets per page as "rowsxcols", so the server paints the right skeleton. */
+export const BINDER_GRID_COOKIE = "binderdex_grid"
+export interface BinderGrid { rows: number; cols: number }
+export function parseBinderGrid(value: unknown): BinderGrid | null {
+  const match = typeof value === "string" ? /^([1-8])x([1-8])$/.exec(value) : null
+  return match ? { rows: Number(match[1]), cols: Number(match[2]) } : null
+}
 export const BINDER_NAME_MAX_LENGTH = 40
 export const DEFAULT_BINDER_NAME = "My binder"
 /** Binders are cheap, but a ceiling keeps the switcher and offline storage sane. */

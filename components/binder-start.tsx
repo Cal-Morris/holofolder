@@ -7,6 +7,7 @@ import { readDeviceStartupSession } from "@/lib/collection/native-startup"
 import BinderApp from "@/components/binder-app"
 import { BinderSkeleton } from "@/components/binder-skeleton"
 import { readLocalBinderStart, writeBinderStartMarker, type LocalBinderStart } from "@/lib/binder-start"
+import type { BinderGrid } from "@/lib/binders/model"
 
 type BinderAppProps = ComponentProps<typeof BinderApp>
 export type ServerBinderBoot = Pick<
@@ -23,7 +24,9 @@ type LocalStart = LocalBinderStart & { user: User }
  * remount; a local start then syncs with the server like /app-shell does. Until then, a skeleton.
  * Only the first render races: a later server boot (switching binder, a refresh) always comes from the server.
  */
-export function BinderStart({ serverBoot }: { serverBoot: Promise<ServerBinderBoot> }) {
+export function BinderStart({ serverBoot, startGrid }: { serverBoot: Promise<ServerBinderBoot>; startGrid?: Promise<BinderGrid | null> }) {
+  // The last binder's pockets per page, so every skeleton on the way in has the grid the binder will have.
+  const grid = (startGrid ? use(startGrid) : null) ?? undefined
   const [firstBoot] = useState(serverBoot)
   const [start, setStart] = useState<{ source: "local"; boot: LocalStart } | { source: "server" } | null>(null)
 
@@ -77,22 +80,22 @@ export function BinderStart({ serverBoot }: { serverBoot: Promise<ServerBinderBo
     const legacyProps = { initialUser: boot.user, initialBinders: boot.binders, initialBinderId: boot.binderId, initialCollection: boot.collection,
       initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode }
     return (
-      <BinderApp {...legacyProps} key={boot.binderId ?? "binder"} />
+      <BinderApp {...legacyProps} startGrid={grid} key={boot.binderId ?? "binder"} />
     )
   }
 
   if (start || serverBoot !== firstBoot) {
     return (
-      <Suspense fallback={<BinderSkeleton />}>
-        <ServerStartedBinder serverBoot={serverBoot} />
+      <Suspense fallback={<BinderSkeleton {...grid} />}>
+        <ServerStartedBinder serverBoot={serverBoot} grid={grid} />
       </Suspense>
     )
   }
 
-  return <BinderSkeleton />
+  return <BinderSkeleton {...grid} />
 }
 
-function ServerStartedBinder({ serverBoot }: { serverBoot: Promise<ServerBinderBoot> }) {
+function ServerStartedBinder({ serverBoot, grid }: { serverBoot: Promise<ServerBinderBoot>; grid?: BinderGrid }) {
   const boot = use(serverBoot)
   const router = useRouter()
   const signedOut = !boot.initialUser
@@ -102,6 +105,6 @@ function ServerStartedBinder({ serverBoot }: { serverBoot: Promise<ServerBinderB
     if (signedOut) router.replace("/auth/login")
   }, [router, signedOut])
 
-  if (signedOut) return <BinderSkeleton />
-  return <BinderApp key={boot.initialBinderId ?? "binder"} {...boot} />
+  if (signedOut) return <BinderSkeleton {...grid} />
+  return <BinderApp key={boot.initialBinderId ?? "binder"} {...boot} startGrid={grid} />
 }
