@@ -107,8 +107,8 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     if (appearanceRow.binder_page_colors && typeof appearanceRow.binder_page_colors === 'object') {
       for (const [page, value] of Object.entries(appearanceRow.binder_page_colors)) if (/^[1-9]\d{0,6}$/.test(page)) pageColors[page] = color(value)
     }
-    // Native geometry is required, not defaulted or inferred from a species list.
-    const grid = (value: unknown, fallback: unknown) => isBinderGridSize(value) ? value : native ? fail() : isBinderGridSize(fallback) ? fallback : 4
+    // NULL binder geometry inherits the owner's settings (039). Native never invents a default beyond that.
+    const grid = (value: unknown, fallback: unknown) => isBinderGridSize(value) ? value : isBinderGridSize(fallback) ? fallback : native ? fail() : 4
     async function username() {
       const result = await execute(db.from('account_identities').select('username').eq('user_id', owner).abortSignal(controller.signal).maybeSingle())
       if (result.error && !isMissingIdentitySchema(result.error)) return fail()

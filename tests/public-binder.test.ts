@@ -123,6 +123,19 @@ test('native geometry is never guessed, while legacy retains its default layout 
   }
 })
 
+test('null binder geometry inherits the owner settings like the private binder', async () => {
+  for (const legacy of [false, true]) {
+    const db = syntheticPublicDatabase({ legacy })
+    db.tables.binders[0].binder_rows = null
+    db.tables.binders[0].binder_cols = null
+    db.tables.user_settings[0].binder_rows = 3
+    for (const identity of [{ token: 'synthetic-token' }, { username: 'synthetic-owner', binderSlug: 'mixed' }]) {
+      const binder = await loadPublicBinder(identity, db.client)
+      assert.deepEqual([binder.rows, binder.cols], [3, 4])
+    }
+  }
+})
+
 test('catalog aliases supply actual matching evidence without serializing source JSON', async () => {
   const db = syntheticPublicDatabase()
   db.tables.inventory_items[0].identity = { kind: 'card', cardId: 'synthetic-alias' }
