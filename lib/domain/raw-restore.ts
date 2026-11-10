@@ -28,7 +28,7 @@ interface RawRestoreCommandBase {
   items: { itemId: string; itemVersion: number; placement: { collectionId: string; slot: RawRestoreCommand['slots'][number]['before'] } | null }[]
   releaseItemIds: string[]
 }
-export type RawRestoreCommand = RawRestoreCommandBase & ({ version: 1 } | { version: 2; manifest: PresetManifest | null } | { version: 3; manifest: PresetManifest | null; slotOrder: { before: string[]; after: string[] } })
+export type RawRestoreCommand = RawRestoreCommandBase & ({ version: 1 } | { version: 2; manifest: PresetManifest | null } | { version: 3; manifest: PresetManifest | null; slotOrder: { before: string[]; after: string[] } } | { version: 4; manifest: PresetManifest | null; slotOrder: { before: string[]; after: string[] } })
 /** Strict canonical equality prevents normalization from stripping unknown manifest/origin fields. */
 export function isRawRestoreManifest(value: unknown): value is PresetManifest | null {
   if (value === null) return true
@@ -51,13 +51,13 @@ export function rawRestoreV2JsonbBytes(value: unknown) {
 }
 const invalid = (): never => { throw new Error('Invalid or unsupported raw content restore') }
 export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
-  const v3 = !!value && typeof value === 'object' && 'version' in value && value.version === 3
-  const v2 = v3 || !!value && typeof value === 'object' && 'version' in value && value.version === 2
+  const ordered = !!value && typeof value === 'object' && 'version' in value && (value.version === 3 || value.version === 4)
+  const v2 = ordered || !!value && typeof value === 'object' && 'version' in value && value.version === 2
   const limits = v2 ? RAW_RESTORE_V2_LIMITS : RAW_RESTORE_LIMITS
   if (v2 && rawRestoreV2JsonbBytes(value) > limits.bytes) throw new RawRestoreEnvelopeError('Restore command exceeds 1.75 MiB of UTF-8/JSONB text. Preserve any retained device intent.')
   if ((!v2 && new TextEncoder().encode(JSON.stringify(value) ?? '').length > limits.bytes)
-    || !isContractRecord(value, ['version', 'operationId', 'inventoryRevision', 'planning', 'collection', 'configuration', 'slots', 'items', 'releaseItemIds', ...(v2 ? ['manifest'] : []), ...(v3 ? ['slotOrder'] : [])])
-    || Object.keys(value).length !== (v3 ? 11 : v2 ? 10 : 9) || (!v2 && value.version !== 1) || (v2 && !isRawRestoreManifest(value.manifest)) || !isSlotContractId(value.operationId) || value.operationId.length < 8 || value.operationId.length > 100
+    || !isContractRecord(value, ['version', 'operationId', 'inventoryRevision', 'planning', 'collection', 'configuration', 'slots', 'items', 'releaseItemIds', ...(v2 ? ['manifest'] : []), ...(ordered ? ['slotOrder'] : [])])
+    || Object.keys(value).length !== (ordered ? 11 : v2 ? 10 : 9) || (!v2 && value.version !== 1) || (v2 && !isRawRestoreManifest(value.manifest)) || !isSlotContractId(value.operationId) || value.operationId.length < 8 || value.operationId.length > 100
     || !isSlotRevision(value.inventoryRevision) || !isContractRecord(value.planning, ['actorUserId', 'ownerUserId', 'source', 'credentialId', 'authSessionId', 'partnerUserId', 'partnershipId'])
     || Object.keys(value.planning).length !== 7 || !isBinderId(value.planning.actorUserId) || !isBinderId(value.planning.ownerUserId)
     || !['app', 'rest', 'mcp'].includes(value.planning.source as string)
@@ -76,7 +76,7 @@ export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
     || !Array.isArray(value.items) || value.items.length > limits.items
     || value.slots.length * 2 + value.items.length > limits.work
     || !Array.isArray(value.releaseItemIds) || !value.releaseItemIds.every(isSlotContractId) || new Set(value.releaseItemIds).size !== value.releaseItemIds.length) return invalid()
-  if (v3) {
+  if (ordered) {
     const order = value.slotOrder
     const ids = value.slots.map(p => isContractRecord(p, ['before', 'after']) && isContractRecord(p.before, ['id', 'version', 'inventoryItemId', 'itemVersion', 'placementVersion']) ? p.before.id : null)
     if (!isContractRecord(order, ['before', 'after']) || Object.keys(order).length !== 2
@@ -84,7 +84,7 @@ export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
       || !order.before.every(isSlotContractId) || !order.after.every(isSlotContractId)
       || backupContentKey(order.before) !== backupContentKey(ids)
       || new Set(order.after).size !== ids.length || order.after.length !== ids.length
-      || order.after.some(id => !ids.includes(id)) || backupContentKey(order.before) === backupContentKey(order.after)) return invalid()
+      || order.after.some(id => !ids.includes(id)) || value.version === 3 && backupContentKey(order.before) === backupContentKey(order.after)) return invalid()
   }
   const collection = value.collection
   const refs = new Map<string, RawRestoreCommand['items'][number]>()
@@ -134,18 +134,18 @@ export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
 }
 
 export const RAW_RESTORE_REJECTION_CODES = ['inventory_revision_conflict', 'raw_restore_collection_conflict', 'raw_restore_content_conflict'] as const
-export interface RawRestoreRejection { version?: 2 | 3; outcome: 'rejected'; operationId: string; code: typeof RAW_RESTORE_REJECTION_CODES[number]; inventoryRevision: number }
+export interface RawRestoreRejection { version?: 2 | 3 | 4; outcome: 'rejected'; operationId: string; code: typeof RAW_RESTORE_REJECTION_CODES[number]; inventoryRevision: number }
 /** Only a trusted original-request RPC result can supply proof; shape alone is not authentication. */
-export function isRawRestoreRejection(value: unknown, operationId: string, version?: 1 | 2 | 3): value is RawRestoreRejection {
+export function isRawRestoreRejection(value: unknown, operationId: string, version?: 1 | 2 | 3 | 4): value is RawRestoreRejection {
   const v2 = !!value && typeof value === 'object' && 'version' in value
-  return isContractRecord(value, ['outcome', 'operationId', 'code', 'inventoryRevision', ...(v2 ? ['version'] : [])]) && Object.keys(value).length === (v2 ? 5 : 4) && (!v2 || value.version === 2 || value.version === 3)
+  return isContractRecord(value, ['outcome', 'operationId', 'code', 'inventoryRevision', ...(v2 ? ['version'] : [])]) && Object.keys(value).length === (v2 ? 5 : 4) && (!v2 || value.version === 2 || (value.version === 3 || value.version === 4))
     && (version === undefined || value.version === (version === 1 ? undefined : version))
     && value.outcome === 'rejected' && value.operationId === operationId && typeof value.code === 'string'
     && RAW_RESTORE_REJECTION_CODES.includes(value.code as RawRestoreRejection['code']) && isSlotRevision(value.inventoryRevision)
 }
 
 export interface RawRestoreReceipt {
-  version?: 2 | 3
+  version?: 2 | 3 | 4
   slotOrder?: { before: string[]; after: string[] }
   changed: true; inventoryRevision: number; collectionId: string; collectionVersion: number; layoutRevision: number
   slotIds: string[]; releasedItemIds: string[]
@@ -154,15 +154,15 @@ export interface RawRestoreReceipt {
 export function isRawRestoreReceipt(value: unknown): value is RawRestoreReceipt {
   const v2 = !!value && typeof value === 'object' && 'version' in value
   const limits = v2 ? RAW_RESTORE_V2_LIMITS : RAW_RESTORE_LIMITS
-  const v3 = !!value && typeof value === 'object' && 'version' in value && value.version === 3
-  const fields = [...(v3 ? ['slotOrder'] : []), ...(v2 ? ['version'] : []), 'changed', 'inventoryRevision', 'collectionId', 'collectionVersion', 'layoutRevision', 'slotIds', 'releasedItemIds']
+  const ordered = !!value && typeof value === 'object' && 'version' in value && (value.version === 3 || value.version === 4)
+  const fields = [...(ordered ? ['slotOrder'] : []), ...(v2 ? ['version'] : []), 'changed', 'inventoryRevision', 'collectionId', 'collectionVersion', 'layoutRevision', 'slotIds', 'releasedItemIds']
   const ids = (v: unknown, limit: number) => Array.isArray(v) && v.length <= limit && v.every(isSlotContractId) && new Set(v).size === v.length
-  return isContractRecord(value, fields) && Object.keys(value).length === fields.length && (!v2 || value.version === 2 || value.version === 3) && value.changed === true
+  return isContractRecord(value, fields) && Object.keys(value).length === fields.length && (!v2 || value.version === 2 || (value.version === 3 || value.version === 4)) && value.changed === true
     && isSlotRevision(value.inventoryRevision) && isBinderId(value.collectionId) && isSlotRevision(value.collectionVersion) && isSlotRevision(value.layoutRevision)
-    && (!v3 || isContractRecord(value.slotOrder, ['before', 'after']) && Object.keys(value.slotOrder).length === 2
+    && (!ordered || isContractRecord(value.slotOrder, ['before', 'after']) && Object.keys(value.slotOrder).length === 2
       && ids(value.slotOrder.before, limits.slots) && ids(value.slotOrder.after, limits.slots)
       && backupContentKey(value.slotOrder.after) === backupContentKey(value.slotIds)
       && backupContentKey([...value.slotOrder.before as string[]].sort()) === backupContentKey([...value.slotOrder.after as string[]].sort())
-      && backupContentKey(value.slotOrder.before) !== backupContentKey(value.slotOrder.after))
+      && (value.version === 4 || backupContentKey(value.slotOrder.before) !== backupContentKey(value.slotOrder.after)))
     && ids(value.slotIds, limits.slots) && ids(value.releasedItemIds, limits.items)
 }

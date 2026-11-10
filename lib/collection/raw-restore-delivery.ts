@@ -26,9 +26,9 @@ export async function rawRestoreDigest(command: RawRestoreCommand) {
 export function isRawRestoreReceipt(value: unknown, command: RawRestoreCommand): value is RawRestoreReceipt {
   return isRawReceiptShape(value) && (command.version === 1 ? value.version === undefined : value.version === command.version) && value.inventoryRevision > command.inventoryRevision
     && value.collectionId === command.collection.collectionId && value.collectionVersion > command.collection.version
-    && value.layoutRevision === command.collection.layoutRevision + (command.version === 3 ? 1 : 0)
-    && backupContentKey(value.slotIds) === backupContentKey(command.version === 3 ? command.slotOrder.after : command.slots.map(s => s.after.id))
-    && (command.version !== 3 || value.inventoryRevision === command.inventoryRevision + 1 && value.collectionVersion === command.collection.version + 1
+    && value.layoutRevision === command.collection.layoutRevision + (command.version === 3 || command.version === 4 && backupContentKey(command.slotOrder.before) !== backupContentKey(command.slotOrder.after) ? 1 : 0)
+    && backupContentKey(value.slotIds) === backupContentKey((command.version === 3 || command.version === 4) ? command.slotOrder.after : command.slots.map(s => s.after.id))
+    && ((command.version !== 3 && command.version !== 4) || value.inventoryRevision === command.inventoryRevision + 1 && value.collectionVersion === command.collection.version + 1
       && backupContentKey(value.slotOrder) === backupContentKey(command.slotOrder))
     && backupContentKey(value.releasedItemIds) === backupContentKey(command.releaseItemIds)
 }

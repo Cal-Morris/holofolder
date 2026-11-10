@@ -21,6 +21,7 @@ async function main() {
   mock.module('../../lib/supabase/server', () => ({ createClient: async () => fixture.client }))
   mock.module('../../lib/supabase/admin', () => ({ createAdminClient: () => fixture.client }))
   const { POST: restoreRoute } = await import('@/app/api/raw-content-restore/route')
+  const nextFixture = () => storageCommandHarness((process.argv.includes('--converted') ? 'restore-converted-' : 'restore-ui-') + crypto.randomUUID())
   const bodies: string[] = []
   globalThis.fetch = async (input, init) => {
     const path = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -71,7 +72,7 @@ async function main() {
   const oldReceipt = (await legacy.q.read()).receipts[0]
   assert.deepEqual(oldReceipt.intent, legacyIntent)
   assert.equal(oldReceipt.rawRestoreProof?.receipt?.version, undefined)
-  fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID())
+  fixture = nextFixture()
   // Future command versions fail closed in both reads and atomic updates, without resetting bytes.
   const unknown = await setup()
   await unknown.q.enqueue(unknown.intent, () => undefined, unknown.base, () => queueScope, scope.authSessionId)
@@ -113,7 +114,7 @@ async function main() {
   assert.ok(!done.snapshot!.placements.some(p => p.inventoryItemId === 'synthetic-restore-copy-0'))
   assert.ok(done.snapshot!.items.some(i => i.id === 'synthetic-restore-copy-0'))
   // Persist acceptance first, then a separately fresh read. Retained and cloned reads fail ACK.
-  fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+  fixture = nextFixture(); f = await setup()
   await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
   const retained = await freshSnapshot(), beforeSend = sends
   await replay(f.q, async () => retained)
@@ -124,7 +125,7 @@ async function main() {
   assert.equal(sends, beforeSend + 1, 'accepted proof resumes read without another apply')
   assert.equal((await f.q.read()).pending.length, 0)
   if (process.argv.includes('--reorder')) {
-    fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+    fixture = nextFixture(); f = await setup()
     await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
     let receiptPositions: unknown[] = []
     await replay(f.q, async () => {
@@ -140,7 +141,7 @@ async function main() {
     assert.equal((await f.q.read()).pending.length, 0); assert.equal(sends, delivered)
   }
   // Malformed HTTP proof cannot ACK, and another authenticated session cannot replay it.
-  fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+  fixture = nextFixture(); f = await setup()
   await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
   malformed = true; await replay(f.q); malformed = false
   assert.equal((await f.q.read()).pending[0].rawRestoreProof, undefined)
@@ -159,7 +160,7 @@ async function main() {
   assert.equal(discarded.receipts[0].outcome, 'cancelled')
   // Untrusted shaped receipts, arbitrary 409/503/cancel and ordinary 4xx never clear intent.
   for (const status of [0, 503, 409, 400, 200]) {
-    fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+    fixture = nextFixture(); f = await setup()
     await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
     let readCalls = 0
     const untrusted = status === 200 ? (await send(f.intent)).rawRestoreProof! : done.receipts[0].rawRestoreProof!
@@ -171,7 +172,7 @@ async function main() {
     await assert.rejects(f.q.discardRawRestore(f.command.operationId, freshSnapshot, () => queueScope, scope.authSessionId))
   }
   // Failure while persisting a received acceptance leaves an exact retry, never an ACK.
-  fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+  fixture = nextFixture(); f = await setup()
   await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
   const update = f.store.update.bind(f.store)
   let failProof = true
@@ -185,7 +186,7 @@ async function main() {
   await f.q.resume(f.command.operationId); await replay(f.q)
   assert.equal((await f.q.read()).pending.length, 0); assert.equal(bodies.at(-1), bodies.at(-2))
   // Same atomic leases fence a late complete read after another tab takes over.
-  fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+  fixture = nextFixture(); f = await setup()
   await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
   let release!: () => void, reading!: () => void
   const blocked = new Promise<void>(resolve => { release = resolve }), startedReading = new Promise<void>(resolve => { reading = resolve })
@@ -197,7 +198,7 @@ async function main() {
   release(); await oldReplay
   assert.equal((await f.q.read()).pending.length, 0); assert.equal((await f.q.read()).receipts.length, 1)
   // Scope/owner/session teardown after receipt cannot ACK or retarget the retained request.
-  fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+  fixture = nextFixture(); f = await setup()
   await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
   let live = true
   await f.q.replay(send, () => live ? queueScope : null, now, () => undefined,
@@ -206,7 +207,7 @@ async function main() {
   assert.equal((await createSlotOfflineQueue(f.store, { ...queueScope, ownerUserId: 'another-owner' }).read()).pending.length, 0)
   // Planning and delivery fail on live actor/config/version changes through actual handlers.
   for (const change of ['actor', 'config', 'version', 'partner'] as const) {
-    fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); const prepared = await prepare()
+    fixture = nextFixture(); const prepared = await prepare()
     if (change === 'partner') fixture.tables.partnerships.push({ id: '00940000-0000-4000-8000-000000000003', owner_user_id: actor, user1_id: actor, user2_id: '00940000-0000-4000-8000-000000000002' })
     if (change === 'actor') fixture.setActor('00000000-0000-4000-8000-000000000099')
     if (change === 'config') fixture.tables.binders[0].name = 'Changed synthetic config'

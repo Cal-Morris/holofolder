@@ -7,3 +7,7 @@ test('raw restore UI uses actual auth/HTTP/RPC/current-read pipeline and same at
 test('v3 reordered intent retains exact bytes, lost replies and proof/read/session fences in the same queue', () => {
   execFileSync(process.execPath, [new URL('./fixtures/raw-restore-ui.ts', import.meta.url).pathname, '--reorder'], { stdio: 'pipe' })
 })
+
+for (const order of [[], ['--reorder']]) test(`v4 converted intent keeps original bytes and proof/read/session fences ${order.length ? 'reordered' : 'unchanged'}`, () => {
+  execFileSync(process.execPath, [new URL('./fixtures/raw-restore-ui.ts', import.meta.url).pathname, '--converted', ...order], { stdio: 'pipe' })
+})

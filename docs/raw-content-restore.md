@@ -1,4 +1,6 @@
-# Bounded same-owner raw content restore (094/v1, 095/v2 and 097/v3, staged)
+# Bounded same-owner raw content restore (094/v1 through 100/v4)
+
+The earlier staged-lane notes below are historical. Current main has native admission and all real binders converted; the additive 100/v4 section defines this PR, with hosted application and release owned by the parent.
 
 Related: #365, #363, #376, #379, #396. Base: merged #479 `d88380105c75dd1a05e4a4fc4ecd49c1557deaa7`, including 093. Full #365 acceptance stays open. The original 094 backend slice did not include UI/queue/sender changes. The durable first-party consumer is documented below; public native admission, hosted application, conversion and new grants remain outside this lane.
 
@@ -8,7 +10,7 @@ A collection-scoped v2 file can reconcile **one existing native raw collection**
 
 The plan replaces each explicitly selected slot's target/status/wants and restores exact existing raw copy placements within that collection or from Unassigned. Every displaced current copy needs explicit `releaseItemIds` consent and remains owned in Unassigned. A copy already placed in another collection blocks the entire plan. Item/slot/collection IDs stay unchanged; item rows, identities and acquisition metadata are never rewritten. Duplicate printings are separate physical IDs. No printing/certificate matching, implicit acquisition, copy deletion or guessed metadata.
 
-Graded copies, frozen/converted collections or sources, changed manifests/origins, changed slot set, changed configuration/grid, all-inventory/multiple collections, appearance/settings, asset packaging and CSV are **excluded**, rather than silently omitted. An extra unrelated current copy remains untouched. Historical item/slot/root versions are not restored; reviewed current versions fence the request and roots/affected slot/placement versions advance monotonically. Layout stays unchanged for v1/v2. V3 advances layout once, advances all selected slot versions once, and keeps both exact orders in its original request and receipt. The private graph records actual before/after positions and layout revisions; native recovery restores positions while advancing revisions again.
+Graded copies, changed manifests/origins, changed slot set, changed configuration/grid, all-inventory/multiple collections, appearance/settings, asset packaging and CSV are **excluded**, rather than silently omitted. An extra unrelated current copy remains untouched. Historical item/slot/root versions are not restored; reviewed current versions fence the request and roots/affected slot/placement versions advance monotonically. Layout stays unchanged for v1/v2. V3 advances layout once, advances all selected slot versions once, and keeps both exact orders in its original request and receipt. The private graph records actual before/after positions and layout revisions; native recovery restores positions while advancing revisions again.
 
 ## Provenance and trusted planning
 
@@ -94,6 +96,18 @@ The existing Backup review pages show each stable slot’s before/after position
 
 Before 097, v1/v2 remain usable internally. V3 fails closed at the existing gateway without a terminal proof, preserving intent. Production first-party and REST/MCP routes remain unconditional private/no-store `503 native_operations_staged`. Applying 097 does not enable them. Parent alone owns fresh hosted restore-verified backup, prerequisite/application/review, unsynced-device/version-floor protection, hosted auth/body/performance checks, rollout and publication. No hosted access or activation was performed in this lane.
 
-Full restore still excludes slot creation/deletion, grid/configuration changes, converted/graded collections, full owner or cross-storage reconciliation, changed manifests/origins, new ownership/acquisition, settings, assets and CSV. #365/#363/#379 acceptance stays open.
+Full restore still excludes slot creation/deletion, grid/configuration changes, graded collections, full owner or cross-storage reconciliation, changed manifests/origins, new ownership/acquisition, settings, assets and CSV. #365/#363/#379 acceptance stays open.
 
 [097 local preservation, committed inverse and bounded performance proof](raw-content-restore-v3-proof.md).
+
+## Existing converted binders (100/v4)
+
+Migration 100 adds one bounded raw content reconciliation path for an existing converted binder. It is additive to 094/095/097 and does not modify applied 073–099. The planner selects v4 when current frozen source evidence or the copied legacy manifest requires it; native-only plans retain their v2/v3 contract. A file must preserve each current slot's exact source mapping and each desired physical copy's exact source, identity and acquisition fields. Omission or alteration fails review. File IDs still establish no authority.
+
+V4 always includes exact current and desired order, even when equal. Both are permutations of the same stable IDs. Equal order preserves persisted positions and layout revision; changed order advances layout once. Current configuration, grid, copied manifest and per-slot origins remain exact. Only targets, status, wants and explicitly reviewed placements change. Raw converted copies must originate in this binder, and be currently here or Unassigned. Released copies remain owned. Graded copies or copies placed elsewhere block the whole intent.
+
+SQL updates no item metadata, authority, conversion receipt, frozen mapping or original legacy row. The actual prospective graph includes the full unchanged receipt in both roots and stays within the existing 1.75 MiB command, 2.5 MiB graph, 1,025-slot, 2,050-ref and 8,192-work caps. The browser conservatively reserves 4 KiB for the bounded canonical 073 receipt/timestamp roots omitted from complete DTOs; SQL enforces the exact graph before writes. Before returning, the real recorder must match that graph and the maintained inverse must validate current converted provenance. Failure rolls back the whole transaction. No guard, recorder, inverse, deadline, ACL or native admission changes.
+
+V4 receipts and dedicated rejections carry version 4. Original accepted/rejected replay remains permanent, current membership precedes replay, and the operation ID is fenced across all four namespaces. Generic SQL conflicts, billing failures, lost replies and failed COMMIT remain unknown, never discard proof. The existing durable Backup record, leases, sender, proof persistence, separately fresh complete-read ACK and explicit rejection reconciliation stay shared. Unknown future records are retained without replacement IDs or upgrades. There is no second uploader or backup store.
+
+Full-owner, settings, assets, CSV, graded and structural slot-set/configuration/grid restore remain outside this slice. Existing files with unverified wanted-card image URLs still fail export/review; one of the 11 archived real binders hits that unchanged policy. No URL is silently removed. Parent owns independent review, a fresh hosted restore-verified backup, migration application, merge/deploy, current-client and hosted request/performance verification, publication and issue/project completion. No hosted access or writes were performed here. [Local proof](raw-content-restore-v4-proof.md).
