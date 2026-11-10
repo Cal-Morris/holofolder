@@ -9,16 +9,18 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards } }))
 })
 const entry = "/app/e2e-harness/native-card-consumers"
+// Internal ids, storage evidence and staging copy must never reach the screen.
+const raw = /explicit entries|Saved storage evidence|physical cop|Unknown exact printing|wanted entry|Use this wanted destination|Add a new raw copy|Draft handed|Native editing|alpha-empty|copy-0000/
 // Actual QuickMode/ShowHunt, browser, Search and deal-check components. Read/admission/sink synthetic.
 test("Show retains each destination and hands the chosen exact copy/index to the real command planner", async ({ page, insets }) => {
   await page.goto(entry)
-  const wants = page.getByRole("region", { name: "Native wanted destinations" })
-  await expect(wants).toContainText("3 explicit entries")
-  await expect(wants).toContainText("6 physical copies · 4 Unassigned · 1 Unknown exact printing")
+  const wants = page.getByRole("region", { name: "Hunting" })
+  await expect(wants.getByRole("heading", { name: "Hunting · 3 cards" })).toBeVisible()
+  await expect(wants).not.toContainText(raw)
   await expect(wants.getByRole("button", { name: "Check price", exact: true })).toHaveCount(3)
   const choice = wants.getByRole("combobox").nth(1)
   await choice.selectOption("copy-00004")
-  const use = wants.getByRole("button", { name: "Use this wanted destination" }).nth(1)
+  const use = wants.getByRole("button", { name: "Add to collection" }).nth(1)
   const h = new Harness(page, insets, false)
   await h.expectMinTapTarget(choice)
   await h.expectMinTapTarget(use)
@@ -30,8 +32,9 @@ test("Show retains each destination and hands the chosen exact copy/index to the
   const draft = JSON.parse(await page.getByLabel("Synthetic latest draft").textContent() ?? "null")
   expect(draft.intent.request.commands[0]).toMatchObject({ kind: "assign", selection: { kind: "existing", inventoryItemId: "copy-00004", itemVersion: 1 },
     destination: { slot: { id: "alpha-empty-0", version: 1 } }, fulfillWant: { index: 1, expected: { card_id: "synthetic-trainer" } } })
-  await expect(wants).toContainText("Draft handed to host, not confirmed saved")
-  await expect(wants).toContainText("3 explicit entries")
+  await expect(wants).toContainText("Could not confirm this change")
+  await expect(wants).not.toContainText(/Saved on device/)
+  await expect(wants).not.toContainText(raw)
   await expect(page.getByLabel("Synthetic legacy writes")).toHaveText("0")
   await expect(wants).not.toContainText(/PRIVATE|PSA|CGC|certificate/)
   await h.expectNoHorizontalOverflow()
@@ -40,7 +43,7 @@ test("Show retains each destination and hands the chosen exact copy/index to the
 test("Show lookup keeps repeated destinations and disables legacy ownership actions", async ({ page, insets }) => {
   await page.goto(entry)
   await page.getByRole("button", { name: "Check price", exact: true }).first().click()
-  await expect(page.getByRole("region", { name: "Native wanted destinations" })).toContainText("3 explicit entries")
+  await expect(page.getByRole("region", { name: "On your want list" }).getByRole("heading", { name: "On your want list · 3 cards" })).toBeVisible()
   await expect(page.getByRole("button", { name: /Mark got|Add to owned|Want this|Bought/, exact: false })).toHaveCount(0)
   await expect(page.getByLabel("Synthetic legacy writes")).toHaveText("0")
   await new Harness(page, insets, false).expectNoHorizontalOverflow()
@@ -48,14 +51,14 @@ test("Show lookup keeps repeated destinations and disables legacy ownership acti
 
 test("cached scope is read-only and denied live admission never reaches a sink", async ({ page, insets }) => {
   await page.goto(`${entry}?cached=1&selected=1`)
-  const wants = page.getByRole("region", { name: "Native wanted destinations" })
-  await expect(wants).toContainText("Cached only, read-only")
-  await expect(wants).toContainText("1 physical copy · 0 Unassigned")
+  const wants = page.getByRole("region", { name: "Hunting" })
+  await expect(wants).toContainText("Saved wanted cards, read-only while offline.")
   await expect(wants.getByRole("combobox")).toHaveCount(0)
   await page.goto(`${entry}?denied=1`)
   await wants.getByRole("combobox").first().selectOption("copy-00004")
-  await wants.getByRole("button", { name: "Use this wanted destination" }).first().click()
-  await expect(wants).toContainText("Native editing unavailable or session changed")
+  await wants.getByRole("button", { name: "Add to collection" }).first().click()
+  await expect(wants).toContainText("Could not add this card.")
+  await expect(wants).not.toContainText(raw)
   await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
   await new Harness(page, insets, false).expectNoHorizontalOverflow()
 })
@@ -70,7 +73,8 @@ test("actual card browser badges count copies while native details use explicit 
   await expect(page.getByRole("heading", { name: "Synthetic Trainer", exact: true }).first()).toBeVisible()
   await expect(page.getByRole("dialog").getByRole("listitem", { name: /Synthetic Trainer.*Owned ×1 · Wanted ×3/ })).toBeVisible()
   await expect(page.getByRole("dialog")).not.toContainText("Snorlax")
-  await expect(page.getByRole("region", { name: "Native wanted destinations" })).toContainText("3 explicit entries")
+  await expect(page.getByRole("region", { name: "On your want list" }).getByRole("heading", { name: "On your want list · 3 cards" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "On your want list" })).not.toContainText(raw)
   await expect(page.getByRole("button", { name: "Jump to binder slot" })).toHaveCount(0)
   await expect(page.getByLabel("Synthetic legacy writes")).toHaveText("0")
   await new Harness(page, insets, false).expectNoHorizontalOverflow()
@@ -90,8 +94,8 @@ test("actual Search and Quick search show simultaneous distinct-copy/wanted badg
 
 test("cached offline non-Pokémon lookup stays read-only with code already loaded, unknown printing stays unknown", async ({ page, context, insets }) => {
   await page.goto(`${entry}?cached=1&unknown=1`)
-  const wants = page.getByRole("region", { name: "Native wanted destinations" })
-  await expect(wants).toContainText("Unknown exact printing")
+  const wants = page.getByRole("region", { name: "Hunting" })
+  await expect(wants).toContainText("Unknown card")
   await expect(wants.getByRole("button", { name: "Check price", exact: true })).toHaveCount(2)
   await expect(wants.getByRole("combobox")).toHaveCount(0)
   // Existing lazy checker must already be on this device. This does not prove first-use offline loading.
@@ -103,7 +107,9 @@ test("cached offline non-Pokémon lookup stays read-only with code already loade
   const result = page.getByRole("button", { name: /Synthetic Trainer.*Owned ×1 · Wanted ×2/ })
   await expect(result).toBeVisible()
   await result.click()
-  await expect(wants).toContainText("Cached only, read-only")
+  const lookupWants = page.getByRole("region", { name: "On your want list" })
+  await expect(lookupWants).toContainText("Saved wanted cards, read-only while offline.")
+  await expect(lookupWants.getByRole("combobox")).toHaveCount(0)
   await expect(wants.getByRole("combobox")).toHaveCount(0)
   await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
   await expect(page.getByLabel("Synthetic legacy writes")).toHaveText("0")

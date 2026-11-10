@@ -89,7 +89,7 @@ export function nativeWantSelections(model: ReturnType<typeof nativeCardConsumer
   if (!want?.card || !want.finish || !isCardLanguage(want.card.language)) return []
   const copies = model!.availableCopies.filter(copy => copy.card && matchesCatalogCardId(want.card!, copy.card.canonicalId ?? copy.card.id)
     && copy.card.language === want.card!.language && copy.finish === want.finish)
-  return copies.map(copy => ({ label: `Unassigned copy ${copy.itemId}`, selection: { kind: "existing" as const, inventoryItemId: copy.itemId, itemVersion: copy.itemVersion } }))
+  return copies.map(copy => ({ selection: { kind: "existing" as const, inventoryItemId: copy.itemId, itemVersion: copy.itemVersion } }))
 }
 
 /** Re-resolve exact evidence at click time. This is draft preparation, never authority or server success. */

@@ -422,6 +422,6 @@ const HuntGroupSection = memo(function HuntGroupSection({
 })
 
 export default memo(function ShowHuntConsumer(props: ShowHuntProps & { nativeConsumer?: NativeConsumerBinding }) {
-  if (props.nativeConsumer) return <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><NativeWantedEntries binding={props.nativeConsumer} onCheck={(card, finish) => props.onPickCard(card, { id: card.dexIds?.[0] ?? 0, name: card.name }, finish ?? null)} /></div>
+  if (props.nativeConsumer) return <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{props.recentCards && <div className="px-3">{props.recentCards}</div>}<NativeWantedEntries binding={props.nativeConsumer} onCheck={(card, finish) => props.onPickCard(card, { id: card.dexIds?.[0] ?? 0, name: card.name }, finish ?? null)} /></div>
   return <ShowHunt {...props} />
 })
