@@ -58,14 +58,14 @@ export function normalizeNavigationState(value: unknown): CollectionNavigationSt
 // The navigation host asks for the index several times per render. One index is kept per read while its
 // evidence, catalog, layouts and both scopes are the same objects and values; it is released with the read.
 type NavigationIndex = ReturnType<typeof buildInventoryBrowseIndex>
-const navigationIndexes = new WeakMap<CollectionNavigationRead, Pick<CollectionNavigationRead, "scope" | "evidence" | "catalog" | "layouts"> & { requested: string; index: NavigationIndex }>()
+const navigationIndexes = new WeakMap<CollectionNavigationRead, Pick<CollectionNavigationRead, "scope" | "evidence" | "catalog" | "layouts"> & { requested: string; provided: string; index: NavigationIndex }>()
 export function navigationIndex(scope: CollectionNavigationScope, read: CollectionNavigationRead) {
-  const requested = JSON.stringify(scope), saved = navigationIndexes.get(read)
-  if (saved && saved.requested === requested && saved.scope === read.scope && saved.evidence === read.evidence
+  const requested = JSON.stringify(scope), provided = JSON.stringify(read.scope), saved = navigationIndexes.get(read)
+  if (saved && saved.requested === requested && saved.provided === provided && saved.scope === read.scope && saved.evidence === read.evidence
     && saved.catalog === read.catalog && saved.layouts === read.layouts) return saved.index
   const matches = Boolean(scope.sessionId) && read.scope.sessionId === scope.sessionId && read.scope.accountUserId === scope.accountUserId && read.scope.ownerUserId === scope.ownerUserId
   const index = buildInventoryBrowseIndex(scope, matches ? read.evidence : { kind: "unavailable" }, read.catalog, read.layouts)
-  navigationIndexes.set(read, { requested, scope: read.scope, evidence: read.evidence, catalog: read.catalog, layouts: read.layouts, index })
+  navigationIndexes.set(read, { requested, provided, scope: read.scope, evidence: read.evidence, catalog: read.catalog, layouts: read.layouts, index })
   return index
 }
 /** Explicit links take priority, including old ?binder=&page= links. URL is not authorization. */

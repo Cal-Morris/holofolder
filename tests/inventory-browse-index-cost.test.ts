@@ -115,6 +115,13 @@ describe("inventory browse index cost", () => {
     assert.equal(renamed.rows[1].name, "Synthetic renamed")
     assert.equal(index.rows[1].name, "Synthetic canon-row en")
     assert.equal(navigationIndex(scope, read), again)
+    // A scope object can retain its identity while its values change. Never reuse its prior private index.
+    const nestedScope = { ...read, scope: { ...scope } }
+    assert.equal(navigationIndex(scope, nestedScope).kind, "complete")
+    nestedScope.scope.ownerUserId = "synthetic-other-owner"
+    assert.equal(navigationIndex(scope, nestedScope).kind, "unavailable")
+    nestedScope.scope.ownerUserId = scope.ownerUserId
+    assert.equal(navigationIndex(scope, nestedScope).kind, "complete")
     // Even a read edited in place is checked by its evidence, catalog, layouts and scope, not by the object alone.
     const edited = { ...read }
     assert.equal(navigationIndex(scope, edited).kind, "complete")
