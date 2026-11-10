@@ -67,8 +67,8 @@ async function relaunch(page: Page, standalone: boolean, path = "/app", clockTim
 test("previously cached native pending layout survives genuine page close and offline shell relaunch", async ({ page }, info) => {
   await prepare(page)
   await page.getByRole("button", { name: "Edit layout", exact: true }).click()
-  await page.locator('[data-slot-id="alpha-empty-0"]').click()
-  await page.getByRole("button", { name: "Insert free slot before", exact: true }).click()
+  // Stage a pending create command through the toolbar, independently of grid hit geometry.
+  await page.getByRole("region", { name: "Layout editing", exact: true }).getByRole("button", { name: "Append free slot", exact: true }).click()
   await expect(page.getByText(/Pending sync/).first()).toBeVisible()
   await expect.poll(async () => (await queueRecords(page)).some(row => Array.isArray((row as { pending?: { status: string }[] }).pending)
     && (row as { pending: { status: string }[] }).pending.some(p => p.status === "unavailable"))).toBe(true)
@@ -138,8 +138,8 @@ test("cold native startup with shell but no canonical snapshot gives a clear fal
 test("missing grid metadata retains canonical pending bytes and refuses cached native rendering", async ({ page }, info) => {
   await prepare(page)
   await page.getByRole("button", { name: "Edit layout", exact: true }).click()
-  await page.locator('[data-slot-id="alpha-empty-0"]').click()
-  await page.getByRole("button", { name: "Insert free slot before", exact: true }).click()
+  // Stage a pending create command through the toolbar, independently of grid hit geometry.
+  await page.getByRole("region", { name: "Layout editing", exact: true }).getByRole("button", { name: "Append free slot", exact: true }).click()
   await expect(page.getByText(/Pending sync/).first()).toBeVisible()
   await expect.poll(async () => (await queueRecords(page)).some(row => Array.isArray((row as { pending?: { status: string }[] }).pending)
     && (row as { pending: { status: string }[] }).pending.some(p => p.status === "unavailable"))).toBe(true)
