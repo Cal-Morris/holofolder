@@ -14,10 +14,10 @@ const samples:ApiPerformanceSample[]=DEVELOPER_OPERATIONS.map(op=>({operation:op
  scenario:op.admission==='staged'?'native-staged':'default',assertionsPassed:true,
  clientMs:100,serverMs:op.admission==='staged'?null:10,authMs:null,operationMs:null,bytes:1}))
 
-test('all 15 staged denial inputs use current strict schemas, including canonical insertAssign',()=>{
+test('all 16 staged denial inputs use current strict schemas, including canonical insertAssign',()=>{
  const operations=validateStagedSmokeInputs(inputs)
- assert.equal(operations.length,15)
- assert.equal(operations.filter(op=>op.method==='POST'&&op.name!=='preview_storage_preset').length,8)
+ assert.equal(operations.length,16)
+ assert.equal(operations.filter(op=>op.method==='POST'&&op.name!=='preview_storage_preset').length,9)
  for(const op of operations) {
   assert.equal(op.schema.safeParse({...inputs[op.name],forgedOwner:'synthetic'}).success,false)
   assertSmokeHttpResponse(op.name,503,denied,inputs[op.name],503,'native-staged')
@@ -46,7 +46,7 @@ test('native success, auth/schema failures and malformed denials cannot masquera
 test('complete admitted and denied coverage passes, with native execution and latency unverified',()=>{
  const coverage=summarizeApiSmokeCoverage(samples)
  assert.equal(coverage.filter(row=>row.successVerified).length,56)
- assert.equal(coverage.filter(row=>row.stagedDenialVerified).length,15)
+ assert.equal(coverage.filter(row=>row.stagedDenialVerified).length,16)
  assert.equal(coverage.filter(row=>row.coverage==='uncovered').length,0)
  assert.equal(apiSmokeExitCode(samples,[],{users:true,artwork:[]}),0)
  for(const op of validateStagedSmokeInputs(inputs)) {

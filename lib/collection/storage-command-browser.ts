@@ -1,3 +1,4 @@
+import { isCreationRejection } from "@/lib/collection/creation-import-rejection"
 import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { appPath } from "@/lib/app-path"
 import { parseSlotIntent, type SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
@@ -11,18 +12,30 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
   signal: AbortSignal, localHarness = false): Promise<SlotReplayResult> {
   const current = currentScope()
   if (!current || signal.aborted) return { status: 0 }
-  const scope = { ...current }, parsed = parseSlotIntent(intent)
+  const scope = { ...current }, parsed = parseSlotIntent(intent), deliveryId = crypto.randomUUID()
   const valid = () => !signal.aborted && sameInventoryReadScope(currentScope(), scope)
   try {
     const path = localHarness ? `/e2e-harness/storage/${parsed.kind}` : parsed.kind === "creation" ? "/api/storage-collections" : parsed.kind === "slots" ? "/api/binder-slots" : "/api/inventory"
     const response = await fetch(appPath(path), { method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error",
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
       headers: { "Content-Type": "application/json", Accept: "application/json", "X-Binder-Owner": scope.ownerUserId,
-        "X-Binder-Auth-Session": scope.authSessionId, "X-Storage-Operation": parsed.request.operationId }, body: JSON.stringify(parsed.request) })
+        "X-Binder-Auth-Session": scope.authSessionId, "X-Binder-Actor": scope.actorUserId, "X-Storage-Delivery": deliveryId, "X-Storage-Operation": parsed.request.operationId }, body: JSON.stringify(parsed.request) })
     if (!valid() || response.redirected) return { status: 0 }
     const body: unknown = await response.json()
     if (!valid()) return { status: 0 }
     const privateReply = response.headers.get("cache-control")?.split(/\s*,\s*/)
+    if (parsed.kind === "creation" && response.status === 409 && privateReply?.includes("private") && privateReply.includes("no-store")
+      && response.headers.get("content-type")?.startsWith("application/json")
+      && response.headers.get("X-Storage-Delivery") === deliveryId && response.headers.get("X-Storage-Family") === "collection.create"
+      && response.headers.get("X-Storage-Operation") === parsed.request.operationId
+      && isContractRecord(body, ["error"]) && Object.keys(body).length === 1
+      && isContractRecord(body.error, ["code", "message", "requestId", "rejection"]) && Object.keys(body.error).length === 4
+      && body.error.code === "storage_creation_rejected" && typeof body.error.message === "string"
+      && isSlotContractId(body.error.requestId) && body.error.requestId === response.headers.get("X-Request-Id")
+      && isCreationRejection(body.error.rejection, parsed.request.operationId)) {
+      return { status: 409, operationId: parsed.request.operationId, creationProof: { family: "collection.create", deliveryId,
+        scope: { accountId: scope.actorUserId, ownerUserId: scope.ownerUserId, authSessionId: scope.authSessionId }, intent: parsed, rejection: body.error.rejection } }
+    }
     if (parsed.kind !== "creation" && response.status === 409 && privateReply?.includes("private") && privateReply.includes("no-store")
       && response.headers.get("content-type")?.startsWith("application/json")
       && isContractRecord(body, ["version", "operationId", "rejection"]) && Object.keys(body).length === 3

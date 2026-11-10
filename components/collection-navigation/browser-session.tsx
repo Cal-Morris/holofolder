@@ -82,7 +82,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   renderSurface: (binding: BrowserSurfaceBinding) => ReactNode
 }) {
   const navigationScope = useMemo(() => ({ accountUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, sessionId: scope.sessionId }), [scope])
-  const queue = useSlotOfflineQueue({ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }, scope.sessionId)
+  const queue = useSlotOfflineQueue({ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }, scope.sessionId, scope.authSessionId)
   const latest = useRef({ currentScope, queue, catalog: browserHostCatalog([]) })
   const [read, setRead] = useState<CollectionNavigationRead>({ scope: navigationScope, evidence: { kind: "unavailable" }, catalog: [], layouts: [] })
   const [grading, setGrading] = useState<{ snapshot: InventorySnapshot; itemId: string; intent: SlotOfflineIntent | null } | null>(null)
@@ -176,6 +176,17 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (!q || !head?.conflict?.rejected || !valid() || sending.current) return
     refreshing.current++
     try {
+      if (head.intent.kind === "creation") {
+        if (decision !== "keep-remote") return
+        await q.discardCreation(head.intent.request.operationId, async () => {
+          const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness)
+          if (!valid() || fresh.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
+          setRead(fresh)
+          return fresh.evidence.snapshot
+        }, () => valid() ? { deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId } : null, scope.authSessionId)
+        if (valid()) { creation.current = null; setCreating(null); await latest.current.queue.refresh(); setNotice("Creation discarded. The original intent and rejection remain saved. Start New binder for a new review.") }
+        return
+      }
       await q.refreshConflict(head.intent.request.operationId, async () => {
         const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness)
         if (!valid() || fresh.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
@@ -186,7 +197,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       if (decision === "keep-remote") await q.reconcile(head.intent.request.operationId, { kind: "keep-remote" }, latest.current.catalog)
       if (decision === "rebase") await q.rebase(head.intent.request.operationId, crypto.randomUUID(), latest.current.catalog)
       if (valid()) { await latest.current.queue.refresh(); setNotice(decision ? "Saved edit reviewed." : "Current storage loaded. The saved edit is still retained.") }
-    } catch { if (valid()) setNotice("Could not reconcile this edit. Structural, overlapping or dependent edits need a separately reviewed replacement. The original is retained.") }
+    } catch { if (valid()) setNotice(head.intent.kind === "creation" ? "Could not discard this creation. A fresh read in the original session is required. The request and rejection are retained." : "Could not reconcile this edit. Structural, overlapping or dependent edits need a separately reviewed replacement. The original is retained.") }
     finally { refreshing.current-- }
   }
   const scanAllowed = useRef(false)
@@ -350,7 +361,11 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
               : queue.record.pending[0].status === "billing" ? "Sync is paused by billing. Your edit is retained; retry after restoring access."
               : "Sync is paused. Your edit is retained; check account access before retrying."}
           </p>}
-          {queue.record?.pending[0]?.conflict?.rejected && <div className="px-4 text-sm">
+          {queue.record?.pending[0]?.intent.kind === "creation" && queue.record.pending[0].conflict?.rejected && queue.record.pending[0].creationAuthSessionId === scope.authSessionId && <div className="px-4 text-sm">
+            <p>This creation did not commit. Discard reads current storage and retains the original request and rejection. A new binder needs a new review and confirmation.</p>
+            <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict("keep-remote") }}>Discard rejected creation</button>
+          </div>}
+          {queue.record?.pending[0]?.intent.kind !== "creation" && queue.record?.pending[0]?.conflict?.rejected && <div className="px-4 text-sm">
             <p>This command was not applied. Load current storage to review it. Use current storage cancels this saved edit.</p>
             <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict() }}>Refresh current storage</button>
             {queue.record.pending[0].conflict.current && queue.record.pending.length === 1 && <>

@@ -1,3 +1,4 @@
+import { isCreationRejection, type CreationRejection } from "@/lib/collection/creation-import-rejection"
 import { isRecoveryRejection, recoveryUnresolved } from '@/lib/collection/recovery-rejection'
 import { parseNativeRecoveryIntent, parseNativeRecoveryReceipt, type NativeRecoveryIntent, type RetainedRecovery } from "@/lib/collection/native-recovery-intent"
 import { isStorageCommandRejection, type StorageCommandRejection } from "@/lib/collection/storage-command-rejection"
@@ -13,7 +14,21 @@ export interface LegacySlotArchive {
   workspaceId: string; collectionId: string; rawSnapshot: string | null; rawQueue: string | null
   mapping: { operationId: string; slotId: string }[]
 }
+export interface CreationProof {
+  family: "collection.create"
+  deliveryId: string
+  scope: { accountId: string; ownerUserId: string; authSessionId: string }
+  intent: Extract<SlotOfflineIntent, { kind: "creation" }>
+  rejection: CreationRejection
+}
+function validCreationProof(proof: CreationProof | undefined, intent: SlotOfflineIntent, scope: SlotOfflineScope, authSessionId?: string): proof is CreationProof {
+  return !!proof && isContractRecord(proof, ["family", "deliveryId", "scope", "intent", "rejection"])
+    && isContractRecord(proof.scope, ["accountId", "ownerUserId", "authSessionId"]) && intent.kind === "creation" && proof.family === "collection.create" && isSlotContractId(proof.deliveryId)
+    && sameValue(proof.intent, intent) && proof.scope?.accountId === scope.accountId && proof.scope.ownerUserId === scope.ownerUserId
+    && isSlotContractId(authSessionId) && proof.scope.authSessionId === authSessionId && isCreationRejection(proof.rejection, intent.request.operationId)
+}
 export interface PendingSlotIntent {
+  creationAuthSessionId?: string
   intent: SlotOfflineIntent
   base: InventorySnapshot
   status: "pending" | "sending" | "unavailable" | "conflict" | "blocked" | "billing"
@@ -21,7 +36,7 @@ export interface PendingSlotIntent {
   nextAttemptAt: number
   /** A sending record survives crashes; its request is immutable until a known rejection. */
   lease: { id: string; until: number } | null
-  conflict: { reason: string; current: InventorySnapshot | null; rejected: boolean; rejection?: StorageCommandRejection } | null
+  conflict: { reason: string; current: InventorySnapshot | null; rejected: boolean; rejection?: StorageCommandRejection; creationProof?: CreationProof } | null
 }
 export interface SlotOfflineRecord {
   version: 1
@@ -30,10 +45,11 @@ export interface SlotOfflineRecord {
   optimistic: InventorySnapshot | null
   pending: PendingSlotIntent[]
   receipts: { operationId: string; intent: SlotOfflineIntent; outcome: "acknowledged" | "superseded" | "cancelled" }[]
+  creationDiscards?: { intent: Extract<SlotOfflineIntent, { kind: "creation" }>; proof: CreationProof; resolution: "discarded" }[]
   recovery?: RetainedRecovery[]
   legacy: LegacySlotArchive[]
 }
-export type SlotReplayResult = { status: number; code?: string; operationId?: string; inventoryRevision?: number; snapshot?: unknown; rejection?: StorageCommandRejection }
+export type SlotReplayResult = { status: number; code?: string; operationId?: string; inventoryRevision?: number; snapshot?: unknown; rejection?: StorageCommandRejection; creationProof?: CreationProof }
 function fail(reason: string): never { throw new Error(reason) }
 function validateScope(scope: SlotOfflineScope) {
   if (!isContractRecord(scope, ["deviceId", "workspaceId", "accountId", "ownerUserId"]) || !isSlotContractId(scope.deviceId) || !isSlotContractId(scope.workspaceId)
@@ -66,19 +82,21 @@ function archive(input: Omit<LegacySlotArchive, "mapping">): LegacySlotArchive {
 }
 function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
   if (raw === undefined) return { version: 1, scope: structuredClone(scope), snapshot: null, optimistic: null, pending: [], receipts: [], legacy: [] }
-  if (!isContractRecord(raw, ["version", "scope", "snapshot", "optimistic", "pending", "receipts", "legacy", "recovery"]) || raw.version !== 1 || !sameValue(raw.scope, scope)
+  if (!isContractRecord(raw, ["version", "scope", "snapshot", "optimistic", "pending", "receipts", "legacy", "recovery", "creationDiscards"]) || raw.version !== 1 || !sameValue(raw.scope, scope)
     || !Array.isArray(raw.pending) || !Array.isArray(raw.receipts) || !Array.isArray(raw.legacy)) return fail("unsupported-or-malformed-offline-record")
   const snapshot = raw.snapshot === null ? null : scopedSnapshot(raw.snapshot, scope)
   const optimistic = raw.optimistic === null ? null : scopedSnapshot(raw.optimistic, scope)
   const pending = raw.pending.map(p => {
-    if (!isContractRecord(p, ["intent", "base", "status", "attempts", "nextAttemptAt", "lease", "conflict"])
+    if (!isContractRecord(p, ["intent", "base", "status", "attempts", "nextAttemptAt", "lease", "conflict", "creationAuthSessionId"])
       || !["pending", "sending", "unavailable", "conflict", "blocked", "billing"].includes(p.status as string)
       || !isSlotRevision(p.attempts) || p.attempts > 5 || !isSlotRevision(p.nextAttemptAt)
       || !(p.lease === null || (isContractRecord(p.lease, ["id", "until"]) && isSlotContractId(p.lease.id) && isSlotRevision(p.lease.until)))
-      || !(p.conflict === null || (isContractRecord(p.conflict, ["reason", "current", "rejected", "rejection"]) && typeof p.conflict.reason === "string" && typeof p.conflict.rejected === "boolean"))) return fail("malformed-pending-intent")
+      || !(p.conflict === null || (isContractRecord(p.conflict, ["reason", "current", "rejected", "rejection", "creationProof"]) && typeof p.conflict.reason === "string" && typeof p.conflict.rejected === "boolean"))) return fail("malformed-pending-intent")
     return { ...structuredClone(p), intent: parseSlotIntent(p.intent), base: scopedSnapshot(p.base, scope),
       conflict: p.conflict === null ? null : { ...p.conflict, current: p.conflict.current === null ? null : scopedSnapshot(p.conflict.current, scope),
-        rejected: parseSlotIntent(p.intent).kind !== "creation" && p.conflict.rejected === true && isStorageCommandRejection(p.conflict.rejection, parseSlotIntent(p.intent).request.operationId) } } as PendingSlotIntent
+        rejected: p.conflict.rejected === true && (parseSlotIntent(p.intent).kind === "creation"
+          ? validCreationProof(p.conflict.creationProof as CreationProof | undefined, parseSlotIntent(p.intent), scope, p.creationAuthSessionId as string | undefined)
+          : isStorageCommandRejection(p.conflict.rejection, parseSlotIntent(p.intent).request.operationId)) } } as PendingSlotIntent
   })
   const receipts = raw.receipts.map(r => {
     if (!isContractRecord(r, ["operationId", "intent", "outcome"]) || !["acknowledged", "superseded", "cancelled"].includes(r.outcome as string)) return fail("malformed-receipt")
@@ -86,7 +104,14 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
     if (r.operationId !== intent.request.operationId) return fail("malformed-receipt")
     return { operationId: r.operationId, intent, outcome: r.outcome } as SlotOfflineRecord["receipts"][number]
   })
-  const ids = [...pending.map(p => p.intent.request.operationId), ...receipts.map(r => r.operationId)]
+  const creationDiscards = raw.creationDiscards === undefined ? [] : raw.creationDiscards
+  if (!Array.isArray(creationDiscards)) return fail("malformed-creation-discards")
+  const discarded = creationDiscards.map(r => {
+    const intent = parseSlotIntent(r.intent)
+    if (r.resolution !== "discarded" || !validCreationProof(r.proof, intent, scope, r.proof?.scope?.authSessionId)) return fail("malformed-creation-discard")
+    return structuredClone(r) as NonNullable<SlotOfflineRecord["creationDiscards"]>[number]
+  })
+  const ids = [...discarded.map(r => r.intent.request.operationId), ...pending.map(p => p.intent.request.operationId), ...receipts.map(r => r.operationId)]
   if (new Set(ids).size !== ids.length || (pending.length && (!snapshot || !optimistic))) return fail("malformed-operation-ledger")
   const legacy = raw.legacy.map(a => {
     if (!isContractRecord(a, ["workspaceId", "collectionId", "rawSnapshot", "rawQueue", "mapping"])) return fail("malformed-legacy-archive")
@@ -111,7 +136,7 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
   })
   const recoveryIds = retained.map(r => r.intent.request.operationId)
   if (new Set([...ids, ...recoveryIds]).size !== ids.length + recoveryIds.length) return fail("duplicate-recovery-operation")
-  return { version: 1, scope: structuredClone(scope), snapshot, optimistic, pending, receipts, legacy, ...(raw.recovery === undefined ? {} : { recovery: retained }) }
+  return { version: 1, scope: structuredClone(scope), snapshot, optimistic, pending, receipts, legacy, ...(raw.creationDiscards === undefined ? {} : { creationDiscards: discarded }), ...(raw.recovery === undefined ? {} : { recovery: retained }) }
 }
 function reproject(record: SlotOfflineRecord, catalog: InventoryCatalogResolver) {
   let current = record.snapshot!
@@ -250,6 +275,34 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         })
       }
     },
+    async discardCreation(operationId: string, readCurrent: () => Promise<unknown>, activeScope: () => SlotOfflineScope | null, authSessionId: string, now = Date.now()) {
+      const active = () => sameValue(activeScope(), scope)
+      const started = Date.now(), lease = { id: crypto.randomUUID(), until: now + 60000 }
+      let original: PendingSlotIntent | undefined
+      await update(record => {
+        const p = record.pending[0]
+        if (!active() || !p || p.intent.request.operationId !== operationId || record.pending.length !== 1
+          || record.recovery?.some(recoveryUnresolved) || p.lease && p.lease.until > now
+          || !p.conflict?.rejected || !validCreationProof(p.conflict.creationProof, p.intent, scope, authSessionId)) fail("creation-discard-proof-required")
+        p.lease = lease; original = structuredClone(p)
+      })
+      try {
+        const fence = captureCompleteInventoryReadFence(), fresh = await readCurrent()
+        if (!active() || !isCompleteInventoryReadAfter(fresh, fence)) fail("fresh-scoped-read-required")
+        const snapshot = scopedSnapshot(fresh, scope), proof = original!.conflict!.creationProof!
+        await update(record => {
+          const p = record.pending[0]
+          if (!active() || !p || p.lease?.id !== lease.id || p.lease.until <= now + Date.now() - started
+            || p.creationAuthSessionId !== authSessionId || !sameValue(p.intent, original!.intent) || !sameValue(p.conflict?.creationProof, proof)
+            || record.pending.length !== 1 || record.recovery?.some(recoveryUnresolved)
+            || snapshot.inventoryRevision < Math.max(proof.rejection.inventoryRevision, record.snapshot!.inventoryRevision, p.conflict?.current?.inventoryRevision ?? 0)) fail("stale-creation-read")
+          ;(record.creationDiscards ??= []).push({ intent: proof.intent, proof, resolution: "discarded" })
+          record.pending = []; record.snapshot = snapshot; record.optimistic = snapshot
+        })
+      } finally {
+        if (active()) await update(record => { const p = record.pending[0]; if (p?.lease?.id === lease.id) p.lease = null })
+      }
+    },
     refreshConflict,
     async saveSnapshot(raw: unknown, catalog: InventoryCatalogResolver = () => undefined) {
       if (!isCompleteInventorySnapshot(raw)) fail("partial-or-unverified-snapshot")
@@ -261,12 +314,14 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         reproject(record, catalog)
       })
     },
-    async enqueue(raw: SlotOfflineIntent, catalog: InventoryCatalogResolver, planningBase?: InventorySnapshot, activeScope: () => SlotOfflineScope | null = () => scope) {
+    async enqueue(raw: SlotOfflineIntent, catalog: InventoryCatalogResolver, planningBase?: InventorySnapshot, activeScope: () => SlotOfflineScope | null = () => scope, creationAuthSessionId?: string) {
       const intent = parseSlotIntent(raw)
       await update(record => {
         if (!sameValue(activeScope(), scope)) fail("inactive-queue-scope")
         const existing = record.pending.find(p => p.intent.request.operationId === intent.request.operationId)?.intent
           ?? record.receipts.find(r => r.operationId === intent.request.operationId)?.intent
+        if (record.creationDiscards?.some(r => r.intent.request.operationId === intent.request.operationId
+          || intent.kind === "creation" && (r.intent.request.collectionId === intent.request.collectionId || intent.request.slotIds.some(id => r.intent.request.slotIds.includes(id))))) fail("new-creation-ids-required")
         if (existing) { if (!sameValue(existing, intent)) fail("idempotency-conflict"); return }
         if (record.recovery?.some(recoveryUnresolved)) fail("recovery-pending")
         if (record.pending.some(p => p.intent.kind === "creation")) fail("creation-pending")
@@ -277,7 +332,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           || planningBase.collections.some(c => c.id === intent.request.collectionId))) fail("verified-complete-native-base-required")
         if (!record.optimistic || record.pending.some(p => ["conflict", "blocked", "billing"].includes(p.status))) fail("queue-reconciliation-required")
         const next = projectSlotIntent(record.optimistic, intent, catalog)
-        record.pending.push({ intent, base: record.optimistic, status: "pending", attempts: 0, nextAttemptAt: 0, lease: null, conflict: null })
+        record.pending.push({ ...(intent.kind === "creation" && creationAuthSessionId ? { creationAuthSessionId } : {}), intent, base: record.optimistic, status: "pending", attempts: 0, nextAttemptAt: 0, lease: null, conflict: null })
         record.optimistic = next
       })
     },
@@ -347,10 +402,11 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           record.receipts.push({ operationId: p.intent.request.operationId, intent: p.intent, outcome: "acknowledged" })
           record.pending.shift(); record.snapshot = current; reproject(record, catalog)
         } else if (p.intent.kind === "creation") {
-          // 093 owns terminal creation proof. HTTP status alone never permits cancellation/rebase.
-          p.status = result.status === 402 ? "billing" : [400, 401, 403, 404, 405, 413, 415, 422].includes(result.status) ? "blocked" : "unavailable"
+          const proof = result.status === 409 && result.operationId === p.intent.request.operationId
+            && validCreationProof(result.creationProof, p.intent, scope, p.creationAuthSessionId) ? result.creationProof : undefined
+          p.status = proof ? "conflict" : result.status === 402 ? "billing" : [400, 401, 403, 404, 405, 413, 415, 422].includes(result.status) ? "blocked" : "unavailable"
           p.nextAttemptAt = now + Math.min(300000, 1000 * 2 ** (p.attempts - 1))
-          p.conflict = { reason: result.code ?? "creation-outcome-unresolved", current: null, rejected: false }
+          p.conflict = { reason: proof?.rejection.code ?? result.code ?? "creation-outcome-unresolved", current: null, rejected: !!proof, ...(proof ? { creationProof: proof } : {}) }
         } else if (result.status === 409) {
           const rejection = isStorageCommandRejection(result.rejection, p.intent.request.operationId) ? result.rejection : undefined
           p.status = "conflict"; p.conflict = { reason: result.code ?? "unclassified-conflict", current: null, rejected: !!rejection, ...(rejection ? { rejection } : {}) }
@@ -364,6 +420,22 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           p.conflict = { reason: result.status === 503 ? "staged-or-unavailable" : "unknown-outcome", current: null, rejected: false }
         }
       })
+      // Persist creation proof before any current-state read; the ledger revision is historical.
+      if ((claimed as SlotOfflineIntent).kind === "creation" && result.creationProof && readCurrent && active()) {
+        try {
+          const head = (await read()).pending[0], proof = head?.conflict?.creationProof
+          if (!head || head.lease || !head.conflict?.rejected || !proof) return
+          const fence = captureCompleteInventoryReadFence(), fresh = await readCurrent()
+          if (!active() || !isCompleteInventoryReadAfter(fresh, fence)) return
+          const snapshot = scopedSnapshot(fresh, scope)
+          await update(record => {
+            const p = record.pending[0]
+            if (!active() || !p || p.lease || !sameValue(p.intent, claimed) || !sameValue(p.conflict?.creationProof, proof)
+              || snapshot.inventoryRevision < Math.max(proof.rejection.inventoryRevision, record.snapshot!.inventoryRevision)) return
+            p.conflict!.current = snapshot
+          })
+        } catch { /* Proof remains durable. Discard always starts another separately fresh read. */ }
+      }
       // Persist terminal proof before the read, so an interrupted read can resume after reload.
       if ((claimed as SlotOfflineIntent).kind !== "creation" && result.status === 409 && isStorageCommandRejection(result.rejection, (claimed as SlotOfflineIntent).request.operationId) && readCurrent && active()) {
         try { await refreshConflict((claimed as SlotOfflineIntent).request.operationId, readCurrent, activeScope) }

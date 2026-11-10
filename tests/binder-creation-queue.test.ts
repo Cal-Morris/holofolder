@@ -129,3 +129,121 @@ test("a slot terminal proof cannot be reused as creation noncommit proof", async
   await assert.rejects(q.refreshConflict(context.operationId, () => complete(), () => scope))
   await assert.rejects(q.reconcile(context.operationId, { kind: "keep-remote" }, () => undefined))
 })
+
+async function rejectedCreation() {
+  const state = await setup(), auth = "synthetic-auth-session"
+  await state.q.enqueue(state.intent, () => undefined, state.snapshot, () => scope, auth)
+  const proof = { family: "collection.create" as const, deliveryId: "synthetic-delivery", scope: { accountId: scope.accountId, ownerUserId: scope.ownerUserId, authSessionId: auth },
+    intent: state.intent, rejection: { outcome: "rejected" as const, operationId: context.operationId, code: "inventory_revision_conflict" as const, inventoryRevision: 2 } }
+  return { ...state, auth, proof }
+}
+test("creation terminal proof survives reload separately from acceptance; explicit discard retains exact intent/proof and later edits", async () => {
+  const { q, store, intent, auth, proof } = await rejectedCreation()
+  await q.replay(async () => ({ status: 409, operationId: context.operationId, creationProof: proof }), () => scope, 1000, () => undefined, () => complete({ ...base, inventoryRevision: 4 }))
+  const reopened = createSlotOfflineQueue(store, scope)
+  assert.deepEqual((await reopened.read()).pending[0].conflict?.creationProof, proof)
+  assert.equal((await reopened.read()).pending[0].conflict?.current?.inventoryRevision, 4)
+  assert.equal((await reopened.read()).receipts.length, 0)
+  await assert.rejects(reopened.reconcile(context.operationId, { kind: "keep-remote" }, () => undefined))
+  await assert.rejects(reopened.rebase(context.operationId, "synthetic-new-id", () => undefined))
+  await assert.rejects(reopened.discardCreation(context.operationId, () => complete(), () => scope, "different-auth"))
+  await assert.rejects(reopened.discardCreation(context.operationId, () => complete(), () => scope, auth), /stale/)
+  await reopened.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 5, collections: [{ ...base.collections[0], name: "Later edit" }] }), () => scope, auth)
+  const saved = await createSlotOfflineQueue(store, scope).read()
+  assert.equal(saved.pending.length, 0); assert.equal(saved.receipts.length, 0)
+  assert.equal(saved.snapshot?.collections[0].name, "Later edit")
+  assert.deepEqual(saved.creationDiscards, [{ intent, proof, resolution: "discarded" }])
+  await assert.rejects(reopened.enqueue(intent, () => undefined, await complete({ ...base, inventoryRevision: 5 })), /new-creation-ids/)
+})
+for (const field of ["family", "operation", "request", "context", "account", "owner", "auth", "delivery", "malformed", "status"] as const) test(`creation ${field} mismatch cannot authorize discard`, async () => {
+  const { q, intent, auth, proof } = await rejectedCreation()
+  const bad = structuredClone(proof)
+  if (field === "family") Object.assign(bad, { family: "inventory" })
+  if (field === "operation") Object.assign(bad.rejection, { operationId: "another-operation" })
+  if (field === "request") bad.intent.request.collectionId = oldId
+  if (field === "context") bad.intent.context.clientOccurredAt = "2026-11-10T13:00:00Z"
+  if (field === "account") bad.scope.accountId = "another-account"
+  if (field === "owner") bad.scope.ownerUserId = "another-owner"
+  if (field === "auth") bad.scope.authSessionId = "another-session"
+  if (field === "delivery") bad.deliveryId = ""
+  if (field === "malformed") Object.assign(bad.rejection, { code: "generic-error" })
+  await q.replay(async () => ({ status: field === "status" ? 0 : 409, operationId: context.operationId, creationProof: bad }), () => scope, 1000)
+  assert.equal((await q.read()).pending[0].conflict?.rejected, false)
+  assert.deepEqual((await q.read()).pending[0].intent, intent)
+  await assert.rejects(q.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 3 }), () => scope, auth))
+})
+test("creation discard fences stale read, scope teardown, lease/CAS races and IDB abort without losing proof", async () => {
+  const { q, store, intent, auth, proof } = await rejectedCreation()
+  await q.replay(async () => ({ status: 409, operationId: context.operationId, creationProof: proof }), () => scope, 1000)
+  const cached = await complete({ ...base, inventoryRevision: 3 })
+  await assert.rejects(q.discardCreation(context.operationId, async () => cached, () => scope, auth), /fresh/)
+  let active = true
+  await assert.rejects(q.discardCreation(context.operationId, async () => { active = false; return complete({ ...base, inventoryRevision: 3 }) }, () => active ? scope : null, auth, 2000), /fresh/)
+  const { offlineScopeKey } = await import("@/lib/collection/slot-offline-queue")
+  await store.update(offlineScopeKey(scope), raw => { const r = raw as Awaited<ReturnType<typeof q.read>>; r.pending[0].lease = null; return r })
+  await assert.rejects(q.discardCreation(context.operationId, async () => {
+    await store.update(offlineScopeKey(scope), raw => { const r = raw as Awaited<ReturnType<typeof q.read>>; r.pending[0].lease = { id: "other-tab-lease", until: 999999 }; return r })
+    return complete({ ...base, inventoryRevision: 3 })
+  }, () => scope, auth, 3000), /stale/)
+  await store.update(offlineScopeKey(scope), raw => { const r = raw as Awaited<ReturnType<typeof q.read>>; r.pending[0].lease = null; return r })
+  let writes = 0
+  const aborting = createSlotOfflineQueue({ ...store, update: async (key, transform) => { if (++writes === 2) throw new Error("synthetic-IDB-abort"); return store.update(key, transform) } }, scope)
+  await assert.rejects(aborting.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 3 }), () => scope, auth), /abort/)
+  const saved = await q.read()
+  assert.deepEqual(saved.pending[0].intent, intent); assert.deepEqual(saved.pending[0].conflict?.creationProof, proof)
+  assert.equal(saved.pending[0].lease, null); assert.equal(saved.creationDiscards, undefined)
+  await q.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 3 }), () => scope, auth)
+})
+
+test("creation proof write abort leaves original sending intent, reload exact replay persists proof", async () => {
+  const { q, store, intent, auth, proof } = await rejectedCreation()
+  let writes = 0
+  const aborting = createSlotOfflineQueue({ ...store, update: async (key, transform) => { if (++writes === 2) throw new Error("synthetic-proof-IDB-abort"); return store.update(key, transform) } }, scope)
+  const result = { status: 409, operationId: context.operationId, creationProof: proof }
+  await assert.rejects(aborting.replay(async () => result, () => scope, 1000), /abort/)
+  const retained = (await q.read()).pending[0]
+  assert.equal(retained.status, "sending"); assert.deepEqual(retained.intent, intent)
+  assert.equal(retained.conflict, null)
+  await assert.rejects(q.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 3 }), () => scope, auth))
+  const reopened = createSlotOfflineQueue(store, scope)
+  await reopened.replay(async sent => { assert.deepEqual(sent, intent); return result }, () => scope, 100000)
+  assert.deepEqual((await reopened.read()).pending[0].conflict?.creationProof, proof)
+})
+
+test("pre-consumer pending creation without original auth evidence stays unresolved", async () => {
+  const { q, store, intent, snapshot } = await setup()
+  const { proof, auth } = await rejectedCreation()
+  await q.enqueue(intent, () => undefined, snapshot)
+  await q.replay(async () => ({ status: 409, operationId: context.operationId, creationProof: proof }), () => scope, 1000)
+  const reopened = createSlotOfflineQueue(store, scope)
+  assert.equal((await reopened.read()).pending[0].conflict?.rejected, false)
+  await assert.rejects(reopened.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 3 }), () => scope, auth))
+})
+test("creation discard cannot use a read older than an already observed current revision or an expired lease", async () => {
+  const { q, auth, proof } = await rejectedCreation()
+  await q.replay(async () => ({ status: 409, operationId: context.operationId, creationProof: proof }), () => scope, 1000, () => undefined, () => complete({ ...base, inventoryRevision: 4 }))
+  await assert.rejects(q.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 3 }), () => scope, auth), /stale/)
+  const clock = Date.now
+  try {
+    await assert.rejects(q.discardCreation(context.operationId, async () => { const expired = clock() + 60001; Date.now = () => expired; return complete({ ...base, inventoryRevision: 5 }) }, () => scope, auth), /stale/)
+  } finally { Date.now = clock }
+  assert.deepEqual((await q.read()).pending[0].conflict?.creationProof, proof)
+})
+
+test("new creation review must allocate independent operation, collection and slot IDs after discard", async () => {
+  const { q, intent, auth, proof } = await rejectedCreation()
+  await q.replay(async () => ({ status: 409, operationId: context.operationId, creationProof: proof }), () => scope, 1000)
+  const fresh = await complete({ ...base, inventoryRevision: 3 })
+  await q.discardCreation(context.operationId, () => complete({ ...base, inventoryRevision: 3 }), () => scope, auth)
+  const next = structuredClone(intent)
+  Object.assign(next.request, { operationId: "synthetic-new-review", inventoryRevision: 3 })
+  Object.assign(next.context, { operationId: "synthetic-new-review", clientOccurredAt: "2026-11-10T14:00:00Z" })
+  await assert.rejects(q.enqueue(next, () => undefined, fresh, () => scope, auth), /new-creation-ids/)
+  next.request.collectionId = "33333333-3333-4333-8333-333333333333"
+  await assert.rejects(q.enqueue(next, () => undefined, fresh, () => scope, auth), /new-creation-ids/)
+  next.request.slotIds = ["new-review-one", "new-review-two"]
+  await q.enqueue(next, () => undefined, fresh, () => scope, auth)
+  const saved = await q.read()
+  assert.deepEqual(saved.creationDiscards![0], { intent, proof, resolution: "discarded" })
+  assert.deepEqual(saved.pending[0].intent, next); assert.equal(saved.receipts.length, 0)
+})

@@ -190,10 +190,12 @@ test("pending native creation blocks export and file preview in the combined hos
   await expect.poll(async () => (await records(page)).some(row => !!row && typeof row === "object" && "pending" in row
     && (row.pending as { intent: { kind: string } }[]).some(pending => pending.intent.kind === "creation"))).toBe(true)
   await creating.getByRole("button", { name: "Close new binder", exact: true }).click()
-  const retained = await records(page)
+  const retained = (await records(page)).flatMap(row => row && typeof row === "object" && "pending" in row
+    ? (row.pending as { intent: unknown }[]).map(pending => pending.intent) : [])
   const d = await open(page)
   await expect(d.getByRole("button", { name: "Download collection data", exact: true })).toBeDisabled()
   await expect(d.getByLabel("Select backup file")).toBeDisabled()
   await expect(d).toContainText("pending edits, creation or recovery")
-  expect(await records(page)).toEqual(retained)
+  expect((await records(page)).flatMap(row => row && typeof row === "object" && "pending" in row
+    ? (row.pending as { intent: unknown }[]).map(pending => pending.intent) : [])).toEqual(retained)
 })

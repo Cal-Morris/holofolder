@@ -1,7 +1,8 @@
+import { isRawRestoreRejection } from '@/lib/domain/raw-restore'
 import { isCreationRejection, isImportRejection } from '@/lib/collection/creation-import-rejection'
 import { isRecoveryRejection } from '@/lib/collection/recovery-rejection'
 import { isStorageCommandRejection } from '@/lib/collection/storage-command-rejection'
-import { StorageCreationRejectedError, StorageImportRejectedError, StorageRecoveryRejectedError, StorageCommandRejectedError } from '@/lib/server/developer-access/storage-command-error'
+import { StorageRestoreRejectedError, StorageCreationRejectedError, StorageImportRejectedError, StorageRecoveryRejectedError, StorageCommandRejectedError } from '@/lib/server/developer-access/storage-command-error'
 import type { OperationContext } from '@/lib/developer-api/types'
 import { DeveloperAccessError, requirePermissions } from '@/lib/developer-api/permissions'
 import { NATIVE_DEVELOPER_OPERATIONS, nativeCommandIntent } from '@/lib/developer-api/storage'
@@ -10,6 +11,7 @@ import { executeDeveloperStorageOperation } from './storage-execution'
 import type { StorageOperation } from './storage-contract'
 
 const storageOperations: Readonly<Record<string, StorageOperation>> = {
+  restore_raw_collection_content: 'backup.restore.raw',
   import_storage_arrangement: 'backup.arrangement',
   execute_slot_commands: 'slots', execute_inventory_commands: 'inventory', create_storage_collection: 'collection.create',
   preview_storage_recovery: 'recovery.preview', apply_storage_recovery: 'recovery.apply',
@@ -37,5 +39,6 @@ export async function executeNativeDeveloperOperation(context: OperationContext,
     && isRecoveryRejection(result, String(intent.operationId))) throw new StorageRecoveryRejectedError(result)
   if (name === 'create_storage_collection' && isCreationRejection(result, String(intent.operationId))) throw new StorageCreationRejectedError(result)
   if (name === 'import_storage_arrangement' && isImportRejection(result, String(intent.operationId))) throw new StorageImportRejectedError(result)
+  if (name === 'restore_raw_collection_content' && isRawRestoreRejection(result, String(intent.operationId))) throw new StorageRestoreRejectedError(result)
   return result
 }

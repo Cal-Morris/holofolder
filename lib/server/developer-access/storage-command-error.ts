@@ -1,5 +1,5 @@
 import { DeveloperAccessError } from '@/lib/developer-api/permissions'
-import { creationErrorSchema, importErrorSchema, recoveryErrorSchema, storageCommandErrorSchema } from '@/lib/developer-api/storage'
+import { rawRestoreErrorSchema, creationErrorSchema, importErrorSchema, recoveryErrorSchema, storageCommandErrorSchema } from '@/lib/developer-api/storage'
 import type { StorageCommandRejection } from '@/lib/collection/storage-command-rejection'
 
 /** Created only from the trusted executor's validated, original-ID-bound ledger result. */
@@ -31,5 +31,13 @@ export class StorageImportRejectedError extends DeveloperAccessError {
   constructor(rejection: import('@/lib/collection/creation-import-rejection').ImportRejection) {
     super('storage_import_rejected', 'The original import did not commit. Read current storage before explicit reconciliation.', 409)
     this.rejection = importErrorSchema.shape.error.shape.rejection.parse(rejection)
+  }
+}
+
+export class StorageRestoreRejectedError extends DeveloperAccessError {
+  readonly rejection: import('@/lib/domain/raw-restore').RawRestoreRejection
+  constructor(rejection: import('@/lib/domain/raw-restore').RawRestoreRejection) {
+    super('storage_restore_rejected', 'The original restore did not commit. Read current storage before explicit reconciliation.', 409)
+    this.rejection = rawRestoreErrorSchema.shape.error.shape.rejection.parse(rejection)
   }
 }

@@ -1,3 +1,5 @@
+import { isCreationRejection } from "@/lib/collection/creation-import-rejection"
+import { StorageCreationRejectedError } from "@/lib/server/developer-access/storage-command-error"
 import "server-only"
 import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { randomUUID } from "node:crypto"
@@ -32,6 +34,15 @@ export async function handleStorageCommand(request: Request, operation: "slots" 
     if (input.operationId !== operationId) throw new DeveloperAccessError("invalid_input", "Operation identity does not match.", 400)
     const forwarded = new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify(input) })
     const receipt = await executeAppStorageRequest(forwarded, operation, localClients)
+    if (operation === "collection.create" && isCreationRejection(receipt, operationId)) {
+      const response = developerErrorResponse(new StorageCreationRejectedError(receipt), requestId)
+      for (const [key, value] of Object.entries(headers)) response.headers.set(key, value)
+      const delivery = request.headers.get("X-Storage-Delivery")
+      if (isSlotContractId(delivery)) response.headers.set("X-Storage-Delivery", delivery)
+      response.headers.set("X-Storage-Family", "collection.create")
+      response.headers.set("X-Storage-Operation", operationId)
+      return response
+    }
     if (isStorageCommandRejection(receipt, operationId)) return Response.json({ version: 1, operationId, rejection: receipt }, { status: 409, headers })
     return Response.json({ version: 1, operationId, receipt }, { headers })
   } catch (error) {
