@@ -22,6 +22,7 @@ interface UseSettingsOptions {
   initialUser?: { id: string } | null
   settingsOwnerUserId?: string | null
   readOnly?: boolean
+  readOnlyLayout?: boolean
   hasRemoteSettings?: boolean
 }
 
@@ -98,15 +99,22 @@ export function useSettings(options: UseSettingsOptions = {}) {
     initialUser = null,
     settingsOwnerUserId = null,
     readOnly = false,
+    readOnlyLayout = false,
     hasRemoteSettings = false,
   } = options
   const initialResolvedSettings = initialSettings ?? DEFAULT_SETTINGS
   const [settings, setSettingsState] = useState<BinderSettings>(initialResolvedSettings)
   const settingsRef = useRef(initialResolvedSettings)
+  // Native layout comes from the scoped complete read, never a legacy settings cache.
+  const withCurrentLayout = useCallback((next: BinderSettings) => readOnlyLayout
+    && (next.binderRows !== initialResolvedSettings.binderRows || next.binderCols !== initialResolvedSettings.binderCols)
+    ? { ...next, binderRows: initialResolvedSettings.binderRows, binderCols: initialResolvedSettings.binderCols }
+    : next, [initialResolvedSettings.binderRows, initialResolvedSettings.binderCols, readOnlyLayout])
   const setSettings = useCallback((next: BinderSettings) => {
-    settingsRef.current = next
-    setSettingsState(next)
-  }, [])
+    const resolved = withCurrentLayout(next)
+    settingsRef.current = resolved
+    setSettingsState(resolved)
+  }, [withCurrentLayout])
   const [user, setUser] = useState<{ id: string } | null>(initialUser)
 
   const supabase = createClient()
@@ -178,11 +186,12 @@ export function useSettings(options: UseSettingsOptions = {}) {
   }, [binderId, hasRemoteSettings, readOnly, setSettings, settingsOwnerUserId, user?.id])
 
   const pendingSaves = useRef<Promise<unknown>>(Promise.resolve())
-  const saveRemote = useCallback((updatedSettings: BinderSettings) => {
+  const saveRemote = useCallback((pendingSettings: BinderSettings) => {
+    const updatedSettings = withCurrentLayout(pendingSettings)
     const save = async () => {
       const pendingKey = `${getLocalSettingsKey(settingsOwnerUserId ?? user?.id, binderId)}:pending`
-      const snapshot = JSON.stringify(updatedSettings)
-      if (JSON.stringify(settingsRef.current) !== snapshot) return
+      const snapshot = JSON.stringify(pendingSettings)
+      if (JSON.stringify(settingsRef.current) !== JSON.stringify(updatedSettings)) return
       const response = await fetch("/app/api/settings", {
         method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
         body: JSON.stringify({ ...updatedSettings, binderId }), signal: AbortSignal.timeout(10000),
@@ -198,7 +207,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
     const next = pendingSaves.current.then(save, save)
     pendingSaves.current = next.catch(() => {})
     return next
-  }, [binderId, settingsOwnerUserId, user?.id])
+  }, [binderId, settingsOwnerUserId, user?.id, withCurrentLayout])
 
   useEffect(() => {
     if (readOnly || !user) return
@@ -224,9 +233,9 @@ export function useSettings(options: UseSettingsOptions = {}) {
   }, [binderId, initialResolvedSettings, readOnly, saveRemote, setSettings, settingsOwnerUserId, user])
 
   const updateSettings = useCallback(async (newSettings: Partial<BinderSettings>) => {
-    if (readOnly) return
+    if (readOnly || (readOnlyLayout && (newSettings.binderRows !== undefined || newSettings.binderCols !== undefined))) return
     const previous = settingsRef.current
-    const updatedSettings = { ...previous, ...newSettings }
+    const updatedSettings = withCurrentLayout({ ...previous, ...newSettings })
     setSettings(updatedSettings)
     writeStoredSettings(updatedSettings, settingsOwnerUserId ?? user?.id, binderId)
     if (!user) return
@@ -249,7 +258,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
       if (newSettings.binderRows !== undefined || newSettings.binderCols !== undefined) throw error
       console.error("[holofolder] Error saving settings:", error instanceof Error ? error.message : error)
     }
-  }, [binderId, readOnly, saveRemote, setSettings, settingsOwnerUserId, user])
+  }, [binderId, readOnly, readOnlyLayout, saveRemote, setSettings, settingsOwnerUserId, user, withCurrentLayout])
 
   return { settings, updateSettings }
 }

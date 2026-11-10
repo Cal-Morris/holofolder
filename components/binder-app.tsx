@@ -257,6 +257,7 @@ function BinderAppSurface(props: BinderAppProps) {
   initialBinderId = null,
 } = props
   const readOnlyMode = legacyReadOnlyMode || Boolean(stagedSlotDisplay) || Boolean(browserSurface)
+  const accountSettingsReadOnly = legacyReadOnlyMode || Boolean(shareViewToken) || (Boolean(stagedSlotDisplay) && !browserSurface)
   const router = useRouter()
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const closeSlotDetail = useCallback(() => setSelectedSlotId(null), [])
@@ -499,7 +500,8 @@ function BinderAppSurface(props: BinderAppProps) {
     initialSettings,
     initialUser,
     settingsOwnerUserId: initialCollectionOwnerUserId,
-    readOnly: readOnlyMode,
+    readOnly: accountSettingsReadOnly,
+    readOnlyLayout: Boolean(browserSurface),
     hasRemoteSettings: initialHasStoredSettings,
   })
   const binderAppearance = useBinderAppearance({
@@ -558,7 +560,7 @@ function BinderAppSurface(props: BinderAppProps) {
     setPushSettingsRequested(true)
     runAfterOverlayHistory(() => setIsSettingsOpen(true))
   }, [setIsSettingsOpen, setPushSettingsRequested, setSelectedPokemon])
-  const billing = useBilling(readOnlyMode ? null : user?.id ?? null, resolvedCollectionOwnerUserId, requestUpgrade)
+  const billing = useBilling(accountSettingsReadOnly ? null : user?.id ?? null, resolvedCollectionOwnerUserId, requestUpgrade)
   useEffect(() => {
     const upgrade = () => requestUpgrade()
     const signIn = () => { closeAllOverlays(); runAfterOverlayHistory(() => setIsAuthOpen(true)) }
@@ -3877,6 +3879,7 @@ function BinderAppSurface(props: BinderAppProps) {
         pwaStatusMessage={pwaStatusMessage}
         onInstallApp={handleInstallApp}
         isReadOnlyView={readOnlyMode}
+        isAccountReadOnly={accountSettingsReadOnly}
         sharePath={sharePath}
         shareShowPrices={shareShowPrices}
         onShareShowPricesChange={value => { void handleEnableReadOnlyShare(value) }}
