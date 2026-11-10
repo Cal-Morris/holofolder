@@ -11,6 +11,12 @@ async function handle(request: Request) {
     if (url.searchParams.has('rows')) fixture.tables.binders[0].binder_rows = Number(url.searchParams.get('rows'))
     if (url.searchParams.has('cols')) fixture.tables.binders[0].binder_cols = Number(url.searchParams.get('cols'))
     if (url.searchParams.get('light') === '1') fixture.tables.user_settings[0].dark_mode = false
+    if (url.searchParams.get('wanted') === '1') {
+      // Synthetic stored wants with private sentinels: an owned slot and an unfilled page-2 target.
+      const want = (cardId: string) => ({ card_id: cardId, card_name: 'PRIVATE-stored-name', added_at: '2026-01-01T00:00:00.000Z', wanted_by: ['00000000-0000-4000-8000-000000000001'], notes: 'PRIVATE-notes' })
+      fixture.tables.binder_slots[0].wanted_cards = [want('synthetic-energy')]
+      fixture.tables.binder_slots[6].wanted_cards = [want('synthetic-trainer'), want('synthetic-energy')]
+    }
     if (url.searchParams.get('stress') === '1') {
       fixture.tables.binders[0].name = 'S'.repeat(40)
       fixture.tables.inventory_items[0].grading = { grade: 'G'.repeat(500), provider: { kind: 'custom', name: 'P'.repeat(500) }, certificate: 'PRIVATE-certificate', label: { assetIds: ['PRIVATE-asset'] } }

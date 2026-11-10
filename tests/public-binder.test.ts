@@ -13,8 +13,9 @@ for (const identity of [{ token: 'synthetic-token' }, { username: 'synthetic-own
     assert.deepEqual(result.slots.map(s => s.card?.name ?? s.pokemon?.name ?? null), ['Synthetic Snorlax', 'Synthetic Snorlax', 'Synthetic Trainer', 'Synthetic Energy', null, null, 'snorlax'])
     assert.deepEqual(result.completion, { targetCount: 3, completedTargetCount: 2 })
     const json = JSON.stringify(result)
-    for (const sentinel of ['PRIVATE', 'certificate', 'assetIds', 'ownerUserId', 'inventoryItemId', 'wanted_by', 'source', 'acquired', 'price', 'cost']) assert.ok(!json.includes(sentinel), sentinel)
-    assert.deepEqual(Object.keys(result).sort(), ['appearance', 'cols', 'completion', 'kind', 'name', 'rows', 'slots'].sort())
+    for (const sentinel of ['PRIVATE', 'certificate', 'assetIds', 'ownerUserId', 'inventoryItemId', 'wanted_by', 'source', 'acquired', 'marketGBP', 'cost']) assert.ok(!json.includes(sentinel), sentinel)
+    assert.equal(result.prices, false)
+    assert.deepEqual(Object.keys(result).sort(), ['appearance', 'cols', 'completion', 'kind', 'name', 'prices', 'rows', 'slots'].sort())
     assert.equal(db.calls[0].table, 'token' in identity ? 'binder_shares' : 'resolve_named_binder_share')
     assert.ok(db.calls.filter(c => ['binder_slots', 'inventory_placements'].includes(c.table)).every(c => c.filters.collection_id === 'binder-allowed'))
     assert.ok(db.calls.filter(c => c.table === 'inventory_items').every(c => Array.isArray(c.filters.id)))
@@ -57,10 +58,10 @@ test('deep public field allowlist, certificate contamination and canonical artwo
   assert.equal(result.slots[0].item?.grading, null)
   assert.equal(result.slots[0].recordedProvider, undefined)
   for (const slot of result.slots) {
-    assert.ok(Object.keys(slot).every(k => ['id', 'target', 'item', 'card', 'pokemon', 'recordedProvider'].includes(k)))
+    assert.ok(Object.keys(slot).every(k => ['id', 'target', 'item', 'card', 'pokemon', 'recordedProvider', 'wantedCards'].includes(k)))
     if (slot.item) assert.deepEqual(Object.keys(slot.item), ['grading'])
     if (slot.item?.grading) assert.deepEqual(Object.keys(slot.item.grading), ['grade'])
-    if (slot.card) assert.ok(Object.keys(slot.card).every(k => ['name', 'image'].includes(k)))
+    if (slot.card) assert.ok(Object.keys(slot.card).every(k => ['name', 'image', 'id', 'language', 'pokemonIds'].includes(k)))
     if (slot.card?.image) assert.match(slot.card.image, /^https:\/\/assets\.tcgdex\.net\/en\/synthetic\/synthetic\/\d\/high.webp$/)
   }
   assert.ok(!JSON.stringify(result).includes('PRIVATE'))
@@ -91,6 +92,7 @@ test('owner price visibility controls data reads and serialization', async () =>
     const db = syntheticPublicDatabase({ prices })
     const result = await loadPublicBinder({ token: 'synthetic-token' }, db.client)
     assert.equal(result.slots[0].marketGBP, prices ? 12.34 : undefined)
+    assert.equal(result.prices, prices)
     assert.equal(db.calls.some(c => c.table === 'card_prices'), prices)
     assert.ok(!JSON.stringify(result).includes('PRIVATE-cost'))
   }
@@ -180,3 +182,139 @@ for (const identity of [{ token: 'synthetic-token' }, { username: 'synthetic-own
     assert.equal(unavailable.slots[142].card?.image, undefined)
   })
 }
+
+// Synthetic wants. Private fields carry PRIVATE sentinels that must never reach the projection.
+const syntheticWant = (cardId: string, extra: Record<string, unknown> = {}) => ({ card_id: cardId, card_name: 'PRIVATE-stored-name', added_at: '2026-01-01T00:00:00.000Z',
+  wanted_by: ['00000000-0000-4000-8000-000000000001'], card_image: 'https://PRIVATE-image', notes: 'PRIVATE-notes', cost: 'PRIVATE-cost', source: 'PRIVATE-source', ...extra })
+
+test('native wants keep stored order and repeats, name and artwork only', async () => {
+  const db = syntheticPublicDatabase()
+  db.tables.binder_slots[6].wanted_cards = [syntheticWant('synthetic-trainer'), syntheticWant('synthetic-mon'), syntheticWant('synthetic-trainer')]
+  db.tables.binder_slots[1].wanted_cards = [syntheticWant('uncatalogued', { card_name: 'Synthetic Promo', card_image: 'https://assets.tcgdex.net/en/synthetic/synthetic/9/high.webp' })]
+  db.tables.binder_slots[2].wanted_cards = [syntheticWant('uncatalogued', { card_name: 'https://PRIVATE-link' }), { card_name: 'no id' }, 'junk']
+  const result = await loadPublicBinder({ token: 'synthetic-token' }, db.client)
+  assert.deepEqual(result.slots[6].wantedCards?.map(w => w.card_name), ['Synthetic Trainer', 'Synthetic Snorlax', 'Synthetic Trainer'])
+  assert.match(result.slots[6].wantedCards![0].card_image!, /^https:\/\/assets\.tcgdex\.net\/en\/synthetic\/synthetic\/1\/high.webp$/)
+  assert.deepEqual(result.slots[1].wantedCards, [{ card_name: 'Synthetic Promo', card_image: 'https://assets.tcgdex.net/en/synthetic/synthetic/9/high.webp' }])
+  assert.deepEqual(result.slots[0].card, { name: 'Synthetic Snorlax', image: 'https://assets.tcgdex.net/en/synthetic/synthetic/0/high.webp', id: 'synthetic-mon', language: 'en', pokemonIds: [143] })
+  assert.equal(result.slots[2].wantedCards, undefined)
+  // The empty-target slot without stored wants never gains one.
+  assert.equal(result.slots[5].wantedCards, undefined)
+  for (const slot of result.slots) for (const want of slot.wantedCards ?? []) assert.ok(Object.keys(want).every(k => ['card_name', 'card_image', 'card_id', 'card_language', 'pokemonIds'].includes(k)))
+  assert.deepEqual(result.slots[6].wantedCards?.map(w => w.card_id), ['synthetic-trainer', 'synthetic-mon', 'synthetic-trainer'])
+  assert.ok(!('card_id' in result.slots[1].wantedCards![0]))
+  const json = JSON.stringify(result)
+  for (const sentinel of ['PRIVATE', 'wanted_by', '00000000-0000', 'added_at', 'notes', 'cost', 'source']) assert.ok(!json.includes(sentinel), sentinel)
+  assert.deepEqual(result.completion, { targetCount: 3, completedTargetCount: 2 })
+})
+
+test('legacy wants, including a pre-016 wishlisted printing, are projected without private fields', async () => {
+  const db = syntheticPublicDatabase({ legacy: true })
+  db.tables.pokemon_collection.push(
+    { user_id: 'PRIVATE-owner', binder_id: 'binder-allowed', pokemon_id: 143, status: 'collected', card_id: 'synthetic-mon', card_language: 'en', wanted_cards: [syntheticWant('synthetic-trainer'), syntheticWant('synthetic-energy')] },
+    { user_id: 'PRIVATE-owner', binder_id: 'binder-allowed', pokemon_id: 25, status: 'wishlisted', card_id: 'synthetic-mon', card_language: 'en', wanted_cards: [] },
+  )
+  const result = await loadPublicBinder({ token: 'synthetic-token' }, db.client)
+  assert.deepEqual(result.slots[142].wantedCards?.map(w => w.card_name), ['Synthetic Trainer', 'Synthetic Energy'])
+  assert.ok(result.slots[142].item)
+  assert.deepEqual(result.slots[24].wantedCards?.map(w => w.card_name), ['Synthetic Snorlax'])
+  assert.equal(result.slots[24].item, null)
+  assert.equal(result.slots[0].wantedCards, undefined)
+  assert.ok(!JSON.stringify(result).includes('PRIVATE'))
+})
+
+test('read-only BinderApp input is built from the public projection alone', async () => {
+  const { publicBinderDisplayInput } = await import('../lib/public-binder-display')
+  const { buildSlotDisplay } = await import('../lib/binder-display-model')
+  for (const legacy of [false, true]) {
+    const db = syntheticPublicDatabase({ legacy })
+    db.tables.binder_slots[6].wanted_cards = [syntheticWant('synthetic-trainer'), syntheticWant('synthetic-energy')]
+    if (legacy) db.tables.pokemon_collection.push({ user_id: 'PRIVATE-owner', binder_id: 'binder-allowed', pokemon_id: 143, status: 'collected', card_id: 'synthetic-mon', card_language: 'en', wanted_cards: [syntheticWant('synthetic-trainer')] })
+    const input = publicBinderDisplayInput(await loadPublicBinder({ token: 'synthetic-token' }, db.client))
+    const display = buildSlotDisplay(input.binder, input.inventory, input.resolveCard!)
+    const json = JSON.stringify(input)
+    for (const sentinel of ['PRIVATE', 'binder-allowed', 'wanted_by', '00000000-0000']) assert.ok(!json.includes(sentinel), sentinel)
+    if (legacy) {
+      assert.equal(display.length, 1025)
+      assert.equal(display[142].card?.name, 'Synthetic Snorlax')
+      assert.deepEqual(display[142].wantedCards.map(w => w.card_name), ['Synthetic Trainer'])
+    } else {
+      assert.deepEqual(display.map(s => s.card?.name ?? s.pokemon?.name ?? null), ['Synthetic Snorlax', 'Synthetic Snorlax', 'Synthetic Trainer', 'Synthetic Energy', null, null, 'snorlax'])
+      assert.deepEqual(display[6].wantedCards.map(w => [w.card_id, w.card_name]), [['synthetic-trainer', 'Synthetic Trainer'], ['synthetic-energy', 'Synthetic Energy']])
+      assert.equal(display[0].item?.grading?.grade, '9')
+    }
+  }
+})
+
+test('opted-in saved prices reach read-only owned details, and nothing price-related without opt-in', async () => {
+  const { publicBinderDisplayInput } = await import('../lib/public-binder-display')
+  const { buildSlotDisplay } = await import('../lib/binder-display-model')
+  for (const legacy of [false, true]) for (const prices of [false, true]) {
+    const db = syntheticPublicDatabase({ legacy, prices })
+    if (legacy) db.tables.pokemon_collection.push({ user_id: 'PRIVATE-owner', binder_id: 'binder-allowed', pokemon_id: 143, status: 'collected', card_id: 'synthetic-mon', card_language: 'en' })
+    else db.tables.binder_slots[5].target = { kind: 'card', cardId: 'synthetic-mon' }
+    const input = publicBinderDisplayInput(await loadPublicBinder({ token: 'synthetic-token' }, db.client))
+    const display = buildSlotDisplay(input.binder, input.inventory, input.resolveCard!)
+    const owned = display[legacy ? 142 : 0]
+    assert.equal(owned.card?.savedMarketGBP, prices ? 12.34 : undefined, `${legacy} ${prices}`)
+    // An unfilled target of the same printing has no item, so SlotDetail shows no estimate for it.
+    if (!legacy) assert.equal(display[5].item, null)
+    if (!prices) assert.ok(!JSON.stringify(input).includes('savedMarketGBP'))
+    assert.equal(db.calls.some(c => c.table === 'card_prices'), prices)
+  }
+})
+
+test('public read index: truthful species search, distinct wants, exact pockets and jumps', async () => {
+  const { publicBinderDisplayInput, publicReadIndex } = await import('../lib/public-binder-display')
+  const { buildSlotDisplay } = await import('../lib/binder-display-model')
+  const db = syntheticPublicDatabase()
+  // 2x3 pages. Slot 6 (page 2, A1) is an unfilled Snorlax target with two wants; slot 0 owns a Snorlax printing with one want.
+  db.tables.binder_slots[6].wanted_cards = [syntheticWant('synthetic-trainer'), syntheticWant('synthetic-trainer')]
+  db.tables.binder_slots[0].wanted_cards = [syntheticWant('synthetic-mon')]
+  const binder = await loadPublicBinder({ token: 'synthetic-token' }, db.client)
+  const input = publicBinderDisplayInput(binder)
+  const index = publicReadIndex(binder, input)
+  const display = buildSlotDisplay(input.binder, input.inventory, input.resolveCard!)
+  // Snorlax: first needed/wanted pocket is slot 0 (it carries a want), never a dex-order guess.
+  assert.deepEqual(index.speciesLocation(143), { slotId: 'public-0', slotIndex: 0, page: 1, label: 'A1' })
+  assert.equal(index.searchMeta(143).locationLabel, 'Page 1 • A1')
+  assert.equal(index.searchMeta(143).slotState, 'wanted')
+  // A species the binder doesn't hold has no destination and no Needed/Missing state.
+  assert.equal(index.speciesLocation(1), null)
+  assert.equal(index.searchMeta(1).slotState, undefined)
+  assert.equal(index.searchMeta(1).pageNumber, null)
+  assert.deepEqual(index.pageSpecies(2).map(p => p.id), [143])
+  // Each stored want is its own entry and opens its own pocket, repeats included.
+  assert.deepEqual(index.wantEntries.map(w => [w.card.card_id, index.wantLocation(w.card)?.slotId]), [['synthetic-mon', 'public-0'], ['synthetic-trainer', 'public-6'], ['synthetic-trainer', 'public-6']])
+  assert.equal(index.wantEntries[1].card, display[6].wantedCards[0])
+  assert.notEqual(index.wantEntries[1].card, index.wantEntries[2].card)
+  // Copies stay distinct rows; species map is only a lookup for species views.
+  assert.equal(index.species.rows.filter(r => r.status === 'collected').length, 4)
+  assert.equal(index.species.bySpecies.get(143)?.status, 'collected')
+  // Wants without their own species links belong to the pocket's species (the two Trainer wants sit in a Snorlax pocket).
+  assert.equal(index.species.bySpecies.get(143)?.wanted_cards.length, 3)
+  // Needed jump goes pocket by pocket in binder order and wraps.
+  assert.equal(index.jump('needed', -1, 'next')?.slotId, 'public-6')
+  assert.equal(index.jump('needed', 6, 'next')?.slotId, 'public-6')
+  assert.equal(index.jump('wanted', 0, 'next')?.slotId, 'public-6')
+  assert.equal(index.jump('favorite', 0, 'next'), null)
+  // Quick state checks the exact printing.
+  const mon = { id: 'synthetic-mon', language: 'en' } as never
+  assert.deepEqual([index.quickState(mon, 143).owned, index.quickState(mon, 143).wanted], [true, true])
+  assert.deepEqual([index.quickState({ id: 'synthetic-energy', language: 'ja' } as never, 143).owned], [false])
+  assert.ok(!JSON.stringify([...index.species.bySpecies.values(), index.species.rows]).includes('PRIVATE'))
+})
+
+
+test('public species ownership comes from copies and survives earlier wants', async () => {
+  const { publicBinderDisplayInput, publicReadIndex } = await import('../lib/public-binder-display')
+  const binder = await loadPublicBinder({ token: 'synthetic-token' }, syntheticPublicDatabase().client)
+  const owned = { ...binder.slots[0], id: 'public-owned', target: { kind: 'pokemon' as const, pokemonId: 1 }, card: { ...binder.slots[0].card!, pokemonIds: [143] }, pokemon: null, wantedCards: [] }
+  const wanted = { ...owned, id: 'public-wanted', item: null, card: null, wantedCards: [{ card_name: 'Synthetic Snorlax', card_id: 'synthetic-mon', pokemonIds: [143] }] }
+  binder.slots = [wanted, owned]
+  const index = publicReadIndex(binder, publicBinderDisplayInput(binder))
+  assert.equal(index.species.bySpecies.get(143)?.status, 'collected')
+  assert.equal(index.species.bySpecies.get(143)?.wanted_cards.length, 1)
+  assert.notEqual(index.species.bySpecies.get(1)?.status, 'collected', 'a mismatched target does not create ownership')
+  assert.equal(index.species.rows.find(row => row.status === 'collected')?.pokemon_id, 143)
+})

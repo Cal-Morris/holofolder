@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { syntheticPublicDatabase } from './public-binder'
 import type { BinderShareRecord } from '../../lib/binder-share'
 
@@ -46,6 +45,8 @@ async function run() {
   }))
   mock.module('next/navigation', () => ({ notFound() { throw new Error('NOT_FOUND') } }))
   mock.module('next/server', () => ({ connection: async () => undefined }))
+  // The client BinderApp needs the Next runtime; this subprocess checks the server payload boundary only.
+  mock.module('../../components/public-binder', () => ({ default: () => null }))
   const { loadPublicBinder: realLoad } = await import('../../lib/server/public-binder')
   mock.module('../../lib/server/public-binder', () => ({ loadPublicBinder: async (identity: { token: string } | { username: string; binderSlug: string }) => {
     if (!share || !share.is_enabled || ('token' in identity ? identity.token !== share.token : !named || identity.username !== 'synthetic' || identity.binderSlug !== 'binder')) throw new Error('unavailable')
@@ -64,18 +65,18 @@ async function run() {
   const token = payload.share.token
   assert.match(token, /^[A-Za-z0-9_-]{32}$/)
   assert.equal(payload.share.path, `/app/share/${token}`)
-  const { default: SharedBinder } = await import('../../components/shared-binder-page')
   const { default: TokenPage, generateMetadata: generateTokenMetadata } = await import('../../app/share/[token]/page')
   const { default: NamedPage, generateMetadata: generateNamedMetadata } = await import('../../app/u/[username]/[binderSlug]/page')
   actor = owner
   const tokenPage = await TokenPage({ params: Promise.resolve({ token }) })
-  const signedInHtml = renderToStaticMarkup(SharedBinder(tokenPage.props))
+  // The page props are the whole client/RSC boundary: the read-only BinderApp is built from them alone.
+  const signedInProps = JSON.stringify(tokenPage.props)
   actor = null
-  const html = renderToStaticMarkup(SharedBinder(tokenPage.props))
+  const html = JSON.stringify((await TokenPage({ params: Promise.resolve({ token }) })).props)
   actor = owner
-  assert.equal(signedInHtml, html, 'public presentation is identical for owner and guest')
-  assert.match(html, /Read-only binder/)
-  assert.doesNotMatch(html, /PRIVATE|wanted_by|initialUser|inventoryItemId|purchase_cost/)
+  assert.equal(signedInProps, html, 'public payload is identical for owner and guest')
+  assert.equal(tokenPage.props.sharePath, `/app/share/${token}`)
+  assert.doesNotMatch(html, /PRIVATE|wanted_by|initialUser|inventoryItemId|purchase_cost|ownerUserId|owner_user_id/)
   const tokenMetadata = await generateTokenMetadata({ params: Promise.resolve({ token }) })
   assert.equal(tokenMetadata.title, 'Synthetic mixed binder · Holo Folder')
   assert.deepEqual(tokenMetadata.robots, { index: false, follow: false })
@@ -84,7 +85,8 @@ async function run() {
   assert.equal(namedMetadata.title, '@synthetic’s Synthetic mixed binder · Holo Folder')
   assert.deepEqual(namedMetadata.robots, { index: false, follow: false })
   const namedPage = await NamedPage({ params: Promise.resolve({ username: 'synthetic', binderSlug: 'binder' }) })
-  assert.equal(renderToStaticMarkup(SharedBinder(namedPage.props)), html)
+  assert.deepEqual(namedPage.props.binder, tokenPage.props.binder)
+  assert.equal(namedPage.props.sharePath, '/@synthetic/binder')
   assert.equal((await api.POST(request('true'))).status, 400)
   const enabledPrices = await (await api.POST(request(true))).json()
   assert.equal(enabledPrices.share.show_prices, true)

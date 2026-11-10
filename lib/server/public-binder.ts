@@ -12,6 +12,8 @@ import { POKEMON_CATALOG, getPokemonSummary } from '@/lib/pokemon-catalog'
 import { readCatalogMetadata } from '@/lib/card-catalog'
 import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency'
 import { buildTcgdexAssetImageUrl } from '@/lib/tcgdex-shared'
+import { isCardImageSourceUrl } from '@/lib/card-image-sources'
+import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards'
 
 type Row = Record<string, unknown>
 const PAGE = 500
@@ -19,6 +21,17 @@ const SHARE = 'owner_user_id,binder_id,token,is_enabled,show_prices'
 const BINDER = 'id,owner_user_id,name,binder_rows,binder_cols,updated_at'
 const ITEM = 'id,owner_user_id,identity,public_grade:grading->grade,public_provider:grading->provider,private_certificate:grading->certificate,version'
 const STATE = 'collection_id,owner_user_id,authority,conversion_version,version,layout_revision'
+const SLOTS = 'id,owner_user_id,collection_id,position,target,status,wanted_cards,version'
+const LEGACY = 'pokemon_id,status,card_id,card_language,wanted_cards'
+type PublicWant = NonNullable<PublicDisplaySlot['wantedCards']>[number]
+const label = (v: unknown) => typeof v === 'string' && v.trim() && v.length <= 200 && !/https?:|www\.|[<>]/i.test(v) ? v.trim() : undefined
+/** A recorded image survives only when it is an https card-image source the app already proxies. */
+function wantImage(v: unknown) {
+  try {
+    const url = new URL(String(v))
+    return url.protocol === 'https:' && (url.hostname === 'assets.tcgdex.net' || isCardImageSourceUrl(url)) ? url.toString() : undefined
+  } catch { return undefined }
+}
 export class PublicBinderUnavailable extends Error { constructor() { super('Public binder unavailable') } }
 const fail = (): never => { throw new PublicBinderUnavailable() }
 const object = (v: unknown): Row => v && typeof v === 'object' && !Array.isArray(v) ? v as Row : fail()
@@ -123,7 +136,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     const catalogRows = new Map<string, Row>()
     const catalogLinks = new Map<string, number[]>()
     const priceLookups = new Map<number, { cardId: string; language: string }>()
-    const catalog = new Map<string, { name: string; image?: string; candidate: Extract<SlotTargetCandidate, { kind: 'card' }> }>()
+    const catalog = new Map<string, { name: string; image?: string; ref: { id: string; language?: CardLanguage; pokemonIds?: number[] }; candidate: Extract<SlotTargetCandidate, { kind: 'card' }> }>()
     async function preloadCatalog(ids: string[]) {
       const unique = [...new Set(ids)]
       const projection = 'id,name_en,series_id,set_id,local_id,image_languages_json,external_ids_json'
@@ -172,14 +185,32 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       const image = lang && segment(row.series_id) && segment(row.set_id) && segment(row.local_id)
         ? buildTcgdexAssetImageUrl(String(lang), row.series_id, row.set_id, row.local_id, 'high', 'webp') : undefined
       const value = { name: typeof row.name_en === 'string' && row.name_en.trim() ? row.name_en : 'Unknown card', ...(image ? { image } : {}),
+        // Public catalog reference: the canonical printing and the requested language, never the stored alias.
+        ref: { id: canonical, ...(isCardLanguage(language) ? { language } : {}), ...(pokemonIds.length ? { pokemonIds: [...pokemonIds] } : {}) },
         candidate: { kind: 'card' as const, id: canonical, ...(metadata.canonicalId ? { canonicalId: metadata.canonicalId } : {}), ...(metadata.aliasIds ? { aliasIds: metadata.aliasIds } : {}), pokemonIds } }
       catalog.set(cacheKey, value)
       return value
     }
+    const wantIds = (raw: unknown) => Array.isArray(raw) ? raw.flatMap(w => w && typeof w === 'object' && typeof (w as Row).card_id === 'string' ? [String((w as Row).card_id)] : []) : []
+    /** Name and artwork only, in stored order. Never wanted_by, dates, notes, costs or provenance. */
+    function wants(raw: unknown): PublicWant[] {
+      if (!Array.isArray(raw)) return []
+      return raw.flatMap(entry => {
+        if (!entry || typeof entry !== 'object') return []
+        const want = entry as Row
+        if (typeof want.card_id !== 'string' || !want.card_id) return []
+        const found = card(want.card_id, typeof want.card_language === 'string' ? want.card_language : 'en')
+        const name = found?.name ?? label(want.card_name)
+        if (!name) return []
+        const image = found?.image ?? wantImage(want.card_image)
+        return [{ card_name: name, ...(image ? { card_image: image } : {}), ...(found ? { card_id: found.ref.id, ...(found.ref.language ? { card_language: found.ref.language } : {}), ...(found.ref.pokemonIds ? { pokemonIds: found.ref.pokemonIds } : {}) } : {}) }]
+      })
+    }
+    const withWants = (list: PublicWant[]) => list.length ? { wantedCards: list } : {}
     let slots: PublicDisplaySlot[], completion: PublicBinder['completion']
     if (native) {
       if (!isSlotRevision(initialState.row?.version) || !isSlotRevision(initialState.row?.layout_revision)) return fail()
-      const stored = await paged('binder_slots', 'id,owner_user_id,collection_id,position,target,status,version', 'position')
+      const stored = await paged('binder_slots', SLOTS, 'position')
       const placements = await paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id')
       if (new Set(stored.map(s => s.id)).size !== stored.length || new Set(placements.map(p => p.slot_id)).size !== placements.length
         || new Set(placements.map(p => p.inventory_item_id)).size !== placements.length) return fail()
@@ -210,7 +241,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       }
       await preloadCatalog([...items.values()].flatMap(item => item.identity.kind === 'card' ? [item.identity.cardId] : []).concat(stored.flatMap(s => {
         const target = normalizeSlotTarget(s.target)
-        return target?.kind === 'card' ? [target.cardId] : []
+        return [...(target?.kind === 'card' ? [target.cardId] : []), ...wantIds(s.wanted_cards)]
       })))
       const snapshot: BinderSnapshot = { ownerUserId: owner, collectionId: collection, layoutRevision: Number(initialState.row!.layout_revision), presetManifest: null, slots: [] }
       slots = []
@@ -224,14 +255,15 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         const found = identity?.kind === 'card' ? card(identity.cardId, identity.language ?? 'en') : null
         const pokemon = identity?.kind === 'pokemon' ? getPokemonSummary(identity.pokemonId) : null
         snapshot.slots.push({ id: id(row.id), ownerUserId: owner, collectionId: collection, target, inventoryItemId: item?.id ?? null, wantedCards: [], status: placement ? 'collected' : null, version: Number(row.version), presetOrigin: null })
-        slots.push({ id: `public-${index}`, target: target?.kind === 'card' ? { kind: 'card', ...(target.language ? { language: target.language } : {}), ...(target.finish ? { finish: target.finish } : {}) } : target, item: item ? { grading: grades.has(item.id) ? { grade: grades.get(item.id)! } : null } : null,
-          card: identity?.kind === 'card' ? { name: found?.name ?? 'Unknown card', ...(found?.image ? { image: found.image } : {}) } : null,
-          pokemon: pokemon ? { id: pokemon.id, name: pokemon.name } : null, ...(item && providers.has(item.id) ? { recordedProvider: providers.get(item.id)! } : {}) })
+        const targetCard = target?.kind === 'card' ? card(target.cardId, target.language ?? 'en') : undefined
+        slots.push({ id: `public-${index}`, target: target?.kind === 'card' ? { kind: 'card', ...(targetCard ? { cardId: targetCard.ref.id } : {}), ...(target.language ? { language: target.language } : {}), ...(target.finish ? { finish: target.finish } : {}) } : target, item: item ? { grading: grades.has(item.id) ? { grade: grades.get(item.id)! } : null } : null,
+          card: identity?.kind === 'card' ? { name: found?.name ?? 'Unknown card', ...(found?.image ? { image: found.image } : {}), ...(found ? found.ref : {}) } : null,
+          pokemon: pokemon ? { id: pokemon.id, name: pokemon.name } : null, ...(item && providers.has(item.id) ? { recordedProvider: providers.get(item.id)! } : {}), ...withWants(wants(row.wanted_cards)) })
         if (item?.identity.kind === 'card') priceLookups.set(index, { cardId: item.identity.cardId, language: item.identity.language ?? 'en' })
       }
       const goal = getBinderCompletion(snapshot, key => { const item = items.get(key); return item ? inventoryItemCandidate(item, key => card(key)?.candidate) : undefined })
       completion = { targetCount: goal.targetCount, completedTargetCount: goal.completedTargetCount }
-      same(stored, await paged('binder_slots', 'id,owner_user_id,collection_id,position,target,status,version', 'position'))
+      same(stored, await paged('binder_slots', SLOTS, 'position'))
       same(placements, await paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id'))
       for (const page of itemPages) {
         const final = rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', page.map(r => String(r.id))).abortSignal(controller.signal))).data)
@@ -241,19 +273,22 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       same(rev, await revision())
     } else {
       // Legacy National Dex is its actual layout contract, never a native default or conversion.
-      const stored = await paged('pokemon_collection', 'pokemon_id,status,card_id,card_language', 'pokemon_id', true)
-      await preloadCatalog(stored.flatMap(row => typeof row.card_id === 'string' ? [row.card_id] : []))
+      const stored = await paged('pokemon_collection', LEGACY, 'pokemon_id', true)
+      await preloadCatalog(stored.flatMap(row => [...(typeof row.card_id === 'string' ? [row.card_id] : []), ...wantIds(row.wanted_cards)]))
       slots = []
       for (const [index, pokemon] of POKEMON_CATALOG.entries()) {
         const item = stored.find(r => r.pokemon_id === pokemon.id)
         const owned = item?.status === 'collected' || item?.status === 'finalized'
         const found = owned && typeof item?.card_id === 'string' ? card(item.card_id, typeof item.card_language === 'string' ? item.card_language : 'en') : null
         if (owned && typeof item?.card_id === 'string') priceLookups.set(index, { cardId: item.card_id, language: typeof item.card_language === 'string' ? item.card_language : 'en' })
+        // Pre-016 rows kept a single want as a wishlisted printing; it is still the stored want.
+        const legacyWants = wants(item?.status === 'wishlisted' && typeof item.card_id === 'string' && !(Array.isArray(item.wanted_cards) && item.wanted_cards.length)
+          ? [{ card_id: item.card_id, card_language: item.card_language }] : item?.wanted_cards)
         slots.push({ id: `public-${index}`, target: { kind: 'pokemon', pokemonId: pokemon.id }, item: owned ? { grading: null } : null,
-          card: found ? { name: found.name, ...(found.image ? { image: found.image } : {}) } : null, pokemon: { id: pokemon.id, name: pokemon.name } })
+          card: found ? { name: found.name, ...(found.image ? { image: found.image } : {}), ...found.ref } : null, pokemon: { id: pokemon.id, name: pokemon.name }, ...withWants(legacyWants) })
       }
       completion = { targetCount: slots.length, completedTargetCount: slots.filter(s => s.item).length }
-      same(stored, await paged('pokemon_collection', 'pokemon_id,status,card_id,card_language', 'pokemon_id', true))
+      same(stored, await paged('pokemon_collection', LEGACY, 'pokemon_id', true))
     }
     if (share.show_prices === true) {
       const savedPrices = new Map<string, number | null>()
@@ -275,6 +310,6 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     same(publicUsername, await username())
     if (native) same(rev, await revision())
     same(share, await permission())
-    return { kind: native ? 'native' : 'legacy', ...base, completion, slots }
+    return { kind: native ? 'native' : 'legacy', ...base, completion, prices: share.show_prices === true, slots }
   } catch { return fail() } finally { clearTimeout(timer); controller.abort() }
 }

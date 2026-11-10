@@ -515,7 +515,8 @@ function WantedRow({
           </span>
           <span className="block truncate text-xs text-muted-foreground">{setLine || "Unknown set"}</span>
           <span className="block truncate text-[11px] text-muted-foreground/90">{variantLine}</span>
-          <span className="block break-words text-sm text-muted-foreground">Wanted by: {peopleLabel}</span>
+          {/* Assignments are private; read-only views never receive them, so don't print a default. */}
+          {!readOnlyMode && <span className="block break-words text-sm text-muted-foreground">Wanted by: {peopleLabel}</span>}
           {otherBinderName ? <span className="block truncate text-[11px] font-semibold text-primary" data-testid="wanted-row-binder">In {otherBinderName}</span> : null}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1">

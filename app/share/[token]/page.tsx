@@ -18,5 +18,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return loadShareMetadata(await load((await params).token))
 }
 export default async function SharedBinderPage({ params }: Props) {
-  return <SharedBinder binder={await load((await params).token)} />
+  const { token } = await params
+  return <SharedBinder binder={await load(token)} sharePath={`/app/share/${token}`} />
 }
