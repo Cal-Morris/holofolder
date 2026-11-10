@@ -10,7 +10,7 @@ import { pickExternalCardImageUrl } from "@/lib/card-image-sources"
 
 type Row = Record<string, unknown>
 // Preserve input order even when independent mirror queries finish out of order.
-async function concurrent<T, R>(values: T[], read: (value: T) => Promise<R>): Promise<R[]> {
+export async function concurrent<T, R>(values: T[], read: (value: T) => Promise<R>): Promise<R[]> {
   const result: R[] = new Array(values.length)
   let next = 0
   await Promise.all(Array.from({ length: Math.min(4, values.length) }, async () => {
