@@ -3,7 +3,9 @@ import { inventoryBrowseFixture, inventoryProjectionCatalog } from "../tests/fix
 
 const collectionId = "22222222-2222-4222-8222-222222222222"
 
-test("actual native host Wanted shows repeated Trainer and Energy wants, excluding empty targets", async ({ page, context, standalone, insets, baseURL }) => {
+for (const desktop of [false, true]) test(`actual native host Wanted shows card rows and exact repeated destinations ${desktop ? "desktop" : "phone"}`, async ({ page, context, standalone, insets, baseURL }, info) => {
+  test.skip(desktop && info.project.name !== "browser-390x844", "One desktop check")
+  if (desktop) await page.setViewportSize({ width: 1440, height: 1000 })
   if (standalone) await emulateStandalone(page, insets)
   await mockBackends(page, context, { signedIn: true, baseURL })
   // Synthetic storage and catalogue evidence, served through the real production host admission.
@@ -26,33 +28,45 @@ test("actual native host Wanted shows repeated Trainer and Energy wants, excludi
     const url = new URL(route.request().url())
     await route.fulfill({ headers: { "Cache-Control": "private, no-store" }, json: { version: 2, requestId: url.searchParams.get("requestId"),
       scope: { actorUserId: E2E_USER.id, ownerUserId: E2E_USER.id, authSessionId: "synthetic-e2e-auth-session", sessionId: url.searchParams.get("sessionId") },
-      snapshot, navigation: { catalog: inventoryProjectionCatalog, layouts: [{ collectionId, layoutRevision: 1, rows: 4, cols: 4 }] },
+      snapshot, navigation: { catalog: inventoryProjectionCatalog.map(entry => ({ ...entry, card: { ...entry.card, image: `https://assets.tcgdex.net/en/synthetic/${entry.card.id}/high.webp` } })), layouts: [{ collectionId, layoutRevision: 1, rows: 4, cols: 4 }] },
       evidence: { inventoryRevision: 1, items: 0, placements: 0, collections: 1, binders: 1, slots: 12,
         storage: [{ collectionId, collectionVersion: 1, layoutRevision: 1, slotCount: 12 }] } } })
   })
   const writes: string[] = []
   page.on("request", request => { if (request.method() !== "GET" && /\/api\/(collection|binders|inventory|storage)(?:[/?]|$)/.test(request.url())) writes.push(request.url()) })
   await page.goto(`/app/e2e-harness?signedIn=1&binder=${collectionId}`)
-  const dock = page.getByRole("navigation", { name: "Main navigation", exact: true })
-  await dock.getByRole("button", { name: "Wanted", exact: true }).click()
-  const wants = page.getByRole("region", { name: "Native wanted destinations" })
-  await expect(wants).toContainText("4 explicit entries")
-  await expect(wants.getByText("Synthetic Trainer · Normal", { exact: true })).toHaveCount(3)
-  await expect(wants.getByText("Synthetic Energy · Normal", { exact: true })).toHaveCount(1)
-  await expect(wants.getByRole("combobox")).toHaveCount(4)
-  for (const [slot, index] of [["alpha-empty-0", 1], ["alpha-empty-0", 2], ["alpha-empty-1", 1], ["alpha-empty-2", 1]] as const) {
-    await expect(wants.getByRole("combobox", { name: `Copy for ${slot} wanted entry ${index}`, exact: true })).toHaveCount(1)
+  await page.getByRole("button", { name: "Wanted", exact: true }).filter({ visible: true }).click()
+  const wants = page.getByRole("region", { name: "Wanted cards", exact: true })
+  await expect(wants.getByRole("heading", { name: "Wanted", exact: true })).toBeVisible()
+  await expect(wants).toContainText("4 wanted cards")
+  await expect(wants.getByText("Synthetic Trainer", { exact: true })).toHaveCount(3)
+  await expect(wants.getByText("Synthetic Energy", { exact: true })).toHaveCount(1)
+  await expect(wants.getByText("Synthetic projection set · #1", { exact: true })).toHaveCount(4)
+  await expect(wants.getByRole("img")).toHaveCount(4)
+  for (const image of await wants.getByRole("img").all()) {
+    await expect(image).toHaveAttribute("src", /\/app\/api\/card-image-proxy/)
+    await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
   }
+  await expect(wants).not.toContainText(/explicit entries|Saved storage evidence|Hunting|alpha-empty|wanted entry/)
+  await expect(wants).not.toContainText(collectionId)
+  await expect(wants.getByRole("combobox")).toHaveCount(4)
+  for (const [pocket, index] of [[1, 1], [1, 2], [2, 1], [3, 1]] as const) {
+    await expect(wants.getByRole("combobox", { name: `Copy for Page 1 · Pocket ${pocket} · Wanted card ${index}`, exact: true })).toHaveCount(1)
+  }
+  await expect(wants.getByText("Synthetic wanted binder · Page 1 · Pocket 1 · Wanted card 2", { exact: true })).toBeVisible()
   const h = new Harness(page, insets, true)
   const firstChoice = wants.getByRole("combobox").first()
   await h.expectMinTapTarget(firstChoice)
   await h.expectWithinSafeViewport(firstChoice)
   await h.expectHittable(firstChoice)
+  if (desktop || info.project.name === "browser-375x667") await page.screenshot({ path: `/tmp/native-wanted-correction-${desktop ? "desktop" : "phone"}.png` })
   const energyChoice = wants.getByRole("combobox").last()
   await energyChoice.scrollIntoViewIfNeeded()
-  await expect(wants.getByText("Synthetic Energy · Normal", { exact: true })).toBeVisible()
+  await expect(wants.getByText("Synthetic Energy", { exact: true })).toBeVisible()
   await h.expectWithinSafeViewport(energyChoice)
   await h.expectHittable(energyChoice)
   await h.expectNoHorizontalOverflow()
+  await expect(wants.getByRole("button", { name: "Check price", exact: true })).toHaveCount(4)
+  await expect(wants.getByRole("button", { name: "Add to collection", exact: true })).toHaveCount(4)
   expect(writes).toEqual([])
 })
