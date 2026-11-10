@@ -9,6 +9,7 @@ import { useRef, type CSSProperties } from "react"
 /** Browse-only slot. No drag, long-press, placement or ownership callbacks. */
 export function OrderedSlot({ slot, selected, onSelect, imageSizes, glareStyle, glare, interactionKey }: { interactionKey?: string; slot: ReadOnlyDisplaySlot; selected: boolean; onSelect: (id: string) => void; imageSizes: string; glareStyle: CSSProperties; glare: boolean }) {
   const press = useRef<{ key: string | undefined; x: number; y: number } | null>(null)
+  const hasCardImage = Boolean(slot.card?.image)
   const image = slot.card?.image ?? (slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null)
   return <button type="button" data-slot-id={slot.id} aria-label={displaySlotLabel(slot)} aria-pressed={selected} draggable={false}
     onPointerDown={event => { press.current = { key: interactionKey, x: event.clientX, y: event.clientY } }}
@@ -19,10 +20,10 @@ export function OrderedSlot({ slot, selected, onSelect, imageSizes, glareStyle, 
       press.current = null
       if (allowed) onSelect(slot.id)
     }}
-    className={`relative h-full min-h-9 w-full min-w-9 overflow-hidden border bg-white/10 text-white shadow-inner active:scale-[0.98] ${selected ? "border-primary ring-2 ring-primary" : "border-white/25"}`}
+    className={`relative h-full min-h-9 w-full min-w-9 overflow-hidden text-white active:scale-[0.98] ${hasCardImage ? "bg-transparent" : "border border-white/25 bg-white/10 shadow-inner"} ${selected ? "border-primary ring-2 ring-primary" : hasCardImage ? "ring-1 ring-black/5 dark:ring-white/6" : ""}`}
     style={{ borderRadius: TRADING_CARD_CORNER_RADIUS }}>
-    {image && <CardImage key={`${slot.id}:${image}`} src={image} alt="" fill sizes={imageSizes} className={`object-contain p-[3px] ${slot.item ? "" : "grayscale opacity-45"}`} draggable={false} />}
-    <span className="absolute inset-x-0 bottom-0 bg-black/75 px-1 py-1 text-[10px] leading-tight">
+    {image && <CardImage key={`${slot.id}:${image}`} src={image} alt="" fill sizes={imageSizes} className={`object-contain ${hasCardImage ? "" : "p-[3px]"} ${slot.item ? "" : "grayscale opacity-45"}`} draggable={false} />}
+    <span className="sr-only">
       <span className="block truncate">{slot.card?.name ?? slot.pokemon?.name ?? (slot.target?.kind === "pokemon" ? `Pokémon ${slot.target.pokemonId}` : "Free slot")}</span>
       <span className="block truncate">{slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}</span>
       {slot.item?.grading && <span className="block truncate">Recorded grade: {slot.item.grading.grade ?? "Unknown"}</span>}
