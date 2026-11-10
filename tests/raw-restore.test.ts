@@ -50,3 +50,15 @@ test('raw restore maps explicit current wanted people and preserves separate ide
   assert.deepEqual(plan.request.items.map(i => i.itemId), ['copy-a', 'copy-b'])
   assert.throws(() => planRawContentRestore({ ...f.input, text: JSON.stringify(backup), savedEntryRemaining: 0 }))
 })
+
+
+test('raw restore preserves the unchanged empty Blank manifest used by native creation', async () => {
+  const f = await rawRestoreFixture(true)
+  const plan = planRawContentRestore(f.input)
+  assert.deepEqual(plan.request.slots.map(s => s.after.inventoryItemId), ['copy-a', null])
+  const backup = JSON.parse(f.input.text)
+  backup.binders[0].presetManifest.source.version = '2'
+  assert.throws(() => planRawContentRestore({ ...f.input, text: JSON.stringify(backup) }))
+  backup.binders[0].presetManifest = null
+  assert.throws(() => planRawContentRestore({ ...f.input, text: JSON.stringify(backup) }))
+})

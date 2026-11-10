@@ -1,3 +1,4 @@
+import { blankPreset } from '@/lib/binder-creation-draft'
 import { backupContentKey, freezeBackupPlan, hydrateBackupSnapshot, parseBinderBackupV2 } from '@/lib/binder-backup-v2'
 import { isCompleteInventorySnapshot, type CompleteInventorySnapshot } from '@/lib/collection/slot-snapshot'
 import type { InventoryLayoutEvidence } from '@/lib/domain/inventory-browse'
@@ -29,7 +30,9 @@ export function planRawContentRestore(input: {
   const { version: _sourceVersion, ...sourceConfig } = source
   const { version: _currentVersion, ownerUserId: _owner, ...currentConfig } = collection ?? { version: 0, ownerUserId: '' }
   if (!collection || !binder || source.id !== collectionId || sourceBinder.collectionId !== collectionId
-    || backupContentKey(sourceConfig) !== backupContentKey(currentConfig) || sourceBinder.presetManifest !== null || binder.presetManifest !== null
+    || backupContentKey(sourceConfig) !== backupContentKey(currentConfig)
+    || backupContentKey(sourceBinder.presetManifest) !== backupContentKey(binder.presetManifest)
+    || binder.presetManifest !== null && backupContentKey(binder.presetManifest) !== backupContentKey(blankPreset())
     || !backup.layouts || backupContentKey(backup.layouts.map(({ layoutRevision: _revision, ...l }) => l)) !== backupContentKey(input.layouts.filter(l => l.collectionId === collectionId).map(({ layoutRevision: _revision, ...l }) => l))
     || backupContentKey(input.choices.slotIds) !== backupContentKey(binder.slots.map(s => s.id))
     || backupContentKey(sourceBinder.slots.map(s => s.id)) !== backupContentKey(input.choices.slotIds)

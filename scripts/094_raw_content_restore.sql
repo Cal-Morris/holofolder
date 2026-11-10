@@ -60,7 +60,8 @@ BEGIN
    SELECT * INTO binder_row FROM public.binders WHERE id=collection AND owner_user_id=owner_id FOR UPDATE;
    IF NOT FOUND THEN RAISE EXCEPTION 'storage_access_denied' USING ERRCODE='42501'; END IF;
    SELECT * INTO state FROM public.storage_collection_state WHERE collection_id=collection AND owner_user_id=owner_id FOR UPDATE;
-   IF NOT FOUND OR state.authority<>'slots' OR state.conversion_version IS NOT NULL OR state.conversion_receipt IS NOT NULL OR state.preset_manifest IS NOT NULL
+   IF NOT FOUND OR state.authority<>'slots' OR state.conversion_version IS NOT NULL OR state.conversion_receipt IS NOT NULL
+     OR (state.preset_manifest IS NOT NULL AND state.preset_manifest IS DISTINCT FROM '{"source":{"id":"blank","version":"1"},"name":"Blank","entries":[]}'::jsonb)
      OR EXISTS(SELECT 1 FROM public.binder_legacy_rows WHERE collection_id=collection) THEN
      RAISE EXCEPTION 'raw_restore_unsupported' USING ERRCODE='0A000'; END IF;
    SELECT * INTO settings_row FROM public.user_settings WHERE user_id=owner_id FOR SHARE;

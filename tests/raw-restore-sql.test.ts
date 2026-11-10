@@ -1,3 +1,4 @@
+import { blankPreset } from '@/lib/binder-creation-draft'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -278,4 +279,45 @@ test('094 concurrent delivery serializes once; edit-first rejects and unlink-fir
     const denied = send(b, r); const denial = assert.rejects(denied, (e: unknown) => !!e && typeof e === 'object' && 'code' in e && e.code === '42501')
     await blocked(observer, pid); await a.query('COMMIT'); await denial; await b.query('ROLLBACK')
   } finally { await a.query('ROLLBACK'); await b.query('ROLLBACK'); await Promise.all([a.end(), b.end(), observer.end()]) }
+})
+
+
+test('094 restores a real 083 Blank binder after 091 insertion without changing its manifest', { skip: !enabled }, async () => {
+  const db = await connect()
+  try {
+    await db.query('BEGIN')
+    await db.query('INSERT INTO auth.users(id) VALUES($1),($2)', [owner, partner])
+    await db.query('UPDATE public.billing_configuration SET enforced=false')
+    await db.query("INSERT INTO public.partnerships(id,user1_id,user2_id,owner_user_id) VALUES('00940000-0000-4000-8000-000000000003',$1,$2,$1)", [owner, partner])
+    await db.query('INSERT INTO public.inventory_owner_state(owner_user_id,inventory_revision) VALUES($1,8)', [owner])
+    await send(db, { version: 1, operationId: 'synthetic-094-blank-create', inventoryRevision: 8, collectionId: collection,
+      name: 'Synthetic raw', kind: 'binder', defaultPresentation: 'binder', location: null, grid: { rows: 3, cols: 3 }, manifest: blankPreset(), slotIds: [] }, partner, 'app', null, 'collection.create')
+    await flush(db)
+    const created = await state(db)
+    await send(db, { operationId: 'synthetic-094-blank-fill', inventoryRevision: created.root.inventory_revision,
+      collections: [{ collectionId: collection, version: created.collections[0].version, layoutRevision: created.collections[0].layout_revision }],
+      commands: ['a', 'b'].map((key, n) => ({ kind: 'insertAssign', collectionId: collection, slotId: 'slot-' + key, before: null, target: null,
+        selection: { kind: 'new', itemId: 'copy-' + (n ? 'a' : 'b'), identity: { kind: 'pokemon', pokemonId: 1 }, grading: null, acquiredAt: null } })) }, partner, 'app', null, 'inventory')
+    await flush(db)
+    const current = await state(db), f = await rawRestoreFixture(true)
+    f.snapshot.inventoryRevision = current.root.inventory_revision
+    f.snapshot.collections[0].version = current.collections[0].version
+    f.snapshot.binders[0].layoutRevision = current.collections[0].layout_revision
+    f.input.layouts[0].layoutRevision = current.collections[0].layout_revision
+    for (const slot of f.snapshot.binders[0].slots) slot.version = current.slots.find((s: { id: string }) => s.id === slot.id).version
+    for (const item of f.snapshot.items) item.version = current.items.find((i: { id: string }) => i.id === item.id).version
+    for (const placement of f.snapshot.placements) placement.version = current.placements.find((p: { inventory_item_id: string }) => p.inventory_item_id === placement.inventoryItemId).version
+    const request = planRawContentRestore({ ...f.input, current: await f.brand(f.snapshot) }).request
+    const result = await send(db, request); await flush(db)
+    assert.equal(result.changed, true)
+    assert.deepEqual(result.releasedItemIds, ['copy-b'])
+    const restored = await state(db)
+    assert.deepEqual(restored.collections[0].preset_manifest, blankPreset())
+    assert.deepEqual(restored.items, current.items)
+    assert.equal(restored.placements[0].inventory_item_id, 'copy-a')
+    assert.equal(restored.placements[0].slot_id, 'slot-a')
+    const manifest = { ...blankPreset(), entries: [{ id: 'synthetic-entry', target: { kind: 'pokemon', pokemonId: 1 } }] }
+    await db.query('UPDATE public.storage_collection_state SET preset_manifest=$1 WHERE collection_id=$2', [manifest, collection])
+    await fails(db, () => send(db, { ...request, operationId: 'synthetic-094-nonempty-rejected', inventoryRevision: restored.root.inventory_revision }), '0A000')
+  } finally { await db.query('ROLLBACK'); await db.end() }
 })

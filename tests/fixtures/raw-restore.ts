@@ -1,3 +1,4 @@
+import { blankPreset } from '@/lib/binder-creation-draft'
 import type { InventorySnapshot } from '@/lib/domain/inventory'
 import { createBinderBackupV2 } from '@/lib/binder-backup-v2'
 import { readCompleteInventorySnapshot } from '@/lib/collection/slot-snapshot'
@@ -5,10 +6,10 @@ import { readCompleteInventorySnapshot } from '@/lib/collection/slot-snapshot'
 export const rawOwner = '00940000-0000-4000-8000-000000000001'
 export const rawPartner = '00940000-0000-4000-8000-000000000002'
 export const rawCollection = '00940000-0000-4000-8000-000000000011'
-export async function rawRestoreFixture() {
+export async function rawRestoreFixture(blank = false) {
   const snapshot: InventorySnapshot = { ownerUserId: rawOwner, inventoryRevision: 8,
     collections: [{ id: rawCollection, ownerUserId: rawOwner, name: 'Synthetic raw', kind: 'binder', defaultPresentation: 'binder', location: null, version: 2 }],
-    binders: [{ ownerUserId: rawOwner, collectionId: rawCollection, layoutRevision: 3, presetManifest: null,
+    binders: [{ ownerUserId: rawOwner, collectionId: rawCollection, layoutRevision: 3, presetManifest: blank ? blankPreset() : null,
       slots: ['a', 'b'].map((k, n) => ({ id: 'slot-' + k, ownerUserId: rawOwner, collectionId: rawCollection, version: 4,
         target: null, status: 'collected', inventoryItemId: 'copy-' + (n ? 'a' : 'b'), wantedCards: [], presetOrigin: null })) }],
     items: ['a', 'b'].map(k => ({ id: 'copy-' + k, ownerUserId: rawOwner, identity: { kind: 'pokemon', pokemonId: 1 }, grading: null, legacySource: null, acquiredAt: null, version: 1 })),
