@@ -65,9 +65,9 @@ interface CardSelectorProps {
    * Native stable-slot selection. A pick goes to `onPick` instead of the legacy `onSelect` and the selector
    * stays open until the host replaces it. `finish` is set only when the user chose it here (the finish
    * sheet or a variant filter), never inferred. Wanted mode and "mark owned without card" are legacy
-   * collection writes, so they are hidden; the menu offers `onEditSlot` instead.
+   * collection writes, so they are hidden along with the More menu; slot structure belongs to layout editing.
    */
-  native?: { onPick: (card: TCGCard, finish: CardFinish | undefined) => void; onEditSlot: () => void }
+  native?: { onPick: (card: TCGCard, finish: CardFinish | undefined) => void }
 }
 
 type CardSelectorAmountFormatter = (gbpAmount: number | null | undefined, price?: CardPriceSnapshot) => string | null
@@ -829,7 +829,7 @@ export default function CardSelector({
                 <p className="truncate text-sm font-semibold capitalize leading-tight">{pokemonName}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{filteredCards.length} of {cards.length} cards</p>
               </div>
-              <div className="relative shrink-0">
+              {!native && <div className="relative shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -854,17 +854,16 @@ export default function CardSelector({
                       role="menuitem"
                       onClick={() => {
                         setIsMoreOpen(false)
-                        if (native) native.onEditSlot()
-                        else if (isWishlistMode) onClose()
+                        if (isWishlistMode) onClose()
                         else selectWithoutCard()
                       }}
                       className="flex min-h-10 w-full items-center rounded-xl px-3 text-left text-sm hover:bg-muted/70"
                     >
-                      {native ? "Edit slot" : isWishlistMode ? "Cancel wanted selection" : intentCopy.emptyActionLabel}
+                      {isWishlistMode ? "Cancel wanted selection" : intentCopy.emptyActionLabel}
                     </button>
                   </div>
                 )}
-              </div>
+              </div>}
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full" onClick={onClose} aria-label="Close card selector">
                 <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
