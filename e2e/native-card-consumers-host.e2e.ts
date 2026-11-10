@@ -1,6 +1,8 @@
 import type { SlotOfflineRecord } from '../lib/collection/slot-offline-queue'
 import { test, expect, mockBackends, emulateStandalone, Harness, storageAction, closeStorage } from "./fixtures"
 import type { Page } from "@playwright/test"
+// Internal ids, storage evidence and staging copy must never reach the screen.
+const raw = /explicit entries|Saved storage evidence|Unknown exact printing|wanted entry|Use this wanted destination|Add a new raw copy|Draft handed|synthetic-slot|synthetic-native-copy|22222222-2222/
 const entry = "/app/e2e-harness?signedIn=1&browserHost=1&binder=22222222-2222-4222-8222-222222222222"
 const card = { id: "synthetic-native-trainer", localId: "7", name: "Synthetic Native Trainer", language: "en", dexIds: [],
   set: { id: "synthetic-native", name: "Synthetic native set" }, variants: { normal: true } }
@@ -37,11 +39,15 @@ for (const accepted of [false, true]) test(`real host exact non-Pokémon lookup 
   })
   page.on("request", r => { if (r.method() !== "GET" && /\/api\/(collection|binders)(?:[/?]|$)/.test(r.url())) legacy.push(r.url()) })
   await page.goto(entry); await lookup(page)
-  const wants = page.getByRole("region", { name: "Native wanted destinations" })
-  await expect(wants).toContainText("3 explicit entries")
+  const wants = page.getByRole("region", { name: "On your want list" })
+  await expect(wants.getByRole("heading", { name: "On your want list · 3 cards" })).toBeVisible()
+  await expect(wants.getByRole("listitem")).toHaveCount(3)
+  await expect(wants.getByText("Synthetic native set · #7", { exact: true })).toHaveCount(3)
+  await expect(wants).not.toContainText(raw)
   await expect(wants.getByRole("combobox")).toHaveCount(3)
   await wants.getByRole("combobox").nth(1).selectOption("synthetic-native-copy-1")
-  await wants.getByRole("button", { name: "Use this wanted destination" }).nth(1).click()
+  await expect(wants.getByRole("combobox").nth(1)).not.toContainText(raw)
+  await wants.getByRole("button", { name: "Add to collection" }).nth(1).click()
   await expect.poll(async () => (await records(page))?.pending.length).toBe(1)
   const intent = (await records(page))!.pending[0].intent
   if (intent.kind !== "inventory") throw new Error("Expected the native inventory command")
@@ -61,6 +67,7 @@ for (const accepted of [false, true]) test(`real host exact non-Pokémon lookup 
     expect((await records(page))?.pending[0].intent).toEqual(intent)
     expect((await records(page))?.receipts).toHaveLength(0)
   }
+  await expect(wants).not.toContainText(raw)
   expect(legacy).toEqual([])
   await new Harness(page, insets, true).expectNoHorizontalOverflow()
 })
@@ -69,12 +76,14 @@ test("exact native lookup closes on account teardown without sending ownership c
   page.on("request", r => { if (r.method() === "POST" && r.url().endsWith("/storage/inventory")) sends++ })
   await page.goto(entry); await lookup(page)
   await page.evaluate(() => { const c = new BroadcastChannel("sb-127-auth-token"); c.postMessage({ event: "SIGNED_OUT", session: null }); c.close() })
-  await expect(page.getByRole("region", { name: "Native wanted destinations" })).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "On your want list" })).toHaveCount(0)
   expect(sends).toBe(0)
 })
 
 
-test("actual QuickMode Show lookup receives native duplicate wanted destinations without legacy purchases", async ({ page }) => {
+for (const desktop of [false, true]) test(`actual QuickMode Show Hunting and lookup show readable wanted cards and keep the Show panels ${desktop ? "desktop" : "phone"}`, async ({ page, insets }, info) => {
+  test.skip(desktop && info.project.name !== "browser-390x844", "One desktop check")
+  if (desktop) await page.setViewportSize({ width: 1440, height: 1000 })
   let sends = 0
   page.on("request", r => { if (r.method() === "POST" && r.url().endsWith("/storage/inventory")) sends++ })
   await page.goto(entry)
@@ -84,10 +93,20 @@ test("actual QuickMode Show lookup receives native duplicate wanted destinations
   await quick.getByRole("searchbox").fill("card show")
   await quick.getByRole("button", { name: /^Show mode/ }).click()
   await quick.getByRole("searchbox").fill("")
-  const wants = quick.getByRole("region", { name: "Native wanted destinations" })
-  await expect(wants).toContainText("3 explicit entries")
-  await wants.getByRole("button", { name: "Check price", exact: true }).first().click()
-  await expect(quick.getByRole("region", { name: "Native wanted destinations" })).toContainText("3 explicit entries")
+  await expect(quick.getByRole("region", { name: "Show budget" })).toBeVisible()
+  const wants = quick.getByRole("region", { name: "Hunting" })
+  await expect(wants.getByRole("heading", { name: "Hunting · 3 cards" })).toBeVisible()
+  await expect(wants.getByText("Synthetic Native Trainer", { exact: true })).toHaveCount(3)
+  await expect(wants).not.toContainText(raw)
+  const h = new Harness(page, insets, true)
+  const check = wants.getByRole("button", { name: "Check price", exact: true }).first()
+  await h.expectMinTapTarget(check)
+  await h.expectHittable(check)
+  await h.expectNoHorizontalOverflow()
+  await check.click()
+  const lookupWants = quick.getByRole("region", { name: "On your want list" })
+  await expect(lookupWants.getByRole("heading", { name: "On your want list · 3 cards" })).toBeVisible()
+  await expect(lookupWants).not.toContainText(raw)
   await expect(quick.getByRole("button", { name: /Mark got|Add to owned|Bought/ })).toHaveCount(0)
   expect(sends).toBe(0)
 })
