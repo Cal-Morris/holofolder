@@ -1,5 +1,7 @@
 "use client"
 
+import type { NativeBackupBinding } from "@/lib/native-backup"
+import { closeAllOverlays } from "@/hooks/use-overlay"
 import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
@@ -25,6 +27,7 @@ import type { ScanDestinationAdmission } from "@/lib/scan-destinations"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 
+const NativeBackup = dynamic(() => import("@/components/native-backup"), { ssr: false })
 const GradingEditor = dynamic(() => import("@/components/grading/grading-editor"), { ssr: false })
 
 export interface BrowserSurfaceBinding {
@@ -76,6 +79,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const latest = useRef({ currentScope, queue, catalog: browserHostCatalog([]) })
   const [read, setRead] = useState<CollectionNavigationRead>({ scope: navigationScope, evidence: { kind: "unavailable" }, catalog: [], layouts: [] })
   const [grading, setGrading] = useState<{ snapshot: InventorySnapshot; itemId: string; intent: SlotOfflineIntent | null } | null>(null)
+  const [backupOpen, setBackupOpen] = useState(false)
   const [notice, setNotice] = useState("")
   const [ready, setReady] = useState(false)
   const [online, setOnline] = useState(true)
@@ -233,6 +237,25 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     },
 
   }
+  const assertBackupReady = async () => {
+    if (!valid() || !navigator.onLine || sending.current || refreshing.current) throw new Error("Reconnect and wait for current storage before exporting.")
+    const record = await latest.current.queue.queue?.read()
+    if (!valid() || !navigator.onLine || sending.current || refreshing.current || !record || record.pending.length || record.legacy.length || record.recovery?.some(recoveryUnresolved)) {
+      throw new Error("Finish pending edits, creation or recovery before exporting or comparing a preview.")
+    }
+  }
+  const backupBinding: NativeBackupBinding = {
+    scope, currentScope: () => valid() ? latest.current.currentScope() : null,
+    available: online && read.evidence.kind === "complete" && !!queue.record && !queue.record.pending.length && !queue.record.legacy.length && !queue.record.recovery?.some(recoveryUnresolved),
+    revisionKey: read.evidence.kind === "unavailable" ? "unavailable" : JSON.stringify([read.evidence.snapshot.inventoryRevision, read.layouts, read.partnerUserId]),
+    assertReady: assertBackupReady,
+    readCurrent: async () => {
+      await assertBackupReady()
+      refreshing.current++
+      try { return await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness) }
+      finally { refreshing.current-- }
+    },
+  }
   // An optimistic projection is cached evidence, never a complete remote read or ACK.
   const visibleRead: CollectionNavigationRead = queue.record?.optimistic && queue.record.pending.length
     ? { ...read, evidence: { kind: "cached", snapshot: queue.record.optimistic }, layouts: read.layouts.map(layout => {
@@ -261,8 +284,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
         const display = snapshot && binder && layout ? { inventory: snapshot, binder,
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
-        return renderSurface({ analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
-          <div className="px-4"><ActivityButton /></div>
+        return <>{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
+          <div className="flex gap-2 px-4"><ActivityButton /><button type="button" className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { closeAllOverlays(); setBackupOpen(true) }}>Backup</button></div>
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
           {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
@@ -289,7 +312,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
 
           scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
             ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,
-            available: bulkFillAvailable, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })
+            available: bulkFillAvailable, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })}</>
 
       }} />
     {grading && gradingItem && read.evidence.kind === "complete" && read.evidence.snapshot.inventoryRevision === grading.snapshot.inventoryRevision && <GradingEditor

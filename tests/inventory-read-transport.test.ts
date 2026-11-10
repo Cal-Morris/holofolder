@@ -250,3 +250,22 @@ test("numeric catalog species evidence survives JSON, old absence stays unknown 
     }
   })
 })
+
+test("private read carries before/after verified membership for portable wanted roles", async () => {
+  const partner = "33333333-3333-4333-8333-333333333333"
+  const f = fixture(0)
+  f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
+  let body = await (await handleInventoryCompleteRead(request(), f.client)).json()
+  assert.equal(body.partnerUserId, partner)
+  f.setActor(partner)
+  body = await (await handleInventoryCompleteRead(request(), f.client)).json()
+  assert.equal(body.partnerUserId, partner)
+  assert.equal(body.scope.ownerUserId, owner)
+  await withFetch(async set => {
+    set(async (input, init) => {
+      const good = await (await handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test"), init), f.client)).json()
+      return Response.json({ ...good, partnerUserId: null }, { headers: { "Cache-Control": "private, no-store" } })
+    })
+    assert.equal((await fetchCurrentInventorySnapshot(() => ({ ...scope, actorUserId: partner }))).status, "unavailable")
+  })
+})

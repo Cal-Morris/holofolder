@@ -25,6 +25,7 @@ export interface InventoryReadScope {
 export interface InventoryNavigationEvidence { catalog: InventoryCatalogEvidence[]; layouts: InventoryLayoutEvidence[] }
 export interface InventoryReadEnvelope {
   version: 2
+  partnerUserId?: string | null
   navigation: InventoryNavigationEvidence
   requestId: string
   scope: InventoryReadScope
@@ -43,9 +44,12 @@ export function sameInventoryReadScope(a: InventoryReadScope | null, b: Inventor
 /** Only call on this invocation's authenticated same-origin no-store HTTP response.
  * Shape validation alone does not authenticate arbitrary JSON or localStorage. */
 export function parseInventoryReadEnvelope(value: unknown, requestId: string, scope: InventoryReadScope): InventoryReadEnvelope | undefined {
-  if (!isContractRecord(value, ["version", "requestId", "scope", "evidence", "snapshot", "navigation"])
+  if (!isContractRecord(value, ["version", "requestId", "scope", "evidence", "snapshot", "navigation", "partnerUserId"])
     || value.version !== 2 || value.requestId !== requestId || !isInventoryReadScope(value.scope)
     || !sameInventoryReadScope(value.scope, scope)) return undefined
+  if (value.partnerUserId === null && scope.actorUserId !== scope.ownerUserId) return undefined
+  if ("partnerUserId" in value && value.partnerUserId !== null && (!isSlotContractId(value.partnerUserId)
+    || value.partnerUserId === scope.ownerUserId || scope.actorUserId !== scope.ownerUserId && value.partnerUserId !== scope.actorUserId)) return undefined
   const snapshot = normalizeInventorySnapshot(value.snapshot), e = value.evidence
   if (!snapshot || snapshot.ownerUserId !== scope.ownerUserId
     || !isContractRecord(e, ["inventoryRevision", "items", "placements", "collections", "binders", "slots", "storage"])
@@ -69,7 +73,7 @@ export function parseInventoryReadEnvelope(value: unknown, requestId: string, sc
   if (storage.reduce((sum, s) => sum + s.slotCount, 0) !== e.slots) return undefined
   const navigation = parseNavigationEvidence(value.navigation, snapshot)
   if (!navigation) return undefined
-  return { version: 2, requestId, scope: { ...scope }, snapshot, navigation,
+  return { version: 2, requestId, scope: { ...scope }, snapshot, navigation, ...(value.partnerUserId === null || isSlotContractId(value.partnerUserId) ? { partnerUserId: value.partnerUserId } : {}),
     evidence: { inventoryRevision: e.inventoryRevision as number, items: e.items as number, placements: e.placements as number,
       collections: e.collections as number, binders: e.binders as number, slots: e.slots as number, storage } }
 }

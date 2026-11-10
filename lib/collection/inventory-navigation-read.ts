@@ -12,6 +12,7 @@ export async function fetchCurrentCollectionNavigationRead(currentScope: () => I
   if (!sameInventoryReadScope(currentScope(), result.scope)) return { status: "conflict", code: "inventory_read_scope_changed" }
   return { status: "complete", read: {
     scope: { accountUserId: result.scope.actorUserId, ownerUserId: result.scope.ownerUserId, sessionId: result.scope.sessionId },
+    partnerUserId: result.partnerUserId,
     evidence: { kind: "complete", snapshot: result.snapshot }, catalog: result.navigation.catalog, layouts: result.navigation.layouts,
   } }
 }

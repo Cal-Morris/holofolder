@@ -1,4 +1,5 @@
 import { DESIGN_SURFACES, normalizeBinderDesign, type BinderDesign } from "@/lib/binder-design"
+import { parseNavigationEvidence, type InventoryNavigationEvidence } from "@/lib/collection/inventory-read-transport"
 import { IMPORT_MAX_BYTES } from "@/lib/collection-import"
 import { isContractRecord } from "@/lib/domain/binder-slots"
 import type { BinderSnapshot, BinderSlot } from "@/lib/domain/binder-slots"
@@ -24,6 +25,7 @@ export interface BinderBackupV2 {
   placements: InventorySnapshot["placements"]
   collections: PortableCollection[]
   binders: PortableBinder[]
+  layouts?: InventoryNavigationEvidence["layouts"]
   appearance: BackupAppearance[]
 }
 
@@ -46,6 +48,7 @@ export function createBinderBackupV2(input: {
   completeness: "complete-owner" | "partial"
   scope: BinderBackupV2["scope"]
   collectionId?: string
+  layouts?: InventoryNavigationEvidence["layouts"]
   appearance?: BackupAppearance[]
   partnerUserId?: string
 }, now = new Date()): BinderBackupV2 {
@@ -67,6 +70,7 @@ export function createBinderBackupV2(input: {
       return { ...want, ...(wanted_by ? { wantedRoles: wanted_by.map(id => id === source.ownerUserId ? "owner" as const : "partner" as const) } : {}) }
     }) })) })),
     items: source.items.filter(i => input.scope === "all-inventory" || referenced.has(i.id)).map(withoutOwner),
+    ...(input.layouts ? { layouts: structuredClone(input.layouts.filter(l => selected.has(l.collectionId))) } : {}),
     placements, appearance: structuredClone((input.appearance ?? []).filter(a => selected.has(a.collectionId))),
   }
   return parseBinderBackupV2(JSON.stringify(value))
@@ -76,7 +80,7 @@ export function parseBinderBackupV2(text: string): BinderBackupV2 {
   if (new TextEncoder().encode(text).length > IMPORT_MAX_BYTES) invalid("Maximum file size is 10 MiB")
   let raw: unknown
   try { raw = JSON.parse(text.replace(/^\uFEFF/, "")) } catch { return invalid("Invalid JSON backup") }
-  if (!isContractRecord(raw, ["format", "version", "exportedAt", "scope", "inventoryRevision", "items", "placements", "collections", "binders", "appearance"])
+  if (!isContractRecord(raw, ["format", "version", "exportedAt", "scope", "inventoryRevision", "items", "placements", "collections", "binders", "appearance", "layouts"])
     || raw.format !== "holofolder-binder-backup" || raw.version !== 2) invalid("Unsupported backup format or version")
   if (typeof raw.exportedAt !== "string" || !Number.isFinite(Date.parse(raw.exportedAt))
     || !["collection", "all-inventory"].includes(raw.scope as string)
@@ -109,6 +113,10 @@ export function parseBinderBackupV2(text: string): BinderBackupV2 {
   })
   if (!snapshot || snapshot.binders.some(b => (b.presetManifest?.entries.length ?? 0) > SLOT_LIMITS.capacity || b.slots.some(s => s.wantedCards.length > SLOT_LIMITS.wantsPerSlot))) invalid()
   if (raw.scope === "collection" && snapshot.items.length !== snapshot.placements.length) invalid("Collection exports contain only referenced items")
+  if ("layouts" in raw) {
+    const navigation = parseNavigationEvidence({ catalog: [], layouts: raw.layouts }, snapshot)
+    if (!navigation || navigation.layouts.length !== snapshot.collections.length) invalid("Complete matching collection grids required")
+  }
   const seenAppearance = new Set<string>()
   for (const a of raw.appearance) {
     if (!isContractRecord(a, ["collectionId", "settings", "design"]) || typeof a.collectionId !== "string"

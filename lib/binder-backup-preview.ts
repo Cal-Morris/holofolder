@@ -145,6 +145,7 @@ export function previewBinderBackupImport(input: {
   if (addedCopies + addedWants > input.savedEntryRemaining) unresolved.push("Import exceeds current saved-entry allowance")
   if (input.mode === "arrangement") {
     const destination = current.binders.find(b => b.collectionId === input.destinationCollectionId)!
+    if (backup.layouts?.length) unresolved.push("Verified grid reconciliation requires complete restore review, not arrangement import")
     if (backup.appearance.length) unresolved.push("Appearance/settings require a complete restore, not arrangement import")
     if (decisions.length !== backup.items.length) unresolved.push("Choose an explicit copy decision for every source item")
     if (destination.slots.some(s => s.inventoryItemId !== null || s.status !== null || s.wantedCards.length)) unresolved.push("Destination must contain only empty targets/spacers; recorded contents cannot be replaced")

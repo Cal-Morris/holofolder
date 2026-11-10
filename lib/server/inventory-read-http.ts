@@ -17,8 +17,8 @@ export async function handleInventoryCompleteRead(request: Request, client?: Sup
     return Response.json({ error: "inventory_read_request" }, { status: 400, headers })
   }
   try {
-    const { snapshot, evidence, navigation, actorUserId, authSessionId } = await readOwnerInventoryState(client)
-    const body: InventoryReadEnvelope = { version: 2, requestId, navigation,
+    const { snapshot, evidence, navigation, actorUserId, authSessionId, partnerUserId } = await readOwnerInventoryState(client)
+    const body: InventoryReadEnvelope = { version: 2, requestId, navigation, partnerUserId,
       scope: { actorUserId, ownerUserId: snapshot.ownerUserId, authSessionId, sessionId }, evidence, snapshot }
     return Response.json(body, { headers })
   } catch (error) {

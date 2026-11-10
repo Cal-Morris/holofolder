@@ -71,3 +71,13 @@ test("dangling/duplicate slots, placements, over-capacity snapshots and per-slot
     (b: typeof backup) => { Object.assign(b.items[0], { session: "secret" }) },
   ]) { const changed = structuredClone(backup); alter(changed); assert.throws(() => parseBinderBackupV2(JSON.stringify(changed))) }
 })
+
+test("optional verified grids are lossless and require every selected collection at matching revision", () => {
+  const source = snapshot()
+  const layouts = [{ collectionId: source.collections[0].id, layoutRevision: 3, rows: 2, cols: 4 }]
+  const backup = createBinderBackupV2({ snapshot: source, completeness: "complete-owner", scope: "all-inventory", layouts })
+  assert.deepEqual(backup.layouts, layouts)
+  for (const broken of [[], [...layouts, ...layouts], [{ ...layouts[0], rows: 99 }], [{ ...layouts[0], layoutRevision: 4 }], [{ ...layouts[0], collectionId: "foreign" }]]) {
+    assert.throws(() => parseBinderBackupV2(JSON.stringify({ ...backup, layouts: broken })), /grid/)
+  }
+})
