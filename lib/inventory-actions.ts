@@ -18,7 +18,7 @@ export interface InventoryOwnershipBinding {
 /** Resolve the complete private copy, not the public browse row or a target placeholder. */
 export function inventoryActionItemRef(snapshot: InventorySnapshot, itemId: string): InventoryItemRef {
   const item = snapshot.items.find(i => i.id === itemId && i.ownerUserId === snapshot.ownerUserId)
-  if (!item || item.grading !== null) throw new Error("raw-copy-required")
+  if (!item) throw new Error("copy-unavailable")
   const placement = snapshot.placements.find(p => p.inventoryItemId === itemId)
   if (!placement) return { itemId, itemVersion: item.version, placement: null }
   const slot = snapshot.binders.find(b => b.collectionId === placement.collectionId)?.slots.find(s => s.id === placement.slotId)
@@ -52,6 +52,8 @@ export function prepareInventoryAction(snapshot: InventorySnapshot, action: Inve
     if (!catalog(action.identity.cardId)) throw new Error("catalog-selection-required")
     command = { ...action, grading: null, acquiredAt: null }
   } else {
+    // Placement commands never rewrite the item. Removal cannot safely recover private label assets.
+    if (action.kind === "removeOwned" && snapshot.items.find(i => i.id === action.itemId)?.grading !== null) throw new Error("raw-copy-required")
     const item = inventoryActionItemRef(snapshot, action.itemId)
     if (item.placement) collections.add(item.placement.collectionId)
     if (action.kind === "place") {

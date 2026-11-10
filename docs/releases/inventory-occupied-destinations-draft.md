@@ -6,7 +6,7 @@ attach a live rollout claim before those gates pass.
 
 ## Draft copy
 
-Moving a raw copy to an occupied storage slot asks what should happen to the copy
+Moving a raw or already graded copy to an occupied storage slot asks what should happen to the copy
 already there. Keep it in Inventory as Unassigned, or swap the two copies when
 both fit their new slots. Review both exact copies and locations before confirming,
 or cancel without changing either copy.
@@ -19,9 +19,9 @@ is checked against current storage and may be unavailable.
 ## Actual boundary
 
 Existing atomic assign supports occupied-copy unassignment. Existing move also
-supports compatible swap. Unassigned sources cannot swap. Selected graded-copy
-ownership management and bulk actions remain outside this UI. Recorded graded
-destination copies are retained through exact existing refs with metadata intact.
+supports compatible swap. Unassigned sources cannot swap. Selected graded copies now use individual assign/move/unassign with the same
+exact refs and private metadata retained. Graded removal and bulk actions remain
+outside this UI. See `graded-inventory-placement-draft.md` for that staged slice.
 Unknown printing stays unknown; it cannot satisfy an unproven constrained target.
 Current complete online scoped storage is required. Pending commands of every
 family and unresolved recovery block new actions; unknown outcomes retain the

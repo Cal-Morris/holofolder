@@ -84,3 +84,10 @@ test("mixed exact Unassigned assignment and placed Move retain unknown identity 
   snapshot.items.find(i => i.id === "unassigned-a")!.identity = { kind: "card", cardId: "unknown" }
   assert.throws(() => prepareInventoryBulkAction(snapshot, { kind: "move", mapping: [{ itemId: "unassigned-a", collectionId: snapshot.collections[0].id, slotId: "slot-e" }] }, context, catalog))
 })
+
+test("bulk graded placement and placed unassignment remain excluded as a whole", () => {
+  const { snapshot, catalog } = setup()
+  for (const action of [{ kind: "unassign", itemIds: ["item-a", "item-b"] }, { kind: "move", mapping: [{ itemId: "unassigned-grade", collectionId: snapshot.collections[0].id, slotId: "slot-e" }] }] as const) {
+    assert.throws(() => prepareInventoryBulkAction(snapshot, action, context, catalog), /raw-copy-required/)
+  }
+})

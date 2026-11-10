@@ -27,7 +27,7 @@ export default function InventoryDetail({ row, cached, onClose, onOpenLocation, 
       <div className={styles.sheetBody}>
         {row.location.kind === "assigned" && onOpenLocation && <button type="button" className={styles.openLocation}
           onClick={() => { if (row.location.kind === "assigned") onOpenLocation({ ...row.location.intent }) }}>Open location</button>}
-        {ownership?.available && !cached && !row.graded && <InventoryCopyActions binding={ownership} itemId={row.itemId} onAccepted={onClose} />}
+        {ownership?.available && !cached && <InventoryCopyActions binding={ownership} itemId={row.itemId} onAccepted={onClose} />}
         {onEditGrading && row.cardId && <button type="button" className={styles.openLocation} onClick={onEditGrading}>Edit grading</button>}
         <h3>{row.name ?? (row.speciesNames.join(", ") || "Unknown card")}</h3>
         <p>{row.setName ?? "Set unknown"} · {row.number ? `#${row.number}` : "Number unknown"}</p>

@@ -150,7 +150,8 @@ test("unknown identity can move only to free slots and remains unknown after una
   await confirm(page, 2)
   expect((await record(page)).snapshot!.items.find(i => i.id === "synthetic-raw-unknown")!.identity).toEqual({ kind: "card", cardId: "synthetic-unknown" })
   dialog = await detail(page, "synthetic-raw-copy-2")
-  await expect(dialog.getByRole("button", { name: /^(Assign copy|Move copy|Unassign copy|Remove owned copy)$/ })).toHaveCount(0)
+  await expect(dialog.getByRole("button", { name: "Assign copy", exact: true })).toBeVisible()
+  await expect(dialog.getByRole("button", { name: "Remove owned copy", exact: true })).toHaveCount(0)
 })
 
 test("committed add with lost reply survives cached reload with exact original intent", async ({ page }) => {
@@ -455,12 +456,12 @@ for (const decision of ["swap", "unassign"] as const) test(`occupied graded dest
   expect(after.placements.find(p => p.inventoryItemId === "synthetic-raw-copy-2")?.slotId).toBe(decision === "swap" ? "synthetic-slot-0" : undefined)
 })
 
-for (const changed of ["revision", "membership", "session", "incomplete"] as const) test(`occupied confirmation fences changed ${changed} before dispatch`, async ({ page }) => {
+for (const selected of ["synthetic-raw-copy-1", "synthetic-raw-copy-2"]) for (const changed of ["revision", "membership", "session", "incomplete"] as const) test(`occupied ${selected} confirmation fences changed ${changed} before dispatch`, async ({ page }) => {
   let posts = 0
   await page.route("**/app/e2e-harness/storage/inventory", async route => { posts++; await route.continue() })
   await open(page)
   const before = (await record(page)).snapshot!
-  const d = await occupiedReview(page, "synthetic-raw-copy-1", "synthetic-slot-0", "unassign")
+  const d = await occupiedReview(page, selected, "synthetic-slot-0", "unassign")
   await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
     const response = await route.fetch(), body = await response.json()
     if (changed === "revision") { body.snapshot.inventoryRevision++; body.evidence.inventoryRevision++ }
@@ -474,5 +475,96 @@ for (const changed of ["revision", "membership", "session", "incomplete"] as con
   else await expect(d.getByRole("alert")).toContainText("Could not confirm saving")
   expect(posts).toBe(0)
   expect((await record(page)).pending).toHaveLength(0)
+  expect((await record(page)).snapshot!.items).toEqual(before.items)
+})
+
+const gradedCopy = "synthetic-raw-copy-2"
+for (const decision of ["swap", "unassign"] as const) test(`selected graded ${decision} preserves private fields and exact Activity linkage`, async ({ page, context, baseURL, insets }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `raw-graded-placement-${crypto.randomUUID()}`, url: baseURL! }])
+  await open(page)
+  const before = (await record(page)).snapshot!
+  const d = await occupiedReview(page, gradedCopy, "synthetic-slot-0", decision)
+  await expect(d).toContainText("Synthetic custom provider · 09.5")
+  await expect(d).toContainText(`Copy ${gradedCopy}`)
+  await expect(d).toContainText(`Copy ${copy}`)
+  await expect(d).not.toContainText("SYNTHETIC-PRIVATE-CERT")
+  await expect(d).not.toContainText("synthetic-private-asset")
+  const h = new Harness(page, insets, true)
+  await h.expectWithinSafeViewport(d)
+  await h.expectNoHorizontalOverflow()
+  await h.expectMinTapTarget(d.getByRole("button", { name: "Confirm change", exact: true }))
+  await h.expectHittable(d.getByRole("button", { name: "Confirm change", exact: true }))
+  await d.getByRole("button", { name: "Cancel change" }).click()
+  expect((await record(page)).snapshot).toEqual(before)
+  await d.getByRole("button", { name: "Review placement" }).click()
+  await confirm(page, 1)
+  const after = (await record(page)).snapshot!
+  expect(after.items).toEqual(before.items)
+  expect(after.placements.find(p => p.inventoryItemId === gradedCopy)?.slotId).toBe("synthetic-slot-0")
+  expect(after.placements.find(p => p.inventoryItemId === copy)?.slotId).toBe(decision === "swap" ? "synthetic-other-slot" : undefined)
+  expect(after.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin]))).toEqual(before.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin])))
+  const operationId = (await record(page)).receipts[0].operationId
+  const scope = { accountId: E2E_USER.id, ownerId: E2E_USER.id, membershipKey: JSON.stringify([null, E2E_USER.id]), memberIds: [E2E_USER.id] }
+  await page.route("**/app/api/collection-activity**", route => {
+    const query = new URL(route.request().url()).searchParams
+    if (query.has("scope")) return route.fulfill({ json: { scope } })
+    if (query.has("id")) expect(query.get("id")).toBe("101")
+    else expect(query.get("operationId")).toBe(operationId)
+    const event = { id: "101", operation_id: operationId, recorded_at: "2026-11-10T12:00:00Z", format_version: 1, actor_kind: "user", actor_user_id: E2E_USER.id, source: "app", action: "inventory.move", affected_entities: { inventoryItemIds: [gradedCopy, copy], collectionIds: [collection], slotIds: ["synthetic-slot-0"] }, changes: [] }
+    return route.fulfill({ json: { scope, data: [event], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
+  })
+  await page.getByText("Review synchronized changes", { exact: true }).click()
+  await page.getByRole("button", { name: "Find acknowledged change" }).click()
+  const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
+  await expect(activity).toContainText("One event matches")
+  await activity.getByRole("button", { name: "Open exact entry 101" }).click()
+  await expect(activity).toContainText(`Acknowledged operation ${operationId}`)
+  await expect(activity).toContainText("Selected change")
+  await expect(activity.getByRole("list", { name: "Committed activity" }).getByRole("article")).toHaveCount(1)
+})
+
+test("selected graded unassign, lost committed assignment, cached reload and exact replay need fresh ACK", async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `raw-graded-placement-${crypto.randomUUID()}`, url: baseURL! }])
+  await open(page)
+  const before = (await record(page)).snapshot!
+  let d = await detail(page, gradedCopy)
+  await expect(d.getByRole("button", { name: "Remove owned copy", exact: true })).toHaveCount(0)
+  await expect(d).toContainText("recovery cannot verify private label assets")
+  await d.getByRole("button", { name: "Unassign copy", exact: true }).click()
+  await expect(d).toContainText("private label assets")
+  await confirm(page, 1)
+  expect((await record(page)).snapshot!.items).toEqual(before.items)
+  expect((await record(page)).snapshot!.placements.some(p => p.inventoryItemId === gradedCopy)).toBe(false)
+  let lost = true, failRead = false
+  const bodies: string[] = []
+  await page.route("**/app/e2e-harness/storage/inventory", async route => {
+    bodies.push(route.request().postData()!)
+    const response = await route.fetch()
+    if (lost) { lost = false; failRead = true; await route.abort("failed") } else await route.fulfill({ response })
+  })
+  await page.route("**/app/e2e-harness/storage/inventory?*", route => failRead ? route.abort("failed") : route.continue())
+  d = await detail(page, gradedCopy)
+  await d.getByRole("button", { name: "Assign copy", exact: true }).click()
+  await expect(d.getByRole("option", { name: /synthetic-slot-2/ })).toHaveCount(0)
+  await d.getByRole("combobox", { name: "Compatible slot", exact: true }).selectOption("synthetic-slot-1")
+  await d.getByRole("button", { name: "Review placement" }).click()
+  await d.getByRole("button", { name: "Confirm change", exact: true }).click()
+  await expect.poll(async () => (await record(page)).pending[0]?.status).toBe("unavailable")
+  const original = (await record(page)).pending[0].intent
+  expect((await record(page)).receipts).toHaveLength(1)
+  await page.reload(); await inventory(page)
+  expect((await record(page)).pending[0].intent).toEqual(original)
+  d = await detail(page, gradedCopy)
+  await expect(d.getByRole("button", { name: /^(Assign|Move|Unassign) copy$/ })).toHaveCount(0)
+  await d.getByRole("button", { name: "Close copy details" }).click()
+  failRead = false
+  await page.getByRole("button", { name: "Retry pending sync" }).click()
+  await expect.poll(async () => (await record(page)).receipts.length).toBe(2)
+  expect((await record(page)).receipts[1].intent).toEqual(original)
+  expect(new Set(bodies).size).toBe(1)
+  const after = (await record(page)).snapshot!
+  expect(after.items).toEqual(before.items)
+  expect(after.placements.find(p => p.inventoryItemId === gradedCopy)?.slotId).toBe("synthetic-slot-1")
+  await place(page, gradedCopy, "synthetic-other-slot", 3)
   expect((await record(page)).snapshot!.items).toEqual(before.items)
 })

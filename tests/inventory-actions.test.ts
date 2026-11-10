@@ -138,3 +138,54 @@ test("occupied plans fence either copy, placement, slot, target, layout and coll
     (s: typeof inventory) => { s.items[1].ownerUserId = "foreign" },
   ]) { const changed = structuredClone(inventory); mutate(changed); assert.throws(() => projectSlotIntent(changed, intent, resolve)) }
 })
+
+for (const provider of [{ kind: "known", id: "psa" }, { kind: "custom", name: "Synthetic custom provider" }] as const) test(`exact graded ${provider.kind} placement preserves every private field`, () => {
+  const { inventory, resolve } = setup()
+  const item = inventory.items.find(i => i.id === "unassigned-grade")!
+  item.grading = { provider, grade: "09.5", scale: "Synthetic scale", designation: "Synthetic qualifier", subgrades: [{ name: "Centering", grade: "09" }], certificate: "PRIVATE-CERT", holder: "Synthetic holder", label: { variant: "PRIVATE-LABEL", assetIds: ["PRIVATE-ASSET"] } }
+  item.acquiredAt = "2026-01-02T00:00:00Z"
+  item.legacySource = { original: ["00007", null] }
+  const before = structuredClone(inventory)
+  const assign = prepareInventoryAction(inventory, { kind: "place", itemId: item.id, collectionId: inventory.collections[0].id, slotId: "slot-e" }, context, resolve)
+  assert.deepEqual(assign.preview.items, before.items)
+  for (const mutate of [
+    (s: typeof inventory) => { s.items.find(i => i.id === item.id)!.version++ },
+    (s: typeof inventory) => { s.inventoryRevision++ },
+    (s: typeof inventory) => { s.binders[0].slots.find(s => s.id === "slot-e")!.version++ },
+  ]) { const stale = structuredClone(inventory); mutate(stale); assert.throws(() => projectSlotIntent(stale, assign.intent, resolve)) }
+  assert.deepEqual(assign.intent.request.commands[0], { kind: "assign", selection: { kind: "existing", inventoryItemId: item.id, itemVersion: item.version }, destination: { collectionId: inventory.collections[0].id, slot: { id: "slot-e", version: 1, inventoryItemId: null, itemVersion: null, placementVersion: null } }, occupied: "cancel", fulfillWant: null })
+  for (const occupied of ["unassign", "swap"] as const) {
+    const moved = prepareInventoryAction(assign.preview, { kind: "place", itemId: item.id, collectionId: inventory.collections[0].id, slotId: "slot-b", occupied }, context, resolve)
+    assert.deepEqual(moved.preview.items, before.items)
+    assert.equal(moved.preview.placements.find(p => p.inventoryItemId === "item-b")?.slotId, occupied === "swap" ? "slot-e" : undefined)
+    const unassigned = prepareInventoryAction(moved.preview, { kind: "unassign", itemId: item.id }, context, resolve)
+    assert.deepEqual(unassigned.preview.items, before.items)
+    assert.equal(unassigned.preview.placements.some(p => p.inventoryItemId === item.id), false)
+    assert.deepEqual(unassigned.preview.binders[0].slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin]), before.binders[0].slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin]))
+  }
+  const occupiedAssign = prepareInventoryAction(inventory, { kind: "place", itemId: item.id, collectionId: inventory.collections[0].id, slotId: "slot-a", occupied: "unassign" }, context, resolve)
+  assert.deepEqual(occupiedAssign.preview.items, before.items)
+  assert.equal(occupiedAssign.preview.placements.some(p => p.inventoryItemId === "item-a"), false)
+  assert.throws(() => prepareInventoryAction(inventory, { kind: "removeOwned", itemId: item.id }, context, resolve), /raw-copy-required/)
+  const unknown = structuredClone(inventory)
+  unknown.items.find(i => i.id === item.id)!.identity = { kind: "card", cardId: "unknown" }
+  assert.ok(inventoryActionDestinations(unknown, item.id, resolve).every(d => unknown.binders[0].slots.find(s => s.id === d.slot.id)!.target === null))
+  assert.deepEqual(inventory, before)
+})
+
+test("selected graded move refuses reverse mismatch and fences both copies and placements", () => {
+  const { inventory, resolve } = setup()
+  const itemId = "item-b"
+  const mismatched = inventoryActionDestinations(inventory, itemId, resolve).find(d => d.slot.id === "slot-c")!
+  assert.deepEqual(inventoryOccupiedChoices(inventory, itemId, mismatched, resolve), ["unassign"])
+  assert.throws(() => prepareInventoryAction(inventory, { kind: "place", itemId, collectionId: mismatched.collectionId, slotId: mismatched.slot.id, occupied: "swap" }, context, resolve))
+  const { intent } = prepareInventoryAction(inventory, { kind: "place", itemId, collectionId: inventory.collections[0].id, slotId: "slot-a", occupied: "swap" }, context, resolve)
+  for (const mutate of [
+    (s: typeof inventory) => { s.items[0].version++ }, (s: typeof inventory) => { s.items[1].version++ },
+    (s: typeof inventory) => { s.placements[0].version++ }, (s: typeof inventory) => { s.placements[1].version++ },
+    (s: typeof inventory) => { s.binders[0].slots[0].version++ }, (s: typeof inventory) => { s.binders[0].slots[1].version++ },
+    (s: typeof inventory) => { s.collections[0].version++ }, (s: typeof inventory) => { s.binders[0].layoutRevision++ },
+  ]) { const changed = structuredClone(inventory); mutate(changed); assert.throws(() => projectSlotIntent(changed, intent, resolve)) }
+  // Even asset-free grading stays outside this slice's removal UI/helper contract.
+  assert.throws(() => prepareInventoryAction(inventory, { kind: "removeOwned", itemId }, context, resolve), /raw-copy-required/)
+})

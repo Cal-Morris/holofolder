@@ -11,6 +11,8 @@ export type InventoryBulkAction = { kind: "unassign"; itemIds: readonly string[]
 export function prepareInventoryBulkAction(snapshot: InventorySnapshot, action: InventoryBulkAction, context: OperationIntentContext, catalog: InventoryCatalogResolver) {
   const ids = action.kind === "unassign" ? action.itemIds : action.mapping.map(m => m.itemId)
   if (!ids.length || ids.length > INVENTORY_LIMITS.commands || new Set(ids).size !== ids.length) throw new Error("distinct-bounded-selection-required")
+  // Bulk review remains raw-only; graded copies use the individual exact-copy review.
+  if (ids.some(id => snapshot.items.find(i => i.id === id)?.grading !== null)) throw new Error("raw-copy-required")
   const destinations = new Set<string>()
   const plans = ids.map((itemId, index) => {
     if (action.kind === "unassign") return prepareInventoryAction(snapshot, { kind: "unassign", itemId }, context, catalog)
