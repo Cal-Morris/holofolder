@@ -104,6 +104,8 @@ test.describe("card picker layout", () => {
     const reverse = variants.getByRole("button", { name: "Add Reverse, £2.00", exact: true })
     await expect(variants.getByRole("button", { name: "Add Holo, £1.00", exact: true })).toBeVisible()
     await expect(reverse).toBeVisible()
+    await expect(reverse).toHaveAttribute("data-suggested", "true")
+    await expect(variants.getByRole("button", { name: "Add Holo, £1.00", exact: true })).not.toHaveAttribute("data-suggested", "true")
     await harness.expectMinTapTarget(reverse, 36)
     await harness.expectWithinSafeViewport(reverse)
     await harness.expectNoHorizontalOverflow()
@@ -112,6 +114,39 @@ test.describe("card picker layout", () => {
     const request = await saved
     expect(request.postDataJSON()).toMatchObject({ cardId: "30th-007", cardFinish: "reverse_holo" })
     await expect(selector).toHaveCount(0)
+  })
+
+  test("keeps unpriced Normal and suggests the most expensive quoted variant", async ({ harness }) => {
+    const { page } = harness
+    // Synthetic catalog Normal/Reverse with a provider-confirmed Holo; Normal has no quote.
+    await mockCardPrices(page, {
+      "sv03.5-007": { confidence: "high", market: 12, finishes: [
+        { finish: "holo", market: 12 }, { finish: "reverse_holo", market: 54.72 },
+      ] },
+    })
+    const selector = await openPicker(harness)
+    const card = selector.getByRole("button", { name: "Add card Squirtle from 151", exact: true })
+    await expect(card).toContainText("£12.00")
+    await card.click()
+    const variants = page.getByRole("dialog", { name: "Which variant?" })
+    const normal = variants.getByRole("button", { name: "Add Normal", exact: true })
+    const reverse = variants.getByRole("button", { name: "Add Reverse, £54.72", exact: true })
+    await expect(normal).toBeVisible()
+    await expect(normal).toContainText("No price yet")
+    await expect(reverse).toHaveAttribute("data-suggested", "true")
+    await harness.expectMinTapTarget(normal, 36)
+    await harness.expectWithinSafeViewport(reverse)
+    await harness.expectNoHorizontalOverflow()
+  })
+
+  test("unpriced variants stay selectable without a likely badge", async ({ harness }) => {
+    const { page } = harness
+    const selector = await openPicker(harness)
+    await selector.getByRole("button", { name: "Add card Squirtle from 151", exact: true }).click()
+    const variants = page.getByRole("dialog", { name: "Which variant?" })
+    await expect(variants.getByRole("button", { name: "Add Normal", exact: true })).toBeVisible()
+    await expect(variants.getByRole("button", { name: "Add Reverse", exact: true })).toBeVisible()
+    await expect(variants.locator('[data-suggested="true"]')).toHaveCount(0)
   })
 
   test("a single-finish card is picked in one tap", async ({ harness }) => {

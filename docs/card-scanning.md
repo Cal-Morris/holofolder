@@ -91,6 +91,10 @@ Slot sweep overrides the minimum similarity to 0.56 and confidence to 0.58, reta
 
 Confidence is a heuristic score, not a calibrated probability of correctness.
 
+## Staged native destination review
+
+[Scanner destination acceptance](scan-destinations.md) documents the opt-in PageScanner camera/photo and QuickCardScanner acceptance paths, stable captured IDs, explicit cached identity/copy/destination review, durable batch callbacks and remaining atomic append/host/runtime gates. These paths are not enabled by this slice. The legacy behavior below remains unchanged without explicit native admission.
+
 ## Binder-page scanning
 
 [binder-page-scan](../lib/binder-page-scan.ts) processes an uploaded photo or guided camera frame:

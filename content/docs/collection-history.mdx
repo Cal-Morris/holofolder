@@ -7,9 +7,9 @@ description: See what changed and safely undo card and want-list edits.
 
 Open the binder switcher and choose **Activity**, or open **Activity** from a card’s details to see just that Pokémon. Entries are grouped by day and say what happened, such as **Removed Bulbasaur from My binder**, with the printing, person and local time.
 
-Choose **Details** for the changed values and links to available collections. Bulk changes expand a few at a time. IDs, source, full timestamps and the recorded before/after evidence are under **Technical details**. A previous member is labelled **Previous member**; an unattributed entry stays **Unknown**. These labels do not invent historical profile names.
+Simple additions and removals are compact receipts. Tap an available card title to open that card in the current binder. Choose **View changes** for meaningful before/after values such as a printing swap; bulk changes expand a few at a time. Internal IDs and raw event data are not displayed. A previous member is labelled **Previous member**; an unattributed entry stays **Unknown**. These labels do not invent historical profile names.
 
-**Filters** searches the complete recorded history, including deleted cards. Choose a collection, person, action or inclusive UTC date range. **Advanced filters** accepts exact retained card, collection, item and slot IDs. **Older page** and **Newer page** follow server cursors, including histories longer than 1,000 events. Displayed times use your device’s timezone.
+**Filters** searches the complete recorded history, including deleted cards. Choose a collection, person, action or inclusive UTC date range. **Older page** and **Newer page** follow server cursors, including histories longer than 1,000 events. Displayed times use your device’s timezone.
 
 ## Undo a mistake
 
@@ -17,15 +17,15 @@ Choose **Undo**, review what will be restored or removed, then choose **Undo thi
 
 Undo restores the original row identity and recorded card details. It checks current access, collection format, current limits and later changes to the same Pokémon. It refuses a newer edit even if the visible card was subsequently changed back. Unrelated later changes survive. There is no force overwrite.
 
-Undo adds a new history entry and keeps the original. **View undo in activity**, **View original change** and **View undo history** let you follow those entries. The short-lived Undo for an acknowledged card edit uses the same checked recovery command. Unsynced edits keep their existing device undo path.
+Undo adds a new history entry and keeps the original. The original receipt shows **Undone** after verification, and when its linked undo is present on the loaded history page. The short-lived Undo for an acknowledged card edit uses the same checked recovery command. Unsynced edits keep their existing device undo path.
 
-Collection creation/deletion, settings, sharing, native inventory/slot operations, collection-format changes and older entries without complete evidence cannot be undone through this release. Activity explains when a change is unsupported or conflicts with newer work. Internal native recovery preparation remains separately gated.
+Collection creation/deletion, settings, sharing, native inventory/slot operations, collection-format changes and older entries without complete evidence cannot be undone through this release. Undo is offered for recorded card and want-list edits; its preview explains conflicts with newer work. Internal native recovery preparation remains separately gated.
 
 ## Offline and connection failures
 
 Previously opened activity pages remain available on this device, with their last-update time. They are saved pages, not a complete offline history. Reconnect to load another page or undo a change. Pending local edits must sync before Activity Undo is available.
 
-If a connection fails while Undo is being applied, choose **Retry Undo**. The app retains the exact request before sending it and checks the same operation again, including after closing Activity or reloading. A retry cannot apply it twice. It refreshes the collection before showing **Change undone**. If the write succeeded but the refresh failed, it says the undo was saved and offers verification again.
+If a connection fails while Undo is being applied, choose **Retry Undo**. The app retains the exact request before sending it and checks the same operation again, including after closing Activity or reloading. A retry cannot apply it twice. It refreshes the collection before showing **Undone**. If the write succeeded but the refresh failed, it says the undo was saved and offers verification again.
 
 ## REST and MCP
 

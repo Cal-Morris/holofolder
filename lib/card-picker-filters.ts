@@ -118,3 +118,20 @@ export function getCardPickerFinishChoices(
   if (variants?.reverse || quoted.has("reverse_holo")) finishes.push("reverse_holo")
   return finishes.length > 1 ? finishes.map((finish) => ({ finish, label: STANDARD_FINISH_LABELS[finish] })) : []
 }
+
+/** Suggest the most expensive quoted finish; missing prices provide no suggestion. */
+export function getCardPickerSuggestedFinish(
+  choices: readonly { finish: CardPickerStandardFinish }[],
+  amountFor: (finish: CardPickerStandardFinish) => number | null | undefined,
+): CardPickerStandardFinish | null {
+  let suggested: CardPickerStandardFinish | null = null
+  let highestAmount = 0
+  for (const { finish } of choices) {
+    const amount = amountFor(finish)
+    if (typeof amount === "number" && Number.isFinite(amount) && amount > highestAmount) {
+      suggested = finish
+      highestAmount = amount
+    }
+  }
+  return suggested
+}

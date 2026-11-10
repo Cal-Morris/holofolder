@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 }
 
 export default function AppShellPage() {
-  return <OfflineAppShell />
+  return <OfflineAppShell localBrowserHost={process.env.HOLOFOLDER_E2E === "1" && !process.env.VERCEL} />
 }

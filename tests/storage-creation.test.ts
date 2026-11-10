@@ -60,7 +60,9 @@ test("creation receipts omit evidence, validate exact identities and expose hone
 
 test("creation enablement stays hard-gated in app routes, REST/MCP registry and legacy create schema", async () => {
   const { matchRestOperation, DEVELOPER_OPERATIONS } = await import("@/lib/developer-api/operations")
-  assert.equal(matchRestOperation("POST", "/storage/collections"), null)
+  assert.equal(matchRestOperation("POST", "/storage/collections")?.operation.admission, "staged")
+  const { requireNativeDeveloperAdmission } = await import("@/lib/server/operations/native-developer-admission")
+  assert.throws(() => requireNativeDeveloperAdmission(), error => error instanceof Error && "status" in error && error.status === 503)
   assert.equal(DEVELOPER_OPERATIONS.find(op => op.name === "create_binder")?.schema.safeParse(command).success, false)
   for (const route of [await import("@/app/api/inventory/route"), await import("@/app/api/binder-slots/route")]) {
     const response = route.POST()

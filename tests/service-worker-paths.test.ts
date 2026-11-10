@@ -92,3 +92,13 @@ test("private/no-store complete responses are never cacheable through another ca
   context.response = new Response("synthetic public image", { headers: { "Cache-Control": "public, immutable" } })
   assert.equal(runInContext("isCacheableResponse(response)", context), true)
 })
+
+test("evicted startup chunks return a static recovery notice without private data or cache deletion", async () => {
+  const { context } = worker()
+  context.Response = Response
+  context.caches = { open: async () => ({ match: async (key: string) => key === "/app/app-shell" ? new Response('<script src="/app/_next/static/chunks/evicted.js"></script>') : undefined }) }
+  const response = await runInContext("getOfflineAppShell()", context) as Response
+  assert.equal(response.status, 503)
+  assert.match(await response.text(), /Pending edits have not been removed/)
+  assert.equal(response.headers.get("Cache-Control"), "no-store")
+})

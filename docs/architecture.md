@@ -57,7 +57,7 @@ User-scoped Supabase reads rely on row-level security. Routes that use the servi
 
 `components/binder-app.tsx` coordinates views, overlays, selection, binder navigation and device modes. Feature hooks own their synchronization lifecycles; pure transforms and validation belong in `lib/`. Switching binders remounts the app with the new scope. Settings belong to the collection owner; individual binders can override their grid/appearance.
 
-The static offline route (`app/app-shell/`, `components/offline-app-shell.tsx`) boots from on-device state. Cached user data must be checked against the selected account/owner/binder before display. User-specific HTML is never an offline cache entry.
+The static offline route (`app/app-shell/`, `components/offline-app-shell.tsx`) boots from on-device state. Cached user data must be checked against the selected account/owner/binder before display. User-specific HTML is never an offline cache entry. [Native cached startup preparation](native-cached-startup.md) adds a display-only consumer for the canonical native queue and grid metadata behind the existing denied-production/local-harness admission. It reuses the device session and scoped partner-cache policy; reconnect unmounts cached data before the unchanged checked live host can read or send. Old bootstrap markers and production startup remain legacy.
 
 
 The online path below assumes an authenticated visitor. Signed-out online requests go to sign-in.

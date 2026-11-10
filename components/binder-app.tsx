@@ -110,6 +110,7 @@ import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
+import NativeStartupRecorder from "@/components/collection-navigation/native-startup-recorder"
 import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
 import type { BrowserSurfaceBinding } from "@/components/collection-navigation/browser-session"
 import type { ReactNode } from "react"
@@ -3879,7 +3880,7 @@ export default function BinderApp(props: BinderAppProps) {
     renderSurface={binding => {
       const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
       const layout = context?.read.layouts.find(l => l.collectionId === context.collectionId && l.layoutRevision === binding.display?.binder.layoutRevision)
-      return <BinderApp {...props} key={JSON.stringify([binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
+      return <><NativeStartupRecorder scope={browserScope.scope!} /><BinderApp {...props} key={JSON.stringify([binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
         localBrowserHost={false} browserSurface={binding} browserHeader={binding.surface.header} onBrowserSignOut={handleSignOut}
         initialUser={user} initialCollectionOwnerUserId={resolvedCollectionOwnerUserId}
         initialCollection={binding.surface.state.main === "dex" ? collection : []}
@@ -3888,7 +3889,7 @@ export default function BinderApp(props: BinderAppProps) {
         stagedSlotDisplay={binding.surface.state.main === "collection" ? binding.display : undefined}
         stagedSlotSessionId={browserScope.scope?.sessionId} stagedSlotLocalDurable
         stagedSlotCatalog={binding.catalog}
-        onStagedSlotCommandIntent={binding.surface.state.main === "collection" && binding.display ? binding.receive : undefined} />
+        onStagedSlotCommandIntent={binding.surface.state.main === "collection" && binding.display ? binding.receive : undefined} /></>
     }} />
   return legacySurface
 

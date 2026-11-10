@@ -3,6 +3,8 @@
 import { Suspense, use, useEffect, useState, type ComponentProps } from "react"
 import { useRouter } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
+import { readDeviceStartupSession } from "@/lib/collection/native-startup"
+import CachedNativeStartup from "@/components/cached-native-startup"
 import BinderApp from "@/components/binder-app"
 import { BinderSkeleton } from "@/components/binder-skeleton"
 import { readLocalBinderStart, writeBinderStartMarker, type LocalBinderStart } from "@/lib/binder-start"
@@ -22,7 +24,7 @@ type LocalStart = LocalBinderStart & { user: User }
  * remount; a local start then syncs with the server like /app-shell does. Until then, a skeleton.
  * Only the first render races: a later server boot (switching binder, a refresh) always comes from the server.
  */
-export function BinderStart({ serverBoot }: { serverBoot: Promise<ServerBinderBoot> }) {
+export function BinderStart({ serverBoot, localBrowserHost = false }: { serverBoot: Promise<ServerBinderBoot>; localBrowserHost?: boolean }) {
   const [firstBoot] = useState(serverBoot)
   const [start, setStart] = useState<{ source: "local"; boot: LocalStart } | { source: "server" } | null>(null)
 
@@ -56,8 +58,8 @@ export function BinderStart({ serverBoot }: { serverBoot: Promise<ServerBinderBo
       try {
         // The session from the auth cookie: no network unless the token needs a refresh.
         const { createClient } = await import("@/lib/supabase/client")
-        const { data } = await createClient().auth.getSession()
-        const user = data.session?.user
+        const session = await readDeviceStartupSession(() => createClient().auth.getSession())
+        const user = session?.user
         if (!active || !user) return
         const requestedBinderId = new URLSearchParams(window.location.search).get("binder")
         const local = readLocalBinderStart(window.localStorage, document.cookie, user.id, requestedBinderId)
@@ -73,18 +75,12 @@ export function BinderStart({ serverBoot }: { serverBoot: Promise<ServerBinderBo
 
   if (start?.source === "local" && serverBoot === firstBoot) {
     const { boot } = start
+    const legacyProps = { initialUser: boot.user, initialBinders: boot.binders, initialBinderId: boot.binderId, initialCollection: boot.collection,
+      initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode, localBrowserHost }
     return (
-      <BinderApp
-        key={boot.binderId ?? "binder"}
-        initialUser={boot.user}
-        initialBinders={boot.binders}
-        initialBinderId={boot.binderId}
-        initialCollection={boot.collection}
-        initialCollectionOwnerUserId={boot.collectionOwnerUserId}
-        initialSettings={boot.settings}
-        initialHasStoredSettings={false}
-        initialDarkMode={boot.darkMode}
-      />
+      <CachedNativeStartup localHarness={localBrowserHost} legacyProps={legacyProps}>
+        {recheckNative => <BinderApp {...legacyProps} localBrowserHost={recheckNative} key={boot.binderId ?? "binder"} />}
+      </CachedNativeStartup>
     )
   }
 

@@ -16,7 +16,12 @@ async function main() {
   const label = op.name.replaceAll('_', ' ')
   const summary = op.name === 'list_cards' ? 'Search cards' : label.charAt(0).toUpperCase() + label.slice(1)
   paths[op.path]??={};paths[op.path][op.method.toLowerCase()]={operationId:op.name,summary,description,tags:[group],security:[{apiKey:[]}],parameters,
-   ...(op.method==='GET'?{}:{requestBody:{required:true,content:{'application/json':{schema:{...schema,properties,required}}}}}),responses:Object.fromEntries([200,400,401,402,403,404,409,413,422,429,503].map(status=>[String(status),{description:status===200?'Success':'See the API conventions page.'}]))}
+   ...(op.admission?{'x-admission':op.admission}:{}),...(op.maxBytes?{'x-max-body-bytes':op.maxBytes}:{}),
+   ...(op.method==='GET'?{}:{requestBody:{required:true,content:{'application/json':{schema:{...schema,properties,required}}}}}),responses:Object.fromEntries([200,400,401,402,403,404,409,413,422,429,503].map(status=>[String(status),{
+    description:status===200?(op.admission==='staged'?'Receipt contract after future admission only. Currently returns 503.':'Success'):status===503&&op.admission==='staged'?'native_operations_staged: valid authorized requests are denied until #379. Execution is not enabled.':'See the API conventions page.',
+    ...(status===200&&op.responseSchema?{content:{'application/json':{schema:z.toJSONSchema(op.responseSchema)}}}:{}),
+    ...(status!==200&&op.admission?{content:{'application/json':{schema:z.toJSONSchema(z.object({error:z.object({code:z.string(),message:z.string(),requestId:z.string()}).strict()}).strict())}}}:{}),
+   }]))}
  }
  const spec={openapi:'3.1.0',info:{title:'Holo Folder API',version:'1.0.0',description:'Premium/lifetime data API. MCP uses OAuth separately. Card image fields are R2-only.'},servers:[{url:'https://app.holofolder.com/app/api/v1',description:'Holo Folder production API'}],components:{securitySchemes:{apiKey:{type:'http',scheme:'bearer',bearerFormat:'Holo Folder personal API key'}}},paths}
  await mkdir('public',{recursive:true});await writeFile('public/openapi.json',JSON.stringify(spec,null,2)+'\n')
