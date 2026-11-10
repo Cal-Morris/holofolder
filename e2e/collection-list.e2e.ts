@@ -31,7 +31,8 @@ for (const width of [1280, 1440]) {
     // Owned, wanted, missing and free-spacer states are all still represented, with display names and no internal wording.
     for (const label of ["Owned", "Wanted", "Missing", "Empty slot"]) await expect(rows(page).filter({ hasText: label }).first()).toBeAttached()
     await expect(rows(page).nth(1)).toContainText("Ivysaur")
-    await expect(list(page)).not.toContainText(/Unfilled target|Owned copy|Empty spacer/)
+    // Visible row text only: the artwork button keeps its screen-reader label from the shared OrderedSlot.
+    await expect(list(page).locator("li > div:last-child").filter({ hasText: /Unfilled target|Owned copy|Empty spacer/ })).toHaveCount(0)
     expect(await list(page).evaluate(el => el.scrollHeight), "1,025 rows stay compact").toBeLessThan(1025 * 80 / 3 + 600)
   })
 }
