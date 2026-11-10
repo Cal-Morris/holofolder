@@ -357,6 +357,10 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           || intent.kind === "creation" && (r.intent.request.collectionId === intent.request.collectionId || intent.request.slotIds.some(id => r.intent.request.slotIds.includes(id))))) fail("new-creation-ids-required")
         if (existing) { if (!sameValue(existing, intent)) fail("idempotency-conflict"); return }
         if (record.recovery?.some(recoveryUnresolved)) fail("recovery-pending")
+        const deletesCollection = (i: SlotOfflineIntent) => i.kind === "inventory" && i.request.commands.some(c => c.kind === "deleteCollection")
+        if (record.pending.some(p => deletesCollection(p.intent))) fail("collection-deletion-pending")
+        if (deletesCollection(intent) && (!isCompleteInventorySnapshot(planningBase) || record.pending.length || record.legacy.length
+          || !sameValue(record.snapshot, planningBase) || intent.request.inventoryRevision !== planningBase.inventoryRevision)) fail("verified-complete-native-base-required")
         if (record.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore")) fail("creation-pending")
         if (intent.kind === 'raw-restore' && (raw.kind !== 'raw-restore' || !isReviewedRawRestoreCommand(raw.request) || !isCompleteInventorySnapshot(planningBase) || !sameValue(record.snapshot, planningBase)
           || record.pending.length || record.legacy.length || intent.request.inventoryRevision !== planningBase.inventoryRevision

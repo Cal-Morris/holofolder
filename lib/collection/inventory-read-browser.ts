@@ -7,7 +7,7 @@ const errorCodes = new Set(["inventory_sign_in_required", "inventory_read_forbid
   "inventory_operations_staged", "inventory_read_scope_changed", "inventory_read_invalid_response"])
 
 export type BrowserInventoryReadResult =
-  | { status: "complete"; scope: InventoryReadScope; snapshot: CompleteInventorySnapshot; partnerUserId?: string | null; navigation: InventoryNavigationEvidence }
+  | { status: "complete"; scope: InventoryReadScope; snapshot: CompleteInventorySnapshot; partnerUserId?: string | null; defaultCollectionId?: string; navigation: InventoryNavigationEvidence }
   | { status: "conflict" | "unavailable"; code: string }
 
 /** Call with the auth host's LIVE scope getter, never IDs from saved UI state.
@@ -55,7 +55,7 @@ export async function fetchCurrentInventorySnapshot(currentScope: () => Inventor
     resolve(body)
     const snapshot = await complete
     assertCurrent()
-    return { status: "complete", scope, snapshot, partnerUserId: body.partnerUserId, navigation: body.navigation }
+    return { status: "complete", scope, snapshot, partnerUserId: body.partnerUserId, defaultCollectionId: body.defaultCollectionId, navigation: body.navigation }
   } catch (error) {
     reject(error)
     await complete.catch(() => {})

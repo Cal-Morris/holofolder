@@ -269,3 +269,23 @@ test("private read carries before/after verified membership for portable wanted 
     assert.equal((await fetchCurrentInventorySnapshot(() => ({ ...scope, actorUserId: partner }))).status, "unavailable")
   })
 })
+
+test('same private complete read carries a unique known default, unknown metadata stays unknown and foreign defaults fail closed', async () => {
+  const f = fixture(0)
+  f.tables.binders[0].is_default = true
+  const response = await handleInventoryCompleteRead(request(), f.client)
+  assert.equal((await response.json()).defaultCollectionId, collection)
+  delete f.tables.binders[0].is_default
+  assert.equal('defaultCollectionId' in await (await handleInventoryCompleteRead(request(), f.client)).json(), false)
+  await withFetch(async set => {
+    for (const defaultId of [collection, 'synthetic-foreign', null]) {
+      set(async (input, init) => {
+        const response = await handleInventoryCompleteRead(new Request(new URL(String(input), 'https://synthetic.test'), init), f.client)
+        return Response.json({ ...await response.json(), defaultCollectionId: defaultId }, { headers: { 'Cache-Control': 'private, no-store' } })
+      })
+      const result = await fetchCurrentInventorySnapshot(() => scope)
+      assert.equal(result.status, defaultId === collection ? 'complete' : 'unavailable')
+      if (result.status === 'complete') assert.equal(result.defaultCollectionId, collection)
+    }
+  })
+})
