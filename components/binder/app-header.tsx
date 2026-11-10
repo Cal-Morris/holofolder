@@ -60,6 +60,8 @@ export interface AppHeaderContext {
   readOnlyMode: boolean
   /** Native storage: collection choice and view live in the storage toolbar, not legacy filters or shares. */
   nativeStorage?: boolean
+  /** Signed-in owner/partner may manage the current collection's public link (independent of readOnlyMode). */
+  canManageShare?: boolean
   onNationalDex?: () => void
   setIsAuthOpen: Dispatch<SetStateAction<boolean>>
   setIsBinderSwitcherOpen: Dispatch<SetStateAction<boolean>>
@@ -149,7 +151,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             ...(installPromptEvent && !isInstalledApp ? [{ id: "install", label: "Install app", icon: <Sparkles />, onSelect: () => { void handleInstallApp() } }] : []),
             ...(!readOnlyMode && ctx.user ? [
               { id: "partner", label: "Partner", icon: <Users />, onSelect: () => openExclusively(() => setIsPartnerOpen(true)) },
-              ...(ctx.nativeStorage ? [] : [{ id: "share", label: isShareEnabled ? "Copy share link" : "Create share link", icon: isShareLoading ? <Loader2 className="animate-spin" /> : <Link2 />, disabled: isShareLoading, keepOpen: true, onSelect: () => { if (isShareEnabled && fullShareUrl) void handleCopyReadOnlyShareLink(); else void handleEnableReadOnlyShare() } }]),
+              ...(!ctx.canManageShare ? [] : [{ id: "share", label: isShareEnabled ? "Copy share link" : "Create share link", icon: isShareLoading ? <Loader2 className="animate-spin" /> : <Link2 />, disabled: isShareLoading, keepOpen: true, onSelect: () => { if (isShareEnabled && fullShareUrl) void handleCopyReadOnlyShareLink(); else void handleEnableReadOnlyShare() } }]),
             ] : []),
             { id: "settings", label: "Settings", icon: <Settings />, onSelect: () => openExclusively(() => setIsSettingsOpen(true)) },
             { id: "theme", label: isDarkMode ? "Light mode" : "Dark mode", icon: isDarkMode ? <Sun /> : <Moon />, onSelect: toggleDarkMode },
