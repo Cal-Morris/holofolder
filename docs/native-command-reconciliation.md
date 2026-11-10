@@ -20,7 +20,17 @@ The internal first-party HTTP adapter returns private/no-store JSON:
 {"version":1,"operationId":"synthetic-command","rejection":{"outcome":"rejected","operationId":"synthetic-command","code":"slot_revision_conflict","inventoryRevision":12}}
 ```
 
-This envelope has status 409. The browser validates both IDs, bounded known code, revision, exact shape, content type, private/no-store headers and live authenticated session scope. Ordinary errors still use the existing error envelope; its code or status never creates proof. The shared internal REST/MCP execution boundary preserves the same terminal result as data, with current actor/source authority and existing write permissions. Supported public REST/MCP operations and OpenAPI remain staged, so no registry or generated schema changes are made by this slice. Their response schemas still describe accepted receipts only: forwarding terminal data internally is not supported public response parity. Explicit terminal-result/error serialization, registry schemas and actual transport contract tests are required under #376/#379 before public admission.
+This envelope has status 409. The browser validates both IDs, bounded known code, revision, exact shape, content type, private/no-store headers and live authenticated session scope. Ordinary errors still use the existing error envelope; its code or status never creates proof. The trusted execution boundary preserves this validated result as data for the first-party envelope above. The shared developer dispatcher converts it to a typed `storage_command_rejected` error only for `execute_slot_commands` and `execute_inventory_commands`, after the existing original-intent parser, recipient fence and authenticated execution. REST returns 409; MCP returns `isError:true`, with identical structured fields and JSON text. Both use the shared developer error formatter:
+
+```json
+{"error":{"code":"storage_command_rejected","message":"The original storage command was rejected. Refresh current storage before explicit reconciliation.","requestId":"synthetic-request","rejection":{"outcome":"rejected","operationId":"synthetic-command","code":"slot_revision_conflict","inventoryRevision":12}}}
+```
+
+Only the trusted gateway's exact four-field terminal row, bound to the original operation ID, can create this error. Malformed, extra-field, wrong-ID or unknown-code terminal rows fail closed as `storage_unavailable`; they cannot fall through into accepted receipt projection. Ordinary conflicts, stale preconditions without a ledger outcome, arbitrary 40001/23505, timeouts and absent ledger evidence never acquire a rejection. Unknown outcomes retain the same original request/ID, source, credential and recipient for explicit retry. A terminal revision describes the ledger outcome, not current storage; it is never a complete read or permission to cancel automatically.
+
+Registry `errorSchemas[409]` declares the strict terminal envelope alongside the unchanged ordinary error envelope. OpenAPI and its derived reference/Markdown/LLM exports expose both. MCP advertises the accepted receipt as `outputSchema` and status-keyed error schemas in tool `_meta["holofolder.com/errorSchemas"]`. The SDK validates successful structured output and skips output validation on `isError`; the shared formatter validates the terminal envelope itself. Accepted schemas remain unchanged and do not admit error objects. No original intent, private grading/wants/assets/history, actor/member/owner lists or credential context is serialized. Copied creation, arrangement import and recovery keep their accepted receipts and existing errors.
+
+The real REST handler and MCP HTTP SDK tests use synthetic current authority and RPC/ledger data. They cover accepted/rejected replay, lost accepted/rejected replies, changed ID/body/owner/source/credential/actor, malformed terminal rows, ordinary errors and current authorization/entitlement denial before executor data. A separate fixed-gate run proves zero execution; another SDK test proves malformed success output is rejected while a typed tool error survives. These are local transport proofs, not fresh SQL, hosted command or enabled acceptance. Admission remains unconditional 503. #376 and #379 remain open.
 
 ## Durable client states
 
@@ -58,7 +68,7 @@ Local verification:
 - All 90 archived table counts and 35 original-column digests match after fixtures; archive hash is unchanged. Existing helper bodies, owners/ACLs and table ACL/RLS remain unchanged; the added helper stays denied to all runtime roles. The service gateway's deadline remains 10 seconds.
 - Final production build, full typecheck and full lint pass; lint retains the existing 55 warnings with no additions. The new review flow is rechecked on the final build across all six profiles.
 
- Parent review, hosted 089 application, authenticated hosted transport/commit-cancellation races, native recovery/Undo, old clients/queues/service worker, representative conversion and all #379 rollout gates remain separate acceptance. Issues stay open. Release text is unpublished.
+ Parent review of this response slice, authenticated hosted transport/commit-cancellation races, native recovery/Undo, old clients/queues/service worker, representative conversion and all #379 rollout gates remain separate acceptance. Issues stay open. Release text is unpublished.
 
 ## Parent application evidence
 

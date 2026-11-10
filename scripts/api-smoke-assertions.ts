@@ -1,3 +1,4 @@
+import { storageCommandErrorSchema } from '../lib/developer-api/storage'
 import {NATIVE_READ_OPERATIONS} from "../lib/developer-api/native-read"
 import assert from 'node:assert/strict'
 import {NATIVE_DEVELOPER_OPERATIONS} from '../lib/developer-api/storage'
@@ -83,4 +84,12 @@ export function assertStagedSmokeResponse(operation:string,value:unknown) {
  assert.deepEqual(Object.keys(error).sort(),['code','message','requestId'])
  assert.equal(error.code,'native_operations_staged')
  string(error.message);string(error.requestId)
+}
+
+/** Terminal rejection is an error outcome, never successful execution coverage or an inferred conflict. */
+export function assertTerminalStorageSmokeResponse(operation:string,value:unknown,input:Row) {
+ const registered=NATIVE_DEVELOPER_OPERATIONS.find(op=>op.name===operation)
+ assert.ok(registered?.errorSchemas?.[409], 'Operation has no terminal rejection contract')
+ const parsed=storageCommandErrorSchema.parse(value)
+ assert.equal(parsed.error.rejection.operationId,input.operationId,'Terminal proof must bind the original operation ID')
 }

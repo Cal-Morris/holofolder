@@ -1,3 +1,5 @@
+import { StorageCommandRejectedError } from './storage-command-error'
+import { storageCommandErrorSchema } from '@/lib/developer-api/storage'
 import {BinderAccessError} from '@/lib/server/binders'
 import {BillingAccessError} from '@/lib/billing'
 import {AppearanceError} from '@/lib/server/binder-appearance'
@@ -32,10 +34,15 @@ export function knownDeveloperError(error:unknown):DeveloperAccessError|null {
  if(error instanceof BillingAccessError)return new DeveloperAccessError(error.code,error.message,402)
  return null
 }
+export function developerErrorPayload(error: unknown, requestId: string) {
+ const safe=knownDeveloperError(error)
+ if(safe instanceof StorageCommandRejectedError) return storageCommandErrorSchema.parse({error:{code:safe.code,message:safe.message,requestId,rejection:safe.rejection}})
+ return {error:{code:safe?safe.code:'temporarily_unavailable',message:safe?safe.message:'This operation is temporarily unavailable.',requestId}}
+}
 export function developerErrorResponse(error: unknown, requestId: string) {
  const safe=knownDeveloperError(error)
  const known=safe instanceof DeveloperAccessError
- return Response.json({error:{code:known?safe.code:'temporarily_unavailable',message:known?safe.message:'This operation is temporarily unavailable.',requestId}}, {
+ return Response.json(developerErrorPayload(error,requestId), {
   status:known?safe.status:503,
   headers:{...DEVELOPER_HEADERS,'X-Request-Id':requestId,...(known&&safe.retryAfter?{'Retry-After':String(safe.retryAfter)}:{})},
  })
