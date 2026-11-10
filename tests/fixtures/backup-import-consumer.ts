@@ -11,7 +11,7 @@ async function main() {
   const actor = '00880000-0000-4000-8000-000000000002', owner = '00880000-0000-4000-8000-000000000001'
   let signedIn = true, unknown = true
   mock.module('../../lib/supabase/server', () => ({ createClient: async () => ({ auth: {
-    getClaims: async () => ({ data: { claims: { sub: actor } } }), getUser: async () => ({ data: { user: signedIn ? { id: actor } : null } }),
+    getClaims: async () => ({ data: { claims: { sub: actor, role: 'authenticated', session_id: 'synthetic-import-session' } } }), getUser: async () => ({ data: { user: signedIn ? { id: actor } : null } }),
   } }) }))
   const options = arrangementFixture()
   options.current.ownerUserId = owner
@@ -39,7 +39,10 @@ async function main() {
       slotIds: preview.proposed.binders[0].slots.map(s => s.id), addedItemIds: preview.proposed.items.map(i => i.id), removedEmptySlotIds: [], certificate: 'private' })
   }
   const { confirmAppBackupImportPreview, applyAppBackupImportPreview } = await import('../../lib/server/operations/backup-import')
-  const request = (expected = owner) => new Request('https://holofolder.com/app/api/internal-not-admitted', { method: 'POST', headers: { 'X-Binder-Owner': expected } })
+  const request = (expected = owner) => new Request('https://holofolder.com/app/api/internal-not-admitted', { method: 'POST', headers: { Origin: 'https://holofolder.com', 'X-Binder-Owner': expected, 'X-Binder-Auth-Session': 'synthetic-import-session' } })
+  const unbound = request(); unbound.headers.delete('X-Binder-Auth-Session')
+  await assert.rejects(confirmAppBackupImportPreview(unbound, preview, options.current))
+  assert.equal(calls.length, 0, 'missing session must not execute an import')
   await assert.rejects(confirmAppBackupImportPreview(request(), preview, options.current))
   assert.equal(calls.length, 1)
   unknown = false
