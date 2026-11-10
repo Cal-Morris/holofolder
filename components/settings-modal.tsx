@@ -72,6 +72,7 @@ interface SettingsModalProps {
   pwaStatusMessage: string | null
   onInstallApp: () => void
   isReadOnlyView: boolean
+  isAccountReadOnly?: boolean
   sharePath: string | null
   shareShowPrices: boolean
   onShareShowPricesChange: (value: boolean) => void
@@ -125,6 +126,7 @@ export default function SettingsModal({
   pwaStatusMessage,
   onInstallApp,
   isReadOnlyView,
+  isAccountReadOnly = isReadOnlyView,
   sharePath,
   shareShowPrices,
   onShareShowPricesChange,
@@ -149,11 +151,10 @@ export default function SettingsModal({
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage))
   const [activeTab, setActiveTab] = useState<SettingsTabId>("binder")
-  const visibleSettingsTabs = isReadOnlyView
-    ? SETTINGS_TABS.filter((tab) => tab.id === "binder" || tab.id === "display")
-    : SETTINGS_TABS
+  const visibleSettingsTabs = SETTINGS_TABS.filter(tab =>
+    tab.id === "account" ? !isAccountReadOnly : tab.id === "share" ? !isReadOnlyView : true)
   const effectiveActiveTab: SettingsTabId =
-    isReadOnlyView && (activeTab === "share" || activeTab === "account") ? "binder" : activeTab
+    (activeTab === "share" && isReadOnlyView) || (activeTab === "account" && isAccountReadOnly) ? "binder" : activeTab
 
   useEffect(() => {
     if (isOpen) {
@@ -597,10 +598,10 @@ export default function SettingsModal({
             </div>
           )}
 
-          {effectiveActiveTab === "account" && !isReadOnlyView && <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />}
-          {effectiveActiveTab === "account" && !isReadOnlyView && user && <DeveloperSettings key={`developer-${user.id}`} isOnline={isOnline} />}
-          {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />}
-          {effectiveActiveTab === "account" && !isReadOnlyView && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />}
+          {effectiveActiveTab === "account" && !isAccountReadOnly && <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />}
+          {effectiveActiveTab === "account" && !isAccountReadOnly && user && <DeveloperSettings key={`developer-${user.id}`} isOnline={isOnline} />}
+          {effectiveActiveTab === "account" && !isAccountReadOnly && user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />}
+          {effectiveActiveTab === "account" && !isAccountReadOnly && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />}
 
           {effectiveActiveTab === "account" && !isReadOnlyView && (
             <div className="space-y-2">
@@ -620,9 +621,9 @@ export default function SettingsModal({
             </div>
           )}
 
-          {effectiveActiveTab === "account" && !isReadOnlyView && <PartnerPushSettings userId={user?.id ?? null} isInstalledApp={isInstalledApp} />}
+          {effectiveActiveTab === "account" && !isAccountReadOnly && <PartnerPushSettings userId={user?.id ?? null} isInstalledApp={isInstalledApp} />}
 
-          {effectiveActiveTab === "account" && !isReadOnlyView && (
+          {effectiveActiveTab === "account" && !isAccountReadOnly && (
             <PricingPreferencesSettings settings={settings} onUpdateSettings={onUpdateSettings} />
           )}
 

@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, storageAction, closeStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, SUPABASE_URL, Harness, storageAction, closeStorage } from "./fixtures"
 import type { Route } from "@playwright/test"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
@@ -281,4 +281,62 @@ test("focus during startup keeps the single inventory read and it finishes openi
   await page.clock.fastForward(46_000)
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
   expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBeNull()
+})
+
+// Regression: native collection write suppression must not suppress account settings.
+test("native owner can open Account and save pricing preferences without legacy layout writes", async ({ page, insets }) => {
+  const saves: Record<string, unknown>[] = [], legacyWrites: string[] = []
+  await page.route(`${SUPABASE_URL}/auth/v1/passkeys**`, route => route.fulfill({ json: [] }))
+  await page.route("**/app/api/developer/keys", route => route.fulfill({ json: { keys: [], canCreate: false } }))
+  await page.route("**/app/api/developer/clients", route => route.fulfill({ json: { clients: [] } }))
+  await page.route("**/app/api/settings**", async route => {
+    if (route.request().method() === "PUT") saves.push(route.request().postDataJSON())
+    await route.fulfill({ json: { settings: { binderRows: 8, binderCols: 8 }, hasStoredSettings: true } })
+  })
+  page.on("request", request => {
+    if (request.method() !== "GET" && /\/api\/collection(?:\?|$)|\/rest\/v1\/pokemon_collection/.test(request.url())) legacyWrites.push(request.url())
+  })
+  await page.goto(`${entry}&binder=${alpha}`)
+  await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
+  const account = dialog.getByRole("button", { name: "Account", exact: true })
+  await expect(account).toBeVisible()
+  const h = new Harness(page, insets, true)
+  await h.expectMinTapTarget(account); await h.expectWithinSafeViewport(account); await h.expectHittable(account)
+  await account.click()
+  for (const name of ["Holo Folder plan", "Developer access", "Passkeys", "Your profile"]) await expect(dialog.getByRole("region", { name, exact: true })).toBeAttached()
+  await expect(dialog.getByRole("region", { name: "Holo Folder plan", exact: true }).getByRole("heading", { name: "Lifetime access", exact: true })).toBeVisible()
+  await expect(dialog.getByText("Collection sync", { exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole("button", { name: "Download backup", exact: true })).toHaveCount(0)
+  await dialog.getByRole("combobox", { name: "Currency", exact: true }).selectOption("USD")
+  await expect.poll(() => saves.length).toBe(1)
+  expect(saves[0]).toMatchObject({ preferredCurrency: "USD", binderId: alpha, binderRows: 3, binderCols: 3 })
+  await expect(dialog.getByRole("combobox", { name: "Currency", exact: true })).toHaveValue("USD")
+  await h.expectNoHorizontalOverflow()
+  await dialog.getByRole("button", { name: "Binder", exact: true }).click()
+  await expect(dialog.getByRole("button", { name: /2x2/ })).toBeDisabled()
+  await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Binder", exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  await page.route("**/app/api/binder-slots", route => route.fulfill({ status: 503, json: { error: { code: "storage_unavailable", message: "Synthetic sender outage", requestId: "synthetic-settings-layout" } } }))
+  await page.getByRole("button", { name: "Edit layout", exact: true }).click()
+  await page.getByRole("region", { name: "Layout editing", exact: true }).getByRole("button", { name: "Append free slot", exact: true }).click()
+  await expect.poll(async () => (await savedQueue(page)).some(row => (row as { pending: { intent: { request: { commands: { kind: string }[] } } }[] }).pending.some(p => p.intent.request.commands.some(c => c.kind === "create")))).toBe(true)
+  expect(saves).toHaveLength(1)
+  expect(legacyWrites).toEqual([])
+})
+
+test("shared read-only Settings keeps account and layout restricted", async ({ page }) => {
+  const writes: string[] = []
+  page.on("request", request => { if (request.method() === "PUT" && request.url().includes("/api/settings")) writes.push(request.url()) })
+  await page.goto(`${entry}&readOnly=1`)
+  await page.getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole("button", { name: "Account", exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole("button", { name: "Share", exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole("button", { name: /2x2/ })).toBeDisabled()
+  expect(writes).toEqual([])
 })
