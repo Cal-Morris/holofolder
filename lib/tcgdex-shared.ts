@@ -52,3 +52,26 @@ export function pickTcgdexImageFromExternalIds(externalIds: unknown): string | n
   const image = (tcgdex as Record<string, unknown>).image
   return typeof image === "string" && image.length > 0 ? image : null
 }
+
+export function pickImageLanguage(value: unknown, requestedLanguage: string) {
+  if (!Array.isArray(value)) {
+    return null
+  }
+
+  const languages = value.filter((candidate): candidate is string => typeof candidate === "string" && candidate.length > 0)
+  if (languages.length === 0) {
+    return null
+  }
+
+  if (languages.includes(requestedLanguage)) {
+    return requestedLanguage
+  }
+
+  for (const fallback of TCGDEX_LANGUAGE_FALLBACKS) {
+    if (languages.includes(fallback)) {
+      return fallback
+    }
+  }
+
+  return languages[0] || null
+}

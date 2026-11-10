@@ -111,7 +111,7 @@ import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
-import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
+import { buildSlotDisplay, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
 import CachedNativeStartup from "@/components/cached-native-startup"
@@ -261,6 +261,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const closeSlotDetail = useCallback(() => setSelectedSlotId(null), [])
   const orderedDisplaySlots = useMemo(() => stagedSlotDisplay ? buildSlotDisplay(stagedSlotDisplay.binder, stagedSlotDisplay.inventory, stagedSlotDisplay.resolveCard ?? (id => stagedSlotDisplay.catalog[id])) : undefined, [stagedSlotDisplay])
+  const nativeCoverStats = useMemo(() => stagedSlotDisplay ? nativeBinderCoverStats(stagedSlotDisplay.binder) : undefined, [stagedSlotDisplay])
   const selectedDisplaySlot = orderedDisplaySlots ? resolveDisplaySelection(orderedDisplaySlots, selectedSlotId) : null
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonSummary | null>(null)
   const [wantedDetail, setWantedDetail] = useState<{ pokemonId: number; card: WantedCard } | null>(null)
@@ -3597,7 +3598,7 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }, [isDesktopActionsOpen])
 
-  const renderSpreadInfoPage = (side: "left" | "right") => renderSpreadInfoPageView({ activeCollectionFilterOption, collectionStats, neededCount: neededPokemonList.length, perfectCount: favoritePokemonList.length, canEditBinder, filteredPokemonList, filteredTotalLabel, getBinderThemeForPage, hasTrackedCards, selectedGen, settings, totalBinderPages }, side)
+  const renderSpreadInfoPage = (side: "left" | "right") => renderSpreadInfoPageView({ native: nativeCoverStats ? { name: stagedSlotDisplay!.inventory.collections.find(c => c.id === stagedSlotDisplay!.binder.collectionId)?.name, slotCount: stagedSlotDisplay!.binder.slots.length } : undefined, activeCollectionFilterOption, collectionStats: nativeCoverStats ?? collectionStats, neededCount: nativeCoverStats?.needed ?? neededPokemonList.length, perfectCount: nativeCoverStats?.perfect ?? favoritePokemonList.length, canEditBinder: browserSurface?.editingAvailable ?? canEditBinder, filteredPokemonList, filteredTotalLabel, getBinderThemeForPage, hasTrackedCards, selectedGen, settings, totalBinderPages }, side)
 
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 

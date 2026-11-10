@@ -83,3 +83,19 @@ test("rearranging whole source slots preserves independent detail and item metad
   assert.equal(resolveDisplaySelection(reordered, "slot-b")?.target, binder.slots[1].target)
   assert.equal(resolveDisplaySelection(reordered, "slot-b")?.wantedCards, binder.slots[1].wantedCards)
 })
+
+test("native cover counts saved occupied targets, finalized copies and spacers independently", async () => {
+  const { nativeBinderCoverStats } = await import("@/lib/binder-display-model")
+  const { binder } = syntheticSlotDisplaySnapshot()
+  binder.slots[1].status = "finalized"
+  assert.deepEqual(nativeBinderCoverStats(binder), { collected: 4, total: 6, percentage: 67, needed: 2, perfect: 1 })
+  assert.deepEqual(nativeBinderCoverStats({ ...binder, slots: [] }), { collected: 0, total: 0, percentage: 0, needed: 0, perfect: 0 })
+})
+
+test("native National Dex cover reports 653 of 1025 from saved placements", async () => {
+  const { nativeBinderCoverStats } = await import("@/lib/binder-display-model")
+  const { binder } = syntheticSlotDisplaySnapshot()
+  binder.slots = Array.from({ length: 1025 }, (_, i) => ({ ...binder.slots[0], id: `synthetic-${i}`,
+    inventoryItemId: i < 653 ? `synthetic-copy-${i}` : null, status: i < 653 ? "collected" : null }))
+  assert.deepEqual(nativeBinderCoverStats(binder), { collected: 653, total: 1025, percentage: 64, needed: 372, perfect: 0 })
+})
