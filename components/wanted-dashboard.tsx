@@ -26,8 +26,6 @@ import {
   filterWantedDashboardEntries,
   groupWantedByPokemon,
   hasWantedPriceDrop,
-  normalizeWantedFilters,
-  normalizeWantedSort,
   sortWantedDashboardEntries,
   type buildWantedDashboardSummary,
   type WantedDashboardPriceBandId,

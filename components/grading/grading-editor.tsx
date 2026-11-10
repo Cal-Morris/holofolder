@@ -77,16 +77,15 @@ function EditorSession({ item, itemRef, ownerEvidence, onClose, onAcceptDraft, o
       <header {...swipe} data-sheet-grabber className={styles.header}><h2>Edit grading</h2>
         <button type="button" aria-label="Close grading editor" onClick={onClose}><X size={20} /></button></header>
       <div className={styles.actions}>
-        <button type="button" disabled={busy || (!onQueue && !onCommit && !onAcceptDraft)} onClick={() => void submit()}>{busy ? "Saving…" : onQueue ? locked ? "Retry saving on device" : "Save on device" : onCommit ? "Save grading" : "Use grading draft"}</button>
+        <button type="button" disabled={busy || (!onQueue && !onCommit && !onAcceptDraft)} onClick={() => void submit()}>{busy ? "Saving…" : onQueue ? locked ? "Try again" : "Save grading" : onCommit ? "Save grading" : "Use grading draft"}</button>
         <button type="button" onClick={onClose}>Cancel</button>
       </div>
       <div className={styles.body}>
-        <p>Copy {item.id}</p>
-        <p className={styles.notice}>User-recorded details. Certificate and private labels are not published. Blank fields mean unknown.</p>
-        <label className={styles.field}>Grading status<select disabled={busy || locked} value={graded ? "graded" : "raw"} onChange={e => setGraded(e.target.value === "graded")}>
-          <option value="raw">Raw</option><option value="graded" disabled={item.identity.kind !== "card"}>Graded</option>
+        <p className={styles.notice}>These are your own notes about this card&apos;s grade. Certificate numbers and labels stay private. Leave anything you don&apos;t know blank.</p>
+        <label className={styles.field}>Is it graded?<select disabled={busy || locked} value={graded ? "graded" : "raw"} onChange={e => setGraded(e.target.value === "graded")}>
+          <option value="raw">Not graded</option><option value="graded" disabled={item.identity.kind !== "card"}>Graded</option>
         </select></label>
-        {!graded && <p>Raw removes grading from this copy only when accepted. Ownership and acquisition stay the same.</p>}
+        {!graded && <p>Saving this removes the grade from this card. The card itself stays in your collection.</p>}
         {graded && <>
           <label className={styles.field}>Provider<select disabled={busy || locked} value={record.provider.kind === "known" ? record.provider.id : "custom"} onChange={e => {
             const id = e.target.value
@@ -114,14 +113,13 @@ function EditorSession({ item, itemRef, ownerEvidence, onClose, onAcceptDraft, o
             }
             setRecord({ ...record, certificate: parsed.certificate }); setUrl(""); setError("")
           }}>Use certificate from URL</button>
-          <p className={styles.notice}>Only verified PSA record paths are supported. URL parameters are discarded locally; nothing is fetched.</p>
+          <p className={styles.notice}>Paste a PSA certificate link to fill in its number. Nothing is looked up online.</p>
           <ProviderRecordLink key={`${record.provider.kind}:${record.certificate}`} record={record} />
         </>}
         {gradingReviewNotes(value).map(note => <p key={note} className={styles.notice}>{note}</p>)}
-        {duplicates.length > 0 && <p role="status">Possible duplicate provider and certificate in the current owner’s supplied inventory evidence. Copies stay separate. This is not a global authenticity check.</p>}
-        {onQueue && <p role="status">Saved on device means pending sync, not saved remotely. Closing will not undo an accepted edit.</p>}
-        {locked && !busy && <p role="status">Retry keeps the exact submitted draft. Close to discard an unaccepted draft.</p>}
-        {busy && !onQueue && <p role="status">Waiting for persisted confirmation. Closing will not undo a submitted save.</p>}
+        {duplicates.length > 0 && <p role="status">Another of your cards has the same grader and certificate number. Both are kept as separate cards.</p>}
+                {locked && !busy && <p role="status">That didn&apos;t save. Try again, or close to leave the grade as it was.</p>}
+        {busy && !onQueue && <p role="status">Saving…</p>}
         {error && <p role="alert">{error}</p>}
       </div>
     </div>
