@@ -19,7 +19,7 @@ export async function handleRestRequest(request:Request,{params}:{params:Promise
    if(key in query) throw new DeveloperAccessError('invalid_query','Do not repeat query parameters.',400)
    query[key]=['limit','pokemon','pokemonId'].includes(key)?Number(value):key==='confirm'?value==='true':value
   }
-  const body=request.method==='GET'?{}:await readDeveloperJson(request,match.operation.name==='update_appearance'?131072:65536)
+  const body=request.method==='GET'?{}:await readDeveloperJson(request,match.operation.maxBytes??(match.operation.name==='update_appearance'?131072:65536))
   const candidate:Record<string,unknown>={...query,...body,...match.params}
   if(match.operation.schema.shape.idempotencyKey) {
    const header=request.headers.get('idempotency-key')

@@ -1,0 +1,57 @@
+---
+title: Native storage contracts
+description: Staged inventory, slot, copied creation and native recovery contracts, with current availability and permission limits.
+---
+
+## Availability
+
+**Native developer operations are staged and unavailable.** Valid authenticated requests return `503 native_operations_staged`. Listing a schema or MCP tool does not enable it. There is no credential, environment option or request flag that bypasses this gate. Existing legacy collection and Activity Undo APIs keep their current behavior.
+
+The staged command contracts reuse the app's trusted native executor. Developer inventory, collection and slot reads are **not yet available**. The current complete reader requires a verified first-party cookie/RLS session and includes private planning evidence; a REST API key or MCP OAuth grant cannot substitute for that session. No paginated developer projection or complete export is claimed. Public binder links never grant access to private owner inventory, certificates, label assets or location.
+
+## Credentials and permissions
+
+REST uses a personal API key at `https://app.holofolder.com/app/api/v1`. MCP uses its separately approved OAuth grant at `https://app.holofolder.com/app/mcp`.
+
+Slot commands, inventory commands and copied creation require both `collection:write` and `binders:write`. Native recovery additionally requires `collection:read`. The existing current owner/partner membership, paid developer entitlement, revocation and read/write budgets apply before staging denial. Trial access alone does not grant developer access. No new grant or database permission is introduced.
+
+## Commands after admission
+
+These are contract names, **not currently enabled workflows**:
+
+| REST POST path, relative to the API root | MCP tool | Contract |
+| --- | --- | --- |
+| `/storage/slots/commands` | `execute_slot_commands` | Insert, update, clear, remove and reorder stable slots atomically |
+| `/storage/inventory/commands` | `execute_inventory_commands` | Add, edit, remove ownership, assign, move, unassign and delete storage atomically |
+| `/storage/collections` | `create_storage_collection` | Create native storage from an ordered copied manifest |
+| `/storage/recovery/preview` | `preview_storage_recovery` | Review supported native event recovery |
+| `/storage/recovery/apply` | `apply_storage_recovery` | Apply the exact confirmed version-1 native plan |
+| `/storage/recovery/v2/preview` | `preview_storage_recovery_v2` | Review default-creation recovery with an explicit replacement |
+| `/storage/recovery/v2/apply` | `apply_storage_recovery_v2` | Apply the exact confirmed version-2 native plan |
+
+Targets describe goals. A null target is a free slot, not a wanted card. Wants are explicit entries. Each assigned slot needs its own physical copy; moving preserves copy identity and empties its previous slot. Clear/remove release owned copies to Unassigned. Only `removeOwned` removes ownership. Collection deletion must supply its exact complete slot preconditions; it is not an ownership deletion.
+
+Every command retains its `operationId`, stable copy/slot/collection IDs and exact revisions across retries. Slot commands include inventory, collection and layout revisions, plus the selected slot/item/placement versions. A copied manifest has ordered targets and immutable source/entry identities. Creation never silently invokes legacy creation or rewrites a preset later. Current completion uses current targets, not the original manifest count.
+
+This synthetic slot insertion illustrates the schema only. It currently returns staging denial with permitted credentials:
+
+```bash
+curl https://app.holofolder.com/app/api/v1/storage/slots/commands \
+  -H "Authorization: Bearer $HOLO_FOLDER_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"collectionId":"00830000-0000-4000-8000-000000000011","operationId":"synthetic-slot-insert-1","inventoryRevision":1,"collectionVersion":0,"layoutRevision":0,"commands":[{"kind":"create","ids":["synthetic-slot-1"],"beforeSlotId":null}]}'
+```
+
+MCP calls `execute_slot_commands` with that same JSON object as arguments. Native intents use body `operationId`, not the legacy creation `Idempotency-Key` convention. Reuse the same credential and transport for a retry; actor, credential, source and request-body changes can conflict with the permanent native ledger. A historical receipt is not a fresh read or proof of current placement. Unknown outcomes require exact replay followed by a fresh authoritative complete read before acknowledging the edit.
+
+## Bounds and errors
+
+Ordinary slot/inventory batches allow at most 100 commands and 256 affected work under the canonical planner, with a 256 KiB intent limit. A sole whole-collection deletion has its own 4,096-slot, two-collection, 8 MiB bound. Copied creation allows 4,096 targets under 2 MiB. Native recovery has a 1 MiB request bound. Oversized requests fail as a whole; no truncated page or split batch is reported as complete.
+
+Current authorization/input errors can precede `native_operations_staged`. After future admission, the existing executor maps stale revisions, identity or changed-body replay to `409 storage_conflict`, current membership denial to `403 storage_access_denied`, caps/developer entitlements to 402, malformed constraints to 400 and unsupported recovery to `409 recovery_unsupported`. Unknown backend failures return sanitized `503 storage_unavailable`. REST errors carry `error.code`, `error.message` and `error.requestId`; MCP execution errors use `isError` and the same structured error. MCP schema validation can reject malformed arguments before execution using the SDK's validation error.
+
+Native recovery never falls back to the legacy Activity recovery facade. Unsupported or incomplete evidence has no usable plan; newer/ABA changes, dependencies and authority transitions remain conflicts. Version 2 requires one explicit same-owner replacement with its exact current revisions. Copied creation receipts conservatively retain `recoverySupported:false`; use a fresh supported preview, not that receipt, to decide recovery eligibility.
+
+## Remaining gates
+
+Reviewed developer authentication and private projection over the complete reader, bounded stable pagination, preset discovery/preview parity, original-recipient replay and fresh-read acknowledgement, native offline relaunch, compatibility/consumer integration, recovery/load proof and #379 rollout acceptance remain open. No hosted conversion, public share expansion or enabled native workflow is claimed. The OpenAPI receipt schemas describe the staged executor contract; they are not evidence of a current 200 response.

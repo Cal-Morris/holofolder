@@ -1,5 +1,7 @@
 # Operation coverage
 
+Current native status: [the #376 dispatcher slice](../native-developer-operations.md) now registers explicitly staged command/creation/native recovery schemas behind fixed 503 denial. Earlier foundation notes below describe their own delivered slices; none claims native admission or developer complete-read/pagination support.
+
 The operation registry in `lib/developer-api/operations.ts` defines the REST schemas, MCP tools and generated reference. Implemented interfaces remain subject to release verification.
 
 | UI data capability | Shared REST/MCP operations | Verification |
@@ -137,3 +139,9 @@ Opt-in PageScanner camera/photo and QuickCardScanner review prepare existing par
 Migration 087 and the shared recovery facade expose only complete recorded legacy `pokemon_collection` row events. `preview_collection_recovery` and `apply_collection_recovery` have matching REST/MCP registry entries and the first-party Activity adapter. They bind current actor/owner/transport, recheck membership and allowances, preserve exact recorded identities, refuse later same-key edits including ABA, require a reviewed token and explicit confirmation, and replay the same operation once. The original stays immutable and a new entry links through `recovery_of_event_id`; `recoveryOfEventId` filters inverse links. Durable device retries retain the original account/owner/membership and request across unknown outcomes; accepted recovery is followed by a complete collection reread.
 
 The existing native/structural executor and default-creation v2 remain internal. This release does not bypass #396/#379 latency, enablement or complete-read gates, convert a binder, recover deleted collections/configuration/sharing, or replay acquisition notifications. Older incomplete evidence is unsupported. The API, Activity preview and help state those limits. See [current user/API help](../../content/docs/collection-history.mdx); [release draft](../releases/activity-undo-draft.md) stays unpublished until verified production delivery.
+
+## Native developer dispatcher slice (#376), staged
+
+[Current help](../../content/docs/native-storage.mdx) and [internal adapter/proof contract](../native-developer-operations.md) now cover seven registered native slot/inventory command, copied creation and v1/v2 recovery operations. REST and MCP share strict schemas, declared existing permissions, per-operation bounds and the existing trusted storage executor. Every valid authorized request is still denied by fixed `503 native_operations_staged` before execution; generated OpenAPI and agent exports declare staged admission and distinguish future receipts from current responses. Legacy collection and Activity/087 Undo operations remain unchanged. No first-party route, SQL, grant, conversion or runtime admission changes.
+
+Developer complete reads/pagination are **not delivered**: the current whole-owner reader requires first-party cookie/RLS authentication and forbids developer/private-evidence serialization. API keys and MCP grants cannot substitute. The exact incompatible calls and required reviewed developer projection are recorded in the internal contract. No admin bypass, invented session or partial-as-complete projection is added. Preset list/preview, read and consumer/queue/offline/recovery/hosted proof and #379 gates remain open. [Release copy](../releases/native-developer-parity-draft.md) is unpublished.
