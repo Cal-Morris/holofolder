@@ -97,7 +97,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
   ] as const
   // Same contract as the dock: native Inventory renders under the "binder" main view, so only one destination is pressed.
   const isActive = (id: (typeof destinations)[number]["id"]) => !isSearchOpen && (id === "inventory" ? Boolean(inventory?.active)
-    : id === "binder" ? activeMainView === "binder" && !inventory?.active
+    : id === "binder" ? (inventory ? inventory.collectionActive : activeMainView === "binder")
     : activeMainView === id || (id === "sets" && activeMainView === "pokemon"))
   const showStatus = showTally.count > 0 && showTally.currency
     ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}`
