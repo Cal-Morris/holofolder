@@ -192,6 +192,21 @@ async function main() {
   await assert.rejects(read("list_storage_slots", { collectionId: collection }), { code: "native_read_too_large" })
   reset(0); f.tables.storage_collection_state[0].authority = "legacy"
   await assert.rejects(read(), { code: "legacy_inventory_incomplete" })
+  for (const source of ["catalog", "alias", "dex", "set"]) {
+    reset(1)
+    const cardId = source === "alias" ? "synthetic-alias" : "synthetic-budget-card"
+    f.tables.inventory_items[0].identity = { kind: "card", cardId, language: "en" }
+    f.tables.tcg_cards = [{ id: "synthetic-budget-card", set_id: "synthetic-budget-set", local_id: "1", name_en: "Synthetic card", name_json: { en: "Synthetic card" },
+      external_ids_json: source === "alias" ? { catalog: { aliasIds: [cardId] } } : {} }]
+    f.tables.tcg_sets = [{ id: "synthetic-budget-set", name_en: "Synthetic set" }]
+    f.tables.tcg_card_dex_ids = [{ card_id: "synthetic-budget-card", dex_id: 6 }]
+    const oversized = "x".repeat(33 * 1024 * 1024)
+    if (source === "catalog") f.tables.tcg_cards[0].name_json = { en: "Synthetic card", xx: oversized }
+    if (source === "alias") f.tables.tcg_cards[0].external_ids_json = { catalog: { aliasIds: [cardId] }, synthetic: oversized }
+    if (source === "dex") f.tables.tcg_card_dex_ids[0].dex_id = oversized
+    if (source === "set") f.tables.tcg_sets[0].name_en = oversized
+    await assert.rejects(read("list_inventory_items", {}), { code: "inventory_read_unavailable" }, source + " response must consume the source byte budget")
+  }
   console.log("synthetic trusted authority, privacy, large paging, race and REST/MCP proof passed")
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

@@ -239,7 +239,7 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
             check()
           })
           if (sourceRows.some(source => !snapshot.binders.some(b => b.collectionId === source.collection_id && b.slots.some(slot => slot.id === source.slot_id)))) return unavailable()
-          const catalog = await readInventoryCatalog(db, snapshot, controller.signal, check)
+          const catalog = await readInventoryCatalog(db, snapshot, controller.signal, check, accountBytes)
           const layouts: InventoryNavigationEvidence["layouts"] = []
           for (const b of meta.binders) {
             const settings = meta.settings
