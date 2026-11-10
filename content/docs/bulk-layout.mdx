@@ -18,3 +18,13 @@ Ordered card fill, bulk clear/remove with safe Undo, cross-storage moves, public
 The local-only test host now exercises server command delivery as well as device saving. **Retry pending sync** preserves the original operation ID and request after a lost connection. A server receipt alone does not clear Pending sync: the session must read the complete current inventory after that reply. Billing and access failures pause the edit; conflicts retain it for review. An unknown outcome cannot be discarded or replaced to force a save.
 
 This test path is not production admission. Public inventory/slot routes and native REST/MCP mutations remain unavailable. Native edits do not use the currently supported legacy Activity Undo command; native recovery, startup/offline relaunch, public API parity and the remaining rollout checks must pass before enablement.
+
+### Staged native edit review
+
+Native collection commands are still disabled in production. In the local test flow,
+only a committed terminal rejection enables review. **Refresh current storage** loads
+a complete private current read; **Use current storage** explicitly cancels that saved
+edit. **Rebase saved edit** supports only nonoverlapping content or metadata changes.
+Structural, overlapping and dependent edits stay retained for separate review.
+A timeout, lost reply or unclassified conflict preserves the original command for an
+exact retry, including after reload. No new command ID is chosen automatically.

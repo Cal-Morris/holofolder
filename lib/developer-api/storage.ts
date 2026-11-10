@@ -1,3 +1,4 @@
+import { parseBackupArrangementCommand, BACKUP_IMPORT_LIMITS } from '@/lib/domain/backup-import-command'
 import { z } from 'zod'
 import { CARD_LANGUAGES, CARD_FINISHES } from '@/lib/domain/cards'
 import { parseSlotCommand, SLOT_LIMITS } from '@/lib/domain/slot-commands'
@@ -56,12 +57,28 @@ const inventoryCommand = z.discriminatedUnion('kind', [
 function canonical(parse: (input: unknown) => unknown) {
   return (input: unknown) => { try { parse(input); return true } catch { return false } }
 }
-export const nativeSlotSchema = z.object({ collectionId, operationId, inventoryRevision: revision, collectionVersion: revision,
+/** Assertion only: never reconstruct a ledger request from a redacted read or current server state. */
+export function nativeCommandIntent(input: Record<string, unknown>) {
+  const { privateFields: _privateFields, expectedOwnerUserId: _expectedOwnerUserId, ...intent } = input
+  return intent
+}
+const privateFields = z.enum(['preserve', 'replace']).optional().describe('preserve rejects grading/wants replacement, selected-want fulfillment and slot/collection removal. replace (also the legacy default when omitted) retains full-replacement semantics; never rebuild replacements from redacted reads.')
+const expectedOwnerUserId = collectionId.optional().describe('Recipient precondition, required with privateFields=preserve. Must match the current authenticated owner scope; never selects or grants authority. Retain across retries.')
+export const nativeSlotSchema = z.object({ collectionId, operationId, inventoryRevision: revision, collectionVersion: revision, privateFields, expectedOwnerUserId,
   layoutRevision: revision, commands: z.array(slotCommand).min(1).max(100),
-}).strict().refine(canonical(parseSlotCommand), 'Invalid or oversized slot command.')
-export const nativeInventorySchema = z.object({ operationId, inventoryRevision: revision,
+}).strict().refine(input => canonical(parseSlotCommand)(nativeCommandIntent(input)), 'Invalid or oversized slot command.')
+  .refine(input => input.privateFields !== 'preserve' || input.commands.every(command =>
+    command.kind === 'create' || command.kind === 'move' || (command.kind === 'update' && !('wantedCards' in command))),
+  'Private-preserving mode supports slot creation, reorder and target-only updates. Wants patches require transactional executor support.')
+  .refine(input => input.privateFields !== 'preserve' || input.expectedOwnerUserId !== undefined, 'Private-preserving mode requires the original expectedOwnerUserId.')
+export const nativeInventorySchema = z.object({ operationId, inventoryRevision: revision, privateFields, expectedOwnerUserId,
   collections: z.array(collection).max(32), commands: z.array(inventoryCommand).min(1).max(100),
-}).strict().refine(canonical(parseInventoryCommand), 'Invalid or oversized inventory command.')
+}).strict().refine(input => canonical(parseInventoryCommand)(nativeCommandIntent(input)), 'Invalid or oversized inventory command.')
+  .refine(input => input.privateFields !== 'preserve' || input.commands.every(command =>
+    command.kind === 'add' || command.kind === 'unassign' || command.kind === 'removeOwned'
+    || ((command.kind === 'assign' || command.kind === 'move') && command.fulfillWant === null)),
+  'Private-preserving mode supports add, explicit removeOwned, unassign and placement without want fulfillment. Grading patches and selected-want fulfillment require transactional executor support.')
+  .refine(input => input.privateFields !== 'preserve' || input.expectedOwnerUserId !== undefined, 'Private-preserving mode requires the original expectedOwnerUserId.')
 export const nativeCreationSchema = z.object({ version: z.literal(1), operationId, inventoryRevision: revision, collectionId,
   name: z.string().min(1).max(40), kind: z.enum(['binder', 'slab', 'custom']), defaultPresentation: z.enum(['binder', 'slabs', 'list']),
   location: z.string().min(1).max(200).nullable(), grid: z.object({ rows: z.number().int().min(1).max(8), cols: z.number().int().min(1).max(8) }).strict().nullable(),
@@ -69,6 +86,13 @@ export const nativeCreationSchema = z.object({ version: z.literal(1), operationI
     entries: z.array(z.object({ id, target: identity.nullable() }).strict()).max(4096),
   }).strict(), slotIds: z.array(id).max(4096),
 }).strict().refine(canonical(parseCollectionCreation), 'Invalid or oversized copied collection creation.')
+export const nativeArrangementSchema = z.object({ version: z.literal(1), operationId, inventoryRevision: revision, destinationCollectionId: collectionId,
+  collections: z.array(collection).min(1).max(32), emptyDestinationSlots: z.array(slot).max(4096), manifest: nativeCreationSchema.shape.manifest.nullable(),
+  slots: z.array(z.object({ id, target: identity.nullable(), status: z.enum(['collected', 'finalized', 'considering', 'wishlisted']).nullable(),
+    wantedCards: z.array(want).max(100), inventoryItemId: id.nullable(), presetOrigin: z.object({ source: z.object({ id, version: id }).strict(), entryId: id }).strict().nullable(),
+  }).strict()).min(1).max(4096),
+  copies: z.array(z.object({ kind: z.enum(['add', 'existing']), item: z.object({ id, identity, grading, acquiredAt: z.string().nullable(), version: revision }).strict(), ref: item.nullable() }).strict()).max(5000),
+}).strict().refine(canonical(parseBackupArrangementCommand), 'Invalid or unsupported atomic arrangement import.')
 const eventId = z.string().regex(/^[1-9]\d{0,18}$/).refine(v => v.length < 19 || v <= '9223372036854775807')
 const recovery = { eventId, restoreUnassignedItemIds: z.array(id).max(16384).refine(v => new Set(v).size === v.length) }
 const apply = { operationId, planToken: z.string().regex(/^[a-f0-9]{64}$/), confirmed: z.literal(true) }
@@ -89,9 +113,11 @@ const staged = 'STAGED, not admitted: valid authorized requests return 503 nativ
 const permissions = ['collection:write', 'binders:write'] as const
 const recoveryPermissions = ['collection:read', ...permissions] as const
 const operations: readonly DeveloperOperation[] = [
-  { name: 'execute_slot_commands', method: 'POST', path: '/storage/slots/commands', description: staged + 'Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership.', permissions, write: true, schema: nativeSlotSchema, maxBytes: SLOT_LIMITS.bytes,
+  { name: 'import_storage_arrangement', method: 'POST', path: '/storage/imports/arrangement', description: staged + 'Atomic JSON v2 arrangement into an empty or target-only native collection with an already identical copied manifest. Every copy needs an explicit add or versioned existing-copy move. Retain the immutable request after unknown outcome. Does not replace collections/configuration, import assets, restore changed same-owner snapshots or authorize backup IDs.', permissions, write: true, schema: nativeArrangementSchema, maxBytes: BACKUP_IMPORT_LIMITS.bytes,
+    responseSchema: z.object({ ...receipt, changed: z.literal(true), collectionId, collectionVersion: revision, layoutRevision: revision, slotIds: z.array(id).max(4096), addedItemIds: z.array(id).max(5000), removedEmptySlotIds: z.array(id).max(4096) }).strict() },
+  { name: 'execute_slot_commands', method: 'POST', path: '/storage/slots/commands', description: staged + 'Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.', permissions, write: true, schema: nativeSlotSchema, maxBytes: SLOT_LIMITS.bytes,
     responseSchema: z.object({ ...changed, collectionVersion: revision, layoutRevision: revision, removedSlotIds: z.array(id) }).strict() },
-  { name: 'execute_inventory_commands', method: 'POST', path: '/storage/inventory/commands', description: staged + 'Atomic owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation.', permissions, write: true, schema: nativeInventorySchema, maxBytes: INVENTORY_COLLECTION_DELETE_LIMITS.bytes,
+  { name: 'execute_inventory_commands', method: 'POST', path: '/storage/inventory/commands', description: staged + 'Atomic owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; grading patches and redacted selected-want fulfillment are unsupported. Omitted or replace retains full-replacement semantics.', permissions, write: true, schema: nativeInventorySchema, maxBytes: INVENTORY_COLLECTION_DELETE_LIMITS.bytes,
     responseSchema: z.object({ ...changed, selectedItemIds: z.array(id), acquiredItemIds: z.array(id) }).strict() },
   { name: 'create_storage_collection', method: 'POST', path: '/storage/collections', description: staged + 'Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.', permissions, write: true, schema: nativeCreationSchema, maxBytes: COLLECTION_CREATION_LIMITS.bytes,
     responseSchema: z.object({ ...receipt, changed: z.literal(true), collectionId, collectionVersion: revision, layoutRevision: revision, slotIds: z.array(id).max(4096), recoverySupported: z.literal(false) }).strict() },

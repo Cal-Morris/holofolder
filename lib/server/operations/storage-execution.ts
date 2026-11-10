@@ -1,4 +1,5 @@
 import "server-only"
+import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { requireExpectedAppearanceOwner } from "@/lib/server/binder-appearance"
 import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { randomUUID } from "node:crypto"
@@ -44,7 +45,7 @@ export async function executeMcpStorageRequest(request: Request, operation: Stor
   const context = await requireMcpContext(request, STORAGE_PERMISSIONS, "write")
   return executeDeveloperStorageOperation(context, operation, input)
 }
-const storageRequestBytes = (operation: StorageOperation) => operation === "inventory" ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
+const storageRequestBytes = (operation: StorageOperation) => ["inventory", "backup.arrangement"].includes(operation) ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
 // Slots can change wanted cards and release placements; every operation needs both write scopes.
 const STORAGE_PERMISSIONS = ["collection:write", "binders:write"] as const
 
@@ -62,6 +63,7 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
   return withAuditOperation(operationId, async () => {
     const { data, error } = await client.rpc("storage_execute_v1", { operation, owner_id: ownerId, request: input }).abortSignal(AbortSignal.timeout(10000))
     if (error) throw storageExecutionError(error)
+    if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
     return normalizeStorageResult(operation, data)
   })
 }

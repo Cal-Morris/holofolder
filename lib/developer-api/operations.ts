@@ -1,3 +1,4 @@
+import { NATIVE_READ_OPERATIONS } from "./native-read"
 import {DISPLAY_CURRENCIES,PRICING_REGIONS} from '@/lib/pricing-region'
 import {z} from 'zod'
 import {recoveryApplySchema,recoveryPreviewSchema} from '@/lib/domain/activity-recovery'
@@ -10,6 +11,7 @@ const catalog={...paging,language,q:z.string().max(80).optional(),set:id.optiona
 export type DeveloperOperation={name:string;method:'GET'|'POST'|'PATCH'|'PUT'|'DELETE';path:string;description:string;permissions:readonly DeveloperPermission[];write:boolean;schema:z.ZodObject;maxBytes?:number;responseSchema?:z.ZodType;admission?:'staged';idempotent?:boolean;destructive?:boolean}
 export const DEVELOPER_OPERATIONS:readonly DeveloperOperation[]=[
  ...NATIVE_DEVELOPER_OPERATIONS,
+ ...NATIVE_READ_OPERATIONS,
  {name:'list_cards',method:'GET',path:'/cards',description:'Browse and search the card catalog with pagination.',permissions:['catalog:read'],write:false,schema:z.object(catalog).strict()},
  {name:'get_card',method:'GET',path:'/cards/{id}',description:'Look up a card by its exact identifier.',permissions:['catalog:read'],write:false,schema:z.object({id,language}).strict()},
  {name:'list_sets',method:'GET',path:'/sets',description:'List card sets.',permissions:['catalog:read'],write:false,schema:z.object({...paging,language,series:id.optional()}).strict()},

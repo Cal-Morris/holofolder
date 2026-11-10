@@ -14,5 +14,5 @@ export async function authenticateMcpToken(token:string,origin?:string|null):Pro
 
  if(!grant) throw new DeveloperAccessError('oauth_revoked','This MCP connection has expired or been revoked. Connect again.',401)
  validateMcpOrigin(origin,grant.redirect_origin)
- return {actorId:identity.actorId,credentialId:grant.id,transport:'mcp',permissions:normalizePermissions(grant.permissions)}
+ return {actorId:identity.actorId,credentialId:grant.id,transport:'mcp',oauth:{sessionId:identity.sessionId,clientId:identity.clientId,expiresAt:Number(data.claims.exp)},permissions:normalizePermissions(grant.permissions)}
 }

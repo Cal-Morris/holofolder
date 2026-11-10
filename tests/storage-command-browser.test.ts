@@ -48,3 +48,17 @@ test("billing, auth, permanent and conflict responses retain status without manu
     }
   } finally { globalThis.fetch = old }
 })
+test("only private, matching terminal ledger envelopes authorize rejection reconciliation", async () => {
+  const old = globalThis.fetch
+  const rejection = { outcome: "rejected", operationId: intent.request.operationId, code: "slot_revision_conflict", inventoryRevision: 2 }
+  try {
+    globalThis.fetch = async () => Response.json({ version: 1, operationId: intent.request.operationId, rejection }, { status: 409, headers: { "Cache-Control": "private, no-store" } })
+    assert.deepEqual(await sendStorageCommand(intent, () => scope, new AbortController().signal), { status: 409, operationId: intent.request.operationId, code: rejection.code, rejection })
+    for (const bad of [{ ...rejection, operationId: "another-operation" }, { ...rejection, code: "idempotency_conflict" }, { ...rejection, inventoryRevision: -1 }, { ...rejection, certificate: "synthetic" }]) {
+      globalThis.fetch = async () => Response.json({ version: 1, operationId: intent.request.operationId, rejection: bad }, { status: 409, headers: { "Cache-Control": "private, no-store" } })
+      assert.equal((await sendStorageCommand(intent, () => scope, new AbortController().signal)).rejection, undefined)
+    }
+    globalThis.fetch = async () => Response.json({ version: 1, operationId: intent.request.operationId, rejection }, { status: 409 })
+    assert.equal((await sendStorageCommand(intent, () => scope, new AbortController().signal)).rejection, undefined)
+  } finally { globalThis.fetch = old }
+})

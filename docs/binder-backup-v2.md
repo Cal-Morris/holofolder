@@ -1,6 +1,6 @@
 # Binder JSON v2 and import preview, internal preparation
 
-Related: #365. Based on main `13361bb4354872c8c602974bbf5f4cecb79a2764`. This is a pure serialization/preview slice. It adds no production caller, hosted import, conversion, queue, SQL, grant, REST/MCP operation or dispatcher entry. Existing Settings backup and Dex CSV/v1 import behavior stays supported. #365 remains open.
+Related: #365. The original serialization/preview slice was based on main `13361bb4354872c8c602974bbf5f4cecb79a2764`. The later [088 atomic arrangement backend](atomic-arrangement-import.md) now supplies bounded real execution, an internal app consumer and a staged REST/MCP contract. Production routes remain denied, no conversion is performed, and legacy Settings backup and Dex CSV/v1 import stay supported. #365 remains open. Historical execution limitations below are narrowed only by the current 088 section.
 
 ## Portable format
 
@@ -76,3 +76,7 @@ The private reader's inventory brand is still not a complete portable-backup
 capability: live appearance/settings, asset packaging and any supported restore
 API remain their owning delivery gates. No public serializer was expanded, no
 whole-restore executor or production export button was added.
+
+## Current execution slice (088)
+
+The [atomic arrangement import contract](atomic-arrangement-import.md) supersedes the earlier whole-arrangement execution blocker only for empty/target-only native destinations with an already matching copied manifest, every physical-copy decision and no appearance/assets. Its immutable preview now emits one real command through the shared bridge. Additional-copy previews also have an internal authenticated consumer. Changed same-owner restores and all other listed gates remain blocked; production admission remains denied.

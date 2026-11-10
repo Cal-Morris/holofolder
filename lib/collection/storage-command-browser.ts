@@ -1,3 +1,4 @@
+import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { appPath } from "@/lib/app-path"
 import { parseSlotIntent, type SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
 import { sameInventoryReadScope, type InventoryReadScope } from "@/lib/collection/inventory-read-transport"
@@ -21,6 +22,13 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
     if (!valid() || response.redirected) return { status: 0 }
     const body: unknown = await response.json()
     if (!valid()) return { status: 0 }
+    const privateReply = response.headers.get("cache-control")?.split(/\s*,\s*/)
+    if (response.status === 409 && privateReply?.includes("private") && privateReply.includes("no-store")
+      && response.headers.get("content-type")?.startsWith("application/json")
+      && isContractRecord(body, ["version", "operationId", "rejection"]) && Object.keys(body).length === 3
+      && body.version === 1 && body.operationId === parsed.request.operationId && isStorageCommandRejection(body.rejection, parsed.request.operationId)) {
+      return { status: 409, code: body.rejection.code, operationId: parsed.request.operationId, rejection: body.rejection }
+    }
     if (response.status !== 200) {
       const code = isContractRecord(body, ["error"]) && isContractRecord(body.error, ["code", "message", "requestId"])
         && typeof body.error.code === "string" ? body.error.code : undefined
