@@ -34,6 +34,8 @@ import type { CollectedPokemon, SaveCollectionOptions, WantedCard } from "@/hook
 import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSummary } from "@/components/binder/binder-app-model"
 
 export interface MainContentContext {
+  nativeDashboard?: import("react").ReactNode
+  nativeAnalytics?: import("react").ReactNode
   layoutToolbar?: import("react").ReactNode
   orderedDisplaySlots?: (BinderDisplaySlot | null)[]
   onSelectSlot?: (id: string) => void
@@ -189,7 +191,8 @@ export function renderMainContentView(ctx: MainContentContext) {
             : "overflow-hidden"
         }`}>
         {viewLoadError ? <p role="alert" className="shrink-0 rounded-2xl border border-border/55 bg-card/70 p-3 text-sm">{viewLoadError}</p> : null}
-        {activeMainView === "binder" && !readOnlyMode && settings.showBinderValue !== false && <BinderValue onDismiss={onHideBinderValue} collection={collection} prices={pricesByCardId} loading={isLoadingPrices} onOpen={() => { rememberBinderScope("analytics", "binder"); void switchMainView("analytics") }} />}
+        {activeMainView === "binder" && ctx.nativeDashboard}
+        {activeMainView === "binder" && !ctx.nativeDashboard && !readOnlyMode && settings.showBinderValue !== false && <BinderValue onDismiss={onHideBinderValue} collection={collection} prices={pricesByCardId} loading={isLoadingPrices} onOpen={() => { rememberBinderScope("analytics", "binder"); void switchMainView("analytics") }} />}
         {(activeMainView === "pokemon" || activeMainView === "sets") ? (
           <div role="group" aria-label="Browse perspective" className="flex shrink-0 gap-2 px-1 py-1">
             {(["pokemon", "sets"] as const).map(view => <button key={view} type="button" aria-pressed={activeMainView === view} onClick={() => switchMainView(view)} className={`min-h-9 rounded-full border px-4 text-xs font-semibold ${activeMainView === view ? "border-primary/45 bg-primary text-primary-foreground" : "border-border/55 bg-card/70"}`}>{view === "pokemon" ? "Pokémon" : "Sets"}</button>)}
@@ -201,7 +204,7 @@ export function renderMainContentView(ctx: MainContentContext) {
         {activeMainView === "pokemon" ? (
           <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} ownedElsewhere={allBinders ? ownedElsewhereLabel : undefined} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
         ) : activeMainView === "analytics" ? (
-          <CollectionAnalyticsView collection={collection} allBindersCollection={allBindersOwned} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} isLoadingPrices={isLoadingPrices} onBrowsePokemon={openCardBrowser} />
+          ctx.nativeAnalytics ?? <CollectionAnalyticsView collection={collection} allBindersCollection={allBindersOwned} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} isLoadingPrices={isLoadingPrices} onBrowsePokemon={openCardBrowser} />
         ) : activeMainView === "list" ? (
           <DexListView
             pokemonList={filteredPokemonSummaryList}

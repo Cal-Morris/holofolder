@@ -1,3 +1,5 @@
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows"
+import { readStorageAuthority } from "@/lib/legacy-binder-transition"
 import type { User } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -7,6 +9,17 @@ import { legacyAnalyticsEntries, parseAnalyticsQuery } from "@/lib/collection-an
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } })
 const missingHistory = (error: { code?: string } | null) => error?.code === "42P01" || error?.code === "PGRST205"
 
+/** History is owner-wide, so mixed authority cannot expose a frozen subset as current analytics. */
+async function legacyAnalyticsAuthority(client: ReturnType<typeof createAdminClient>, ownerId: string) {
+  const authority = await fetchAllRows((from, to) => client.from("storage_collection_state")
+    .select("collection_id,authority,conversion_version").eq("owner_user_id", ownerId).order("collection_id").range(from, to))
+  if (authority.error) readStorageAuthority(null, authority.error as { code?: string })
+  else if (authority.data.some(row => readStorageAuthority(row, null) === "slots")) {
+    return json({ error: "Native collection analytics are not enabled. Frozen legacy history is excluded.", code: "native_analytics_staged" }, 503)
+  }
+  return null
+}
+
 export async function readCollectionAnalytics(request: Request, user: Pick<User, "id">, verifiedOwnerId?:string) {
   try {
     const client = createAdminClient()
@@ -15,6 +28,8 @@ export async function readCollectionAnalytics(request: Request, user: Pick<User,
     try { query = parseAnalyticsQuery(new URL(request.url).searchParams) }
     catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid history request" }, 400) }
     const ownerId = verifiedOwnerId ?? await resolveCollectionOwnerUserId(client, user.id)
+    const authorityResponse = await legacyAnalyticsAuthority(client, ownerId)
+    if (authorityResponse) return authorityResponse
     let activityQuery = client.from("collection_activity").select("id,pokemon_id,pokemon_name,recorded_at,before_state,after_state,changes").eq("owner_user_id", ownerId).order("id", { ascending: false }).limit(51)
     if (query.beforeId) activityQuery = activityQuery.lt("id", query.beforeId)
     const [initialActivityResult, priceResult] = await Promise.all([
@@ -29,6 +44,8 @@ export async function readCollectionAnalytics(request: Request, user: Pick<User,
     }
     if (missingHistory(activityResult.error) || missingHistory(priceResult.error)) return json({ activity: [], nextCursor: null, priceHistory: [], historyAvailable: false })
     if (activityResult.error || priceResult.error) return json({ error: "History could not be loaded" }, 503)
+    const finalAuthorityResponse = await legacyAnalyticsAuthority(client, ownerId)
+    if (finalAuthorityResponse) return finalAuthorityResponse
     const rows = activityResult.data ?? []
     return json({ activity: rows.slice(0, 50).flatMap(row => legacyAnalyticsEntries(row)), nextCursor: rows.length > 50 ? String(rows[49].id) : null, priceHistory: priceResult.data ?? [], historyAvailable: true })
   } catch { return json({ error: "History could not be loaded" }, 503) }

@@ -169,3 +169,9 @@ The [staged Slabs contract](../slab-rendering.md) and [help](../../content/docs/
 
 
 Transactional extension (090): `execute_inventory_commands` now declares public `patchGrading` and exact selected-want `expectedPublic` intents through the same shared parser, dispatcher, REST/MCP and generated OpenAPI. SQL resolves private data only under existing transaction locks after lifetime original-intent replay lookup; receipts stay sanitized. These forms are accepted in preserve mode. Full replacement compatibility is unchanged. Staging is unconditional, with no new scopes or complete-read/ACK claims. Existing private-asset inverse recovery remains an explicit gate. Independent 088+090 local proof is separate from pending 089 integration, parent hosted migration and enablement. [Contract and handoff](../native-developer-operations.md#transactional-private-preserving-inventory-intents-090).
+
+Native analytics/dashboard totals are a staged internal presentation over the existing
+fenced complete-read host, not a new admitted API. `get_collection_analytics` remains
+legacy history: owner-wide converted/mixed storage returns 503 `native_analytics_staged`
+before legacy activity is queried; unknown authority fails closed. Saved prices still
+use `get_prices`. See [native analytics boundary](../native-analytics-dashboard.md).
