@@ -177,3 +177,9 @@ Transactional extension (090): `execute_inventory_commands` now declares public 
 ### Staged terminal command errors
 
 `execute_slot_commands` and `execute_inventory_commands` declare a strict terminal-ledger error contract: REST 409 / MCP `isError`, with `error.code=storage_command_rejected` and only `rejection.outcome`, original `operationId`, known rejection `code` and `inventoryRevision`. Ordinary conflict errors carry no terminal proof. Accepted receipt schemas remain success-only; MCP advertises them as `outputSchema` and error schemas under `_meta["holofolder.com/errorSchemas"]`. Generated OpenAPI and derived Markdown/LLM reference carry the same contract. See [reconciliation](../native-command-reconciliation.md). Public admission remains fixed 503; synthetic transport tests are not hosted acceptance or an enabled feature. No new UI/offline queue contract or SQL is introduced.
+
+Native analytics/dashboard totals are a staged internal presentation over the existing
+fenced complete-read host, not a new admitted API. `get_collection_analytics` remains
+legacy history: owner-wide native roots (including retained Unassigned copies), converted/mixed storage return 503 `native_analytics_staged`
+before legacy activity is queried; unknown authority fails closed. Saved prices still
+use `get_prices`. See [native analytics boundary](../native-analytics-dashboard.md).

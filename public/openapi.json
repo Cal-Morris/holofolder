@@ -15809,7 +15809,7 @@
       "get": {
         "operationId": "get_collection_analytics",
         "summary": "Get collection analytics",
-        "description": "Read collection activity and available card price history.\n\nRequired permissions: `collection:read`, `prices:read`. MCP tool: `get_collection_analytics`.",
+        "description": "Read legacy collection activity and available card price history. A retained native owner root, converted or mixed storage returns 503 native_analytics_staged; native analytics admission remains closed.\n\nRequired permissions: `collection:read`, `prices:read`. MCP tool: `get_collection_analytics`.",
         "tags": [
           "Prices and insights"
         ],
