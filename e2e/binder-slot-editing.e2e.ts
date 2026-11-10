@@ -45,6 +45,7 @@ test.describe("staged explicit layout editing", () => {
     const writes: string[] = []
     page.on("request", r => { if (/\/api\/(inventory|binder-slots|collection)(\?|$)/.test(r.url()) && r.method() !== "GET") writes.push(r.url()) })
     const before = (await slot(page, "slot-a").boundingBox())!
+    await expect(slot(page, "slot-a")).toHaveAccessibleDescription("A1")
     await toolbar(page).getByRole("button", { name: "Edit layout", exact: true }).click()
     await expect(toolbar(page)).toContainText("Editing layout")
     const editingSlot = (await slot(page, "slot-a").boundingBox())!
@@ -78,6 +79,8 @@ test.describe("staged explicit layout editing", () => {
     await pager.press("Enter")
     await expect(slot(page, "slot-a")).toBeVisible()
     await expect(slot(page, "slot-a")).toHaveAccessibleName("Snorlax A, Owned")
+    // Coordinates follow the pocket's position on this page, not the stable slot id.
+    await expect(slot(page, "slot-a")).toHaveAccessibleDescription("B2")
     await toolbar(page).getByRole("button", { name: "Edit layout", exact: true }).click()
     await slot(page, "slot-a").click()
     await sheet(page).getByRole("button", { name: "Insert free slot after", exact: true }).click()
@@ -88,6 +91,7 @@ test.describe("staged explicit layout editing", () => {
     await pager.press("Enter")
     await expect(page.locator("button[data-slot-id]")).toHaveCount(1)
     await expect(page.locator("button[data-slot-id]")).toHaveAccessibleName("Free slot, Empty spacer")
+    await expect(page.locator("button[data-slot-id]")).toHaveAccessibleDescription("A1")
     expect(writes).toEqual([])
   })
 

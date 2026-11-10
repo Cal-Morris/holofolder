@@ -78,6 +78,10 @@ for (const size of [3, 4, 8]) test(`native ${size}x${size} grid keeps real Brows
   const expectedIds = Array.from({ length: size * size }, (_, n) => n === 9 ? "slot-0" : `alpha-empty-${n}`)
   expect(browse.slots.map(s => s.id)).toEqual(expectedIds)
   expect(edit.slots.map(s => s.id)).toEqual(expectedIds)
+  // Every pocket (owned, target or free) carries its row-major A1 coordinate.
+  const coordinates = await page.locator("[data-binder-page] button[data-slot-id]").evaluateAll(nodes => nodes.map(n => n.ownerDocument.getElementById(n.getAttribute("aria-describedby") ?? "")?.textContent))
+  expect(coordinates).toEqual(expectedIds.map((_, n) => `${String.fromCharCode(65 + Math.floor(n / size))}${n % size + 1}`))
+  if (size > 3) await expect(slot("slot-0")).toHaveAccessibleDescription(size === 4 ? "C2" : "B2")
   for (const state of [browse, edit]) {
     for (const [i, box] of state.slots.entries()) {
       expect(box.width).toBeGreaterThanOrEqual(36)
