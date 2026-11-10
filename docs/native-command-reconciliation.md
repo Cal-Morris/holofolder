@@ -1,6 +1,6 @@
 # Staged native command rejection and reconciliation
 
-Related: #363, #383. Preparation only. Public app, REST and MCP admission stays hard 503. No conversion, runtime admission or publication is included. Migration 089 is unapplied to hosted Supabase; the parent owns a fresh restore-verified backup, application, independent review, serialized merge and deployment.
+Related: #363, #383. Preparation only. Public app, REST and MCP admission stays hard 503. No conversion, runtime admission or publication is included. Parent applied migration089 to hosted Supabase after independent review and a fresh restore-verified backup; serialized merge, deployment and enabled acceptance remain separate gates.
 
 ## Why existing SQL is insufficient
 
@@ -59,3 +59,7 @@ Local verification:
 - Final production build, full typecheck and full lint pass; lint retains the existing 55 warnings with no additions. The new review flow is rechecked on the final build across all six profiles.
 
  Parent review, hosted 089 application, authenticated hosted transport/commit-cancellation races, native recovery/Undo, old clients/queues/service worker, representative conversion and all #379 rollout gates remain separate acceptance. Issues stay open. Release text is unpublished.
+
+## Parent application evidence
+
+Applied only089 after verified088 at2026-11-10 00:48:22 UTC, sourceSQL SHA256 `cc91e232b57b778f06f01aeb39c233b271d26437148965084a66093cdd665ed1`. Fresh full archive restored before application, SHA256 `7686e1034608b2f9c06f26f9c1f5f5bf08f42b98e180d789fc8d93e78ce144f4`; all earlier archives retained. Parent verified all90 table counts/35 core digests, existing function owners/ACLs, table/column privileges and RLS, billing role reads, protected recorder/recovery definitions and private executor denials. New helper remains denied to all runtime roles, gateway service-only with unchanged10-second deadline. Native tables empty, zero conversions and no hosted command executed. Local twice-application and exact088-definition proof are separate from the child's actual SQL/race proof and the remaining hosted transport acceptance.
