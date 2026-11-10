@@ -24,10 +24,12 @@ export async function rawRestoreDigest(command: RawRestoreCommand) {
   return Array.from(new Uint8Array(bytes), n => n.toString(16).padStart(2, '0')).join('')
 }
 export function isRawRestoreReceipt(value: unknown, command: RawRestoreCommand): value is RawRestoreReceipt {
-  return isRawReceiptShape(value) && (command.version === 2 ? value.version === 2 : value.version === undefined) && value.inventoryRevision > command.inventoryRevision
+  return isRawReceiptShape(value) && (command.version === 1 ? value.version === undefined : value.version === command.version) && value.inventoryRevision > command.inventoryRevision
     && value.collectionId === command.collection.collectionId && value.collectionVersion > command.collection.version
-    && value.layoutRevision === command.collection.layoutRevision
-    && backupContentKey(value.slotIds) === backupContentKey(command.slots.map(s => s.after.id))
+    && value.layoutRevision === command.collection.layoutRevision + (command.version === 3 ? 1 : 0)
+    && backupContentKey(value.slotIds) === backupContentKey(command.version === 3 ? command.slotOrder.after : command.slots.map(s => s.after.id))
+    && (command.version !== 3 || value.inventoryRevision === command.inventoryRevision + 1 && value.collectionVersion === command.collection.version + 1
+      && backupContentKey(value.slotOrder) === backupContentKey(command.slotOrder))
     && backupContentKey(value.releasedItemIds) === backupContentKey(command.releaseItemIds)
 }
 export function validRawRestoreProof(value: unknown, command: RawRestoreCommand): value is RawRestoreProof {

@@ -111,7 +111,7 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
             if (active()) { setRawReview(review); setCopyPage(0); setSlotPage(0); setReleaseConsent([]); setCommand(null) }
           })}>Review raw collection locally</button>}
           {rawReview && <div className="space-y-3 break-words [overflow-wrap:anywhere]">
-            <p>Current collection: {collectionId}. Ordered slots and grid stay unchanged. Released copies remain owned in Unassigned.</p>
+            <p>Current collection: {collectionId}. The grid stays unchanged. Review each stable slot’s before and after position below. Released copies remain owned in Unassigned.</p>
             <p>{rawReview.slots.length.toLocaleString()} slots, {rawReview.placements.length.toLocaleString()} involved copies, {rawReview.choices.releaseItemIds.length.toLocaleString()} explicit releases to Unassigned.</p>
             {rawReview.placements.slice(copyPage * 50, (copyPage + 1) * 50).map(p => <div key={p.itemId} className="space-y-1">
               <p>Copy {p.itemId}: {p.from ?? 'Unassigned'} → {p.to ?? 'Unassigned'}</p>
@@ -127,7 +127,7 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
             </nav>}
             <details><summary className="min-h-10 cursor-pointer py-2">Exact targets, status and wanted choices</summary>
               {rawReview.slots.slice(slotPage * 50, (slotPage + 1) * 50).map((slot, n) => <div key={slot.before.id} className="my-2 rounded-lg border p-2">
-                <p>Slot {slotPage * 50 + n + 1}: {slot.before.id}</p>
+                <p>Slot {slotPage * 50 + n + 1}: {slot.before.id}, position {rawReview.slotOrder.before.indexOf(slot.before.id) + 1} → {rawReview.slotOrder.after.indexOf(slot.before.id) + 1}</p>
                 <p>Before target: {JSON.stringify(slot.before.target)}, status: {slot.before.status ?? 'empty'}, wants: {JSON.stringify(slot.before.wantedCards)}</p>
                 <p>After target: {JSON.stringify(slot.after.target)}, status: {slot.after.status ?? 'empty'}, wants: {JSON.stringify(slot.after.wantedCards)}</p>
               </div>)}

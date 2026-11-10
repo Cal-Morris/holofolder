@@ -35,7 +35,7 @@ export async function handleRawRestore(request: Request, clients?: Parameters<ty
       await confirmAppRawContentRestore(request, plan, clients, true)
       return Response.json({ version: 1, operationId, request: plan.request }, { headers })
     }
-    if (input.version !== 1 && input.version !== 2) throw new DeveloperAccessError('invalid_input', 'Supported raw restore command versions are 1 and 2. Preserve existing device records.', 400)
+    if (input.version !== 1 && input.version !== 2 && input.version !== 3) throw new DeveloperAccessError('invalid_input', 'Supported raw restore command versions are 1, 2 and 3. Preserve existing device records.', 400)
     const command = parseRawRestoreCommand(input)
     if (command.operationId !== operationId) throw new DeveloperAccessError('invalid_input', 'Operation identity changed.', 400)
     // Original delivery reaches the lifetime ledger before any mutable reconstruction.

@@ -27,7 +27,7 @@ test('raw restore rejects lossy subsets, other placements, missing/graded/change
   for (const patch of [
     { scope: 'all-inventory' }, { appearance: [{}] }, { layouts: [{ ...backup.layouts[0], rows: 4 }] },
     { items: backup.items.map((i: object) => ({ ...i, acquiredAt: '2020-01-02T00:00:00Z' })) },
-    { binders: backup.binders.map((b: { slots: object[] }) => ({ ...b, slots: b.slots.slice().reverse() })) },
+    { binders: backup.binders.map((b: { slots: object[] }) => ({ ...b, slots: b.slots.slice(1) })) },
     { collections: backup.collections.map((c: object) => ({ ...c, name: 'Other name' })) },
   ]) assert.throws(() => planRawContentRestore({ ...f.input, text: JSON.stringify({ ...backup, ...patch }) }))
   const absent = structuredClone(f.snapshot); absent.items = absent.items.filter(i => i.id !== 'copy-a'); absent.placements = absent.placements.filter(p => p.inventoryItemId !== 'copy-a'); absent.binders[0].slots[1].inventoryItemId = null; absent.binders[0].slots[1].status = null
