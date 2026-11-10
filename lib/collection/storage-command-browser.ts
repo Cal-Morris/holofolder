@@ -1,3 +1,4 @@
+import { readRawRestoreDelivery } from '@/lib/collection/raw-restore-delivery'
 import { isCreationRejection } from "@/lib/collection/creation-import-rejection"
 import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { appPath } from "@/lib/app-path"
@@ -13,9 +14,11 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
   const current = currentScope()
   if (!current || signal.aborted) return { status: 0 }
   const scope = { ...current }, parsed = parseSlotIntent(intent), deliveryId = crypto.randomUUID()
+  if (parsed.kind === 'raw-restore' && (parsed.request.planning.actorUserId !== scope.actorUserId
+    || parsed.request.planning.ownerUserId !== scope.ownerUserId || parsed.request.planning.authSessionId !== scope.authSessionId)) return { status: 0 }
   const valid = () => !signal.aborted && sameInventoryReadScope(currentScope(), scope)
   try {
-    const path = localHarness ? `/e2e-harness/storage/${parsed.kind}` : parsed.kind === "creation" ? "/api/storage-collections" : parsed.kind === "slots" ? "/api/binder-slots" : "/api/inventory"
+    const path = localHarness ? `/e2e-harness/storage/${parsed.kind}` : parsed.kind === "raw-restore" ? "/api/raw-content-restore" : parsed.kind === "creation" ? "/api/storage-collections" : parsed.kind === "slots" ? "/api/binder-slots" : "/api/inventory"
     const response = await fetch(appPath(path), { method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error",
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
       headers: { "Content-Type": "application/json", Accept: "application/json", "X-Binder-Owner": scope.ownerUserId,
@@ -23,6 +26,12 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
     if (!valid() || response.redirected) return { status: 0 }
     const body: unknown = await response.json()
     if (!valid()) return { status: 0 }
+    if (parsed.kind === 'raw-restore') {
+      const rawRestoreProof = await readRawRestoreDelivery(response, body, parsed.request, scope, deliveryId)
+      if (!valid()) return { status: 0 }
+      return rawRestoreProof ? { status: rawRestoreProof.receipt ? 200 : 409, operationId: parsed.request.operationId,
+        inventoryRevision: (rawRestoreProof.receipt ?? rawRestoreProof.rejection)!.inventoryRevision, rawRestoreProof } : { status: response.status === 200 ? 0 : response.status }
+    }
     const privateReply = response.headers.get("cache-control")?.split(/\s*,\s*/)
     if (parsed.kind === "creation" && response.status === 409 && privateReply?.includes("private") && privateReply.includes("no-store")
       && response.headers.get("content-type")?.startsWith("application/json")
@@ -55,6 +64,7 @@ export async function sendStorageCommand(intent: SlotOfflineIntent, currentScope
   } catch { return { status: 0 } }
 }
 function validReceipt(value: unknown, intent: SlotOfflineIntent) {
+  if (intent.kind === "raw-restore") return false
   const kind = intent.kind
   if (kind === "creation") {
     const fields = ["inventoryRevision", "collectionId", "collectionVersion", "layoutRevision", "changed", "slotIds", "recoverySupported"]

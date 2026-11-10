@@ -1,3 +1,6 @@
+import { parseRawRestoreCommand } from '@/lib/domain/raw-restore'
+import { backupContentKey } from '@/lib/binder-backup-v2'
+import { blankPreset } from '@/lib/binder-creation-draft'
 import { projectCollectionCreation, parseCollectionCreation } from "@/lib/domain/storage-creation"
 import { createClient } from "@supabase/supabase-js"
 import { fixture } from "./inventory-read-server"
@@ -135,11 +138,22 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[0].status = "collected"
     state.tables.binder_slots[2].target = { kind: "pokemon", pokemonId: 25 }
   }
+  if (id.startsWith('restore-')) {
+    state.tables.storage_collection_state[0].preset_manifest = blankPreset()
+    for (let n = 0; n < 2; n++) {
+      state.tables.inventory_items.push({ id: `synthetic-restore-copy-${n}`, owner_user_id: owner,
+        identity: { kind: 'pokemon', pokemonId: 25 }, grading: null, acquired_at: null, version: 1, legacy_source: null })
+      state.tables.inventory_placements.push({ inventory_item_id: `synthetic-restore-copy-${n}`, owner_user_id: owner,
+        collection_id: collection, slot_id: `synthetic-slot-${n}`, version: 1 })
+      state.tables.binder_slots[n].status = 'collected'
+    }
+  }
   let removedRaw: { item: Record<string, unknown>; placement?: Record<string, unknown> } | null = null
 
   let creationRejected = false
 
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
+  state.intercept((table) => table === 'get_billing_access' ? Response.json({ enforced: false, perpetual: true, saved_card_count: 0 }) : undefined)
   const originalRpc = state.client.rpc.bind(state.client)
   // Synthetic HTTP response, real Supabase RPC builder and trusted audit context.
   const rpcClient = createClient("https://synthetic.supabase.test", "synthetic-service", { auth: { persistSession: false }, global: { fetch: async (_input, init) => {
@@ -149,6 +163,11 @@ export function storageCommandHarness(id: string) {
     try {
       const request = parseStorageRequest(input.operation, input.request)
       const key = String(request.operationId), body = JSON.stringify(input)
+      if (input.operation === 'backup.restore.raw') {
+        const planning = parseRawRestoreCommand(request).planning, membership = state.tables.partnerships[0]
+        const partner = membership ? (membership.user1_id === owner ? membership.user2_id : membership.user1_id) : null
+        if (planning.partnerUserId !== partner || planning.partnershipId !== (membership?.id ?? null)) return Response.json({ code: '42501' }, { status: 403 })
+      }
       const previous = ledger.get(key)
       if (previous) return previous.body === body && previous.audit === audit ? Response.json(previous.result) : Response.json({ code: "23505" }, { status: 409 })
       if (input.operation.startsWith("recovery.")) {
@@ -194,6 +213,39 @@ export function storageCommandHarness(id: string) {
         const result = { outcome: "rejected", operationId: key, code: input.operation === "slots" ? "slot_revision_conflict" : "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision }
         ledger.set(key, { body, audit, result })
         return Response.json(result)
+      }
+      if (input.operation === 'backup.restore.raw') {
+        const command = parseRawRestoreCommand(request)
+        const current = snapshot.collections.find(c => c.id === command.collection.collectionId)!, binder = snapshot.binders.find(b => b.collectionId === current.id)!
+        const stored = state.tables.binders.find(c => c.id === current.id)!
+        const reject = (code: string) => {
+          const result = { outcome: 'rejected', operationId: key, code, inventoryRevision: snapshot.inventoryRevision }
+          ledger.set(key, { body, audit, result }); return Response.json(result)
+        }
+        if (command.inventoryRevision !== snapshot.inventoryRevision) return reject('inventory_revision_conflict')
+        if (command.collection.version !== current.version || command.collection.layoutRevision !== binder.layoutRevision
+          || command.configuration.name !== current.name || command.configuration.rows !== stored.binder_rows || command.configuration.cols !== stored.binder_cols) return reject('raw_restore_collection_conflict')
+        if (id.startsWith('restore-rejection-')) return reject('raw_restore_content_conflict')
+        for (const pair of command.slots) {
+          const slot = binder.slots.find(s => s.id === pair.before.id), item = snapshot.items.find(i => i.id === slot?.inventoryItemId)
+          const placement = snapshot.placements.find(p => p.inventoryItemId === slot?.inventoryItemId)
+          if (!slot || backupContentKey(pair.before) !== backupContentKey({ id: slot.id, version: slot.version, inventoryItemId: slot.inventoryItemId,
+            itemVersion: item?.version ?? null, placementVersion: placement?.version ?? null })) return reject('raw_restore_content_conflict')
+        }
+        // Synthetic transaction projection. 094 SQL atomicity remains the parent's separate proof.
+        state.tables.inventory_placements = state.tables.inventory_placements.filter(p => !command.items.some(i => i.itemId === p.inventory_item_id))
+        for (const pair of command.slots) {
+          const row = state.tables.binder_slots.find(s => s.id === pair.before.id)!
+          Object.assign(row, { target: pair.after.target, status: pair.after.status, wanted_cards: pair.after.wantedCards, version: Number(row.version) + 1 })
+          if (pair.after.inventoryItemId) state.tables.inventory_placements.push({ inventory_item_id: pair.after.inventoryItemId,
+            owner_user_id: owner, collection_id: current.id, slot_id: pair.after.id,
+            version: (command.items.find(i => i.itemId === pair.after.inventoryItemId)?.placement?.slot.placementVersion ?? 0) + 1 })
+        }
+        state.tables.inventory_owner_state[0].inventory_revision = snapshot.inventoryRevision + 1
+        state.tables.storage_collection_state.find(c => c.collection_id === current.id)!.version = current.version + 1
+        const result = { changed: true, inventoryRevision: snapshot.inventoryRevision + 1, collectionId: current.id,
+          collectionVersion: current.version + 1, layoutRevision: binder.layoutRevision, slotIds: command.slots.map(s => s.after.id), releasedItemIds: command.releaseItemIds }
+        ledger.set(key, { body, audit, result }); return Response.json(result)
       }
       if (input.operation === "collection.create" && id.startsWith("creation-rejection-") && !creationRejected) {
         creationRejected = true

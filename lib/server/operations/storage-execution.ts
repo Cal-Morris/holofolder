@@ -93,7 +93,7 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
   })
 }
 
-async function checkedLocalStorageUser(request: Request, client: import("@supabase/supabase-js").SupabaseClient) {
+export async function checkedLocalStorageUser(request: Request, client: import("@supabase/supabase-js").SupabaseClient) {
   const { requireAppearanceOrigin } = await import("@/lib/server/binder-appearance")
   requireAppearanceOrigin(request)
   const claims = await client.auth.getClaims(), result = await client.auth.getUser()

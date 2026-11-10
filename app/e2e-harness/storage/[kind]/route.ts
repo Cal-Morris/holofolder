@@ -7,9 +7,13 @@ async function handle(request: Request, context: { params: Promise<{ kind: strin
   if (!canShowInventoryHarness(process.env.HOLOFOLDER_E2E, Boolean(process.env.VERCEL || process.env.VERCEL_ENV), new URL(request.url).host)) return denied()
   const { kind } = await context.params
   const id = request.headers.get("cookie")?.match(/(?:^|;\s*)hf-storage-fixture=([a-zA-Z0-9-]{8,100})(?:;|$)/)?.[1]
-  if (!id || !["inventory", "slots", "recovery", "creation"].includes(kind)) return denied()
+  if (!id || !["inventory", "slots", "recovery", "creation", "raw-restore"].includes(kind)) return denied()
   const { storageCommandHarness } = await import("@/tests/fixtures/storage-command-harness")
   const { client } = storageCommandHarness(id)
+  if (kind === 'raw-restore') {
+    const { handleRawRestore } = await import('@/lib/server/raw-restore-http')
+    return handleRawRestore(request, { session: client, admin: client })
+  }
   if (kind === "recovery") {
     const { handleNativeRecovery } = await import("@/lib/server/native-recovery-http")
     return handleNativeRecovery(request, { session: client, admin: client })
