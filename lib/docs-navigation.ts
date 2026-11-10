@@ -8,7 +8,6 @@ const operationPaths = new Map(Object.entries(schema.paths).flatMap(([path, meth
 const referenceGroups = {
   'reference/collection': [
     { name: 'Binders', path: /^\/binders(?:\/\{id\}|\/order)?$/ },
-    { name: 'Collection', path: /^\/collection(?:\/\{pokemonId\})?$/ },
     { name: 'History & recovery', path: /^\/collection\/(audit|recovery)(\/|$)/ },
     { name: 'Imports', path: /^\/imports\// },
     { name: 'Sharing & appearance', path: /^\/(binders\/\{binderId\}\/(identity|sharing)|appearance|artwork)(\/|$)/ },
@@ -20,7 +19,7 @@ const referenceGroups = {
   'reference/prices-and-insights': [
     { name: 'Prices', path: /^\/(prices|price-checks)(\/|$)/ },
     { name: 'Comparisons', path: /^\/comparison-jobs(\/|$)/ },
-    { name: 'Analytics', path: /^\/analytics(\/|$)/ },
+    { name: 'Legacy Pokémon analytics', path: /^\/legacy\/pokemon\/analytics(\/|$)/ },
     { name: 'Deal checks', path: /^\/(deals|listings)(\/|$)/ },
   ],
 }
