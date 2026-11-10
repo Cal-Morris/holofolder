@@ -9,74 +9,100 @@ import { buildTcgdexAssetImageUrl, pickImageLanguage } from "@/lib/tcgdex-shared
 import { pickExternalCardImageUrl } from "@/lib/card-image-sources"
 
 type Row = Record<string, unknown>
+// Preserve input order even when independent mirror queries finish out of order.
+async function concurrent<T, R>(values: T[], read: (value: T) => Promise<R>): Promise<R[]> {
+  const result: R[] = new Array(values.length)
+  let next = 0
+  await Promise.all(Array.from({ length: Math.min(4, values.length) }, async () => {
+    while (next < values.length) {
+      const index = next++
+      result[index] = await read(values[index])
+    }
+  }))
+  return result
+}
+function batches(values: string[]): string[][] {
+  return Array.from({ length: Math.ceil(values.length / 100) }, (_, i) => values.slice(i * 100, i * 100 + 100))
+}
 /** Public mirror only. No owner filter, private cache key, upstream lookup or sync. */
 export async function readInventoryCatalog(db: SupabaseClient, snapshot: InventorySnapshot, signal: AbortSignal, check: () => void, accountBytes?: (value: unknown) => void): Promise<InventoryCatalogEvidence[]> {
   const ids = [...new Set([
     ...snapshot.items.flatMap(i => i.identity.kind === "card" ? [i.identity.cardId] : []),
     ...snapshot.binders.flatMap(b => b.slots.flatMap(s => [s.target?.kind === "card" ? s.target.cardId : null, ...s.wantedCards.map(w => w.card_id)])),
   ].filter((id): id is string => id !== null))].sort()
-  const cards: Row[] = [], links: Row[] = [], sets: Row[] = []
+  const cards: Row[] = [], sets: Row[] = []
   const read = async (table: string, select: string, key: string, values: string[], target: Row[], pageKey: string) => {
-    for (let i = 0; i < values.length; i += 100) {
+    const pages = await concurrent(batches(values), async batch => {
+      const found: Row[] = []
+      const batchIds = new Set(batch)
       let after: string | null = null
       const seen = new Set<string>()
       do {
         check()
-        let query = db.from(table).select(select).in(key, values.slice(i, i + 100)).order(pageKey).limit(500)
+        let query = db.from(table).select(select).in(key, batch).order(pageKey).limit(500)
         if (after !== null) query = query.gt(pageKey, after)
         const response = await query.abortSignal(signal)
         if (response.error || !Array.isArray(response.data) || response.data.length > 500) throw new Error("inventory_read_unavailable")
         accountBytes?.(response.data)
         const page = response.data as unknown as Row[]
         for (const row of page) {
-          if (!values.slice(i, i + 100).includes(String(row[key])) || !isSlotContractId(row[pageKey]) || seen.has(String(row[pageKey]))) throw new Error("inventory_read_unavailable")
-          seen.add(String(row[pageKey])); target.push(row)
+          if (!batchIds.has(String(row[key])) || !isSlotContractId(row[pageKey]) || seen.has(String(row[pageKey]))) throw new Error("inventory_read_unavailable")
+          seen.add(String(row[pageKey])); found.push(row)
         }
         after = page.length === 500 ? String(page.at(-1)![pageKey]) : null
       } while (after !== null)
-    }
+      return found
+    })
+    for (const page of pages) target.push(...page)
   }
   await read("tcg_cards", "id,series_id,set_id,local_id,name_en,name_json,image_languages_json,external_ids_json", "id", ids, cards, "id")
   // Alias IDs are mirror evidence too. Ambiguous matches remain separate and cannot resolve a card.
-  for (const id of ids.filter(id => !cards.some(c => c.id === id))) {
-    for (const canonical of [false, true]) {
-      let after: string | null = null
-      const seen = new Set<string>()
-      do {
-        check()
-        let query = db.from("tcg_cards").select("id,series_id,set_id,local_id,name_en,name_json,image_languages_json,external_ids_json").order("id").limit(500)
-        query = canonical ? query.eq("external_ids_json->catalog->>canonicalId", id) : query.contains("external_ids_json", { catalog: { aliasIds: [id] } })
-        if (after !== null) query = query.gt("id", after)
-        const response = await query.abortSignal(signal)
-        if (response.error || !Array.isArray(response.data) || response.data.length > 500) throw new Error("inventory_read_unavailable")
-        accountBytes?.(response.data)
-        const page = response.data as unknown as Row[]
-        for (const row of page) {
-          const metadata = readCatalogMetadata(row.external_ids_json)
-          if (!isSlotContractId(row.id) || seen.has(row.id)
-            || (canonical ? metadata.canonicalId !== id : !metadata.aliasIds?.includes(id))) throw new Error("inventory_read_unavailable")
-          seen.add(row.id)
-          if (!cards.some(c => c.id === row.id)) cards.push(row)
-        }
-        after = page.length === 500 ? String(page.at(-1)!.id) : null
-      } while (after !== null)
-    }
+  const knownCardIds = new Set(cards.map(c => c.id))
+  const fallbacks = await concurrent(ids.filter(id => !knownCardIds.has(id)).flatMap(id => [false, true].map(canonical => ({ id, canonical }))), async ({ id, canonical }) => {
+    const found: Row[] = []
+    let after: string | null = null
+    const seen = new Set<string>()
+    do {
+      check()
+      let query = db.from("tcg_cards").select("id,series_id,set_id,local_id,name_en,name_json,image_languages_json,external_ids_json").order("id").limit(500)
+      query = canonical ? query.eq("external_ids_json->catalog->>canonicalId", id) : query.contains("external_ids_json", { catalog: { aliasIds: [id] } })
+      if (after !== null) query = query.gt("id", after)
+      const response = await query.abortSignal(signal)
+      if (response.error || !Array.isArray(response.data) || response.data.length > 500) throw new Error("inventory_read_unavailable")
+      accountBytes?.(response.data)
+      const page = response.data as unknown as Row[]
+      for (const row of page) {
+        const metadata = readCatalogMetadata(row.external_ids_json)
+        if (!isSlotContractId(row.id) || seen.has(row.id)
+          || (canonical ? metadata.canonicalId !== id : !metadata.aliasIds?.includes(id))) throw new Error("inventory_read_unavailable")
+        seen.add(row.id)
+        found.push(row)
+      }
+      after = page.length === 500 ? String(page.at(-1)!.id) : null
+    } while (after !== null)
+    return found
+  })
+  for (const page of fallbacks) for (const row of page) {
+    if (!knownCardIds.has(row.id)) { knownCardIds.add(row.id); cards.push(row) }
   }
   const cardIds = cards.map(c => String(c.id))
   // Composite dex key is paged per bounded card batch using range, never a 1000-row implicit cap.
-  for (let i = 0; i < cardIds.length; i += 100) {
+  const dexPages = await concurrent(batches(cardIds), async batch => {
+    const found: Row[] = []
     let offset = 0
     do {
       check()
-      const response = await db.from("tcg_card_dex_ids").select("card_id,dex_id").in("card_id", cardIds.slice(i, i + 100))
+      const response = await db.from("tcg_card_dex_ids").select("card_id,dex_id").in("card_id", batch)
         .order("card_id").order("dex_id").range(offset, offset + 499).abortSignal(signal)
       if (response.error || !Array.isArray(response.data)) throw new Error("inventory_read_unavailable")
       accountBytes?.(response.data)
-      links.push(...response.data as unknown as Row[])
+      found.push(...response.data as unknown as Row[])
       if (response.data.length < 500) break
       offset += 500
     } while (true)
-  }
+    return found
+  })
+  const links = dexPages.flat()
   await read("tcg_sets", "id,name_en", "id", [...new Set(cards.map(c => String(c.set_id)))].sort(), sets, "id")
   const result: InventoryCatalogEvidence[] = []
   for (const raw of cards) {
