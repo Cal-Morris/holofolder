@@ -92,8 +92,10 @@ test('lost committed reply survives reload as exact intent, fences sinks, retrie
   await d.getByRole('button', { name: 'Close backup' }).click()
   await expect(page.getByRole('button', { name: 'New binder', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0)
   await page.reload()
   await expect.poll(async () => (await record(page))?.pending[0]?.intent).toEqual(pending)
+  await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0)
   dropReply = false
   await expect.poll(async () => (await record(page))?.pending.length).toBe(0)
   expect(bodies.length).toBeGreaterThan(1); expect(new Set(bodies).size).toBe(1)

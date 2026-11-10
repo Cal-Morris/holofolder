@@ -1110,6 +1110,7 @@ export default function BinderApp(props: BinderAppProps) {
     onCommandIntent: onStagedSlotCommandIntent,
     localDurable: stagedSlotLocalDurable,
     bulkFill: browserSurface?.bulkFill,
+    removal: browserSurface?.bulkFill,
   } : undefined
   const layoutToolbar = layoutBoundary ? <LayoutToolbar key={`${layoutScopeKey}:${layoutSession?.id ?? "browse"}`} editing={editingLayout}
     boundary={layoutBoundary} bulk={browserSurface ? { collapsible: true, pageIndex: currentBinderPage - 1, rows: settings.binderRows, cols: settings.binderCols, sessionKey: layoutSession?.id ?? "browse", onPageChange: pageIndex => setCurrentBinderPage(pageIndex + 1) } : undefined} onToggle={() => { closeSlotDetail(); setLayoutSession(editingLayout ? null : { scope: layoutScopeKey, id: crypto.randomUUID() }) }} /> : undefined

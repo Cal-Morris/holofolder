@@ -10,6 +10,7 @@ import { parseStorageRequest } from "@/lib/server/operations/storage-contract"
 import { browserHostCatalog } from "@/lib/collection/browser-host-catalog"
 import { readInventoryCatalog } from "@/lib/server/inventory-read-catalog"
 import { emptyGradingRecord } from "@/lib/grading/draft"
+import { seedSlotRemoval, seedSlotRemovalBound } from "./slot-removal-host"
 import { readAuditHeader } from "@/lib/supabase/audit-header"
 
 // Synthetic PostgREST/ledger only. Handler, trusted bridge, all-stream read and browser IDB are real.
@@ -138,6 +139,8 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[0].status = "collected"
     state.tables.binder_slots[2].target = { kind: "pokemon", pokemonId: 25 }
   }
+  if (id.startsWith("remove-")) seedSlotRemoval(state.tables, owner)
+  if (id.startsWith("remove-bound-")) seedSlotRemovalBound(state.tables, owner)
   if (id.startsWith('restore-')) {
     state.tables.storage_collection_state[0].preset_manifest = blankPreset()
     for (let n = 0; n < 2; n++) {

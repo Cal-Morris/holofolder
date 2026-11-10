@@ -7,6 +7,8 @@ import { prepareLayoutIntent, type LayoutAction, type StagedSlotCommandIntent, t
 import { captureBulkSelection, bulkSelectionState, prepareBulkLayoutIntent, savedPageSlotIds, type BulkSelection, type BulkLayoutAction } from "@/lib/binder-bulk-editing"
 import { SLOT_LIMITS } from "@/lib/domain/slot-commands"
 
+import SlotRemovalReview from "@/components/binder/slot-removal-review"
+
 import BulkFillReview from "@/components/binder/bulk-fill-review"
 
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
@@ -17,6 +19,7 @@ export interface LayoutBoundary {
   catalog: InventoryCatalogResolver
   onCommandIntent: SlotCommandSink
   localDurable?: boolean
+  removal?: { available: boolean; receive: SlotCommandSink }
   bulkFill?: { available: boolean; receive: SlotCommandSink }
 }
 const button = "min-h-10 rounded-xl border border-border px-3 py-2 text-sm disabled:opacity-50 hover:bg-muted"
@@ -41,6 +44,7 @@ export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boun
   const binder = snapshot.binders.find(b => b.collectionId === scope.collectionId)!
   const selected = binder.slots.find(s => s.id === scope.slotId)
   const index = binder.slots.findIndex(s => s.id === scope.slotId)
+  const [removal, setRemoval] = useState<BulkSelection | null>(null)
   const [position, setPosition] = useState("")
   const [anchor, setAnchor] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +63,7 @@ export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boun
   }
   const blocked = pending !== null || busy
   return <section aria-label="Layout actions" className="space-y-3">
+    {removal ? <SlotRemovalReview boundary={boundary} selection={removal} embedded onClose={() => setRemoval(null)} /> : <>
     {!appendOnly && <>
       <p className="text-sm font-semibold">Editing layout · Slot {index + 1} of {binder.slots.length}</p>
       <p className="text-xs text-muted-foreground">Moves keep the target, owned copy and wants together.</p>
@@ -88,6 +93,8 @@ export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boun
       </>}
     </>}
     <LayoutButton disabled={blocked} onClick={() => emit({ kind: "append", newSlotId: crypto.randomUUID() })}>Append free slot</LayoutButton>
+    {!appendOnly && selected && boundary.removal && <LayoutButton disabled={blocked || !boundary.removal.available} onClick={() => setRemoval(captureBulkSelection(snapshot, scope, [selected.id]))}>Remove selected slot</LayoutButton>}
+    </>}
     {error && <p role="alert" className="text-sm">{error}</p>}
     {message && <p role={pending ? "alert" : "status"} className="break-words text-sm">{message}</p>}
     {busy && <p role="status">Saving on device…</p>}
@@ -132,6 +139,7 @@ function BulkLayoutControls({ boundary, host, selection, onSelection, onDiscard 
   const ids = selection.slots.map(s => s.slot.id)
   const state = bulkSelectionState(snapshot, scope, selection)
   const pageIds = savedPageSlotIds(snapshot, scope, host.pageIndex, host.rows, host.cols)
+  const [removal, setRemoval] = useState<BulkSelection | null>(null)
   const [fillOpen, setFillOpen] = useState(false)
   const [anchor, setAnchor] = useState("")
   const [count, setCount] = useState("1")
@@ -182,6 +190,8 @@ function BulkLayoutControls({ boundary, host, selection, onSelection, onDiscard 
         </LayoutButton>
       })}
     </div>
+    {boundary.removal && <LayoutButton disabled={unavailable || !ids.length || !boundary.removal.available} onClick={() => setRemoval(structuredClone(selection))}>Remove selected slots</LayoutButton>}
+    {removal && <SlotRemovalReview boundary={boundary} selection={removal} onClose={() => setRemoval(null)} />}
     {boundary.bulkFill?.available && <LayoutButton disabled={unavailable || !ids.length} onClick={() => setFillOpen(true)}>Fill selected pockets</LayoutButton>}
     {fillOpen && <BulkFillReview boundary={boundary} selection={selection} onClose={() => setFillOpen(false)} />}
     {state === "selection-changed" && <p role="alert" className="text-sm">Selected slots or copies changed. The entire group is blocked. Clear selection and choose again after reviewing the latest contents.</p>}
@@ -220,6 +230,6 @@ function BulkLayoutControls({ boundary, host, selection, onSelection, onDiscard 
       <LayoutButton disabled={busy} onClick={() => handoff(pending)}>Retry same group</LayoutButton>
       <LayoutButton disabled={busy} onClick={onDiscard}>Discard unaccepted draft</LayoutButton>
     </div>}
-    <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Accepted edits stay on this device, pending sync." : "Internal draft only, no durable saving."} Clear/remove with Undo and cross-storage moves are not available here.</p>
+    <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Accepted edits stay on this device, pending sync." : "Internal draft only, no durable saving."} Slot removal requires a separate consequence review. Recovery is reviewed in Activity after sync; clear contents and cross-storage moves remain separate.</p>
   </section>
 }
