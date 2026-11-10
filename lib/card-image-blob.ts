@@ -82,9 +82,18 @@ function blobResponseCooldownMs(status: number) {
   return null
 }
 
+/** Where a stored copy came from (R2 object metadata; Blob ignores it). */
+export type CardImageOriginMetadata = Record<"source" | "source-url" | "source-sha256", string> & { "source-etag"?: string }
+
+export interface CardImagePutOptions {
+  metadata?: CardImageOriginMetadata
+  /** Replace an existing object (only for a deliberate refresh; normal mirroring never overwrites). */
+  overwrite?: boolean
+}
+
 export interface CardImageBlobDeps {
-  head: (pathname: string) => Promise<{ url: string } | null>
-  put: (pathname: string, body: ArrayBuffer, contentType: string) => Promise<{ url: string }>
+  head: (pathname: string) => Promise<{ url: string; metadata?: Record<string, string> } | null>
+  put: (pathname: string, body: ArrayBuffer, contentType: string, options?: CardImagePutOptions) => Promise<{ url: string }>
   list: (prefix: string) => Promise<string[]>
   fetch: typeof fetch
   logger?: (message: string) => void
@@ -125,7 +134,7 @@ export function createVercelBlobDeps(token = process.env.BLOB_READ_WRITE_TOKEN):
   return {
     ...deps,
     head: (pathname) => withUnavailableMapping(() => deps.head(pathname)),
-    put: (pathname, body, contentType) => withUnavailableMapping(() => deps.put(pathname, body, contentType)),
+    put: (pathname, body, contentType, options) => withUnavailableMapping(() => deps.put(pathname, body, contentType, options)),
     list: (prefix) => withUnavailableMapping(() => deps.list(prefix)),
   }
 }
@@ -141,11 +150,11 @@ function createRawVercelBlobDeps(token: string | undefined): CardImageBlobDeps {
         throw error
       }
     },
-    async put(pathname, body, contentType) {
+    async put(pathname, body, contentType, options) {
       const result = await blobPut(pathname, body, {
         access: "public",
         addRandomSuffix: false,
-        allowOverwrite: false,
+        allowOverwrite: options?.overwrite ?? false,
         contentType,
         cacheControlMaxAge: CARD_IMAGE_CACHE_SECONDS,
         token,
@@ -164,6 +173,13 @@ function createRawVercelBlobDeps(token: string | undefined): CardImageBlobDeps {
     },
     fetch: (...args) => fetch(...args),
   }
+}
+
+/** Origin details tagged on a stored copy: source, URL, the origin's ETag and the SHA-256 of the bytes as fetched. */
+async function originMetadata(source: string, url: string, response: Response, body: ArrayBuffer): Promise<CardImageOriginMetadata> {
+  const sha256 = Buffer.from(await crypto.subtle.digest("SHA-256", body)).toString("hex")
+  const etag = response.headers.get("etag")?.replace(/^W\//, "").replaceAll('"', "")
+  return { source, "source-url": url, "source-sha256": sha256, ...(etag ? { "source-etag": etag } : {}) }
 }
 
 async function readImageResponse(response: Response) {
@@ -240,10 +256,10 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     return promise
   }
 
-  async function putOrReuse(pathname: string, body: ArrayBuffer, contentType: string) {
+  async function putOrReuse(pathname: string, body: ArrayBuffer, contentType: string, metadata?: CardImageOriginMetadata) {
     assertBlobAvailable()
     try {
-      const result = await deps.put(pathname, body, contentType)
+      const result = await deps.put(pathname, body, contentType, metadata ? { metadata } : undefined)
       remember(pathname, result.url)
       return result.url
     } catch (error) {
@@ -255,19 +271,21 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     }
   }
 
-  function upload(pathname: string, body: ArrayBuffer, contentType: string): Promise<string> {
-    return runOnce(pathname, () => putOrReuse(pathname, body, contentType))
+  function upload(pathname: string, body: ArrayBuffer, contentType: string, metadata?: CardImageOriginMetadata): Promise<string> {
+    return runOnce(pathname, () => putOrReuse(pathname, body, contentType, metadata))
   }
 
   async function fetchFromTcgdex(ref: TcgdexCardImageRef) {
-    const response = await deps.fetch(buildTcgdexCardImageUrl(ref), {
+    const url = buildTcgdexCardImageUrl(ref)
+    const response = await deps.fetch(url, {
       headers: { Accept: "image/avif,image/webp,image/*;q=0.8" },
       redirect: "error",
     })
     if (!response.ok) {
       throw Object.assign(new Error(`TCGdex image fetch failed with ${response.status}`), { status: response.status })
     }
-    return readImageResponse(response)
+    const image = await readImageResponse(response)
+    return { ...image, metadata: await originMetadata("tcgdex", url, response, image.body) }
   }
 
   /** Fetches a fallback-source image and applies `transformSourceImage` (the stored form). */
@@ -282,7 +300,8 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
       throw Object.assign(new Error(`${ref.source} image fetch failed with ${response.status}`), { status: response.status })
     }
     const image = await readImageResponse(response)
-    return deps.transformSourceImage ? deps.transformSourceImage({ ...image, source: ref.source }) : image
+    const metadata = await originMetadata(ref.source, ref.url, response, image.body)
+    return { ...(deps.transformSourceImage ? await deps.transformSourceImage({ ...image, source: ref.source }) : image), metadata }
   }
 
   /** Copies one fallback-source image to the store unless it is already there. */
@@ -296,7 +315,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     const url = await runOnce(ref.pathname, async () => {
       const image = await fetchFromSource(ref)
       uploadedHere = true
-      return putOrReuse(ref.pathname, image.body, image.contentType)
+      return putOrReuse(ref.pathname, image.body, image.contentType, image.metadata)
     })
     return { url, uploaded: uploadedHere }
   }
@@ -313,7 +332,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     const url = await runOnce(pathname, async () => {
       const image = await fetchFromTcgdex(ref)
       uploadedHere = true
-      return putOrReuse(pathname, image.body, getCardImageContentType(ref.extension))
+      return putOrReuse(pathname, image.body, getCardImageContentType(ref.extension), image.metadata)
     })
     return { url, uploaded: uploadedHere }
   }
@@ -324,7 +343,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
    */
   async function loadStoredOrOrigin(
     pathname: string,
-    fetchOrigin: () => Promise<{ body: ArrayBuffer; contentType: string }>,
+    fetchOrigin: () => Promise<{ body: ArrayBuffer; contentType: string; metadata?: CardImageOriginMetadata }>,
     originSource: "tcgdex" | "upstream",
     uploadContentType?: string,
   ): Promise<LoadedCardImage> {
@@ -364,7 +383,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
       source: originSource,
       pendingUpload: async () => {
         try {
-          await upload(pathname, image.body, uploadContentType ?? image.contentType)
+          await upload(pathname, image.body, uploadContentType ?? image.contentType, image.metadata)
         } catch (error) {
           deps.logger?.(`Blob upload failed for ${pathname}: ${error instanceof Error ? error.message : String(error)}`)
         }
@@ -388,7 +407,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     return new Set(await deps.list(getCardImageBlobSetPrefix(language, setId)).catch(noteBlobError))
   }
 
-  return { ensureMirrored, ensureSourceMirrored, loadImage, loadSourceImage, listSetPathnames, upload, fetchFromTcgdex, isBlobBlocked }
+  return { ensureMirrored, ensureSourceMirrored, loadImage, loadSourceImage, listSetPathnames, upload, fetchFromTcgdex, fetchFromSource, isBlobBlocked }
 }
 
 export type CardImageMirror = ReturnType<typeof createCardImageMirror>

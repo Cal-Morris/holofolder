@@ -30,6 +30,7 @@ Object keys are deterministic:
   | `scrydex` | `https://images.scrydex.com/pokemon/<cardId>/<large\|medium\|small>` | `cards/src/scrydex/<cardId>/<size>.webp` |
   | `limitless` | `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<file>.png` | `cards/src/limitless/<SET>/<file>.webp` |
   | `playshop` | `https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png\|jpg>` | `cards/src/playshop/<handle>.webp` |
+  | `pokemoncom` | `https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/<SET>/<SET>_EN_<number>.png` | `cards/src/pokemoncom/<SET>/<SET>_EN_<number>.webp` |
 
   `cdn.shopify.com` serves every Shopify store, so only the playshop.fr store path counts as a card image (`isCardImageSourceUrl`); the proxy refuses any other path on that host. playshop.fr scans are used only for the French McDonald's collections (2013, 2018, 2019), which no card database has scans for; their stored copies are trimmed of any white margin around the card.
 
@@ -100,3 +101,7 @@ Apply migrations 068–070 before deploying the API optimization. Seed migration
 The main app uses the same public asset domain, with stored low/high image variants and CORS enabled for GET/HEAD. The image proxy remains the miss/legacy-cache fallback and continues to resize Pokémon artwork. The service worker caches public asset requests and can serve an existing proxy or saved-for-show image when offline, without renaming or deleting those caches.
 
 Vercel functions run in `iad1`, next to the existing Supabase database in US East. `vercel.json` records the region so new deployments preserve it.
+
+## Official pokemon.com scans
+
+`bun scripts/mirror-pokemoncom-images.ts [--set a,b] [--dry-run]` copies pokemon.com's official scan of every card it has into R2 and records it as `external_ids_json.pokemoncom.image`, which the read path prefers over the other fallback sources when TCGdex has no image. URLs are built from our own set and card ids (`lib/pokemoncom-card-images.ts`), so only the asset CDN is fetched. The script is idempotent; rerun it after syncing a new set. Sets pokemon.com doesn't have (Base to e-Card, most promos, trainer kits) are skipped after five probes.
