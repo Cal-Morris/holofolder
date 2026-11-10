@@ -8,6 +8,7 @@ import {
   normalizePokemonSearchText,
   searchPokemonItems,
 } from "../lib/pokemon-search-state"
+import { POKEMON_CATALOG } from "../lib/pokemon-catalog"
 
 test("getInitialPokemonSearchFilter defaults search to all Pokemon", () => {
   assert.equal(getInitialPokemonSearchFilter(), "all")
@@ -63,4 +64,11 @@ test("searchPokemonItems matches form suffixes, compact punctuation, and gender 
   assert.equal(searchPokemonItems("male", pokemon)[0]?.id, 32)
   assert.equal(searchPokemonItems("mr mime", pokemon)[0]?.id, 122)
   assert.equal(searchPokemonItems("typenull", pokemon)[0]?.id, 772)
+})
+
+test("searchPokemonItems with no limit returns every match, past the old 40-row cap (#592)", () => {
+  const all = searchPokemonItems("an", POKEMON_CATALOG, Infinity)
+  assert.ok(all.length > 40)
+  assert.equal(all.length, POKEMON_CATALOG.filter((p) => searchPokemonItems("an", [p], 1).length === 1).length)
+  assert.deepEqual(searchPokemonItems("an", POKEMON_CATALOG, 40).map((p) => p.id), all.slice(0, 40).map((p) => p.id))
 })
