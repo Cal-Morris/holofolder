@@ -53,7 +53,7 @@ The local-only existing Inventory harness adds `?navigation=1`; the same E2E plu
 
 ## Remaining production-binding gates
 
-The actual BinderApp/dock/auth/device/queue binding now exists behind denied admission. [The dedicated host contract](binder-browser-host.md#exact-remaining-authentic-admission-gates) records the precise remaining production capability, command dispatch/replay, native offline bootstrap, consumer/API/recovery parity and hosted conversion/old-client proof. Slabs remains unavailable until #390. #379 remains the sole rollout authority and public inventory/slot routes remain unconditional 503.
+The actual BinderApp/dock/auth/device/queue binding now exists behind denied admission. [The dedicated host contract](binder-browser-host.md#exact-remaining-authentic-admission-gates) records the precise remaining production capability, command dispatch/replay, native offline bootstrap, consumer/API/recovery parity and hosted conversion/old-client proof. Production Slabs remains unavailable until #390. The local-only Slabs renderer/gallery now integrates through this host; see [staged rendering](slab-rendering.md). #379 remains the sole rollout authority and public inventory/slot routes remain unconditional 503.
 
 ## Verification
 
