@@ -10,7 +10,7 @@ base("/app/app-shell paints a binder skeleton before JavaScript", async ({ brows
   const skeleton = page.getByTestId("binder-skeleton")
   await expect(skeleton).toBeVisible()
   await expect(skeleton).toHaveAttribute("aria-busy", "true")
-  await expect(skeleton.locator(".aspect-\\[63\\/88\\]")).toHaveCount(9)
+  await expect(skeleton.locator(".aspect-\\[63\\/88\\]:visible")).toHaveCount(9)
   await expect(page.locator(".animate-spin")).toHaveCount(0)
   await context.close()
 })

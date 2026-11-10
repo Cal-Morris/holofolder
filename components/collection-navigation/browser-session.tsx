@@ -14,7 +14,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { AcknowledgedCommandActivity } from "@/components/acknowledged-command-activity"
 import { StorageMenu } from "./storage-menu"
 import dynamic from "next/dynamic"
-import { BinderSkeleton } from "@/components/binder-skeleton"
 import type { InventorySnapshot } from "@/lib/domain/inventory"
 import type { SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
 import { inventoryGradingReference, prepareInventoryGradingIntent } from "@/lib/grading/inventory-edit"
@@ -63,8 +62,12 @@ export interface BrowserSurfaceBinding {
   scan?: { detectPage?: NativePageScanAdmission["detectPage"]; available: boolean; online: boolean; rows?: number; cols?: number; sessionId: string; getOfflineCards: () => Promise<SearchCardResult[]>; receive: ScanDestinationAdmission["onCommandIntent"] }
 
 }
-export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, localHarness = false, onReady, onStartupFailure }: {
+export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, localHarness = false, displayed, onReady, onDisplay, onStartupFailure }: {
+  /** The host shows this session; until then it renders nothing and the host's placeholder stays. */
+  displayed: boolean
   onReady: () => void
+  /** This session (by id) has something to paint: its saved copy, a complete read, or a fallback. */
+  onDisplay: (sessionId: string) => void
   onStartupFailure: (error: string) => void
   initialBinderId: string | null
   localHarness?: boolean
@@ -73,21 +76,26 @@ export default function BrowserCollectionSession({ scope, currentScope, renderSu
   currentScope: () => InventoryReadScope | null
   renderSurface: (binding: BrowserSurfaceBinding) => ReactNode
 }) {
-  const [deviceId, setDeviceId] = useState<string | null>(null)
-  useEffect(() => {
+  // Client-only (ssr: false), so the id is read on the first render: no fallback flash before the session.
+  const [device] = useState<{ id: string } | { error: string }>(() => {
     try {
       const key = "holofolder-slot-device-v1"
       let id = localStorage.getItem(key)
       if (!isSlotContractId(id)) { id = crypto.randomUUID(); localStorage.setItem(key, id) }
-      queueMicrotask(() => setDeviceId(id))
-    } catch (error) { onStartupFailure(error instanceof Error ? error.message : "device_storage_unavailable") }
-  }, [onStartupFailure])
-  if (!deviceId) return renderFallback()
+      return { id }
+    } catch (error) { return { error: error instanceof Error ? error.message : "device_storage_unavailable" } }
+  })
+  useEffect(() => { if ("error" in device) onStartupFailure(device.error) }, [device, onStartupFailure])
+  useLayoutEffect(() => { if ("error" in device) onDisplay(scope.sessionId) }, [device, onDisplay, scope.sessionId])
+  if ("error" in device) return displayed ? renderFallback() : null
+  const deviceId = device.id
   return <ScopedBrowserSession key={JSON.stringify([deviceId, scope.actorUserId, scope.ownerUserId, scope.authSessionId, scope.sessionId])}
-    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, onReady, onStartupFailure }} />
+    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, displayed, onReady, onDisplay, onStartupFailure }} />
 }
-function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, onReady, onStartupFailure }: {
+function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, displayed, onReady, onDisplay, onStartupFailure }: {
+  displayed: boolean
   onReady: () => void
+  onDisplay: (sessionId: string) => void
   onStartupFailure: (error: string) => void
   initialBinderId: string | null
   localHarness: boolean
@@ -427,7 +435,10 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // The exact creation is consumed at most once in this mounted session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue.record, read])
-  if (!ready) return <BinderSkeleton />
+  const displayable = ready || read.evidence.kind !== "unavailable"
+  useLayoutEffect(() => { if (displayable) onDisplay(scope.sessionId) }, [displayable, onDisplay, scope.sessionId])
+  // This device's saved copy paints at once and stays read-only (cached evidence) until the read completes.
+  if (!displayable || !displayed) return null
   const gradingItem = grading?.snapshot.items.find(i => i.id === grading.itemId)
   const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(recoveryUnresolved)
   return <><CollectionNavigationHost ownership={ownership} onEditGrading={canEditGrading ? itemId => {

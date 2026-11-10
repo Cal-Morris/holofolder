@@ -115,6 +115,7 @@ import { buildSlotDisplay, nativeBinderCoverStats, paginateDisplaySlots, resolve
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
 import CachedNativeStartup from "@/components/cached-native-startup"
+import { BinderSkeleton } from "@/components/binder-skeleton"
 import NativeStartupRecorder from "@/components/collection-navigation/native-startup-recorder"
 import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
 import type { BrowserSurfaceBinding } from "@/components/collection-navigation/browser-session"
@@ -166,8 +167,11 @@ export default function BinderApp(props: BinderAppProps) {
   const browserScope = useBrowserCollectionScope(props.initialUser?.id ?? null, props.initialCollectionOwnerUserId ?? null, nativeHost)
   const [host, setHost] = useState<string | null>(null)
   useEffect(() => { queueMicrotask(() => setHost(location.host)) }, [])
+  // Fetch the session's code while the account check runs, not after it.
+  useEffect(() => { if (nativeHost) void import("@/components/collection-navigation/browser-session") }, [nativeHost])
   const scope = browserScope.scope
   const [completedSession, setCompletedSession] = useState<string | null>(null)
+  const [displayedSession, setDisplayedSession] = useState<string | null>(null)
   const [startupError, setStartupError] = useState("")
   const [resetting, setResetting] = useState(false)
   const [startupOnline, setStartupOnline] = useState(true)
@@ -208,31 +212,38 @@ export default function BinderApp(props: BinderAppProps) {
     {!resetting && <button type="button" className="min-h-10 self-start rounded-lg border px-3" onClick={() => window.location.reload()}>Retry opening storage</button>}
   </main>
   const admission = browserHostAdmission(Boolean(props.localBrowserHost), "1", false, host, scope)
-  const waiting = <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
+  // Only an actual failed check gets a page of its own; it says what to do next.
+  const failed = browserScope.error ? <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
     <p role="status">{browserScope.cachedFallbackAllowed
-      ? "Checking your account and collection access. Saved copies and pending edits are retained."
+      ? "Could not check your account. Connect and try again. Saved copies and pending edits are retained."
       : "Saved storage is paused. Connect to check your account and collection access. Pending edits are retained."}</p>
     <button type="button" className="min-h-10 self-start rounded-lg border px-3" onClick={() => window.location.reload()}>Try again</button>
     <a className="flex min-h-10 items-center self-start underline" href={appPath("/auth/logout")}>Sign out</a>
-  </main>
-  if (!scope || !admission.admitted) return browserScope.cachedFallbackAllowed
-    ? <CachedNativeStartup legacyProps={props} whileChecking>{waiting}</CachedNativeStartup> : waiting
-  return <BrowserCollectionSession onReady={() => setCompletedSession(scope.sessionId)} onStartupFailure={failStartup} scope={scope} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null}
+  </main> : null
+  // While the check runs: the binder's skeleton, or this device's saved copy when the first check allows it.
+  const loading = failed ?? <BinderSkeleton rows={props.initialSettings.binderRows} cols={props.initialSettings.binderCols} />
+  const placeholder = browserScope.cachedFallbackAllowed ? <CachedNativeStartup legacyProps={props} whileChecking>{loading}</CachedNativeStartup> : loading
+  const session = scope && admission.admitted ? scope : null
+  // The placeholder keeps its place (and its saved copy) until the session has something to paint,
+  // so a reload goes skeleton or saved copy → binder once, never saved copy → skeleton → binder.
+  const sessionDisplayed = Boolean(session && displayedSession === session.sessionId)
+  return <>{!sessionDisplayed && placeholder}{session && <BrowserCollectionSession displayed={sessionDisplayed}
+    onReady={() => setCompletedSession(session.sessionId)} onDisplay={setDisplayedSession} onStartupFailure={failStartup} scope={session} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null}
     localHarness={admission.evidence === "synthetic-local-only"} renderFallback={() => <p role="status">Device storage is unavailable. Enable storage and reopen the app. Pending edits have not been removed.</p>}
     renderSurface={binding => {
       const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
       const layout = context?.read.layouts.find(l => l.collectionId === context.collectionId && l.layoutRevision === binding.display?.binder.layoutRevision)
-      return <><NativeStartupRecorder scope={scope} /><BinderAppSurface {...props}
-        key={JSON.stringify([scope.sessionId, binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
+      return <><NativeStartupRecorder scope={session} /><BinderAppSurface {...props}
+        key={JSON.stringify([session.sessionId, binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
         localBrowserHost={false} browserSurface={binding} browserHeader={binding.surface.header}
         onBrowserSignOut={async () => { await clearPushDevice().catch(() => undefined); window.location.assign(appPath("/auth/logout")) }}
-        initialCollectionOwnerUserId={scope.ownerUserId} initialCollection={[]}
+        initialCollectionOwnerUserId={session.ownerUserId} initialCollection={[]}
         initialBinderId={context?.collectionId ?? null}
         initialSettings={{ ...props.initialSettings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
         stagedSlotDisplay={binding.surface.state.main === "collection" ? binding.display : undefined}
-        stagedSlotSessionId={scope.sessionId} stagedSlotLocalDurable stagedSlotCatalog={binding.catalog}
+        stagedSlotSessionId={session.sessionId} stagedSlotLocalDurable stagedSlotCatalog={binding.catalog}
         onStagedSlotCommandIntent={binding.surface.state.main === "collection" && binding.display ? binding.receive : undefined} /></>
-    }} />
+    }} />}</>
 }
 
 function BinderAppSurface(props: BinderAppProps) {
