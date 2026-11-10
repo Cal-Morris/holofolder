@@ -40,15 +40,16 @@ export function usePartner({ user }: UsePartnerOptions) {
 
   const account = useRef(user?.id)
   const loadSequence = useRef(0)
+  const mutation = useRef<symbol | null>(null)
   useLayoutEffect(() => {
     account.current = user?.id
     const sequence = loadSequence
-    return () => { sequence.current++ }
+    return () => { sequence.current++; mutation.current = null }
   }, [user?.id])
   const supabase = createClient()
 
   const loadPartnerData = useCallback(async (currentUser: User | null) => {
-    if (currentUser?.id !== account.current) return
+    if (currentUser?.id !== account.current || mutation.current) return
     const request = ++loadSequence.current
     const current = () => request === loadSequence.current && currentUser?.id === account.current
     if (!currentUser) {
@@ -188,17 +189,23 @@ export function usePartner({ user }: UsePartnerOptions) {
 
   const acceptInvite = useCallback(async (inviteId: string) => {
     if (!user) return { error: "Not logged in" }
+    if (mutation.current) return { error: "A partner change is already in progress." }
 
-    const request = ++loadSequence.current
+    const request = Symbol("partner-change")
+    mutation.current = request
+    loadSequence.current++
+    setIsLoading(false)
     try {
       await changeMembership(() => changePartner('accept', { inviteId }))
-      if (account.current !== user.id) return { error: "Account changed. Reopen partner settings." }
-      if (request !== loadSequence.current) return { success: true }
+      if (account.current !== user.id || mutation.current !== request) return { error: "Account changed. Reopen partner settings." }
+      mutation.current = null
       clearActivityCache(window.localStorage)
       await loadPartnerData(user)
       return { success: true }
     } catch (err: unknown) {
       return { error: err instanceof Error ? err.message : "Could not update the partnership." }
+    } finally {
+      if (mutation.current === request) mutation.current = null
     }
   }, [user, loadPartnerData])
 
@@ -216,17 +223,23 @@ export function usePartner({ user }: UsePartnerOptions) {
 
   const removePartner = useCallback(async () => {
     if (!user || !partner) return { error: "No partner to remove" }
+    if (mutation.current) return { error: "A partner change is already in progress." }
 
-    const request = ++loadSequence.current
+    const request = Symbol("partner-change")
+    mutation.current = request
+    loadSequence.current++
+    setIsLoading(false)
     try {
       await changeMembership(() => changePartner('disconnect'))
-      if (account.current !== user.id) return { error: "Account changed. Reopen partner settings." }
-      if (request !== loadSequence.current) return { success: true }
+      if (account.current !== user.id || mutation.current !== request) return { error: "Account changed. Reopen partner settings." }
+      mutation.current = null
       clearActivityCache(window.localStorage)
       setPartner(null)
       return { success: true }
     } catch (err: unknown) {
       return { error: err instanceof Error ? err.message : "Could not update the partnership." }
+    } finally {
+      if (mutation.current === request) mutation.current = null
     }
   }, [user, partner])
 

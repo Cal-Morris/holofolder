@@ -43,11 +43,18 @@ async function run() {
   await hook.refresh(); hook = useRender()
   assert.ok(hook.partner)
   const accept = hook.acceptInvite("synthetic-invite")
+  assert.deepEqual(await hook.acceptInvite("synthetic-invite"), { error: "A partner change is already in progress." })
   assert.equal(phases.at(-1), "pause"); finish(); assert.deepEqual(await accept, { success: true })
   hook = useRender()
+  let releaseDuring!: () => void
+  barrier = new Promise<void>(resolve => { releaseDuring = resolve })
+  const beforeDisconnect = hook.refresh()
   const disconnect = hook.removePartner()
+  const duringDisconnect = hook.refresh()
   assert.equal(phases.at(-1), "pause"); finish(); assert.deepEqual(await disconnect, { success: true })
-  hook = useRender(); assert.equal(hook.partner, null)
+  releaseDuring(); await Promise.all([beforeDisconnect, duringDisconnect]); barrier = null
+  hook = useRender(); assert.equal(hook.partner, null, "a refresh during disconnect cannot revive the old partnership")
+  assert.equal(hook.isLoading, false, "invalidated partner loads cannot leave loading stuck")
   failure = true
   const offline = hook.acceptInvite("synthetic-invite")
   finish(); assert.deepEqual(await offline, { error: "Synthetic offline failure" })
