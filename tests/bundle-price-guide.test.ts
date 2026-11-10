@@ -1,5 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
+import { checkBundle } from "../lib/deal-check"
 import { buildBundlePriceGuide } from "../lib/bundle-price-guide"
 import type { CardPriceCheck } from "../lib/card-price-checks"
 // Synthetic exact-printing prices, not real sales.
@@ -33,4 +34,21 @@ test('expired access drops retained sold evidence and restores catalogue referen
   const guide = buildBundlePriceGuide([entry], 'GBP', undefined, now, false)
   assert.equal(guide.items[0].source, 'catalogue')
   assert.equal(guide.items[0].marketPrice, 102)
+})
+
+test("complete-only comparison fails closed on mixed currency or missing FX and evidence", () => {
+  // Synthetic prices composed exactly as the native read-only bundle does.
+  for (const other of [
+    { ...entry, currency: "USD" },
+    { ...entry, currency: "EUR", gbpPerUnit: null },
+    { ...entry, soldCheck: undefined, catalogMarketGbp: null, marketPrice: null },
+  ]) {
+    const guide = buildBundlePriceGuide([entry, entry, other], "GBP", undefined, now)
+    assert.equal(guide.complete, false)
+    assert.equal(guide.items[2].marketPrice, null)
+    assert.equal(checkBundle(guide.items, 50, undefined, true).deal, null)
+  }
+  const repeated = buildBundlePriceGuide([entry, entry], "GBP", undefined, now)
+  assert.equal(repeated.marketTotal, 200)
+  assert.equal(checkBundle(repeated.items, 160, undefined, true).deal?.verdict, "great")
 })

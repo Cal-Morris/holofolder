@@ -133,8 +133,8 @@ export default function QuickCardCheck({
   const billing = useBillingContext()
   const premium = billing?.premium !== false
   const language = card.language ?? "en"
-  const lookups = useMemo(() => [{ cardId: card.id, language }], [card.id, language])
-  const { pricesByCardId, fxRates: hookRates, isLoading } = useRegionalCardPrices(lookups, true, pricingRegion)
+  const lookups = useMemo(() => [{ cardId: card.id, language: nativeConsumer ? card.language : language }], [card.id, card.language, language, nativeConsumer])
+  const { pricesByCardId, fxRates: hookRates, isLoading } = useRegionalCardPrices(lookups, true, pricingRegion, Boolean(nativeConsumer))
   const snapshot = pricesByCardId[getCardPriceKey(card.id, language)]
   const fxRates = fxRatesProp ?? hookRates ?? null
   const context = useMemo(() => ({ currency, fxRates }), [currency, fxRates])
@@ -151,8 +151,9 @@ export default function QuickCardCheck({
   const needsConfirmation = Boolean(replacementKey && confirmedReplacement !== replacementKey)
   const [soldEvidence, setSoldEvidence] = useState<{ key: string; check: CardPriceCheck } | null>(null)
   const finishPrices = useMemo(() => getRegionalFinishPrices(snapshot, pricingRegion), [pricingRegion, snapshot])
-  // A variant with its own quote uses it; otherwise the headline price stands for the card's main printing.
-  const price = finishPrices[finish as PricedCardFinish] ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
+  // Native lookups require reliable exact-finish evidence; legacy keeps its headline fallback.
+  const exactPrice = finishPrices[finish as PricedCardFinish]
+  const price = nativeConsumer ? (isMomentumEligibleConfidence(exactPrice?.confidence) ? exactPrice : undefined) : exactPrice ?? (finishChoices.length === 0 || finish === finishChoices[0]?.finish ? snapshot : undefined)
 
   const comparisonKey = bundleKey(card, finish)
   const soldGuide = buildSoldPriceGuide(premium && soldEvidence?.key === comparisonKey ? soldEvidence.check : null, price?.gbpAmount, finish, thresholds)
@@ -264,7 +265,7 @@ export default function QuickCardCheck({
           </div>
         </div>
 
-        <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground" aria-label="Acquisition destination">
+        {!nativeConsumer && <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground" aria-label="Acquisition destination">
           <p className="font-semibold">Adds to {destinationName}</p>
           {state.ownedElsewhere?.length ? <p>Already owned in {state.ownedElsewhere.join(", ")}</p> : null}
           {state.otherBindersIncomplete ? <p className="text-xs text-muted-foreground">Other binders haven&apos;t all loaded. Duplicate check is incomplete.</p> : !isOnline ? <p className="text-xs text-muted-foreground">Other binders use saved data and may have changed.</p> : null}
@@ -272,7 +273,7 @@ export default function QuickCardCheck({
             <input type="checkbox" checked={!needsConfirmation} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} />
             <span>Replace {state.replacing} in {destinationName}</span>
           </label>}
-        </div>
+        </div>}
 
         {finishChoices.length > 0 && (
           <div role="radiogroup" aria-label="Variant" className="flex gap-1.5">
@@ -323,7 +324,7 @@ export default function QuickCardCheck({
         </div>
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
-        <CardPriceComparison key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
+        <CardPriceComparison readOnly={Boolean(nativeConsumer)} key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => setSoldEvidence({ key: comparisonKey, check })} />
 
         <details className="group min-w-0 rounded-2xl border border-border/60 bg-card px-3">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
@@ -357,10 +358,10 @@ export default function QuickCardCheck({
           </>}
         </div>}
         {nativeConsumer && <NativeWantedEntries binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer} card={card} finish={finish} />}
-        <DealPriceInput value={input} onChange={setInput} autoFocus={showTools} />
+        <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !nativeConsumer} />
         {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
         {(showTools || !readOnly) && (
-        <div className={`grid ${readOnly ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
+        <div className={`grid ${readOnly || nativeConsumer ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {showTools && !readOnly && !nativeConsumer && (
             <button type="button" disabled={busy || needsConfirmation} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
               <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought

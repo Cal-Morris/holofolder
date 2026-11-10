@@ -2,6 +2,7 @@
 
 // Show mode's bundle check: several cards for one asking total ("all three for £20"), judged against their
 // combined market price. "Bought bundle" adds every card as owned and logs the total, split by market price.
+import { nativeCardConsumers, nativeCardState, nativeCardLabel, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import { useBillingContext } from "@/hooks/use-billing"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft, ShoppingBag, Trash2, X } from "lucide-react"
@@ -23,6 +24,7 @@ import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVer
 import type { QuickCardState, QuickBundleEntry, QuickCardAction } from "@/components/quick-card-check"
 
 export interface QuickBundleProps {
+  nativeConsumer?: NativeConsumerBinding
   entries: QuickBundleEntry[]
   budgetKey?: string | null
   destinationName?: string
@@ -37,7 +39,9 @@ export interface QuickBundleProps {
   onAction: (action: QuickCardAction, entry: QuickBundleEntry) => Promise<(() => Promise<void>) | null>
 }
 
-export default function QuickBundle({ budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck, onUndoAvailable }: QuickBundleProps) {
+export default function QuickBundle({ nativeConsumer, budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck, onUndoAvailable }: QuickBundleProps) {
+  const nativeModel = useMemo(() => nativeConsumer ? nativeCardConsumers(nativeConsumer) : null, [nativeConsumer])
+  const comparisonOnly = Boolean(nativeConsumer) || readOnly
   const billing = useBillingContext()
   const premium = billing?.premium !== false
   const states = entries.map(entry => getCardState?.(entry))
@@ -55,7 +59,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
   const askingTotal = parseAskingPrice(input)
   const guide = useMemo(() => buildBundlePriceGuide(entries, moneyCurrency, thresholds, undefined, premium), [entries, moneyCurrency, thresholds, premium])
   const pricedEntries = entries.map((entry, index) => ({ ...entry, marketPrice: guide.items[index].marketPrice }))
-  const result = checkBundle(pricedEntries, askingTotal, thresholds)
+  const result = checkBundle(pricedEntries, askingTotal, thresholds, Boolean(nativeConsumer))
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
   const [checking, setChecking] = useState(false)
@@ -63,6 +67,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
   const [pending, setPending] = useState<Record<string, Partial<Record<PriceCheckSource, boolean>>>>({})
   const [error, setError] = useState<string | null>(null)
   async function checkPrices() {
+    if (nativeConsumer) return
     if (!premium) { billing?.upgrade(); return }
     if (checking || busy) return
     if (!navigator.onLine) { setError("Connect to the internet to check prices."); return }
@@ -98,7 +103,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
   const [busy, setBusy] = useState(false)
 
   const buyAll = async (bundleId: string) => {
-    if (busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned) return
+    if (comparisonOnly || busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned) return
     setBusy(true)
     const reverts: Array<() => Promise<void>> = []
     try {
@@ -144,7 +149,9 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
     }
   }
 
-  const verdictEmptyText = result.marketTotal > 0
+  const verdictEmptyText = nativeConsumer && !guide.complete
+    ? "Incomplete price evidence. Every selected printing needs a saved reference in the same currency, so no bundle verdict."
+    : result.marketTotal > 0
     ? `Type the asking total. Pay up to ${money(result.marketTotal * (1 + thresholds.fairPct / 100))}.`
     : "No market prices for these cards yet."
 
@@ -158,7 +165,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-bold leading-tight">Bundle · {entries.length} card{entries.length === 1 ? "" : "s"}</h3>
             <p className="text-xs text-muted-foreground" data-testid="bundle-market-total">
-              Reference {money(result.marketTotal)}{result.unpricedCount > 0 ? ` · ${result.unpricedCount} unpriced` : ""}
+              {nativeConsumer && !guide.complete ? "Saved subtotal" : "Reference"} {money(result.marketTotal)}{result.unpricedCount > 0 ? ` · ${result.unpricedCount} unpriced` : ""}
             </p>
           </div>
           {entries.length > 0 && (
@@ -168,19 +175,23 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
           )}
         </div>
 
-        <section aria-label="Bundle destination" className="rounded-xl border border-border/60 p-3 text-sm">
+        {nativeConsumer ? <section aria-label="Bundle comparison" className="rounded-xl border border-border/60 p-3 text-sm">
+          <p className="font-semibold">Read-only comparison</p>
+          <p>{nativeModel?.kind === "cached" ? "Cached only, read-only" : nativeModel ? "Saved scoped inventory" : "Ownership unavailable"}. Selected printings are lookups, not copies to acquire.</p>
+        </section> : <section aria-label="Bundle destination" className="rounded-xl border border-border/60 p-3 text-sm">
           <p className="font-semibold">Adds to {destinationName}</p>
           {entries.map((entry, index) => states[index]?.ownedElsewhere?.length ? <p key={entry.key}>{entry.card.name}: already owned in {states[index]!.ownedElsewhere!.join(", ")}</p> : null)}
           {states.some(state => state?.otherBindersIncomplete) && <p>Other binders haven&apos;t all loaded. Duplicate check is incomplete.</p>}
           {repeatedSlot && <p role="status">Only one printing per Pokémon fits in this binder. Remove the extra printings before buying.</p>}
           {alreadyOwned && <p role="status">A card is already in this binder. Remove it from the bundle before buying.</p>}
           {replacing && <label className="mt-2 flex min-h-10 items-center gap-2"><input type="checkbox" checked={!needsConfirmation} onChange={event => setConfirmedReplacement(event.target.checked ? replacementKey : null)} /><span>Replace {states.filter(state => state?.replacing).map(state => state!.replacing).join(", ")} in {destinationName}</span></label>}
-        </section>
+        </section>}
         <ul className="flex flex-col gap-1" aria-label="Cards in bundle">
           {entries.map((entry, index) => (
             <li key={entry.key} className="flex min-h-12 items-center gap-2 rounded-xl border border-border/50 bg-card pl-3 pr-1">
               <div className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{entry.card.name}</span>
+                {nativeConsumer && <span className="block text-xs text-muted-foreground">{nativeCardLabel(nativeCardState(nativeModel, entry.card, entry.finish))}</span>}
                 <span className="block text-[10px] text-muted-foreground">{guide.items[index].source === "sold" ? "Sold reference" : guide.items[index].source === "catalogue" ? "Catalogue reference" : guide.items[index].source === "saved" ? "Saved reference" : "No reference"}</span>
                 <span className="block text-[10px] text-muted-foreground" aria-live="polite">{(["ebay", "soldcomps"] as const).map(source => {
                   const label = source === "ebay" ? "eBay" : "Sold"
@@ -190,7 +201,7 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
                 })}</span>
                 {(entry.card.language ?? "en") !== "en" || entry.finish === "jumbo" ? <span className="block text-[10px] text-muted-foreground">Provider checks unavailable for this printing</span> : null}
                 <span className="block truncate text-[11px] text-muted-foreground">
-                  {entry.card.set.name} · {formatCardNumber(entry.card)} · {formatCardFinishLabel(entry.finish)}
+                  {entry.card.set.name} · {formatCardNumber(entry.card)}{nativeConsumer ? ` · ${entry.card.language ?? "Unknown language"}` : ""} · {formatCardFinishLabel(entry.finish)}
                 </span>
                 {premium && <PriceCheckRecords checks={checks[entry.key]} />}
               </div>
@@ -203,18 +214,19 @@ export default function QuickBundle({ budgetKey, entries, destinationName = "thi
           {entries.length === 0 && <li className="px-1 py-4 text-center text-sm text-muted-foreground">Add cards with Bundle on each card&apos;s check.</li>}
         </ul>
 
-        <button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{!premium ? "Unlock bundle comparisons" : checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
-        <p className="text-[11px] text-muted-foreground">Checks each English card and finish, reuses saved results until you refresh them on the card. {guide.items.filter(item => item.source === "sold").length} of {entries.length} use qualified sold evidence.</p>
+        {!nativeConsumer && <><button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{!premium ? "Unlock bundle comparisons" : checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
+        <p className="text-[11px] text-muted-foreground">Checks each English card and finish, reuses saved results until you refresh them on the card. {guide.items.filter(item => item.source === "sold").length} of {entries.length} use qualified sold evidence.</p></>}
+        {nativeConsumer && <p className="text-[11px] text-muted-foreground">Saved price evidence only. No provider checks, purchase recording or ownership changes. Each selected entry counts once, including repeated printings.</p>}
         {error ? <p role="status" className="text-xs text-muted-foreground">{error}</p> : null}
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
       </div>
 
       <div className="min-w-0 shrink-0 border-t border-border/50 bg-card/95 px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-2">
-        {guide.marketTotal > 0 ? <DealPriceScale market={guide.marketTotal} offer={askingTotal} overlap={guide.overlap} thresholds={thresholds} money={money} partial={!guide.complete} /> : null}
+        {guide.marketTotal > 0 && (!nativeConsumer || guide.complete) ? <DealPriceScale market={guide.marketTotal} offer={askingTotal} overlap={guide.overlap} thresholds={thresholds} money={money} partial={!guide.complete} /> : null}
         <PinnedDealVerdict deal={result.deal} money={money} testId="bundle-verdict-pinned" emptyText={verdictEmptyText} />
-        {budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
+        {!nativeConsumer && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
         <DealPriceInput value={input} onChange={setInput} label="Bundle price" />
-        {!readOnly && (
+        {!comparisonOnly && (
           <button
             type="button"
             disabled={busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned}

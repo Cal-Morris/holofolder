@@ -106,3 +106,16 @@ describe("checkBundle", () => {
     assert.equal(checkBundle([{ marketPrice: null }], 5).deal, null)
   })
 })
+
+test("complete-only bundle comparison retains repeated selections and refuses unknown amounts", () => {
+  // Synthetic selected printings, each occurrence represents one card in the offer.
+  const repeated = [{ marketPrice: 3 }, { marketPrice: 3 }]
+  assert.equal(checkBundle(repeated, 5, undefined, true).marketTotal, 6)
+  assert.equal(checkBundle(repeated, 5, undefined, true).deal?.verdict, "good")
+  for (const marketPrice of [null, undefined, 0, -1, NaN, Infinity]) {
+    const comparison = checkBundle([...repeated, { marketPrice }], 5, undefined, true)
+    assert.equal(comparison.unpricedCount, 1)
+    assert.equal(comparison.deal, null)
+  }
+  assert.equal(checkBundle([], 5, undefined, true).deal, null)
+})

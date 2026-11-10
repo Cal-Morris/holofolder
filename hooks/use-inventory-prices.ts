@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { normalizeFetchedCardPrice } from "@/hooks/use-card-prices"
+import { normalizeFetchedCardPrice, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { isCardLanguage } from "@/lib/domain/cards"
-import { getCardPriceKey, type CardPriceLookup, type CardPriceSnapshot } from "@/lib/card-pricing"
+import { getCardPriceKey, type CardPriceLookup } from "@/lib/card-pricing"
 
 /** Existing saved-evidence GET only. Never POST, refresh, provider lookup or paid comparison. */
 export async function readSavedInventoryPrices(requests: readonly CardPriceLookup[], signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<CardPriceSnapshot[]> {

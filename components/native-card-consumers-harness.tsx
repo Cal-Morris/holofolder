@@ -13,6 +13,7 @@ import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
 /** Actual consumers with a synthetic read/admission and draft sink. No BrowserSession/IDB/HTTP acceptance. */
 export default function NativeCardConsumersHarness() {
   const [binding, setBinding] = useState<NativeConsumerBinding | null>(null)
+  const [usd, setUsd] = useState(false)
   const [mode, setMode] = useState("show")
   const [drafts, setDrafts] = useState<StagedSlotCommandIntent[]>([])
   const [legacyWrites, setLegacyWrites] = useState(0)
@@ -40,6 +41,7 @@ export default function NativeCardConsumersHarness() {
   return <main className="flex h-dvh flex-col overflow-hidden pt-[var(--top-inset)] pb-[var(--dock-clearance)]">
     <div className="z-50 flex shrink-0 flex-wrap gap-1 bg-background p-1" aria-label="Synthetic harness controls">
       {["show", "search", "browser", "details"].map(value => <button className="min-h-9 rounded border px-2 text-xs" key={value} onClick={() => setMode(value)}>{value}</button>)}
+      <button className="min-h-9 rounded border px-2 text-xs" onClick={() => setUsd(value => !value)}>Toggle currency</button>
       <button className="min-h-9 rounded border px-2 text-xs" onClick={() => setBinding({ ...binding, collectionId: binding.collectionId ? undefined : binding.read.evidence.kind !== "unavailable" ? binding.read.evidence.snapshot.collections[0].id : undefined })}>Toggle scope</button>
       <button className="min-h-9 rounded border px-2 text-xs" onClick={() => binding.read.evidence.kind !== "unavailable" && setBinding({ ...binding, editingAvailable: false, read: { ...binding.read, evidence: { kind: "cached", snapshot: binding.read.evidence.snapshot } } })}>Cached read</button>
       <button className="min-h-9 rounded border px-2 text-xs" onClick={() => { live.current = null; setBinding({ ...binding, admit: () => null }) }}>Deny admission</button>
@@ -47,7 +49,7 @@ export default function NativeCardConsumersHarness() {
     <output aria-label="Synthetic draft count" className="sr-only">{drafts.length}</output>
     <output aria-label="Synthetic latest draft" className="sr-only">{JSON.stringify(drafts.at(-1) ?? null)}</output>
     <output aria-label="Synthetic legacy writes" className="sr-only">{legacyWrites}</output>
-    {mode === "show" && <QuickMode nativeConsumer={current} history={history} onClose={noop} onNavigate={noop} onSelectPokemon={noop} onSelectCard={noop} onBrowseIllustrator={noop} getOfflineCards={async () => inventoryProjectionCatalog.map(c => ({ ...c.card, dexIds: [...c.pokemonIds ?? []] }))} isOnline={true} cardCheck={{ currency: "GBP", getCardState: () => ({ owned: false, wanted: false }), onAction: legacy, onUndoAvailable: noop, huntItems: [] }} />}
+    {mode === "show" && <QuickMode nativeConsumer={current} history={history} onClose={() => setMode("closed")} onNavigate={noop} onSelectPokemon={noop} onSelectCard={noop} onBrowseIllustrator={noop} getOfflineCards={async () => inventoryProjectionCatalog.map(c => ({ ...c.card, dexIds: [...c.pokemonIds ?? []] }))} isOnline={true} cardCheck={{ currency: usd ? "USD" : "GBP", fxRates: { date: "2026-11-10", eurToGbp: 0.9, usdToGbp: 0.8 }, getCardState: () => ({ owned: false, wanted: false }), onAction: legacy, onUndoAvailable: noop, huntItems: [] }} />}
     {mode === "search" && <div className="min-h-0 flex-1 overflow-auto p-3"><PokemonSearch nativeConsumer={current} history={history} onSelect={noop} onBrowseCards={noop} getOfflineCards={async () => inventoryProjectionCatalog.map(c => ({ ...c.card, dexIds: [...c.pokemonIds ?? []] }))} /></div>}
     {(mode === "browser" || mode === "details") && <PokemonCardsBrowser nativeConsumer={current} pokemon={mode === "details" ? null : { id: 143, name: "snorlax" }} isDesktop={false} onClose={noop} onAddCard={() => { void legacy() }} onWantCard={() => { void legacy() }} formatPrice={() => null} cardDetails={mode === "details" ? { card, finish: "normal", getState: () => ({ owned: false, wanted: false }), onAction: legacy, onRemoveOwned: () => { void legacy() }, onJumpToSlot: noop } : undefined} />}
   </main>

@@ -215,19 +215,20 @@ function QuickMode({
   const show = showTools ? cardCheck : undefined
   const huntItems = show?.huntItems
   const [isBundleOpen, setIsBundleOpen] = useState(false)
-  const [bundle, setBundle] = useState<QuickBundleEntry[]>(() => (typeof window === "undefined" ? [] : readBundle()))
+  const [bundle, setBundle] = useState<QuickBundleEntry[]>(() => (nativeConsumer || typeof window === "undefined" ? [] : readBundle()))
   const bundleRef = useRef(bundle)
   const updateBundle = useCallback((update: QuickBundleEntry[] | ((current: QuickBundleEntry[]) => QuickBundleEntry[])) => {
     const next = typeof update === "function" ? update(bundleRef.current) : update
     bundleRef.current = next
     setBundle(next)
+    if (nativeConsumer) return
     try { window.sessionStorage.setItem(BUNDLE_KEY, JSON.stringify(next)) } catch { /* The bundle still works for this visit. */ }
-  }, [])
+  }, [nativeConsumer])
   const [query, setQuery] = useState(initialQuery)
   const [isScannerOpen, setIsScannerOpen] = useState(false)
   const [scanNotice, setScanNotice] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
-  const prepSwipe = useSwipeToDismiss(dialogRef, onClose, preparingOffline)
+  const prepSwipe = useSwipeToDismiss(dialogRef, onClose, preparingOffline || Boolean(nativeConsumer && isBundleOpen))
   const inputRef = useRef<HTMLInputElement | null>(null)
   useOverlay(true, onClose, { containerRef: dialogRef, autoFocus: false })
   const isWide = useMediaQuery("(min-width: 768px)")
@@ -291,12 +292,12 @@ function QuickMode({
     [show, cardSearch.groups, cardSearch.cards, nativeConsumer, getCardState, wantedMatches],
   )
   const priceLookups = useMemo(
-    () => (formatPrice ? cardResults.map(({ card }) => ({ cardId: card.id, language: card.language ?? "en" })) : []),
-    [cardResults, formatPrice],
+    () => (formatPrice ? cardResults.map(({ card }) => ({ cardId: card.id, language: nativeConsumer ? card.language : card.language ?? "en" })) : []),
+    [cardResults, formatPrice, nativeConsumer],
   )
   // Same array across keystrokes while the priced cards are unchanged (or the search is still loading).
   const stablePriceLookups = useStableCardPriceLookups(priceLookups, cardSearch.loading)
-  const { pricesByCardId } = useRegionalCardPrices(stablePriceLookups, stablePriceLookups.length > 0, pricingRegion)
+  const { pricesByCardId } = useRegionalCardPrices(stablePriceLookups, stablePriceLookups.length > 0, pricingRegion, Boolean(nativeConsumer))
   // "% down" / "% up" reorder the found cards by price momentum (per card + language); Default keeps the search's order.
   const sortedCardResults = useMemo(
     () => applyMomentumSort<(typeof cardResults)[number]>(cardResults, moveSort, ({ card }) => pricesByCardId[getCardPriceKey(card.id, card.language ?? "en")]),
@@ -390,15 +391,15 @@ function QuickMode({
       state={cardCheck.getCardState(checking.card, checking.pokemon)}
       getState={finish => cardCheck.getCardState(checking.card, checking.pokemon, finish)}
       destinationName={cardCheck.destinationName}
-      budgetKey={show?.budgetKey}
+      budgetKey={nativeConsumer ? undefined : show?.budgetKey}
       savedDeal={checking.savedDeal}
-      revisit={show && cardCheck.revisitKey && !cardCheck.readOnly ? revisit : undefined}
+      revisit={!nativeConsumer && show && cardCheck.revisitKey && !cardCheck.readOnly ? revisit : undefined}
       currency={cardCheck.currency}
       fxRates={cardCheck.fxRates}
       pricingRegion={pricingRegion}
       isOnline={isOnline}
       readOnly={cardCheck.readOnly}
-      showTools={Boolean(show) && !nativeConsumer}
+      showTools={Boolean(show)}
       initialFinish={checking.finish}
       onBack={() => {
         setChecking(null)
@@ -409,24 +410,27 @@ function QuickMode({
       onChangeCard={cardCheck.onChangeCard ? (mode, finish) => cardCheck.onChangeCard?.(mode, checking.card, checking.pokemon, finish) : undefined}
       onUndoAvailable={cardCheck.onUndoAvailable}
       onAction={(action, finish) => nativeConsumer ? Promise.resolve(null) : cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
-      isInBundle={(key) => bundle.some((entry) => entry.key === key)}
-      onAddToBundle={(entry) => updateBundle([...bundle.filter((item) => item.key !== entry.key), entry])}
+      isInBundle={(key) => !nativeConsumer && bundle.some((entry) => entry.key === key)}
+      onAddToBundle={(entry) => updateBundle(current => nativeConsumer
+        ? [...current, { ...entry, key: crypto.randomUUID() }]
+        : [...current.filter(item => item.key !== entry.key), entry])}
     />
   ) : null
-  const bundleView = show && !nativeConsumer && isBundleOpen ? (
+  const bundleView = show && isBundleOpen ? (
     <QuickBundle
       entries={bundle}
+      nativeConsumer={nativeConsumer}
       destinationName={show.destinationName}
-      budgetKey={show.budgetKey}
+      budgetKey={nativeConsumer ? undefined : show.budgetKey}
       getCardState={entry => show.getCardState(entry.card, entry.pokemon, entry.finish)}
       currency={show.currency}
-      readOnly={show.readOnly}
+      readOnly={Boolean(nativeConsumer) || show.readOnly}
       onBack={() => setIsBundleOpen(false)}
       onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
       onClear={() => updateBundle([])}
       onSoldCheck={(key, soldCheck) => updateBundle(current => current.map(entry => entry.key === key ? { ...entry, soldCheck } : entry))}
       onUndoAvailable={show.onUndoAvailable}
-      onAction={(action, entry) => show.onAction(action, entry.card, entry.pokemon, entry.finish)}
+      onAction={(action, entry) => nativeConsumer ? Promise.resolve(null) : show.onAction(action, entry.card, entry.pokemon, entry.finish)}
     />
   ) : null
   const detailOpen = Boolean(checkView ?? bundleView)
@@ -437,7 +441,7 @@ function QuickMode({
 
   const searchControls = (
     <div className={`holo-panel shrink-0 rounded-3xl border border-border/60 px-3 py-3 ${wideWorkspace ? "mx-3 mb-3" : "mx-3 mb-[calc(var(--safe-bottom)+0.5rem)] mt-2"}`}>
-      {show && !nativeConsumer && bundle.length > 0 && (
+      {show && bundle.length > 0 && (
         <button
           type="button"
           onClick={() => { setChecking(null); setIsBundleOpen(true) }}
@@ -446,7 +450,7 @@ function QuickMode({
           <Layers className="h-4 w-4 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1 truncate">
             Bundle · {bundle.length} card{bundle.length === 1 ? "" : "s"}
-            {bundle.some((entry) => entry.marketPrice !== null)
+            {!nativeConsumer && bundle.some((entry) => entry.marketPrice !== null)
               ? ` · market ${formatMoney(bundle.reduce((sum, entry) => sum + (entry.marketPrice ?? 0), 0), bundle[0].currency)}`
               : ""}
           </span>
@@ -513,7 +517,7 @@ function QuickMode({
         data-keyboard-fit
         className={`mx-auto flex h-[100dvh] w-full ${wideWorkspace ? "max-w-6xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
       >
-        <header {...prepSwipe} className="holo-panel mx-3 mb-3 flex shrink-0 items-center gap-2 rounded-3xl border border-border/60 px-3 py-2">
+        <header data-sheet-grabber {...prepSwipe} className="holo-panel mx-3 mb-3 flex shrink-0 items-center gap-2 rounded-3xl border border-border/60 px-3 py-2">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold leading-tight">{preparingOffline ? "Prepare offline" : lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
           </div>
