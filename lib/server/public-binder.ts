@@ -38,6 +38,7 @@ const object = (v: unknown): Row => v && typeof v === 'object' && !Array.isArray
 const rows = (v: unknown): Row[] => Array.isArray(v) ? v.map(object) : fail()
 const id = (v: unknown): string => typeof v === 'string' && v.length > 0 && v.length <= 200 ? v : fail()
 const same = (a: unknown, b: unknown) => { if (JSON.stringify(a) !== JSON.stringify(b)) fail() }
+const chunks = <T,>(values: T[], size: number) => Array.from({ length: Math.ceil(values.length / size) }, (_, i) => values.slice(i * size, i * size + size))
 const color = (v: unknown): BinderColorId => BINDER_COLOR_PRESETS.find(p => p.id === v)?.id ?? DEFAULT_BINDER_COLOR_ID
 
 /** The only production entry accepts a public identity, never a caller's owner or collection scope.
@@ -111,10 +112,15 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         if (page.length < PAGE) return result
       }
     }
-    const initialState = await state()
+    async function username() {
+      const result = await execute(db.from('account_identities').select('username').eq('user_id', owner).abortSignal(controller.signal).maybeSingle())
+      if (result.error && !isMissingIdentitySchema(result.error)) return fail()
+      return normalizeUsername(result.data?.username)
+    }
+    // Independent first reads; the final fence re-reads every one of them.
+    const [initialState, settings, publicUsername] = await Promise.all([state(), run(db.from('user_settings').select('binder_rows,binder_cols,binder_color_id,binder_page_colors,binder_slot_glare_enabled,dark_mode').eq('user_id', owner).abortSignal(controller.signal).maybeSingle()), username()])
     const native = initialState.authority === 'slots'
     const rev = native ? await revision() : null
-    const settings = await run(db.from('user_settings').select('binder_rows,binder_cols,binder_color_id,binder_page_colors,binder_slot_glare_enabled,dark_mode').eq('user_id', owner).abortSignal(controller.signal).maybeSingle())
     const appearanceRow: Row = settings.data ? object(settings.data) : {}
     const pageColors: Record<string, BinderColorId> = {}
     if (appearanceRow.binder_page_colors && typeof appearanceRow.binder_page_colors === 'object') {
@@ -122,12 +128,6 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     }
     // NULL binder geometry inherits the owner's settings (039). Native never invents a default beyond that.
     const grid = (value: unknown, fallback: unknown) => isBinderGridSize(value) ? value : isBinderGridSize(fallback) ? fallback : native ? fail() : 4
-    async function username() {
-      const result = await execute(db.from('account_identities').select('username').eq('user_id', owner).abortSignal(controller.signal).maybeSingle())
-      if (result.error && !isMissingIdentitySchema(result.error)) return fail()
-      return normalizeUsername(result.data?.username)
-    }
-    const publicUsername = await username()
     const base = { ...(publicUsername ? { username: publicUsername } : {}), name: normalizeBinderName(initialBinder.name) ?? 'Pokémon binder',
       rows: grid(initialBinder.binder_rows, appearanceRow.binder_rows), cols: grid(initialBinder.binder_cols, appearanceRow.binder_cols),
       appearance: { dark: appearanceRow.dark_mode !== false, color: color(appearanceRow.binder_color_id), pageColors, glare: appearanceRow.binder_slot_glare_enabled !== false } }
@@ -140,23 +140,21 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     async function preloadCatalog(ids: string[]) {
       const unique = [...new Set(ids)]
       const projection = 'id,name_en,series_id,set_id,local_id,image_languages_json,external_ids_json'
-      for (let offset = 0; offset < unique.length; offset += 100) {
-        const batch = unique.slice(offset, offset + 100)
+      await mapWithConcurrency(chunks(unique, 100), 4, async batch => {
         const direct = rows((await run(db.from('tcg_cards').select(projection).in('id', batch).abortSignal(controller.signal))).data)
         for (const row of direct) {
           const key = id(row.id)
           if (!batch.includes(key) || catalogRows.has(key)) return fail()
           catalogRows.set(key, row)
         }
-      }
+      })
       // Missing IDs may be recorded catalog aliases. Bound their concurrency and never fuzzy-match.
       await mapWithConcurrency(unique.filter(key => !catalogRows.has(key)), 12, async key => {
         const result = await run(db.from('tcg_cards').select(projection).contains('external_ids_json', { catalog: { aliasIds: [key] } }).abortSignal(controller.signal).maybeSingle())
         if (result.data) catalogRows.set(key, object(result.data))
       })
       const canonical = [...new Set([...catalogRows.values()].map(row => id(row.id)))]
-      for (let offset = 0; offset < canonical.length; offset += 100) {
-        const batch = canonical.slice(offset, offset + 100)
+      await mapWithConcurrency(chunks(canonical, 100), 4, async batch => {
         for (let start = 0; ; start += PAGE) {
           const page = rows((await run(db.from('tcg_card_dex_ids').select('card_id,dex_id').in('card_id', batch)
             .order('card_id').order('dex_id').range(start, start + PAGE - 1).abortSignal(controller.signal))).data)
@@ -170,7 +168,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
           }
           if (page.length < PAGE) break
         }
-      }
+      })
     }
     function card(cardId: string, language: string = 'en') {
       const cacheKey = JSON.stringify([cardId, language])
@@ -218,8 +216,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       if (placements.some(p => p.owner_user_id !== owner || p.collection_id !== collection || !isSlotRevision(p.version) || !stored.some(s => s.id === p.slot_id))) return fail()
       const items = new Map<string, InventoryItem>()
       const itemPages: Row[][] = []
-      for (let offset = 0; offset < placements.length; offset += 100) {
-        const ids = placements.slice(offset, offset + 100).map(p => id(p.inventory_item_id))
+      await mapWithConcurrency(chunks(placements.map(p => id(p.inventory_item_id)), 100), 4, async ids => {
         const result = rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', ids).abortSignal(controller.signal))).data)
         itemPages.push(result)
         if (result.length !== ids.length) return fail()
@@ -238,7 +235,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
           if (typeof providerName === 'string' && providerName.length <= 500 && !/https?:|www\.|[<>]/i.test(providerName) && (!certificate || !providerName.includes(certificate))) providers.set(String(row.id), providerName)
           if (typeof grade === 'string' && grade.length <= 500 && !/https?:|www\.|[<>]/i.test(grade) && (!certificate || !grade.includes(certificate))) grades.set(String(row.id), grade)
         }
-      }
+      })
       await preloadCatalog([...items.values()].flatMap(item => item.identity.kind === 'card' ? [item.identity.cardId] : []).concat(stored.flatMap(s => {
         const target = normalizeSlotTarget(s.target)
         return [...(target?.kind === 'card' ? [target.cardId] : []), ...wantIds(s.wanted_cards)]
@@ -263,14 +260,13 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       }
       const goal = getBinderCompletion(snapshot, key => { const item = items.get(key); return item ? inventoryItemCandidate(item, key => card(key)?.candidate) : undefined })
       completion = { targetCount: goal.targetCount, completedTargetCount: goal.completedTargetCount }
-      same(stored, await paged('binder_slots', SLOTS, 'position'))
-      same(placements, await paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id'))
-      for (const page of itemPages) {
-        const final = rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', page.map(r => String(r.id))).abortSignal(controller.signal))).data)
-        const sorted = (values: Row[]) => values.toSorted((a, b) => String(a.id).localeCompare(String(b.id)))
-        same(sorted(page), sorted(final))
-      }
-      same(rev, await revision())
+      const sorted = (values: Row[]) => values.toSorted((a, b) => String(a.id).localeCompare(String(b.id)))
+      await Promise.all([
+        paged('binder_slots', SLOTS, 'position').then(final => same(stored, final)),
+        paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id').then(final => same(placements, final)),
+        ...itemPages.map(async page => same(sorted(page), sorted(rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', page.map(r => String(r.id))).abortSignal(controller.signal))).data)))),
+        revision().then(final => same(rev, final)),
+      ])
     } else {
       // Legacy National Dex is its actual layout contract, never a native default or conversion.
       const stored = await paged('pokemon_collection', LEGACY, 'pokemon_id', true)
@@ -290,26 +286,31 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       completion = { targetCount: slots.length, completedTargetCount: slots.filter(s => s.item).length }
       same(stored, await paged('pokemon_collection', LEGACY, 'pokemon_id', true))
     }
-    if (share.show_prices === true) {
-      const savedPrices = new Map<string, number | null>()
-      const unique = new Map([...priceLookups.values()].map(lookup => [JSON.stringify(lookup), lookup]))
-      await mapWithConcurrency([...unique], 12, async ([key, lookup]) => {
-        const result = await run(db.from('card_prices').select('gbp_amount').eq('card_id', lookup.cardId).eq('language', lookup.language).abortSignal(controller.signal).maybeSingle())
-        const amount = Number(result.data?.gbp_amount)
-        savedPrices.set(key, Number.isFinite(amount) && amount > 0 ? amount : null)
+    async function prices() {
+      // One query per language and 100 card IDs (PK is card_id, language), so rows stay far below PostgREST's cap.
+      const byLanguage = new Map<string, Set<string>>()
+      for (const { cardId, language } of priceLookups.values()) byLanguage.set(language, (byLanguage.get(language) ?? new Set()).add(cardId))
+      const savedPrices = new Map<string, number>()
+      await mapWithConcurrency([...byLanguage].flatMap(([language, ids]) => chunks([...ids], 100).map(batch => ({ language, batch }))), 4, async ({ language, batch }) => {
+        for (const row of rows((await run(db.from('card_prices').select('card_id,language,gbp_amount').eq('language', language).in('card_id', batch).abortSignal(controller.signal))).data)) {
+          const amount = Number(row.gbp_amount)
+          if (row.language === language && batch.includes(String(row.card_id)) && Number.isFinite(amount) && amount > 0) savedPrices.set(JSON.stringify([row.card_id, language]), amount)
+        }
       })
       for (const [index, lookup] of priceLookups) {
-        const key = JSON.stringify(lookup)
-        const amount = savedPrices.get(key)
+        const amount = savedPrices.get(JSON.stringify([lookup.cardId, lookup.language]))
         if (amount != null) slots[index].marketGBP = amount
       }
     }
-    same(initialBinder, await binder())
-    same(initialState, await state())
-    same(appearanceRow, (await run(db.from('user_settings').select('binder_rows,binder_cols,binder_color_id,binder_page_colors,binder_slot_glare_enabled,dark_mode').eq('user_id', owner).abortSignal(controller.signal).maybeSingle())).data ?? {})
-    same(publicUsername, await username())
-    if (native) same(rev, await revision())
-    same(share, await permission())
+    await Promise.all([
+      share.show_prices === true ? prices() : null,
+      binder().then(final => same(initialBinder, final)),
+      state().then(final => same(initialState, final)),
+      run(db.from('user_settings').select('binder_rows,binder_cols,binder_color_id,binder_page_colors,binder_slot_glare_enabled,dark_mode').eq('user_id', owner).abortSignal(controller.signal).maybeSingle()).then(final => same(appearanceRow, final.data ?? {})),
+      username().then(final => same(publicUsername, final)),
+      native ? revision().then(final => same(rev, final)) : null,
+      permission().then(final => same(share, final)),
+    ])
     return { kind: native ? 'native' : 'legacy', ...base, completion, prices: share.show_prices === true, slots }
   } catch { return fail() } finally { clearTimeout(timer); controller.abort() }
 }

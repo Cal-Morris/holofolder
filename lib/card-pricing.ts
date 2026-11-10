@@ -261,24 +261,35 @@ export function normalizeCardPriceLookups(values: unknown[]): CardPriceLookup[] 
   return [...byKey.values()]
 }
 
-/** Saved server evidence only. Never refreshes a provider; batches stay below PostgREST's row cap. */
-export async function loadSavedCardPrices(lookups: CardPriceLookup[]): Promise<CardPriceSnapshot[]> {
+/** Every card_prices column except history_points, which only the card detail evidence view reads. */
+export const SAVED_PRICE_COLUMNS_WITHOUT_HISTORY = "card_id,language,gbp_amount,market_gbp_amount,good_gbp_amount,low_gbp_amount,high_gbp_amount,confidence,source_prices,trend_points,buy_signal,original_amount,original_currency,source,variant_label,source_updated_at,fx_date,fetched_at,finish_prices"
+const SAVED_PRICE_QUERY_IDS = 200
+/** Cards per history-free saved-price GET. 100 lookups encode to ~7 KB of URL; 200 would near Vercel's 14 KB cap. */
+export const SAVED_PRICES_WITHOUT_HISTORY_MAX_CARDS = 100
+
+/** Saved server evidence only. Never refreshes a provider. One query per language and 200 card IDs (PK is
+ * card_id, language), so each returns at most 200 rows, below PostgREST's 1000-row cap. Without history,
+ * snapshots carry no historyPoints at all (unknown, not empty). */
+export async function loadSavedCardPrices(lookups: CardPriceLookup[], options: { history?: boolean; db?: Pick<ReturnType<typeof createAdminClient>, "from"> } = {}): Promise<CardPriceSnapshot[]> {
   const requested = normalizeCardPriceLookups(lookups)
-  const { createAdminClient } = await import("@/lib/supabase/admin")
-  const db = createAdminClient()
-  const result: CardPriceSnapshot[] = []
-  for (let offset = 0; offset < requested.length; offset += 25) {
-    const batch = requested.slice(offset, offset + 25)
-    const keys = new Set(batch.map(card => getCardPriceKey(card.cardId, card.language)))
-    const { data, error } = await db.from("card_prices").select("*")
-      .in("card_id", [...new Set(batch.map(card => card.cardId))])
-      .in("language", [...new Set(batch.map(card => card.language))])
+  const history = options.history !== false
+  const db = options.db ?? (await import("@/lib/supabase/admin")).createAdminClient()
+  const byLanguage = new Map<string, string[]>()
+  for (const { cardId, language } of requested) byLanguage.set(language, [...(byLanguage.get(language) ?? []), cardId])
+  const queries = [...byLanguage].flatMap(([language, ids]) => Array.from({ length: Math.ceil(ids.length / SAVED_PRICE_QUERY_IDS) },
+    (_, i) => ({ language, ids: ids.slice(i * SAVED_PRICE_QUERY_IDS, (i + 1) * SAVED_PRICE_QUERY_IDS) })))
+  const keys = new Set(requested.map(card => getCardPriceKey(card.cardId, card.language)))
+  const pages = await Promise.all(queries.map(async ({ language, ids }) => {
+    const { data, error } = await db.from("card_prices").select(history ? "*" : SAVED_PRICE_COLUMNS_WITHOUT_HISTORY)
+      .eq("language", language).in("card_id", ids)
     if (error) throw new Error("Saved prices are unavailable")
-    for (const row of (data ?? []) as CardPriceRow[]) {
-      if (keys.has(getCardPriceKey(row.card_id, row.language))) result.push(rowToSnapshot(row))
-    }
-  }
-  return result
+    return (data ?? []) as unknown as CardPriceRow[]
+  }))
+  return pages.flat().filter(row => keys.has(getCardPriceKey(row.card_id, row.language))).map(row => {
+    const snapshot = rowToSnapshot(row)
+    if (!history) delete snapshot.historyPoints
+    return snapshot
+  })
 }
 
 export async function refreshCardPriceLookups(
