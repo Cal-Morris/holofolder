@@ -31,6 +31,8 @@ interface SetPopulationViewProps {
   stagedCreation?: { ownerUserId: string; onDraft: (draft: BinderCreationDraft) => void; isOnline: boolean }
   pricingEnabled?: boolean
   collectionByPokemonId: Map<number, CollectedPokemon>
+  /** Every copy and want as its own row, for printing-level state; defaults to the species map. */
+  collectionRows?: readonly CollectedPokemon[]
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
   /** The user's pricing region; set card prices are weighted for it. */
   pricingRegion?: PricingRegion
@@ -91,6 +93,7 @@ function getSelectedSetCard(slot: TCGSetDexSlot, selectedCardIdsByDexId: Record<
 export default function SetPopulationView({
   pricingEnabled = true,
   collectionByPokemonId,
+  collectionRows,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
   onSelectSlot,
@@ -247,8 +250,8 @@ export default function SetPopulationView({
   }, [slots])
 
   const setCompletions = useMemo(
-    () => selectedSets.flatMap(set => payloadsBySetId[set.id] ? [{ set, ...getSetCompletion(payloadsBySetId[set.id], collectionByPokemonId.values()) }] : []),
-    [collectionByPokemonId, payloadsBySetId, selectedSets],
+    () => selectedSets.flatMap(set => payloadsBySetId[set.id] ? [{ set, ...getSetCompletion(payloadsBySetId[set.id], collectionRows ?? collectionByPokemonId.values()) }] : []),
+    [collectionByPokemonId, collectionRows, payloadsBySetId, selectedSets],
   )
 
   const matchedSlots = useMemo(() => matchedPokemonIds.length ? slots.filter(slot => matchedPokemonIds.includes(slot.dexId)) : slots, [matchedPokemonIds, slots])
@@ -309,7 +312,7 @@ export default function SetPopulationView({
   }, [collectionByPokemonId, slotFilter, slotSearch, matchedSlots])
 
   const matchingCards = useMemo(() => matchedPokemonIds.length ? setCards.filter(card => slots.some(slot => matchedPokemonIds.includes(slot.dexId) && slot.cards.some(candidate => candidate.id === card.id))) : setCards, [matchedPokemonIds, setCards, slots])
-  const cardEntries = useMemo(() => matchingCards.map(card => ({ card, ...getSetCardState(card, collectionByPokemonId.values()) })), [matchingCards, collectionByPokemonId])
+  const cardEntries = useMemo(() => matchingCards.map(card => ({ card, ...getSetCardState(card, collectionRows ?? collectionByPokemonId.values()) })), [matchingCards, collectionByPokemonId, collectionRows])
   const cardCounts = { all: cardEntries.length, open: cardEntries.filter(entry => !entry.owned).length, owned: cardEntries.filter(entry => entry.owned).length, wanted: cardEntries.filter(entry => entry.wanted).length, multiple: 0 }
   const cardSummary = { total: cardCounts.all, owned: cardCounts.owned, missing: cardCounts.open, wanted: cardCounts.wanted }
   const visibleCards = cardEntries.filter(entry => {

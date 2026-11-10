@@ -1,6 +1,8 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { nativeCardConsumers, nativeCardState, nativeWantSelections, prepareNativeWant } from "@/lib/collection/native-card-consumers"
+import { nativeCardConsumers, nativeCardState, nativeSpeciesCollection, nativeWantSelections, prepareNativeWant } from "@/lib/collection/native-card-consumers"
+import { getSetCompletion } from "@/lib/set-completion"
+import { getSetCardState } from "@/lib/set-checklist"
 import { completeInventoryBrowseFixture, inventoryProjectionCatalog } from "./fixtures/inventory-browse"
 
 import { nativeConsumerFixture } from "./fixtures/native-card-consumers"
@@ -161,4 +163,49 @@ test("Wanted binding preserves Trainer and Energy destinations while empty card/
   ])
   assert.deepEqual(model.wants.map(w => w.card?.name), ["Synthetic Trainer", "Synthetic Trainer", "Synthetic Trainer", "Synthetic Energy"])
   assert.ok(model.wants.every(w => w.card?.dexIds.length === 0))
+})
+
+test("species view: copies own their species, explicit wants mark it, plain targets do neither, scope is honoured", async () => {
+  const { binding, snapshot } = await nativeConsumerFixture()
+  const snorlaxWant = { card_id: "synthetic-snorlax", card_name: "Synthetic Snorlax", card_language: "en" as const, card_finish: "holo" as const, added_at: "2026-11-09T00:00:00Z" }
+  snapshot.binders[1].slots[2].wantedCards = [snorlaxWant]
+  snapshot.binders[1].slots[3].target = { kind: "pokemon", pokemonId: 25 }
+  snapshot.binders[1].slots[4].target = { kind: "card", cardId: "synthetic-energy", language: "en", finish: "normal" }
+  binding.read = { ...binding.read, evidence: { kind: "complete", snapshot: await completeInventoryBrowseFixture(snapshot) } }
+  const all = nativeSpeciesCollection(binding)!
+  assert.deepEqual([...all.bySpecies.keys()], [143])
+  const snorlax = all.bySpecies.get(143)!
+  assert.equal(snorlax.status, "collected")
+  assert.equal(snorlax.card_id, "synthetic-snorlax")
+  assert.deepEqual(snorlax.wanted_cards, [snorlaxWant])
+  // Six physical copies stay six rows (three Snorlax, one Pokémon-only, Trainer, Energy) plus four explicit wants.
+  assert.equal(all.rows.filter(r => r.status !== "wishlisted").length, 6)
+  assert.equal(all.rows.filter(r => r.status === "wishlisted").length, 4)
+  const set = { id: "synthetic", name: "Synthetic projection set" }
+  const [snorlaxCard, trainerCard, energyCard] = inventoryProjectionCatalog.map(e => ({ ...e.card, language: "en" as const, inferredFinish: "normal" as const, set }))
+  assert.equal(getSetCompletion({ sets: [set], selectedSet: set, slots: [], cards: [snorlaxCard, trainerCard, energyCard] }, all.rows).owned, 3)
+  assert.deepEqual(getSetCardState(trainerCard, all.rows), { owned: true, wanted: true })
+  assert.deepEqual(getSetCardState(energyCard, all.rows), { owned: true, wanted: false })
+
+  const alpha = nativeSpeciesCollection({ ...binding, collectionId: snapshot.collections[0].id })!
+  assert.equal(alpha.rows.filter(r => r.status !== "wishlisted").length, 1)
+  assert.deepEqual(alpha.bySpecies.get(143)?.wanted_cards, [])
+  const trades = nativeSpeciesCollection({ ...binding, collectionId: snapshot.collections[1].id })!
+  assert.equal(trades.bySpecies.get(143)?.status, "collected")
+  assert.deepEqual(trades.bySpecies.get(143)?.wanted_cards, [snorlaxWant])
+  assert.equal(trades.bySpecies.has(25), false)
+  assert.equal(nativeSpeciesCollection({ ...binding, collectionId: "missing" }), null)
+})
+
+test("species view: an explicit want alone marks the species wanted, not owned", async () => {
+  const { binding, snapshot } = await nativeConsumerFixture()
+  snapshot.items = snapshot.items.filter(i => i.identity.kind === "card" && i.identity.cardId !== "synthetic-snorlax")
+  snapshot.placements = []
+  snapshot.binders.forEach(b => b.slots.forEach(s => { s.inventoryItemId = null; s.status = null }))
+  snapshot.binders[0].slots[2].wantedCards = [{ card_id: "synthetic-snorlax", card_name: "Synthetic Snorlax", card_language: "en", card_finish: "normal", added_at: "2026-11-09T00:00:00Z" }]
+  binding.read = { ...binding.read, evidence: { kind: "complete", snapshot: await completeInventoryBrowseFixture(snapshot) } }
+  const model = nativeSpeciesCollection(binding)!
+  assert.equal(model.bySpecies.get(143)?.status, "wishlisted")
+  assert.equal(model.bySpecies.get(143)?.card_id, undefined)
+  assert.equal(model.bySpecies.get(143)?.wanted_cards.length, 1)
 })

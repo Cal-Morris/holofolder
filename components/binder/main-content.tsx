@@ -37,6 +37,8 @@ import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSumm
 export interface MainContentContext {
   nativeWanted?: import("react").ReactNode
   nativeAnalytics?: import("react").ReactNode
+  /** Read-only native ownership for the Pokémon-specific views; the legacy collection is empty for native hosts. */
+  nativeSpecies?: { bySpecies: Map<number, CollectedPokemon>; rows: CollectedPokemon[] } | null
   layoutToolbar?: import("react").ReactNode
   orderedDisplaySlots?: (BinderDisplaySlot | null)[]
   onSelectSlot?: (id: string) => void
@@ -141,6 +143,7 @@ export interface MainContentContext {
 
 export function renderMainContentView(ctx: MainContentContext) {
   const { pendingBinderPage, cancelPageNavigation, onHideBinderValue, assignWantedCard, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
+  const speciesById = ctx.nativeSpecies?.bySpecies ?? collectionByPokemonId
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
       {!ctx.orderedDisplaySlots && ctx.layoutToolbar}
@@ -203,13 +206,13 @@ export function renderMainContentView(ctx: MainContentContext) {
           <CollectionPriceCheck ownerId={user ? resolvedCollectionOwnerUserId ?? null : null} key={activeMainView} collection={collection} kind={activeMainView === "wanted" ? "wanted" : "owned"} isOnline={isOnline} />
         )}
         {activeMainView === "pokemon" ? (
-          <PokemonBrowseView collectionByPokemonId={collectionByPokemonId} ownedElsewhere={allBinders ? ownedElsewhereLabel : undefined} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
+          <PokemonBrowseView collectionByPokemonId={speciesById} ownedElsewhere={allBinders ? ownedElsewhereLabel : undefined} onBrowsePokemon={pokemon => openCardBrowser(pokemon)} />
         ) : activeMainView === "analytics" ? (
           ctx.nativeAnalytics ?? <CollectionAnalyticsView collection={collection} allBindersCollection={allBindersOwned} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} isLoadingPrices={isLoadingPrices} onBrowsePokemon={openCardBrowser} />
         ) : activeMainView === "list" ? (
           <DexListView
             pokemonList={filteredPokemonSummaryList}
-            collectionByPokemonId={collectionByPokemonId}
+            collectionByPokemonId={speciesById}
             pricesByKey={pricesByCardId}
             getPriceKey={getCollectionItemPriceKey}
             formatPrice={priceFormat.label}
@@ -248,7 +251,8 @@ export function renderMainContentView(ctx: MainContentContext) {
             pricingEnabled={ctx.pricingEnabled}
             key={setViewRequest?.key ?? "sets"}
             initialSet={setViewRequest?.set ?? null}
-            collectionByPokemonId={collectionByPokemonId}
+            collectionByPokemonId={speciesById}
+            collectionRows={ctx.nativeSpecies?.rows}
             formatPrice={priceFormat.label}
             pricingRegion={pricingPreferences.region}
             onSelectSlot={handleSelectSetSlot}
