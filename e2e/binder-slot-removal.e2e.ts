@@ -157,7 +157,8 @@ test("partner stale revision rejects whole group and retains exact original requ
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("conflict")
   expect((await record(page)).receipts).toHaveLength(0)
   const retained = (await record(page)).pending[0].intent
-  expect(retained.kind !== "creation" && retained.request.commands).toHaveLength(1)
+  if (retained.kind !== "inventory") throw new Error("Expected retained inventory removal")
+  expect(retained.request.commands).toHaveLength(1)
   expect((await record(page)).snapshot!.items).toHaveLength(4)
 })
 
