@@ -1,3 +1,5 @@
+import { rawRestoreFixture } from './raw-restore'
+import { planRawContentRestore } from '../../lib/raw-restore-plan'
 import assert from 'node:assert/strict'
 import {assertSmokeResponse,assertStagedSmokeResponse,assertTerminalStorageSmokeResponse} from '../../scripts/api-smoke-assertions'
 import { createHash } from 'node:crypto'
@@ -62,13 +64,14 @@ async function main() {
         supported: false, unsupported: ['synthetic unsupported dependency'], conflicts: [], changes: privatePreview ? [{ certificate: 'private' }] : [],
         restoreUnassignedItemIds: [], rootRevisionsAdvance: true, planToken: null }
       else if (operation.includes('apply')) result = { inventoryRevision: 2, eventId: '13', recoveredEventId: request.eventId, collections: [] }
+      else if (operation === 'backup.restore.raw') result = { inventoryRevision: 9, changed: true, collectionId: request.collection.collectionId, collectionVersion: 3, layoutRevision: 3, slotIds: request.slots.map((s: { after: { id: string } }) => s.after.id), releasedItemIds: request.releaseItemIds, certificate: 'private' }
       else if (operation === 'backup.arrangement') result = { inventoryRevision: 2, changed: true, collectionId: request.destinationCollectionId, collectionVersion: 1, layoutRevision: 1, slotIds: request.slots.map((s: { id: string }) => s.id), addedItemIds: [], removedEmptySlotIds: [], evidence: 'private' }
       else if (operation === 'collection.create') result = { inventoryRevision: 2, changed: true, collectionId: request.collectionId,
         collectionVersion: 0, layoutRevision: 0, slotIds: request.slotIds, recoverySupported: false, evidence: { certificate: 'private' } }
       else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
       else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
       if (forged !== undefined) return Response.json(forged)
-      if (terminal && ['collection.create', 'backup.arrangement'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'inventory_revision_conflict', inventoryRevision: 2 }
+      if (terminal && ['collection.create', 'backup.arrangement', 'backup.restore.raw'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'inventory_revision_conflict', inventoryRevision: 2 }
       if (terminal && operation.includes('apply')) result = { outcome: 'rejected', operationId: request.operationId, code: 'recovery_plan_conflict', inventoryRevision: 2 }
       if (terminal && ['slots', 'inventory'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
       // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
@@ -107,7 +110,9 @@ async function main() {
   const arrangement = { version: 1, operationId: 'synthetic-arrangement-1', inventoryRevision: 1, destinationCollectionId: collectionId,
     collections: [{ collectionId, version: 0, layoutRevision: 0 }], emptyDestinationSlots: [], manifest: null, copies: [],
     slots: [{ id: 'synthetic-import-slot', target: null, status: null, wantedCards: [], inventoryItemId: null, presetOrigin: null }] }
-  const values: Record<string, Record<string, unknown>> = { import_storage_arrangement: arrangement, execute_inventory_commands: inventory, execute_slot_commands: slots, create_storage_collection: creation,
+  const rawFixture = await rawRestoreFixture()
+  const raw = structuredClone(planRawContentRestore(rawFixture.input).request)
+  const values: Record<string, Record<string, unknown>> = { restore_raw_collection_content: raw as unknown as Record<string, unknown>, import_storage_arrangement: arrangement, execute_inventory_commands: inventory, execute_slot_commands: slots, create_storage_collection: creation,
     preview_storage_recovery: preview, apply_storage_recovery: apply, preview_storage_recovery_v2: v2,
     apply_storage_recovery_v2: { ...v2, operationId: 'synthetic-recovery-v2', planToken: 'b'.repeat(64), confirmed: true } }
   async function call(transport: 'rest' | 'mcp', name: string, value: unknown) {
@@ -134,6 +139,7 @@ async function main() {
   const paddedLegacy = await handleMcpRequest(new Request('https://synthetic.test/app/mcp', { method: 'POST', headers: { authorization: 'Bearer synthetic-oauth', 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_collection_recovery', arguments: { eventId: '12' } } }) + ' '.repeat(131072) }))
   assert.equal(paddedLegacy.status, 413, 'legacy MCP framing keeps its actual-byte limit, including whitespace')
   for (const transport of ['rest', 'mcp'] as const) {
+    raw.planning = { actorUserId: actor, ownerUserId: owner, source: transport, credentialId, authSessionId: null, partnershipId: collectionId, partnerUserId: actor }
     const legacyPreview = await call(transport, 'preview_collection_recovery', { eventId: '12' })
     assert.equal(legacyPreview.result.supported, true, JSON.stringify(legacyPreview.raw))
     assert.equal(legacyPreview.result.rootRevisionsAdvance, false)
@@ -163,6 +169,26 @@ async function main() {
           assert.equal(conflict.result.error.code, 'storage_conflict')
         }
       }
+    }
+    if (wired) {
+      const value = { ...raw, operationId: 'synthetic-restore-terminal-' + transport }
+      terminal = true
+      const rejected = await call(transport, 'restore_raw_collection_content', value)
+      assertTerminalStorageSmokeResponse('restore_raw_collection_content', rejected.result, value)
+      assert.equal(rejected.result.error.code, 'storage_restore_rejected')
+      terminal = false
+      assert.deepEqual((await call(transport, 'restore_raw_collection_content', value)).result.error.rejection, rejected.result.error.rejection)
+      const beforeScope = calls.length
+      for (const planning of [{ ...raw.planning, actorUserId: owner }, { ...raw.planning, credentialId: 'other' }, { ...raw.planning, ownerUserId: '00940000-0000-4000-8000-000000000099' }]) {
+        assert.equal((await call(transport, 'restore_raw_collection_content', { ...value, planning })).result.error.code, 'storage_access_denied')
+      }
+      assert.equal(calls.length, beforeScope)
+      for (const code of ['40001', '57014', '23514', 'XX000']) {
+        error = code
+        const unknown = await call(transport, 'restore_raw_collection_content', value)
+        assert.equal(unknown.result.error.rejection, undefined)
+      }
+      error = null
     }
     if (wired) for (const [name, intent] of [['execute_slot_commands', slots], ['execute_inventory_commands', inventory], ['create_storage_collection', creation], ['import_storage_arrangement', arrangement]] as const) {
       const value = { ...intent, operationId: 'synthetic-terminal-' + name + '-' + transport }

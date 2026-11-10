@@ -1,5 +1,5 @@
-import { StorageCreationRejectedError, StorageImportRejectedError, StorageRecoveryRejectedError, StorageCommandRejectedError } from './storage-command-error'
-import { creationErrorSchema, importErrorSchema, recoveryErrorSchema, storageCommandErrorSchema } from '@/lib/developer-api/storage'
+import { StorageRestoreRejectedError, StorageCreationRejectedError, StorageImportRejectedError, StorageRecoveryRejectedError, StorageCommandRejectedError } from './storage-command-error'
+import { rawRestoreErrorSchema, creationErrorSchema, importErrorSchema, recoveryErrorSchema, storageCommandErrorSchema } from '@/lib/developer-api/storage'
 import {BinderAccessError} from '@/lib/server/binders'
 import {BillingAccessError} from '@/lib/billing'
 import {AppearanceError} from '@/lib/server/binder-appearance'
@@ -36,6 +36,7 @@ export function knownDeveloperError(error:unknown):DeveloperAccessError|null {
 }
 export function developerErrorPayload(error: unknown, requestId: string) {
  const safe=knownDeveloperError(error)
+ if(safe instanceof StorageRestoreRejectedError) return rawRestoreErrorSchema.parse({error:{code:safe.code,message:safe.message,requestId,rejection:safe.rejection}})
  if(safe instanceof StorageCreationRejectedError) return creationErrorSchema.parse({error:{code:safe.code,message:safe.message,requestId,rejection:safe.rejection}})
  if(safe instanceof StorageImportRejectedError) return importErrorSchema.parse({error:{code:safe.code,message:safe.message,requestId,rejection:safe.rejection}})
  if(safe instanceof StorageRecoveryRejectedError) return recoveryErrorSchema.parse({error:{code:safe.code,message:safe.message,requestId,rejection:safe.rejection}})
