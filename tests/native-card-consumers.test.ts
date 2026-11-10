@@ -143,3 +143,22 @@ test("explicit new Raw uses the original assign planner only when no matching Un
   assert.equal(prepared.preview.items.find(i => i.id === selection.newItemId)!.grading, null)
   assert.equal(prepared.preview.binders[0].slots[0].wantedCards.length, 1)
 })
+
+test("Wanted binding preserves Trainer and Energy destinations while empty card/species targets stay separate", async () => {
+  const { binding, snapshot } = await nativeConsumerFixture()
+  const binder = snapshot.binders[0]
+  binder.slots[2].wantedCards = [{ ...binder.slots[0].wantedCards[0], card_id: "synthetic-energy", card_name: "Synthetic Energy" }]
+  binder.slots[3].target = { kind: "card", cardId: "synthetic-energy", language: "en", finish: "normal" }
+  binder.slots[4].target = { kind: "pokemon", pokemonId: 143 }
+  binding.read = { ...binding.read, evidence: { kind: "complete", snapshot: await completeInventoryBrowseFixture(snapshot) } }
+  const model = nativeCardConsumers({ ...binding, collectionId: binder.collectionId })!
+  assert.equal(model.wants.length, 4)
+  assert.deepEqual(model.wants.map(w => [w.destination.collectionId, w.destination.slotId, w.destination.wantedIndex]), [
+    [binder.collectionId, binder.slots[0].id, 0],
+    [binder.collectionId, binder.slots[0].id, 1],
+    [binder.collectionId, binder.slots[1].id, 0],
+    [binder.collectionId, binder.slots[2].id, 0],
+  ])
+  assert.deepEqual(model.wants.map(w => w.card?.name), ["Synthetic Trainer", "Synthetic Trainer", "Synthetic Trainer", "Synthetic Energy"])
+  assert.ok(model.wants.every(w => w.card?.dexIds.length === 0))
+})
