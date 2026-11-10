@@ -6,7 +6,6 @@ import { decodePage } from "@/lib/developer-api/pagination"
 import { NATIVE_READ_OPERATIONS } from "@/lib/developer-api/native-read"
 import { developerReadAuthority } from "@/lib/server/developer-access/native-read"
 import { readTrustedInventoryState, InventoryReadError } from "@/lib/server/inventory-read-core"
-import { requireNativeDeveloperAdmission } from "./native-developer-admission"
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex")
 const conflict = (): never => { throw new DeveloperAccessError("stale_native_cursor", "Collection state changed. Restart pagination without a cursor.", 409) }
@@ -51,7 +50,6 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
   requirePermissions(context.principal.permissions, operation.permissions)
   const parsed = operation.schema.safeParse(input)
   if (!parsed.success) throw new DeveloperAccessError("invalid_input", "Invalid native read query.", 400)
-  requireNativeDeveloperAdmission()
   const query = parsed.data as Record<string, unknown>
   try {
     const { createAdminClient } = await import("@/lib/supabase/admin")

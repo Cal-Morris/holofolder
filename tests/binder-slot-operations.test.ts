@@ -1,11 +1,11 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { parseSlotCommand, slotStagingResponse, readSlotPage, legacySlotCompatibilityResponse, legacySlotAuthorityResponse } from "../lib/server/operations/binder-slots"
+import { parseSlotCommand, readSlotPage, legacySlotCompatibilityResponse, legacySlotAuthorityResponse } from "../lib/server/operations/binder-slots"
 
 const binder = "03620000-0000-4000-8000-000000000011"
 const command = () => ({ collectionId: binder, operationId: "synthetic-operation", inventoryRevision: 0, collectionVersion: 0, layoutRevision: 0,
   commands: [{ kind: "create", ids: ["synthetic-slot"], beforeSlotId: null }] })
-describe("staged slot command boundary", () => {
+describe("slot command contract", () => {
   test("accepts bounded blank insertion without manufacturing inventory", () => assert.deepEqual(parseSlotCommand(command()), command()))
   test("rejects actor/source spoofing, unknown fields, mixed binders and oversized work", () => {
     for (const input of [ { ...command(), actor: "other" }, { ...command(), source: "system" },
@@ -14,12 +14,6 @@ describe("staged slot command boundary", () => {
       { ...command(), commands: [{ kind: "create", ids: Array.from({ length: 257 }, (_, i) => `slot-${i}`), beforeSlotId: null }] },
       { ...command(), inventoryRevision: -1 }, { ...command(), commands: [{ kind: "clear", slots: [{ id: "x", version: 0 }] }] },
     ]) assert.throws(() => parseSlotCommand(input))
-  })
-  test("every runtime operation fails closed without parsing or authentication metadata", async () => {
-    const response = slotStagingResponse()
-    assert.equal(response.status, 503)
-    assert.match(response.headers.get("cache-control")!, /no-store/)
-    assert.equal((await response.json()).code, "slot_operations_staged")
   })
   test("paging validates scope, bounds and revision token and propagates errors", async () => {
     const calls: unknown[] = []
@@ -41,12 +35,6 @@ test("converted legacy writes get an explicit compatibility conflict, unrelated 
 })
 
 
-test("thin app route stays disabled for every declared verb", async () => {
-  const route = await import("../app/api/binder-slots/route")
-  for (const operation of [route.GET, route.POST, route.PATCH, route.DELETE]) {
-    assert.equal(operation().status, 503)
-  }
-})
 
 
 test("converted legacy no-row writes still conflict, missing schema alone permits legacy", async () => {

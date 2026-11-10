@@ -10,7 +10,7 @@ import { developerErrorResponse } from "@/lib/server/developer-access/request"
 import { executeAppStorageRequest } from "@/lib/server/operations/storage-execution"
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie", "X-Content-Type-Options": "nosniff" }
-/** Internal handler only. Public production routes retain their unconditional staging response.
+/** First-party native command boundary.
  * localClients is trusted server injection, never HTTP input or a production admission flag. */
 export async function handleStorageCommand(request: Request, operation: "slots" | "inventory" | "collection.create",
   localClients?: Parameters<typeof executeAppStorageRequest>[2]): Promise<Response> {

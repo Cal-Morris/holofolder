@@ -7,11 +7,6 @@ export type { SlotPrecondition, SlotCommand, SlotCommandRequest } from "@/lib/do
 const uuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
 function invalid(): never { throw new Error("Invalid or oversized slot command") }
 
-/** Hard gate, deliberately no environment toggle and no SQL call. #394/#396/#363/#376/#379 must replace it together. */
-export function slotStagingResponse() {
-  return Response.json({ error: "Slot operations are not enabled", code: "slot_operations_staged", gates: [394, 396, 363, 376, 379] },
-    { status: 503, headers: { "Cache-Control": "private, no-store" } })
-}
 export interface SlotPageInput {
   actorId: string
   ownerUserId: string

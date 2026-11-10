@@ -81,13 +81,6 @@ test("creation sender binds exact collection/ordered slot receipt and uses nativ
     }
   } finally { globalThis.fetch = old }
 })
-test("new first-party creation path remains unconditionally staged", async () => {
-  const { POST } = await import("@/app/api/storage-collections/route")
-  const response = await POST()
-  assert.equal(response.status, 503)
-  assert.equal(response.headers.get("cache-control"), "private, no-store")
-  assert.deepEqual(await response.json(), { error: "storage_operations_staged" })
-})
 
 test("creation proof binds authoritative error, delivery, family, operation and active original auth scope", async () => {
   const old = globalThis.fetch

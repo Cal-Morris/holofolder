@@ -5,7 +5,6 @@ import {AwsClient} from 'aws4fetch'
 import {getPrivateArtworkConfig} from '../lib/server/binder-artwork-r2'
 import {getR2BucketEndpoint} from '../lib/card-image-r2'
 import {API_SMOKE_ASSERTIONS,assertSmokeHttpResponse} from './api-smoke-assertions'
-import {stagedSmokeInputs,validateStagedSmokeInputs} from './api-smoke-staged'
 import {randomUUID} from 'node:crypto'
 import {Client} from 'pg'
 import {createAdminClient} from '../lib/supabase/admin'
@@ -21,8 +20,6 @@ const arg=(name:string)=>{const i=process.argv.indexOf(name);return i<0?undefine
 
 async function main() {
  if(!process.argv.includes('--isolated-fixtures'))throw new Error('Pass --isolated-fixtures to create and clean up disposable performance accounts.')
- const stagedInputs=stagedSmokeInputs(randomUUID(),randomUUID())
- const stagedOperations=validateStagedSmokeInputs(stagedInputs)
  for(const op of DEVELOPER_OPERATIONS)assert.equal(typeof API_SMOKE_ASSERTIONS[op.name],'function','Missing response assertion for '+op.name)
  await loadProjectEnvFiles()
  const base=arg('--base-url')??'https://app.holofolder.com/app/api/v1'
@@ -96,10 +93,7 @@ async function main() {
  try {
   const owner=await fixture(),partner=await fixture()
   const defaultBinder=(await db.query('SELECT public.ensure_default_binder($1) id',[owner.id])).rows[0].id as string
-  // Denial is staging proof, never successful native execution/performance coverage.
-  for(const operation of stagedOperations) {
-   await call(operation.name,stagedInputs[operation.name],owner,0,'native-staged',503)
-  }
+  // Native execution needs its own reviewed fixture lifecycle; missing coverage fails the report.
   // Clearly synthetic owned data exercises nonempty collection lists and pagination.
   await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) SELECT $1,$2,n,'Synthetic performance slot '||n,'considering' FROM generate_series(1,1010) n",[owner.id,defaultBinder])
   await read('list_languages');await read('list_cards');await read('get_card',{id:'base1-1'})

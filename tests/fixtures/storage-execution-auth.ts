@@ -13,7 +13,7 @@ async function main() {
   const credentialId = createHash("sha256").update("synthetic").digest("hex")
   const permissions = () => readonly ? ["collection:read", "binders:read"] : ["collection:write", "binders:write"]
   mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: {
-    getClaims: async () => ({ data: { claims: { sub: actor, ...(oauthSession ? { client_id: "synthetic-client" } : {}) } } }),
+    getClaims: async () => ({ data: { claims: { sub: actor, role: "authenticated", session_id: "synthetic-auth-session", ...(oauthSession ? { client_id: "synthetic-client" } : {}) } } }),
     getUser: async () => ({ data: { user: signedIn ? { id: actor } : null } }),
   } }) }))
   mock.module("../../lib/server/developer-access/grants", () => ({ authenticateMcpToken: async () => {
@@ -56,7 +56,7 @@ async function main() {
   const command = { operationId: "synthetic-bridge-auth", inventoryRevision: 1, collections: [], commands: [{ kind: "add", itemId: "synthetic-copy", identity: { kind: "pokemon", pokemonId: 1 }, grading: null, acquiredAt: null }] }
   const key = createDeveloperKey()
   const request = (extra: Record<string, string> = {}, value: unknown = command) => new Request("https://holofolder.com/app/api/inventory", {
-    method: "POST", headers: { "content-type": "application/json", "X-Binder-Owner": owner,
+    method: "POST", headers: { "content-type": "application/json", "X-Binder-Owner": owner, "X-Binder-Auth-Session": "synthetic-auth-session",
       "x-holo-audit-context": '{"actor":{"kind":"user","userId":"forged"},"source":"migration"}', ...extra }, body: JSON.stringify(value),
   })
   const count = () => calls.filter(c => c.path.endsWith("/storage_execute_v1")).length
@@ -65,6 +65,7 @@ async function main() {
   await executeAppStorageRequest(request(), "inventory")
   assert.deepEqual(calls.at(-1)?.header, calls.filter(c => c.path.endsWith("/storage_execute_v1"))[0].header, "delivery retry preserves trusted ledger intent")
   let before = count()
+  await assert.rejects(executeAppStorageRequest(request({ "X-Binder-Auth-Session": "" }), "inventory"), { code: "storage_session_changed" })
   oauthSession = true
   await assert.rejects(executeAppStorageRequest(request(), "inventory")); oauthSession = false
   signedIn = false

@@ -13,12 +13,14 @@ async function main() {
   const { mock } = await import('bun:test')
   mock.module('server-only', () => ({}))
   const { storageCommandHarness } = await import('./storage-command-harness')
-  const { handleRawRestore } = await import('@/lib/server/raw-restore-http')
   const { handleInventoryCompleteRead } = await import('@/lib/server/inventory-read-http')
   const collectionId = '22222222-2222-4222-8222-222222222222', actor = '00000000-0000-4000-8000-0000000000e2'
   const scope = { actorUserId: actor, ownerUserId: actor, authSessionId: 'synthetic-e2e-auth-session', sessionId: 'synthetic-ui-epoch' }
   const queueScope = { deviceId: 'synthetic-ui-device', workspaceId: 'synthetic-ui', accountId: actor, ownerUserId: actor }
   let fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()), lose = false, malformed = false, reads = 0, sends = 0
+  mock.module('../../lib/supabase/server', () => ({ createClient: async () => fixture.client }))
+  mock.module('../../lib/supabase/admin', () => ({ createAdminClient: () => fixture.client }))
+  const { POST: restoreRoute } = await import('@/app/api/raw-content-restore/route')
   const bodies: string[] = []
   globalThis.fetch = async (input, init) => {
     const path = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -28,7 +30,7 @@ async function main() {
     if (request.method === 'GET') { reads++; return handleInventoryCompleteRead(request, fixture.client) }
     const command = JSON.parse(String(init?.body))
     if (!command.action) { sends++; bodies.push(String(init?.body)) }
-    const result = await handleRawRestore(request, { session: fixture.client, admin: fixture.client })
+    const result = await restoreRoute(request)
     if (!command.action && lose) throw new Error('synthetic lost COMMIT reply')
     if (!command.action && malformed) result.headers.delete('X-Storage-Delivery')
     return result
@@ -215,7 +217,7 @@ async function main() {
   }
   assert.ok(reads > 0)
   const { POST } = await import('@/app/api/raw-content-restore/route')
-  const denial = await POST(); assert.equal(denial.status, 503); assert.equal(denial.headers.get('cache-control'), 'private, no-store')
+  const denial = await POST(new Request('http://localhost:3529/app/api/raw-content-restore', {method:'POST'})); assert.equal(denial.status, 403); assert.equal(denial.headers.get('cache-control'), 'private, no-store')
   console.log('synthetic raw restore UI HTTP/queue proof passed')
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

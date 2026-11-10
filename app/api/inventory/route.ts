@@ -1,7 +1,10 @@
-import { inventoryStagingResponse } from "@/lib/server/operations/inventory"
+import { handleStorageCommand } from "@/lib/server/storage-command-http"
+import { handleInventoryCompleteRead } from "@/lib/server/inventory-read-http"
 
-// No body, environment flag or authenticated role can open the staged store.
-export const GET = inventoryStagingResponse
-export const POST = inventoryStagingResponse
-export const PATCH = inventoryStagingResponse
-export const DELETE = inventoryStagingResponse
+export async function GET(request: Request) {
+  return handleInventoryCompleteRead(request)
+}
+
+export async function POST(request: Request) {
+  return handleStorageCommand(request, "inventory")
+}

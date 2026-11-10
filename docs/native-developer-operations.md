@@ -1,5 +1,7 @@
 # Native developer registry integration, staged (#376)
 
+Current server admission: supported native operations now use the existing authenticated bridges. See [the direct-cutover handoff](native-direct-server-handoff.md). The historical slice notes below describe earlier staging and do not define the current fixed-503 policy. Hosted/app acceptance remains separate.
+
 This slice registers seven native command/creation/recovery operations in the existing `DEVELOPER_OPERATIONS` allowlist. Both real REST and MCP handlers validate the same strict structural Zod schemas; canonical domain parsers retain the authoritative cross-field and byte constraints. `executeNativeDeveloperOperation` revalidates schemas and permissions even for trusted direct dispatcher callers, then invokes the existing `executeDeveloperStorageOperation` and `storage_execute_v1` bridge after admission. There is no competing store, identity, command executor or audit/receipt implementation.
 
 ## Admission and current behavior

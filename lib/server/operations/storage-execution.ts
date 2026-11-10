@@ -16,7 +16,7 @@ import { requireRestContext, requireMcpContext } from "@/lib/server/developer-ac
 import { readDeveloperJson } from "@/lib/server/developer-access/request"
 import { parseStorageRequest, normalizeStorageResult, storageExecutionError, type StorageOperation } from "./storage-contract"
 
-/** Internal only. #379 must wire gated app routes and the shared REST/MCP registry together. */
+/** Trusted native executor shared by first-party and developer boundaries. */
 export async function executeAppStorageRequest(request: Request, operation: StorageOperation, localClients?: {
   session: import("@supabase/supabase-js").SupabaseClient
   admin: import("@supabase/supabase-js").SupabaseClient
@@ -29,14 +29,13 @@ export async function executeAppStorageRequest(request: Request, operation: Stor
   const expectedActor = request.headers.get("X-Binder-Actor")
   if (expectedActor !== null && expectedActor !== user.id) throw new DeveloperAccessError("storage_session_changed", "The signed-in account changed.", 403)
   const expectedSession = request.headers.get("X-Binder-Auth-Session")
-  if (expectedSession !== null) {
-    const claims = await session.auth.getClaims()
-    if (claims.error || claims.data?.claims.role !== "authenticated" || claims.data.claims.sub !== user.id || claims.data.claims.client_id
-      || claims.data.claims.session_id !== expectedSession) throw new DeveloperAccessError("storage_session_changed", "Sign in again before retrying this operation.", 403)
-  }
+  if (!expectedSession) throw new DeveloperAccessError("storage_session_changed", "Use the current signed-in app session.", 403)
+  const claims = await session.auth.getClaims()
+  if (claims.error || claims.data?.claims.role !== "authenticated" || claims.data.claims.sub !== user.id || claims.data.claims.client_id
+    || claims.data.claims.session_id !== expectedSession) throw new DeveloperAccessError("storage_session_changed", "Sign in again before retrying this operation.", 403)
   const { createAdminClient } = await import("@/lib/supabase/admin")
   const client = localClients?.admin ?? createAdminClient()
-  const membership = await resolveCollectionMembership(client, user.id)
+  const membership = await resolveCollectionMembership(client, user.id, { strictBilling: true })
   requireExpectedAppearanceOwner(request, membership.ownerUserId)
   const input = parseStorageRequest(operation, await readDeveloperJson(request, storageRequestBytes(operation)))
   if (operation === 'backup.restore.raw') {

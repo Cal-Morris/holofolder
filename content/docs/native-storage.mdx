@@ -1,306 +1,74 @@
 ---
 title: Native storage contracts
-description: Staged inventory, slot, copied creation and native recovery contracts, with current availability and permission limits.
+description: Authenticated native storage commands, replay and recovery through REST and MCP.
 ---
 
-## Availability
+**Supported native developer operations use the trusted storage executor.** REST uses a personal API key; MCP uses OAuth. Current actor, credential, membership, billing and operation permissions remain required. Public share links grant no private inventory access.
 
-**Native developer operations are staged and unavailable.** Valid authenticated requests return `503 native_operations_staged`. Listing a schema or MCP tool does not enable it. There is no credential, environment option or request flag that bypasses this gate. Existing legacy collection and Activity Undo APIs keep their current behavior.
+Five [native developer reads](/docs/native-reads) return redacted pages and current edit preconditions. Their `completeSnapshot:false` results are never private planning snapshots or browser queue acknowledgements. [Copied preset previews](/docs/preset-previews) require `catalog:read` and `binders:read`, allocate no creation identities, and do not create ownership.
 
-The staged command contracts reuse the app's trusted native executor. Five [staged developer reads](/docs/native-reads) declare redacted pages/details with current preconditions. They remain unavailable and always declare `completeSnapshot:false`; they never provide a private planner snapshot or queue acknowledgement. Public binder links never grant access to private owner inventory, certificates, label assets or location.
+This is the server contract. App host integration, hosted conversion and production acceptance are verified separately. Unsupported operations return errors; they are never approximated with legacy writes or guessed card data.
 
-[Copied preset discovery/preview](/docs/preset-previews) adds separate staged read-only operations requiring `catalog:read` and `binders:read`. They return public preset metadata or detached copied goals, allocate no creation identities and expose no private planning state. Set/master-set durable scope remains unsupported.
+## Commands
 
-## Staged binder layout on short screens
+Use the same arguments with the REST path below or the same-named MCP tool. Paths are relative to `/app/api/v1`. All commands require `collection:write` and `binders:write`; recovery also requires `collection:read`.
 
-In the staged native app, scroll the binder area to reach the page and layout controls on a short screen. Large grids also scroll inside the page to reach every pocket. Pockets keep their minimum touch area instead of overlapping neighbouring slots. Tapping in Browse opens that exact slot; choose **Edit layout** before inserting or moving slots. Cached-only startup stays read-only. These screen interactions add no REST/MCP operation and do not enable native storage.
-
-## Credentials and permissions
-
-REST uses a personal API key at `https://app.holofolder.com/app/api/v1`. MCP uses its separately approved OAuth grant at `https://app.holofolder.com/app/mcp`.
-
-Slot commands, inventory commands and copied creation require both `collection:write` and `binders:write`. Native recovery additionally requires `collection:read`. The existing current owner/partner membership, paid developer entitlement, revocation and read/write budgets apply before staging denial. Trial access alone does not grant developer access. No new grant or database permission is introduced.
-
-## Commands after admission
-
-These are contract names, **not currently enabled workflows**:
-
-| REST POST path, relative to the API root | MCP tool | Contract |
+| MCP tool | REST POST path | Effect |
 | --- | --- | --- |
-| `/storage/slots/commands` | `execute_slot_commands` | Insert, update, clear, remove and reorder stable slots atomically |
-| `/storage/inventory/commands` | `execute_inventory_commands` | Add, edit, remove ownership, assign, move, unassign and delete storage atomically |
-| `/storage/collections` | `create_storage_collection` | Create native storage from an ordered copied manifest |
-| `/storage/recovery/preview` | `preview_storage_recovery` | Review supported native event recovery |
-| `/storage/recovery/apply` | `apply_storage_recovery` | Apply the exact confirmed version-1 native plan |
-| `/storage/recovery/v2/preview` | `preview_storage_recovery_v2` | Review default-creation recovery with an explicit replacement |
-| `/storage/recovery/v2/apply` | `apply_storage_recovery_v2` | Apply the exact confirmed version-2 native plan |
+| `execute_slot_commands` | `/storage/slots/commands` | Insert, update, clear, remove or reorder stable slots |
+| `execute_inventory_commands` | `/storage/inventory/commands` | Add, edit, remove, assign, move or unassign physical copies; delete a collection |
+| `create_storage_collection` | `/storage/collections` | Atomically create native storage and its copied targets |
+| `import_storage_arrangement` | `/storage/imports/arrangement` | Import explicit copies and arrangement into a compatible native destination |
+| `restore_raw_collection_content` | `/storage/restores/raw-content` | Reconcile supported same-owner raw content |
+| `preview_storage_recovery` / `apply_storage_recovery` | `/storage/recovery/preview` / `/storage/recovery/apply` | Review and apply version 1 native recovery |
+| `preview_storage_recovery_v2` / `apply_storage_recovery_v2` | `/storage/recovery/v2/preview` / `/storage/recovery/v2/apply` | Explicit default-creation replacement recovery |
 
-Targets describe goals. A null target is a free slot, not a wanted card. Wants are explicit entries. Each assigned slot needs its own physical copy; moving preserves copy identity and empties its previous slot. Clear/remove release owned copies to Unassigned. Only `removeOwned` removes ownership. Collection deletion must supply its exact complete slot preconditions; it is not an ownership deletion.
+Use current inventory, collection, layout, slot, item and placement revisions. Preserve the original `operationId`, identities, expected owner and request across retries. A timeout or lost response is an unknown outcome. Never refresh preconditions or allocate a replacement ID to retry an unknown write.
 
-Every command retains its `operationId`, stable copy/slot/collection IDs and exact revisions across retries. Slot commands include inventory, collection and layout revisions, plus the selected slot/item/placement versions. A copied manifest has ordered targets and immutable source/entry identities. Creation never silently invokes legacy creation or rewrites a preset later. Current completion uses current targets, not the original manifest count.
-
-This synthetic slot insertion illustrates the schema only. It currently returns staging denial with permitted credentials:
-
-```bash
-curl https://app.holofolder.com/app/api/v1/storage/slots/commands \
-  -H "Authorization: Bearer $HOLO_FOLDER_API_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{"collectionId":"00830000-0000-4000-8000-000000000011","operationId":"synthetic-slot-insert-1","inventoryRevision":1,"collectionVersion":0,"layoutRevision":0,"commands":[{"kind":"create","ids":["synthetic-slot-1"],"beforeSlotId":null}]}'
-```
-
-MCP calls `execute_slot_commands` with that same JSON object as arguments. Native intents use body `operationId`, not the legacy creation `Idempotency-Key` convention. Reuse the same credential and transport for a retry; actor, credential, source and request-body changes can conflict with the permanent native ledger. A historical receipt is not a fresh read or proof of current placement. Unknown outcomes require exact replay followed by a fresh authoritative complete read before acknowledging the edit.
+Only explicit `removeOwned` deletes ownership. Clearing or removing a slot, removing a placement, and deleting a collection release its copies to Unassigned. Deleting the default requires an explicit valid replacement where the command requires one. Empty targets, spacers and wants never manufacture owned copies.
 
 ## Preserve private fields
 
-For `execute_slot_commands` and `execute_inventory_commands`, set the optional top-level `privateFields` to `"preserve"` and include `expectedOwnerUserId` for the original recipient. Both transports and the dispatcher check this assertion. New public patch intents are resolved only inside the locked transaction, after original-intent replay lookup (migration 090). `expectedOwnerUserId` must match current authenticated owner scope; it never selects an owner or grants access. A changed scope returns `409 storage_owner_changed` before execution, even when an unknown first attempt never committed. The original full-replacement contract may also opt into this recipient fence. Valid permitted calls still return staging denial.
+Developer reads omit certificates, private label assets and immutable source evidence. Use `privateFields:"preserve"` and `expectedOwnerUserId` for supported mutations of that redacted state. The expected owner is checked against the authenticated current scope before execution. The SQL executor preserves hidden data after the original-intent replay lookup; the client never reconstructs private JSON from a redacted read.
 
-| Preserve mode accepts | Preserved data |
-| --- | --- |
-| Slot `create`, reorder `move`, and `update` with only `target` | Existing wanted entries, including hidden attribution and images, are untouched |
-| Inventory `assign` or `move` with `fulfillWant:null`, and `unassign` | Existing grading, certificates, label assets, provenance and wants are untouched |
-| Inventory `patchGrading` on an already graded card copy | Omitted public fields, certificate, private label assets and immutable provenance survive |
-| Inventory `assign` or `move` with `fulfillWant:{index,expectedPublic}` | Only the exact selected entry is consumed; hidden fields and all other wants remain private and unchanged |
-| Inventory `add` | Creates only the supplied new copy, never reconstructs an existing copy |
-| Inventory `removeOwned` | Explicitly deletes that copy; unrelated copy metadata and wants remain untouched |
+Supported operations include slot insertion, reorder and target-only updates; explicit inventory add, removeOwned, unassign and placement; `patchGrading` on declared public grading fields; and selected-want consumption using exact `expectedPublic` evidence. Private certificates/assets/provenance and unrelated wants remain intact. Selected wants require the exact locked slot/index public projection.
 
-Preserve mode rejects full grading `edit`, wanted-array replacement, full-private `fulfillWant.expected`, slot clear/removal and collection deletion as invalid input. Use the full-replacement contract only when intentionally replacing or clearing those fields. Omitting `privateFields` retains the existing contract; `"replace"` explicitly selects the same behavior. A grading `edit` replaces the **entire** grading object, including certificate and label assets; `grading:null` explicitly removes it. A slot `update` with `wantedCards` replaces the **entire** list; `wantedCards:[]` explicitly clears it. Neither is a patch. Existing full selected-want requests retain their exact index and full `expected` equality check. Never fill omitted private values with null or rebuild either replacement from the redacted read model.
+Whole grading/wants replacement and destructive slot clearing are unsupported in preserve mode. Omitting the field or selecting `replace` keeps full-replacement semantics. Use that only with deliberately complete values, never by filling hidden fields with nulls.
 
-Synthetic target-only request for REST `/storage/slots/commands` or MCP `execute_slot_commands`:
+## Atomic slot insertion and copy assignment
 
-```json
-{"privateFields":"preserve","expectedOwnerUserId":"00820000-0000-4000-8000-000000000001","collectionId":"00830000-0000-4000-8000-000000000011","operationId":"synthetic-private-target-1","inventoryRevision":7,"collectionVersion":2,"layoutRevision":1,"commands":[{"kind":"update","slot":{"id":"synthetic-slot","version":3,"inventoryItemId":null,"itemVersion":null,"placementVersion":null},"target":null}]}
-```
+`insertAssign` inserts a stable slot before an exact existing slot reference, or appends with `before:null`. Preserve `target:null` for a free slot or the explicit target. `selection:null` creates no ownership; `existing` needs an exact Unassigned copy/version; `new` explicitly acquires the given stable copy. It never chooses a grade or moves an assigned copy implicitly.
 
-Keep this exact request, credential, transport and original recipient for unknown-outcome retries. The assertion and recipient precondition are stripped before the existing executor receives the unchanged canonical intent; no current hidden fields are added to its permanent ledger digest. Only after an exact replay miss does SQL lock/check the current entities and resolve a public patch or selected want. A receipt can describe an earlier successful operation after later edits and must never be treated as current state. Stale/conflicting requests remain conflicts; do not refresh revisions, change recipient or issue a new ID to escape an unknown outcome. Redacted pages/details remain `completeSnapshot:false` and cannot ACK a pending queue.
+The executor bounds insertion to 4,096 slots and 8,192 insertion work rows, 100 commands and 256 affected selected entities. Ordinary commands retain 256 KiB request and 1 MiB receipt bounds, a 10-second deadline and private audit bounds. Oversized evidence rejects atomically. See the generated endpoint reference for each exact schema and limit.
 
-### Public grading patch and selected want
+## Creation and arrangement import
 
-`patchGrading` accepts `item` with its exact current item/placement/slot versions and a nonempty `patch`. Supported fields are `provider`, `grade`, `scale`, `designation`, `subgrades`, `holder` and `labelVariant`. Omission retains the stored value. Explicit `null` clears nullable text; `subgrades:[]` clears subgrades. Provider must remain a complete valid provider object. Certificates, asset IDs, acquisition time and immutable provenance cannot be patched. The copy must already have a grading record; this does not create grading on a raw copy or clear the whole record. Use intentional full replacement for those cases.
+Creation saves the named collection, copied manifest and ordered stable slots in one transaction. Retain operation, collection and slot IDs. The first collection creates an owner inventory root from revision 0 and becomes default. Existing count/grid entitlements still apply. Empty goals create no ownership or wants. Creation receipts retain conservative `recoverySupported:false`; recovery preview determines supported evidence independently.
 
-For `assign` or `move`, `fulfillWant:{index,expectedPublic}` consumes exactly one entry at an integer index from 0 to 99. `expectedPublic` must equal the selected entry's complete declared public projection: `card_id`, `card_name`, `added_at` and any present `card_language`, `card_finish`, `card_set`, `rarity`, `local_id`, `illustrator`, `set_total`. It excludes `wanted_by` and `card_image`. Retain the exact destination slot ID/version, item and placement preconditions, collection/content/layout and owner inventory revisions. Duplicate wants never trigger a search for another matching entry. Missing/mismatched public fields or any stale revision reject the whole batch.
+Arrangement import requires an empty or target-only native destination with an already identical copied manifest. Every physical copy needs an explicit add or versioned existing-copy move. It does not replace collections/configuration, import assets, authorize backup-file IDs or restore arbitrary historical snapshots.
 
-Synthetic inventory request, usable as the same REST `/storage/inventory/commands` or MCP `execute_inventory_commands` arguments after admission:
+## Terminal rejection and exact replay
 
-```json
-{"privateFields":"preserve","expectedOwnerUserId":"00900000-0000-4000-8000-000000000001","operationId":"synthetic-grade-patch-1","inventoryRevision":3,"collections":[],"commands":[{"kind":"patchGrading","item":{"itemId":"synthetic-unassigned-copy","itemVersion":2,"placement":null},"patch":{"grade":"10","holder":null}}]}
-```
+A committed terminal ledger rejection returns REST `409` or MCP `isError:true` with matching structured/text JSON. The error code is `storage_command_rejected`, `storage_creation_rejected`, `storage_import_rejected`, `storage_recovery_rejected` or `storage_restore_rejected` for the corresponding family. Strict `error.rejection` contains only `outcome:"rejected"`, the original `operationId`, a known `code`, `inventoryRevision`, and the version where that contract requires it.
 
-A committed operation with a lost reply replays its original sanitized receipt after later grading, want or placement edits, without overwriting those edits or adding audit events. Body/owner/trusted-source changes conflict; current membership, scope and paid access are checked again before replay. Retain the original operation and IDs across unknown outcomes. The 10-second executor deadline is unchanged and a timeout does not establish noncommit.
+MCP `outputSchema` describes accepted output only; `holofolder.com/errorSchemas` declares errors separately. Arbitrary 409s, SQL conflicts, timeouts, cancellation and failed COMMIT are not terminal rejection proof. They do not authorize dropping retained intent.
 
-These intents require migrations 089 and 090, already applied by the parent with retained restore-verified backups. Native tables remain empty, with zero conversions and no hosted native commands. They remain staged behind the same unconditional `503 native_operations_staged`. Local SQL proof against 088+090 does not prove combined 089 behavior. Existing native recovery records real inverse evidence; private-label-asset events remain unsupported with `private_assets_unverifiable`, and newer changes conflict. No public Undo or offline queue ACK parity is claimed.
+Current authorization precedes lifetime exact accepted/rejected replay. A replay receipt is historical. Browser consumers must obtain a fresh same-session complete current read started after the reply and explicitly reconcile before acknowledging, discarding or reviewing a replacement operation. Developer projections cannot supply that browser read authority.
 
-## Terminal command rejection contract, staged
+## Recovery
 
-For `execute_slot_commands` and `execute_inventory_commands` only, a validated committed terminal ledger result becomes REST `409 storage_command_rejected` or MCP `isError:true`. Both return this same safe structured error (synthetic example):
+Preview returns public-safe Activity changes and conflicts, never private inverse state. Unsupported dependencies return no usable plan. Apply requires the exact reviewed `planToken`, explicit confirmation, version and retry-stable operation ID. Newer or ABA changes conflict. Version 2 default-creation recovery requires an explicit same-owner replacement and current inventory/content/layout revisions. There is no implicit replacement or legacy fallback. Private label asset evidence can remain unsupported with `private_assets_unverifiable`.
 
-```json
-{"error":{"code":"storage_command_rejected","message":"The original storage command was rejected. Refresh current storage before explicit reconciliation.","requestId":"synthetic-request","rejection":{"outcome":"rejected","operationId":"synthetic-command","code":"slot_revision_conflict","inventoryRevision":12}}}
-```
+## Bounded same-owner raw restore
 
-`rejection.operationId` binds the original submitted ID. `code` is one of `slot_revision_conflict`, `inventory_revision_conflict`, `inventory_collection_conflict`, `slot_conflict`, `item_conflict`, `placement_conflict`, `inventory_want_conflict`, `inventory_copy_choice_required`, `inventory_destination_empty` or `inventory_destination_occupied`. `inventoryRevision` is a nonnegative safe integer from that terminal outcome, not current storage. No original payload or private metadata is returned.
+Raw restore reconciles one existing raw collection with the same stable slot IDs and unchanged configuration/grid. Versions 1/2 require identical ordering; version 3 supports changed ordering of those same IDs through exact `slotOrder.before`/`after` permutations. Content and origins bind by stable ID, layout and slot versions advance, and the receipt carries both exact orders. Version 1 allows 256 slots, 512 copy references, 1,024 work units and 1 MiB with null origins. Versions 2/3 require the exact copied manifest and canonical per-slot origins, with at most 1,025 slots/manifest entries, 2,050 distinct copy references, 100 wants per slot, `2S+I+W ≤ 8,192` and 1.75 MiB command/JSONB text. Its complete prospective private audit/inverse graph is capped at 2.5 MiB. These bounds are not production full-Dex or platform payload acceptance proof.
 
-After a confirmed rejection, load fresh complete current storage and explicitly review reconciliation. A generic 409, stale revision, SQL error, timeout, lost reply or absent ledger read does not prove noncommit. Keep the original immutable command, ID, source, credential and recipient for unknown-outcome retry. Current auth, membership and paid access are checked before replay data; changing identity cannot borrow a prior receipt.
+Explicit current choices and trusted actor/owner/session or credential/membership evidence bind the plan. File IDs never prove provenance. Every displaced copy needs explicit release consent and remains Unassigned. Copies placed elsewhere cannot move automatically. Acquisitions, graded/converted copies, changed manifests/origins, metadata/settings/assets/CSV and multiple-collection restores are unsupported.
 
-OpenAPI declares terminal and ordinary 409 errors separately from accepted 200 receipts. MCP tool discovery advertises accepted receipts in `outputSchema` and status-keyed error schemas in `_meta["holofolder.com/errorSchemas"]`. The SDK skips success-schema validation for `isError`; the server validates the terminal error before serialization. Text and structured MCP error fields match. Other native creation/import/recovery operations and all legacy errors keep their existing contracts. The first-party private HTTP version-1 409 envelope is unchanged.
+V2/V3 accepted receipts and dedicated rejections carry `version:2` / `version:3`; v1 outcomes remain unversioned. Unknown versions fail closed and preserve device records. First-party planning accepts a file up to 10 MiB within a 12 MiB escaped wrapper; hosted request-size acceptance still needs production proof. No file is stored as a server backup and no provider refresh is triggered.
 
-**This is a staged contract, not enabled behavior.** Valid authorized public calls still return the fixed 503 before execution. Local synthetic transport proof does not satisfy #379 hosted acceptance.
+## First-party app routes
 
-## Bounds and errors
+The cookie-authenticated app uses `GET /app/api/inventory`, `POST /app/api/binder-slots`, `POST /app/api/inventory`, `POST /app/api/storage-collections`, `POST /app/api/native-recovery` and `POST /app/api/raw-content-restore`. These are private, no-store boundaries. Write requests bind the current owner and auth session and use the app origin. Developer credentials use their separate REST/MCP boundaries and never impersonate an app cookie session.
 
-Ordinary slot/inventory batches allow at most 100 commands and 256 affected work under the canonical planner, with a 256 KiB intent limit. A sole whole-collection deletion has its own 4,096-slot, two-collection, 8 MiB bound. Copied creation allows 4,096 targets under 2 MiB. Native recovery has a 1 MiB request bound. Oversized requests fail as a whole; no truncated page or split batch is reported as complete.
-
-Current authorization/input errors can precede `native_operations_staged`. After future admission, the existing executor maps stale revisions, identity or changed-body replay to `409 storage_conflict`, current membership denial to `403 storage_access_denied`, caps/developer entitlements to 402, malformed constraints to 400 and unsupported recovery to `409 recovery_unsupported`. Unknown backend failures return sanitized `503 storage_unavailable`. REST errors carry `error.code`, `error.message` and `error.requestId`; MCP execution errors use `isError` and the same structured error. Ordinary conflicts are not terminal rejection proof. MCP schema validation can reject malformed arguments before execution using the SDK's validation error.
-
-Native recovery never falls back to the legacy Activity recovery facade. Unsupported or incomplete evidence has no usable plan; newer/ABA changes, dependencies and authority transitions remain conflicts. Version 2 requires one explicit same-owner replacement with its exact current revisions. Copied creation receipts conservatively retain `recoverySupported:false`; use a fresh supported preview, not that receipt, to decide recovery eligibility.
-
-## Remaining gates
-
-Independent review and production acceptance of the staged developer read projection/pagination, preset discovery/preview parity, original-recipient replay and fresh-read acknowledgement, native offline relaunch, compatibility/consumer integration, recovery/load proof and #379 rollout acceptance remain open. No hosted conversion, public share expansion or enabled native workflow is claimed. The OpenAPI receipt schemas describe the staged executor contract; they are not evidence of a current 200 response.
-
-## Staged read projection
-
-[Native developer reads](/docs/native-reads) now declare copy, storage and stable slot reads with current preconditions and revision-bound pagination. They share the fixed admission denial. A returned page cannot serve as a complete planning snapshot or a fresh-read queue acknowledgement.
-
-## JSON v2 arrangement import, staged
-
-`import_storage_arrangement` (`POST /app/api/v1/storage/imports/arrangement`) is registered with both write scopes and fixed `503 native_operations_staged` admission. It does not enable importing in Settings or replace the existing v1/Dex importer.
-
-The prepared backend imports one complete ordered arrangement into existing native storage with the same copied preset manifest. The destination must be empty or have only reviewed empty targets/spacers. Preview lists the replaced empty slots, every added physical copy and every explicit move of a trusted existing copy. Matching printings and certificates never merge ownership. Wants, spacers and recorded grading stay separate; private label assets and appearance/settings imports are unsupported.
-
-Keep the exact immutable operation and generated IDs after a timeout or lost response. Reconfirming a new plan can mean additional physical copies. A historical receipt needs a fresh complete read before showing the import as synchronized. Changed same-owner restore, multi-collection owner restore, CSV fill/append execution, asset packaging and offline import delivery remain unavailable. Current legacy Activity Undo does not undo native imports. The private native recovery planner can recover untouched generated events, including previous explicit placements and empty target layout; later edits or ABA conflict.
-
-
-## Atomic slot insertion and copy assignment, staged (091)
-
-`execute_inventory_commands` and `POST /app/api/v1/storage/inventory/commands` accept `insertAssign` through the same strict shared registry. Production still returns fixed `503 native_operations_staged`. Migration 091 must follow 090 before this intent can execute; the parent owns hosted application and release.
-
-Each command supplies `collectionId`, a stable **new** `slotId`, `before` as an exact existing slot precondition or explicit `null` to append, `target` as a declared target or explicit `null` for free, and `selection`. It shifts the full saved arrangement, preserving every following target, wants, item and spacer identity. It never replaces a pocket or searches for another destination.
-
-`selection:null` adds only a placeholder, with no ownership. `selection:{kind:"existing",inventoryItemId,itemVersion}` reuses exactly that Unassigned copy once, preserving grading, certificate, acquisition and immutable provenance. Assigned copies cannot be selected. `selection:{kind:"new",itemId,identity,grading,acquiredAt}` explicitly acquires one new copy with stable identity and declared metadata; unknown grading/acquisition are `null`. The caller must review eligible Raw/recorded-copy choices, never infer grading or acquire a duplicate merely because a transport reply was lost. This explicit new-copy form does not broaden the scanner's graded-only Raw policy.
-
-Synthetic example, **not an enabled endpoint**:
-
-```json
-{"privateFields":"preserve","expectedOwnerUserId":"00910000-0000-4000-8000-000000000001","operationId":"synthetic-append-001","inventoryRevision":3,"collections":[{"collectionId":"00910000-0000-4000-8000-000000000011","version":2,"layoutRevision":1}],"commands":[{"kind":"insertAssign","collectionId":"00910000-0000-4000-8000-000000000011","slotId":"synthetic-new-slot","before":null,"target":null,"selection":{"kind":"existing","inventoryItemId":"synthetic-unassigned-copy","itemVersion":4}}]}
-```
-
-Normal inventory limits remain 100 commands, 32 collections, 256 selected affected entities, 256 KiB request and 1 MiB receipt. Insertion additionally caps a collection at 4,096 slots and total order work at 8,192 rows per request, counting the entire current order plus each new slot. Audit/recovery evidence retains the existing 16,384-entity/16 MiB bound. The 10-second deadline is unchanged. No truncation, chunked partial success or timeout increase is used; stale anchors/copies, collisions, allowance or recorder failures roll back the whole request.
-
-One existing ledger receipt and one atomic history event cover the batch. Exact original replay precedes mutable reconstruction and cannot recreate a slot or copy after a later edit/recovery. Safe native recovery removes only the proved new slot/acquisition or returns the reused item to Unassigned; changed dependencies, layout or ABA reject. Restoring private asset metadata remains explicitly unsupported. A fresh preview decides support, not the insertion receipt. The original operation, slot and item IDs stay immutable through durable retry; only a separate fresh complete scoped read can acknowledge remote delivery. Public developer read pages cannot supply that snapshot.
-
-
-The staged scanner now composes this existing operation with existing-slot assignments in one explicitly reviewed batch. Append choices create a free slot or exact card target with the selected Unassigned/new Raw copy; no separate slot-creation request is sent. Capture/current-grid/order/copy guards, real IDB commit and fresh complete-read ACK remain required. Capture and manual identity review are device UI, not a separate REST/MCP operation. Production routes remain disabled. See [scan review](/docs/scan-destinations).
-
-### Prepared native recovery rejection
-
-Native recovery remains staged and returns `503 native_operations_staged` before execution. The prepared v1/v2 apply contract declares REST `409 storage_recovery_rejected`, or MCP `isError:true`, only for a committed strict `error.rejection` containing `outcome:"rejected"`, the original `operationId`, known `code` and `inventoryRevision`. Codes are `recovery_plan_conflict` and `recovery_dependency_conflict`. Arbitrary 409/SQL errors, missing receipts, cancellation and billing/access errors are not noncommit proof. Exact accepted/rejected replay requires current authority and precedes mutable plan reconstruction.
-
-In the staged app, durable proof permits a separately fresh complete current owner/session read and explicit **Discard noncommitted recovery**. Discard preserves original request/proof with a distinct discarded state, never accepted/synchronized. **Review new recovery** then needs a new preview and explicit confirmation with a new operation ID. Unknown and accepted requests never gain discard/rebase. The existing legacy Undo contract is unchanged; no private inverse, evidence, certificates or assets are exposed. This preparation is not an enabled capability or release announcement.
-
-
-### Prepared device collection-data backup
-
-In the staged native app, **Backup** downloads a private JSON v2 file to your device after a fresh complete authorized read. Choose all shared collections and Unassigned copies, or only the current collection and its assigned copies. Partners see the whole shared collection. The file preserves separate copy identities, ordered slots, spacers, targets, wanted choices, copied manifests, verified grids, recorded grading/certificates and source metadata. Unknown printing data stays unknown. Keep this file private; no public link is created and certificate sharing is unchanged.
-
-This is collection data, not an Auth/Billing/database or full account/settings backup. It contains no external image bytes. Label asset references and cover artwork packaging remain unsupported and fail validation rather than being silently omitted. Image references do not promise asset restoration. Reconnect and finish pending edits, creation or recovery before downloading; cached export is unsupported.
-
-**Preview a JSON backup** inspects a v2 file locally and shows counts, overlapping IDs, unknown printings and unsupported restore scope. File contents are never uploaded, provider-fetched or saved in a file cache. Changing scope/target or the active account/session invalidates the preview. Nothing is written or restored by inspection. A collection-only file can separately enter the staged bounded raw-content review below. V1/CSV remain in the legacy importer. Restoring needs separate provenance, remapping/copy/move choices, current allowance, asset/settings handling and durable execution review. The existing `import_storage_arrangement` REST/MCP operation remains staged and returns 503 before execution. Native production admission and full #365 acceptance remain pending.
-
-## Device Binder creation, staged
-
-The private native app host composes copied-preset preview with the existing `create_storage_collection` command. Its **New storage** sheet requires an already verified complete authorized native planning base, then an ordered target preview and explicit confirmation. Blank stores zero slots; Dex, generation, selected species and selected catalog printings create copied goals without owned copies, wants or grades. Set/master-set is unavailable because its separate checklist scope cannot yet be retained by that command. The staged picker offers Binder and Custom storage; Slab creation stays gated separately.
-
-The device picker and atomic IndexedDB queue are app-specific, not additional REST/MCP operations. Operation/collection/slot identities and original time/context remain fixed across local abort, reload and exact replay. Device acceptance is **creation pending sync**. A historical receipt needs a separate fresh complete authorized read before ACK; the collection must still exist before navigation, and later user navigation wins. Cached native startup stays read-only. First/native owner bootstrap and conversion remain owned by #379.
-
-Production first-party creation remains private/no-store 503 alongside the fixed native developer admission gate. Existing legacy creation stays unchanged. Creation error statuses do not prove noncommit. Only the trusted 093 creation rejection, bound to the original immutable request, delivery, account, owner and auth session, enables **Discard rejected creation**. That explicit action starts a separate fresh complete read and commits under the current session and device lease. Discard retains the original intent and proof, separately from accepted receipts. Start **New storage** afterward for a new preview, confirmation and new operation/collection/slot IDs. Generic errors, missing replies, cancellation and changed scope retain the original intent without discard or rebase. This is not an enabled creation workflow or a claim of hosted execution.
-
-### Prepared creation and arrangement rejection
-
-Creation and arrangement import remain staged with fixed `503 native_operations_staged` and zero executor calls. Migration 093 prepares permanent noncommit outcomes in their original lifetime ledgers. After admission, creation declares REST `409 storage_creation_rejected` and import `409 storage_import_rejected`; MCP uses `isError:true` with matching text/structured JSON. Strict `error.rejection` contains only `outcome:"rejected"`, the original `operationId`, known `code` and `inventoryRevision`. MCP accepted `outputSchema` excludes errors; `holofolder.com/errorSchemas` declares them separately.
-
-Creation reasons are `inventory_revision_conflict` and `creation_identity_conflict`. Import reasons are `inventory_revision_conflict`, `inventory_collection_conflict`, `arrangement_destination_conflict` and `import_copy_conflict`. Only dedicated controlled engine predicates after rollback can commit proof. Ordinary 409/SQL errors, cancellation, audit or COMMIT failure, missing owner state, billing/access and unknown network outcomes remain unknown. Never infer noncommit from message text. Exact accepted/rejected replay follows current authority checks and precedes mutable reconstruction, even after later edits/deletion/recovery.
-
-Consumers must bind a trusted proof to the original family, immutable request and authenticated owner/session scope, then obtain a fresh authoritative complete current read and require explicit reconciliation before discard or review/confirmation of a new operation ID. A shape guard or matching ID alone does not authorize discard. Redacted developer reads are not complete-read authority. The staged first-party creation consumer retains bound proof in its existing atomic device record and requires a separately fresh same-session complete read for explicit discard. Arrangement import consumer integration remains a separate gate. Neither this contract nor the synthetic harness enables customer availability. Existing legacy Undo is unchanged.
-
-## Bounded same-owner raw restore, staged
-
-`restore_raw_collection_content` (`POST /app/api/v1/storage/restores/raw-content`) remains fixed `503 native_operations_staged`, with both write scopes required. This backend slice reconciles one existing native raw collection with the same stable slot IDs and unchanged configuration/grid. Versions 1/2 require identical ordering; migration 097 adds version 3 only for a changed ordering of those same IDs, with exact `slotOrder.before`/`after` permutations, content and provenance bound by identity, and advancing layout/slot versions. Its version 3 receipt contains both orders. The shared v2/v3 envelope is bounded to 1,025 slots/manifest entries, 2,050 distinct current-plus-desired raw-copy refs, 100 wants per slot, `2S+I+W ≤ 8,192` work and 1.75 MiB command/JSONB text, plus a 2.5 MiB complete prospective private audit/inverse graph. Existing version 1 retains 256 slots, 512 refs, 1,024 work and 1 MiB with null origins. These provisional envelopes do not establish production full-Dex availability. Explicit current collection/slot choices and a trusted complete current actor/owner/session or credential/partner/partnership read bind the plan; file IDs never prove provenance. Every displaced copy needs release consent and stays in Unassigned. Copies placed elsewhere cannot move automatically. Copied manifests and each canonical slot origin must match current and file exactly, including edited targets and null-origin appends. No acquisitions, graded/converted collections, changed manifests/origins, metadata/settings/assets/CSV or multiple-collection restores are supported.
-
-Retain the original immutable command and recipient scope after any unknown outcome. Exact accepted/rejected lifetime replay comes before mutable reconstruction after current authority checks. Only committed dedicated inventory/collection/content predicates yield REST409 `storage_restore_rejected` or MCP `isError` with `error.rejection`; arbitrary conflicts, cancellation and failed COMMIT are unknown. Accepted output and error discovery schemas are separate. After either result, obtain a new complete current read started after the response and reconcile explicitly. A receipt is historical and never an offline ACK. The staged native Backup screen separates local inspection from **Review raw collection locally** and **Send private file for restore review**. The latter explicitly sends private file bytes and consent choices to authenticated planning; no file is cached or stored as a server backup and no provider is fetched. Review shows exact before/after targets, status, wanted choices and copy placements, and requires separate consent for every release to Unassigned. The current collection, configuration, grid, stable slot set, copied manifest and per-ID origin mapping stay unchanged; only v3 may reorder those IDs. Details page in groups of 50, with individual release consent. Accepted receipts and dedicated rejections include `version:2` for v2 and `version:3` for v3; v1 outcomes stay unversioned. Unknown versions fail closed and preserve existing device records. Older binaries need a verified version-floor rollout gate; this change cannot fix them retroactively. Migration 097 requires parent backup/review/application. The 10 MiB file and 12 MiB escaped planning-wrapper caps still apply; deployed platform limits are not verified here.
-
-**Confirm and save raw restore** durably retains only the bounded original command and recipient/context in the existing device queue before delivery. Editing, ownership, scanning, creation, layout changes and recovery pause while unresolved. Unknown responses retain the same ID and command; retry never makes a refreshed plan. A matching strict authenticated receipt is persisted before a new complete current read can ACK. Rejected requests need **Discard rejected raw restore**, another fresh complete read and explicit confirmation before a new plan/ID. Offline relaunch can display cached storage but cannot authorize review or writes.
-
-The production first-party restore route remains unconditional private/no-store 503, as do the staged REST/MCP operation and native admission. The actual internal HTTP/IDB/read flow is exercised only in a loopback synthetic harness. Broader #365/#363 acceptance, hosted/device proof, integration and #379 admission remain separate parent gates.
-
-## Inventory ownership management preparation
-
-The prepared native Inventory flow offers **Add owned card** as a distinct raw
-copy in **Unassigned**. If that printing is already owned, inspect a recorded copy
-or deliberately add another raw copy. Existing graded copies are never relabelled
-or reused as raw. Missing printing, language and finish metadata remain unknown.
-
-From an exact raw or already graded copy, **Assign copy** or **Move copy** asks you to select a
-compatible stable slot. An occupied destination requires an explicit choice:
-**Move occupied copy to Unassigned**, or **Swap copies** when the selected copy
-has a source slot and both copies match their resulting targets. Nothing is
-selected by default. Review both copy IDs, their exact former and resulting
-locations, and the retained slot targets and explicit wants before confirming.
-A recorded graded destination copy retains its private metadata; unsupported
-choices stay unavailable. No copy is acquired or removed and no want is fulfilled.
-Cancel leaves both copies in place. **Unassign copy** retains ownership and leaves its
-former slot's target and wants intact. Every grading field, certificate, private
-label asset reference, acquisition date and source record remains unchanged.
-**Remove owned copy** is raw-only and separately previews
-which copy and placement are removed, the ownership decrement and the unchanged
-slot goals and other copies. After sync, Activity provides version-checked recovery
-where supported; explicitly restoring as Unassigned avoids displacing a newer
-placement. There is no instant local Undo promise.
-
-These controls need current complete authorized storage and no pending command,
-creation or recovery. Cached Inventory is read-only. Device acceptance and remote
-sync are separate; unknown outcomes retain the exact original request. The device
-flow composes existing inventory command and recovery REST/MCP operations, with
-no new API operation. Native production admission remains closed with 503.
-After a separately fresh complete ACK, expand **Review synchronized changes**.
-**Find acknowledged change** looks up
-that exact operation's Activity event. Recovery requires a supported current
-engine preview; missing history never promises Undo. Graded removal stays blocked
-because existing recovery cannot verify private label assets. Graded creation
-and bulk actions remain unavailable. Individual placement reuses the existing
-commands without sending replacement grading or private fields.
-
-### Selected raw copies, staged
-
-Individually select raw copies on the current Inventory page. Selection persists
-across pages and filters; the count includes selected copies hidden by filters.
-**Clear selection** clears all selected IDs. No unseen or matching copy is selected
-implicitly. **Move / Unassign selected** opens the ordered review. Move requires
-an explicitly chosen distinct compatible **empty** saved slot for every copy.
-Occupied bulk destinations are unavailable; use the individual copy review for
-its explicit displacement/swap choices. Unassign requires every selected copy to
-be placed and retains its identity, metadata and ownership, plus former slot goals.
-
-One existing inventory command request contains the entire selection, bounded by
-100 commands, 256 work units, 32 collections and 262144 UTF-8 request bytes.
-A placed-copy move costs three work units, an Unassigned assignment or Unassign
-two. Unsupported/oversized selections fail as a whole before queue handoff;
-there is no truncation, chunking or sequence of writes presented as atomic.
-Confirmation refreshes current complete authorized storage and checks exact
-references and pending work through the existing durable sink. Unknown replies
-retain the original operation ID and request. Fresh complete ACK and exact Activity
-linkage are the same as individual actions; recovery is conditional, not local Undo.
-
-Developer composition remains staged `POST /app/api/v1/storage/inventory/commands`
-or MCP `execute_inventory_commands`: put explicit `move`/existing-copy `assign`
-or `unassign` commands in one request, with exact collection/layout/item/placement/
-slot references, `privateFields:"preserve"`, `occupied:"cancel"` for placement and
-`fulfillWant:null`. Do not reconstruct private copy metadata from browse rows.
-This is a device selection/review affordance, with no new endpoint or contract.
-Production native admission still returns 503.
-
-
-### Prepared collection deletion review
-
-The staged native collection header offers **Delete collection**. Review names the
-exact collection and every disappearing slot, target and explicit want. All assigned
-owned copies retain their identity, grading, acquisition and source details in
-**Unassigned**. Preview pages do not split the atomic command. A separate explicit
-acknowledgement and confirmation are required. Default deletion also requires an
-explicit current native replacement; the last collection, missing default evidence
-and mixed legacy/native storage fail closed.
-
-This first-party device flow composes the existing `deleteCollection` command in
-`execute_inventory_commands`, not a new REST/MCP operation. Use the original complete
-slot/version preconditions and original operation ID; private-preserving mode does
-not permit structural deletion. A full 1,025-target Dex or supported 4,096-slot
-collection remains one bounded intent, subject to existing SQL and evidence limits.
-Confirmation requires another complete current authorized read and no unresolved
-ordinary, creation, raw restore or recovery work. The same durable queue/sender
-retains unknown outcomes unchanged and needs a separately fresh complete read for ACK.
-
-After sync, inspect Activity and use **Review recovery** only when supported. Newer
-edits and unsupported private or auxiliary evidence may block recovery. No instant
-Undo, exact operation-to-event link or restoration of obsolete sharing tokens is
-promised. Legacy deletion is unchanged. Production first-party and REST/MCP native
-admission remain hard 503; this is prepared UI, not an enabled deletion workflow.
-
-## Staged Binder and Custom creation UI
-
-The admitted native app's **New storage** review offers Binder or Custom storage.
-Custom accepts an optional private location (trimmed, up to 200 characters) and
-starts in List; Binder starts in Binder. You can change the view afterward,
-including for mixed raw/graded contents. Naming storage never acquires a copy or
-assigns a grade. Both choices use the same existing owner collection allowance.
-A linked partner shares the resolved owner's storage and locations. This flow
-adds no public sharing of location metadata.
-
-Blank and copied Dex/generation/species/printing targets use the existing exact
-durable creation command, including original IDs on unknown outcomes. Creation
-needs current complete native storage, a connection and no pending commands,
-restore/recovery or retained legacy work. First/default and mixed legacy admission
-restrictions remain; nothing converts automatically. Only a matching receipt plus
-a separately fresh complete-read ACK can open the new collection. Slab creation
-and general production exposure remain gated by #390 and #379 respectively.
-
-
-Version 3 reorder restoration uses the same immutable device request and fresh complete-read acknowledgment. Backup review shows each slot’s old and desired position. No slot create/delete or grid/configuration/manifest/origin changes are supported. Pre-097 servers refuse v3 without authorizing device discard. Unknown outcomes and unsupported old/future records keep their exact bytes. This remains staged 503, with parent-owned hosted application and enablement.
+The legacy analytics operation still returns `503 native_analytics_staged` for native or mixed owners. Native dashboard calculations do not make frozen legacy history current analytics.

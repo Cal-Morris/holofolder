@@ -1,89 +1,36 @@
 ---
-title: Native developer reads
-description: Staged copy, storage and slot projections with revision-bound pagination.
+title: Native inventory reads
+description: Authenticated physical-copy, collection and stable-slot projections for REST and MCP.
 ---
 
-Native developer reads are staged. Valid authorized requests currently return `503 native_operations_staged`. Production admission stays closed until the rollout acceptance in #379. Existing card/want-list Activity and Undo remain available under their existing contract.
+Native developer reads use the current authenticated key or OAuth boundary. Both require `collection:read`, `binders:read`, current owner or partner membership, and Premium or lifetime access. Read-only credentials can use them. They never impersonate a browser cookie session.
 
-## Read operations
+| MCP tool | REST GET path relative to `/app/api/v1` |
+| --- | --- |
+| `list_inventory_items` | `/inventory/items` |
+| `get_inventory_item` | `/inventory/items/{id}` |
+| `list_storage_collections` | `/storage/collections` |
+| `list_storage_slots` | `/storage/collections/{collectionId}/slots` |
+| `get_storage_slot` | `/storage/collections/{collectionId}/slots/{id}` |
 
-The shared REST and MCP registry declares `list_inventory_items`, `get_inventory_item`, `list_storage_collections`, `list_storage_slots` and `get_storage_slot`. REST uses a personal API key; MCP uses OAuth. Both require `collection:read`, `binders:read`, current owner or partner access, and Premium or lifetime access. Read-only credentials can use these reads after admission. Neither credential impersonates a browser cookie session.
+Copies retain stable IDs, recorded card or Pokémon identity, public grading, acquisition time, item revision and current primary placement. Unassigned means no placement. Repeated cards are separate physical copies, including Trainers and Energy. Empty targets and wanted entries are goals, not ownership.
 
-After admission, copy reads retain each physical copy's stable ID, exact recorded card or Pokémon identity, item revision and current primary placement. Placement is identified by its inventory item, collection and stable slot IDs with a placement revision. No placement means Unassigned. Repeated cards remain separate copies, including Trainers and Energy; empty targets and wanted entries do not count as owned copies.
+Collection reads include private owner location, counts, grid and independent collection/layout revisions. Slot reads include ordered positions, exact targets, public wanted entries, and item/placement/collection/layout preconditions. Removing a slot retains its owned copy as Unassigned.
 
-Collection reads include name, storage kind, presentation, private recorded location, default/order metadata, update timestamp, slot count, collection revision, layout revision and resolved grid. Unknown older metadata remains null or omitted. Slot reads include the stable ID, actual persisted position, target, status, wanted printings and current collection, layout, item and placement preconditions. Free targets stay null. Collection/list/slot reads never invent a default binder or silently fall back to legacy species rows. A mixed legacy/native owner returns `legacy_inventory_incomplete` until its complete-read prerequisite is satisfied.
+Certificates, private label assets, immutable source evidence and private planning/audit state are omitted. Strict output schemas reject accidental private additions. Use [private-preserving commands](/docs/native-storage) to edit a redacted projection without erasing hidden fields.
 
-## Private fields
+## Pages and current authority
 
-This is an authenticated developer projection, separate from public sharing. Recorded provider, grade, scale, designation, holder, subgrades and label variant are allowed. These strings are recorded metadata, not provider verification. Certificates, certificate lookup links, private label asset IDs/URLs, immutable legacy source JSON, protected audit/planning evidence, copied preset manifests, credential details and member IDs are omitted. Wanted entries retain printing identity, name, timestamps and catalog text, with image URLs and member attribution omitted. Public share redaction is unchanged. Redacted grades and wanted entries are read models, not lossless replacement-command payloads. Do not replace private certificate/asset metadata with guessed or empty values; use the explicit [private-preserving command mode](/docs/native-storage#preserve-private-fields) for target and placement changes. Grading patches and exact want-fulfilment parity still require transactional executor support.
+Use `limit` from 1 to 100. Keep filters, limit and credential unchanged when following `nextCursor`. Cursors bind actor, owner, membership, credential/OAuth session, permissions, transport, operation, filters and current revision evidence. Changed state returns `409 stale_native_cursor`; malformed or mismatched cursors return `400 invalid_pagination`. Restart from the first page instead of combining revisions.
 
-## Stable pages
+Every result declares `projection:"developer-native-v1"`, `completeSnapshot:false`, `inventoryRevision` and `readRevision`. Pages are not complete owner snapshots or fresh-read browser queue acknowledgements. Private complete browser reads use cookie/RLS authority through their separate first-party transport, never a service-role snapshot sent to the browser.
 
-Use a limit from 1 to 100, then follow `nextCursor` with the same operation, filters and limit. Copy filters support exact `cardId`, `collectionId` and `assignment` (`assigned` or `unassigned`). Slot filters support exact `cardId` and `status` within the requested collection. A slot's card filter matches its target, wanted printings or assigned copy. IDs remain opaque; card aliases are not guessed.
+Current credential revocation, owner/membership change and entitlement loss fail closed. Mixed legacy/native owners, uninitialized inventories, incomplete reads and unavailable schema return honest errors. Missing records return `404`; there is no fallback to frozen legacy data.
 
-Synthetic example for the future admitted REST contract:
+## Other supported and unsupported scopes
 
-```sh
-curl 'https://app.holofolder.com/app/api/v1/inventory/items?limit=50&assignment=unassigned' \
-  -H 'Authorization: Bearer hf_YOUR_KEY_ID.YOUR_SECRET'
-```
+[Copied preset discovery and previews](/docs/preset-previews) have a separate read-only contract. [Native commands and recovery](/docs/native-storage) retain explicit permissions, CAS preconditions and exact replay requirements.
 
-A cursor is signed and bound to the current credential, actor, owner, membership, permissions, filters and the independently fenced inventory/content/layout/metadata read revision. Foreign, edited or malformed cursors return `invalid_pagination`; changed state returns `409 stale_native_cursor`. Restart without a cursor after a change. Cursors do not freeze concurrent edits or authorize access.
+The REST/MCP `get_collection_analytics` operation describes legacy history. Native or mixed storage, including a retained native owner root after collection deletion, returns `503 native_analytics_staged`. It does not reinterpret frozen species-keyed history as current physical-copy analytics.
 
-Every page and detail response declares `projection: "developer-native-v1"`, `completeSnapshot: false`, `inventoryRevision` and an opaque `readRevision`. Pages also return `data`, matching `total` and `nextCursor`. Even the last page is not a complete planning snapshot or a fresh-read queue acknowledgement. Clients must not use it to clear pending commands.
-
-Reads check current authority before owner data and again before accepting the result. Mid-read unlink/revocation, changed independent revisions/counts, incomplete paging or backend errors fail closed. Each invocation permits one whole-owner read attempt, 15 seconds and 512 checked requests. Source pages contain at most 500 rows and have a cumulative 32 MiB budget; serialized developer responses have a 1 MiB limit. Use smaller response pages after `413 native_read_too_large`. Large owners that exhaust a complete-read budget are unavailable, never partially complete.
-
-[Copied preset discovery/preview](/docs/preset-previews) has its own staged read-only contract. Native command sender/replay/fresh-read ACK, offline relaunch and hosted rollout acceptance retain their separate remaining gates. This reference does not enable those workflows.
-
-## Analytics and dashboard totals
-
-The staged native dashboard and Analytics view count physical inventory copies,
-including Unassigned in All storage. Known species, actual slots, explicit wants
-and current-target completion are separate counts. Targets and wants do not create
-owned cards. Completion follows the current targets in each storage.
-
-Saved raw value includes only reliable exact-finish evidence. Unpriced and graded
-copies are excluded; graded value remains unknown. Cached views show last saved
-copies and can be incomplete. Loaded quotes remain visible while the view stays
-open offline; reopening can leave prices unknown. There is no automatic paid refresh.
-
-This presentation remains behind closed native admission. The existing REST/MCP
-`get_collection_analytics` operation is a legacy history read. Converted or mixed
-storage, including a retained native owner root after collection deletion, returns `503 native_analytics_staged`, rather than frozen legacy history.
-It does not expose native inventory totals. Search, Show, refresh and acquisition
-integration and enabled acceptance remain pending.
-
-## Search and Show consumer composition
-
-Staged native Search and card-browser badges count distinct physical copies and explicit wanted entries independently. Show hunt keeps repeated wants by exact collection, slot and wanted-entry index, including non-Pokémon cards. All storage includes Unassigned; unknown exact printing remains unknown. Lookup labels do not expose private grades or certificates.
-
-This is device-only composition of existing reads and the existing inventory assign command, with no new REST/MCP operation or provider lookup. The staged browser host supplies its live scoped read, checked admission and existing durable command sink. Exact card lookup also supports non-Pokémon printings without a guessed Pokémon slot. Synthetic component/host tests do not establish hosted execution or enabled availability. Cached evidence is read-only. Native admission remains closed with 503, and the full feature is not enabled. Saved pricing confidence, finish, freshness and access rules continue to apply; native comparison exposes no paid refresh control.
-
-### Read-only Show bundles, staged
-
-In native Show, select an exact printing and finish in its price checker and tap
-Bundle. Each tap adds one card to the offer, so repeated printings keep their
-quantity. Remove removes one entry; Clear empties the selection. Owned and Wanted
-labels describe the current storage scope, not a purchase destination. Empty
-targets do not count as owned or wanted.
-
-The bundle compares one asking total with saved exact-finish references. Missing
-or weak catalogue evidence, unknown finishes and mixed currencies leave the
-comparison incomplete with no verdict. It never guesses prices for grades or FX.
-Saved qualified sold evidence keeps its existing access and freshness rules.
-The card language must be known. Saved sold checks are used only for English
-normal, holo or reverse-holo printings with an established exact finish, never an
-"any finish" fallback. Catalogue references retain their source, confidence and
-date; references older than 30 days or with an unknown date become unpriced,
-including in an open offline bundle. Prices older than seven days are capped at
-medium confidence. Reopening or refocusing the bundle rechecks retained evidence.
-
-This native comparison cannot record purchases, change ownership, request paid
-checks or prepare offline data. Cached storage stays read-only. Already-loaded
-checker/bundle code and saved references can be reused offline; first-use offline
-loading is not promised. Selections last only while Quick mode stays open.
-
-This composes existing device reads, with no new REST/MCP operation. Native
-admission remains closed/503. Purchase recording, offline preparation and enabled
-rollout remain separate unfinished work.
+App host integration, offline relaunch, conversion and hosted production proof are separate release work. This API reference does not claim those acceptance checks have passed.

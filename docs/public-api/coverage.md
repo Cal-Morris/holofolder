@@ -1,5 +1,7 @@
 # Operation coverage
 
+Current server admission: supported native operations now use the existing authenticated bridges. See [the direct-cutover handoff](../native-direct-server-handoff.md). The historical slice notes below describe earlier staging and do not define the current fixed-503 policy. Hosted/app acceptance remains separate.
+
 Current native status: [the #376 dispatcher slice](../native-developer-operations.md) now registers explicitly staged command/creation/native recovery schemas behind fixed 503 denial. Earlier foundation notes below describe their own delivered slices; none claims native admission or developer complete-read/pagination support.
 
 The operation registry in `lib/developer-api/operations.ts` defines the REST schemas, MCP tools and generated reference. Implemented interfaces remain subject to release verification.

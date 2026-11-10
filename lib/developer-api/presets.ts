@@ -37,13 +37,12 @@ export const COPIED_PRESETS: z.infer<typeof preset>[] = [
   ...["set", "master-set"].map(id => ({ id, version: "1" as const, name: id === "set" ? "Set" : "Master set", supported: false,
     scope: "unsupported", limitation: "Durable set/checklist coverage scope is not persisted by creation. No complete set or variant-family claim." })),
 ]
-const staged = "Staged, always returns 503 native_operations_staged until #379. After admission: "
 export const PRESET_OPERATIONS: readonly DeveloperOperation[] = [
   { name: "list_storage_presets", method: "GET", path: "/storage/presets", permissions: PRESET_PERMISSIONS, write: false,
-    admission: "staged", idempotent: true, description: staged + "Discover versioned copied target presets and explicit unsupported scopes. Metadata only, no owner planning snapshot or creation intent. Existing Premium/lifetime key or OAuth authority is required.",
+    idempotent: true, description: "Discover versioned copied target presets and explicit unsupported scopes. Metadata only, no owner planning snapshot or creation intent. Existing Premium/lifetime key or OAuth authority is required.",
     schema: z.object({ limit: z.number().int().min(1).max(100).optional(), cursor: z.string().min(1).max(1024).optional() }).strict(),
     responseSchema: z.object({ ...envelope, data: z.array(preset), nextCursor: z.string().nullable(), limits: z.object(Object.fromEntries(Object.entries(PRESET_PREVIEW_LIMITS).map(([k, v]) => [k, z.literal(v)]))).strict() }).strict() },
   { name: "preview_storage_preset", method: "POST", path: "/storage/presets/preview", permissions: PRESET_PERMISSIONS, write: false,
-    admission: "staged", idempotent: true, maxBytes: 65536, schema: presetPreviewInput, responseSchema: presetPreviewResponse,
-    description: staged + "Preview a detached ordered copied manifest without saving, assigning ownership, creating wants or allocating operation/collection/slot IDs. Use version 1, with speciesIds only for selected-species or printings only for selected-printings. Exact catalog language and requested finish evidence must be available; incomplete/ambiguous evidence fails the whole preview. Set/master-set scopes are unsupported. Manifest entries are preset entry IDs, not slot IDs. Not complete planner or queue ACK evidence; no autosync." },
+    idempotent: true, maxBytes: 65536, schema: presetPreviewInput, responseSchema: presetPreviewResponse,
+    description: "Preview a detached ordered copied manifest without saving, assigning ownership, creating wants or allocating operation/collection/slot IDs. Use version 1, with speciesIds only for selected-species or printings only for selected-printings. Exact catalog language and requested finish evidence must be available; incomplete/ambiguous evidence fails the whole preview. Set/master-set scopes are unsupported. Manifest entries are preset entry IDs, not slot IDs. Not complete planner or queue ACK evidence; no autosync." },
 ]
