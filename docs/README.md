@@ -11,6 +11,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Atomic arrangement import](atomic-arrangement-import.md): bounded JSON v2 execution, explicit copies/moves, native recovery and remaining restore/admission gates (088).
 
 - [Architecture](architecture.md): ownership boundaries, startup, writes, offline sync and integrations.
+- [Staged terminal command responses](native-command-reconciliation.md): explicit REST/MCP terminal errors, strict discovery schemas and unchanged fixed admission.
 - [Staged native developer reads](native-developer-read.md): verified key/OAuth authority, redacted copy/storage/slot projections and revision-bound pages, with fixed rollout denial.
 - [Agent-readable API docs](public-api/agent-docs.md): generated Markdown, `llms.txt`, full-text exports and OpenAPI discovery.
 - [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, auth, PWA scope and legacy URLs.

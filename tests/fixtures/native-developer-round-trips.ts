@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {assertSmokeResponse,assertStagedSmokeResponse} from '../../scripts/api-smoke-assertions'
+import {assertSmokeResponse,assertStagedSmokeResponse,assertTerminalStorageSmokeResponse} from '../../scripts/api-smoke-assertions'
 import { createHash } from 'node:crypto'
 import { createDeveloperKey } from '../../lib/server/developer-access/key-secret'
 import { DeveloperAccessError } from '../../lib/developer-api/permissions'
@@ -17,9 +17,11 @@ async function main() {
   if (wired) mock.module('../../lib/server/operations/native-developer-admission', () => ({ requireNativeDeveloperAdmission() {} }))
   const actor = '00820000-0000-4000-8000-000000000002', owner = '00820000-0000-4000-8000-000000000001'
   let currentActor = actor, currentOwner = owner, readonly = false, paid = true, revoked = false, budget = true
+  let terminal = false, forged: unknown = undefined
   let loseReply = false
   let error: string | null = null, privatePreview = false, missingScope: DeveloperPermission | null = null
-  const credentialId = createHash('sha256').update('synthetic-native').digest('hex'), key = createDeveloperKey()
+  let credentialId = createHash('sha256').update('synthetic-native').digest('hex')
+  const key = createDeveloperKey()
   const permissions = (): DeveloperPermission[] => (readonly ? ['collection:read', 'binders:read'] : ['collection:read', 'collection:write', 'binders:read', 'binders:write']).filter(p => p !== missingScope) as DeveloperPermission[]
   mock.module('../../lib/server/developer-access/grants', () => ({ authenticateMcpToken: async (token: string) => {
     if (revoked || token !== 'synthetic-oauth') throw new DeveloperAccessError('oauth_revoked', 'Synthetic denied credential.', 401)
@@ -31,6 +33,7 @@ async function main() {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input : input.url)
     assert.equal(url.hostname, 'synthetic.supabase.test', 'no real network access')
     const body = JSON.parse(String(init?.body ?? '{}'))
+    if (url.pathname.endsWith('/consume_developer_budget')) return Response.json({ allowed: budget })
     if (url.pathname.endsWith('/authenticate_developer_request')) {
       assert.equal(body.key_id, key.id)
       assert.equal(body.presented_digest, key.digest)
@@ -64,6 +67,8 @@ async function main() {
         collectionVersion: 0, layoutRevision: 0, slotIds: request.slotIds, recoverySupported: false, evidence: { certificate: 'private' } }
       else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
       else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
+      if (forged !== undefined) return Response.json(forged)
+      if (terminal && ['slots', 'inventory'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
       // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
       if (request.operationId) {
         const ledgerKey = currentActor + ':' + request.operationId
@@ -114,6 +119,16 @@ async function main() {
     const result = transport === 'mcp' && raw.result ? raw.result.structuredContent : raw
     return { status: response.status, result, raw }
   }
+  const listingResponse = await handleMcpRequest(new Request('https://synthetic.test/app/mcp', { method: 'POST',
+    headers: { authorization: 'Bearer synthetic-oauth', 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) }))
+  const tools = (await listingResponse.json()).result.tools
+  const { z } = await import('zod')
+  for (const op of NATIVE_DEVELOPER_OPERATIONS) {
+    const tool = tools.find((tool: { name: string }) => tool.name === op.name)
+    assert.deepEqual(tool.outputSchema, z.toJSONSchema(op.responseSchema!), 'discovery advertises the exact accepted receipt')
+    if (op.errorSchemas) assert.deepEqual(tool._meta['holofolder.com/errorSchemas']['409'], z.toJSONSchema(op.errorSchemas[409]!))
+  }
   const paddedLegacy = await handleMcpRequest(new Request('https://synthetic.test/app/mcp', { method: 'POST', headers: { authorization: 'Bearer synthetic-oauth', 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_collection_recovery', arguments: { eventId: '12' } } }) + ' '.repeat(131072) }))
   assert.equal(paddedLegacy.status, 413, 'legacy MCP framing keeps its actual-byte limit, including whitespace')
   for (const transport of ['rest', 'mcp'] as const) {
@@ -146,6 +161,89 @@ async function main() {
           assert.equal(conflict.result.error.code, 'storage_conflict')
         }
       }
+    }
+    if (wired) for (const [name, intent] of [['execute_slot_commands', slots], ['execute_inventory_commands', inventory]] as const) {
+      const value = { ...intent, operationId: 'synthetic-terminal-' + name + '-' + transport }
+      terminal = true
+      const rejected = await call(transport, name, value)
+      const proof = { outcome: 'rejected', operationId: value.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
+      assert.equal(rejected.status, transport === 'rest' ? 409 : 200)
+      assert.equal(rejected.result.error.code, 'storage_command_rejected', JSON.stringify(rejected.raw))
+      assert.deepEqual(rejected.result.error.rejection, proof)
+      const op = DEVELOPER_OPERATIONS.find(op => op.name === name)!
+      assert.ok(op.errorSchemas?.[409]?.safeParse(rejected.result).success)
+      assertTerminalStorageSmokeResponse(name, rejected.result, value)
+      assert.throws(() => assertSmokeResponse(name, rejected.result, value))
+      assert.throws(() => assertTerminalStorageSmokeResponse(name, rejected.result, { ...value, operationId: 'synthetic-wrong' }))
+      assert.equal(op.responseSchema!.safeParse(rejected.result).success, false)
+      if (transport === 'mcp') {
+        assert.equal(rejected.raw.result.isError, true)
+        assert.deepEqual(JSON.parse(rejected.raw.result.content[0].text), rejected.result)
+      }
+      assert.deepEqual(Object.keys(rejected.result.error).sort(), ['code', 'message', 'rejection', 'requestId'])
+      terminal = false
+      const replay = await call(transport, name, value)
+      assert.deepEqual(replay.result.error.rejection, proof, 'terminal replay remains rejected after predicates change')
+      const changed = await call(transport, name, { ...value, inventoryRevision: 0 })
+      assert.equal(changed.result.error.code, 'storage_conflict')
+      assert.equal(changed.result.error.rejection, undefined)
+      const differentId = await call(transport, name, { ...value, operationId: value.operationId + '-new' })
+      assert.equal(differentId.result.error, undefined, 'a new ID never borrows terminal proof')
+      for (const change of ['credential', 'owner', 'source'] as const) {
+        const oldCredential = credentialId, oldOwner = currentOwner
+        if (change === 'credential') credentialId = 'synthetic-other-credential'
+        if (change === 'owner') currentOwner = actor
+        const changedScope = await call(change === 'source' ? (transport === 'rest' ? 'mcp' : 'rest') : transport, name, value)
+        assert.equal(changedScope.result.error.code, 'storage_conflict')
+        assert.equal(changedScope.result.error.rejection, undefined)
+        credentialId = oldCredential; currentOwner = oldOwner
+      }
+      currentActor = owner
+      const anotherActor = await call(transport, name, value)
+      assert.equal(anotherActor.result.error, undefined, 'another actor cannot borrow a terminal receipt')
+      currentActor = actor
+      const beforeDenial = calls.length
+      for (const denial of ['readonly', 'unpaid', 'revoked', 'budget'] as const) {
+        readonly = denial === 'readonly'; paid = denial !== 'unpaid'; revoked = denial === 'revoked'; budget = denial !== 'budget'
+        const denied = await call(transport, name, value)
+        assert.ok(denied.result.error)
+        assert.equal(denied.result.error.rejection, undefined, 'current authority precedes replay data')
+      }
+      readonly = false; paid = true; revoked = false; budget = true
+      assert.equal(calls.length, beforeDenial)
+      terminal = true; loseReply = true
+      const lostRejectionIntent = { ...value, operationId: value.operationId + '-lost-rejection' }
+      const lostRejection = await call(transport, name, lostRejectionIntent)
+      assert.equal(lostRejection.result.error.rejection, undefined)
+      terminal = false
+      const rejectionRetry = await call(transport, name, lostRejectionIntent)
+      assert.deepEqual(rejectionRetry.result.error.rejection, { ...proof, operationId: lostRejectionIntent.operationId })
+      for (const invalid of [
+        null, { inventoryRevision: 0 }, { code: 'storage_conflict', message: 'private arbitrary 409' },
+        { ...proof, operationId: 'synthetic-forged-id' }, { ...proof, code: 'private_unknown' },
+        { ...proof, inventoryRevision: -1 }, { ...proof, inventoryRevision: Number.MAX_SAFE_INTEGER + 1 },
+        { ...proof, certificate: 'private' }, { ...proof, outcome: 'accepted' },
+        { ...proof, changed: true, selectedItemIds: [], acquiredItemIds: [], collectionVersion: 1, layoutRevision: 1, removedSlotIds: [] },
+      ]) {
+        forged = invalid
+        const malformed = await call(transport, name, value)
+        assert.equal(malformed.result.error.code, 'storage_unavailable', JSON.stringify(malformed.raw))
+        assert.equal(malformed.result.error.rejection, undefined)
+        assert.equal(JSON.stringify(malformed.result).includes('private'), false)
+      }
+      forged = undefined
+      for (const code of ['40001', '23505', '57014', 'XX000', '409']) {
+        error = code
+        const unknown = await call(transport, name, value)
+        assert.equal(unknown.result.error.rejection, undefined)
+        assert.equal(unknown.result.error.code, ['40001', '23505'].includes(code) ? 'storage_conflict' : 'storage_unavailable')
+      }
+      error = null
+      loseReply = true
+      const lost = await call(transport, name, { ...value, operationId: value.operationId + '-lost' })
+      assert.equal(lost.result.error.rejection, undefined)
+      const retried = await call(transport, name, { ...value, operationId: value.operationId + '-lost' })
+      assert.equal(retried.result.error, undefined, 'unknown lost reply retains original accepted replay')
     }
     // Assertion mode reaches the existing executor as the same canonical intent, with no reads/reconstruction.
     const emptySlot = { id: 'synthetic-destination', version: 3, inventoryItemId: null, itemVersion: null, placementVersion: null }

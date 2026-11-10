@@ -9,7 +9,7 @@ import {NATIVE_DEVELOPER_OPERATIONS} from './storage'
 const id=z.string().min(1).max(200),binderId=z.uuid(),language=z.enum(CARD_LANGUAGES).optional()
 const paging={limit:z.number().int().min(1).max(100).optional(),cursor:z.string().max(1024).optional()}
 const catalog={...paging,language,q:z.string().max(80).optional(),set:id.optional(),series:id.optional(),illustrator:z.string().max(200).optional(),pokemon:z.number().int().positive().max(9999).optional()}
-export type DeveloperOperation={name:string;method:'GET'|'POST'|'PATCH'|'PUT'|'DELETE';path:string;description:string;permissions:readonly DeveloperPermission[];write:boolean;schema:z.ZodObject;maxBytes?:number;responseSchema?:z.ZodType;admission?:'staged';idempotent?:boolean;destructive?:boolean}
+export type DeveloperOperation={name:string;method:'GET'|'POST'|'PATCH'|'PUT'|'DELETE';path:string;description:string;permissions:readonly DeveloperPermission[];write:boolean;schema:z.ZodObject;maxBytes?:number;responseSchema?:z.ZodType;errorSchemas?:Readonly<Partial<Record<number,z.ZodType>>>;admission?:'staged';idempotent?:boolean;destructive?:boolean}
 export const DEVELOPER_OPERATIONS:readonly DeveloperOperation[]=[
  ...NATIVE_DEVELOPER_OPERATIONS,
  ...NATIVE_READ_OPERATIONS,

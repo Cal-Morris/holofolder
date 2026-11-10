@@ -1,5 +1,6 @@
 import {writeFile,mkdir} from 'node:fs/promises'
 import {z} from 'zod'
+import {developerErrorSchema} from '@/lib/developer-api/storage'
 import {DEVELOPER_OPERATIONS} from '@/lib/developer-api/operations'
 async function main() {
  const paths:Record<string,Record<string,unknown>>={}
@@ -18,9 +19,9 @@ async function main() {
   paths[op.path]??={};paths[op.path][op.method.toLowerCase()]={operationId:op.name,summary,description,tags:[group],security:[{apiKey:[]}],parameters,
    ...(op.admission?{'x-admission':op.admission}:{}),...(op.maxBytes?{'x-max-body-bytes':op.maxBytes}:{}),
    ...(op.method==='GET'?{}:{requestBody:{required:true,content:{'application/json':{schema:{...schema,properties,required}}}}}),responses:Object.fromEntries([200,400,401,402,403,404,409,413,422,429,503].map(status=>[String(status),{
-    description:status===200?(op.admission==='staged'?(op.method==='GET'?'Read projection contract after future admission only. Currently returns 503.':'Receipt contract after future admission only. Currently returns 503.'):'Success'):status===503&&op.admission==='staged'?'native_operations_staged: valid authorized requests are denied until #379. Execution is not enabled.':'See the API conventions page.',
+    description:status===200?(op.admission==='staged'?(op.method==='GET'?'Read projection contract after future admission only. Currently returns 503.':'Receipt contract after future admission only. Currently returns 503.'):'Success'):status===503&&op.admission==='staged'?'native_operations_staged: valid authorized requests are denied until #379. Execution is not enabled.':status===409&&op.errorSchemas?.[409]?'After future admission: storage_command_rejected includes only the bound terminal ledger rejection; ordinary conflicts carry no rejection proof.':'See the API conventions page.',
     ...(status===200&&op.responseSchema?{content:{'application/json':{schema:z.toJSONSchema(op.responseSchema)}}}:{}),
-    ...(status!==200&&op.admission?{content:{'application/json':{schema:z.toJSONSchema(z.object({error:z.object({code:z.string(),message:z.string(),requestId:z.string()}).strict()}).strict())}}}:{}),
+    ...(status!==200&&op.admission?{content:{'application/json':{schema:z.toJSONSchema(op.errorSchemas?.[status]??developerErrorSchema)}}}:{}),
    }]))}
  }
  const spec={openapi:'3.1.0',info:{title:'Holo Folder API',version:'1.0.0',description:'Premium/lifetime data API. MCP uses OAuth separately. Card image fields are R2-only.'},servers:[{url:'https://app.holofolder.com/app/api/v1',description:'Holo Folder production API'}],components:{securitySchemes:{apiKey:{type:'http',scheme:'bearer',bearerFormat:'Holo Folder personal API key'}}},paths}

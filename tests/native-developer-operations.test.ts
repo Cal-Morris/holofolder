@@ -1,3 +1,6 @@
+import { z } from 'zod'
+import { storageCommandErrorSchema, storageRejectionSchema } from '@/lib/developer-api/storage'
+import { STORAGE_REJECTION_CODES } from '@/lib/collection/storage-command-rejection'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -59,5 +62,32 @@ test('generated native references and agent Markdown preserve staging, scopes an
     const markdown = formatEndpointMarkdown({ title: op.name, url: '/docs/reference/collection/' + op.name.replaceAll('_', '-'), method: op.method, path: op.path, operation: documented })
     assert.match(markdown, /"x-admission": "staged"/)
     assert.match(markdown, /native_operations_staged/)
+  }
+})
+
+test('real MCP SDK enforces accepted output schemas and preserves typed tool errors', () => {
+  execFileSync(process.execPath, [new URL('./fixtures/native-output-schema.ts', import.meta.url).pathname], { stdio: 'pipe' })
+})
+
+test('terminal errors are strict, bounded and declared only on the two command operations', () => {
+  const proof = { outcome: 'rejected', operationId: command.operationId, code: 'slot_revision_conflict', inventoryRevision: 12 }
+  for (const code of STORAGE_REJECTION_CODES) assert.equal(storageRejectionSchema.safeParse({ ...proof, code }).success, true)
+  for (const change of [{ operationId: '' }, { code: 'unknown' }, { inventoryRevision: -1 }, { inventoryRevision: 1.5 },
+    { inventoryRevision: Number.MAX_SAFE_INTEGER + 1 }, { payload: command }, { outcome: 'accepted' }]) {
+    assert.equal(storageRejectionSchema.safeParse({ ...proof, ...change }).success, false)
+  }
+  const value = { error: { code: 'storage_command_rejected', message: 'The original storage command was rejected. Refresh current storage before explicit reconciliation.', requestId: 'synthetic', rejection: proof } }
+  assert.equal(storageCommandErrorSchema.safeParse(value).success, true)
+  assert.equal(storageCommandErrorSchema.safeParse({ ...value, private: true }).success, false)
+  for (const op of DEVELOPER_OPERATIONS) {
+    const terminal = ['execute_slot_commands', 'execute_inventory_commands'].includes(op.name)
+    assert.equal(Boolean(op.errorSchemas?.[409]), terminal)
+    if (!terminal) continue
+    const documented = spec.paths[op.path as keyof typeof spec.paths] as unknown as Record<string, { responses: Record<string, { content: { 'application/json': { schema: unknown } } }> }>
+    assert.deepEqual(documented.post.responses['409'].content['application/json'].schema, z.toJSONSchema(op.errorSchemas![409]!))
+    const markdown = formatEndpointMarkdown({ title: op.name, url: '/docs/reference/collection/' + op.name.replaceAll('_', '-'), method: op.method, path: op.path, operation: documented.post })
+    assert.match(markdown, /storage_command_rejected/)
+    assert.match(markdown, /holofolder.com\/errorSchemas/)
+    assert.match(markdown, /inventoryRevision/)
   }
 })
