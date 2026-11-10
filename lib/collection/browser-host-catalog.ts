@@ -37,6 +37,12 @@ export function browserHostCatalog(evidence: readonly InventoryCatalogEvidence[]
   }
 }
 
+/** The read catalog stays authoritative for every printing it knows; a picker's selected-card evidence only fills
+ * printings it does not hold yet (an unowned card picked from the mirror). The server re-resolves on commit. */
+export function withSelectedPrintings(host: InventoryCatalogResolver, selected?: InventoryCatalogResolver): InventoryCatalogResolver {
+  return selected ? id => host(id) ?? selected(id) : host
+}
+
 /** Display lookup shares the recorded printing identity, never object insertion order. */
 export function browserHostDisplayCatalog(evidence: readonly InventoryCatalogEvidence[]) {
   const lookup = lazyCatalogIndex(evidence)

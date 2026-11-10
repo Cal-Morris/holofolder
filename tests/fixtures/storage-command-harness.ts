@@ -44,6 +44,14 @@ export function storageCommandHarness(id: string) {
       identity: { kind: "card", cardId: `synthetic-${kind}`, language: "en" }, grading: null, acquired_at: null, version: 0, legacy_source: null }))
     for (const slot of state.tables.binder_slots.slice(0, 2)) slot.target = { kind: "pokemon", pokemonId: 143 }
   }
+  if (id.startsWith("pick-")) {
+    // Synthetic species pocket and an unowned mirror printing: absent from the read catalog until it is owned.
+    state.tables.tcg_sets = [{ id: "synthetic-pick", name_en: "Synthetic pick set" }]
+    state.tables.tcg_cards = [{ id: "synthetic-pick-snorlax", set_id: "synthetic-pick", local_id: "9",
+      name_en: "Synthetic Pick Snorlax", name_json: { en: "Synthetic Pick Snorlax" }, external_ids_json: {} }]
+    state.tables.tcg_card_dex_ids = [{ card_id: "synthetic-pick-snorlax", dex_id: 143 }]
+    state.tables.binder_slots[0].target = { kind: "pokemon", pokemonId: 143 }
+  }
   if (id.startsWith("scan-destination-collision-")) {
     state.tables.binder_slots[2].id = "append-free"
     state.tables.binder_slots[3].id = "append-card"
@@ -329,7 +337,9 @@ export function storageCommandHarness(id: string) {
         ledger.set(key, { body, audit, result })
         return Response.json(result)
       }
-      const catalog = browserHostCatalog(await readInventoryCatalog(state.client, snapshot, new AbortController().signal, () => {}))
+      // Like slot_catalog_card_v1, the server resolves any mirror printing a command names, owned or not.
+      const named = JSON.stringify(request).match(/"cardId":"[^"]+"/g)?.map(m => ({ identity: { kind: "card", cardId: m.slice(10, -1) } })) ?? []
+      const catalog = browserHostCatalog(await readInventoryCatalog(state.client, { ...snapshot, items: [...snapshot.items, ...named] } as typeof snapshot, new AbortController().signal, () => {}))
       const next = projectSlotIntent(snapshot, { kind: input.operation, request,
         context: { source: "app", clientId: null, operationId: key, batchId: key, clientOccurredAt: null } } as Parameters<typeof projectSlotIntent>[1], catalog)
       if (id.startsWith("raw-")) {

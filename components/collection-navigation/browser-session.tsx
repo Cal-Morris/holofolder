@@ -23,7 +23,7 @@ import { CollectionNavigationReadError, readCurrentCollectionNavigation } from "
 import { parseNavigationEvidence, sameInventoryReadScope, type InventoryReadScope } from "@/lib/collection/inventory-read-transport"
 import type { CollectionNavigationRead } from "@/lib/collection-navigation"
 import { getOfflineStore } from "@/lib/offline-store/kv"
-import { browserHostCatalog, browserHostSlotDisplay } from "@/lib/collection/browser-host-catalog"
+import { browserHostCatalog, browserHostSlotDisplay, withSelectedPrintings } from "@/lib/collection/browser-host-catalog"
 import type { NativeRecoveryBinding } from "@/components/native-activity-recovery"
 import type { SlotDisplayInput } from "@/lib/binder-display-model"
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
@@ -277,11 +277,11 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     const cards = read.catalog.map(c => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] }))
     return [...cards, ...cached.filter(c => !cards.some(known => known.id === c.id && known.language === c.language))]
   }
-  const receive: SlotCommandSink = async draft => {
+  const receive: SlotCommandSink = async (draft, selected) => {
     if (refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     const record = await latest.current.queue.queue?.read()
     if (!valid() || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
-    return latest.current.queue.enqueue(draft.intent, catalog, undefined, valid)
+    return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(catalog, selected), undefined, valid)
   }
 
   const receiveBulkFill: SlotCommandSink = async draft => {
