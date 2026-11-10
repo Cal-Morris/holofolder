@@ -11,6 +11,7 @@ import { isCardLanguage } from "@/lib/domain/cards"
 import { formatDexNumber, formatPokemonDisplayName, getOfficialArtworkUrl, POKEMON_CATALOG } from "@/lib/pokemon-catalog"
 import { pickerCandidate, type SlotPickerBoundary } from "@/lib/slot-picker"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
+import type { InventorySnapshot } from "@/lib/domain/inventory"
 
 const unusedLegacySelect = () => {}
 
@@ -18,10 +19,10 @@ const unusedLegacySelect = () => {}
  * Layout editing only: choose what an empty pocket is kept for (a Pokémon, one exact card, or anything). It changes
  * what the pocket accepts, never what you own.
  */
-export default function PocketReserve({ boundary, onClose }: { boundary: SlotPickerBoundary; onClose: () => void }) {
+export default function PocketReserve({ boundary, onClose, onSaved }: { boundary: SlotPickerBoundary; onClose: () => void; onSaved?: (preview?: InventorySnapshot) => void }) {
   const [step, setStep] = useState<"choose" | "pokemon" | "card">("choose")
   const [query, setQuery] = useState("")
-  const action = useNativeSlotAction(boundary, onClose)
+  const action = useNativeSlotAction(boundary, preview => { onSaved?.(preview); onClose() })
   const text = query.trim().toLowerCase()
   const matches = text.length < 2 ? [] : POKEMON_CATALOG.filter(p => p.name.includes(text) || formatPokemonDisplayName(p.name).toLowerCase().includes(text) || String(p.id) === text).slice(0, 12)
   if (step === "card" && !action.failed) return <CardSelector pokemonId={0} pokemonName="" onSelect={unusedLegacySelect} onClose={() => setStep("choose")} anyCard={{ title: "Keep this pocket for a card" }}

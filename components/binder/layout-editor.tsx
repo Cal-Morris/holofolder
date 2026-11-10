@@ -94,12 +94,13 @@ function LayoutBar({ boundary, host, start, onTap, onSelection, onDone }: {
   })
   const blocked = busy || pending !== null
   const unavailable = blocked || state !== "current"
-  const single = ids.length === 1 ? binder.slots.find(s => s.id === ids[0]) : undefined
-  const pocket = useNativeSlotAction(single ? { snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent } : undefined, preview => {
-    // The pocket stays selected across its own change, on the collection as it now is.
+  // The pocket stays selected across its own change, on the collection as it now is.
+  const keepSelection = (preview?: InventorySnapshot) => {
     if (preview) { try { setSelection(captureBulkSelection(preview, scope, ids)) } catch { /* The next read settles it. */ } }
     setError(null)
-  })
+  }
+  const single = ids.length === 1 ? binder.slots.find(s => s.id === ids[0]) : undefined
+  const pocket = useNativeSlotAction(single ? { snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent } : undefined, preview => keepSelection(preview))
   const select = (next: readonly string[]) => {
     try { setSelection(captureBulkSelection(snapshot, scope, next)); setError(null) }
     catch { setError(`You can select up to ${SLOT_LIMITS.affected} pockets at once.`) }
@@ -178,6 +179,6 @@ function LayoutBar({ boundary, host, start, onTap, onSelection, onDone }: {
     </div>}
     {sheet === "remove" && <SlotRemovalReview boundary={boundary} selection={selection} onClose={() => setSheet(null)} onRemoved={() => { setSheet(null); setSelection(captureBulkSelection(snapshot, scope, [])) }} />}
     {sheet === "fill" && <BulkFillReview boundary={boundary} selection={selection} grid={host} onClose={() => setSheet(null)} />}
-    {sheet === "reserve" && single && <PocketReserve boundary={{ snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent }} onClose={() => setSheet(null)} />}
+    {sheet === "reserve" && single && <PocketReserve boundary={{ snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent }} onClose={() => setSheet(null)} onSaved={keepSelection} />}
   </section>
 }
