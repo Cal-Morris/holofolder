@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
-import { CARD_PICKER_LANGUAGES } from "@/lib/card-picker-filters"
+import SlotCatalogSearch from "./slot-catalog-search"
 import { useCardSearch } from "@/hooks/use-card-search"
 import { buildOfflineCardIndex } from "@/lib/offline-card-index"
 import { useCardPrices, getCardPriceKey } from "@/hooks/use-card-prices"
@@ -99,13 +99,10 @@ export default function SlotPicker({ boundary }: { boundary: SlotPickerBoundary 
       <button className={button} onClick={reset}>Cancel</button>
       <h3 className="font-semibold">{mode === "target" ? "Choose target" : "Choose card for this slot"}</h3>
       {!card ? <>
-        <label className="block text-sm">Catalog language<select aria-label="Catalog language" value={language} onChange={e => { setLanguage(e.target.value as CardLanguage); setError(null) }} className="ml-2 min-h-10 max-w-full rounded-xl border border-border bg-background px-2 text-base">{CARD_PICKER_LANGUAGES.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}</select></label>
-        <label className="block text-sm">Search catalog<input aria-label="Search slot catalog" value={query} onChange={e => setQuery(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base" /></label>
-        {search.offline && <p role="status" className="text-sm text-muted-foreground">Searching cached cards on this device only. Uncached catalog coverage is unavailable offline.</p>}
-        {search.loading && <p role="status">Searching…</p>}
-        {!search.loading && query.length >= 2 && !search.cards.length && <p>No matching cached or available catalog cards.</p>}
+        <SlotCatalogSearch query={query} language={language} cards={search.cards} loading={search.loading} offline={search.offline} disabled={loadingPrices}
+          onQuery={setQuery} onLanguage={value => { setLanguage(value); setError(null) }} onSelect={chooseCard} />
         {mode === "target" && <div className="grid gap-2" aria-label="Pokémon targets">{POKEMON_CATALOG.filter(p => query.length >= 2 && (p.name.includes(query.toLowerCase()) || String(p.id) === query)).slice(0, 8).map(p => <button key={p.id} className={button} onClick={() => target({ kind: "pokemon", pokemonId: p.id })}>Target Pokémon: {getPokemonSummary(p.id)?.name ?? p.name}</button>)}</div>}
-        <div className="grid gap-2">{search.cards.map(c => <button className={`${button} break-words [overflow-wrap:anywhere]`} key={`${c.id}:${c.language ?? "unknown"}`} disabled={loadingPrices} onClick={() => chooseCard(c)}>{c.name} · {c.set.name} · {c.localId} · {c.language ?? "Unknown language"}</button>)}</div>
+
       </> : <div className="space-y-3">
         <button className={button} onClick={() => { setCard(null); setError(null) }}>Back to cards</button>
         <p className="break-words [overflow-wrap:anywhere]">{card.name} · {card.set.name} · {identity?.language ?? "Unknown language"}</p>

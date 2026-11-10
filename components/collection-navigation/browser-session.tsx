@@ -1,5 +1,6 @@
 "use client"
 
+import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import type { NativeBackupBinding } from "@/lib/native-backup"
 import { closeAllOverlays } from "@/hooks/use-overlay"
 import { prepareBinderCreation, type BinderCreationDraft } from "@/lib/binder-creation-draft"
@@ -301,6 +302,24 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | null = queue.record
   const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(recoveryUnresolved))
 
+  const ownershipReady = useRef(false)
+  const ownershipRevision = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    ownershipReady.current = bulkFillAvailable && !queue.record?.legacy.length
+    ownershipRevision.current = read.evidence.kind === "complete" ? read.evidence.snapshot.inventoryRevision : null
+  })
+  const ownership: InventoryOwnershipBinding | undefined = read.evidence.kind === "complete" ? {
+    snapshot: read.evidence.snapshot, catalog, available: bulkFillAvailable && !queue.record?.legacy.length,
+    receive: async (intent, selectedCatalog) => {
+      if (!valid() || !ownershipReady.current || refreshing.current || sending.current || !navigator.onLine
+        || intent.request.inventoryRevision !== ownershipRevision.current) throw new Error("fresh-scoped-read-required")
+      const record = await latest.current.queue.queue?.read()
+      if (!valid() || !ownershipReady.current || !navigator.onLine || !record || record.pending.length || record.legacy.length
+        || record.recovery?.some(recoveryUnresolved) || record.snapshot?.inventoryRevision !== intent.request.inventoryRevision) throw new Error("pending-reconciliation")
+      return latest.current.queue.enqueue(intent, selectedCatalog, undefined, valid)
+    },
+  } : undefined
+
   const creationAvailable = bulkFillAvailable && read.evidence.kind === "complete" && read.evidence.snapshot.collections.length > 0
   const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"]) => {
     if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
@@ -327,7 +346,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   if (!ready) return <p role="status">Opening saved storage…</p>
   const gradingItem = grading?.snapshot.items.find(i => i.id === grading.itemId)
   const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(recoveryUnresolved)
-  return <><CollectionNavigationHost onEditGrading={canEditGrading ? itemId => {
+  return <><CollectionNavigationHost ownership={ownership} onEditGrading={canEditGrading ? itemId => {
     if (!valid() || read.evidence.kind !== "complete" || latest.current.queue.record?.pending.length || latest.current.queue.record?.recovery?.some(recoveryUnresolved)) return
     try {
       inventoryGradingReference(read.evidence.snapshot, itemId)
