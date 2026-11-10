@@ -41,13 +41,15 @@ test("a species pocket pick of an unowned printing saves through the durable que
   await new Harness(page, insets, true).expectNoHorizontalOverflow()
 })
 
-test("a free pocket search pick of an unowned printing saves through the durable queue and syncs", async ({ page }) => {
+test("a free pocket pick in the visual selector saves an unowned printing through the durable queue and syncs", async ({ page }) => {
   await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [{ ...card, language: "en", dexIds: [143] }] } }))
   await page.goto(entry)
   await page.locator('[data-slot-id="synthetic-slot-1"]').click()
-  const dialog = page.getByRole("dialog", { name: /details$/ })
-  await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Synthetic Pick")
-  await dialog.getByRole("button", { name: /Synthetic Pick Snorlax · Synthetic pick set/ }).click()
+  // A free pocket uses the same visual selector, searching every card; never a slot form.
+  const selector = page.getByRole("dialog", { name: "Card selector" })
+  await expect(page.getByRole("dialog", { name: /details$/ })).toHaveCount(0)
+  await selector.getByRole("searchbox", { name: "Search cards" }).fill("Synthetic Pick")
+  await selector.getByRole("button", { name: "Add card Synthetic Pick Snorlax from Synthetic pick set" }).click()
   await page.getByRole("dialog", { name: "Which variant?" }).getByRole("button", { name: /^Add Holo/ }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1)

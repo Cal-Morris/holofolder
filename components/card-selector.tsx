@@ -5,6 +5,7 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from "@/lib/camera-frame"
 import { useCameraStream } from "@/hooks/use-camera-stream"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
+import { isCardLanguage } from "@/lib/domain/cards"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/hooks/use-tcgdex"
@@ -210,8 +211,11 @@ export default function CardSelector({
   const anyCardQuery = isAnyCard ? reservedCardId ?? filters.searchQuery ?? "" : ""
   const catalogSearch = useCardSearch(anyCardQuery, isAnyCard, noOfflineCards, { language: selectedCardLanguage, includeNonPokemon: true })
   const cards = useMemo<TCGCard[]>(() => !isAnyCard ? speciesCards
-    : catalogSearch.cards.filter((card) => !reservedCardId || matchesCatalogCardId(card, reservedCardId)).map((card) => ({ ...card, language: selectedCardLanguage })),
-  [isAnyCard, reservedCardId, catalogSearch.cards, selectedCardLanguage, speciesCards])
+    // A result keeps its own language. One from the server was asked for in the chosen language; one found on this
+    // device with no language recorded stays unknown rather than being guessed.
+    : catalogSearch.cards.filter((card) => !reservedCardId || matchesCatalogCardId(card, reservedCardId))
+      .map((card) => ({ ...card, language: isCardLanguage(card.language) ? card.language : catalogSearch.offline ? undefined : selectedCardLanguage })),
+  [isAnyCard, reservedCardId, catalogSearch.cards, catalogSearch.offline, selectedCardLanguage, speciesCards])
   const isLoading = anyCard ? catalogSearch.loading : isLoadingSpecies
   const error = anyCard ? null : speciesError
   const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode)
@@ -282,14 +286,14 @@ export default function CardSelector({
 
   const selectCard = useCallback((card: TCGCard, finish?: CardFinish) => {
     if (native) {
-      native.onPick({ ...card, language: selectedCardLanguage }, finish ?? recordedFinish ?? undefined)
+      native.onPick(isAnyCard ? card : { ...card, language: selectedCardLanguage }, finish ?? recordedFinish ?? undefined)
       return
     }
     completeCardSelectorSelection({
       onClose,
       onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectionMode, finish ?? finishFor(card)),
     })
-  }, [finishFor, native, onClose, onSelect, recordedFinish, selectedCardLanguage, selectionMode])
+  }, [finishFor, isAnyCard, native, onClose, onSelect, recordedFinish, selectedCardLanguage, selectionMode])
   const [pendingCard, setPendingCard] = useState<TCGCard | null>(null)
   const pendingSnapshot = pendingCard ? pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)] : undefined
   const pendingFinishPrices = getRegionalFinishPrices(pendingSnapshot, pricingRegion)

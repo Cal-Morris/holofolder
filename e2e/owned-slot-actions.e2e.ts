@@ -15,17 +15,54 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await mockBackends(page, context, { signedIn: true, baseURL })
   await context.addCookies([{ name: "hf-storage-fixture", value: `owned-${crypto.randomUUID()}`, url: baseURL! }])
 })
-for (const action of ["Move card to Unassigned", "Remove target"] as const) test(`owned pocket: ${action} saves through the durable queue and syncs`, async ({ page }) => {
+test("an owned pocket opens the card's details, with no slot or draft form", async ({ page }) => {
+  await page.goto(entry)
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click()
+  const dialog = page.getByRole("dialog", { name: /details$/ })
+  await expect(dialog.getByRole("heading", { name: "Synthetic Owned Bulbasaur" })).toBeVisible()
+  await expect(dialog.getByText(/Edit slot|Change target|Remove target|Unassigned|Pending sync|Saved on device/)).toHaveCount(0)
+  await expect(dialog.locator("[data-slot-picker]")).toHaveCount(0)
+})
+
+test("Take out of this pocket saves through the durable queue, syncs and keeps the card", async ({ page }) => {
   await page.goto(entry)
   await page.locator('[data-slot-id="synthetic-slot-0"]').click()
   const dialog = page.getByRole("dialog", { name: /details$/ })
   await expect(dialog).toContainText("Synthetic Owned Bulbasaur")
-  const edit = dialog.locator("summary").filter({ hasText: /Edit slot|Card options/ })
-  if (await edit.count()) await edit.click()
-  await dialog.getByRole("button", { name: action, exact: true }).click()
+  await dialog.getByRole("button", { name: "More card options" }).click()
+  await dialog.getByRole("menuitem", { name: /Take out of this pocket/ }).click()
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1)
-  await expect(dialog.getByRole("alert")).toHaveCount(0)
   expect((await record(page))!.receipts[0].outcome).toBe("acknowledged")
+  // It finishes on the binder: no leftover sheet and no status line once the server has confirmed.
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect(page.locator("[data-sync-state]")).toHaveCount(0)
+  await expect(page.getByText(/Pending sync|Saved on device/)).toHaveCount(0)
+})
+
+test("Remove from collection confirms first, then removes that exact card through the durable queue", async ({ page }) => {
+  const bodies: string[] = []
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { if (route.request().method() === "POST") bodies.push(route.request().postData() ?? ""); await route.continue() })
+  await page.goto(entry)
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click()
+  const dialog = page.getByRole("dialog", { name: /details$/ })
+  await dialog.getByRole("button", { name: "More card options" }).click()
+  await dialog.getByRole("menuitem", { name: /Remove from collection/ }).click()
+  const confirm = dialog.getByRole("region", { name: "Remove card" })
+  await expect(confirm).toContainText("Remove Synthetic Owned Bulbasaur from your collection?")
+  expect((await record(page))?.pending ?? []).toHaveLength(0)
+  // Keep it changes nothing.
+  await confirm.getByRole("button", { name: "Keep it" }).click()
+  await expect(confirm).toHaveCount(0)
+  expect(bodies).toHaveLength(0)
+  await dialog.getByRole("button", { name: "More card options" }).click()
+  await dialog.getByRole("menuitem", { name: /Remove from collection/ }).click()
+  await dialog.getByRole("region", { name: "Remove card" }).getByRole("button", { name: "Remove card" }).click()
+  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1)
+  expect((await record(page))!.receipts[0].outcome).toBe("acknowledged")
+  // One request, and it is the owned-copy removal rather than taking the card out of its pocket.
+  expect(bodies).toHaveLength(1)
+  expect(bodies[0]).toContain("removeOwned")
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 })
 
 test("an owned-pocket action during a routine focus refresh waits for it and saves", async ({ page }) => {
@@ -38,14 +75,14 @@ test("an owned-pocket action during a routine focus refresh waits for it and sav
   await expect(dialog).toContainText("Synthetic Owned Bulbasaur")
   hold = true
   await page.evaluate(() => window.dispatchEvent(new Event("focus")))
-  const options = dialog.locator("summary").filter({ hasText: /Edit slot|Card options/ })
-  if (await options.count()) await options.click()
-  await dialog.getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
+  await dialog.getByRole("button", { name: "More card options" }).click()
+  await dialog.getByRole("menuitem", { name: /Take out of this pocket/ }).click()
   // Before the fix this failed at once (inactive-or-unavailable-session) and blamed device storage.
   await page.waitForTimeout(500)
   expect((await record(page))?.receipts ?? []).toHaveLength(0)
   release()
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1)
   expect((await record(page))!.receipts[0].outcome).toBe("acknowledged")
-  await expect(dialog.getByRole("alert")).toHaveCount(0)
+  // (Next keeps one empty route announcer alert at the top of the page; only the app's own alerts count.)
+  await expect(page.locator('main [role="alert"], [role="dialog"] [role="alert"]')).toHaveCount(0)
 })
