@@ -31,6 +31,12 @@ export function storageCommandHarness(id: string) {
       identity: { kind: "card", cardId: `synthetic-${kind}`, language: "en" }, grading: null, acquired_at: null, version: 0, legacy_source: null }))
     for (const slot of state.tables.binder_slots.slice(0, 2)) slot.target = { kind: "pokemon", pokemonId: 143 }
   }
+  // Synthetic scanner boundary sizes, shared by actual HTTP reads and command projection.
+  if (id.startsWith("scan-empty-")) state.tables.binder_slots = []
+  if (id.startsWith("scan-partial-")) state.tables.binder_slots = state.tables.binder_slots.slice(0, 3)
+  if (id.startsWith("scan-cap-")) state.tables.binder_slots = Array.from({ length: 4096 }, (_, i) => ({
+    ...state.tables.binder_slots[3], id: `synthetic-slot-${i}`, position: i,
+  }))
   if (id.startsWith("fill-")) {
     // Synthetic mixed bulk-fill page with separate copies of a repeated printing.
     state.tables.inventory_items.push({ ...state.tables.inventory_items[2], id: "synthetic-copy-snorlax-2" })
