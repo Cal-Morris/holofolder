@@ -181,7 +181,6 @@ test.describe("isolated durable slot session", () => {
     await pager.fill("2"); await pager.press("Enter")
     await page.locator('button[data-slot-id="slot-g"]').click()
     const dialog = page.getByRole("dialog", { name: /details$/ })
-    await dialog.getByRole("button", { name: "Choose card", exact: true }).click()
     await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Energy")
     await page.evaluate(() => {
       const put = IDBObjectStore.prototype.put

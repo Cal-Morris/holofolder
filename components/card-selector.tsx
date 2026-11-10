@@ -61,6 +61,13 @@ interface CardSelectorProps {
   pricingRegion?: PricingRegion
   /** Formats a GBP amount in the user's display currency (GBP when omitted). */
   formatAmount?: CardSelectorAmountFormatter
+  /**
+   * Native stable-slot selection. A pick goes to `onPick` instead of the legacy `onSelect` and the selector
+   * stays open until the host replaces it. `finish` is set only when the user chose it here (the finish
+   * sheet or a variant filter), never inferred. Wanted mode and "mark owned without card" are legacy
+   * collection writes, so they are hidden; the menu offers `onEditSlot` instead.
+   */
+  native?: { onPick: (card: TCGCard, finish: CardFinish | undefined) => void; onEditSlot: () => void }
 }
 
 type CardSelectorAmountFormatter = (gbpAmount: number | null | undefined, price?: CardPriceSnapshot) => string | null
@@ -180,6 +187,7 @@ export default function CardSelector({
   defaultCardLanguage,
   pricingRegion = DEFAULT_PRICING_REGION,
   formatAmount = formatGbpAmount,
+  native,
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
   const [cards, setCards] = useState<TCGCard[]>([])
@@ -252,12 +260,16 @@ export default function CardSelector({
     ? "hover:border-amber-400/65 hover:ring-2 hover:ring-amber-400/20"
     : "hover:border-emerald-400/65 hover:ring-2 hover:ring-emerald-400/20"
 
-  const selectCard = useCallback((card: TCGCard, finish: CardFinish = finishFor(card)) => {
+  const selectCard = useCallback((card: TCGCard, finish?: CardFinish) => {
+    if (native) {
+      native.onPick({ ...card, language: selectedCardLanguage }, finish ?? recordedFinish ?? undefined)
+      return
+    }
     completeCardSelectorSelection({
       onClose,
-      onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectionMode, finish),
+      onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectionMode, finish ?? finishFor(card)),
     })
-  }, [finishFor, onClose, onSelect, selectedCardLanguage, selectionMode])
+  }, [finishFor, native, onClose, onSelect, recordedFinish, selectedCardLanguage, selectionMode])
   const [pendingCard, setPendingCard] = useState<TCGCard | null>(null)
   const pendingSnapshot = pendingCard ? pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)] : undefined
   const pendingFinishPrices = getRegionalFinishPrices(pendingSnapshot, pricingRegion)
@@ -783,7 +795,7 @@ export default function CardSelector({
             <h2 className="sr-only">{intentCopy.title}</h2>
             <p className="sr-only">{intentCopy.helper}</p>
             <div className="flex items-center gap-2">
-              <div role="group" aria-label="Picker mode" className="grid shrink-0 grid-cols-2 rounded-full border border-border/60 bg-background/70 p-0.5 dark:border-white/10 dark:bg-white/[0.04]">
+              {!native && <div role="group" aria-label="Picker mode" className="grid shrink-0 grid-cols-2 rounded-full border border-border/60 bg-background/70 p-0.5 dark:border-white/10 dark:bg-white/[0.04]">
                 <button
                   type="button"
                   aria-pressed={selectionMode === "collect"}
@@ -812,7 +824,7 @@ export default function CardSelector({
                   <Heart className={`h-3.5 w-3.5 ${selectionMode === "wishlist" ? "fill-current" : ""}`} />
                   <span>Want<span className="hidden sm:inline">ed</span></span>
                 </button>
-              </div>
+              </div>}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold capitalize leading-tight">{pokemonName}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{filteredCards.length} of {cards.length} cards</p>
@@ -842,12 +854,13 @@ export default function CardSelector({
                       role="menuitem"
                       onClick={() => {
                         setIsMoreOpen(false)
-                        if (isWishlistMode) onClose()
+                        if (native) native.onEditSlot()
+                        else if (isWishlistMode) onClose()
                         else selectWithoutCard()
                       }}
                       className="flex min-h-10 w-full items-center rounded-xl px-3 text-left text-sm hover:bg-muted/70"
                     >
-                      {isWishlistMode ? "Cancel wanted selection" : intentCopy.emptyActionLabel}
+                      {native ? "Edit slot" : isWishlistMode ? "Cancel wanted selection" : intentCopy.emptyActionLabel}
                     </button>
                   </div>
                 )}
@@ -1078,15 +1091,17 @@ export default function CardSelector({
                   {!isOnline ? "You're offline" : error ? "Couldn't load cards" : `No cards found for ${pokemonName}`}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {!isOnline
+                  {native
+                    ? !isOnline ? "These cards haven't been saved on this device yet. Reconnect to load them." : error ? "Check your connection and try again." : "There are no printings to choose for this Pokémon yet."
+                    : !isOnline
                     ? "These cards haven't been saved on this device yet. Reconnect to load them, or mark the slot without a card."
                     : error
                       ? "Check your connection and try again, or mark the slot without a card."
                       : "You can still mark the slot without choosing a printing."}
                 </p>
-                <Button variant="outline" size="sm" className="h-10 rounded-2xl px-4" onClick={isWishlistMode ? onClose : selectWithoutCard}>
+                {!native && <Button variant="outline" size="sm" className="h-10 rounded-2xl px-4" onClick={isWishlistMode ? onClose : selectWithoutCard}>
                   {isWishlistMode ? "Cancel" : intentCopy.emptyActionLabel}
-                </Button>
+                </Button>}
               </div>
             ) : filteredCards.length === 0 ? (
               <div className="mx-auto flex max-w-xs flex-col items-center gap-3 py-10 text-center">

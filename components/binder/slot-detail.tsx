@@ -3,13 +3,13 @@
 import { useEffect, useRef } from "react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { displaySlotLabel, type BinderDisplaySlot } from "@/lib/binder-display-model"
-import SlotPicker, { type SlotPickerBoundary } from "@/components/binder/slot-picker"
+import SlotPicker, { type SlotPickerBoundary, type SlotPickerFlow } from "@/components/binder/slot-picker"
 import { LayoutActions, type LayoutBoundary } from "@/components/binder/layout-editor"
 import CardImage from "@/components/card-image"
 import CardImageZoom from "@/components/card-image-zoom"
 import { CARD_PICKER_LANGUAGES } from "@/lib/card-picker-filters"
 
-export default function SlotDetail({ slot, onClose, picker, layout, onDoneLayout }: { slot: BinderDisplaySlot; onClose: () => void; picker?: SlotPickerBoundary; layout?: LayoutBoundary; onDoneLayout?: () => void }) {
+export default function SlotDetail({ slot, onClose, picker, flow, layout, onDoneLayout }: { slot: BinderDisplaySlot; onClose: () => void; picker?: SlotPickerBoundary; flow?: SlotPickerFlow; layout?: LayoutBoundary; onDoneLayout?: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
@@ -23,6 +23,8 @@ export default function SlotDetail({ slot, onClose, picker, layout, onDoneLayout
   const identity = slot.item?.identity.kind === "card" ? slot.item.identity : slot.target?.kind === "card" ? slot.target : null
   const language = CARD_PICKER_LANGUAGES.find(l => l.id === identity?.language)?.label
   const name = slot.card?.name ?? slot.pokemon?.name ?? "Empty slot"
+  // An editable empty pocket is only a selection step: the header already names it, so the body repeats nothing.
+  const selecting = Boolean(picker) && !layout && !slot.item
   return <div className="fixed inset-0 z-40">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
     <div ref={ref} role="dialog" aria-modal="true" aria-label={`${displaySlotLabel(slot)} details`} data-slot-id={slot.id}
@@ -33,7 +35,7 @@ export default function SlotDetail({ slot, onClose, picker, layout, onDoneLayout
         <button type="button" aria-label="Close slot details" onClick={onClose} className="h-10 w-10 shrink-0 rounded-full hover:bg-muted">✕</button>
       </header>
       <div className="space-y-3 overflow-y-auto overscroll-contain p-4 text-sm">
-        <div className="flex items-start gap-4">
+        {!selecting && <div className="flex items-start gap-4">
           {slot.card?.image && <CardImageZoom src={slot.card.image} alt={name} className="trading-card relative w-20 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted sm:w-28"><CardImage key={`${slot.id}:${slot.card.image}`} src={slot.card.image} alt={name} fill sizes="(max-width: 639px) 80px, 112px" className="object-contain" /></CardImageZoom>}
           <div className="min-w-0 space-y-1 break-words [overflow-wrap:anywhere]">
             <h3 className="text-lg font-bold leading-tight">{name}</h3>
@@ -45,9 +47,9 @@ export default function SlotDetail({ slot, onClose, picker, layout, onDoneLayout
             {slot.card?.rarity && <p className="text-xs text-muted-foreground">{slot.card.rarity}</p>}
             {slot.card?.illustrator && <p className="text-xs text-muted-foreground">Illustrated by {slot.card.illustrator}</p>}
           </div>
-        </div>
+        </div>}
         {layout && <LayoutActions boundary={layout} onCancel={onClose} />}
-        {picker && <SlotPicker boundary={picker} />}
+        {picker && <SlotPicker boundary={picker} flow={flow} onCancel={onClose} />}
         {grade && <dl className="space-y-1 break-words"><dt>Recorded grading provider</dt><dd>{grade.provider.kind === "known" ? grade.provider.id.toUpperCase() : grade.provider.name}</dd><dt>Grade</dt><dd>{grade.grade ?? "Unknown"}{grade.scale ? ` / ${grade.scale}` : ""}</dd>{grade.designation && <><dt>Designation</dt><dd>{grade.designation}</dd></>}{grade.holder && <><dt>Holder</dt><dd>{grade.holder}</dd></>}{grade.subgrades.map((s, index) => <div key={index}><dt>{s.name}</dt><dd>{s.grade}</dd></div>)}</dl>}
       </div>
     </div>

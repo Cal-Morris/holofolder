@@ -46,11 +46,24 @@ export default function SlotPickerHarness(props: ComponentProps<typeof BinderApp
         return next
       })
     }
+    // Synthetic exact wants on the empty Snorlax target, for the explicit fulfil choice.
+    const addWants = (event: Event) => {
+      const wants = (event as CustomEvent<{ card_id?: string }[]>).detail
+      if (!Array.isArray(wants) || wants.length > 4) return
+      setData(previous => {
+        const next = structuredClone(previous)
+        next.binder.slots.find(slot => slot.id === "slot-e")!.wantedCards = wants.map(({ card_id, ...rest }: { card_id?: string }) => ({ card_id, card_name: "Snorlax A", added_at: "2026-11-10T00:00:00.000Z", ...rest })) as typeof next.binder.slots[number]["wantedCards"]
+        next.inventory.binders = [next.binder]
+        return next
+      })
+    }
+    window.addEventListener("synthetic-slot-wants", addWants)
     window.addEventListener("synthetic-layout-reject-once", reject)
     window.addEventListener("synthetic-layout-empty", emptyLayout)
     window.addEventListener("synthetic-slot-scope-change", changeScope)
     window.addEventListener("synthetic-slot-grading-change", changeGrade)
     return () => {
+      window.removeEventListener("synthetic-slot-wants", addWants)
       window.removeEventListener("synthetic-layout-reject-once", reject)
       window.removeEventListener("synthetic-layout-empty", emptyLayout)
       window.removeEventListener("synthetic-slot-scope-change", changeScope)
@@ -78,6 +91,7 @@ export default function SlotPickerHarness(props: ComponentProps<typeof BinderApp
     <output aria-label="Synthetic latest draft" className="sr-only">{JSON.stringify(drafts.at(-1) ?? null)}</output>
     <output aria-label="Synthetic rejected draft" className="sr-only">{JSON.stringify(rejectedDraft)}</output>
     <output aria-label="Synthetic draft count" className="sr-only">{drafts.length}</output>
+    <output aria-label="Synthetic want count" className="sr-only">{data.binder.slots.find(slot => slot.id === "slot-e")?.wantedCards.length ?? 0}</output>
     <BinderApp {...props} stagedSlotDisplay={data} stagedSlotCatalog={catalog} onStagedSlotCommandIntent={receive} />
   </>
 }

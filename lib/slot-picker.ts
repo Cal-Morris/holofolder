@@ -1,6 +1,6 @@
 import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
 import type { OperationIntentContext } from "@/lib/domain/audit-context"
-import { isCardLanguage } from "@/lib/domain/cards"
+import { isCardLanguage, type CardFinish, type TCGCard, type WantedCard } from "@/lib/domain/cards"
 import type { SlotTarget } from "@/lib/domain/binder-slots"
 import { inventoryItemCandidate, type InventoryCatalogResolver, type InventoryIdentity, type InventorySnapshot } from "@/lib/domain/inventory"
 import type { InventorySelection } from "@/lib/inventory-plans"
@@ -74,4 +74,19 @@ export function pickerFinishes(card: SearchCardResult, quotes: readonly Pick<Car
   if (card.variants?.reverse) return [{ finish: "reverse_holo" as const, label: "Reverse" }]
   const quote = quotes.find(q => isStandardFinishVariantKey(q.variantKey) && Number.isFinite(q.gbpAmount) && (q.gbpAmount ?? 0) > 0)
   return quote ? [{ finish: quote.finish, label: quote.finish.replaceAll("_", " ") }] : []
+}
+
+/**
+ * A species card-selector pick as picker input. The list is joined on this dex id, so it is the one species
+ * link the evidence states; nothing else (other dex ids, finish, grading) is added.
+ */
+export function speciesSelectorCard(card: TCGCard, pokemonId: number): SearchCardResult {
+  return { ...card, dexIds: [pokemonId] }
+}
+
+/** Indexes of the slot's own wants this exact printing, language and finish could fulfil. Never fulfils anything by itself. */
+export function matchingWantIndexes(wants: readonly WantedCard[], card: SearchCardResult, finish: CardFinish | undefined): number[] {
+  const candidate = { ...pickerCandidate(card), ...(finish ? { finish } : {}) }
+  return wants.flatMap((want, index) => matchesSlotTarget(candidate, { kind: "card", cardId: want.card_id,
+    ...(want.card_language ? { language: want.card_language } : {}), ...(want.card_finish ? { finish: want.card_finish } : {}) }) ? [index] : [])
 }
