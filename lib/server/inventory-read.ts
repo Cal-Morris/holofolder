@@ -43,6 +43,8 @@ export async function readOwnerInventoryState(client?: SupabaseClient, options: 
     if (!access.data) return fail("inventory_read_forbidden", 403)
     return { actor, owner, authorityId: authSessionId, partnership: p ?? null }
   } }, options)
-  const { authorityId, slotPositions: _slotPositions, collectionMetadata: _collectionMetadata, ...state } = result
-  return { ...state, authSessionId: authorityId }
+  const { authorityId, slotPositions: _slotPositions, collectionMetadata, ...state } = result
+  const defaults = Object.entries(collectionMetadata).filter(([, c]) => c.isDefault === true)
+  const defaultCollectionId = defaults.length === 1 && Object.values(collectionMetadata).every(c => typeof c.isDefault === "boolean") ? defaults[0][0] : undefined
+  return { ...state, authSessionId: authorityId, ...(defaultCollectionId ? { defaultCollectionId } : {}) }
 }

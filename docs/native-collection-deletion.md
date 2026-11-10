@@ -1,0 +1,43 @@
+# Native collection deletion review, staged #384/#383
+
+Based on main `c68a351217d810ab1a9d7fba60f2eca83bb758ea`, including #488 raw restore and #487 slot removal. This is a first-party UI consumer of the existing trusted `deleteCollection` command. Full issues remain open. Parent owns independent review, SQL/hosted operations, merge, release and project status.
+
+## Review and retained ownership
+
+The admitted native host's collection management header offers **Delete collection** for the currently selected collection. Legacy management is unchanged. The shared overlay previews the exact collection name/ID, all ordered stable slots, every target and explicit want, and every assigned physical copy retained as **Unassigned**. Counts describe the entire collection. Preview pages of 40 rows bound rendering only; every row remains accessible and the command includes every slot. Duplicate printings, raw/graded copies, unknown printing, acquisition, private grading/assets and source metadata stay on the original owned items. The command never includes `removeOwned` or per-pocket clearing.
+
+Default deletion requires an explicit valid replacement from the same complete native owner read. No first-row fallback is chosen. The last collection cannot be deleted. Non-default deletion sends null replacement. The existing complete reader rejects mixed legacy/native owners with `legacy_inventory_incomplete`; the UI does not convert them, choose a legacy default or invent replacement support. The private read now carries an optional `defaultCollectionId` derived from the already-read binder metadata only when every default flag is known and exactly one is true. Missing evidence fails closed. This fact is not added to cached startup or public developer reads.
+
+**Review collection deletion** freezes one exact operation/context, the original request and its consequence rows. A separate unchecked acknowledgement names collection/targets/wants deletion and retained ownership before **Confirm collection deletion**. Cancel, X, Escape, browser back, backdrop, swipe and dock navigation dismiss the shared sheet without accepting new work. The body scrolls; fixed footer actions and X remain above the dock and safe areas. No new motion implementation is added.
+
+## Confirmation, queue and sender
+
+Confirmation requires current authenticated owner/session/membership, online complete read, no ordinary/creation/raw-restore/recovery/legacy pending work, and unchanged current inventory, collection, layout, slot, item and placement evidence. The host reauthenticates and obtains another complete read before enqueue, comparing the entire captured evidence including default and partner facts. A changed review is blocked rather than silently refreshed or rebuilt.
+
+A small guard in the existing queue transaction requires a process-branded complete matching base and no pending/legacy/recovery work for deletion. It also prevents another edit from being appended while deletion is unresolved, closing the cross-tab gap after a host check. Exact same-operation reacceptance stays idempotent. The canonical `SlotOfflineRecord.pending`, IDB transaction, sender, lease, retry and fresh-complete-read ACK remain authoritative; no parallel backend, storage key, delivery loop or receipt family is added. A local abort retains the exact reviewed operation/time/preconditions for retry. Unknown/lost/503/cancel outcomes retain the original intent and ID. A server acceptance alone does not ACK, and session teardown prevents late settlement. Structural conflict is not automatically rebased; confirmed rejection uses the existing explicit reconciliation path.
+
+One exclusive inventory command supports a full 1,025-target Dex and up to 4,096 slots under the existing 078 limits: two collection tokens, 8 MiB UTF-8 request, 8,192 affected work units, 16 MiB result. No splitting or truncation. SQL's current authority, locking, version, audit/recovery evidence bounds, source restrictions and transaction deadline still decide acceptance atomically. A successful local preview is not a promise that arbitrary large private evidence fits SQL capture.
+
+## Recovery and public links
+
+After sync, inspect Activity and choose **Review recovery** only when supported, then review and confirm its current authoritative preview. This slice generates no event or guessed inverse. The existing command/device receipts do not carry an exact Activity event ID or recovery-support guarantee, so there is no linked instant Undo.
+
+The existing 077–081 recovery contracts remain authoritative. Newer edits/ABA, private assets, converted/frozen evidence bounds, missing dependency evidence and auxiliary appearance/share/search/push cascades can block recovery. Obsolete public share tokens are never restored by this UI; deleted collection links stop working and recovery does not promise to republish them. No recovery SQL or support predicate is broadened.
+
+## API/help composition
+
+REST `POST /app/api/v1/storage/inventory/commands` and MCP `execute_inventory_commands` already register the same strict `deleteCollection` family with complete slot preconditions, explicit replacement and the original operation ID. Use omitted/`replace` private-fields semantics for deliberate structural deletion; `privateFields:"preserve"` rejects it. The existing current write permissions/entitlements, original-recipient replay and Activity/native recovery preview/apply contracts apply. Public developer pages are not complete private planning bases or queue ACKs.
+
+This PR adds device/first-party composition only, not another API operation/schema. Registry, generated OpenAPI and public developer read DTOs are unchanged. `content/docs/native-storage.mdx` explains the prepared consumer. Production first-party inventory/slot/creation/restore handlers and REST/MCP native mutation admission stay hard private/no-store 503. Only the non-hosted loopback synthetic harness exercises the actual internal HTTP bridge, complete reads, queue and sender. No SQL, migrations, grants, conversion, hosted access, production enablement or Framer publication.
+
+Matching release copy is in `docs/releases/native-collection-deletion-draft.md`, explicitly unpublished. Live API/help/Framer links and enabled claims belong to the parent's verified release, not this PR.
+
+## Local evidence and corrections
+
+Pinned Bun 1.3.14: 121 focused unit/HTTP/queue/transport/private-preservation checks pass across 11 files. Typecheck and full lint pass; the existing warning count/cap remains 55, and affected source/tests pass focused lint with zero warnings. Production build and docs CSS verification pass. The six-phone combined deletion/restore/removal run passes 198 cases without retries (90 deletion, 30 restore, 78 removal). After the final 4,096-capacity diagnostic, all 90 deletion-only cases pass again without retries on the final production build.
+
+At 375px, the management trigger is 136.34×40px and the review is 351×581px browser / 351×490px standalone. At 390px the panel is 366×758px / 366×667px; at 430px, 406×846px / 406×755px. Browser panels begin at y=24px and standalone panels at y=89px; footer/X targets are hittable, at least 36px, within safe bounds and above the dock. Body-only scrolling bounds all consequence rows; no horizontal overflow. These are Chromium browser and emulated standalone safe-area checks, not physical iPhone/Safari or installed-PWA evidence.
+
+Initial setup found an incomplete local dependency install (`fumadocs-mdx` missing); frozen-lock installation resolved it. A test-only union narrowing diagnostic was corrected. The first phone run passed 49/66 and failed 17: the pre-review UI short-circuited missing-default validation until Review was pressed; it now evaluates evidence immediately and blocks Review with concrete guidance. Two test bugs also contributed: the record helper opened IndexedDB before app creation, and the abort test read its capture before the failed commit finished. The helper now checks database existence first, and the abort test waits for the actual failure and enabled exact retry. Request identity, confirmation semantics and fresh-read ACK assertions were not relaxed. The corrected combined 198-case matrix passes without retries.
+
+No full e2e/unit suite, local SQL re-run, hosted mutation/read verification, physical device, independently reviewed inverse or exact operation-to-event linkage is claimed. Existing SQL evidence in `tests/inventory-collection-deletion-sql.test.ts` and the 077–081 migrations was inspected, not re-executed by this lane. Parent owns remaining hosted/review/release/whole-issue acceptance.

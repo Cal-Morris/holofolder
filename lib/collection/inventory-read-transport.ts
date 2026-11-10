@@ -26,6 +26,8 @@ export interface InventoryNavigationEvidence { catalog: InventoryCatalogEvidence
 export interface InventoryReadEnvelope {
   version: 2
   partnerUserId?: string | null
+  /** Known only from the same complete private owner read. */
+  defaultCollectionId?: string
   navigation: InventoryNavigationEvidence
   requestId: string
   scope: InventoryReadScope
@@ -44,7 +46,7 @@ export function sameInventoryReadScope(a: InventoryReadScope | null, b: Inventor
 /** Only call on this invocation's authenticated same-origin no-store HTTP response.
  * Shape validation alone does not authenticate arbitrary JSON or localStorage. */
 export function parseInventoryReadEnvelope(value: unknown, requestId: string, scope: InventoryReadScope): InventoryReadEnvelope | undefined {
-  if (!isContractRecord(value, ["version", "requestId", "scope", "evidence", "snapshot", "navigation", "partnerUserId"])
+  if (!isContractRecord(value, ["version", "requestId", "scope", "evidence", "snapshot", "navigation", "partnerUserId", "defaultCollectionId"])
     || value.version !== 2 || value.requestId !== requestId || !isInventoryReadScope(value.scope)
     || !sameInventoryReadScope(value.scope, scope)) return undefined
   if (value.partnerUserId === null && scope.actorUserId !== scope.ownerUserId) return undefined
@@ -71,9 +73,12 @@ export function parseInventoryReadEnvelope(value: unknown, requestId: string, sc
     storage.push({ collectionId: raw.collectionId, collectionVersion: raw.collectionVersion, layoutRevision: raw.layoutRevision, slotCount: raw.slotCount })
   }
   if (storage.reduce((sum, s) => sum + s.slotCount, 0) !== e.slots) return undefined
+  if ("defaultCollectionId" in value && (!isSlotContractId(value.defaultCollectionId)
+    || !snapshot.collections.some(c => c.id === value.defaultCollectionId))) return undefined
   const navigation = parseNavigationEvidence(value.navigation, snapshot)
   if (!navigation) return undefined
-  return { version: 2, requestId, scope: { ...scope }, snapshot, navigation, ...(value.partnerUserId === null || isSlotContractId(value.partnerUserId) ? { partnerUserId: value.partnerUserId } : {}),
+  return { version: 2, requestId, scope: { ...scope }, snapshot, navigation,
+    ...(typeof value.defaultCollectionId === "string" ? { defaultCollectionId: value.defaultCollectionId } : {}), ...(value.partnerUserId === null || isSlotContractId(value.partnerUserId) ? { partnerUserId: value.partnerUserId } : {}),
     evidence: { inventoryRevision: e.inventoryRevision as number, items: e.items as number, placements: e.placements as number,
       collections: e.collections as number, binders: e.binders as number, slots: e.slots as number, storage } }
 }

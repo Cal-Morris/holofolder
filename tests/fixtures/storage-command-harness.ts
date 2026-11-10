@@ -139,6 +139,21 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[0].status = "collected"
     state.tables.binder_slots[2].target = { kind: "pokemon", pokemonId: 25 }
   }
+  if (id.startsWith("delete-")) {
+    seedSlotRemoval(state.tables, owner)
+    state.tables.binders[0].is_default = !id.startsWith("delete-secondary-")
+    const remaining = "33333333-3333-4333-8333-333333333333"
+    state.tables.binders.push({ ...state.tables.binders[0], id: remaining, name: "Synthetic retained collection", is_default: id.startsWith("delete-secondary-") })
+    state.tables.storage_collection_state.push({ ...state.tables.storage_collection_state[0], collection_id: remaining, preset_manifest: null })
+    if (id.startsWith("delete-dex-") || id.startsWith("delete-max-")) {
+      const size = id.startsWith("delete-dex-") ? 1025 : 4096
+      state.tables.binder_slots = Array.from({ length: size }, (_, n) => ({ ...state.tables.binder_slots[0], id: `synthetic-slot-${n}`, position: n,
+        target: { kind: "pokemon", pokemonId: n % 1025 + 1 }, preset_origin: null, status: n < 4 ? "collected" : null }))
+      state.tables.binders[0].binder_rows = 8; state.tables.binders[0].binder_cols = 8
+    }
+    if (id.startsWith("delete-unknown-default-")) delete state.tables.binders[0].is_default
+    if (id.startsWith("delete-legacy-")) state.tables.storage_collection_state[1].authority = "legacy"
+  }
   if (id.startsWith("remove-")) seedSlotRemoval(state.tables, owner)
   if (id.startsWith("remove-bound-")) seedSlotRemovalBound(state.tables, owner)
   if (id.startsWith('restore-')) {
@@ -285,6 +300,17 @@ export function storageCommandHarness(id: string) {
         const removed = snapshot.items.find(i => !next.items.some(n => n.id === i.id))
         if (removed) removedRaw = { item: structuredClone(state.tables.inventory_items.find(i => i.id === removed.id)!),
           placement: structuredClone(state.tables.inventory_placements.find(p => p.inventory_item_id === removed.id)) }
+      }
+      // Synthetic cascade/default projection only; authoritative SQL has separate retained proof.
+      if (input.operation === "inventory") {
+        const deletion = (request as import("@/lib/domain/inventory-commands").InventoryCommandRequest).commands.find(c => c.kind === "deleteCollection")
+        if (deletion?.kind === "deleteCollection") {
+          const current = state.tables.binders.find(b => b.id === deletion.collectionId)!
+          if (current.is_default && !deletion.replacementDefaultCollectionId || !current.is_default && deletion.replacementDefaultCollectionId) return Response.json({ code: "22023" }, { status: 400 })
+          state.tables.binders = state.tables.binders.filter(b => b.id !== deletion.collectionId)
+          state.tables.storage_collection_state = state.tables.storage_collection_state.filter(b => b.collection_id !== deletion.collectionId)
+          if (deletion.replacementDefaultCollectionId) state.tables.binders.find(b => b.id === deletion.replacementDefaultCollectionId)!.is_default = true
+        }
       }
       state.tables.inventory_owner_state[0].inventory_revision = next.inventoryRevision
       for (const binder of next.binders) {

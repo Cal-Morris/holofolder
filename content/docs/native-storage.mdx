@@ -214,3 +214,28 @@ flow composes existing inventory command and recovery REST/MCP operations, with
 no new API operation. Native production admission remains closed with 503.
 Occupied-slot decisions and bulk actions remain outside this raw preparation.
 
+
+### Prepared collection deletion review
+
+The staged native collection header offers **Delete collection**. Review names the
+exact collection and every disappearing slot, target and explicit want. All assigned
+owned copies retain their identity, grading, acquisition and source details in
+**Unassigned**. Preview pages do not split the atomic command. A separate explicit
+acknowledgement and confirmation are required. Default deletion also requires an
+explicit current native replacement; the last collection, missing default evidence
+and mixed legacy/native storage fail closed.
+
+This first-party device flow composes the existing `deleteCollection` command in
+`execute_inventory_commands`, not a new REST/MCP operation. Use the original complete
+slot/version preconditions and original operation ID; private-preserving mode does
+not permit structural deletion. A full 1,025-target Dex or supported 4,096-slot
+collection remains one bounded intent, subject to existing SQL and evidence limits.
+Confirmation requires another complete current authorized read and no unresolved
+ordinary, creation, raw restore or recovery work. The same durable queue/sender
+retains unknown outcomes unchanged and needs a separately fresh complete read for ACK.
+
+After sync, inspect Activity and use **Review recovery** only when supported. Newer
+edits and unsupported private or auxiliary evidence may block recovery. No instant
+Undo, exact operation-to-event link or restoration of obsolete sharing tokens is
+promised. Legacy deletion is unchanged. Production first-party and REST/MCP native
+admission remain hard 503; this is prepared UI, not an enabled deletion workflow.

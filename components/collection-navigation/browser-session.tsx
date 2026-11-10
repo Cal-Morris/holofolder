@@ -1,5 +1,6 @@
 "use client"
 
+import { collectionDeletionEvidence, type CollectionDeletionDraft } from "@/lib/native-collection-deletion"
 import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import type { NativeRawRestoreBinding } from '@/lib/native-raw-restore'
 import type { NativeBackupBinding } from "@/lib/native-backup"
@@ -32,6 +33,7 @@ import type { ScanDestinationAdmission } from "@/lib/scan-destinations"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 
+const NativeCollectionDeletion = dynamic(() => import("@/components/native-collection-deletion"), { ssr: false })
 const NativeBackup = dynamic(() => import("@/components/native-backup"), { ssr: false })
 const NativeBinderCreation = dynamic(() => import("@/components/native-binder-creation"), { ssr: false })
 
@@ -90,6 +92,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const [read, setRead] = useState<CollectionNavigationRead>({ scope: navigationScope, evidence: { kind: "unavailable" }, catalog: [], layouts: [] })
   const [grading, setGrading] = useState<{ snapshot: InventorySnapshot; itemId: string; intent: SlotOfflineIntent | null } | null>(null)
   const [backupOpen, setBackupOpen] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [creating, setCreating] = useState<{ binding: NativeBinderCreationBinding } | null>(null)
   const creation = useRef<{ intent: Extract<SlotOfflineIntent, { kind: "creation" }>; opened: boolean; open: NavigationSurface["openCreated"] } | null>(null)
 
@@ -351,6 +354,16 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     },
   } : undefined
 
+  const deletionAvailable = bulkFillAvailable && !queue.record?.legacy.length
+  const receiveDeletion = async (draft: CollectionDeletionDraft) => {
+    if (!valid() || refreshing.current || sending.current || !navigator.onLine) throw new Error("fresh-scoped-read-required")
+    const record = await latest.current.queue.queue?.read()
+    if (!valid() || !record || record.pending.length || record.legacy.length || record.recovery?.some(recoveryUnresolved)) throw new Error("pending-reconciliation")
+    // Reauthenticate membership/default and every current revision before durable acceptance.
+    const fresh = await refresh()
+    if (!valid() || !navigator.onLine || collectionDeletionEvidence(fresh) !== draft.evidence || fresh.evidence.kind !== "complete") throw new Error("deletion-review-changed")
+    return latest.current.queue.enqueue(draft.intent, latest.current.catalog, fresh.evidence.snapshot, () => valid() && navigator.onLine)
+  }
   const creationAvailable = bulkFillAvailable && read.evidence.kind === "complete" && read.evidence.snapshot.collections.length > 0
   const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"]) => {
     if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
@@ -392,13 +405,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
         const display = snapshot && binder && layout ? { inventory: snapshot, binder,
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
-        return <>{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
+        return <>{deleting && <NativeCollectionDeletion key={`${scope.sessionId}:${deleting}`} collectionId={deleting} binding={{ read, available: deletionAvailable, receive: receiveDeletion }} onClose={() => setDeleting(null)} />}{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
-          <div className="flex items-center gap-2 px-4"><ActivityButton /><button type="button" className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { closeAllOverlays(); setBackupOpen(true) }}>Backup</button>
+          <div className="flex flex-wrap items-center gap-2 px-4"><ActivityButton /><button type="button" className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { closeAllOverlays(); setBackupOpen(true) }}>Backup</button>
             <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold" disabled={!creationAvailable}
               onClick={() => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, count: snapshot?.collections.length ?? 0, available: creationAvailable,
-                create: draft => create(draft, surface.openCreated) } })}>New binder</button></div>
+                create: draft => create(draft, surface.openCreated) } })}>New binder</button>
+            {surface.state.main === "collection" && surface.state.collectionId && <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm" disabled={!deletionAvailable} onClick={() => { closeAllOverlays(); setDeleting(surface.state.collectionId) }}>Delete collection</button>}</div>
 
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
