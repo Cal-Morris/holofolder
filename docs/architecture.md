@@ -154,3 +154,6 @@ The largest orchestration files are `components/binder-app.tsx` and `hooks/use-c
 This pass is not a line-by-line security review of every module or production validation. Browser/PWA behaviour, provider terms, full Supabase integration and stochastic camera recognition require their own evidence.
 
 The local-only [Slabs presentation](slab-rendering.md) reuses the exact navigation session/owner fence and existing per-copy grading. `lib/slabs/` creates private-field-free renderer inputs; `components/slabs/` keeps provider-specific static holder/label structure separate from catalog artwork. Navigation and cached BinderApp can display it only under the existing local harness admission. No public share, asset, write, schema or production rollout capability is added.
+
+
+[Atomic insertion plus assignment](atomic-insert-assign.md) extends the existing inventory transaction and durable intent with one stable slot and explicit ownership choice; it uses the existing lifetime ledger, 089 locking/rejections, 090 private-preserving semantics and one deferred audit event. Scanner append and runtime admission remain gated.

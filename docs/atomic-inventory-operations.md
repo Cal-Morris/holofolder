@@ -146,3 +146,6 @@ The final 078 file applied twice locally, all 90 archived table counts and 35 or
 
 
 081 records presence-only auxiliary deletion dependencies through the existing command before-evidence, for both native and converted collections. Search/history, partner delivery and named-slug cascades reject whole recovery. [Converted cascade recovery](converted-cascade-recovery.md) restores eligible placements of the same retained copies and exact frozen compatibility sources, without another acquisition or runtime exposure.
+
+
+Migration 091 adds staged atomic slot insertion plus explicit copy selection through this same transaction. See [atomic insertion contract/proof](atomic-insert-assign.md). Existing limits, terminal ledger, audit, recovery and admission remain authoritative.
