@@ -4,6 +4,18 @@ Pricing first requests the card's exact TCGdex ID, then its reviewed aliases. Th
 
 Positive quotes retain the two-hour cache. Missing prices retry after five minutes. Legacy client evidence refreshes online while remaining available offline.
 
+## Tracked refresh selection
+
+The internal workflow selector (`lib/server/tracked-price-selection.ts`) reads the current collection authority before selecting any provider requests. Legacy collections retain their saved card and explicit wanted-card selection. Slot-authoritative collections use physical `inventory_items` (including Unassigned copies after storage deletion) and explicit `binder_slots.wanted_cards`. Frozen `pokemon_collection` rows for converted collections are excluded. Empty preset targets and Pokémon-only identities do not request prices. No species/catalog join is required, so Trainer, Energy and other non-Pokémon card identities participate.
+
+Distinct physical copies and known finishes share the existing **card ID + language** provider/cache request, whose snapshot contains available finish evidence. Saved IDs are preserved, including stamped variants; the selector does not resolve aliases, guess a finish or create a finish-specific provider key. Known language strings use the existing trim/lowercase normalization. Omitted legacy languages retain the existing English compatibility default; omitted native languages remain unknown and are skipped. Missing finishes remain unknown even when a card/language snapshot can be refreshed. Unsupported explicit language/finish values fail the selection rather than becoming English/normal. A raw reference quote never establishes graded market value.
+
+Every table read uses exact counts and stable unique-key pagination in pages of 500. Null/malformed pages, count drift, repeated IDs, invalid owner/collection scope, unknown authority and changed owner revisions or authority metadata fail the entire selection before the workflow can call a provider. The per-selection limits are 512 requests, 32 MiB of JSON read data and a 30-second abort deadline. Exceeding a limit is an error, never a partial refresh. These are bounded multi-request reads, not a database transaction; ordinary concurrent legacy card edits may be picked up on the next pass.
+
+The pre-073 compatibility path requires both inventory-root and storage-state tables to be absent (`42P01`/`PGRST205`). An absent state row on an existing binder retains legacy authority. Partial schema installation, missing columns, authorization failures and network failures never trigger legacy fallback. No migration, grant, conversion or native mutation admission is introduced.
+
+The workflow keeps its existing owner-wide manual selection and all-owner scheduled selection, batch size, force flag, repeat/interval handling, provider transport, confidence/freshness, billing and refresh/cooldown rules. REST/MCP operations and generated OpenAPI remain unchanged: this is internal tracked-card discovery, not a new public refresh permission or inventory endpoint. Synthetic selector/query-shape tests do not establish hosted schema readiness, provider success, pricing coverage, cost or speed improvements. #374 and #379 remain staged acceptance gates.
+
 ## Free bulk import
 
 ```bash

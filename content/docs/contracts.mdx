@@ -33,6 +33,8 @@ Image fields refer only to verified R2 objects. Missing images remain missing; t
 
 Prices include available source, currency, confidence and freshness evidence. Missing amounts and uncertain prices are not invented. Price signals require medium or high confidence.
 
+Tracked background refreshes use each collection's current storage authority. Native inventory includes Unassigned physical copies and explicit wanted cards, including Trainers and Energy. Empty targets and frozen legacy copies are excluded. Repeated copies share a card/language request; missing native language stays unknown and no finish is guessed. Incomplete reads stop selection before provider requests. This internal selection does not enable staged native editing or add REST/MCP permissions; existing manual and scheduled refresh rules still apply.
+
 Private uploaded binder artwork lives in a separate private R2 bucket. Upload preparation returns a five-minute signed PUT URL, required headers and an `artworkRef` for the appearance design. Upload the exact declared bytes, then save the appearance revision. Downloads use five-minute signed GET URLs.
 
 ## Safe writes
