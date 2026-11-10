@@ -21,6 +21,7 @@ test.describe("explicit stable-slot picker", () => {
     await page.route("**/app/api/card-prices", route => route.fulfill({ json: { prices: [] } }))
     await page.goto("/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=4")
     if (page.viewportSize()!.width >= 1024) await expect(page.getByRole("region", { name: "Inside cover", exact: true })).toBeVisible()
+  })
   const details = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: /details$/ })
   const sheet = (page: import("@playwright/test").Page, name: string) => page.getByRole("dialog", { name, exact: true })
   const variant = (page: import("@playwright/test").Page) => sheet(page, "Which variant?")
