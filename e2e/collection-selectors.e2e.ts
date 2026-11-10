@@ -164,6 +164,9 @@ for (const kind of ["long", "many"] as const) test(`${kind} collection names sta
     expect(await list.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true)
     await menu.getByRole("menuitemradio", { name: /SYNTHETIC binder 18/ }).scrollIntoViewIfNeeded()
   }
+  // A wrapped long name keeps its own row: no option is squeezed so its text spills over a neighbour.
+  const rows = await menu.getByRole("menuitemradio").evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return [r.top, r.bottom, e.scrollHeight, e.clientHeight] }))
+  rows.forEach((row, i) => { expect(row[2]).toBeLessThanOrEqual(row[3] + 1); if (i) expect(row[0]).toBeGreaterThanOrEqual(rows[i - 1][1] - 0.5) })
   expect(await menu.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
   await h.expectNoHorizontalOverflow()
   await page.keyboard.press("Escape")

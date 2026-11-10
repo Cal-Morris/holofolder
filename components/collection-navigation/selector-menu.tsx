@@ -70,7 +70,7 @@ export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, opt
           {options.map(option => {
             const selected = option.value === value
             return <button key={option.value} type="button" role="menuitemradio" aria-checked={selected} data-value={option.value} onClick={() => { defer(() => onSelect(option.value)); close() }}
-              className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left leading-snug hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-none ${selected ? "bg-muted font-semibold" : "font-medium"}`}>
+              className={`flex min-h-11 w-full shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left leading-snug hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-none ${selected ? "bg-muted font-semibold" : "font-medium"}`}>
               <span className="min-w-0 flex-1 break-words">{option.label}</span>
               {selected && <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden />}
             </button>
