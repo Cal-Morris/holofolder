@@ -17,6 +17,7 @@ export interface CollectionNavigationState {
 }
 /** Private in-memory host result, NEVER a JSON transport. The host authenticates both scope fields. */
 export interface CollectionNavigationRead {
+  partnerUserId?: string | null
   scope: CollectionNavigationScope
   evidence: InventoryBrowseEvidence
   catalog: readonly InventoryCatalogEvidence[]

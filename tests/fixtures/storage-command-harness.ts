@@ -17,7 +17,7 @@ const fixtures = new Map<string, ReturnType<typeof fixture>>()
 export function storageCommandHarness(id: string) {
   let f = fixtures.get(id)
   if (f) return f
-  const owner = id.startsWith("grading-partner-") ? "11111111-1111-4111-8111-111111111111" : actor
+  const owner = (id.startsWith("grading-partner-") || id.startsWith("backup-partner-")) ? "11111111-1111-4111-8111-111111111111" : actor
   f = fixture(0, owner, "synthetic-e2e-auth-session")
   const state = f
   if (owner !== actor) {
@@ -76,6 +76,31 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[3].status = "collected"
 
   }
+  if (id.startsWith("backup-")) {
+    // Synthetic private collection-data fixture. Real first-party read/IDB/serializer, no hosted data.
+    const other = "33333333-3333-4333-8333-333333333333"
+    state.tables.binders.push({ ...state.tables.binders[0], id: other, name: "Synthetic other storage", binder_rows: 1, binder_cols: 4 })
+    state.tables.storage_collection_state.push({ ...state.tables.storage_collection_state[0], collection_id: other, preset_manifest: null })
+    state.tables.binder_slots.push({ ...state.tables.binder_slots[3], id: "synthetic-other-slot", collection_id: other, position: 0 })
+    const source = { id: "synthetic-original-preset", version: "original-v1" }
+    const manifest = { source, name: "Synthetic original manifest", entries: [{ id: "synthetic-entry", target: { kind: "card", cardId: "synthetic-unknown-printing" } }] }
+    state.tables.storage_collection_state[0].preset_manifest = manifest
+    state.tables.binder_slots[0].preset_origin = { source, entryId: "synthetic-entry" }
+    state.tables.binder_slots[0].target = manifest.entries[0].target
+    state.tables.binder_slots[0].status = "collected"
+    state.tables.binder_slots[1].target = { kind: "card", cardId: "synthetic-trainer" }
+    state.tables.binder_slots[1].status = "wishlisted"
+    state.tables.binder_slots[1].wanted_cards = [{ card_id: "synthetic-trainer", card_name: "Synthetic trainer", added_at: "2026-01-01T00:00:00Z", wanted_by: [owner, ...(owner !== actor ? [actor] : [])] }]
+    for (let n = 0; n < 3; n++) state.tables.inventory_items.push({ id: `synthetic-backup-copy-${n}`, owner_user_id: owner,
+      identity: { kind: "card", cardId: "synthetic-unknown-printing", language: "en", finish: "holo" },
+      grading: n === 2 ? null : { ...emptyGradingRecord(), provider: { kind: "known", id: "psa" }, grade: "9", certificate: "00001234",
+        label: { variant: "Synthetic private label", assetIds: id.startsWith("backup-assets-") ? ["synthetic-private-label"] : [] } },
+      acquired_at: "2026-01-02T00:00:00Z", version: 2, legacy_source: { original: ["00007", null, { unknown: true }] } })
+    state.tables.inventory_placements.push({ inventory_item_id: "synthetic-backup-copy-0", owner_user_id: owner, collection_id: collection, slot_id: "synthetic-slot-0", version: 3 })
+    state.tables.inventory_placements.push({ inventory_item_id: "synthetic-backup-copy-1", owner_user_id: owner, collection_id: other, slot_id: "synthetic-other-slot", version: 4 })
+    state.tables.binder_slots[4].status = "collected"
+  }
+
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
   const originalRpc = state.client.rpc.bind(state.client)
   // Synthetic HTTP response, real Supabase RPC builder and trusted audit context.

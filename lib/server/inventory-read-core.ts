@@ -47,6 +47,7 @@ export interface InventoryReadAuthority {
 export async function readTrustedInventoryState(db: SupabaseClient, authority: InventoryReadAuthority, options: InventoryReadOptions = {}): Promise<{
   snapshot: CompleteInventorySnapshot
   actorUserId: string
+  partnerUserId: string | null
   authorityId: string
   evidence: InventoryReadEvidence
   navigation: InventoryNavigationEvidence
@@ -83,6 +84,8 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
       }
       const initialScope = await scope()
       const owner = initialScope.owner
+      const partnerUserId = initialScope.partnership ? (initialScope.partnership.user1_id === owner ? initialScope.partnership.user2_id : initialScope.partnership.user1_id) : null
+      if (partnerUserId !== null && (!isSlotContractId(partnerUserId) || partnerUserId === owner)) return unavailable()
       const sameScope = async () => { if (JSON.stringify(await scope()) !== JSON.stringify(initialScope)) conflict() }
       async function revision() {
         check()
@@ -262,7 +265,7 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
             sortOrder: isSlotRevision(b.sort_order) ? b.sort_order : null,
             updatedAt: typeof b.updated_at === "string" ? b.updated_at : null,
           }]))
-          return { snapshot, slotPositions, collectionMetadata, navigation: { catalog, layouts }, actorUserId: initialScope.actor, authorityId: initialScope.authorityId,
+          return { snapshot, slotPositions, collectionMetadata, partnerUserId, navigation: { catalog, layouts }, actorUserId: initialScope.actor, authorityId: initialScope.authorityId,
             evidence: { inventoryRevision: rev, items: itemCount, placements: placementCount,
               collections: meta.stateTotal, binders: meta.binderTotal, slots: slotCount, storage } }
         } catch (error) {
