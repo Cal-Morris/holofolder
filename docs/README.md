@@ -18,6 +18,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Staged native developer reads](native-developer-read.md): verified key/OAuth authority, redacted copy/storage/slot projections and revision-bound pages, with fixed rollout denial.
 - [Agent-readable API docs](public-api/agent-docs.md): generated Markdown, `llms.txt`, full-text exports and OpenAPI discovery.
 - [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, auth, PWA scope and legacy URLs.
+- [Inactive legacy queue engine](legacy-queue-engine.md): transactional device evidence and claims, synthetic IDB proof and coordinated runtime migration blockers (#363/#379).
 - [Staged atomic slot operations](atomic-slot-operations.md): disabled structural commands, revisioned pages, billing/legacy compatibility and audit/offline/API/recovery gates.
 - [Staged atomic inventory operations](atomic-inventory-operations.md): exclusive full-collection deletion bounds, Unassigned retention, audit/recovery proof and unsupported payload/latency gates (#383).
 - [Converted ordinary-edit recovery](converted-content-recovery.md): unchanged conversion provenance, frozen-source dependencies, local proof and explicit remaining recovery gates (080).
