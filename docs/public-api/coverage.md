@@ -208,3 +208,10 @@ Synthetic local authority/ledger tests are not hosted SQL or production proof.
 See the [private help](../../content/docs/bulk-layout.mdx) and unpublished release
 draft. Parent retains #370/#369 final acceptance and rollout ownership.
 
+
+
+### Prepared native recovery rejection
+
+Native recovery remains staged and returns `503 native_operations_staged` before execution. The prepared v1/v2 apply contract declares REST `409 storage_recovery_rejected`, or MCP `isError:true`, only for a committed strict `error.rejection` containing `outcome:"rejected"`, the original `operationId`, known `code` and `inventoryRevision`. Codes are `recovery_plan_conflict` and `recovery_dependency_conflict`. Arbitrary 409/SQL errors, missing receipts, cancellation and billing/access errors are not noncommit proof. Exact accepted/rejected replay requires current authority and precedes mutable plan reconstruction.
+
+In the staged app, durable proof permits a separately fresh complete current owner/session read and explicit **Discard noncommitted recovery**. Discard preserves original request/proof with a distinct discarded state, never accepted/synchronized. **Review new recovery** then needs a new preview and explicit confirmation with a new operation ID. Unknown and accepted requests never gain discard/rebase. The existing legacy Undo contract is unchanged; no private inverse, evidence, certificates or assets are exposed. This preparation is not an enabled capability or release announcement.

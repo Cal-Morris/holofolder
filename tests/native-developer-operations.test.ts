@@ -69,7 +69,7 @@ test('real MCP SDK enforces accepted output schemas and preserves typed tool err
   execFileSync(process.execPath, [new URL('./fixtures/native-output-schema.ts', import.meta.url).pathname], { stdio: 'pipe' })
 })
 
-test('terminal errors are strict, bounded and declared only on the two command operations', () => {
+test('terminal errors are strict, bounded and declared only on command and native recovery apply operations', () => {
   const proof = { outcome: 'rejected', operationId: command.operationId, code: 'slot_revision_conflict', inventoryRevision: 12 }
   for (const code of STORAGE_REJECTION_CODES) assert.equal(storageRejectionSchema.safeParse({ ...proof, code }).success, true)
   for (const change of [{ operationId: '' }, { code: 'unknown' }, { inventoryRevision: -1 }, { inventoryRevision: 1.5 },
@@ -80,13 +80,13 @@ test('terminal errors are strict, bounded and declared only on the two command o
   assert.equal(storageCommandErrorSchema.safeParse(value).success, true)
   assert.equal(storageCommandErrorSchema.safeParse({ ...value, private: true }).success, false)
   for (const op of DEVELOPER_OPERATIONS) {
-    const terminal = ['execute_slot_commands', 'execute_inventory_commands'].includes(op.name)
+    const terminal = ['execute_slot_commands', 'execute_inventory_commands', 'apply_storage_recovery', 'apply_storage_recovery_v2'].includes(op.name)
     assert.equal(Boolean(op.errorSchemas?.[409]), terminal)
     if (!terminal) continue
     const documented = spec.paths[op.path as keyof typeof spec.paths] as unknown as Record<string, { responses: Record<string, { content: { 'application/json': { schema: unknown } } }> }>
     assert.deepEqual(documented.post.responses['409'].content['application/json'].schema, z.toJSONSchema(op.errorSchemas![409]!))
     const markdown = formatEndpointMarkdown({ title: op.name, url: '/docs/reference/collection/' + op.name.replaceAll('_', '-'), method: op.method, path: op.path, operation: documented.post })
-    assert.match(markdown, /storage_command_rejected/)
+    assert.match(markdown, op.name.startsWith('apply_storage_recovery') ? /storage_recovery_rejected/ : /storage_command_rejected/)
     assert.match(markdown, /holofolder.com\/errorSchemas/)
     assert.match(markdown, /inventoryRevision/)
   }

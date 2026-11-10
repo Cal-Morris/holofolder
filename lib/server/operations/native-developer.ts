@@ -1,5 +1,6 @@
+import { isRecoveryRejection } from '@/lib/collection/recovery-rejection'
 import { isStorageCommandRejection } from '@/lib/collection/storage-command-rejection'
-import { StorageCommandRejectedError } from '@/lib/server/developer-access/storage-command-error'
+import { StorageRecoveryRejectedError, StorageCommandRejectedError } from '@/lib/server/developer-access/storage-command-error'
 import type { OperationContext } from '@/lib/developer-api/types'
 import { DeveloperAccessError, requirePermissions } from '@/lib/developer-api/permissions'
 import { NATIVE_DEVELOPER_OPERATIONS, nativeCommandIntent } from '@/lib/developer-api/storage'
@@ -31,5 +32,7 @@ export async function executeNativeDeveloperOperation(context: OperationContext,
   const result = await executeDeveloperStorageOperation(context, storageOperations[name], intent)
   if ((name === 'execute_slot_commands' || name === 'execute_inventory_commands')
     && isStorageCommandRejection(result, String(intent.operationId))) throw new StorageCommandRejectedError(result)
+  if ((name === 'apply_storage_recovery' || name === 'apply_storage_recovery_v2')
+    && isRecoveryRejection(result, String(intent.operationId))) throw new StorageRecoveryRejectedError(result)
   return result
 }

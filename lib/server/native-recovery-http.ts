@@ -1,3 +1,4 @@
+import { isRecoveryRejection } from '@/lib/collection/recovery-rejection'
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { executeAppStorageRequest } from '@/lib/server/operations/storage-execution'
@@ -28,6 +29,7 @@ export async function handleNativeRecovery(request: Request, localClients?: Para
       const conflicts = receipt.conflicts.map(c=>({reason:c.reason,...(c.entity === undefined ? {} : {entity:c.entity})}))
       return Response.json({version:1,operation,requestId,preview:{...receipt,changes:safe.data[0].changes,conflicts}},{headers})
     }
+    if (isRecoveryRejection(receipt,String(input.operationId))) return Response.json({version:1,operation,operationId:input.operationId,rejection:receipt},{status:409,headers})
     return Response.json({version:1,operation,operationId:input.operationId,receipt},{headers})
   } catch (error) {
     const response = developerErrorResponse(error,requestId)

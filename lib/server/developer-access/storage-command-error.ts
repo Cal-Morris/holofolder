@@ -1,5 +1,5 @@
 import { DeveloperAccessError } from '@/lib/developer-api/permissions'
-import { storageCommandErrorSchema } from '@/lib/developer-api/storage'
+import { recoveryErrorSchema, storageCommandErrorSchema } from '@/lib/developer-api/storage'
 import type { StorageCommandRejection } from '@/lib/collection/storage-command-rejection'
 
 /** Created only from the trusted executor's validated, original-ID-bound ledger result. */
@@ -8,5 +8,13 @@ export class StorageCommandRejectedError extends DeveloperAccessError {
   constructor(rejection: StorageCommandRejection) {
     super('storage_command_rejected', 'The original storage command was rejected. Refresh current storage before explicit reconciliation.', 409)
     this.rejection = storageCommandErrorSchema.shape.error.shape.rejection.parse(rejection)
+  }
+}
+
+export class StorageRecoveryRejectedError extends DeveloperAccessError {
+  readonly rejection: import('@/lib/collection/recovery-rejection').RecoveryRejection
+  constructor(rejection: import('@/lib/collection/recovery-rejection').RecoveryRejection) {
+    super('storage_recovery_rejected', 'The original recovery did not commit. Read current storage before explicitly discarding or reviewing a new recovery.', 409)
+    this.rejection = recoveryErrorSchema.shape.error.shape.rejection.parse(rejection)
   }
 }

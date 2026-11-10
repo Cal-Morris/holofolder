@@ -1,3 +1,4 @@
+import { isRecoveryRejection } from './recovery-rejection'
 import { appPath } from '@/lib/app-path'
 import { parseNativeRecoveryRequest, type NativeRecoveryOperation } from '@/lib/domain/native-recovery'
 import { parseActivityPage, type ActivityChange } from '@/lib/collection-activity'
@@ -19,9 +20,14 @@ export async function sendNativeRecovery(operation: NativeRecoveryOperation, inp
   })
   const value: unknown = await response.json()
   if (!sameInventoryReadScope(currentScope(),captured)) throw new Error('Collection access changed. Reopen Activity in the original account.')
-  if (!response.ok) throw new Error(response.status === 409 ? 'Storage changed or the result is unknown. A confirmed request is retained for exact retry.' : 'Recovery is unavailable. Any confirmed request is still saved on this device.')
   const cache = response.headers.get('cache-control')?.split(/\s*,\s*/)
-  if (!cache?.includes('private') || !cache.includes('no-store') || !isContractRecord(value,['version','operation','operationId','receipt','preview','requestId']) || value.version !== 1 || value.operation !== operation) throw new Error('Recovery reply could not be verified.')
+  if (!cache?.includes('private') || !cache.includes('no-store') || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Recovery reply could not be verified.')
+  if (response.status === 409 && (operation === 'recovery.apply' || operation === 'recovery.apply.v2')
+    && isContractRecord(value,['version','operation','operationId','rejection']) && Object.keys(value).length === 4
+    && value.version === 1 && value.operation === operation && value.operationId === request.operationId
+    && isRecoveryRejection(value.rejection,String(request.operationId))) return value.rejection
+  if (!response.ok) throw new Error(response.status === 409 ? 'Storage changed or the result is unknown. A confirmed request is retained for exact retry.' : 'Recovery is unavailable. Any confirmed request is still saved on this device.')
+  if (!isContractRecord(value,['version','operation','operationId','receipt','preview','requestId']) || value.version !== 1 || value.operation !== operation) throw new Error('Recovery reply could not be verified.')
   if (operation === 'recovery.apply' || operation === 'recovery.apply.v2') {
     if (value.operationId !== request.operationId) throw new Error('Recovery reply identity changed.')
     return parseNativeRecoveryReceipt(value.receipt, request.eventId)

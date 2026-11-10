@@ -1,3 +1,4 @@
+import type { RecoveryRejection } from './recovery-rejection'
 import { parseNativeRecoveryRequest, type NativeRecoveryOperation } from '@/lib/domain/native-recovery'
 import { isContractRecord, isSlotContractId, isSlotRevision } from '@/lib/domain/binder-slots'
 import type { ActivityEvent } from '@/lib/collection-activity'
@@ -11,6 +12,8 @@ export interface NativeRecoveryReceipt { inventoryRevision: number; eventId: str
 export interface RetainedRecovery {
   intent: NativeRecoveryIntent
   receipt: NativeRecoveryReceipt | null
+  rejection?: RecoveryRejection | null
+  resolution?: 'discarded' | null
   synchronized: boolean
   lease: { id: string; until: number } | null
 }

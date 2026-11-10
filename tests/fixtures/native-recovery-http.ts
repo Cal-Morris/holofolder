@@ -23,6 +23,11 @@ assert.equal((await call('recovery.apply',apply,{'X-Binder-Owner':'foreign-owner
 assert.equal((await call('recovery.apply',apply,{'X-Binder-Auth-Session':'foreign-session'})).status,403)
 assert.equal((await call('recovery.apply',apply,{Origin:'https://attacker.test'})).status,403)
 assert.equal((await call('recovery.apply',{...apply,operationId:'synthetic-stale-token',planToken:'b'.repeat(64)})).status,409)
+const staleProof={...apply,operationId:'synthetic-proven-stale'}
+const rejected=await call('recovery.apply',staleProof)
+assert.equal(rejected.status,409)
+assert.equal((await rejected.json()).rejection.code,'recovery_plan_conflict')
+assert.equal((await call('recovery.apply',{...staleProof,planToken:'b'.repeat(64)})).status,409)
 assert.equal((await call('slots',apply)).status,400)
 assert.equal((await POST()).status,503)
 }

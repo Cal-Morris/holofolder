@@ -27,12 +27,13 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
   const [replacement,setReplacement] = useState('')
   const [reviewedRequest,setReviewedRequest] = useState<Record<string,unknown>|null>(null)
   const [error,setError] = useState('')
+  const [terminalReviewed,setTerminalReviewed] = useState(false)
   const [busy,setBusy] = useState(false)
   const alive = useRef(false), running = useRef(false)
   const confirmedIntent = useRef<NativeRecoveryIntent | null>(null)
   const latest = useRef(binding)
   useLayoutEffect(()=>{latest.current = binding})
-  useEffect(()=>{alive.current=true;void binding.queue?.read().then(r=>{if(alive.current)setSaved(r.recovery?.find(v=>v.intent.request.eventId===event.id) ?? null)}).catch(()=>{if(alive.current)setError('Saved requests could not be opened. Recovery is unavailable.')});return()=>{alive.current=false}},[binding.queue,event.id])
+  useEffect(()=>{alive.current=true;void binding.queue?.read().then(r=>{if(alive.current)setSaved(r.recovery?.findLast(v=>v.intent.request.eventId===event.id) ?? null)}).catch(()=>{if(alive.current)setError('Saved requests could not be opened. Recovery is unavailable.')});return()=>{alive.current=false}},[binding.queue,event.id])
   const current = () => alive.current && latest.current.currentScope() !== null
   async function run(retry = false) {
     if (running.current || disabled || !binding.queue || !current()) return
@@ -54,13 +55,14 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
           setSaved(retained);setPreview(null);setReviewedRequest(null)
           await binding.refresh()
         }
-        await binding.queue.replayRecovery(String(retained.intent.request.operationId),
+        const verified = await binding.queue.replayRecovery(String(retained.intent.request.operationId),
           intent=>sendNativeRecovery(intent.operation,intent.request,latest.current.currentScope,binding.localHarness),binding.readCurrent,binding.activeQueueScope)
         if (!current()) return
         const record = await binding.queue.read()
         setSaved(record.recovery!.find(r=>r.intent.request.operationId===retained!.intent.request.operationId)!)
+        setTerminalReviewed(verified === true)
         await binding.refresh()
-        window.dispatchEvent(new Event('holofolder-activity-updated'))
+        if (record.recovery!.find(r=>r.intent.request.operationId===retained!.intent.request.operationId)?.synchronized) window.dispatchEvent(new Event('holofolder-activity-updated'))
       } else {
         // Preview always begins with a newly authorized complete read, never a cached snapshot.
         const snapshot = await binding.readCurrent()
@@ -74,7 +76,26 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
         if (!current()) return
         confirmedIntent.current=null;setPreview(value);setReviewedRequest(request)
       }
-    } catch(e) {if(current())setError(e instanceof Error ? e.message : 'Recovery unavailable. Any confirmed request is retained.')}
+    } catch(e) {
+      if (current() && binding.queue) {
+        const record = await binding.queue.read().catch(()=>null)
+        if (current() && record) setSaved(record.recovery?.findLast(r=>r.intent.request.eventId===event.id) ?? null)
+      }
+      if(current())setError(e instanceof Error ? e.message : 'Recovery unavailable. Any confirmed request is retained.')}
+    finally {running.current=false;if(alive.current)setBusy(false)}
+  }
+  async function discard() {
+    if (running.current || !saved?.rejection || !terminalReviewed || !binding.queue || !current()) return
+    running.current=true;setBusy(true);setError('')
+    try {
+      await binding.queue.discardRecovery(String(saved.intent.request.operationId),binding.readCurrent,binding.activeQueueScope)
+      if (!current()) return
+      const record = await binding.queue.read()
+      if (!current()) return
+      setSaved(record.recovery!.find(r=>r.intent.request.operationId===saved.intent.request.operationId)!)
+      confirmedIntent.current=null;setTerminalReviewed(false)
+      await binding.refresh()
+    } catch(e) {if(current())setError(e instanceof Error ? e.message : 'Saved recovery could not be resolved. Original request and proof are retained.')}
     finally {running.current=false;if(alive.current)setBusy(false)}
   }
   const button = 'min-h-10 rounded-lg border border-border px-3 text-xs disabled:opacity-50'
@@ -83,8 +104,13 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
   const description = preview ? activityChanges({...event,changes:preview.changes,before_state:null,after_state:null}) : []
   return <div className="col-span-2 mt-2 min-w-0 space-y-2 text-xs wrap-anywhere" aria-label="Recovery">
     {saved ? <>
-      <p role="status">{saved.synchronized ? 'Recovery verified against current storage.' : saved.receipt ? 'Recovery accepted. Current storage still needs verification.' : 'Recovery saved on this device. The shared result is not yet verified.'}</p>
-      {!saved.synchronized && <button type="button" className={button} disabled={disabled||busy} onClick={()=>void run(true)}>{busy ? 'Checking recovery…' : saved.receipt ? 'Verify current storage' : 'Retry exact recovery'}</button>}
+      <p role="status">{saved.resolution === 'discarded' ? 'Recovery did not commit. Saved request discarded, original request and proof retained.' : saved.rejection ? 'Recovery did not commit. Review current storage before discarding this saved request.' : saved.synchronized ? 'Recovery verified against current storage.' : saved.receipt ? 'Recovery accepted. Current storage still needs verification.' : 'Recovery saved on this device. The shared result is not yet verified.'}</p>
+      {!saved.synchronized && saved.resolution !== 'discarded' && <button type="button" className={button} disabled={disabled||busy} onClick={()=>void run(true)}>{busy ? 'Checking recovery…' : saved.rejection ? 'Refresh current storage' : saved.receipt ? 'Verify current storage' : 'Retry exact recovery'}</button>}
+      {saved.rejection && saved.resolution !== 'discarded' && terminalReviewed && <section aria-label="Review noncommitted recovery" className="space-y-2">
+        <p>The original recovery changed nothing. Discard only this saved request, or keep it for later. A new recovery needs a fresh preview and confirmation.</p>
+        <button type="button" className={button} disabled={disabled||busy} onClick={()=>void discard()}>Discard noncommitted recovery</button>
+      </section>}
+      {saved.resolution === 'discarded' && <button type="button" className={button} disabled={disabled||busy} onClick={()=>{confirmedIntent.current=null;setSaved(null);setPreview(null);setReviewedRequest(null);setChoices([]);setReplacement('')}}>Review new recovery</button>}
       {saved.receipt && <p>Recovery entry {saved.receipt.eventId}, original entry {saved.receipt.recoveredEventId}.</p>}
     </> : <>
       {removed.length>0 && <fieldset disabled={busy||disabled||!!preview} className="space-y-1"><legend>Removed ownership</legend><p className="text-muted-foreground">Choose only copies to restore as Unassigned. No new acquisition or automatic placement is created.</p>{removed.map(c=><label key={c.id} className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={choices.includes(c.id)} onChange={e=>setChoices(v=>e.target.checked?[...v,c.id]:v.filter(id=>id!==c.id))}/>Restore {c.id} as Unassigned</label>)}</fieldset>}
