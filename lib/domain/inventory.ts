@@ -142,14 +142,17 @@ export function normalizeInventorySnapshot(value: unknown): InventorySnapshot | 
   if (items.some(i => !i || i.ownerUserId !== value.ownerUserId) || collections.some(c => !c || c.ownerUserId !== value.ownerUserId)
     || placements.some(p => !p) || binders.some(b => !b || b.ownerUserId !== value.ownerUserId)) return undefined
   const validItems = items as InventoryItem[], validCollections = collections as StorageCollection[], validBinders = binders as BinderSnapshot[], validPlacements = placements as Placement[]
-  if (new Set(validItems.map(i => i.id)).size !== items.length || new Set(validCollections.map(c => c.id)).size !== collections.length
+  const itemIds = new Set(validItems.map(i => i.id)), collectionIds = new Set(validCollections.map(c => c.id))
+  if (itemIds.size !== items.length || collectionIds.size !== collections.length
     || new Set(validBinders.map(b => b.collectionId)).size !== binders.length || binders.length !== collections.length
-    || validBinders.some(b => !validCollections.some(c => c.id === b.collectionId))) return undefined
+    || validBinders.some(b => !collectionIds.has(b.collectionId))) return undefined
   const slots = validBinders.flatMap(b => b.slots)
-  if (new Set(slots.map(s => s.id)).size !== slots.length || new Set(validPlacements.map(p => p.inventoryItemId)).size !== placements.length
+  const slotsById = new Map(slots.map(s => [s.id, s]))
+  if (slotsById.size !== slots.length || new Set(validPlacements.map(p => p.inventoryItemId)).size !== placements.length
     || new Set(validPlacements.map(p => p.slotId)).size !== placements.length) return undefined
   for (const p of validPlacements) {
-    if (!validItems.some(i => i.id === p.inventoryItemId) || !slots.some(s => s.id === p.slotId && s.collectionId === p.collectionId && s.inventoryItemId === p.inventoryItemId)) return undefined
+    const slot = slotsById.get(p.slotId)
+    if (!itemIds.has(p.inventoryItemId) || !slot || slot.collectionId !== p.collectionId || slot.inventoryItemId !== p.inventoryItemId) return undefined
   }
   if (slots.filter(s => s.inventoryItemId !== null).length !== placements.length) return undefined
   return { ownerUserId: value.ownerUserId, inventoryRevision: value.inventoryRevision, items: validItems, placements: validPlacements, collections: validCollections, binders: validBinders }

@@ -120,9 +120,11 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
         }
       }
       async function metadata(rev: number, rootRevision: number | null) {
-        const stateTotal = await count("storage_collection_state"), binderTotal = await count("binders")
-        const states = await readCompleteSnapshotRows(reader("storage_collection_state", STATE, "collection_id", rev, stateTotal), rev, r => String(r.collection_id))
-        const binders = await readCompleteSnapshotRows(reader("binders", "id,owner_user_id,name,is_default,sort_order,binder_rows,binder_cols,updated_at", "id", rev, binderTotal), rev, r => String(r.id))
+        const [stateTotal, binderTotal] = await Promise.all([count("storage_collection_state"), count("binders")])
+        const [states, binders] = await Promise.all([
+          readCompleteSnapshotRows(reader("storage_collection_state", STATE, "collection_id", rev, stateTotal), rev, r => String(r.collection_id)),
+          readCompleteSnapshotRows(reader("binders", "id,owner_user_id,name,is_default,sort_order,binder_rows,binder_cols,updated_at", "id", rev, binderTotal), rev, r => String(r.id)),
+        ])
         if (stateTotal !== binderTotal || binders.some(b => !states.some(s => s.collection_id === b.id)) || states.some(s => s.authority !== "slots")) {
           // A concurrent conversion/create is retryable; stable legacy is an honest boundary.
           if (await revision() !== rootRevision) conflict()
@@ -188,9 +190,11 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
             if (source.collection_id !== slot.collection_id) return unavailable()
             return { legacyRowId: source.legacy_row_id, sourceRow: source.source_row }
           }
-          const itemCount = await count("inventory_items"), placementCount = await count("inventory_placements"), slotCount = await count("binder_slots")
+          const [itemCount, placementCount, slotCount] = await Promise.all([count("inventory_items"), count("inventory_placements"), count("binder_slots")])
           const placementRows = await readCompleteSnapshotRows(reader("inventory_placements", "inventory_item_id,owner_user_id,collection_id,slot_id,version", "inventory_item_id", rev, placementCount), rev, r => String(r.inventory_item_id))
           const placements = placementRows.map(r => valid(normalizePlacement({ inventoryItemId: r.inventory_item_id, collectionId: r.collection_id, slotId: r.slot_id, version: r.version })))
+          const placementsBySlot = new Map(placements.map(p => [p.slotId, p]))
+          if (placementsBySlot.size !== placements.length) return unavailable()
           const collections = meta.states.map(s => valid(normalizeStorageCollection({ id: s.collection_id, ownerUserId: owner,
             name: meta.binders.find(b => b.id === s.collection_id)!.name, kind: s.kind, defaultPresentation: s.default_presentation, location: s.location, version: s.version })))
           const itemReader = reader("inventory_items", "id,owner_user_id,identity,grading,acquired_at,version,legacy_source", "id", rev, itemCount)
@@ -229,7 +233,7 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
                 slots: slotPage.slots.map(r => valid(normalizeBinderSlot({ id: r.id, ownerUserId: r.owner_user_id, collectionId: r.collection_id,
                   target: r.target, status: r.status, wantedCards: r.wanted_cards, version: r.version, presetOrigin: r.preset_origin,
                   legacySource: sourceForSlot(r),
-                  inventoryItemId: placements.find(p => p.slotId === r.id)?.inventoryItemId ?? null }))) })))
+                  inventoryItemId: placementsBySlot.get(String(r.id))?.inventoryItemId ?? null }))) })))
             }
             return { ...page, rows: binders }
           }
@@ -249,8 +253,8 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
             }) } },
             binders: binderReader,
           }, async () => {
-            if (await count("inventory_items") !== itemCount || await count("inventory_placements") !== placementCount
-              || await count("binder_slots") !== slotCount || snapshotSlotCount !== slotCount) conflict()
+            const [finalItems, finalPlacements, finalSlots] = await Promise.all([count("inventory_items"), count("inventory_placements"), count("binder_slots")])
+            if (finalItems !== itemCount || finalPlacements !== placementCount || finalSlots !== slotCount || snapshotSlotCount !== slotCount) conflict()
             if (JSON.stringify(await metadata(rev, rootRevision)) !== JSON.stringify(meta) || await revision() !== rootRevision) conflict()
             await sameScope()
             check()
