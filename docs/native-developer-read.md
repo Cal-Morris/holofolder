@@ -49,3 +49,7 @@ The cumulative source-byte budget includes catalog direct/alias/canonical, dex-l
 Card IDs are global opaque printing IDs; provider-local IDs are evidence scoped by game and source. Catalog card/set/series projections declare `game:"pokemon"`, the only supported game today. There is no game selector. Copies and card/free targets remain generic, including Trainers and Energy without dex links. `{kind:"pokemon",pokemonId}` continues to mean species, never a printing.
 
 Public species-row CRUD has been retired without aliases. Use the native copy, collection and stable-slot reads above. `get_pokemon_set_slots` at `/pokemon/sets/{id}/slots` groups set printings by National Dex species; its rows are not stable storage slots. Legacy Pokémon analytics is `get_legacy_pokemon_analytics` at `/legacy/pokemon/analytics`, and still fails closed on native/mixed owners. Activity's physical-copy filter is `inventoryItemId`; existing versioned command `itemId` fields remain unchanged.
+
+## Copied initial manifest reads
+
+`list_storage_collections` includes `presetManifest` (nullable), including optional migration-101 `setScope`. The shared strict schema preserves captured set/language/finish/promo/exclusion evidence independently of editable current slots. It adds no private inventory source, certificate or asset fields. Developer pages remain non-planner projections with the existing response byte budget and current credential/owner/partner checks. See [set persistence and prerequisites](set-preset-checklists.md).

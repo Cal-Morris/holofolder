@@ -1,5 +1,6 @@
 "use client"
 
+import { SetChecklistScopePreview } from "@/components/set-preset-picker"
 import { collectionDeletionEvidence, type CollectionDeletionDraft } from "@/lib/native-collection-deletion"
 import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import type { NativeRawRestoreBinding } from '@/lib/native-raw-restore'
@@ -434,6 +435,10 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
                 create: draft => create(draft, surface.openCreated) } })}>New storage</button>
             {surface.state.main === "collection" && surface.state.collectionId && <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm" disabled={!deletionAvailable} onClick={() => { closeAllOverlays(); setDeleting(surface.state.collectionId) }}>Delete collection</button>}</div>
 
+          {surface.state.main === "collection" && binder?.presetManifest?.setScope && <details className="mx-4 rounded-xl border border-border px-3 text-sm">
+            <summary className="min-h-10 cursor-pointer py-2">Saved checklist scope</summary>
+            <div className="max-h-48 overflow-y-auto pb-3"><SetChecklistScopePreview checklist={{ manifest: binder.presetManifest, scope: binder.presetManifest.setScope }} binder={binder} /></div>
+          </details>}
           <AcknowledgedCommandActivity record={valid() ? queue.record : null} scope={{ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }} />
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}

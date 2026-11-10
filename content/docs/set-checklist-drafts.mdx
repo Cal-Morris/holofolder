@@ -1,14 +1,16 @@
 ---
-title: Set checklist drafts
-summary: Internal previews of copied set and verified finish scopes, pending runtime enablement.
+title: Set checklists
+summary: Review a copied language and verified finish scope, save it, and keep editing your goals.
 ---
 
-Set checklist creation is currently an internal preview, not enabled saved creation.
+In **New storage**, choose **Set / variant checklist**, find the actual catalog set and select a language. Review the full mirrored card list, including Trainers, Energy, repeated Pokémon, secrets and subsets. Base checklist means any finish. Variant goals use only explicit verified Normal, Holo, Reverse holo or Jumbo flags. Missing/false/unknown flags remain unavailable. No checklist guarantees universal master-set completeness.
 
-The preview uses a full mirrored card list, including Trainers, supporters, items, Energy, repeated Pokémon, secrets and subsets. Choose a language and review the exact included card targets. Base checklist accepts any finish. A variant checklist includes only explicitly selected, catalog-verified Normal, Holo, Reverse holo or Jumbo finishes. Unsupported or missing evidence remains unavailable, regardless of rarity, price or grade. This is a scoped checklist, not a guarantee of universal master-set completeness.
+Select optional promos from an actual set and explicitly exclude any unwanted cards. Review the eligible targets and coverage warnings, then choose **Review storage** and **Confirm create storage**. This needs a current connected native collection read and migration 101. The device first retains the exact command; **Creation pending** is not a server save. Unknown outcomes retain the request for exact retry or reconciliation.
 
-Optional promos must be selected explicitly from an actual catalog set, and exclusions are shown before the draft is prepared. The copied scope does not subscribe to catalog updates. Current-target completion follows later edits; cards in free slots are extras. Removing a target removes that requirement.
+After confirmation by current storage, reopen the collection and expand **Saved checklist scope**. It preserves the exact language, verified finish scope, promos, exclusions and capture evidence. Saved scope can be viewed from this device's cached read-only startup. Loading uncached sets and preparing creation require connection.
 
-Retained scope evidence can be viewed offline. Loading uncached catalog evidence and preparing creation require a connection. Preparing the internal draft does not save a binder, acquire cards, record wanted entries or submit an offline operation. Durable creation and scope persistence remain gated.
+Your checklist is an independent initial copy. Catalog updates never alter it. Add free slots for extras, edit or remove targets, or append new goals. Completion follows current targets, not a permanent original-set membership rule. Normal never satisfies Reverse holo; one owned copy cannot fill two slots. Selecting goals creates no ownership, wants or grades.
 
-Existing catalog APIs support `list_sets`, `get_set`, `list_cards` and `get_card` with `catalog:read`. Page the card listing to browse a full set. There is no public set-preset creation operation in this release.
+For integrations, `create_storage_collection` / `POST /app/api/v1/storage/collections` accepts optional `manifest.setScope`; `list_storage_collections` / `GET` on that path returns `presetManifest`. Preserve the reviewed scope and exact operation/collection/slot IDs across retries. Current authenticated owner/partner, permissions and entitlements still apply. Server-side set/master-set generation through `preview_storage_preset` remains unsupported; the app's reviewed generator and existing catalog reads are the available preparation paths. Developer read pages are not browser save acknowledgements.
+
+Migration 101 must be applied before scoped creation. Existing bare manifests remain supported. This persistence slice does not add scoped raw restore or arrangement import support; those SQL allowlists remain separate. Backup export is not proof that a scoped restore can execute. Hosted integration and release verification remain parent-owned.

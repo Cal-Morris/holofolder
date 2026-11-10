@@ -56,7 +56,7 @@ export async function executePresetOperation(context: OperationContext, name: st
         result = { ...envelope, preset: { id: preset.id, version: preset.version }, manifest: normalizePresetManifest(manifest),
           scope: { kind: preset.id, ...(query.printings ? { printings: query.printings } : query.presetId === "blank" ? {} : { speciesIds: ids }) },
           targetCount: manifest.entries.length, freeSlotCount: 0, ownershipCreated: false,
-          exclusions: ["Set/master-set durable scope and complete variant coverage are unsupported.", ...(query.printings ? ["Only explicitly selected mirrored row IDs; no exhaustive species/form/set search or alias resolution."] : ["No separate species-form identities or card-printing expansion."])],
+          exclusions: ["Set/master-set preview generation and complete variant coverage are unsupported here. Reviewed manifest.setScope can be persisted through creation with migration 101.", ...(query.printings ? ["Only explicitly selected mirrored row IDs; no exhaustive species/form/set search or alias resolution."] : ["No separate species-form identities or card-printing expansion."])],
           unknowns: query.printings?.some(p => !p.finish) ? ["Omitted finish is unconstrained, not evidence that any particular finish exists."] : [] }
       }
       const after = await authority.scope(check, controller.signal)

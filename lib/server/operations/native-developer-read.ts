@@ -23,7 +23,7 @@ function project(state: Awaited<ReturnType<typeof readTrustedInventoryState>>) {
   const itemVersions = new Map(s.items.map(i => [i.id, i.version]))
   const collections = s.collections.map(c => {
     const b = s.binders.find(b => b.collectionId === c.id)!, grid = state.navigation.layouts.find(l => l.collectionId === c.id)
-    return { ...state.collectionMetadata[c.id], id: c.id, name: c.name, kind: c.kind, defaultPresentation: c.defaultPresentation, version: c.version,
+    return { ...state.collectionMetadata[c.id], presetManifest: b.presetManifest, id: c.id, name: c.name, kind: c.kind, defaultPresentation: c.defaultPresentation, version: c.version,
       ...(c.location !== undefined ? { location: c.location } : {}), layoutRevision: b.layoutRevision, slotCount: b.slots.length,
       grid: grid ? { rows: grid.rows, cols: grid.cols } : null }
   })

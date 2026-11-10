@@ -9490,7 +9490,7 @@
       "post": {
         "operationId": "create_storage_collection",
         "summary": "Create storage collection",
-        "description": " Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `create_storage_collection`.",
+        "description": " Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Migration 101 additionally accepts manifest.setScope, the exact reviewed language, verified finishes, promos, exclusions, coverage warnings and capture time. This is an independent copied initial list; goals remain editable and free slots can be appended. Catalog eligibility is checked at creation, not enforced on later edits. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `create_storage_collection`.",
         "tags": [
           "Collection"
         ],
@@ -9714,6 +9714,157 @@
                           ],
                           "additionalProperties": false
                         }
+                      },
+                      "setScope": {
+                        "type": "object",
+                        "properties": {
+                          "setId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "setName": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "language": {
+                            "type": "string",
+                            "enum": [
+                              "en",
+                              "fr",
+                              "de",
+                              "es",
+                              "it",
+                              "pt-br",
+                              "ja",
+                              "ko"
+                            ]
+                          },
+                          "finishes": {
+                            "maxItems": 4,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "normal",
+                                "holo",
+                                "reverse_holo",
+                                "jumbo"
+                              ]
+                            }
+                          },
+                          "capturedAt": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "officialCardCount": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "cards": {
+                            "maxItems": 4096,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "cardId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "setId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "localId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "languageConfirmed": {
+                                  "type": "boolean"
+                                },
+                                "verifiedFinishes": {
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "normal",
+                                      "holo",
+                                      "reverse_holo",
+                                      "jumbo"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "cardId",
+                                "setId",
+                                "localId",
+                                "name",
+                                "languageConfirmed",
+                                "verifiedFinishes"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "promoCardIds": {
+                            "maxItems": 4096,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "excludedCardIds": {
+                            "maxItems": 4096,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "warnings": {
+                            "maxItems": 10,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 1000
+                            }
+                          }
+                        },
+                        "required": [
+                          "setId",
+                          "setName",
+                          "language",
+                          "finishes",
+                          "capturedAt",
+                          "officialCardCount",
+                          "cards",
+                          "promoCardIds",
+                          "excludedCardIds",
+                          "warnings"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "required": [
@@ -10255,7 +10406,7 @@
       "get": {
         "operationId": "list_storage_collections",
         "summary": "List storage collections",
-        "description": "Page current native storage metadata, private location, counts and independent collection/layout revisions. Mixed legacy owners fail closed. Copied preset discovery/preview uses the separate preset operations.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_storage_collections`.",
+        "description": "Page current native storage metadata, the copied initial presetManifest including optional setScope historical evidence, private location, counts and independent collection/layout revisions. Mixed legacy owners fail closed. Copied preset discovery/preview uses the separate preset operations.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_storage_collections`.",
         "tags": [
           "Collection"
         ],
@@ -10317,6 +10468,300 @@
                       "items": {
                         "type": "object",
                         "properties": {
+                          "presetManifest": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "version": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "version"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "entries": {
+                                    "maxItems": 4096,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "target": {
+                                          "anyOf": [
+                                            {
+                                              "oneOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "const": "pokemon"
+                                                    },
+                                                    "pokemonId": {
+                                                      "type": "integer",
+                                                      "minimum": 1,
+                                                      "maximum": 9007199254740991
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "pokemonId"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "const": "card"
+                                                    },
+                                                    "cardId": {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 200
+                                                    },
+                                                    "language": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "en",
+                                                        "fr",
+                                                        "de",
+                                                        "es",
+                                                        "it",
+                                                        "pt-br",
+                                                        "ja",
+                                                        "ko"
+                                                      ]
+                                                    },
+                                                    "finish": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "normal",
+                                                        "holo",
+                                                        "reverse_holo",
+                                                        "double_rare",
+                                                        "ultra_rare",
+                                                        "illustration_rare",
+                                                        "special_illustration_rare",
+                                                        "secret_rare",
+                                                        "hyper_rare",
+                                                        "radiant_rare",
+                                                        "ace_spec",
+                                                        "amazing_rare",
+                                                        "shiny_rare",
+                                                        "jumbo"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "cardId"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "target"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "setScope": {
+                                    "type": "object",
+                                    "properties": {
+                                      "setId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "setName": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "language": {
+                                        "type": "string",
+                                        "enum": [
+                                          "en",
+                                          "fr",
+                                          "de",
+                                          "es",
+                                          "it",
+                                          "pt-br",
+                                          "ja",
+                                          "ko"
+                                        ]
+                                      },
+                                      "finishes": {
+                                        "maxItems": 4,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "enum": [
+                                            "normal",
+                                            "holo",
+                                            "reverse_holo",
+                                            "jumbo"
+                                          ]
+                                        }
+                                      },
+                                      "capturedAt": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "officialCardCount": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "cards": {
+                                        "maxItems": 4096,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "cardId": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            "setId": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            "localId": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            "languageConfirmed": {
+                                              "type": "boolean"
+                                            },
+                                            "verifiedFinishes": {
+                                              "maxItems": 4,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "normal",
+                                                  "holo",
+                                                  "reverse_holo",
+                                                  "jumbo"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "cardId",
+                                            "setId",
+                                            "localId",
+                                            "name",
+                                            "languageConfirmed",
+                                            "verifiedFinishes"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "promoCardIds": {
+                                        "maxItems": 4096,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        }
+                                      },
+                                      "excludedCardIds": {
+                                        "maxItems": 4096,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        }
+                                      },
+                                      "warnings": {
+                                        "maxItems": 10,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "maxLength": 1000
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "setId",
+                                      "setName",
+                                      "language",
+                                      "finishes",
+                                      "capturedAt",
+                                      "officialCardCount",
+                                      "cards",
+                                      "promoCardIds",
+                                      "excludedCardIds",
+                                      "warnings"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "name",
+                                  "entries"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1,
@@ -10415,6 +10860,7 @@
                           }
                         },
                         "required": [
+                          "presetManifest",
                           "id",
                           "name",
                           "kind",

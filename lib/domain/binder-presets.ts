@@ -1,3 +1,4 @@
+import { parseSetChecklist } from "@/lib/set-preset"
 import type { CardFinish, CardLanguage } from "@/lib/domain/cards"
 import {
   isContractRecord, isSlotContractId, normalizeSlotTarget,
@@ -13,13 +14,15 @@ export interface PresetDefinition {
   source: PresetSource
   name: string
   entries: { id: string; target: SlotTarget | null }[]
+  /** Versioned historical evidence for the initial list, never enforced membership. */
+  setScope?: SetChecklistScope
 }
 
 /** A detached copy of a definition, never a live catalog/preset subscription. */
 export type PresetManifest = PresetDefinition
 
 export function normalizePresetDefinition(value: unknown): PresetDefinition | undefined {
-  if (!isContractRecord(value, ["source", "name", "entries"]) || !isContractRecord(value.source, ["id", "version"])
+  if (!isContractRecord(value, ["source", "name", "entries", "setScope"]) || !isContractRecord(value.source, ["id", "version"])
     || !isSlotContractId(value.source.id) || !isSlotContractId(value.source.version)
     || typeof value.name !== "string" || !value.name.trim() || !Array.isArray(value.entries)) return undefined
   const entries: PresetDefinition["entries"] = []
@@ -31,7 +34,12 @@ export function normalizePresetDefinition(value: unknown): PresetDefinition | un
     ids.add(entry.id)
     entries.push({ id: entry.id, target })
   }
-  return { source: { id: value.source.id, version: value.source.version }, name: value.name, entries }
+  const manifest: PresetDefinition = { source: { id: value.source.id, version: value.source.version }, name: value.name, entries }
+  if (value.setScope !== undefined) {
+    try { manifest.setScope = parseSetChecklist({ manifest, scope: value.setScope }, true).scope }
+    catch { return undefined }
+  }
+  return manifest
 }
 
 export function normalizePresetManifest(value: unknown): PresetManifest | undefined {
@@ -58,7 +66,7 @@ export function instantiatePreset(
   }
 }
 
-/** Internal draft evidence, kept alongside the 083-compatible copied target manifest. */
+/** Captured checklist evidence, persisted with the copied initial manifest by migration 101. */
 export interface SetChecklistScope {
   setId: string
   setName: string

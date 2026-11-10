@@ -35,7 +35,7 @@ export const COPIED_PRESETS: z.infer<typeof preset>[] = [
   { id: "selected-printings", version: "1", name: "Selected printings", supported: true, scope: "explicit mirrored row IDs in caller order, repeats allowed",
     limitation: "At most 100 targets and 25 unique printings. Exact language required. Only verified normal, holo, reverse_holo or jumbo finish flags; omitted finish is unconstrained. No alias resolution or exhaustive search." },
   ...["set", "master-set"].map(id => ({ id, version: "1" as const, name: id === "set" ? "Set" : "Master set", supported: false,
-    scope: "unsupported", limitation: "Durable set/checklist coverage scope is not persisted by creation. No complete set or variant-family claim." })),
+    scope: "unsupported", limitation: "Server-side set preview generation is unsupported here. Creation accepts a reviewed manifest.setScope with migration 101; no complete set or variant-family claim." })),
 ]
 export const PRESET_OPERATIONS: readonly DeveloperOperation[] = [
   { name: "list_storage_presets", method: "GET", path: "/storage/presets", permissions: PRESET_PERMISSIONS, write: false,

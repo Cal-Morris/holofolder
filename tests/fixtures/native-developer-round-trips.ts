@@ -1,3 +1,5 @@
+import { generateSetChecklist } from "../../lib/set-preset"
+import { syntheticPresetCards, syntheticPresetSet } from "./set-preset"
 import { rawRestoreFixture } from './raw-restore'
 import { planRawContentRestore } from '../../lib/raw-restore-plan'
 import assert from 'node:assert/strict'
@@ -139,6 +141,12 @@ async function main() {
   assert.equal(paddedLegacy.status, 413, 'legacy MCP framing keeps its actual-byte limit, including whitespace')
   for (const transport of ['rest', 'mcp'] as const) {
     raw.planning = { actorUserId: actor, ownerUserId: owner, source: transport, credentialId, authSessionId: null, partnershipId: collectionId, partnerUserId: actor }
+    const checklist = generateSetChecklist({ set: syntheticPresetSet, cards: syntheticPresetCards, promos: [], excludedCardIds: ['synthetic-set-2'], finishes: ['normal','reverse_holo'], language: 'en', capturedAt: '2026-11-10T12:00:00.000Z' })
+    const scoped = { ...creation, operationId: 'synthetic-set-creation-' + transport,
+      manifest: { ...checklist.manifest, setScope: checklist.scope }, slotIds: checklist.manifest.entries.map((_, n) => 'synthetic-set-slot-' + n) }
+    const scopedResult = await call(transport, 'create_storage_collection', scoped)
+    assert.equal(scopedResult.status, 200, JSON.stringify(scopedResult.raw))
+    assert.deepEqual(calls.at(-1)!.request, scoped, 'shared authenticated bridge retains exact scope')
     const legacyPreview = await call(transport, 'preview_collection_recovery', { eventId: '12' })
     assert.equal(legacyPreview.result.supported, true, JSON.stringify(legacyPreview.raw))
     assert.equal(legacyPreview.result.rootRevisionsAdvance, false)

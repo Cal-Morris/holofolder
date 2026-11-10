@@ -1,3 +1,5 @@
+import { generateSetChecklist } from "../../lib/set-preset"
+import { syntheticPresetCards, syntheticPresetSet } from "./set-preset"
 import assert from "node:assert/strict"
 import { fixture, owner, collection } from "./inventory-read-server"
 import { createDeveloperKey } from "../../lib/server/developer-access/key-secret"
@@ -114,6 +116,14 @@ async function main() {
     if (change === "metadata") f.tables.binders[0].name = "Synthetic changed"
     if (change === "settings") f.tables.user_settings.push({ user_id: owner, binder_rows: 4, binder_cols: 3, updated_at: "2099-01-01" })
     await assert.rejects(read("list_inventory_items", { limit: 1, cursor: before.nextCursor }), { code: "stale_native_cursor" })
+  }
+  reset(0)
+  const checklist = generateSetChecklist({ set: syntheticPresetSet, cards: syntheticPresetCards, promos: [], excludedCardIds: [], finishes: [], language: "en", capturedAt: "2026-11-10T12:00:00.000Z" })
+  const copiedManifest = { ...checklist.manifest, setScope: checklist.scope }
+  f.tables.storage_collection_state[0].preset_manifest = copiedManifest
+  for (const transport of ["rest", "mcp"] as const) {
+    const list = (await call(transport, "list_storage_collections", {})).result
+    assert.deepEqual(list.data[0].presetManifest, copiedManifest)
   }
   // Slot continuations preserve persisted positions over the full >1000-slot stream.
   reset()

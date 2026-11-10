@@ -1,9 +1,13 @@
-# Set checklist release copy, unpublished
+# Draft: Keep your reviewed set checklist
 
-Status: internal preview/draft work for #372/#373. Do not publish until #379 and durable scope/creation, partner/offline runtime and deployment acceptance are verified.
+Unpublished. Related #372/#373. Parent must apply migration 101 after 073–099, integrate/review/merge, verify deployed enabled app/API/help and approve the final feature block before publication. No hosted application, release or issue completion is claimed here.
 
-Copy for the enabled release:
+Start a set checklist from **New storage**, review the real catalog list and choose the language and verified finishes you want to collect. Add specific promos or exclude cards before confirming.
 
-Start a binder from a set's catalogued cards, including Trainers and Energy. Preview the exact checklist, choose your language and verified finishes, and add selected promos or exclude cards. Missing catalog evidence stays visible. Change the checklist later, with progress based on the targets you keep and free-slot extras counted separately.
+Your saved collection keeps that exact scope and its coverage warnings. Reopen **Saved checklist scope** to see what was copied, including from cached read-only storage on this device. Catalog updates never quietly change your goals.
 
-Before publication: replace draft links with verified live help/API links, attach the enabled production SHA/deployment, and verify Framer feature/changelog URLs. Never describe this private draft surface as saved creation or a universally complete master set. No publication was performed in this implementation block.
+The checklist is yours to edit: free slots can hold extras, targets can change and unwanted targets can be removed. Starting a checklist adds goals, never owned copies, grades or wants. Missing language or finish evidence stays unavailable; this is not a guarantee of a universally complete master set.
+
+REST/MCP creation accepts the reviewed scope and saved collection reads return it. Server-side set preset generation and scoped restore/import remain outside this slice. Keep unknown creation outcomes for exact retry; pending on the device is not a confirmed server save.
+
+Affected Framer surfaces for parent: the existing collection/set feature help and the grouped #372/#373 release article/changelog. Reuse the existing CMS after release evidence, no site writes from this lane.

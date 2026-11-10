@@ -58,11 +58,12 @@ export function printingPreset(cards: readonly SearchCardResult[]): PresetDefini
 export function prepareBinderCreation(draft: BinderCreationDraft, base: InventorySnapshot, context: OperationIntentContext,
   collectionId: string, slotIds: string[], grid: { rows: number; cols: number } | null = null) {
   if (!isCompleteInventorySnapshot(base) || base.ownerUserId !== draft.ownerUserId) throw new Error("verified-complete-native-base-required")
-  if (draft.setChecklist) throw new Error("set-checklist-persistence-unavailable")
+  const reviewed = parseBinderCreationDraft(draft)
+  const manifest = reviewed.setChecklist ? { ...reviewed.manifest, setScope: reviewed.setChecklist.scope } : reviewed.manifest
   if (context.operationId !== draft.operationId) throw new Error("operation-id-mismatch")
   const intent = parseSlotIntent({ kind: "creation", context, request: { version: 1, operationId: draft.operationId,
     inventoryRevision: base.inventoryRevision, collectionId, slotIds, name: draft.name,
-    kind: draft.kind, defaultPresentation: getStoragePresentationDefault(draft.kind), location: draft.location, grid, manifest: draft.manifest } })
+    kind: draft.kind, defaultPresentation: getStoragePresentationDefault(draft.kind), location: draft.location, grid, manifest } })
   freeze(intent)
   return intent
 }
