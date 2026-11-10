@@ -51,3 +51,5 @@ Files in `superpowers/plans/` and `superpowers/specs/`, [the rebrand checklist](
 - [Staged slot/inventory offline intent](slot-inventory-offline.md): private durable queue, complete reads, reconciliation and rollout boundaries (#363).
 
 - [Staged scanner destination acceptance](scan-destinations.md): opt-in card/page scanner wiring, captured stable IDs, durable confirmed batches and unresolved append/host/runtime gates (#375).
+
+- [Staged Slabs renderer/gallery](slab-rendering.md): explicit provider/version layouts, safe DTOs, navigation and the remaining #389/#390/#379 gates.

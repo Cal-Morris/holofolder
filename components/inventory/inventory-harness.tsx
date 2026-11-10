@@ -13,7 +13,7 @@ import { completeInventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowse
 export default function InventoryHarness() {
   const [navigation, setNavigation] = useState(false)
   useEffect(() => { queueMicrotask(() => setNavigation(new URLSearchParams(window.location.search).has("navigation"))) }, [])
-  return navigation ? <NavigationHarness /> : <InventoryBrowseHarness />
+  return navigation ? <NavigationHarness slabs={new URLSearchParams(window.location.search).has("slabs")} /> : <InventoryBrowseHarness />
 }
 function InventoryBrowseHarness() {
   const [snapshot, setSnapshot] = useState<CompleteInventorySnapshot | null>(null)
