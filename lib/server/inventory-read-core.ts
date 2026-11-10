@@ -1,4 +1,4 @@
-import { readInventoryCatalog } from "@/lib/server/inventory-read-catalog"
+import { concurrent, readInventoryCatalog } from "@/lib/server/inventory-read-catalog"
 import { isBinderGridSize, withBinderLayout } from "@/lib/binder-layout"
 import { settingsFromRow } from "@/lib/settings"
 import type { InventoryNavigationEvidence, InventoryReadEvidence } from "@/lib/collection/inventory-read-transport"
@@ -204,13 +204,18 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
           const storage: InventoryReadEvidence["storage"] = []
           const binderReader = async (after: string | null) => {
             const page = await collectionReader(after)
-            const binders = []
-            for (const s of page.rows) {
+            // Collection streams are independent: up to four at once, pages within a stream stay sequential.
+            // After any failure, queued streams and later pages stop before spending the shared budget.
+            let failed = false
+            const stopped = () => { if (failed) unavailable() }
+            const streams = await concurrent(page.rows, async s => { try {
+              stopped()
               if (JSON.stringify(s) !== JSON.stringify(meta.states.find(state => state.collection_id === s.collection_id))) conflict()
               const collectionId = String(s.collection_id), slotCount = await count("binder_slots", collectionId)
               let loaded = 0
               const slotPage = await readAllSlotPages(async continuation => {
                 if (continuation && (continuation.inventoryRevision !== rev || continuation.collectionVersion !== s.version || continuation.layoutRevision !== s.layout_revision)) conflict()
+                stopped()
                 check()
                 let query = db.from("binder_slots").select(SLOT).eq("owner_user_id", owner).eq("collection_id", collectionId)
                   .order("position", { ascending: true }).limit(PAGE)
@@ -225,12 +230,19 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
                 return { inventoryRevision: rev, collectionVersion: s.version as number, layoutRevision: s.layout_revision as number,
                   slots: slots as Array<{ id: string; position: number } & Row>, nextPosition: loaded < slotCount ? slots.at(-1)!.position as number : null }
               })
-              if (loaded !== slotCount || await count("binder_slots", collectionId) !== slotCount) conflict()
-              for (const slot of slotPage.slots) slotPositions[slot.id] = slot.position
-              snapshotSlotCount += loaded
+              if (loaded !== slotCount) conflict()
+              stopped()
+              if (await count("binder_slots", collectionId) !== slotCount) conflict()
+              return { s, collectionId, slotCount, slots: slotPage.slots }
+            } catch (error) { failed = true; throw error } })
+            // Publish in collection page order, never completion order.
+            const binders = []
+            for (const { s, collectionId, slotCount, slots } of streams) {
+              for (const slot of slots) slotPositions[slot.id] = slot.position
+              snapshotSlotCount += slotCount
               storage.push({ collectionId, collectionVersion: s.version as number, layoutRevision: s.layout_revision as number, slotCount })
               binders.push(valid(normalizeBinderSnapshot({ ownerUserId: owner, collectionId, layoutRevision: s.layout_revision as number, presetManifest: s.preset_manifest,
-                slots: slotPage.slots.map(r => valid(normalizeBinderSlot({ id: r.id, ownerUserId: r.owner_user_id, collectionId: r.collection_id,
+                slots: slots.map(r => valid(normalizeBinderSlot({ id: r.id, ownerUserId: r.owner_user_id, collectionId: r.collection_id,
                   target: r.target, status: r.status, wantedCards: r.wanted_cards, version: r.version, presetOrigin: r.preset_origin,
                   legacySource: sourceForSlot(r),
                   inventoryItemId: placementsBySlot.get(String(r.id))?.inventoryItemId ?? null }))) })))
