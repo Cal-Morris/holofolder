@@ -99,6 +99,15 @@ async function main() {
   for (const bad of ["bad", first.nextCursor + "x", "a".repeat(1025)]) await assert.rejects(read("list_inventory_items", { limit: 100, cursor: bad }))
   for (const input of [{ limit: 99, cursor: first.nextCursor }, { limit: 100, cursor: first.nextCursor, cardId: "synthetic-energy" }]) await assert.rejects(read("list_inventory_items", input), { code: "invalid_pagination" })
   await assert.rejects(read("list_inventory_items", { limit: 100, cursor: first.nextCursor }, "mcp"), { code: "invalid_pagination" })
+  const oauthPage = await read("list_inventory_items", { limit: 100 }, "mcp")
+  for (const field of ["sessionId", "clientId", "expiresAt"] as const) {
+    const saved = { ...oauth }
+    if (field === "expiresAt") oauth.expiresAt += 60
+    else oauth[field] = "77777777-7777-4777-8777-777777777777"
+    await assert.rejects(read("list_inventory_items", { limit: 100, cursor: oauthPage.nextCursor }, "mcp"), { code: "invalid_pagination" })
+    Object.assign(oauth, saved)
+  }
+  assert.equal((await read("list_inventory_items", { limit: 100, cursor: oauthPage.nextCursor }, "mcp")).data.length, 100)
   for (const change of ["inventory", "content", "layout", "metadata", "settings"]) {
     reset(3)
     const before = await read("list_inventory_items", { limit: 1 })

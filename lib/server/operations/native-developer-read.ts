@@ -65,11 +65,13 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
       inventoryRevision: state.snapshot.inventoryRevision, readRevision }
     const params = new URLSearchParams(Object.entries(query).filter(([key]) => key !== "cursor").map(([key, value]) => [key, String(value)]))
     const { limit } = decodePage(params)
-    const scope = hash({ actor: context.principal.actorId, owner: context.ownerUserId, members: [...context.memberIds].sort(),
-      credential: context.principal.credentialId, transport: context.principal.transport, permissions: [...context.principal.permissions].sort(),
-      oauth: context.principal.oauth ?? null, name, query: [...params].sort() })
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!secret) throw new Error("Cursor signing unavailable")
+    const oauth = context.principal.oauth
+    const scope = createHmac("sha256", secret).update("native-read-scope-v1:").update(JSON.stringify({ actor: context.principal.actorId, owner: context.ownerUserId, members: [...context.memberIds].sort(),
+      credential: context.principal.credentialId, transport: context.principal.transport, permissions: [...context.principal.permissions].sort(),
+      oauth: oauth ? { sessionId: oauth.sessionId, clientId: oauth.clientId, expiresAt: oauth.expiresAt } : null,
+      name, query: [...params].sort() })).digest("hex")
     const sign = (body: string) => createHmac("sha256", secret).update(`native-read-v1:${body}`).digest("base64url")
     let after: string | null = null
     if (query.cursor !== undefined) {
