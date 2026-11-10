@@ -29,3 +29,8 @@
 .identifier { font-size: .75rem; color: var(--muted-foreground); }
 
 .notice summary { min-height: 44px; padding-block: .65rem; cursor: pointer; }
+.actions { display: grid; gap: .65rem; min-width: 0; border: 0; padding: 0; }
+.ownership { margin-bottom: 1rem; }
+.actionReview { display: grid; gap: .65rem; padding: .75rem; border: 1px solid var(--border); border-radius: .75rem; background: var(--muted); }
+.actionReview p { font-size: .875rem; }
+.sheet button:disabled { opacity: .5; transform: none; }

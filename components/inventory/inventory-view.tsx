@@ -13,10 +13,13 @@ import { normalizeInventoryViewState, type InventoryViewState } from "@/lib/coll
 import { selectInventoryCollection, valueInventoryCollection } from "@/lib/collection/inventory-projection"
 import { useInventoryPrices } from "@/hooks/use-inventory-prices"
 import type { PricingRegion } from "@/lib/pricing-region"
+import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import styles from "./inventory.module.css"
 
+const InventoryAddOwned = dynamic(() => import("./inventory-ownership").then(module => module.InventoryAddOwned), { ssr: false })
 const InventoryDetail = dynamic(() => import("./inventory-detail"), { ssr: false })
 export interface InventoryViewProps {
+  ownership?: InventoryOwnershipBinding
   onEditGrading?: (itemId: string) => void
   pricingRegion?: PricingRegion
   initialBrowseState?: InventoryViewState
@@ -28,16 +31,18 @@ export interface InventoryViewProps {
   /** Host re-resolves the stable IDs against current authorized evidence before navigating. */
   onOpenLocation?: (intent: InventoryLocationIntent) => void
 }
-export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation, onEditGrading, initialBrowseState, onBrowseStateChange, pricingRegion = "UK" }: InventoryViewProps) {
+export default function InventoryView({ scope, evidence, catalog, layouts, onOpenLocation, onEditGrading, initialBrowseState, onBrowseStateChange, ownership, pricingRegion = "UK" }: InventoryViewProps) {
   const index = useMemo(() => buildInventoryBrowseIndex(scope, evidence, catalog, layouts), [scope, evidence, catalog, layouts])
+  const activeOwnership = index.kind === "complete" && evidence.kind === "complete" && ownership?.snapshot.ownerUserId === scope.ownerUserId
+    && ownership.snapshot.inventoryRevision === evidence.snapshot.inventoryRevision ? ownership : undefined
   // Synchronous remount prevents even a single paint of another account's selection/query/cursor.
-  return <InventoryResults key={index.key} index={index} pricingRegion={pricingRegion} onOpenLocation={onOpenLocation} onEditGrading={onEditGrading} initialBrowseState={initialBrowseState} onBrowseStateChange={onBrowseStateChange} />
+  return <InventoryResults key={index.key} index={index} ownership={activeOwnership} pricingRegion={pricingRegion} onOpenLocation={onOpenLocation} onEditGrading={onEditGrading} initialBrowseState={initialBrowseState} onBrowseStateChange={onBrowseStateChange} />
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className={styles.field}><span>{label}</span>{children}</label>
 }
-function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditGrading, initialBrowseState, onBrowseStateChange }: Pick<InventoryViewProps, "pricingRegion" | "onEditGrading" | "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange"> & { index: InventoryBrowseIndex }) {
+function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditGrading, initialBrowseState, onBrowseStateChange, ownership }: Pick<InventoryViewProps, "ownership" | "pricingRegion" | "onEditGrading" | "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange"> & { index: InventoryBrowseIndex }) {
   const [initial] = useState(() => {
     const state = normalizeInventoryViewState(initialBrowseState)
     return { query: state.query, ...restoreInventoryWindow(index, state.query, state.window) }
@@ -47,6 +52,13 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
   const [previous, setPrevious] = useState<(InventoryBrowseCursor | null)[]>(initial.previous)
   useEffect(() => { onBrowseStateChange?.({ query, window: previous.length }) }, [query, previous.length, onBrowseStateChange])
   const [selected, setSelected] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const pendingInspect = useRef<string | null>(null)
+  useEffect(() => {
+    if (adding || !pendingInspect.current) return
+    const id = pendingInspect.current; pendingInspect.current = null
+    runAfterOverlayHistory(() => setSelected(id))
+  }, [adding])
   const pendingGrading = useRef<string | null>(null)
   useEffect(() => {
     if (selected || !pendingGrading.current) return
@@ -72,6 +84,7 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
   const valuation = projection ? valueInventoryCollection(projection, prices, pricingRegion) : null
   return <section className={styles.view} aria-label="Inventory">
     <header><h1>Inventory</h1><p>What you own and where it is stored.</p></header>
+    {ownership?.available && index.kind === "complete" && <button type="button" className="min-h-11 rounded-xl border border-border px-3" onClick={() => setAdding(true)}>Add owned card</button>}
     {index.kind === "unavailable" ? <div role="status" className={styles.notice}>
       <h2>Inventory unavailable</h2><p>A complete inventory could not be loaded. Your existing collection has not been counted here. Try again when inventory is available.</p>
     </div> : <>
@@ -135,6 +148,7 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
         </nav>
       </>}
     </>}
-    {row && <InventoryDetail row={row} onEditGrading={onEditGrading ? () => { pendingGrading.current = row.itemId; setSelected(null) } : undefined} cached={index.kind === "cached"} onClose={() => setSelected(null)} onOpenLocation={onOpenLocation ? intent => { pendingLocation.current = intent; setSelected(null) } : undefined} />}
+    {adding && ownership?.available && index.kind === "complete" && <InventoryAddOwned binding={ownership} onClose={() => setAdding(false)} onInspect={id => { pendingInspect.current = id; setAdding(false) }} />}
+    {row && <InventoryDetail row={row} ownership={ownership} onEditGrading={onEditGrading ? () => { pendingGrading.current = row.itemId; setSelected(null) } : undefined} cached={index.kind === "cached"} onClose={() => setSelected(null)} onOpenLocation={onOpenLocation ? intent => { pendingLocation.current = intent; setSelected(null) } : undefined} />}
   </section>
 }

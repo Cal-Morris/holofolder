@@ -17,7 +17,7 @@ const fixtures = new Map<string, ReturnType<typeof fixture>>()
 export function storageCommandHarness(id: string) {
   let f = fixtures.get(id)
   if (f) return f
-  const owner = (id.startsWith("grading-partner-") || id.startsWith("backup-partner-")) ? "11111111-1111-4111-8111-111111111111" : actor
+  const owner = (id.startsWith("grading-partner-") || id.startsWith("backup-partner-") || id.startsWith("raw-partner-")) ? "11111111-1111-4111-8111-111111111111" : actor
   f = fixture(0, owner, "synthetic-e2e-auth-session")
   const state = f
   if (owner !== actor) {
@@ -101,7 +101,29 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[4].status = "collected"
   }
 
+  if (id.startsWith("raw-")) {
+    // Synthetic raw ownership loop. No hosted catalog, accounts, SQL or audit engine.
+    const other = "33333333-3333-4333-8333-333333333333"
+    state.tables.binders.push({ ...state.tables.binders[0], id: other, name: "Synthetic second storage" })
+    state.tables.storage_collection_state.push({ ...state.tables.storage_collection_state[0], collection_id: other })
+    state.tables.binder_slots.push({ ...state.tables.binder_slots[0], id: "synthetic-other-slot", collection_id: other, position: 0 })
+    state.tables.tcg_sets = [{ id: "synthetic", name_en: "Synthetic raw set" }]
+    state.tables.tcg_cards = [{ id: "synthetic-raw", set_id: "synthetic", local_id: "1", name_en: "Synthetic raw card", name_json: { en: "Synthetic raw card" }, external_ids_json: {} }]
+    state.tables.tcg_card_dex_ids = [{ card_id: "synthetic-raw", dex_id: 143 }]
+    for (let n = 0; n < 3; n++) state.tables.inventory_items.push({ id: `synthetic-raw-copy-${n}`, owner_user_id: owner,
+      identity: { kind: "card", cardId: "synthetic-raw" }, grading: n === 2 ? emptyGradingRecord() : null,
+      acquired_at: "2026-01-02T00:00:00Z", version: 2, legacy_source: { original: ["00007", null] } })
+    state.tables.inventory_items.push({ id: "synthetic-raw-unknown", owner_user_id: owner,
+      identity: { kind: "card", cardId: "synthetic-unknown" }, grading: null, acquired_at: null, version: 0, legacy_source: null })
+    state.tables.inventory_placements.push({ inventory_item_id: "synthetic-raw-copy-0", owner_user_id: owner,
+      collection_id: collection, slot_id: "synthetic-slot-0", version: 3 })
+    state.tables.binder_slots[0].target = { kind: "pokemon", pokemonId: 143 }
+    state.tables.binder_slots[0].status = "collected"
+    state.tables.binder_slots[2].target = { kind: "pokemon", pokemonId: 25 }
+  }
+  let removedRaw: { item: Record<string, unknown>; placement?: Record<string, unknown> } | null = null
   let creationRejected = false
+
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
   const originalRpc = state.client.rpc.bind(state.client)
   // Synthetic HTTP response, real Supabase RPC builder and trusted audit context.
@@ -120,10 +142,13 @@ export function storageCommandHarness(id: string) {
         const version = input.operation.endsWith(".v2") ? 2 : 1
         if (input.operation.startsWith("recovery.preview")) {
           const unsupported = recovery.eventId === "102" ? ["private_assets_unverifiable"] : []
-          const conflicts = recovery.eventId === "103" ? [{ reason: "slot_version_changed", entity: "synthetic-slot-0" }] : []
+          const rawPlacement = recovery.eventId === "104" && removedRaw?.placement
+          const rawOccupied = rawPlacement && state.tables.inventory_placements.some(p => p.slot_id === rawPlacement.slot_id)
+          const restoreUnassigned = Array.isArray(recovery.restoreUnassignedItemIds) && recovery.restoreUnassignedItemIds.includes(String(removedRaw?.item.id))
+          const conflicts = rawOccupied && !restoreUnassigned ? [{ reason: "slot_version_changed", entity: String(rawPlacement.slot_id) }] : recovery.eventId === "103" ? [{ reason: "slot_version_changed", entity: "synthetic-slot-0" }] : []
           return Response.json({ planVersion: version, eventId: recovery.eventId, supported: !unsupported.length, unsupported, conflicts,
             planToken: unsupported.length || conflicts.length ? null : "a".repeat(64), restoreUnassignedItemIds: recovery.restoreUnassignedItemIds,
-            changes: version === 2 ? [{ table: "binders", id: "synthetic-original-default", before: { name: "Synthetic original default", is_default: true }, after: null },
+            changes: recovery.eventId === "104" && removedRaw ? [{ table: "inventory_items", id: removedRaw.item.id, before: null, after: { identity: removedRaw.item.identity, version: removedRaw.item.version } }] : version === 2 ? [{ table: "binders", id: "synthetic-original-default", before: { name: "Synthetic original default", is_default: true }, after: null },
               { table: "binders", id: collection, before: { name: "Synthetic storage", is_default: false }, after: { name: "Synthetic storage", is_default: true } }]
               : [{ table: "binder_slots", id: "synthetic-slot-0", before: { status: "collected" }, after: { status: "wishlisted" } }], rootRevisionsAdvance: true })
         }
@@ -134,7 +159,16 @@ export function storageCommandHarness(id: string) {
         if (recovery.planToken !== "a".repeat(64)) return Response.json({ code: "40001" }, { status: 409 })
         const revision = Number(state.tables.inventory_owner_state[0].inventory_revision) + 1
         state.tables.inventory_owner_state[0].inventory_revision = revision
-        state.tables.binder_slots[0].status = "wishlisted"
+        if (recovery.eventId === "104" && removedRaw) {
+          // Fixture recovery only. Production version/token safety is proved by the existing SQL tests.
+          state.tables.inventory_items.push({ ...removedRaw.item })
+          const unassigned = Array.isArray(recovery.restoreUnassignedItemIds) && recovery.restoreUnassignedItemIds.includes(String(removedRaw.item.id))
+          if (removedRaw.placement && !unassigned) {
+            if (state.tables.inventory_placements.some(p => p.slot_id === removedRaw!.placement!.slot_id)) return Response.json({ code: "40001" }, { status: 409 })
+            state.tables.inventory_placements.push({ ...removedRaw.placement })
+            state.tables.binder_slots.find(s => s.id === removedRaw!.placement!.slot_id)!.status = "collected"
+          }
+        } else state.tables.binder_slots[0].status = "wishlisted"
         const result = { inventoryRevision: revision, eventId: "201", recoveredEventId: recovery.eventId,
           collections: [{ collectionId: collection, version: state.tables.storage_collection_state[0].version, layoutRevision: state.tables.storage_collection_state[0].layout_revision }] }
         ledger.set(key, { body, audit, result })
@@ -177,11 +211,19 @@ export function storageCommandHarness(id: string) {
       const catalog = browserHostCatalog(await readInventoryCatalog(state.client, snapshot, new AbortController().signal, () => {}))
       const next = projectSlotIntent(snapshot, { kind: input.operation, request,
         context: { source: "app", clientId: null, operationId: key, batchId: key, clientOccurredAt: null } } as Parameters<typeof projectSlotIntent>[1], catalog)
+      if (id.startsWith("raw-")) {
+        const removed = snapshot.items.find(i => !next.items.some(n => n.id === i.id))
+        if (removed) removedRaw = { item: structuredClone(state.tables.inventory_items.find(i => i.id === removed.id)!),
+          placement: structuredClone(state.tables.inventory_placements.find(p => p.inventory_item_id === removed.id)) }
+      }
       state.tables.inventory_owner_state[0].inventory_revision = next.inventoryRevision
-      state.tables.storage_collection_state[0].version = next.collections[0].version
-      state.tables.storage_collection_state[0].layout_revision = next.binders[0].layoutRevision
-      state.tables.binder_slots = next.binders[0].slots.map((s, position) => ({ id: s.id, owner_user_id: owner, collection_id: collection,
-        position, target: s.target, status: s.status, wanted_cards: s.wantedCards, preset_origin: s.presetOrigin, version: s.version }))
+      for (const binder of next.binders) {
+        const stored = state.tables.storage_collection_state.find(c => c.collection_id === binder.collectionId)!
+        stored.version = next.collections.find(c => c.id === binder.collectionId)!.version
+        stored.layout_revision = binder.layoutRevision
+      }
+      state.tables.binder_slots = next.binders.flatMap(b => b.slots.map((s, position) => ({ id: s.id, owner_user_id: owner, collection_id: b.collectionId,
+        position, target: s.target, status: s.status, wanted_cards: s.wantedCards, preset_origin: s.presetOrigin, version: s.version })))
       state.tables.inventory_items = next.items.map(i => ({ ...state.tables.inventory_items.find(row => row.id === i.id),
         id: i.id, owner_user_id: owner, identity: i.identity, grading: i.grading, acquired_at: i.acquiredAt, version: i.version, legacy_source: i.legacySource ?? null }))
       state.tables.inventory_placements = next.placements.map(p => ({ inventory_item_id: p.inventoryItemId, owner_user_id: owner,

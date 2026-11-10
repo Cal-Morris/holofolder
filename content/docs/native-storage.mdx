@@ -184,3 +184,25 @@ Consumers must bind a trusted proof to the original family, immutable request an
 
 Retain the original immutable command and recipient scope after any unknown outcome. Exact accepted/rejected lifetime replay comes before mutable reconstruction after current authority checks. Only committed dedicated inventory/collection/content predicates yield REST409 `storage_restore_rejected` or MCP `isError` with `error.rejection`; arbitrary conflicts, cancellation and failed COMMIT are unknown. Accepted output and error discovery schemas are separate. After either result, obtain a new complete current read started after the response and reconcile explicitly. A receipt is historical and never an offline ACK. The existing device backup screen remains read-only; durable restore execution, broader #365 acceptance and #379 admission are separate gates.
 
+## Raw ownership management preparation
+
+The prepared native Inventory flow offers **Add owned card** as a distinct raw
+copy in **Unassigned**. If that printing is already owned, inspect a recorded copy
+or deliberately add another raw copy. Existing graded copies are never relabelled
+or reused as raw. Missing printing, language and finish metadata remain unknown.
+
+From an exact raw copy, **Assign copy** or **Move copy** asks you to select a
+compatible empty stable slot. **Unassign copy** retains ownership and leaves its
+former slot's target and wants intact. **Remove owned copy** separately previews
+which copy and placement are removed, the ownership decrement and the unchanged
+slot goals and other copies. After sync, Activity provides version-checked recovery
+where supported; explicitly restoring as Unassigned avoids displacing a newer
+placement. There is no instant local Undo promise.
+
+These controls need current complete authorized storage and no pending command,
+creation or recovery. Cached Inventory is read-only. Device acceptance and remote
+sync are separate; unknown outcomes retain the exact original request. The device
+flow composes existing inventory command and recovery REST/MCP operations, with
+no new API operation. Native production admission remains closed with 503.
+Occupied-slot decisions and bulk actions remain outside this raw preparation.
+
