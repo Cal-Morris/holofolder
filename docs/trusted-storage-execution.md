@@ -62,3 +62,7 @@ Before #379 exposure: wire app routes to the named authenticated adapter; add st
 ## Additive creation dispatch (083)
 
 [Atomic named storage creation](atomic-storage-creation.md) adds internal `collection.create` parsing, receipt projection and a denied private executor through the same service-only gateway. The 082 file is unchanged. Its one dispatch branch/allowlist is extended by 083; existing authentication, membership-before-owner-locks, paid developer access and all other executors/ACLs are preserved. Creation has a separate 2 MiB/4,096-slot bound. Actual native creation recovery remains unsupported and explicitly blocks runtime enablement, in addition to #379. No public registry or endpoint is added.
+
+## First-party browser HTTP integration
+
+The [browser command transport](browser-command-transport.md) calls this existing bridge through an internal handler and a loopback/server-gated synthetic harness. Public production routes remain denied. The bridge checks the expected JWT session against its authenticated actor; typed local test clients are server capabilities and cannot come from HTTP. Generic storage_conflict remains insufficient for safe known-rejection reconciliation; no SQL/result contract change is included. Native work never dispatches through legacy Activity/recovery.

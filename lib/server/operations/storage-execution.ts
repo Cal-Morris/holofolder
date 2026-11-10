@@ -12,10 +12,23 @@ import { readDeveloperJson } from "@/lib/server/developer-access/request"
 import { parseStorageRequest, normalizeStorageResult, storageExecutionError, type StorageOperation } from "./storage-contract"
 
 /** Internal only. #379 must wire gated app routes and the shared REST/MCP registry together. */
-export async function executeAppStorageRequest(request: Request, operation: StorageOperation) {
-  const { user } = await requireDeveloperSettingsUser(request, true)
+export async function executeAppStorageRequest(request: Request, operation: StorageOperation, localClients?: {
+  session: import("@supabase/supabase-js").SupabaseClient
+  admin: import("@supabase/supabase-js").SupabaseClient
+}) {
+  // Trusted server injection only, used by the loopback-gated synthetic HTTP harness.
+  // No request data can select these clients. Production uses the existing cookie/auth path.
+  const { user, client: session } = localClients
+    ? await checkedLocalStorageUser(request, localClients.session)
+    : await requireDeveloperSettingsUser(request, true)
+  const expectedSession = request.headers.get("X-Binder-Auth-Session")
+  if (expectedSession !== null) {
+    const claims = await session.auth.getClaims()
+    if (claims.error || claims.data?.claims.role !== "authenticated" || claims.data.claims.sub !== user.id || claims.data.claims.client_id
+      || claims.data.claims.session_id !== expectedSession) throw new DeveloperAccessError("storage_session_changed", "Sign in again before retrying this operation.", 403)
+  }
   const { createAdminClient } = await import("@/lib/supabase/admin")
-  const client = createAdminClient()
+  const client = localClients?.admin ?? createAdminClient()
   const membership = await resolveCollectionMembership(client, user.id)
   requireExpectedAppearanceOwner(request, membership.ownerUserId)
   const input = parseStorageRequest(operation, await readDeveloperJson(request, storageRequestBytes(operation)))
@@ -51,4 +64,13 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
     if (error) throw storageExecutionError(error)
     return normalizeStorageResult(operation, data)
   })
+}
+
+async function checkedLocalStorageUser(request: Request, client: import("@supabase/supabase-js").SupabaseClient) {
+  const { requireAppearanceOrigin } = await import("@/lib/server/binder-appearance")
+  requireAppearanceOrigin(request)
+  const claims = await client.auth.getClaims(), result = await client.auth.getUser()
+  if (claims.error || result.error || !result.data.user || claims.data?.claims.sub !== result.data.user.id
+    || claims.data.claims.client_id) throw new DeveloperAccessError("sign_in_required", "Sign in before retrying.", 401)
+  return { user: result.data.user, client }
 }

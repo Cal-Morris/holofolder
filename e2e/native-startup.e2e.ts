@@ -25,7 +25,11 @@ const test = base.extend({ serviceWorkers: "allow" })
 test.beforeEach(async ({ page, context, baseURL }, info) => {
   if (info.project.metadata?.standalone) await emulateStandalone(page, SAFE_AREA)
   await mockBackends(context, context, { signedIn: true, baseURL })
-  await context.route("**/app/api/inventory?*", inventory)
+  await context.route("**/app/e2e-harness/storage/inventory?*", inventory)
+  // This startup suite intentionally retains unsent edits through a sender outage.
+  await context.route("**/app/e2e-harness/storage/*", route => route.request().method() === "POST"
+    ? route.fulfill({ status: 503, json: { error: { code: "storage_unavailable", message: "Synthetic sender outage", requestId: "synthetic-startup-outage" } } })
+    : route.fallback())
 })
 async function prepare(page: Page) {
   await page.goto(entry)
@@ -65,6 +69,8 @@ test("previously cached native pending layout survives genuine page close and of
   await page.locator('[data-slot-id="alpha-empty-0"]').click()
   await page.getByRole("button", { name: "Insert free slot before", exact: true }).click()
   await expect(page.getByText(/Pending sync/).first()).toBeVisible()
+  await expect.poll(async () => (await queueRecords(page)).some(row => Array.isArray((row as { pending?: { status: string }[] }).pending)
+    && (row as { pending: { status: string }[] }).pending.some(p => p.status === "unavailable"))).toBe(true)
   const before = await queueRecords(page)
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone), `/app?binder=${alpha}`)
   await expect(reopened.getByText(/Cached only. Access will be checked/)).toBeVisible({ timeout: 30000 })
@@ -93,7 +99,7 @@ test("offline cached inventory closes before reconnect can reuse stale owner sco
   let membershipChecks = 0, staleResponses = 0
   await context.route("**/rest/v1/partnerships*", route => { membershipChecks++; return route.fulfill({ json: [{ id: "synthetic-relinked", owner_user_id: trades, user1_id: E2E_USER.id, user2_id: trades }] }) })
   // Even a well-formed old-owner response matching the new request ID must be rejected.
-  await context.route("**/app/api/inventory?*", route => { staleResponses++; return inventory(route) })
+  await context.route("**/app/e2e-harness/storage/inventory?*", route => { staleResponses++; return inventory(route) })
   await context.unroute("**/rest/v1/**", offlineAbort)
   await context.unroute("**/auth/v1/**", offlineAbort)
   await context.setOffline(false)
@@ -110,7 +116,7 @@ test("offline cached inventory closes before reconnect can reuse stale owner sco
 })
 
 test("cold native startup with shell but no canonical snapshot gives a clear fallback", async ({ page }, info) => {
-  await page.context().route("**/app/api/inventory?*", route => route.fulfill({ status: 503, json: { error: "synthetic-unavailable" } }))
+  await page.context().route("**/app/e2e-harness/storage/inventory?*", route => route.fulfill({ status: 503, json: { error: "synthetic-unavailable" } }))
   await prepare(page)
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
   await expect(reopened.getByRole("status").filter({ hasText: /Saved native storage is unavailable/ })).toBeVisible({ timeout: 30000 })
@@ -124,6 +130,8 @@ test("missing grid metadata retains canonical pending bytes and refuses cached n
   await page.locator('[data-slot-id="alpha-empty-0"]').click()
   await page.getByRole("button", { name: "Insert free slot before", exact: true }).click()
   await expect(page.getByText(/Pending sync/).first()).toBeVisible()
+  await expect.poll(async () => (await queueRecords(page)).some(row => Array.isArray((row as { pending?: { status: string }[] }).pending)
+    && (row as { pending: { status: string }[] }).pending.some(p => p.status === "unavailable"))).toBe(true)
   const before = await queueRecords(page)
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>(yes => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result) })
