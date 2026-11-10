@@ -6,6 +6,7 @@ import { executeDeveloperStorageOperation } from './storage-execution'
 import type { StorageOperation } from './storage-contract'
 
 const storageOperations: Readonly<Record<string, StorageOperation>> = {
+  import_storage_arrangement: 'backup.arrangement',
   execute_slot_commands: 'slots', execute_inventory_commands: 'inventory', create_storage_collection: 'collection.create',
   preview_storage_recovery: 'recovery.preview', apply_storage_recovery: 'recovery.apply',
   preview_storage_recovery_v2: 'recovery.preview.v2', apply_storage_recovery_v2: 'recovery.apply.v2',
