@@ -38,6 +38,44 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
 const entry = "/app/e2e-harness?signedIn=1&browserHost=1"
 const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Main navigation", exact: true })
 
+for (const source of ["Search", "Quick mode"]) test(`actual host ${source} opens the exact set from Binder and restores it with history`, async ({ page, insets }) => {
+  // Synthetic catalogue data, deliberately distinct from the recent/default sets.
+  const set = { id: "synthetic-search-set", name: "Synthetic Search Set" }
+  const card = { id: `${set.id}-1`, localId: "1", name: "Synthetic Bulbasaur", language: "en", set }
+  await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [] } }))
+  await page.route("**/app/api/tcg-set-slots**", route => {
+    const params = new URL(route.request().url()).searchParams
+    return route.fulfill({ json: params.get("setId") === set.id
+      ? { sets: [set], selectedSet: set, cards: [card], slots: [{ dexId: 1, pokemonName: "bulbasaur", cards: [card] }] }
+      : { sets: params.has("query") ? [set] : [], selectedSet: null, slots: [] } })
+  })
+  await page.goto(`${entry}&binder=${alpha}&page=2`)
+  const collection = page.getByRole("combobox", { name: "Collection", exact: true })
+  await expect(collection).toHaveValue(alpha)
+  await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible()
+  await nav(page).getByRole("button", { name: "Search", exact: true }).click()
+  if (source === "Quick mode") await page.getByRole("button", { name: "Quick mode", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: source === "Search" ? /search pokemon/i : "Quick mode" })
+  await dialog.getByRole(source === "Search" ? "textbox" : "searchbox").fill(set.name)
+  const hit = dialog.getByRole("button", { name: /^Open set Synthetic Search Set/ })
+  const h = new Harness(page, insets, true)
+  await h.expectMinTapTarget(hit)
+  await hit.click()
+  await expect(dialog).toBeHidden()
+  const selected = page.getByRole("button", { name: `Remove ${set.name}`, exact: true })
+  await expect(selected).toBeVisible()
+  await expect(page.getByRole("group", { name: "Set checklist" })).toBeVisible()
+  await h.expectNoHorizontalOverflow()
+  await page.goBack()
+  await expect(collection).toHaveValue(alpha)
+  await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible()
+  await page.goForward()
+  await expect(selected).toBeVisible()
+  await nav(page).getByRole("button", { name: "Binder", exact: true }).click()
+  await expect(collection).toHaveValue(alpha)
+  await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible()
+})
+
 test("actual BinderApp dock, fresh stable location, back and deep links", async ({ page, insets }) => {
   await page.goto(entry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()

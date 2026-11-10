@@ -6,6 +6,7 @@ import { slabCollectionCopies } from "@/lib/slabs/collection"
 import InventoryView from "@/components/inventory/inventory-view"
 import { closeAllOverlays, isOverlayHistoryCleanup, runAfterOverlayHistory } from "@/hooks/use-overlay"
 import type { InventoryLocationIntent } from "@/lib/domain/inventory-browse"
+import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { captureNavigationScroll, defaultCollectionView, navigationIndex, navigationLocation, navigationScroll, navigationStorageKey,
   normalizeNavigationState, resolveNavigation, type CollectionNavigationRead, type CollectionNavigationFocus, type CollectionNavigationScope, type CollectionNavigationState, type CollectionViewState, type InventoryViewState } from "@/lib/collection-navigation"
 import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
@@ -22,7 +23,7 @@ export interface NavigationSurface {
   onInventory: () => void
   onCollection: () => void
   onDex: () => void
-  onLegacyView: (view: "wanted" | "sets" | "pokemon" | "analytics") => void
+  onLegacyView: (view: "wanted" | "sets" | "pokemon" | "analytics", requestedSet?: TCGSetSummary) => void
 }
 
 export interface CollectionNavigationHostProps {
@@ -237,7 +238,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     return true
   }, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
     onInventory: () => navigate({ ...visible, main: "inventory" }), onCollection: () => navigate({ ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
-    onLegacyView: dexView => navigate({ ...visible, main: "dex", dexView }) })
+    onLegacyView: (dexView, requestedSet) => navigate({ ...visible, main: "dex", dexView, requestedSet: requestedSet ?? null }) })
   return <div className={styles.host}><header className={styles.header}>{header}</header>{content}
     <nav aria-label="Collection navigation" className={styles.dock}>
       <button aria-current={visible.main === "collection" ? "page" : undefined} disabled={!collectionId} onClick={() => navigate({ ...visible, main: "collection" })}>Collections</button>
