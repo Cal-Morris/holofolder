@@ -50,13 +50,13 @@ export default function SlotPicker({ boundary, flow, onCancel }: { boundary: Slo
   const quotesFor = (c: SearchCardResult) => isCardLanguage(c.language) ? pricesByCardId[getCardPriceKey(c.id, c.language)]?.finishPrices : undefined
   const resolve: InventoryCatalogResolver = id => card && matchesCatalogCardId(card, id) ? pickerCandidate(card) : catalog(id)
   const reset = () => { setMode("actions"); setCard(null); setQuery(""); setWant(null); setError(null) }
-  const { pending, busy, message, handoff } = useSlotDraftAcceptance<SlotPickerIntent>(onCommandIntent, () => { reset(); setEditing(false) })
+  const { pending, busy, message, handoff, retry } = useSlotDraftAcceptance<SlotPickerIntent>(onCommandIntent, () => { reset(); setEditing(false) })
   const emit = (action: SlotPickerAction, resolver = resolve) => {
     if (pending || busy) return
     try {
       const prepared = prepareSlotPickerIntent(snapshot, scope, action, { source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() }, resolver)
       const draft = { scope: prepared.scope, intent: prepared.intent }
-      handoff(draft)
+      handoff(draft, resolver)
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : "unavailable"
       setError(reason === "occupied-target" ? "This target does not match the owned copy. Cancel to keep everything, or clear contents first to leave the copy Unassigned."
@@ -106,7 +106,7 @@ export default function SlotPicker({ boundary, flow, onCancel }: { boundary: Slo
     {error && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
     {message && <p role={pending ? "alert" : "status"} className="break-words text-sm">{message}</p>}
     {busy && <p role="status">Saving on device…</p>}
-    {pending && <button className={button} disabled={busy} onClick={() => handoff(pending)}>Retry draft</button>}
+    {pending && <button className={button} disabled={busy} onClick={retry}>Retry draft</button>}
     <fieldset disabled={pending !== null || busy} className="min-w-0 space-y-3">
     {mode === "actions" ? <div className="grid gap-2">
       <details className="rounded-xl border border-border px-3" open={editing || undefined}><summary className="min-h-10 cursor-pointer py-2 text-sm font-medium">Edit slot</summary><div className="grid gap-2 pb-3">

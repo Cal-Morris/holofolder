@@ -107,7 +107,9 @@ test.describe("isolated durable slot session", () => {
         }
       }, failure)
       await append(page)
-      await expect(toolbar(page).getByRole("alert")).toContainText("retry the same draft")
+      await expect(toolbar(page).getByRole("alert")).toContainText("Save not confirmed.")
+      if (failure === "quota") await expect(toolbar(page).getByRole("alert")).toContainText("Free some storage")
+      else await expect(toolbar(page).getByRole("alert")).not.toContainText("Free some storage")
       const draft = JSON.parse(await page.getByLabel("Durable draft", { exact: true }).textContent() ?? "null")
       expect((await record(page))!.pending.length).toBe(0)
       await expect(page.getByLabel("Durable acceptance", { exact: true })).toHaveText("null")
@@ -193,7 +195,8 @@ test.describe("isolated durable slot session", () => {
       }
     })
     await dialog.getByRole("button", { name: /^Energy ·/ }).click()
-    await expect(dialog.getByRole("alert")).toContainText("retry the same draft")
+    await expect(dialog.getByRole("alert")).toContainText("Free some storage")
+    await expect(dialog.getByRole("alert")).toContainText("Save not confirmed.")
     const draft = JSON.parse(await page.getByLabel("Durable draft", { exact: true }).textContent() ?? "null")
     expect(draft.intent.request.commands[0].selection.newItemId).toBeTruthy()
     await control(page, "refresh")

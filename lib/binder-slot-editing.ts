@@ -10,7 +10,8 @@ export interface StagedSlotCommandIntent {
 }
 /** Resolves at local transaction commit, never at remote execution or audit success. */
 export interface SlotLocalAcceptance { status: "saved-on-device"; operationId: string; refreshError: string | null }
-export type SlotCommandSink = (draft: StagedSlotCommandIntent) => void | Promise<SlotLocalAcceptance>
+/** `selected` is the picker's evidence for a printing it just chose, which the host read catalog may not hold yet. */
+export type SlotCommandSink = (draft: StagedSlotCommandIntent, selected?: InventoryCatalogResolver) => void | Promise<SlotLocalAcceptance>
 
 export type LayoutDestination = { kind: "position"; position: number } | { kind: "before" | "after"; slotId: string }
 export type LayoutAction = { kind: "append"; newSlotId: string }
