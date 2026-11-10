@@ -87,6 +87,23 @@ test('legacy adapter keeps National Dex layout without consulting global or unas
   assert.ok(!JSON.stringify(result).includes('PRIVATE'))
 })
 
+test('a large priced share reads saved prices in a few batches, per language, never per card', async () => {
+  const db = syntheticPublicDatabase({ large: true, prices: true })
+  // Synthetic: 1,007 distinct printings, every fifth in French; zero and negative amounts mean unpriced.
+  const items = db.tables.inventory_items as { identity: Record<string, unknown> }[]
+  db.tables.tcg_cards = items.map((_, i) => ({ id: `synthetic-${i}`, name_en: `Synthetic ${i}`, series_id: 'synthetic', set_id: 'synthetic', local_id: `${i}`, image_languages_json: ['en', 'fr'], external_ids_json: {} }))
+  items.forEach((item, i) => { item.identity = { kind: 'card', cardId: `synthetic-${i}`, ...(i % 5 ? {} : { language: 'fr' }) } })
+  db.tables.card_prices = items.map((_, i) => ({ card_id: `synthetic-${i}`, language: i % 5 ? 'en' : 'fr', gbp_amount: i === 3 ? 0 : i === 4 ? -1 : i + 1 }))
+  db.tables.card_prices.push({ card_id: 'synthetic-1', language: 'fr', gbp_amount: 999 })
+  const result = await loadPublicBinder({ token: 'synthetic-token' }, db.client)
+  assert.equal(db.calls.filter(c => c.table === 'card_prices').length, 12) // ceil(806/100) en + ceil(201/100) fr
+  assert.equal(result.slots[1].marketGBP, 2)
+  assert.equal(result.slots[5].marketGBP, 6)
+  assert.equal(result.slots[3].marketGBP, undefined)
+  assert.equal(result.slots[4].marketGBP, undefined)
+  assert.equal(result.slots.filter(s => s.marketGBP !== undefined).length, 1005)
+})
+
 test('owner price visibility controls data reads and serialization', async () => {
   for (const prices of [false, true]) {
     const db = syntheticPublicDatabase({ prices })
