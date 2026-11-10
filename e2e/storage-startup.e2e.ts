@@ -197,7 +197,7 @@ test("cached view cannot hide a stalled checked account handoff indefinitely", a
   await page.goto(entry); await ready(page)
   await context.route("**/rest/v1/partnerships*", async () => { /* Synthetic stalled membership check. */ })
   await page.reload()
-  await expect(page.getByText(/Saved on this device · Cached only/).first()).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible()
   await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toContainText(CHECKED_STARTUP_TIMEOUT_ERROR, { timeout: CHECKED_STARTUP_TIMEOUT_MS * 2 + 10_000 })
   await expect(page.getByRole("button", { name: "Retry opening storage", exact: true })).toBeVisible()
   expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBe("1")

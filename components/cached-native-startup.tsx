@@ -68,7 +68,8 @@ export default function CachedNativeStartup({ legacyProps, children, whileChecki
       const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)
       const layout = binder && read.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
       const display = snapshot && binder && layout ? { inventory: snapshot, binder, catalog: {}, resolveCard: browserHostDisplayCatalog(read.catalog) } : undefined
-      const header = <><p role="status" className="px-4 text-sm">Saved on this device · Cached only. {navigator.onLine ? "Access is being checked." : "Access will be checked when you reconnect."}{pending > 0 ? ` ${pending} pending edit${pending === 1 ? "" : "s"} retained.` : ""}</p></>
+      // Routine cached startup has no banner; BinderApp's connection chip already says when it is offline.
+      const header = pending > 0 ? <p role="status" className="px-4 text-sm">{pending} pending edit{pending === 1 ? "" : "s"} to sync</p> : undefined
       return <BinderApp {...legacyProps} key={JSON.stringify([surface.visit, surface.state.main, surface.state.dexView, surface.collection?.collectionId, surface.collection?.state.view])}
         localBrowserHost={false} initialCollectionOwnerUserId={read.scope.ownerUserId}
         initialBinderId={binder?.collectionId ?? legacyProps.initialBinderId}
