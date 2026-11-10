@@ -27,7 +27,7 @@ export interface CollectionNavigationRead {
 const object = (v: unknown): Record<string, unknown> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {}
 const text = (v: unknown) => typeof v === "string" ? v.slice(0, 512) : ""
 const integer = (v: unknown, max: number, min = 0) => typeof v === "number" && Number.isSafeInteger(v) ? Math.min(max, Math.max(min, v)) : min
-export const defaultCollectionView = (): CollectionViewState => ({ view: "binder", page: 1, search: "", scroll: 0 })
+export const defaultCollectionView = (view: CollectionViewState["view"] = "binder"): CollectionViewState => ({ view, page: 1, search: "", scroll: 0 })
 export const navigationStorageKey = (scope: InventoryBrowseScope) => `holofolder-navigation-v1:${JSON.stringify([scope.accountUserId, scope.ownerUserId])}`
 export function normalizeInventoryViewState(value: unknown): InventoryViewState {
   const v = object(value), q = object(v.query)
@@ -55,6 +55,12 @@ export function navigationIndex(scope: CollectionNavigationScope, read: Collecti
 /** Explicit links take priority, including old ?binder=&page= links. URL is not authorization. */
 export function resolveNavigation(state: CollectionNavigationState, scope: CollectionNavigationScope, read: CollectionNavigationRead, params?: URLSearchParams, stagedSlabs = false) {
   const next = normalizeNavigationState(state), index = navigationIndex(scope, read)
+  // Initialize presentation once from admitted storage, never overwrite a remembered view.
+  if (index.kind !== "unavailable" && read.evidence.kind !== "unavailable") {
+    for (const collection of read.evidence.snapshot.collections) {
+      next.collections[collection.id] ??= defaultCollectionView(collection.defaultPresentation)
+    }
+  }
   let notice = ""
   let highlight: CollectionNavigationFocus | null = null
   if (params && ["binder", "view", "page", "slot", "item"].some(k => params.has(k))) {
@@ -63,7 +69,7 @@ export function resolveNavigation(state: CollectionNavigationState, scope: Colle
     if (next.collectionId) {
       const current = next.collections[next.collectionId] ?? defaultCollectionView()
       const targeted = params.has("page") || params.has("slot") || params.has("item")
-      const view = !targeted && params.get("view") === "slabs" && stagedSlabs ? "slabs" : params.get("view") === "list" && !targeted ? "list" : "binder"
+      const view = !targeted && params.get("view") === "slabs" && stagedSlabs ? "slabs" : params.get("view") === "list" && !targeted ? "list" : !targeted && !params.has("view") ? current.view : "binder"
       const page = params.has("page") ? integer(Number(params.get("page")), 4096, 1) : current.page
       const sameDestination = state.main === next.main && state.collectionId === next.collectionId && current.view === view && current.page === page && !params.has("slot") && !params.has("item")
       next.collections[next.collectionId] = { ...current, view, page, search: targeted ? "" : current.search, scroll: sameDestination ? current.scroll : 0 }

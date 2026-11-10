@@ -201,7 +201,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           setRead(fresh)
           return fresh.evidence.snapshot
         }, () => valid() ? { deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId } : null, scope.authSessionId)
-        if (valid()) { creation.current = null; setCreating(null); await latest.current.queue.refresh(); setNotice("Creation discarded. The original intent and rejection remain saved. Start New binder for a new review.") }
+        if (valid()) { creation.current = null; setCreating(null); await latest.current.queue.refresh(); setNotice("Creation discarded. The original intent and rejection remain saved. Start New storage for a new review.") }
         return
       }
       await q.refreshConflict(head.intent.request.operationId, async () => {
@@ -365,11 +365,11 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (!valid() || !navigator.onLine || collectionDeletionEvidence(fresh) !== draft.evidence || fresh.evidence.kind !== "complete") throw new Error("deletion-review-changed")
     return latest.current.queue.enqueue(draft.intent, latest.current.catalog, fresh.evidence.snapshot, () => valid() && navigator.onLine)
   }
-  const creationAvailable = bulkFillAvailable && read.evidence.kind === "complete" && read.evidence.snapshot.collections.length > 0
+  const creationAvailable = bulkFillAvailable && !queue.record?.legacy.length && read.evidence.kind === "complete" && read.evidence.snapshot.collections.length > 0
   const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"]) => {
     if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
     const record = await latest.current.queue.queue?.read()
-    if (!valid() || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("pending-reconciliation")
+    if (!valid() || !record || record.pending.length || record.legacy.length || record.recovery?.some(recoveryUnresolved)) throw new Error("pending-reconciliation")
     if (creation.current?.intent.request.operationId !== draft.operationId) {
       creation.current = { intent: prepareBinderCreation(draft, read.evidence.snapshot, { source: "app", clientId: deviceId,
         operationId: draft.operationId, batchId: null, clientOccurredAt: new Date().toISOString() }, crypto.randomUUID(), draft.manifest.entries.map(() => crypto.randomUUID())), open, opened: false }
@@ -412,7 +412,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           <div className="flex flex-wrap items-center gap-2 px-4"><ActivityButton /><button type="button" className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { closeAllOverlays(); setBackupOpen(true) }}>Backup</button>
             <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold" disabled={!creationAvailable}
               onClick={() => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, count: snapshot?.collections.length ?? 0, available: creationAvailable,
-                create: draft => create(draft, surface.openCreated) } })}>New binder</button>
+                create: draft => create(draft, surface.openCreated) } })}>New storage</button>
             {surface.state.main === "collection" && surface.state.collectionId && <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm" disabled={!deletionAvailable} onClick={() => { closeAllOverlays(); setDeleting(surface.state.collectionId) }}>Delete collection</button>}</div>
 
           <AcknowledgedCommandActivity record={valid() ? queue.record : null} scope={{ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }} />
@@ -429,7 +429,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
             <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict('keep-remote') }}>Discard rejected raw restore</button>
           </div>}
           {queue.record?.pending[0]?.intent.kind === "creation" && queue.record.pending[0].conflict?.rejected && queue.record.pending[0].creationAuthSessionId === scope.authSessionId && <div className="px-4 text-sm">
-            <p>This creation did not commit. Discard reads current storage and retains the original request and rejection. A new binder needs a new review and confirmation.</p>
+            <p>This creation did not commit. Discard reads current storage and retains the original request and rejection. New storage needs a new review and confirmation.</p>
             <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict("keep-remote") }}>Discard rejected creation</button>
           </div>}
           {queue.record?.pending[0]?.intent.kind !== "creation" && queue.record?.pending[0]?.intent.kind !== "raw-restore" && queue.record?.pending[0]?.conflict?.rejected && <div className="px-4 text-sm">

@@ -4,9 +4,9 @@ Related: #368/#384, #367/#363/#379. This consumer slice does not enable producti
 
 ## Actual host and boundary
 
-The admitted native BinderApp navigation header has an explicit **New binder** action. It opens the shared overlay, copies the existing preset builder's ordered preview into an immutable review draft, then requires **Confirm create binder**. Supported starts are Blank (zero stored slots), National Dex (1,025), generation, ordered selected species and actual selected catalog printings. Language needs real catalog evidence; unspecified finish stays unconstrained. There is no catalog subscription, inventory acquisition, grade or explicit want. Repeated printing targets receive separate stable slot IDs. Visual page padding is not stored.
+The admitted native BinderApp navigation header has an explicit **New storage** action. It opens the shared overlay, copies the existing preset builder's ordered preview into an immutable review draft, then requires **Confirm create storage**. Supported starts are Blank (zero stored slots), National Dex (1,025), generation, ordered selected species and actual selected catalog printings. Language needs real catalog evidence; unspecified finish stays unconstrained. There is no catalog subscription, inventory acquisition, grade or explicit want. Repeated printing targets receive separate stable slot IDs. Visual page padding is not stored.
 
-Set/master-set remains unavailable in this native flow. `CollectionCreationCommand` retains the manifest but not the separate `SetChecklist` scope. The adapter explicitly refuses a checklist instead of silently dropping scope. Presets remain independent of storage kind; this UI exposes Binder only. Slabs/general storage exposure remains separately owned by #390/#384.
+Set/master-set remains unavailable in this native flow. `CollectionCreationCommand` retains the manifest but not the separate `SetChecklist` scope. The adapter explicitly refuses a checklist instead of silently dropping scope. Presets remain independent of storage kind. The staged [#384 extension](custom-storage-creation.md) exposes Binder and Custom through this same flow; Slab creation/gallery stays gated by #390.
 
 The legacy-authoritative switcher keeps its existing creation path. The native path never calls `/api/binders`. It sends the existing `collection.create` command through the trusted bridge. `/app/api/storage-collections` is unconditionally private/no-store 503; only the existing loopback/nonhosted harness invokes the real handler with synthetic RPC/auth dependencies. There is no flag or request bypass for production admission.
 
@@ -36,7 +36,7 @@ Local browser proof uses real BinderApp/overlay/IDB/HTTP/fresh reads with clearl
 
 | Before | After | Why |
 | --- | --- | --- |
-| Native navigation had no creation entry | Explicit New binder with a bounded preview/confirmation sheet | Make creation deliberate and reviewable |
+| Native navigation had no creation entry | Explicit New storage with a bounded preview/confirmation sheet | Make creation deliberate and reviewable |
 | No native creation sheet | Dynamic viewport cap, dock clearance, shared overlay and swipe header | Keep controls reachable on short standalone phones |
 | Cached startup could expose an edit affordance whose sink refused writes | Explicit read-only editing availability | Match the affordance to current planning authority |
 
@@ -63,7 +63,7 @@ Device-only reconciliation adds no public mutation. Existing REST/MCP creation s
 | Before | After | Why |
 | --- | --- | --- |
 | All creation errors retained with retry only | Bound 093 proof offers one explicit discard button | Separate proven noncommit from unknown outcomes |
-| Reconciliation used command cancellation/rebase language | Creation says discard and requires New binder review | Never imply synchronization or silently rewrite creation |
+| Reconciliation used command cancellation/rebase language | Creation says discard and requires New storage review | Never imply synchronization or silently rewrite creation |
 
 No motion added or changed. The existing native sheet/dock gestures remain unchanged. The inline button uses the existing 36 px minimum target and wrapping explanatory text; affected six-phone checks verify safe bounds and overflow. Synthetic Auth/RPC, real handler/browser/IDB/read pipeline evidence remains distinct from hosted SQL and installed-device proof. Parent owns independent review, checks, merge, deployment and issue acceptance; all full issues remain open.
 
@@ -73,3 +73,11 @@ The original implementation on main `d88380105c75dd1a05e4a4fc4ecd49c1557deaa7` i
 
 
 Parent acceptance follow-up: independent exact-head source review passed 39 focused creation-queue/browser tests with no blockers. Parent unit suite passes 1,627 cases (53 opt-in SQL skips), typecheck/lint55/build pass, and all 180 selected six-phone creation/proof plus pending-backup guard cases pass after correcting that test's volatile whole-record equality. This is a separate focused run, not a claim that the earlier 216-case matrix is all green. The independently reproduced cached-startup baseline timeout remains an unresolved #379 acceptance gate. No startup assertion was relaxed or timeout increased.
+
+## Staged #384 UI extension
+
+[Binder/Custom creation](custom-storage-creation.md) now extends this same exact
+flow with kind and bounded private location. The native entry is **New storage**,
+with **Review storage** and **Confirm create storage**. This extends the original Binder-only
+consumer slice. Custom defaults to List;
+remembered and explicit presentation stays editable. Slab creation remains gated.

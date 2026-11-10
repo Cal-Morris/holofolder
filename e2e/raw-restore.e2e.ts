@@ -90,7 +90,7 @@ test('lost committed reply survives reload as exact intent, fences sinks, retrie
   await expect.poll(() => bodies.length).toBeGreaterThan(0)
   const pending = (await record(page))!.pending[0].intent
   await d.getByRole('button', { name: 'Close backup' }).click()
-  await expect(page.getByRole('button', { name: 'New binder', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'New storage', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0)
   await page.reload()

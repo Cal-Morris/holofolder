@@ -205,7 +205,10 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
   const header = <header className={styles.header}>
       <label>Collection<select aria-label="Collection" value={collectionId ?? ""} onChange={e => navigate({ ...visible, main: "collection", collectionId: e.target.value })}>
-        {!collectionId && <option value="">No available storage</option>}{index.collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        {!collectionId && <option value="">No available storage</option>}{index.collections.map(c => {
+          const kind = currentRead.evidence.kind !== "unavailable" ? currentRead.evidence.snapshot.collections.find(collection => collection.id === c.id)?.kind : undefined
+          return <option key={c.id} value={c.id}>{c.name}{kind && ` · ${{ binder: "Binder", custom: "Custom storage", slab: "Slab collection" }[kind]}`}</option>
+        })}
       </select></label>
       {visible.main === "collection" && <label>View<select aria-label="Collection view" value={collectionState.view} onChange={e => navigate({ ...visible,
         collections: { ...visible.collections, [collectionId!]: { ...collectionState, view: e.target.value as CollectionViewState["view"], scroll: 0 } } })}>
@@ -234,7 +237,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     if (!alive.current || entryId.current !== creationEntry || request.current !== creationRequest
       || latest.evidence.kind !== "complete" || !latest.evidence.snapshot.collections.some(c => c.id === id)) return false
     setFresh({ base: read, value: latest })
-    navigate({ ...visible, main: "collection", collectionId: id, collections: { ...visible.collections, [id]: defaultCollectionView() } }, null, latest)
+    navigate({ ...visible, main: "collection", collectionId: id, collections: { ...visible.collections, [id]: defaultCollectionView(latest.evidence.snapshot.collections.find(c => c.id === id)!.defaultPresentation) } }, null, latest)
     return true
   }, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
     onInventory: () => navigate({ ...visible, main: "inventory" }), onCollection: () => navigate({ ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),

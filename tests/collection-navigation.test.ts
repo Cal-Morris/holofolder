@@ -116,3 +116,19 @@ test("stable empty target/spacer links locate the slot without inventing an owne
   assert.equal(result.state.collections.alpha.page, 2)
   assert.deepEqual(result.highlight, { collectionId: "alpha", slotId: "alpha-empty-11" })
 })
+
+test("custom defaults to List only on first visit, saved Binder and explicit page links remain valid", async () => {
+  const r = await read()
+  if (r.evidence.kind !== "complete") throw new Error("fixture")
+  r.evidence.snapshot.collections.find(c => c.id === "alpha")!.kind = "custom"
+  r.evidence.snapshot.collections.find(c => c.id === "alpha")!.defaultPresentation = "list"
+  const initial = normalizeNavigationState({ main: "collection", collectionId: "alpha" })
+  assert.equal(resolveNavigation(initial, scope, r).state.collections.alpha.view, "list")
+  const cached: CollectionNavigationRead = { ...r, evidence: { kind: "cached", snapshot: structuredClone(r.evidence.snapshot) } }
+  assert.equal(resolveNavigation(initial, scope, cached).state.collections.alpha.view, "list")
+  assert.equal(resolveNavigation(initial, scope, r, new URLSearchParams("binder=alpha")).state.collections.alpha.view, "list")
+  const saved = normalizeNavigationState({ ...initial, collections: { alpha: defaultCollectionView() } })
+  assert.equal(resolveNavigation(saved, scope, r).state.collections.alpha.view, "binder")
+  assert.equal(resolveNavigation(initial, scope, r, new URLSearchParams("binder=alpha&page=2")).state.collections.alpha.view, "binder")
+  assert.equal(resolveNavigation(initial, scope, r, new URLSearchParams("binder=alpha&view=binder")).state.collections.alpha.view, "binder")
+})

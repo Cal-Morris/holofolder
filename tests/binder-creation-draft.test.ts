@@ -37,3 +37,17 @@ describe("preset creation drafts", () => {
     assert.equal(preset.entries.length, 3)
   })
 })
+
+test("custom draft retains bounded private location and rejects slab exposure or incompatible location", () => {
+  const input = { version: 1, operationId: "synthetic-custom", ownerUserId: "owner", name: " Box ", manifest: blankPreset(), kind: "custom", location: "  Top shelf  " }
+  const custom = parseBinderCreationDraft(input)
+  assert.equal(custom.kind, "custom"); assert.equal(custom.location, "Top shelf")
+  assert.ok(Object.isFrozen(custom))
+  assert.equal(parseBinderCreationDraft({ ...input, location: "  " }).location, null)
+  assert.equal(parseBinderCreationDraft({ ...input, location: "x".repeat(200) }).location?.length, 200)
+  for (const fields of [{ kind: "slab" }, { kind: "unknown" }, { location: "x".repeat(201) }, { location: 42 }, { kind: "binder" }]) {
+    assert.throws(() => parseBinderCreationDraft({ ...input, ...fields }))
+  }
+  const binder = parseBinderCreationDraft({ ...input, kind: "binder", location: null })
+  assert.equal(binder.kind, "binder"); assert.equal(binder.location, null)
+})
