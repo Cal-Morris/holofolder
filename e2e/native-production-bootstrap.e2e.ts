@@ -215,3 +215,26 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
       release()
     }
   })
+
+// A superseded startup must release its HTTP body rather than holding it until the 30s timeout.
+test("focus during startup cancels superseded inventory reads and the latest read finishes opening", async ({ page, context }) => {
+  await page.clock.install()
+  let requests = 0, abandoned: string | null = null
+  const failed: string[] = []
+  page.on("requestfailed", request => { if (request.url().includes("/api/inventory?")) failed.push(request.url()) })
+  await context.route("**/app/api/inventory?*", async route => {
+    requests++
+    if (requests === 1) { abandoned = route.request().url(); return }
+    await inventory(route)
+  })
+  await page.unroute("**/app/api/inventory?*")
+  await page.goto(entry)
+  await expect.poll(() => requests).toBeGreaterThan(0)
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")))
+  await expect.poll(() => abandoned !== null && failed.includes(abandoned), { timeout: 4000 }).toBe(true)
+  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
+  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeEnabled()
+  await page.clock.fastForward(46_000)
+  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
+  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBeNull()
+})

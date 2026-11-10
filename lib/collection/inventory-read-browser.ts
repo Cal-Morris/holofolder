@@ -13,7 +13,7 @@ export type BrowserInventoryReadResult =
 /** Call with the auth host's LIVE scope getter, never IDs from saved UI state.
  * Each invocation starts its process-local complete-read identity BEFORE fetch/JSON awaits.
  * No cached response, retained snapshot or generic JSON reconstruction entry point is accepted. */
-export async function fetchCurrentInventorySnapshot(currentScope: () => InventoryReadScope | null, localHarness = false): Promise<BrowserInventoryReadResult> {
+export async function fetchCurrentInventorySnapshot(currentScope: () => InventoryReadScope | null, localHarness = false, signal?: AbortSignal): Promise<BrowserInventoryReadResult> {
   const current = currentScope()
   if (!isInventoryReadScope(current)) return { status: "unavailable", code: "inventory_sign_in_required" }
   const scope = { ...current }, requestId = crypto.randomUUID()
@@ -35,7 +35,7 @@ export async function fetchCurrentInventorySnapshot(currentScope: () => Inventor
   void complete.catch(() => {})
   try {
     const response = await fetch(`${appPath(localHarness ? "/e2e-harness/storage/inventory" : "/api/inventory")}?${new URLSearchParams({ requestId, sessionId: scope.sessionId })}`, {
-      credentials: "same-origin", cache: "no-store", redirect: "error", headers: { Accept: "application/json" }, signal: AbortSignal.timeout(30_000),
+      credentials: "same-origin", cache: "no-store", redirect: "error", headers: { Accept: "application/json" }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     })
     assertCurrent()
     if (!response.ok) {

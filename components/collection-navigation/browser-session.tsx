@@ -108,7 +108,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const [online, setOnline] = useState(true)
   const alive = useRef(false), sequence = useRef(0), refreshing = useRef(0), sending = useRef(false)
   const transport = useRef<AbortController | null>(null)
-  useLayoutEffect(() => () => { alive.current = false; sequence.current++; transport.current?.abort() }, [])
+  const readTransport = useRef<AbortController | null>(null)
+  useLayoutEffect(() => () => { alive.current = false; sequence.current++; readTransport.current?.abort(); transport.current?.abort() }, [])
   const metadataKey = `slot-navigation-v1:${JSON.stringify([deviceId, scope.actorUserId, scope.ownerUserId])}`
   const valid = () => alive.current && sameInventoryReadScope(latest.current.currentScope(), scope)
   const catalog = useMemo(() => browserHostCatalog(read.catalog), [read.catalog])
@@ -116,9 +117,12 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const refresh = async () => {
     if (sending.current) throw new Error("pending-command-read")
     const request = ++sequence.current
+    readTransport.current?.abort()
+    const controller = new AbortController()
+    readTransport.current = controller
     refreshing.current++
     try {
-      const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness)
+      const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness, controller.signal)
       if (!valid() || request !== sequence.current || fresh.evidence.kind !== "complete") throw new Error("inventory_read_scope_changed")
       // Persist through the canonical queue, which reapplies every unresolved local intent.
       const resolver = browserHostCatalog(fresh.catalog)
@@ -130,6 +134,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       completeReadAvailable.current = true
       setRead(fresh); setNotice("")
       await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts })
+      if (valid() && request === sequence.current) onReady()
       return fresh
     } catch (error) {
       if (valid() && request === sequence.current) {
@@ -154,14 +159,15 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         setRead({ scope: navigationScope, evidence: { kind: "cached", snapshot: record.optimistic }, catalog: safeMetadata?.catalog ?? [], layouts: safeMetadata?.layouts ?? [] })
       }
       cachedFinished = true
-      try { await refresh(); if (active && valid()) onReady() } catch (error) { if (active && valid()) onStartupFailure(error instanceof Error ? error.message : "storage_startup_failed") }
+      const startupRequest = sequence.current + 1
+      try { await refresh() } catch (error) { if (active && valid() && sequence.current === startupRequest) onStartupFailure(error instanceof Error ? error.message : "storage_startup_failed") }
     }
     void initial().catch(error => { if (active && valid()) { onStartupFailure(error instanceof Error ? error.message : "Saved storage could not be opened"); setReady(true) } })
     const disconnected = () => setOnline(false)
     const reconnect = () => { setOnline(navigator.onLine); if (cachedFinished && document.visibilityState !== "hidden") void refresh().catch(() => {}) }
     queueMicrotask(() => setOnline(navigator.onLine))
     window.addEventListener("offline", disconnected); window.addEventListener("online", reconnect); window.addEventListener("focus", reconnect); document.addEventListener("visibilitychange", reconnect)
-    const invalidate = () => { alive.current = false; sequence.current++ }
+    const invalidate = () => { alive.current = false; sequence.current++; readTransport.current?.abort() }
     return () => { active = false; invalidate(); window.removeEventListener("offline", disconnected); window.removeEventListener("online", reconnect); window.removeEventListener("focus", reconnect); document.removeEventListener("visibilitychange", reconnect) }
     // A session remount owns the entire read/queue lifetime, never a view change.
     // eslint-disable-next-line react-hooks/exhaustive-deps

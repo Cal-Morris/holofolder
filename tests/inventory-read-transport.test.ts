@@ -382,3 +382,19 @@ test("late legacy residue before the final absent-root fence conflicts rather th
   assert.equal(response.status, 503)
   assert.equal("snapshot" in await response.json(), false)
 })
+
+test("ending a browser lifetime aborts its pending HTTP read without granting complete evidence", async () => {
+  await withFetch(async set => {
+    const controller = new AbortController()
+    let aborted = false
+    set(async (_input, init) => new Promise<Response>((_resolve, reject) => {
+      assert.ok(init?.signal)
+      init.signal.addEventListener("abort", () => { aborted = true; reject(init.signal!.reason) }, { once: true })
+    }))
+    const pending = fetchCurrentInventorySnapshot(() => scope, false, controller.signal)
+    controller.abort()
+    const result = await pending
+    assert.equal(aborted, true)
+    assert.notEqual(result.status, "complete")
+  })
+})
