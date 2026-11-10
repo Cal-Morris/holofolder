@@ -3,6 +3,8 @@ export type DeveloperPrincipal = {
   actorId: string
   credentialId: string
   transport: 'rest' | 'mcp'
+  /** Verified OAuth identity for current-session rechecks, never a bearer token. */
+  oauth?: { sessionId: string; clientId: string; expiresAt: number }
   permissions: readonly DeveloperPermission[]
 }
 export type OperationContext = {
