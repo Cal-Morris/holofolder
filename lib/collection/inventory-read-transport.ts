@@ -87,6 +87,7 @@ export function parseInventoryReadEnvelope(value: unknown, requestId: string, sc
 export function parseNavigationEvidence(value: unknown, snapshot: InventorySnapshot): InventoryNavigationEvidence | undefined {
   if (!isContractRecord(value, ["catalog", "layouts"]) || !Array.isArray(value.catalog) || !Array.isArray(value.layouts)) return undefined
   const layouts: InventoryLayoutEvidence[] = [], catalog: InventoryCatalogEvidence[] = []
+  const languagesById = new Map<string, Set<unknown>>() // (card id, language) pairs already accepted; language undefined when absent
   for (const l of value.layouts) {
     if (!isContractRecord(l, ["collectionId", "layoutRevision", "rows", "cols"]) || !isSlotContractId(l.collectionId)
       || !isSlotRevision(l.layoutRevision) || !isBinderGridSize(l.rows) || !isBinderGridSize(l.cols)
@@ -104,7 +105,9 @@ export function parseNavigationEvidence(value: unknown, snapshot: InventorySnaps
       || "language" in c && !isCardLanguage(c.language) || "canonicalId" in c && !isSlotContractId(c.canonicalId)
       || "aliasIds" in c && (!Array.isArray(c.aliasIds) || !c.aliasIds.every(isSlotContractId))
       || "image" in c && typeof c.image !== "string") return undefined
-    if (catalog.some(x => x.card.id === c.id && x.card.language === c.language)) return undefined
+    const languages = languagesById.get(c.id as string) ?? new Set()
+    if (languages.has(c.language)) return undefined
+    languagesById.set(c.id as string, languages.add(c.language))
     catalog.push({ card: { id: c.id as string, localId: c.localId as string, name: c.name as string, set: { id: c.set.id, name: c.set.name },
       ...(isCardLanguage(c.language) ? { language: c.language } : {}), ...(typeof c.canonicalId === "string" ? { canonicalId: c.canonicalId } : {}),
       ...(Array.isArray(c.aliasIds) ? { aliasIds: [...c.aliasIds] as string[] } : {}), ...(typeof c.image === "string" ? { image: c.image } : {}) }, speciesNames: [...e.speciesNames], ...(Array.isArray(e.pokemonIds) ? { pokemonIds: [...e.pokemonIds] as number[] } : {}) })
