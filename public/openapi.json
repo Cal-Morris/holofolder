@@ -1448,7 +1448,7 @@
       "post": {
         "operationId": "execute_slot_commands",
         "summary": "Execute slot commands",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_slot_commands`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_slot_commands`.",
         "tags": [
           "Collection"
         ],
@@ -1486,6 +1486,19 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 9007199254740991
+                  },
+                  "privateFields": {
+                    "description": "preserve rejects grading/wants replacement, selected-want fulfillment and slot/collection removal. replace (also the legacy default when omitted) retains full-replacement semantics; never rebuild replacements from redacted reads.",
+                    "type": "string",
+                    "enum": [
+                      "preserve",
+                      "replace"
+                    ]
+                  },
+                  "expectedOwnerUserId": {
+                    "description": "Recipient precondition, required with privateFields=preserve. Must match the current authenticated owner scope; never selects or grants authority. Retain across retries.",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
                   },
                   "layoutRevision": {
                     "type": "integer",
@@ -2391,7 +2404,7 @@
       "post": {
         "operationId": "execute_inventory_commands",
         "summary": "Execute inventory commands",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Atomic owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_inventory_commands`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Atomic owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; grading patches and redacted selected-want fulfillment are unsupported. Omitted or replace retains full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_inventory_commands`.",
         "tags": [
           "Collection"
         ],
@@ -2420,6 +2433,19 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 9007199254740991
+                  },
+                  "privateFields": {
+                    "description": "preserve rejects grading/wants replacement, selected-want fulfillment and slot/collection removal. replace (also the legacy default when omitted) retains full-replacement semantics; never rebuild replacements from redacted reads.",
+                    "type": "string",
+                    "enum": [
+                      "preserve",
+                      "replace"
+                    ]
+                  },
+                  "expectedOwnerUserId": {
+                    "description": "Recipient precondition, required with privateFields=preserve. Must match the current authenticated owner scope; never selects or grants authority. Retain across retries.",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
                   },
                   "collections": {
                     "maxItems": 32,

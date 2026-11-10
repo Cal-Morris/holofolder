@@ -17,6 +17,7 @@ async function main() {
   if (wired) mock.module('../../lib/server/operations/native-developer-admission', () => ({ requireNativeDeveloperAdmission() {} }))
   const actor = '00820000-0000-4000-8000-000000000002', owner = '00820000-0000-4000-8000-000000000001'
   let currentActor = actor, currentOwner = owner, readonly = false, paid = true, revoked = false, budget = true
+  let loseReply = false
   let error: string | null = null, privatePreview = false, missingScope: DeveloperPermission | null = null
   const credentialId = createHash('sha256').update('synthetic-native').digest('hex'), key = createDeveloperKey()
   const permissions = (): DeveloperPermission[] => (readonly ? ['collection:read', 'binders:read'] : ['collection:read', 'collection:write', 'binders:read', 'binders:write']).filter(p => p !== missingScope) as DeveloperPermission[]
@@ -65,13 +66,14 @@ async function main() {
       else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
       // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
       if (request.operationId) {
-        const ledgerKey = currentOwner + ':' + request.operationId
+        const ledgerKey = currentActor + ':' + request.operationId
         const serialized = JSON.stringify({ ...body, header: { ...header, operationId: request.operationId } })
         const previous = ledger.get(ledgerKey)
         if (previous && previous.body !== serialized) return Response.json({ code: '40001', message: 'private ledger mismatch' }, { status: 400 })
         if (previous) result = previous.result
         else ledger.set(ledgerKey, { body: serialized, result })
       }
+      if (loseReply) { loseReply = false; throw new Error('synthetic lost reply after commit') }
       return Response.json(result)
     }
     if (url.pathname.endsWith('/collection_recovery_v1')) {
@@ -145,10 +147,65 @@ async function main() {
         }
       }
     }
+    // Assertion mode reaches the existing executor as the same canonical intent, with no reads/reconstruction.
+    const emptySlot = { id: 'synthetic-destination', version: 3, inventoryItemId: null, itemVersion: null, placementVersion: null }
+    const placedSlot = { id: 'synthetic-source', version: 2, inventoryItemId: 'synthetic-private-copy', itemVersion: 5, placementVersion: 4 }
+    const placedItem = { itemId: 'synthetic-private-copy', itemVersion: 5, placement: { collectionId, slot: placedSlot } }
+    const safeInventory = { operationId: 'synthetic-preserve-' + transport, inventoryRevision: 7,
+      collections: [{ collectionId, version: 2, layoutRevision: 1 }], commands: [{ kind: 'move', item: placedItem,
+        destination: { collectionId, slot: emptySlot }, occupied: 'cancel', fulfillWant: null }] }
+    const safeSlots = { ...slots, operationId: 'synthetic-target-' + transport,
+      commands: [{ kind: 'update', slot: emptySlot, target: null }] }
+    for (const [name, intent] of [['execute_inventory_commands', safeInventory], ['execute_slot_commands', safeSlots]] as const) {
+      const preserving = { ...intent, privateFields: 'preserve', expectedOwnerUserId: owner }
+      if (wired) loseReply = true
+      const lost = await call(transport, name, preserving)
+      assert.ok(lost.result?.error || lost.raw.error || lost.raw.result?.isError)
+      if (wired) {
+        assert.deepEqual(calls.at(-1)?.request, intent, 'assertion is removed without adding private defaults')
+        // A different later operation succeeds. Retrying the original must still send exactly the old intent.
+        const later = await call(transport, name, { ...preserving, operationId: intent.operationId + '-later', inventoryRevision: 8 })
+        assert.equal(later.result.error, undefined)
+        const retry = await call(transport, name, preserving)
+        assert.equal(retry.result.error, undefined, JSON.stringify(retry.raw))
+        assert.deepEqual(calls.at(-1)?.request, intent)
+        const compatibility = await call(transport, name, intent)
+        assert.deepEqual(compatibility.result, retry.result, 'legacy mode has identical canonical ledger identity')
+        const explicitReplacement = await call(transport, name, { ...intent, privateFields: 'replace' })
+        assert.deepEqual(explicitReplacement.result, retry.result)
+        const changed = await call(transport, name, { ...preserving, inventoryRevision: 8 })
+        assert.equal(changed.result.error.code, 'storage_conflict', 'never refresh preconditions on retry')
+        currentOwner = actor
+        const beforeOwnerMismatch = calls.length
+        const firstWrongRecipient = await call(transport, name, { ...preserving, operationId: intent.operationId + '-uncommitted' })
+        assert.equal(firstWrongRecipient.result.error.code, 'storage_owner_changed')
+        const changedRecipient = await call(transport, name, preserving)
+        assert.equal(changedRecipient.result.error.code, 'storage_owner_changed', 'same operation must not retarget another owner')
+        assert.equal(calls.length, beforeOwnerMismatch, 'recipient is fenced before SQL, including an uncommitted unknown outcome')
+        currentOwner = owner
+      } else assert.equal(lost.result.error.code, 'native_operations_staged')
+    }
+    const unsupported = [
+      ['execute_inventory_commands', { ...safeInventory, commands: [{ kind: 'edit', item: placedItem, grading: null }] }],
+      ['execute_inventory_commands', { ...safeInventory, commands: [{ ...safeInventory.commands[0], fulfillWant: { index: 0, expected: { card_id: 'synthetic-card', card_name: 'Synthetic', added_at: '2020-01-01' } } }] }],
+      ['execute_slot_commands', { ...safeSlots, commands: [{ kind: 'update', slot: emptySlot, wantedCards: [] }] }],
+    ] as const
+    const beforeUnsupported = calls.length
+    for (const [name, value] of unsupported) {
+      const rejected = await call(transport, name, { ...value, privateFields: 'preserve', expectedOwnerUserId: owner })
+      assert.ok(rejected.result?.error || rejected.raw.error || rejected.raw.result?.isError)
+    }
+    assert.equal(calls.length, beforeUnsupported, 'unsafe redacted replacement never reaches the executor')
+    if (wired) for (const [index, [name, value]] of unsupported.entries()) {
+      const replacement = { ...value, operationId: 'synthetic-explicit-replace-' + transport + '-' + index }
+      const accepted = await call(transport, name, { ...replacement, privateFields: 'replace' })
+      assert.equal(accepted.result.error, undefined, 'explicit clearing/full expected want keeps existing authorization and SQL semantics')
+      assert.deepEqual(calls.at(-1)?.request, replacement)
+    }
     const before = calls.length
     for (const [changes, expected] of [[{ readonly: true }, 'insufficient_permissions'], [{ paid: false }, 'premium_required'], [{ revoked: true }, transport === 'rest' ? 'invalid_api_key' : 'oauth_revoked'], [{ budget: false }, 'rate_limited']] as const) {
       readonly = 'readonly' in changes; paid = !('paid' in changes); revoked = 'revoked' in changes; budget = !('budget' in changes)
-      const result = await call(transport, 'execute_inventory_commands', inventory)
+      const result = await call(transport, 'execute_inventory_commands', { ...inventory, privateFields: 'preserve', expectedOwnerUserId: owner })
       assert.equal(result.result.error?.code, expected, JSON.stringify(result.raw))
     }
     readonly = false; paid = true; revoked = false; budget = true
