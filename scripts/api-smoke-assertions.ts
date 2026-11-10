@@ -1,5 +1,5 @@
 import {PRESET_OPERATIONS} from "../lib/developer-api/presets"
-import { creationErrorSchema, importErrorSchema, storageCommandErrorSchema } from '../lib/developer-api/storage'
+import { rawRestoreErrorSchema, creationErrorSchema, importErrorSchema, storageCommandErrorSchema } from '../lib/developer-api/storage'
 import {NATIVE_READ_OPERATIONS} from "../lib/developer-api/native-read"
 import assert from 'node:assert/strict'
 import {NATIVE_DEVELOPER_OPERATIONS} from '../lib/developer-api/storage'
@@ -92,7 +92,7 @@ export function assertStagedSmokeResponse(operation:string,value:unknown) {
 export function assertTerminalStorageSmokeResponse(operation:string,value:unknown,input:Row) {
  const registered=NATIVE_DEVELOPER_OPERATIONS.find(op=>op.name===operation)
  assert.ok(registered?.errorSchemas?.[409], 'Operation has no terminal rejection contract')
- const schema=operation==='create_storage_collection'?creationErrorSchema:operation==='import_storage_arrangement'?importErrorSchema:storageCommandErrorSchema
+ const schema=operation==='restore_raw_collection_content'?rawRestoreErrorSchema:operation==='create_storage_collection'?creationErrorSchema:operation==='import_storage_arrangement'?importErrorSchema:storageCommandErrorSchema
  const parsed=schema.parse(value)
  assert.equal(parsed.error.rejection.operationId,input.operationId,'Terminal proof must bind the original operation ID')
 }

@@ -9,6 +9,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 ## How the application works
 
 - [Atomic slot insertion plus assignment](atomic-insert-assign.md): 091 transaction, strict durable/API contract, restored-cluster proof and staged scanner consumer boundary.
+- [Raw content restore](raw-content-restore.md): bounded same-owner stable-ID reconciliation, retained intent/terminal contracts, migration094 and parent-owned rollout.
 - [Atomic arrangement import](atomic-arrangement-import.md): bounded JSON v2 execution, explicit copies/moves, native recovery and remaining restore/admission gates (088).
 
 - [Architecture](architecture.md): ownership boundaries, startup, writes, offline sync and integrations.

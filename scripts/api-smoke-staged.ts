@@ -27,6 +27,11 @@ export function stagedSmokeInputs(collectionId: string, runId: string): Record<s
  const apply = { operationId: 'synthetic-denial-recovery-' + runId, planToken: '0'.repeat(64), confirmed: true }
  const replacement = { ...preview, planVersion: 2, replacementDefaultCollectionId: collectionId, inventoryRevision: 0, collections }
  return {
+  restore_raw_collection_content: { version: 1, operationId: 'synthetic-denial-restore-' + runId, inventoryRevision: 0,
+   planning: { actorUserId: collectionId, ownerUserId: collectionId, source: 'rest', credentialId: 'synthetic-denial-credential', authSessionId: null, partnershipId: null, partnerUserId: null },
+   configuration: { name: 'Synthetic denial fixture', kind: 'binder', defaultPresentation: 'binder', location: null, rows: 4, cols: 4 },
+   collection: collections[0], slots: [{ before: { id: 'synthetic-denial-slot', version: 0, inventoryItemId: null, itemVersion: null, placementVersion: null },
+    after: { id: 'synthetic-denial-slot', target: null, status: null, wantedCards: [], inventoryItemId: null, presetOrigin: null } }], items: [], releaseItemIds: [] },
   import_storage_arrangement: arrangement, execute_slot_commands: slots, execute_inventory_commands: inventory, create_storage_collection: creation,
   preview_storage_recovery: preview, apply_storage_recovery: { ...preview, ...apply, planVersion: 1 },
   preview_storage_recovery_v2: replacement, apply_storage_recovery_v2: { ...replacement, ...apply },

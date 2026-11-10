@@ -1,3 +1,4 @@
+import { parseRawRestoreCommand, RAW_RESTORE_LIMITS, RAW_RESTORE_REJECTION_CODES } from '@/lib/domain/raw-restore'
 import { CREATION_REJECTION_CODES, IMPORT_REJECTION_CODES } from '@/lib/collection/creation-import-rejection'
 import { RECOVERY_REJECTION_CODES } from '@/lib/collection/recovery-rejection'
 import { STORAGE_REJECTION_CODES } from '@/lib/collection/storage-command-rejection'
@@ -109,6 +110,15 @@ export const nativeArrangementSchema = z.object({ version: z.literal(1), operati
   }).strict()).min(1).max(4096),
   copies: z.array(z.object({ kind: z.enum(['add', 'existing']), item: z.object({ id, identity, grading, acquiredAt: z.string().nullable(), version: revision }).strict(), ref: item.nullable() }).strict()).max(5000),
 }).strict().refine(canonical(parseBackupArrangementCommand), 'Invalid or unsupported atomic arrangement import.')
+export const rawRestoreSchema = z.object({ version: z.literal(1), operationId, inventoryRevision: revision,
+  planning: z.object({ actorUserId: collectionId, ownerUserId: collectionId, source: z.enum(['app', 'rest', 'mcp']),
+    credentialId: id.nullable(), authSessionId: id.nullable(), partnershipId: collectionId.nullable(), partnerUserId: collectionId.nullable() }).strict(), collection, configuration: z.object({ name: z.string().min(1).max(40), kind: z.enum(['binder', 'slab', 'custom']),
+    defaultPresentation: z.enum(['binder', 'slabs', 'list']), location: z.string().max(200).nullable(), rows: revision.min(1).max(8), cols: revision.min(1).max(8) }).strict(),
+  slots: z.array(z.object({ before: slot, after: z.object({ id, target: identity.nullable(),
+    status: z.enum(['collected', 'finalized', 'considering', 'wishlisted']).nullable(), wantedCards: z.array(want).max(100),
+    inventoryItemId: id.nullable(), presetOrigin: z.null() }).strict() }).strict()).min(1).max(RAW_RESTORE_LIMITS.slots),
+  items: z.array(item).max(RAW_RESTORE_LIMITS.items), releaseItemIds: z.array(id).max(RAW_RESTORE_LIMITS.items),
+}).strict().refine(canonical(parseRawRestoreCommand), 'Invalid or unsupported raw content restore.')
 const eventId = z.string().regex(/^[1-9]\d{0,18}$/).refine(v => v.length < 19 || v <= '9223372036854775807')
 const recovery = { eventId, restoreUnassignedItemIds: z.array(id).max(16384).refine(v => new Set(v).size === v.length) }
 const apply = { operationId, planToken: z.string().regex(/^[a-f0-9]{64}$/), confirmed: z.literal(true) }
@@ -136,6 +146,10 @@ export const creationErrorSchema = z.object({ error: z.object({ code: z.literal(
 export const importErrorSchema = z.object({ error: z.object({ code: z.literal('storage_import_rejected'),
   message: z.literal('The original import did not commit. Read current storage before explicit reconciliation.'),
   requestId: z.string(), rejection: importRejectionSchema }).strict() }).strict()
+export const rawRestoreErrorSchema = z.object({ error: z.object({ code: z.literal('storage_restore_rejected'),
+  message: z.literal('The original restore did not commit. Read current storage before explicit reconciliation.'), requestId: z.string(),
+  rejection: z.object({ outcome: z.literal('rejected'), operationId, code: z.enum(RAW_RESTORE_REJECTION_CODES), inventoryRevision: revision }).strict(),
+}).strict() }).strict()
 const creationImportTerminalDescription = ' Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. '
 const recoveryErrors = { 409: z.union([developerErrorSchema, recoveryErrorSchema]) }
 const recoveryTerminalDescription = ' A committed terminal rejection returns REST 409 storage_recovery_rejected or MCP isError with strict error.rejection (outcome, original operationId, code, inventoryRevision). Only recovery_plan_conflict and recovery_dependency_conflict are terminal. Accepted/rejected exact replay precedes mutable plan reconstruction but requires current authority. Preserve unknown requests; status, billing errors and cancellation are not proof. After proof, obtain a fresh complete current owner/session read and explicitly discard, or review a new preview and confirm a new operationId. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. '
@@ -151,6 +165,10 @@ const staged = 'STAGED, not admitted: valid authorized requests return 503 nativ
 const permissions = ['collection:write', 'binders:write'] as const
 const recoveryPermissions = ['collection:read', ...permissions] as const
 const operations: readonly DeveloperOperation[] = [
+  { name: 'restore_raw_collection_content', method: 'POST', path: '/storage/restores/raw-content', description: staged + 'Bounded explicit same-owner raw content reconciliation of one existing collection, identical ordered stable slot IDs, no copied manifest/configuration change. At most 256 slots, 512 existing raw copies, 1024 work units and 1 MiB. Current actor/owner/session or credential and partner preconditions are required, file IDs never prove provenance. Exact item/slot/placement/content/layout versions bind review. Explicit releases retain ownership in Unassigned; copies placed elsewhere cannot move. No acquisition, metadata replacement, graded/converted copies, multi-collection/settings/assets/CSV restore. Lifetime exact accepted/rejected replay precedes mutable reconstruction after current authority checks. Only committed dedicated inventory/collection/content predicate rejection yields REST409 storage_restore_rejected or MCP isError with error.rejection. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Arbitrary conflicts, cancellation and failed COMMIT remain unknown; retain original intent and require a fresh complete read plus explicit reconciliation.',
+    permissions, write: true, schema: rawRestoreSchema, maxBytes: RAW_RESTORE_LIMITS.bytes, errorSchemas: { 409: z.union([developerErrorSchema, rawRestoreErrorSchema]) },
+    responseSchema: z.object({ ...receipt, changed: z.literal(true), collectionId, collectionVersion: revision, layoutRevision: revision,
+      slotIds: z.array(id).max(RAW_RESTORE_LIMITS.slots), releasedItemIds: z.array(id).max(RAW_RESTORE_LIMITS.items) }).strict() },
   { name: 'import_storage_arrangement', method: 'POST', path: '/storage/imports/arrangement', description: staged + creationImportTerminalDescription + 'Atomic JSON v2 arrangement into an empty or target-only native collection with an already identical copied manifest. Every copy needs an explicit add or versioned existing-copy move. Retain the immutable request after unknown outcome. Does not replace collections/configuration, import assets, restore changed same-owner snapshots or authorize backup IDs.', permissions, write: true, schema: nativeArrangementSchema, maxBytes: BACKUP_IMPORT_LIMITS.bytes, errorSchemas: { 409: z.union([developerErrorSchema, importErrorSchema]) },
     responseSchema: z.object({ ...receipt, changed: z.literal(true), collectionId, collectionVersion: revision, layoutRevision: revision, slotIds: z.array(id).max(4096), addedItemIds: z.array(id).max(5000), removedEmptySlotIds: z.array(id).max(4096) }).strict() },
   { name: 'execute_slot_commands', method: 'POST', path: '/storage/slots/commands', description: staged + terminalDescription + ' Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.', permissions, write: true, schema: nativeSlotSchema, maxBytes: SLOT_LIMITS.bytes, errorSchemas: commandErrors,
