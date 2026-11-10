@@ -10,19 +10,23 @@ const enabled = process.env.AUTH_DELETE_TEST_SOCKET
 const database = process.env.AUTH_DELETE_TEST_DATABASE ?? 'preserve099'
 const functions = ['check_slot_placement_v1']
 
-test('099 changes only the deferred placement trigger execution mode', () => {
+test('099 changes placement execution and permits only a genuinely deleted account cascade', () => {
   const statements = migration.replace(/--[^\n]*/g, '').split(';').map(s => s.trim()).filter(Boolean)
-  assert.deepEqual(statements, ['BEGIN', "SET LOCAL lock_timeout = '3s'", ...functions.map(f => `ALTER FUNCTION public.${f}() SECURITY DEFINER`), 'COMMIT'])
+  assert.equal(statements[0], 'BEGIN')
+  assert.equal(statements.at(-1), 'COMMIT')
+  assert.ok(statements.includes('ALTER FUNCTION public.check_slot_placement_v1() SECURITY DEFINER'))
+  assert.match(migration, /TG_OP = 'DELETE' AND OLD\.user_id IS NOT NULL AND NOT EXISTS\(SELECT 1 FROM auth\.users WHERE id=OLD\.user_id\)/)
+  assert.doesNotMatch(statements.join(';'), /\bGRANT\b|DISABLE\s+TRIGGER|pg_trigger_depth|set_config/i)
 })
 
-test('restricted Auth role proves archive cascades and reports the fresh converted-source blocker', { skip: !enabled }, async () => {
+test('restricted Auth role commits native and converted cascades in both schema orders', { skip: !enabled }, async () => {
   if (!enabled) return
   assert.equal(enabled, socket)
   assert.ok(['preserve099', 'holofolder_fresh_099'].includes(database))
   const config = { host: socket, port: 55699, user: 'postgres', database }
   const db = new Client(config)
   await db.connect()
-  const withConverted = database === 'preserve099'
+  const withConverted = true
   const owner = randomUUID(), other = randomUUID(), binder = randomUUID(), converted = randomUUID(), otherBinder = randomUUID()
   const slot = `synthetic-099/${owner}`, item = `synthetic-099-copy/${owner}`
   const flush = () => db.query('SET CONSTRAINTS ALL IMMEDIATE; SET CONSTRAINTS ALL DEFERRED')
@@ -140,6 +144,8 @@ test('restricted Auth role proves archive cascades and reports the fresh convert
     }
     await denied(() => db.query('DELETE FROM public.storage_collection_state WHERE collection_id=$1', [binder]), '55000')
     await denied(() => db.query("UPDATE public.storage_collection_state SET authority='legacy' WHERE collection_id=$1", [binder]), '55000')
+    await denied(() => db.query('DELETE FROM public.pokemon_collection WHERE binder_id=$1', [converted]), '55000', /binder_converted_requires_slot_commands/)
+    await denied(() => db.query("UPDATE public.pokemon_collection SET status='finalized' WHERE binder_id=$1", [converted]), '55000', /binder_converted_requires_slot_commands/)
     await denied(async () => { await db.query('DELETE FROM public.inventory_placements WHERE inventory_item_id=$1', [item]); await flush() }, '23514')
     await denied(() => db.query('UPDATE public.inventory_placements SET owner_user_id=$1 WHERE inventory_item_id=$2', [other,item]), '23503')
     await denied(() => db.query('DELETE FROM public.collection_activity WHERE owner_user_id=$1', [owner]), '42501', /audit_immutable/)
@@ -171,30 +177,6 @@ test('restricted Auth role proves archive cascades and reports the fresh convert
     assert.deepEqual(await owned(other), unrelated)
     assert.equal((await db.query('SELECT count(*)::int n FROM collection_audit_private.pending')).rows[0].n, 0)
     assert.equal((await db.query('SELECT count(*)::int n FROM collection_audit_private.deltas')).rows[0].n, 0)
-    if (!withConverted) {
-      // Fresh FK creation order exposes an existing converted-source guard blocker.
-      // This is an explicit release gate, not evidence of successful converted deletion.
-      await db.query('BEGIN')
-      const freshConverted = randomUUID()
-      await db.query("INSERT INTO public.binders(id,owner_user_id,name) VALUES($1,$2,'Synthetic fresh converted 099')", [freshConverted,other])
-      await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) VALUES($1,$2,1,'Synthetic fresh converted 099','collected')", [other,freshConverted])
-      await flush()
-      await db.query("SELECT public.convert_legacy_binder_v1($1,$2,public.legacy_binder_evidence_v1($1)->>'rowsDigest')", [freshConverted,other])
-      await db.query('COMMIT')
-      await auth.query('BEGIN')
-      await assert.rejects(auth.query('DELETE FROM auth.users WHERE id=$1', [other]), (e: unknown) => {
-        const error = e as { code: string; message: string; where: string }
-        assert.equal(error.code, '55000')
-        assert.match(error.message, /binder_converted_requires_slot_commands/)
-        assert.match(error.where, /guard_legacy_binder_write_v1/)
-        return true
-      })
-      await auth.query('ROLLBACK')
-      assert.equal((await db.query('SELECT count(*)::int n FROM auth.users WHERE id=$1', [other])).rows[0].n, 1)
-      console.log('099 LIMIT: fresh converted Auth deletion remains blocked by pre-existing guard_legacy_binder_write_v1, SQLSTATE 55000; account retained')
-      // Local fixture cleanup only, not an account-deletion proof.
-      await db.query('DELETE FROM public.binders WHERE id=$1', [freshConverted])
-    }
     await auth.query('BEGIN')
     await auth.query('DELETE FROM auth.users WHERE id=$1', [other])
     await auth.query('COMMIT')
