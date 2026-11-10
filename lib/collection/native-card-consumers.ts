@@ -2,7 +2,8 @@ import { navigationIndex, type CollectionNavigationRead, type CollectionNavigati
 import { selectInventoryCollection } from "@/lib/collection/inventory-projection"
 import { browserHostCatalog, browserHostDisplayCatalog } from "@/lib/collection/browser-host-catalog"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
-import { isCardLanguage, type CardFinish, type WantedCard } from "@/lib/domain/cards"
+import { isCardLanguage, type CardFinish, type CollectedPokemon, type WantedCard } from "@/lib/domain/cards"
+import { getPokemonSummary } from "@/lib/pokemon-catalog"
 import type { PublicWantedCard } from "@/lib/domain/inventory-commands"
 import type { BrowseCard, SearchCardResult } from "@/lib/pokemon-card-browse"
 import { prepareSlotPickerIntent } from "@/lib/slot-picker"
@@ -114,4 +115,40 @@ export function prepareNativeWant(binding: NativeConsumerBinding, destination: N
     { kind: "assign", selection, fulfillWant: { index: destination.wantedIndex, expected: structuredClone(expected) } },
     admission.context, browserHostCatalog(admission.read.catalog))
   return { ...prepared, receive: admission.receive }
+}
+
+/**
+ * Read-only species view of the native read for Browse, Sets and the National Dex list. Each copy is
+ * its own row (Sets counts every printing held); species rows merge copies and explicit wants. Slot
+ * targets are neither owned nor wanted. Copies with no species (Trainer/Energy) appear only in rows.
+ */
+export function nativeSpeciesCollection(binding: Pick<NativeConsumerBinding, "scope" | "read" | "collectionId">) {
+  const model = nativeCardConsumers(binding)
+  if (!model || binding.read.evidence.kind === "unavailable") return null
+  const items = new Map(binding.read.evidence.snapshot.items.map(i => [i.id, i]))
+  const cards = new Map(model.copies.map(c => [c.itemId, c]))
+  const name = (id: number) => getPokemonSummary(id)?.name ?? `#${id}`
+  const rows: CollectedPokemon[] = []
+  const bySpecies = new Map<number, CollectedPokemon>()
+  for (const copy of model.projection.owned) {
+    const identity = items.get(copy.itemId)!.identity
+    const card = cards.get(copy.itemId)?.card
+    const species = copy.pokemonIds ?? []
+    const row: CollectedPokemon = { id: copy.itemId, pokemon_id: species[0] ?? 0, pokemon_name: species.length ? name(species[0]) : "",
+      wanted_cards: [], status: "collected", collected_at: copy.acquiredAt ?? "",
+      ...(identity.kind === "card" ? { card_id: identity.cardId, card_language: identity.language, card_finish: identity.finish,
+        card_name: card?.name, card_image: card?.image, card_set: card?.set.name } : {}) }
+    rows.push(row)
+    for (const id of species) if (!bySpecies.has(id)) bySpecies.set(id, { ...row, pokemon_id: id, pokemon_name: name(id) })
+  }
+  // model.wants is built 1:1 from projection.wants; the projection keeps the exact WantedCard.
+  model.projection.wants.forEach((want, i) => {
+    for (const id of model.wants[i].card?.dexIds ?? []) {
+      const item = bySpecies.get(id) ?? { id: `want:${id}`, pokemon_id: id, pokemon_name: name(id), wanted_cards: [], status: "wishlisted" as const, collected_at: "" }
+      bySpecies.set(id, { ...item, wanted_cards: [...item.wanted_cards, want.card] })
+    }
+    // Every explicit want, with or without a species, marks its printing in the Sets checklist.
+    rows.push({ id: `want:${want.collectionId}:${want.slotId}:${want.index}`, pokemon_id: 0, pokemon_name: "", wanted_cards: [want.card], status: "wishlisted", collected_at: "" })
+  })
+  return { bySpecies, rows }
 }
