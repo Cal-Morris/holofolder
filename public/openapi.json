@@ -25,7 +25,7 @@
       "post": {
         "operationId": "import_storage_arrangement",
         "summary": "Import storage arrangement",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Atomic JSON v2 arrangement into an empty or target-only native collection with an already identical copied manifest. Every copy needs an explicit add or versioned existing-copy move. Retain the immutable request after unknown outcome. Does not replace collections/configuration, import assets, restore changed same-owner snapshots or authorize backup IDs.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `import_storage_arrangement`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379.  Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Atomic JSON v2 arrangement into an empty or target-only native collection with an already identical copied manifest. Every copy needs an explicit add or versioned existing-copy move. Retain the immutable request after unknown outcome. Does not replace collections/configuration, import assets, restore changed same-owner snapshots or authorize backup IDs.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `import_storage_arrangement`.",
         "tags": [
           "Collection"
         ],
@@ -1257,38 +1257,109 @@
             }
           },
           "409": {
-            "description": "See the API conventions page.",
+            "description": "After future admission: only the bound terminal ledger rejection carries proof; ordinary conflicts do not.",
             "content": {
               "application/json": {
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "error": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "requestId": {
-                          "type": "string"
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "code",
-                        "message",
-                        "requestId"
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "const": "storage_import_rejected"
+                            },
+                            "message": {
+                              "type": "string",
+                              "const": "The original import did not commit. Read current storage before explicit reconciliation."
+                            },
+                            "requestId": {
+                              "type": "string"
+                            },
+                            "rejection": {
+                              "type": "object",
+                              "properties": {
+                                "outcome": {
+                                  "type": "string",
+                                  "const": "rejected"
+                                },
+                                "operationId": {
+                                  "type": "string",
+                                  "minLength": 8,
+                                  "maxLength": 100
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "inventory_revision_conflict",
+                                    "inventory_collection_conflict",
+                                    "arrangement_destination_conflict",
+                                    "import_copy_conflict"
+                                  ]
+                                },
+                                "inventoryRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "outcome",
+                                "operationId",
+                                "code",
+                                "inventoryRevision"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "rejection"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "error"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -5524,7 +5595,7 @@
       "post": {
         "operationId": "create_storage_collection",
         "summary": "Create storage collection",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `create_storage_collection`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379.  Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `create_storage_collection`.",
         "tags": [
           "Collection"
         ],
@@ -6032,38 +6103,107 @@
             }
           },
           "409": {
-            "description": "See the API conventions page.",
+            "description": "After future admission: only the bound terminal ledger rejection carries proof; ordinary conflicts do not.",
             "content": {
               "application/json": {
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "error": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "requestId": {
-                          "type": "string"
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "code",
-                        "message",
-                        "requestId"
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "const": "storage_creation_rejected"
+                            },
+                            "message": {
+                              "type": "string",
+                              "const": "The original creation did not commit. Read current storage before explicit reconciliation."
+                            },
+                            "requestId": {
+                              "type": "string"
+                            },
+                            "rejection": {
+                              "type": "object",
+                              "properties": {
+                                "outcome": {
+                                  "type": "string",
+                                  "const": "rejected"
+                                },
+                                "operationId": {
+                                  "type": "string",
+                                  "minLength": 8,
+                                  "maxLength": 100
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "inventory_revision_conflict",
+                                    "creation_identity_conflict"
+                                  ]
+                                },
+                                "inventoryRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "outcome",
+                                "operationId",
+                                "code",
+                                "inventoryRevision"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "rejection"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "error"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
