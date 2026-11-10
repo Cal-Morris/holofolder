@@ -103,3 +103,16 @@ export function isRawRestoreRejection(value: unknown, operationId: string): valu
     && value.outcome === 'rejected' && value.operationId === operationId && typeof value.code === 'string'
     && RAW_RESTORE_REJECTION_CODES.includes(value.code as RawRestoreRejection['code']) && isSlotRevision(value.inventoryRevision)
 }
+
+export interface RawRestoreReceipt {
+  changed: true; inventoryRevision: number; collectionId: string; collectionVersion: number; layoutRevision: number
+  slotIds: string[]; releasedItemIds: string[]
+}
+/** Shared strict safe receipt shape. Original-command binding is an additional consumer check. */
+export function isRawRestoreReceipt(value: unknown): value is RawRestoreReceipt {
+  const fields = ['changed', 'inventoryRevision', 'collectionId', 'collectionVersion', 'layoutRevision', 'slotIds', 'releasedItemIds']
+  const ids = (v: unknown, limit: number) => Array.isArray(v) && v.length <= limit && v.every(isSlotContractId) && new Set(v).size === v.length
+  return isContractRecord(value, fields) && Object.keys(value).length === fields.length && value.changed === true
+    && isSlotRevision(value.inventoryRevision) && isBinderId(value.collectionId) && isSlotRevision(value.collectionVersion) && isSlotRevision(value.layoutRevision)
+    && ids(value.slotIds, RAW_RESTORE_LIMITS.slots) && ids(value.releasedItemIds, RAW_RESTORE_LIMITS.items)
+}

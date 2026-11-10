@@ -1,6 +1,7 @@
 "use client"
 
 import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
+import type { NativeRawRestoreBinding } from '@/lib/native-raw-restore'
 import type { NativeBackupBinding } from "@/lib/native-backup"
 import { closeAllOverlays } from "@/hooks/use-overlay"
 import { prepareBinderCreation, type BinderCreationDraft } from "@/lib/binder-creation-draft"
@@ -178,6 +179,16 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (!q || !head?.conflict?.rejected || !valid() || sending.current) return
     refreshing.current++
     try {
+      if (head.intent.kind === 'raw-restore') {
+        if (decision !== 'keep-remote') return
+        await q.discardRawRestore(head.intent.request.operationId, async () => {
+          const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness)
+          if (!valid() || fresh.evidence.kind !== 'complete') throw new Error('fresh-scoped-read-required')
+          setRead(fresh); return fresh.evidence.snapshot
+        }, () => valid() ? { deviceId, workspaceId: 'holofolder', accountId: scope.actorUserId, ownerUserId: scope.ownerUserId } : null, scope.authSessionId)
+        if (valid()) { await latest.current.queue.refresh(); setNotice('Rejected restore discarded. The original command and proof remain saved. Reopen Backup for an explicit new plan and new ID.') }
+        return
+      }
       if (head.intent.kind === "creation") {
         if (decision !== "keep-remote") return
         await q.discardCreation(head.intent.request.operationId, async () => {
@@ -292,6 +303,26 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       finally { refreshing.current-- }
     },
   }
+  const restoreBinding: NativeRawRestoreBinding = {
+    plan: async (input, active) => {
+      const { requestNativeRawRestorePlan } = await import('@/lib/native-raw-restore')
+      return requestNativeRawRestorePlan(backupBinding, input, active, localHarness)
+    },
+    retain: async (command, base, active) => {
+      await assertBackupReady()
+      if (!active() || !valid() || sending.current || refreshing.current || read.evidence.kind !== 'complete'
+        || command.planning.authSessionId !== scope.authSessionId) throw new Error('fresh-scoped-read-required')
+      // A current complete read supplies the atomic queue base, never a file or cached DTO.
+      const fresh = await refresh()
+      const grid = fresh.layouts.find(l => l.collectionId === command.collection.collectionId)
+      if (!active() || !valid() || fresh.partnerUserId !== command.planning.partnerUserId || !grid
+        || grid.rows !== command.configuration.rows || grid.cols !== command.configuration.cols || grid.layoutRevision !== command.collection.layoutRevision
+        || fresh.evidence.kind !== 'complete' || fresh.evidence.snapshot.inventoryRevision !== base.inventoryRevision
+        || command.inventoryRevision !== fresh.evidence.snapshot.inventoryRevision) throw new Error('Restore review changed. Reopen Backup.')
+      const { rawRestoreIntent } = await import('@/lib/native-raw-restore')
+      return latest.current.queue.enqueue(rawRestoreIntent(command, deviceId), latest.current.catalog, fresh.evidence.snapshot, () => valid() && active())
+    },
+  }
   // An optimistic projection is cached evidence, never a complete remote read or ACK.
   const visibleRead: CollectionNavigationRead = queue.record?.optimistic && queue.record.pending.length
     ? { ...read, evidence: { kind: "cached", snapshot: queue.record.optimistic }, layouts: read.layouts.map(layout => {
@@ -361,7 +392,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
         const display = snapshot && binder && layout ? { inventory: snapshot, binder,
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
-        return <>{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
+        return <>{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
           <div className="flex items-center gap-2 px-4"><ActivityButton /><button type="button" className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { closeAllOverlays(); setBackupOpen(true) }}>Backup</button>
@@ -376,11 +407,16 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
               : queue.record.pending[0].status === "billing" ? "Sync is paused by billing. Your edit is retained; retry after restoring access."
               : "Sync is paused. Your edit is retained; check account access before retrying."}
           </p>}
+          {queue.record?.pending[0]?.intent.kind === 'raw-restore' && queue.record.pending[0].conflict?.rejected
+            && queue.record.pending[0].intent.request.planning.authSessionId === scope.authSessionId && <div className="px-4 text-sm">
+            <p>This restore did not commit. Discard requires another fresh complete read and retains its original command and authenticated proof. A replacement needs a new review, consent and operation ID.</p>
+            <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict('keep-remote') }}>Discard rejected raw restore</button>
+          </div>}
           {queue.record?.pending[0]?.intent.kind === "creation" && queue.record.pending[0].conflict?.rejected && queue.record.pending[0].creationAuthSessionId === scope.authSessionId && <div className="px-4 text-sm">
             <p>This creation did not commit. Discard reads current storage and retains the original request and rejection. A new binder needs a new review and confirmation.</p>
             <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict("keep-remote") }}>Discard rejected creation</button>
           </div>}
-          {queue.record?.pending[0]?.intent.kind !== "creation" && queue.record?.pending[0]?.conflict?.rejected && <div className="px-4 text-sm">
+          {queue.record?.pending[0]?.intent.kind !== "creation" && queue.record?.pending[0]?.intent.kind !== "raw-restore" && queue.record?.pending[0]?.conflict?.rejected && <div className="px-4 text-sm">
             <p>This command was not applied. Load current storage to review it. Use current storage cancels this saved edit.</p>
             <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict() }}>Refresh current storage</button>
             {queue.record.pending[0].conflict.current && queue.record.pending.length === 1 && <>
@@ -395,7 +431,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           }}>Retry pending sync</button>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
 
-          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
+          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
 
           scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
             ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,

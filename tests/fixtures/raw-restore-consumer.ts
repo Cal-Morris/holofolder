@@ -33,6 +33,11 @@ async function main() {
   const request = (authSession = scope.authSessionId!) => new Request('https://holofolder.com/app/api/internal-not-admitted', {
     method: 'POST', headers: { Origin: 'https://holofolder.com', 'X-Binder-Owner': scope.ownerUserId, 'X-Binder-Auth-Session': authSession } })
   const plan = await prepareAppRawContentRestore(request(), f.input)
+  const originalRows = f.input.layouts[0].rows
+  f.input.layouts[0].rows = 4
+  await assert.rejects(confirmAppRawContentRestore(request(), plan), /preview changed/)
+  assert.equal(calls.length, 0, 'grid-only change must refuse before initial delivery')
+  f.input.layouts[0].rows = originalRows
   await assert.rejects(confirmAppRawContentRestore(request(), plan))
   assert.equal(calls.length, 1)
   current = await f.brand({ ...f.snapshot, inventoryRevision: 10 })

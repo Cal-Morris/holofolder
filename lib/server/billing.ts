@@ -1,8 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { BillingAccessError, resolveBillingAccess } from '@/lib/billing'
 
-export async function getBillingAccess(ownerUserId: string) {
-  const { data, error } = await createAdminClient().rpc('get_billing_access', { owner_id: ownerUserId })
+export async function getBillingAccess(ownerUserId: string, client = createAdminClient()) {
+  const { data, error } = await client.rpc('get_billing_access', { owner_id: ownerUserId })
   if (error) {
     if (['PGRST202', '42883'].includes(error.code)) return resolveBillingAccess(ownerUserId)
     throw new Error('Account access could not be checked. Try again shortly.')
