@@ -263,3 +263,24 @@ test('terminal noncommit survives failed read/reload, explicit discard retains p
   expect(requests[1].operationId).not.toBe(original.operationId)
   expect((await stored(page))[0].intent.request).toEqual(original)
 })
+
+test('Activity keeps one overlay while access verification finishes, Back stays in the app', async ({page}) => {
+  await history(page)
+  let release!: () => void
+  const verifying = new Promise<void>(resolve => { release = resolve })
+  await page.route(/\/app\/api\/collection-activity\?scope=1$/, async route => {
+    await verifying
+    await route.fulfill({json:{scope}})
+  })
+  await page.goto(entry)
+  await (await storageAction(page,'Activity')).click()
+  const dialog = page.getByRole('dialog',{name:'Collection Activity',exact:true})
+  await expect(dialog).toBeVisible()
+  await dialog.evaluate(element => { Object.assign(window,{syntheticActivityPanel:element}) })
+  release()
+  await expect(dialog.getByRole('button',{name:'Review recovery',exact:true}).first()).toBeVisible()
+  expect(await dialog.evaluate(element => element === (window as unknown as {syntheticActivityPanel:Element}).syntheticActivityPanel)).toBe(true)
+  await page.goBack()
+  await expect(dialog).toBeHidden()
+  expect(page.url()).toContain('/e2e-harness')
+})

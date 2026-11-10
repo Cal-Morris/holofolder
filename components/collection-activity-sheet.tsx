@@ -65,7 +65,7 @@ export default function CollectionActivitySheet(props:Props) {
           <label className="col-span-2 text-xs">Action<select name="action" defaultValue={selected.get('action') ?? ''} className={control}><option value="">All changes</option><option value="collection_item">Cards and wanted lists</option><option value="collection_change">Collections and settings</option><option value="legacy">Older recorded changes</option></select></label>
           <button type="submit" className="col-span-2 min-h-10 rounded-lg bg-primary px-3 font-medium text-primary-foreground">Apply filters</button>
         </form>}
-        {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} onSelectEvent={id=>setFilters(new URLSearchParams({id}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
+        {scope ? <ActivityResults key={`${JSON.stringify(scope)}:${filters}:${revision}`} {...props} scope={scope} query={filters} onSelectEvent={id=>setFilters(new URLSearchParams({id}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
       </div>
     </section>
   </div>,document.body)

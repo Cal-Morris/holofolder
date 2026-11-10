@@ -5,7 +5,7 @@ import { Archive, X } from "lucide-react"
 import { runAfterOverlayHistory, useOverlay } from "@/hooks/use-overlay"
 import { useActivityOpener } from "@/components/collection-activity-context"
 
-export interface StorageMenuAction { label: string; disabled?: boolean; onSelect: () => void; /** Opens its own overlay via closeAllOverlays, like the binder switcher's Activity. */ immediate?: boolean }
+export interface StorageMenuAction { label: string; disabled?: boolean; onSelect: () => void }
 
 /** Secondary storage actions, out of the way of the collection. An action runs after the menu has closed
  * and its history entry is gone, so the dialog it opens owns Back. */
@@ -21,7 +21,7 @@ export function StorageMenu({ actions, children, attention = false }: { actions:
     runAfterOverlayHistory(pending.run)
     queueMicrotask(() => setPending(null))
   }, [open, pending])
-  const items: StorageMenuAction[] = [...(openActivity ? [{ label: "Activity", immediate: true, onSelect: () => openActivity({}) }] : []), ...actions]
+  const items: StorageMenuAction[] = [...(openActivity ? [{ label: "Activity", onSelect: () => openActivity({}) }] : []), ...actions]
   return <div className="relative shrink-0">
     <button type="button" aria-label="Storage" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(current => !current)}
       className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60">
@@ -36,7 +36,7 @@ export function StorageMenu({ actions, children, attention = false }: { actions:
           <button type="button" onClick={close} aria-label="Close storage" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex min-h-0 flex-col gap-1 overflow-y-auto overscroll-contain p-1 text-sm">
-          {items.map(item => <button key={item.label} type="button" disabled={item.disabled} onClick={() => { if (item.immediate) { close(); item.onSelect(); return } setPending({ run: item.onSelect }); close() }}
+          {items.map(item => <button key={item.label} type="button" disabled={item.disabled} onClick={() => { setPending({ run: item.onSelect }); close() }}
             className="flex min-h-11 w-full items-center rounded-xl px-3 text-left font-medium hover:bg-muted/70 disabled:opacity-40">{item.label}</button>)}
           {children}
         </div>
