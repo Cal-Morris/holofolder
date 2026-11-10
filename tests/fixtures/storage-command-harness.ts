@@ -31,6 +31,11 @@ export function storageCommandHarness(id: string) {
       const previous = ledger.get(key)
       if (previous) return previous.body === body && previous.audit === audit ? Response.json(previous.result) : Response.json({ code: "23505" }, { status: 409 })
       const snapshot = await readOwnerInventorySnapshot(state.client)
+      if (request.inventoryRevision !== snapshot.inventoryRevision) {
+        const result = { outcome: "rejected", operationId: key, code: input.operation === "slots" ? "slot_revision_conflict" : "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision }
+        ledger.set(key, { body, audit, result })
+        return Response.json(result)
+      }
       const next = projectSlotIntent(snapshot, { kind: input.operation, request,
         context: { source: "app", clientId: null, operationId: key, batchId: key, clientOccurredAt: null } } as Parameters<typeof projectSlotIntent>[1], () => undefined)
       state.tables.inventory_owner_state[0].inventory_revision = next.inventoryRevision
