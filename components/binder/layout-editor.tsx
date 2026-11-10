@@ -12,6 +12,8 @@ import SlotRemovalReview from "@/components/binder/slot-removal-review"
 import BulkFillReview from "@/components/binder/bulk-fill-review"
 
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 export interface LayoutBoundary {
   snapshot: InventorySnapshot
@@ -27,7 +29,7 @@ const button = "min-h-10 rounded-xl border border-border px-3 py-2 text-sm disab
 /** A pointer must begin on this mounted edit-session control, and must not become a scroll/drag. */
 function LayoutButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
   const press = useRef<{ x: number; y: number } | null>(null)
-  return <button {...props} type="button" className={button}
+  return <button {...props} type="button" className={cn(button, props.className)}
     onPointerDown={event => { press.current = { x: event.clientX, y: event.clientY } }}
     onPointerMove={event => { if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 8) press.current = null }}
     onPointerCancel={() => { press.current = null }}
@@ -110,7 +112,7 @@ export function LayoutToolbar({ editing, onToggle, boundary, bulk }: { editing: 
   const [bulkOpen, setBulkOpen] = useState(false)
   const showBulk = Boolean(bulk && (!bulk.collapsible || bulkOpen))
   // Browsing is the normal state: one small control, not a panel above the binder.
-  if (!editing) return <section aria-label="Layout editing" className="flex shrink-0 justify-end"><LayoutButton aria-pressed={false} onClick={onToggle}>Edit layout</LayoutButton></section>
+  if (!editing) return <section aria-label="Layout editing" className="flex shrink-0 justify-end"><LayoutButton className={buttonVariants({ variant: "ghost", className: "h-9 min-h-9 rounded-xl border-0 px-2 py-0 text-xs" })} aria-pressed={false} onClick={onToggle}>Edit layout</LayoutButton></section>
   return <section aria-label="Layout editing" className="shrink-0 rounded-xl border border-border bg-card px-3 py-2 text-foreground">
     <div className="flex items-center justify-between gap-2">
       <p role="status" className="text-sm">Editing layout</p>

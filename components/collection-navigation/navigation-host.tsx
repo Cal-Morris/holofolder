@@ -205,10 +205,10 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
   // Compact: the collection picker reads as the page title; National Dex and Inventory live in the dock.
   const header = <div className="flex min-w-0 flex-1 items-center gap-1">
-      <select aria-label="Collection" className="h-9 min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 text-base font-semibold" value={collectionId ?? ""} onChange={e => navigate({ ...visible, main: "collection", collectionId: e.target.value })}>
+      <select aria-label="Collection" className="h-9 min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 text-sm font-semibold" value={collectionId ?? ""} onChange={e => navigate({ ...visible, main: "collection", collectionId: e.target.value })}>
         {!collectionId && <option value="">No storage yet</option>}{index.collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
-      {visible.main === "collection" && <select aria-label="Collection view" className="h-9 shrink-0 rounded-lg bg-transparent px-1 text-base text-muted-foreground" value={collectionState.view} onChange={e => navigate({ ...visible,
+      {visible.main === "collection" && <select aria-label="Collection view" className="h-9 shrink-0 rounded-lg bg-transparent px-1 text-xs font-medium text-muted-foreground" value={collectionState.view} onChange={e => navigate({ ...visible,
         collections: { ...visible.collections, [collectionId!]: { ...collectionState, view: e.target.value as CollectionViewState["view"], scroll: 0 } } })}>
         <option value="binder">Binder</option><option value="list">List</option>{stagedSlabs && <option value="slabs">Slabs</option>}
       </select>}
