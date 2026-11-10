@@ -61,15 +61,13 @@ test("repeated species require selected destination and batch cannot duplicate c
   assert.throws(() => prepareScanDraft(s.snapshot, s.view, s.capture, [choice, choice], s.context, s.catalog), /duplicate/)
 })
 
-test("explicit raw creation uses add plus exact existing assignment, never substitutes a graded copy", () => {
+test("raw creation beside graded-only eligible copies stays unsupported", () => {
   const s = setup(), card = s.cards[0]
   const graded = syntheticSlotPickerSnapshot().inventory.items.find(i => i.grading)!
-  s.snapshot.items.push({ ...graded, id: "graded-copy", identity: { kind: "card", cardId: card.id } })
-  const result = prepareScanDraft(s.snapshot, s.view, s.capture, [{ cellIndex: 0, slotId: "slot-a", card, copy: "raw" }], s.context, s.catalog)
-  assert.equal(result.intent.kind, "inventory")
-  assert.deepEqual(result.intent.request.commands.map(c => c.kind), ["add", "assign"])
-  assert.equal(result.preview.placements.some(p => p.inventoryItemId === "graded-copy"), false)
-  assert.deepEqual(result.preview.items.find(i => i.id === "graded-copy")!.grading, graded.grading)
+  s.snapshot.items.push({ ...graded, id: "graded-copy", identity: { kind: "card", cardId: card.id, language: "en" } })
+  assert.throws(() => prepareScanDraft(s.snapshot, s.view, s.capture,
+    [{ cellIndex: 0, slotId: "slot-a", card, copy: "raw" }], s.context, s.catalog), /raw-creation-unavailable/)
+  assert.equal(s.snapshot.placements.length, 0)
 })
 
 test("two confirmed duplicate printings get distinct raw item IDs in one batch", () => {

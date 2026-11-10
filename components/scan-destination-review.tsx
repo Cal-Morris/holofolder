@@ -92,7 +92,8 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
             const identity = card ? { kind: "card" as const, cardId: card.canonicalId ?? card.id,
               ...(isCardLanguage(card.language) ? { language: card.language } : {}), ...(choice?.finish ? { finish: choice.finish as CardFinish } : {}) } : null
             const resolver = (id: string) => card && matchesCatalogCardId(card, id) ? pickerCandidate(card) : admission.catalog(id)
-            const copies = identity ? pickerChoices(admission.snapshot, identity, resolver).filter(c => c.label !== "Raw") : []
+            const copies = identity ? admission.snapshot.items.flatMap(item => pickerChoices({ ...admission.snapshot, items: [item] }, identity, resolver)) : []
+            const rawUnavailable = copies.length > 0 && !copies.some(c => c.label === "Raw")
             return <section key={cell.index} className="min-w-0 space-y-2 rounded-xl border border-border p-3" aria-label={`Cell ${cell.index + 1}`}>
               <p className="break-words text-sm font-medium">Cell {cell.index + 1} · {cell.slotId ?? "Uncreated pocket"}</p>
               <label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" checked={choice?.skip ?? false} onChange={e => update(cell.index, { skip: e.target.checked })} />Skip cell {cell.index + 1}</label>
@@ -106,7 +107,7 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
                     <option value="">Unknown finish</option>{pickerFinishes(card).map(f => <option key={f.finish} value={f.finish}>{f.label}</option>)}
                   </select>
                   <select className={control} aria-label={`Copy for cell ${cell.index + 1}`} value={choice?.copy ?? ""} onChange={e => update(cell.index, { copy: e.target.value })}>
-                    <option value="">Choose copy</option><option value="raw">Raw, reuse Unassigned or create</option>{copies.map(c => c.selection.kind === "existing" && <option key={c.selection.inventoryItemId} value={c.selection.inventoryItemId}>{c.label}</option>)}
+                    <option value="">Choose copy</option><option value="raw" disabled={rawUnavailable}>{rawUnavailable ? "Raw creation unavailable beside graded-only copies" : "Raw, reuse Unassigned or create"}</option>{copies.map(c => c.selection.kind === "existing" && <option key={c.selection.inventoryItemId} value={c.selection.inventoryItemId}>{c.label} · {c.selection.inventoryItemId}</option>)}
                   </select>
                   <select className={control} aria-label={`Destination for cell ${cell.index + 1}`} value={choice?.slotId ?? ""} onChange={e => update(cell.index, { slotId: e.target.value })}>
                     <option value="">Choose destination</option>{scanDestinations(admission.snapshot, admission.view, card, choice?.finish ? choice.finish as CardFinish : undefined).map(s => <option key={s.id} value={s.id}>{s.id}{s.target ? " · Compatible target" : " · Free slot"}{s.id === cell.slotId ? " · Captured cell" : ""}</option>)}
