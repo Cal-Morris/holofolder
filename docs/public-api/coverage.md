@@ -132,7 +132,7 @@ The existing token/named pages use a scoped, public-only internal read projectio
 
 ### Private scanner destination review (#375)
 
-Opt-in PageScanner camera/photo and QuickCardScanner review prepare existing parsed inventory intents for the device-commit sink. Capture and transient OCR/occupancy review are browser-only, not public native mutations. No REST/MCP registry, permission, OpenAPI/generated contract or route admission changes. All native runtime guards remain closed. [Internal host contract and atomic append gap](../scan-destinations.md), [staged help](../../content/docs/scan-destinations.mdx) and [unpublished release copy](../releases/scan-destinations-draft.md) record remaining #362/#383/#366/#369/#376/#379/#394/#396/#393 gates.
+The actual staged BinderApp/BrowserCollectionSession binds PageScanner camera/photo and QuickCardScanner review to the existing durable original-ID queue, HTTP command sender and fresh complete-read ACK. The existing strictly loopback/non-hosted harness is the only admission. Cached-only startup does not gain editing authority. Atomic append-and-assign and Raw creation beside graded-only eligible copies remain unsupported. Capture and transient OCR/occupancy review are browser-only, not public native mutations. No REST/MCP registry, permission, OpenAPI/generated contract or route admission changes. All native runtime guards remain closed. [Internal host contract and atomic append gap](../scan-destinations.md), [staged help](../../content/docs/scan-destinations.mdx) and [unpublished release copy](../releases/scan-destinations-draft.md) record remaining #362/#383/#366/#369/#376/#379/#394/#396/#393 gates.
 
 ### Readable Activity and card/want-list Undo (#447)
 

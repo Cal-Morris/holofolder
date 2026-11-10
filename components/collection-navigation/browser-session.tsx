@@ -12,6 +12,9 @@ import type { SlotDisplayInput } from "@/lib/binder-display-model"
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import { isSlotContractId } from "@/lib/domain/binder-slots"
 import { sendStorageCommand } from "@/lib/collection/storage-command-browser"
+import type { NativePageScanAdmission } from "@/components/native-page-scanner"
+import type { ScanDestinationAdmission } from "@/lib/scan-destinations"
+import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 
 export interface BrowserSurfaceBinding {
@@ -20,6 +23,7 @@ export interface BrowserSurfaceBinding {
   catalog: InventoryCatalogResolver
   receive: SlotCommandSink
   pending: number
+  scan?: { detectPage?: NativePageScanAdmission["detectPage"]; available: boolean; online: boolean; rows?: number; cols?: number; sessionId: string; getOfflineCards: () => Promise<SearchCardResult[]>; receive: ScanDestinationAdmission["onCommandIntent"] }
 }
 export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, localHarness = false }: {
   initialBinderId: string | null
@@ -150,6 +154,22 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     } catch { if (valid()) setNotice("Could not reconcile this edit. Structural, overlapping or dependent edits need a separately reviewed replacement. The original is retained.") }
     finally { refreshing.current-- }
   }
+  const scanAllowed = useRef(false)
+  useLayoutEffect(() => { scanAllowed.current = online && read.evidence.kind === "complete" && !queue.record?.pending.length })
+  const receiveScan: ScanDestinationAdmission["onCommandIntent"] = async (draft, scanCatalog) => {
+    if (!valid() || refreshing.current || !scanAllowed.current || !navigator.onLine
+      || draft.scope.ownerUserId !== scope.ownerUserId || draft.intent.kind !== "inventory"
+      || read.evidence.kind !== "complete"
+      || !read.evidence.snapshot.binders.some(b => b.collectionId === draft.scope.collectionId)) throw new Error("fresh-scoped-read-required")
+    return latest.current.queue.enqueue(draft.intent, scanCatalog)
+  }
+  const getOfflineCards = async () => {
+    const { buildOfflineCardIndex } = await import("@/lib/offline-card-index")
+    const cached = await buildOfflineCardIndex([])
+    if (!valid()) throw new Error("inventory_read_scope_changed")
+    const cards = read.catalog.map(c => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] }))
+    return [...cards, ...cached.filter(c => !cards.some(known => known.id === c.id && known.language === c.language))]
+  }
   const receive: SlotCommandSink = async draft => {
     if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     return latest.current.queue.enqueue(draft.intent, catalog)
@@ -191,6 +211,9 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
             void latest.current.queue.queue?.resume(head.intent.request.operationId).then(() => latest.current.queue.refresh()).catch(() => { if (valid()) setNotice("This edit needs reconciliation, or a send is still in progress. The original command is retained.") })
           }}>Retry pending sync</button>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
-          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, pending: queue.record?.pending.length ?? 0 })
+          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, pending: queue.record?.pending.length ?? 0,
+          scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
+            ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,
+            available: visibleRead.evidence.kind === "complete" && online, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })
       }} />
 }

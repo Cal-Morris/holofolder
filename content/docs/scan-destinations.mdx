@@ -3,12 +3,12 @@ title: Scan destination drafts
 description: Internal staged card and page scan review, with native storage still gated.
 ---
 
-Native scan destination review is **not enabled in the app**. Existing scanning continues to use its legacy flow. This guide describes an internal opt-in integration under review, not a supported REST or MCP operation.
+Native scan destination review is **not enabled in the app**. Existing scanning continues to use its legacy flow. The actual BinderApp now has staged Scan page and Scan card entries through BrowserCollectionSession, admitted only by the existing non-hosted loopback harness. This is not a supported REST or MCP operation.
 
 In the staged page scanner, capture a page or choose a photo. Occupied pockets are mapped to the slot IDs and grid captured with the image. Occupancy alone does not identify or own a card. Choose a cached catalog identity and a compatible target or free slot for each included cell, or explicitly skip it. Repeated Pokémon require a destination choice. Supporter and Energy identities do not need Pokémon IDs.
 
-The staged card scanner keeps its existing OCR and cached lookup. Review the actual catalog candidate, Raw or a recorded copy, finish and exact destination before confirming. Unknown content stays unresolved. OCR does not provide grades, certificates or label artwork.
+The staged card scanner keeps its existing OCR and cached lookup. Type instead offers catalog identities already read or cached on this device. Review the actual catalog candidate, Raw or a recorded copy, finish and exact destination before confirming. Unknown content stays unresolved. OCR does not provide grades, certificates or label artwork.
 
 If owner, session, collection, arrangement or grid changes, cancel and capture again. Canceling an unconfirmed scan saves nothing. Local-save failure retains the exact draft for retry. Successful device acceptance means pending sync, not a server-confirmed save.
 
-Append-and-assign is unavailable until one atomic command can create the slot and assign its copy. Offline review uses identities already cached on the device; it cannot identify uncached cards or promise a cold offline OCR download. Public native APIs, production host admission, recovery, rollout and release publication remain separate gates.
+Append-and-assign is unavailable until one atomic command can create the slot and assign its copy. Creating Raw beside graded-only eligible copies is also unavailable; choose a recorded copy instead. Cached native startup remains read-only: reconnect and refresh complete scoped storage before scanning, and let pending edits finish syncing. An already open scanner retains cached lookup if the network drops, but confirmation requires a valid complete online planning base; it cannot identify uncached cards or promise a cold offline OCR download. Public native APIs, production host admission, recovery, rollout and release publication remain separate gates.
