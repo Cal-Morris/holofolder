@@ -23,7 +23,7 @@ import { CollectionNavigationReadError, readCurrentCollectionNavigation } from "
 import { parseNavigationEvidence, sameInventoryReadScope, type InventoryReadScope } from "@/lib/collection/inventory-read-transport"
 import type { CollectionNavigationRead } from "@/lib/collection-navigation"
 import { getOfflineStore } from "@/lib/offline-store/kv"
-import { browserHostCatalog, browserHostDisplayCatalog } from "@/lib/collection/browser-host-catalog"
+import { browserHostCatalog, browserHostSlotDisplay } from "@/lib/collection/browser-host-catalog"
 import type { NativeRecoveryBinding } from "@/components/native-activity-recovery"
 import type { SlotDisplayInput } from "@/lib/binder-display-model"
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
@@ -124,6 +124,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const metadataKey = `slot-navigation-v1:${JSON.stringify([deviceId, scope.actorUserId, scope.ownerUserId])}`
   const valid = () => alive.current && sameInventoryReadScope(latest.current.currentScope(), scope)
   const catalog = useMemo(() => browserHostCatalog(read.catalog), [read.catalog])
+  // visibleRead always shares read.catalog, so the binder surface keeps its slot display until the catalog or snapshot changes.
+  const slotDisplay = useMemo(() => browserHostSlotDisplay(read.catalog), [read.catalog])
   useLayoutEffect(() => { latest.current = { currentScope, queue, catalog } })
   const refresh = async () => {
     if (sending.current) throw new Error("pending-command-read")
@@ -454,8 +456,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)
         // Cached slots may be displayed, but current pages require a matching saved grid.
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
-        const display = snapshot && binder && layout ? { inventory: snapshot, binder,
-          catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
+        const display = snapshot && binder && layout ? slotDisplay(snapshot, binder) : undefined
         return <>{deleting && <NativeCollectionDeletion key={`${scope.sessionId}:${deleting}`} collectionId={deleting} binding={{ read, available: deletionAvailable, receive: receiveDeletion }} onClose={() => setDeleting(null)} />}{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, toolbar: surface.header,
