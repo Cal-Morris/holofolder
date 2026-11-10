@@ -1,0 +1,33 @@
+# Copied preset discovery/preview, staged
+
+Related: #376, #367, #368, #372, #373. Native admission remains unconditionally `503 native_operations_staged`; parent owns exact-head review, serialized shipping and #379 enablement. No SQL, migration, hosted access, conversion, provider spending or Framer publication in this slice.
+
+## Contract and authority
+
+The shared registry/dispatcher exposes `list_storage_presets` (`GET /storage/presets`) and read-only `preview_storage_preset` (`POST /storage/presets/preview`). REST key and MCP OAuth authentication, paid current owner/partner access, actor identity, current grants/revocation, membership, billing and permission fences are retained. Both require `catalog:read` and `binders:read`; no mutation permission is required. The existing developer reader authority accepts an explicit required-permission set while retaining its original default for native inventory reads. No cookie reader receives an admin client. No private owner state, grade, certificate, asset, source history or credential/member identity is returned.
+
+Fixed admission runs after strict schema/permission validation and before all operation authority/catalog queries or execution. Tests can replace the denial only inside isolated subprocess module mocks; production has no admission flag or override. Existing import, command, read and legacy operations remain registered and unchanged.
+
+## Supported copied subset
+
+Use the shared `blankPreset`, `speciesPreset`, `printingPreset`, `normalizePresetManifest` and existing generation definitions. Generations moved unchanged to a pure shared module and retain their prior component export. Discovery lists thirteen supported definitions and two explicit unsupported scopes, all version 1. Lists use the existing query-bound pagination, 1–100 entries. Preview is a complete bounded manifest response, not a paged/private inventory snapshot.
+
+Blank contains zero entries. National Dex and generation targets follow bundled Dex order; selected species preserve caller order and reject duplicate species, unknown IDs and separate forms. Selected printings preserve caller order and repeats, assigning distinct deterministic preset entry IDs. Exact stored card IDs support Pokémon, Trainers and Energy without pretending species membership. Language requires localized name evidence; requested finishes use only existing verified normal/holo/reverse/jumbo flags. Absent finish is unconstrained, never inferred. No rarity/price/grade inference or exhaustive printing/anniversary search.
+
+`readPresetPrintings` uses only the public mirror and reuses the printing builder. Exact ID pages and alias/canonical ambiguity queries are keyset-paged at ten rows. Missing direct IDs, conflicting aliases/canonical mappings, missing set/number/language/finish, backend errors and incomplete pages fail the whole request. Only exact row IDs are supported, with canonical remapping rejected. The manifest is revalidated in a second bounded read; this is a read-time target validation, not a locked catalog snapshot or save guarantee. Creation rechecks authoritative evidence and entitlement. Budgets across both reads and authority fences: five seconds, 192 checked requests, two MiB cumulative catalog bytes; at most 100 printing entries / 25 unique printings, 1,025 species, 64 KiB input and one MiB response. No partial response, upstream provider call or spend.
+
+Responses are strict `copied-preset-preview-v1`, `completeSnapshot:false`, with preset/version, detached manifest, exact selection scope, target/free counts, ownership false, exclusions and unknowns. The manifest itself contains copied source/entry provenance. No new inventory, wants, grade or status is created. Completion remains current-target based; no autosync changes existing goals.
+
+## Durable boundary and remaining gates
+
+The existing draft accepts `manifest`, supplied operation/owner/name, not this entire response. Preview allocates no operation/collection/slot identity or creation intent. Caller-supplied stable IDs are retained only when constructing the canonical creation intent. Preset entry IDs are provenance, never slot IDs. Normalized preview manifests roundtrip through the existing immutable draft and canonical creation parser without extra persisted fields.
+
+Creation persists copied manifest/slot provenance, but not the outer preview scope/coverage disclosure. Although the app has an internal set/master-set checklist generator, its durable set/language/finish/promo/exclusion/unknown scope remains a gate. Discovery reports these scopes unsupported, and preview returns `422 unsupported_preset_scope`; no guessed complete checklist is fabricated. This lane adds no SQL to solve that prerequisite.
+
+#376 stays open for remaining developer mutation parity and terminal-result/reconciliation acceptance in their owning lanes, complete planner/fresh-read ACK semantics, durable set/master-set scope, native consumer/legacy/offline compatibility and #379 hosted admission/rollout. This read projection must not clear queues or be used as full replacement state. Preparing or reading it emits no collection mutation event. Parent-owned #463 and the private grading/want lane are not dependencies of these operations. Public release/help verification and any Framer publication follow enabled production proof; [release copy](releases/preset-developer-preview-draft.md) is unpublished.
+
+## Verification
+
+`tests/preset-developer.test.ts` invokes isolated fixtures through the actual shared dispatcher, REST handler and MCP SDK handler. Synthetic current key/OAuth authority and mirror transports prove fixed zero-query/zero-executor denial; owner/partner/billing/revocation/permission fences; strict response privacy; deterministic goals, repeats, empty/unknown/large selections; real mirror pagination, ambiguity, incomplete pages and finite byte/request/time failure. Existing native operation/reader and registry/OpenAPI/Markdown/navigation/smoke assertion suites cover compatibility. No test is hosted PostgreSQL, RLS, production execution or consumer ACK proof. The six-phone docs matrix covers the help/reference presentation; no full e2e is required or claimed.
+
+Final local validation for this slice: 44 focused tests across 14 files pass with direct CI Bun 1.3.14; typecheck and full lint pass with the existing 55 warnings and no changed-code warnings. The production harness build/docs CSS check and all six phone browser/standalone docs cases pass at 375×667, 390×844 and 430×932. Full-repo e2e, hosted execution and production admission were not run or enabled.

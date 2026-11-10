@@ -34,4 +34,4 @@ Every page and detail response declares `projection: "developer-native-v1"`, `co
 
 Reads check current authority before owner data and again before accepting the result. Mid-read unlink/revocation, changed independent revisions/counts, incomplete paging or backend errors fail closed. Each invocation permits one whole-owner read attempt, 15 seconds and 512 checked requests. Source pages contain at most 500 rows and have a cumulative 32 MiB budget; serialized developer responses have a 1 MiB limit. Use smaller response pages after `413 native_read_too_large`. Large owners that exhaust a complete-read budget are unavailable, never partially complete.
 
-Preset discovery/preview, native command sender/replay/fresh-read ACK, offline relaunch and hosted rollout acceptance have separate remaining gates. This reference does not enable those workflows.
+[Copied preset discovery/preview](/docs/preset-previews) has its own staged read-only contract. Native command sender/replay/fresh-read ACK, offline relaunch and hosted rollout acceptance retain their separate remaining gates. This reference does not enable those workflows.

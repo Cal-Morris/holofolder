@@ -23,6 +23,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 - [Staged collection navigation](collection-navigation.md): scoped local view state, deep links/history, stable location refresh and explicit authenticated transport/rollout blockers.
 - [Read-only Inventory browse preparation](inventory-browse.md): complete/cached evidence, per-copy queries/current locations, local-only synthetic harness and authenticated binding/navigation gates.
 - [Explicit-slot picker preparation](explicit-slot-picker.md): private parsed-intent callback, synthetic UI proof, cached non-dex search and remaining authenticated/queue/rollout gates (#366).
+- [Copied preset developer discovery/preview](preset-developer-preview.md): staged supported copied targets, bounded catalog evidence and durable scope limits.
 - [Editable binder contracts](binder-slot-contracts.md): internal slot/snapshot, target/matching, copied preset and pure layout contracts, with explicit adapter and rollout boundaries.
 - [Collection Activity](collection-activity-ui.md): first-party session adapter, read-only history, private device cache and parent release handoff.
 - [Multiple binders](multiple-binders.md), [binder history](binder-history.md), [collection import](collection-import.md).

@@ -9,6 +9,8 @@ description: Staged inventory, slot, copied creation and native recovery contrac
 
 The staged command contracts reuse the app's trusted native executor. Five [staged developer reads](/docs/native-reads) declare redacted pages/details with current preconditions. They remain unavailable and always declare `completeSnapshot:false`; they never provide a private planner snapshot or queue acknowledgement. Public binder links never grant access to private owner inventory, certificates, label assets or location.
 
+[Copied preset discovery/preview](/docs/preset-previews) adds separate staged read-only operations requiring `catalog:read` and `binders:read`. They return public preset metadata or detached copied goals, allocate no creation identities and expose no private planning state. Set/master-set durable scope remains unsupported.
+
 ## Credentials and permissions
 
 REST uses a personal API key at `https://app.holofolder.com/app/api/v1`. MCP uses its separately approved OAuth grant at `https://app.holofolder.com/app/mcp`.
