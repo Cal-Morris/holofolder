@@ -92,13 +92,14 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
         const result = await db.from("inventory_owner_state").select("owner_user_id,inventory_revision")
           .eq("owner_user_id", owner).abortSignal(controller.signal).maybeSingle()
         if (result.error) return unavailable()
-        if (!result.data) return fail("inventory_not_initialized", 503)
+        if (!result.data) return null
         if (result.data.owner_user_id !== owner || !isSlotRevision(result.data.inventory_revision)) return unavailable()
         return result.data.inventory_revision as number
       }
       async function count(table: string, collection?: string) {
         check()
-        let query = db.from(table).select("owner_user_id", { count: "exact", head: true }).eq("owner_user_id", owner)
+        const ownerColumn = table === "pokemon_collection" ? "user_id" : "owner_user_id"
+        let query = db.from(table).select(ownerColumn, { count: "exact", head: true }).eq(ownerColumn, owner)
         if (collection) query = query.eq("collection_id", collection)
         const result = await query.abortSignal(controller.signal)
         if (result.error || !isSlotRevision(result.count)) return unavailable()
@@ -118,13 +119,13 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
           return { inventoryRevision: revision, total, rows: page, next: page.length === PAGE ? String(page.at(-1)![key]) : null }
         }
       }
-      async function metadata(rev: number) {
+      async function metadata(rev: number, rootRevision: number | null) {
         const stateTotal = await count("storage_collection_state"), binderTotal = await count("binders")
         const states = await readCompleteSnapshotRows(reader("storage_collection_state", STATE, "collection_id", rev, stateTotal), rev, r => String(r.collection_id))
         const binders = await readCompleteSnapshotRows(reader("binders", "id,owner_user_id,name,is_default,sort_order,binder_rows,binder_cols,updated_at", "id", rev, binderTotal), rev, r => String(r.id))
         if (stateTotal !== binderTotal || binders.some(b => !states.some(s => s.collection_id === b.id)) || states.some(s => s.authority !== "slots")) {
           // A concurrent conversion/create is retryable; stable legacy is an honest boundary.
-          if (await revision() !== rev) conflict()
+          if (await revision() !== rootRevision) conflict()
           return fail("legacy_inventory_incomplete", 503)
         }
         if (states.some(s => !isSlotRevision(s.version) || !isSlotRevision(s.layout_revision))) return unavailable()
@@ -163,7 +164,20 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
       for (let attempt = 0; attempt < attempts; attempt++) {
         try {
           await sameScope()
-          const rev = await revision(), meta = await metadata(rev)
+          const rootRevision = await revision(), rev = rootRevision ?? 0
+          // Absence is a revision-zero planning base only for a proven untouched owner.
+          // Never provision rows in GET; trusted first creation needs the parent 098 prerequisite.
+          const proveEmpty = async (final: boolean) => {
+            for (const table of ["binders", "pokemon_collection", "storage_collection_state", "inventory_items", "binder_slots", "inventory_placements", "binder_legacy_rows"]) {
+              if (await count(table) !== 0) {
+                if (final || await revision() !== null) conflict()
+                return fail("inventory_not_initialized", 503)
+              }
+            }
+            if (await revision() !== null) conflict()
+          }
+          if (rootRevision === null) await proveEmpty(false)
+          const meta = await metadata(rev, rootRevision)
           const sourceCount = await count("binder_legacy_rows")
           const sourceRows = await readCompleteSnapshotRows(reader("binder_legacy_rows", "legacy_row_id,owner_user_id,collection_id,slot_id,source_row", "legacy_row_id", rev, sourceCount), rev, r => String(r.legacy_row_id))
           const sourceBySlot = new Map(sourceRows.map(r => [r.slot_id, r]))
@@ -237,7 +251,7 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
           }, async () => {
             if (await count("inventory_items") !== itemCount || await count("inventory_placements") !== placementCount
               || await count("binder_slots") !== slotCount || snapshotSlotCount !== slotCount) conflict()
-            if (JSON.stringify(await metadata(rev)) !== JSON.stringify(meta) || await revision() !== rev) conflict()
+            if (JSON.stringify(await metadata(rev, rootRevision)) !== JSON.stringify(meta) || await revision() !== rootRevision) conflict()
             await sameScope()
             check()
           })
@@ -255,11 +269,16 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
             const grid = withBinderLayout(settingsFromRow(settings), { rows: b.binder_rows as number | null, cols: b.binder_cols as number | null })
             layouts.push({ collectionId: String(b.id), layoutRevision: snapshot.binders.find(s => s.collectionId === b.id)!.layoutRevision, rows: grid.binderRows, cols: grid.binderCols })
           }
-          if (JSON.stringify(await metadata(rev)) !== JSON.stringify(meta) || await revision() !== rev) conflict()
+          if (JSON.stringify(await metadata(rev, rootRevision)) !== JSON.stringify(meta) || await revision() !== rootRevision) conflict()
           if (await count("binder_legacy_rows") !== sourceCount) conflict()
           const finalSources = await readCompleteSnapshotRows(reader("binder_legacy_rows", "legacy_row_id,owner_user_id,collection_id,slot_id,source_row", "legacy_row_id", rev, sourceCount), rev, r => String(r.legacy_row_id))
           if (JSON.stringify(finalSources) !== JSON.stringify(sourceRows)) conflict()
           await sameScope()
+          if (rootRevision === null) {
+            await proveEmpty(true)
+            await sameScope()
+            if (await revision() !== null) conflict()
+          }
           const collectionMetadata = Object.fromEntries(meta.binders.map(b => [String(b.id), {
             isDefault: typeof b.is_default === "boolean" ? b.is_default : null,
             sortOrder: isSlotRevision(b.sort_order) ? b.sort_order : null,

@@ -70,7 +70,7 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
   await expect(nav(page).getByRole("button", { name: "Inventory", exact: true })).toBeVisible()
 })
 
-test("device saved view cannot admit production path, 503 preserves cached inventory on reload", async ({ page }) => {
+test("503 preserves cached inventory on reload; unchecked production reads stay unavailable", async ({ page }) => {
   await page.goto(entry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("charizard")
@@ -80,7 +80,8 @@ test("device saved view cannot admit production path, 503 preserves cached inven
   await expect(page.getByRole("status").filter({ hasText: "Cached only" })).toBeVisible()
   await page.goto("/app/e2e-harness?signedIn=1&view=inventory")
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
-  await expect(nav(page).getByRole("button", { name: "List", exact: true })).toBeVisible()
+  await expect(nav(page).getByRole("button", { name: "Inventory", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
 })
 
 test("pending real IDB edits survive Edit layout teardown, view changes and failed refresh", async ({ page }) => {
@@ -145,7 +146,7 @@ test("auth lifecycle closes private detail and rejects an old in-flight location
   await expect(page.getByRole("dialog")).not.toBeVisible()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
   release()
-  await expect(nav(page).getByRole("button", { name: "List", exact: true })).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "Checking your account and collection access" })).toBeVisible()
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
 })
 
@@ -189,7 +190,7 @@ test("another account cannot restore the previous account's private view", async
   // Old cookie claims cannot admit a new actor, regardless of the saved navigation bytes.
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
-  await expect(nav(page).getByRole("button", { name: "List", exact: true })).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "Checking your account and collection access" })).toBeVisible()
 })
 
 test("existing Wanted and Browse use the labelled National Dex context and survive return", async ({ page }) => {

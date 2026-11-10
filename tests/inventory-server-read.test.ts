@@ -23,7 +23,7 @@ test("authenticated table requests collect >1025 copies and ordered slots, then 
   assert.ok(f.requests.every(r => !r.url.search.includes("select=*") && !/slot_page|recovery|command_evidence/.test(r.url.href)))
 })
 
-test("zero slots and no inventory are real complete state only with initialized owner", async () => {
+test("zero slots do not make an existing binder an untouched new owner", async () => {
   const f = fixture(0)
   assert.ok(isCompleteInventorySnapshot(await readOwnerInventorySnapshot(f.client)))
   f.tables.inventory_owner_state = []
@@ -45,7 +45,10 @@ test("forged caller owner is never accepted; actor and current partnership bind 
   f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
   assert.equal((await readOwnerInventorySnapshot(f.client)).ownerUserId, owner)
   f.tables.partnerships = []
-  await assert.rejects(readOwnerInventorySnapshot(f.client), { code: "inventory_not_initialized" })
+  const unlinked = await readOwnerInventorySnapshot(f.client)
+  assert.equal(unlinked.ownerUserId, partner)
+  assert.equal(unlinked.inventoryRevision, 0)
+  assert.deepEqual(unlinked.collections, [])
   f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
   f.deny()
   await assert.rejects(readOwnerInventorySnapshot(f.client), { code: "inventory_read_forbidden" })

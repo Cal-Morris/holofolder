@@ -74,6 +74,12 @@ export function readLocalBinderStart(storage: StorageLike, cookie: string, userI
     if (!access || (access.enforced && access.tier !== "paid")) return null
   }
   if (requestedBinderId && requestedBinderId !== marker.binderId) return null
+  // A native marker is a display pointer only. IDB/JWT checks happen in CachedNativeStartup.
+  // Native sessions need no obsolete legacy row snapshot to open their saved storage.
+  if (marker.native) {
+    const state = readOfflineShellState(storage, cookie, userId)
+    return { ...state, collection: [], collectionOwnerUserId: marker.ownerUserId, binderId: marker.binderId, binders: marker.binders }
+  }
   // Each binder has its own saved copy; the default binder's is under the original key.
   const isDefault = !marker.binderId || marker.binders.find((binder) => binder.id === marker.binderId)?.isDefault !== false
   let key = collectionSnapshotKey(marker.binderId, isDefault)

@@ -35,7 +35,7 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
     }
   }
 
-  const collectionOwnerUserId = await resolveCollectionOwnerUserId(supabase, user.id, { fallbackOnError: true })
+  const collectionOwnerUserId = await resolveCollectionOwnerUserId(supabase, user.id, { strictBilling: true })
   const requestedBinder = (await searchParams).binder
   const { binders, activeBinder } = await resolveActiveBinder(
     supabase,
@@ -43,7 +43,7 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
     typeof requestedBinder === "string" ? requestedBinder : null,
     cookieStore.get(ACTIVE_BINDER_COOKIE)?.value ?? null,
   )
-  const { collection, settingsRow, settings, hasStoredSettings } = await loadBinderBootstrap(supabase, collectionOwnerUserId, activeBinder?.id ?? null)
+  const { collection, settingsRow, settings, hasStoredSettings } = await loadBinderBootstrap(supabase, collectionOwnerUserId, activeBinder?.id ?? null, "native")
   const themeCookie = cookieStore.get(THEME_COOKIE)?.value
 
   return {

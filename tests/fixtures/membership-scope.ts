@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/rules-of-hooks -- Isolated effect runner exercises hooks without a renderer. */
 import assert from "node:assert/strict"
+import { AuthInvalidJwtError, AuthRetryableFetchError } from "@supabase/supabase-js"
 import type { InventoryReadScope } from "../../lib/collection/inventory-read-transport"
 
 async function useRun() {
@@ -8,25 +9,27 @@ async function useRun() {
   const { mock } = await import("bun:test")
   const effects: (() => void | (() => void))[] = []
   let state: unknown = null
+  let cachedAllowed = true
   mock.module("react", () => ({
     useRef: (value: unknown) => ({ current: value }),
-    useState: (initial: unknown) => [typeof initial === "function" ? initial() : initial, (value: unknown) => { state = value }],
+    useState: (initial: unknown) => [typeof initial === "function" ? initial() : initial, (value: unknown) => { state = value; if (typeof initial === "boolean") cachedAllowed = value as boolean }],
     useEffect: (effect: () => void) => { effects.push(effect) },
     useLayoutEffect: (effect: () => void) => { effects.push(effect) },
   }))
   mock.module("react-dom", () => ({ flushSync: (callback: () => void) => callback() }))
   mock.module("../../hooks/use-overlay", () => ({ closeAllOverlays: () => {} }))
   mock.module("../../lib/collection-activity", () => ({ clearActivityCache: () => {} }))
-  let authCallback!: () => void
+  let authCallback!: (event?: string) => void
   let claimActor = "synthetic-account", claimSession = "synthetic-auth"
   let owner = claimActor, claimsChecks = 0, membershipChecks = 0
   let billing = true
+  let claimsError: Error | null = null
   let membershipBarrier: Promise<void> | null = null
   let barrier: Promise<void> | null = null
   const client = {
     auth: {
-      onAuthStateChange: (cb: () => void) => { authCallback = cb; return { data: { subscription: { unsubscribe() {} } } } },
-      getClaims: async () => { claimsChecks++; await barrier; return { data: { claims: { sub: claimActor, session_id: claimSession } }, error: null } },
+      onAuthStateChange: (cb: (event?: string) => void) => { authCallback = cb; return { data: { subscription: { unsubscribe() {} } } } },
+      getClaims: async () => { claimsChecks++; await barrier; return { data: { claims: { sub: claimActor, role: "authenticated", session_id: claimSession } }, error: claimsError } },
     },
     from: () => ({ select: () => ({ or: () => ({ limit: () => ({ maybeSingle: async () => { membershipChecks++; const data = owner === claimActor ? null : { id: "synthetic-partnership", owner_user_id: owner, user1_id: claimActor, user2_id: owner }; await membershipBarrier; return { data, error: null } } }) }) }) }),
     rpc: async () => ({ data: billing, error: null }),
@@ -63,7 +66,8 @@ async function useRun() {
   assert.equal(hook.currentScope(), null, "claims for another actor cannot authorize the old account")
   claimActor = "synthetic-account"; owner = "other-owner"
   signalMembershipLifecycle("recheck"); await settle()
-  assert.equal(hook.currentScope(), null, "changed membership cannot reuse the old owner")
+  assert.equal(hook.currentScope()!.ownerUserId, owner, "changed membership opens a fresh owner scope")
+  assert.notEqual(hook.currentScope()!.sessionId, initial.sessionId)
   owner = claimActor; claimSession = "fresh-auth-session"
   signalMembershipLifecycle("recheck"); await settle()
   assert.equal(hook.currentScope()!.authSessionId, claimSession)
@@ -85,5 +89,28 @@ async function useRun() {
   signalMembershipLifecycle("recheck"); await settle()
   assert.equal(shared.currentScope()!.ownerUserId, owner)
   sharedCleanup.forEach(stop => stop?.())
+  owner = claimActor
+  membershipBarrier = new Promise<void>(resolve => { release = resolve })
+  const stalledStart = effects.length
+  cachedAllowed = true
+  const stalled = useBrowserCollectionScope(claimActor, owner, true)
+  const stalledCleanup = effects.slice(stalledStart).map(effect => effect())
+  authCallback("SIGNED_IN"); authCallback("INITIAL_SESSION"); await settle()
+  assert.equal(stalled.currentScope(), null)
+  assert.equal(cachedAllowed, true, "cold-client SIGNED_IN before INITIAL_SESSION does not close read-only fallback")
+  authCallback("SIGNED_OUT")
+  assert.equal(cachedAllowed, false, "a later auth event closes fallback synchronously")
+  release(); membershipBarrier = null; await settle()
+  stalledCleanup.forEach(stop => stop?.())
+  for (const [error, allowed] of [[new AuthRetryableFetchError("Synthetic disconnected", 0), true], [new AuthInvalidJwtError("Synthetic invalid signature"), false]] as const) {
+    claimsError = error; cachedAllowed = true
+    const start = effects.length
+    const rejected = useBrowserCollectionScope(claimActor, owner, true)
+    const stop = effects.slice(start).map(effect => effect())
+    await settle()
+    assert.equal(rejected.currentScope(), null)
+    assert.equal(cachedAllowed, allowed, "retryable auth transport failure retains display, definitive invalid JWT closes it")
+    stop.forEach(cleanup => cleanup?.())
+  }
 }
 useRun().catch(error => { console.error(error); process.exitCode = 1 })

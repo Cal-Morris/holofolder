@@ -13,7 +13,7 @@ function sessionLifetime() {
     token: () => epoch, isActive: (token = epoch) => active && token === epoch }
 }
 
-/** Shared durable adapter. The actual browser host binds it behind denied production admission; the admitted host supplies its sender.
+/** Shared durable adapter. The checked authenticated browser host supplies its sender; cached startup never mounts it.
  * Remount on session changes, including unlink/relink to the same owner. */
 export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, authSessionId?: string) {
   const { deviceId, workspaceId, accountId, ownerUserId } = scope

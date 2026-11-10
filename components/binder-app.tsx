@@ -113,6 +113,7 @@ import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
+import CachedNativeStartup from "@/components/cached-native-startup"
 import NativeStartupRecorder from "@/components/collection-navigation/native-startup-recorder"
 import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
 import type { BrowserSurfaceBinding } from "@/components/collection-navigation/browser-session"
@@ -157,7 +158,43 @@ interface BinderAppProps {
   initialBinderId?: string | null
 }
 
+/** Authenticated lifetimes never mount the writable legacy collection hook. */
 export default function BinderApp(props: BinderAppProps) {
+  const nativeHost = Boolean(props.initialUser && !props.readOnlyMode && !props.shareViewToken && !props.stagedSlotDisplay && !props.browserSurface)
+  const browserScope = useBrowserCollectionScope(props.initialUser?.id ?? null, props.initialCollectionOwnerUserId ?? null, nativeHost)
+  const [host, setHost] = useState<string | null>(null)
+  useEffect(() => { queueMicrotask(() => setHost(location.host)) }, [])
+  if (!nativeHost) return <BinderAppSurface {...props} />
+  const scope = browserScope.scope
+  const admission = browserHostAdmission(Boolean(props.localBrowserHost), "1", false, host, scope)
+  const waiting = <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
+    <p role="status">{browserScope.cachedFallbackAllowed
+      ? "Checking your account and collection access. Saved copies and pending edits are retained."
+      : "Saved storage is paused. Connect to check your account and collection access. Pending edits are retained."}</p>
+    <button type="button" className="min-h-10 self-start rounded-lg border px-3" onClick={() => window.location.reload()}>Try again</button>
+    <a className="flex min-h-10 items-center self-start underline" href={appPath("/auth/logout")}>Sign out</a>
+  </main>
+  if (!scope || !admission.admitted) return browserScope.cachedFallbackAllowed
+    ? <CachedNativeStartup legacyProps={props} whileChecking>{waiting}</CachedNativeStartup> : waiting
+  return <BrowserCollectionSession scope={scope} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null}
+    localHarness={admission.evidence === "synthetic-local-only"} renderFallback={() => <p role="status">Device storage is unavailable. Enable storage and reopen the app. Pending edits have not been removed.</p>}
+    renderSurface={binding => {
+      const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
+      const layout = context?.read.layouts.find(l => l.collectionId === context.collectionId && l.layoutRevision === binding.display?.binder.layoutRevision)
+      return <><NativeStartupRecorder scope={scope} /><BinderAppSurface {...props}
+        key={JSON.stringify([scope.sessionId, binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
+        localBrowserHost={false} browserSurface={binding} browserHeader={binding.surface.header}
+        onBrowserSignOut={async () => { await clearPushDevice().catch(() => undefined); window.location.assign(appPath("/auth/logout")) }}
+        initialCollectionOwnerUserId={scope.ownerUserId} initialCollection={[]}
+        initialBinderId={context?.collectionId ?? null}
+        initialSettings={{ ...props.initialSettings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
+        stagedSlotDisplay={binding.surface.state.main === "collection" ? binding.display : undefined}
+        stagedSlotSessionId={scope.sessionId} stagedSlotLocalDurable stagedSlotCatalog={binding.catalog}
+        onStagedSlotCommandIntent={binding.surface.state.main === "collection" && binding.display ? binding.receive : undefined} /></>
+    }} />
+}
+
+function BinderAppSurface(props: BinderAppProps) {
   const {
   localBrowserHost = false, stagedDurableQueue = false, browserSurface, browserHeader, onBrowserSignOut,
   stagedSlotDisplay,
@@ -349,13 +386,6 @@ export default function BinderApp(props: BinderAppProps) {
     readOnly: readOnlyMode,
     stagedDurableQueue,
   })
-  const [hostAdmitted, setHostAdmitted] = useState(false)
-  useEffect(() => { queueMicrotask(() => {
-    const explicit = new URLSearchParams(location.search).get("view")
-    setHostAdmitted(!["wanted", "sets", "pokemon", "analytics"].includes(explicit ?? "") && browserHostAdmission(localBrowserHost, "1", false, location.host).admitted)
-  }) }, [localBrowserHost])
-  const browserScope = useBrowserCollectionScope(user?.id ?? null, resolvedCollectionOwnerUserId ?? null,
-    hostAdmitted && !browserSurface && !legacyReadOnlyMode && !shareViewToken && !stagedSlotDisplay)
 
   const offerQuickUndo = useCallback((action: UndoAction) => {
     setOwnedRemoveUndo(null)
@@ -3925,21 +3955,6 @@ export default function BinderApp(props: BinderAppProps) {
     </CollectionActivityProvider>
     </BillingContext.Provider>
   )
-  if (!browserSurface && browserScope.scope && hostAdmitted) return <BrowserCollectionSession localHarness={localBrowserHost} scope={browserScope.scope} initialBinderId={initialBinderId} currentScope={browserScope.currentScope} renderFallback={() => legacySurface}
-    renderSurface={binding => {
-      const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
-      const layout = context?.read.layouts.find(l => l.collectionId === context.collectionId && l.layoutRevision === binding.display?.binder.layoutRevision)
-      return <><NativeStartupRecorder scope={browserScope.scope!} /><BinderApp {...props} key={JSON.stringify([binding.surface.visit, binding.surface.state.main, binding.surface.state.dexView, context?.collectionId, context?.state.view])}
-        localBrowserHost={false} browserSurface={binding} browserHeader={binding.surface.header} onBrowserSignOut={handleSignOut}
-        initialUser={user} initialCollectionOwnerUserId={resolvedCollectionOwnerUserId}
-        initialCollection={binding.surface.state.main === "dex" ? collection : []}
-        initialBinderId={context?.collectionId ?? initialBinderId}
-        initialSettings={{ ...settings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
-        stagedSlotDisplay={binding.surface.state.main === "collection" ? binding.display : undefined}
-        stagedSlotSessionId={browserScope.scope?.sessionId} stagedSlotLocalDurable
-        stagedSlotCatalog={binding.catalog}
-        onStagedSlotCommandIntent={binding.surface.state.main === "collection" && binding.display ? binding.receive : undefined} /></>
-    }} />
   return legacySurface
 
 }

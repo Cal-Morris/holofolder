@@ -367,7 +367,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           || intent.context.clientId !== scope.deviceId || intent.context.source !== 'app' || intent.request.planning.source !== 'app'
           || intent.request.planning.actorUserId !== scope.accountId || intent.request.planning.ownerUserId !== scope.ownerUserId
           || intent.request.planning.authSessionId !== creationAuthSessionId)) fail('verified-complete-native-base-required')
-        if (intent.kind === "creation" && (!isCompleteInventorySnapshot(planningBase) || !planningBase.collections.length
+        if (intent.kind === "creation" && (!isCompleteInventorySnapshot(planningBase)
           || !scope.accountId || !scope.ownerUserId || intent.context.clientId !== scope.deviceId
           || record.pending.length || !sameValue(record.snapshot, planningBase)
           || intent.request.inventoryRevision !== planningBase.inventoryRevision

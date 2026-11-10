@@ -6,7 +6,7 @@ export const collection = "22222222-2222-4222-8222-222222222222"
 type Row = Record<string, unknown>
 export function fixture(size = 1031, owner = "11111111-1111-4111-8111-111111111111", authSessionId = "synthetic-auth-session") {
   const tables: Record<string, Row[]> = {
-    partnerships: [], inventory_owner_state: [{ owner_user_id: owner, inventory_revision: 7 }],
+    pokemon_collection: [], partnerships: [], inventory_owner_state: [{ owner_user_id: owner, inventory_revision: 7 }],
     binders: [{ id: collection, owner_user_id: owner, name: "Synthetic storage", binder_rows: null, binder_cols: null, updated_at: null }],
     storage_collection_state: [{ collection_id: collection, owner_user_id: owner, kind: "binder", default_presentation: "binder", version: 3, layout_revision: 4, authority: "slots", preset_manifest: null, location: null }],
     inventory_items: [], inventory_placements: [], binder_slots: [], binder_legacy_rows: [], user_settings: [], tcg_cards: [], tcg_sets: [], tcg_card_dex_ids: [],
