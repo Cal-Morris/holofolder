@@ -98,11 +98,15 @@ export function publicReadIndex(binder: PublicBinder, input: SlotDisplayInput): 
   binder.slots.forEach((slot, i) => {
     const species = slotSpecies[i]
     if (slot.item) {
-      const row: CollectedPokemon = { id: `public-item-${i}`, pokemon_id: species[0] ?? 0, pokemon_name: species.length ? name(species[0]) : "", wanted_cards: [], status: "collected", collected_at: "",
+      const ownedSpecies = slot.pokemon ? [slot.pokemon.id] : slot.card?.pokemonIds ?? []
+      const row: CollectedPokemon = { id: `public-item-${i}`, pokemon_id: ownedSpecies[0] ?? 0, pokemon_name: ownedSpecies.length ? name(ownedSpecies[0]) : "", wanted_cards: [], status: "collected", collected_at: "",
         ...(slot.card?.id ? { card_id: slot.card.id, ...(slot.card.language ? { card_language: slot.card.language } : {}) } : {}),
         ...(slot.card ? { card_name: slot.card.name, ...(slot.card.image ? { card_image: slot.card.image } : {}) } : {}) }
       rows.push(row)
-      for (const id of species) if (!bySpecies.has(id)) bySpecies.set(id, { ...row, pokemon_id: id, pokemon_name: name(id) })
+      for (const id of ownedSpecies) {
+        const previous = bySpecies.get(id)
+        if (previous?.status !== "collected") bySpecies.set(id, { ...row, pokemon_id: id, pokemon_name: name(id), wanted_cards: previous?.wanted_cards ?? [] })
+      }
     }
     input.binder.slots[i].wantedCards.forEach((card, w) => {
       const wantSpecies = slot.wantedCards?.[w]?.pokemonIds ?? species

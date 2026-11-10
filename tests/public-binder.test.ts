@@ -304,3 +304,17 @@ test('public read index: truthful species search, distinct wants, exact pockets 
   assert.deepEqual([index.quickState({ id: 'synthetic-energy', language: 'ja' } as never, 143).owned], [false])
   assert.ok(!JSON.stringify([...index.species.bySpecies.values(), index.species.rows]).includes('PRIVATE'))
 })
+
+
+test('public species ownership comes from copies and survives earlier wants', async () => {
+  const { publicBinderDisplayInput, publicReadIndex } = await import('../lib/public-binder-display')
+  const binder = await loadPublicBinder({ token: 'synthetic-token' }, syntheticPublicDatabase().client)
+  const owned = { ...binder.slots[0], id: 'public-owned', target: { kind: 'pokemon' as const, pokemonId: 1 }, card: { ...binder.slots[0].card!, pokemonIds: [143] }, pokemon: null, wantedCards: [] }
+  const wanted = { ...owned, id: 'public-wanted', item: null, card: null, wantedCards: [{ card_name: 'Synthetic Snorlax', card_id: 'synthetic-mon', pokemonIds: [143] }] }
+  binder.slots = [wanted, owned]
+  const index = publicReadIndex(binder, publicBinderDisplayInput(binder))
+  assert.equal(index.species.bySpecies.get(143)?.status, 'collected')
+  assert.equal(index.species.bySpecies.get(143)?.wanted_cards.length, 1)
+  assert.notEqual(index.species.bySpecies.get(1)?.status, 'collected', 'a mismatched target does not create ownership')
+  assert.equal(index.species.rows.find(row => row.status === 'collected')?.pokemon_id, 143)
+})
