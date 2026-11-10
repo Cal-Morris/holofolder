@@ -1,8 +1,9 @@
 "use client"
 
 import { clearActivityCache } from "@/lib/collection-activity"
+import { changeMembership } from "@/lib/collection/membership-lifecycle"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
@@ -37,9 +38,20 @@ export function usePartner({ user }: UsePartnerOptions) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const account = useRef(user?.id)
+  const loadSequence = useRef(0)
+  const mutation = useRef<symbol | null>(null)
+  useLayoutEffect(() => {
+    account.current = user?.id
+    const sequence = loadSequence
+    return () => { sequence.current++; mutation.current = null }
+  }, [user?.id])
   const supabase = createClient()
 
   const loadPartnerData = useCallback(async (currentUser: User | null) => {
+    if (currentUser?.id !== account.current || mutation.current) return
+    const request = ++loadSequence.current
+    const current = () => request === loadSequence.current && currentUser?.id === account.current
     if (!currentUser) {
       setPartner(null)
       setPendingInvites([])
@@ -60,6 +72,7 @@ export function usePartner({ user }: UsePartnerOptions) {
         .limit(1)
         .maybeSingle()
 
+      if (!current()) return
       if (partnershipError) {
         throw partnershipError
       }
@@ -79,6 +92,7 @@ export function usePartner({ user }: UsePartnerOptions) {
             .limit(1)
             .maybeSingle()
 
+          if (!current()) return
           if (inviteLookupError) {
             throw inviteLookupError
           }
@@ -94,6 +108,7 @@ export function usePartner({ user }: UsePartnerOptions) {
             .limit(1)
             .maybeSingle()
 
+          if (!current()) return
           if (inviteLookupError) {
             throw inviteLookupError
           }
@@ -118,6 +133,7 @@ export function usePartner({ user }: UsePartnerOptions) {
           .eq("invitee_email", currentUser.email)
           .eq("status", "pending")
 
+        if (!current()) return
         setReceivedInvites(
           (received || []).map((i) => ({
             id: i.id,
@@ -137,6 +153,7 @@ export function usePartner({ user }: UsePartnerOptions) {
         .eq("inviter_id", currentUser.id)
         .eq("status", "pending")
 
+      if (!current()) return
       setPendingInvites(
         (sent || []).map((i) => ({
           id: i.id,
@@ -146,10 +163,11 @@ export function usePartner({ user }: UsePartnerOptions) {
         }))
       )
     } catch (err) {
+      if (!current()) return
       console.error("[v0] Error loading partner data:", err)
       setError(err instanceof Error ? err.message : "Could not load partner data.")
     } finally {
-      setIsLoading(false)
+      if (current()) setIsLoading(false)
     }
   }, [supabase])
 
@@ -171,13 +189,23 @@ export function usePartner({ user }: UsePartnerOptions) {
 
   const acceptInvite = useCallback(async (inviteId: string) => {
     if (!user) return { error: "Not logged in" }
+    if (mutation.current) return { error: "A partner change is already in progress." }
 
+    const request = Symbol("partner-change")
+    mutation.current = request
+    loadSequence.current++
+    setIsLoading(false)
     try {
-      await changePartner('accept', { inviteId })
+      await changeMembership(() => changePartner('accept', { inviteId }))
+      if (account.current !== user.id || mutation.current !== request) return { error: "Account changed. Reopen partner settings." }
+      mutation.current = null
+      clearActivityCache(window.localStorage)
       await loadPartnerData(user)
       return { success: true }
     } catch (err: unknown) {
       return { error: err instanceof Error ? err.message : "Could not update the partnership." }
+    } finally {
+      if (mutation.current === request) mutation.current = null
     }
   }, [user, loadPartnerData])
 
@@ -195,14 +223,23 @@ export function usePartner({ user }: UsePartnerOptions) {
 
   const removePartner = useCallback(async () => {
     if (!user || !partner) return { error: "No partner to remove" }
+    if (mutation.current) return { error: "A partner change is already in progress." }
 
+    const request = Symbol("partner-change")
+    mutation.current = request
+    loadSequence.current++
+    setIsLoading(false)
     try {
-      await changePartner('disconnect')
+      await changeMembership(() => changePartner('disconnect'))
+      if (account.current !== user.id || mutation.current !== request) return { error: "Account changed. Reopen partner settings." }
+      mutation.current = null
       clearActivityCache(window.localStorage)
       setPartner(null)
       return { success: true }
     } catch (err: unknown) {
       return { error: err instanceof Error ? err.message : "Could not update the partnership." }
+    } finally {
+      if (mutation.current === request) mutation.current = null
     }
   }, [user, partner])
 

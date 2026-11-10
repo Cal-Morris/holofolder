@@ -1,6 +1,9 @@
 "use client"
 
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react"
+import { subscribeMembershipLifecycle } from "@/lib/collection/membership-lifecycle"
+import { flushSync } from "react-dom"
+import { closeAllOverlays } from "@/hooks/use-overlay"
 import BinderApp from "@/components/binder-app"
 import CollectionNavigationHost from "@/components/collection-navigation/navigation-host"
 import { readBinderStartMarker } from "@/lib/binder-start"
@@ -28,6 +31,7 @@ export default function CachedNativeStartup({ localHarness = false, legacyProps,
     const invalidate = () => { active = false; setResumeLive(established && navigator.onLine); setSaved(null); setNotice("Saved storage is paused. Connect to check your account and collection access. Pending edits are retained.") }
     const client = createClient()
     const { data: { subscription } } = client.auth.onAuthStateChange(event => { if (event !== "INITIAL_SESSION") invalidate() })
+    const unsubscribeMembership = subscribeMembershipLifecycle(() => { flushSync(() => { invalidate(); closeAllOverlays() }) })
     window.addEventListener("online", invalidate)
     window.addEventListener("storage", invalidate)
     void (async () => {
@@ -45,7 +49,7 @@ export default function CachedNativeStartup({ localHarness = false, legacyProps,
       established = true
       setSaved(boot)
     })().catch(() => { if (active) setNotice("Saved native storage is unavailable on this device. Connect to reopen it. Pending edits have not been removed.") })
-    return () => { active = false; clearTimeout(expiry); subscription.unsubscribe(); window.removeEventListener("online", invalidate); window.removeEventListener("storage", invalidate) }
+    return () => { active = false; unsubscribeMembership(); clearTimeout(expiry); subscription.unsubscribe(); window.removeEventListener("online", invalidate); window.removeEventListener("storage", invalidate) }
   }, [localHarness])
   if (!saved) return <>{notice && <p role="status" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+0.5rem)] z-50 rounded-lg bg-card p-3 text-sm">{notice}</p>}{children(resumeLive)}</>
   const { read, pending } = saved

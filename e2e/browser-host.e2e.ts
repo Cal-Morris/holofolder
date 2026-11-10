@@ -240,3 +240,30 @@ test("actual host displays recorded languages and leaves ambiguous aliases unkno
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toHaveAttribute("aria-label", /base1-4/)
   await expect(page.getByText("Synthetic ambiguous title", { exact: true })).toHaveCount(0)
 })
+
+
+test("membership signal closes actual private overlays and same-owner recheck uses a fresh epoch", async ({ page, context, insets }) => {
+  const epochs: string[] = []
+  await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
+    epochs.push(new URL(route.request().url()).searchParams.get("sessionId")!)
+    await fulfillInventory(route)
+  })
+  await page.goto(entry)
+  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
+  const oldEpoch = epochs.at(-1)
+  await page.locator('[data-item-id="copy-00001"]').click()
+  await expect(page.getByRole("dialog")).toBeVisible()
+  // A real second same-origin document emits only phase+nonce storage events.
+  const other = await context.newPage()
+  await other.goto("/app/e2e-harness?signedIn=1")
+  await other.evaluate(() => localStorage.setItem("holofolder-membership-lifecycle-v1", JSON.stringify(["pause", crypto.randomUUID()])))
+  await expect(page.getByRole("dialog")).not.toBeVisible()
+  await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
+  await other.evaluate(() => localStorage.setItem("holofolder-membership-lifecycle-v1", JSON.stringify(["recheck", crypto.randomUUID()])))
+  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
+  expect(epochs.at(-1)).not.toBe(oldEpoch)
+  const h = new Harness(page, insets, true)
+  await h.expectNoHorizontalOverflow()
+  await h.expectHittable(nav(page).getByRole("button", { name: "Inventory", exact: true }))
+  await other.close()
+})
