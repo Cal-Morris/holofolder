@@ -49,7 +49,7 @@ async function checkToolbar(page: import("@playwright/test").Page, insets: { top
   const sample = () => page.evaluate(() => {
     const elements = [document.body, document.querySelector('[data-testid="app-header"]'), document.querySelector('[data-testid="app-header"] span.truncate'),
       document.querySelector('select[aria-label="Collection"]'), document.querySelector('select[aria-label="Collection view"]'),
-      ...Array.from(document.querySelectorAll("button")).filter(e => ["Edit layout", "Show"].includes(e.textContent?.trim() ?? "") || ["Scan page", "Scan card", "Storage"].includes(e.getAttribute("aria-label") ?? ""))]
+      ...Array.from(document.querySelectorAll("button")).filter(e => ["Show"].includes(e.textContent?.trim() ?? "") || ["Edit layout", "Scan page", "Scan card", "Storage"].includes(e.getAttribute("aria-label") ?? ""))]
     return elements.filter((e): e is HTMLElement => e instanceof HTMLElement).map(e => {
       const s = getComputedStyle(e), r = e.getBoundingClientRect()
       return { name: e.getAttribute("aria-label") ?? e.textContent?.trim().slice(0, 30), tag: e.tagName,
@@ -73,11 +73,16 @@ async function checkToolbar(page: import("@playwright/test").Page, insets: { top
   }
   await expect(picker).toHaveCSS("font-size", "14px")
   await expect(picker).toHaveCSS("font-weight", "600")
-  for (const control of [view, edit]) {
-    await expect(control).toHaveCSS("font-size", "12px")
-    await expect(control).toHaveCSS("font-weight", "500")
-  }
-  await expect(edit).toHaveCSS("line-height", "16px")
+  await expect(view).toHaveCSS("font-size", "12px")
+  await expect(view).toHaveCSS("font-weight", "500")
+  // Edit layout is a compact icon in the binder actions row, not its own row.
+  const storage = page.getByRole("button", { name: "Storage", exact: true })
+  const [editBox, storageBox] = [await edit.boundingBox(), await storage.boundingBox()]
+  expect(Math.abs(editBox!.y + editBox!.height / 2 - (storageBox!.y + storageBox!.height / 2))).toBeLessThanOrEqual(1)
+  expect(editBox!.width).toBe(storageBox!.width)
+  await expect(edit).toHaveAttribute("title", "Edit layout")
+  await expect(edit).toHaveAttribute("aria-pressed", "false")
+  await expect(page.getByTestId("main-content").getByRole("button", { name: "Edit layout", exact: true })).toHaveCount(0)
   const h = new Harness(page, insets, true)
   await h.expectNoHorizontalOverflow()
   // Native select labels must stay bounded even with a realistic long collection name.
@@ -97,8 +102,17 @@ async function checkToolbar(page: import("@playwright/test").Page, insets: { top
     await h.expectNoHorizontalOverflow()
   }
   await edit.click()
-  await expect(page.getByRole("button", { name: "Done", exact: true })).toBeVisible()
-  await page.getByRole("button", { name: "Done", exact: true }).click()
+  const done = page.getByRole("button", { name: "Done", exact: true })
+  await expect(done).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: /^Editing layout$/ })).toBeVisible()
+  await expect(edit).toHaveCount(0)
+  await h.expectNoHorizontalOverflow()
+  await done.click()
+  await expect(edit).toBeVisible()
+  await edit.focus()
+  await page.keyboard.press("Enter")
+  await expect(done).toBeVisible()
+  await done.click()
   await expect(edit).toBeVisible()
   await view.selectOption("list")
   await expect(view).toHaveValue("list")

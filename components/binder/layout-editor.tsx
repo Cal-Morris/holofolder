@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, type ButtonHTMLAttributes } from "react"
+import { PencilRuler } from "lucide-react"
 import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
 import { prepareLayoutIntent, type LayoutAction, type StagedSlotCommandIntent, type SlotCommandSink } from "@/lib/binder-slot-editing"
 
@@ -12,7 +13,6 @@ import SlotRemovalReview from "@/components/binder/slot-removal-review"
 import BulkFillReview from "@/components/binder/bulk-fill-review"
 
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
-import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export interface LayoutBoundary {
@@ -112,7 +112,9 @@ export function LayoutToolbar({ editing, onToggle, boundary, bulk }: { editing: 
   const [bulkOpen, setBulkOpen] = useState(false)
   const showBulk = Boolean(bulk && (!bulk.collapsible || bulkOpen))
   // Browsing is the normal state: one small control, not a panel above the binder.
-  if (!editing) return <section aria-label="Layout editing" className="flex shrink-0 justify-end"><LayoutButton className={buttonVariants({ variant: "ghost", className: "h-9 min-h-9 rounded-xl border-0 px-2 py-0 text-xs" })} aria-pressed={false} onClick={onToggle}>Edit layout</LayoutButton></section>
+  // Hosts with an actions row place this next to scan/storage; it matches their ghost icon buttons.
+  if (!editing) return <section aria-label="Layout editing" className="flex shrink-0 justify-end"><LayoutButton aria-label="Edit layout" title="Edit layout" aria-pressed={false} onClick={onToggle}
+    className="flex h-9 min-h-9 w-9 items-center justify-center rounded-lg border-0 p-0 text-muted-foreground hover:bg-muted/60"><PencilRuler className="h-4 w-4" aria-hidden /></LayoutButton></section>
   return <section aria-label="Layout editing" className="shrink-0 rounded-xl border border-border bg-card px-3 py-2 text-foreground">
     <div className="flex items-center justify-between gap-2">
       <p role="status" className="text-sm">Editing layout</p>
