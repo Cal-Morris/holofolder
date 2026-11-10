@@ -63,7 +63,9 @@ export default function CachedNativeStartup({ localHarness = false, legacyProps,
         initialBinderId={binder?.collectionId ?? legacyProps.initialBinderId}
         initialCollection={surface.state.main === "dex" ? legacyProps.initialCollection : []}
         initialSettings={{ ...legacyProps.initialSettings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
-        browserHeader={header} browserSurface={{ analytics: { scope: read.scope, read }, surface, display, catalog, editingAvailable: false, pending, receive: async () => { throw new Error("cached-startup-read-only") } }}
+        browserHeader={header} browserSurface={{ nativeConsumer: { scope: read.scope, read,
+          collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
+          editingAvailable: false, admit: () => null }, analytics: { scope: read.scope, read }, surface, display, catalog, editingAvailable: false, pending, receive: async () => { throw new Error("cached-startup-read-only") } }}
         stagedSlotDisplay={surface.state.main === "collection" ? display : undefined} stagedSlotSessionId={read.scope.sessionId} />
     }} />
 }

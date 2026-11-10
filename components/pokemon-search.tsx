@@ -1,5 +1,6 @@
 "use client"
 
+import { nativeCardConsumers, nativeCardState, nativeCardLabel, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import type React from "react"
 
@@ -51,6 +52,7 @@ export interface PokemonSearchResultMeta {
 }
 
 interface PokemonSearchProps {
+  nativeConsumer?: NativeConsumerBinding
   history: BinderHistory
   onSelect: (pokemon: any) => void
   pokemonList?: { id: number; name: string }[]
@@ -94,6 +96,7 @@ const SEARCH_FILTERS: Array<{
 ]
 
 export default function PokemonSearch({
+  nativeConsumer,
   history,
   onSelect,
   pokemonList: propPokemonList,
@@ -109,6 +112,7 @@ export default function PokemonSearch({
   pricingRegion = DEFAULT_PRICING_REGION,
   getCardState,
 }: PokemonSearchProps) {
+  const nativeModel = useMemo(() => nativeConsumer ? nativeCardConsumers(nativeConsumer) : null, [nativeConsumer])
   const [query, setQuery] = useState("")
   const recentCards = history.cards
   const { rememberSearch, rememberCard: saveRecentCard } = history
@@ -175,11 +179,12 @@ export default function PokemonSearch({
     return searchPokemonItems(query, byFilter, 40)
   }, [activeFilter, matchesFilter, pokemonList, query])
 
-  const cardSearch = useCardSearch(query, Boolean(onBrowseCards), getOfflineCards)
+  const cardSearch = useCardSearch(query, Boolean(onBrowseCards || nativeConsumer), getOfflineCards, { includeNonPokemon: Boolean(nativeConsumer) })
+  const cardResultCount = nativeConsumer ? cardSearch.cards.length : cardSearch.groups.length
   // One batched price lookup for every card hit (cached on the device, so offline hits keep their prices).
   const cardPriceLookups = useMemo(
-    () => formatPrice ? cardSearch.groups.flatMap((group) => group.cards.map((card) => ({ cardId: card.id, language: card.language ?? "en" }))) : [],
-    [cardSearch.groups, formatPrice],
+    () => formatPrice ? (nativeConsumer ? cardSearch.cards : cardSearch.groups.flatMap(group => group.cards)).map(card => ({ cardId: card.id, language: card.language ?? "en" })) : [],
+    [cardSearch.groups, cardSearch.cards, nativeConsumer, formatPrice],
   )
   const { pricesByCardId: cardPrices } = useRegionalCardPrices(cardPriceLookups, cardPriceLookups.length > 0, pricingRegion)
   const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator))
@@ -326,7 +331,7 @@ export default function PokemonSearch({
       ) : null}
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden border-t border-border/50">
-        {showRecentCards || (!query.trim() && (history.searches.length > 0 || Boolean(history.status))) || visibleResults.length > 0 || setResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading ? (
+        {showRecentCards || (!query.trim() && (history.searches.length > 0 || Boolean(history.status))) || visibleResults.length > 0 || setResults.length > 0 || illustratorResults.length > 0 || cardResultCount > 0 || cardSearch.loading ? (
           <div className="h-full overflow-y-auto">
             {!query.trim() && <>
               {history.status && <p role="status" className="py-1 text-xs text-muted-foreground">{history.status}</p>}
@@ -376,7 +381,7 @@ export default function PokemonSearch({
                 </div>
               </section>
             ) : null}
-            {visibleResults.length > 0 && (showRecentCards || setResults.length > 0 || illustratorResults.length > 0 || cardSearch.groups.length > 0 || cardSearch.loading) ? (
+            {visibleResults.length > 0 && (showRecentCards || setResults.length > 0 || illustratorResults.length > 0 || cardResultCount > 0 || cardSearch.loading) ? (
               <p className="px-4 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">Pokémon</p>
             ) : null}
             {visibleResults.map((pokemon, index) => {
@@ -540,7 +545,7 @@ export default function PokemonSearch({
                 </div>
               </section>
             ) : null}
-            {cardSearch.groups.length > 0 || cardSearch.loading ? (
+            {cardResultCount > 0 || cardSearch.loading ? (
               <section aria-label="Card results" className="border-t border-border/50 pb-2">
                 <p className="flex items-center gap-2 px-4 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">
                   Cards
@@ -548,7 +553,14 @@ export default function PokemonSearch({
                   {cardSearch.offline ? <span className="normal-case tracking-normal font-normal">· offline: your cards and saved sets</span> : null}
                 </p>
                 {cardSearch.correction ? <p role="status" className="px-4 py-1 text-xs text-muted-foreground">Showing cards for {cardSearch.correction}</p> : null}
-                {cardSearch.groups.map((group) => {
+                {nativeConsumer ? cardSearch.cards.map(card => {
+                  const state = nativeCardState(nativeModel, card)
+                  const label = nativeCardLabel(state)
+                  return <button key={`${card.id}:${card.language}`} type="button" onClick={() => nativeConsumer.openCard(card)} aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}, ${label}`} className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left active:bg-muted">
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{card.name}</span><span className="block truncate text-xs text-muted-foreground">{card.set.name} · {formatCardNumber(card)}</span></span>
+                    <span className="max-w-[45%] text-right text-xs font-semibold">{label}</span>
+                  </button>
+                }) : cardSearch.groups.map((group) => {
                   const groupName = formatPokemonDisplayName(group.name)
                   return (
                     <div key={group.dexId} className="px-3 py-2" data-card-group={group.dexId}>

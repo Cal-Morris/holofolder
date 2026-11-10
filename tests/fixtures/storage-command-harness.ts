@@ -101,6 +101,20 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[4].status = "collected"
   }
 
+  if (id.startsWith("native-consumer-")) {
+    // Synthetic exact non-Pokémon printing, duplicate wants and separate owned copies.
+    state.tables.tcg_sets = [{ id: "synthetic-native", name_en: "Synthetic native set" }]
+    state.tables.tcg_cards = [{ id: "synthetic-native-trainer", set_id: "synthetic-native", local_id: "7",
+      name_en: "Synthetic Native Trainer", name_json: { en: "Synthetic Native Trainer" }, external_ids_json: {} }]
+    state.tables.tcg_card_dex_ids = []
+    const want = { card_id: "synthetic-native-trainer", card_name: "Synthetic Native Trainer", card_language: "en", card_finish: "normal", added_at: "2026-01-01", wanted_by: [owner] }
+    state.tables.binder_slots[0].wanted_cards = [want, { ...want }]
+    state.tables.binder_slots[1].wanted_cards = [{ ...want }]
+    state.tables.inventory_items = [0, 1].map(n => ({ id: `synthetic-native-copy-${n}`, owner_user_id: owner,
+      identity: { kind: "card", cardId: "synthetic-native-trainer", language: "en", finish: "normal" }, grading: null,
+      acquired_at: null, version: 0, legacy_source: null }))
+  }
+
   if (id.startsWith("raw-")) {
     // Synthetic raw ownership loop. No hosted catalog, accounts, SQL or audit engine.
     const other = "33333333-3333-4333-8333-333333333333"
@@ -122,6 +136,7 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[2].target = { kind: "pokemon", pokemonId: 25 }
   }
   let removedRaw: { item: Record<string, unknown>; placement?: Record<string, unknown> } | null = null
+
   let creationRejected = false
 
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()

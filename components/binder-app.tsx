@@ -1,5 +1,7 @@
 "use client"
 
+import type { NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
+
 import { CollectionActivityProvider } from "@/components/collection-activity-context"
 
 import dynamic from "next/dynamic"
@@ -229,6 +231,7 @@ export default function BinderApp(props: BinderAppProps) {
   const [undoBusy, setUndoBusy] = useState(false)
   const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon; activityEventId?:string; expected?:CollectedPokemon|null; accountId?:string; ownerId?:string|null } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
+  const [nativeLookup, setNativeLookup] = useState<SearchCardResult | null>(null)
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; focusedCard?: SearchCardResult; finish?: CardFinish; nested: boolean } | null>(null)
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
   // A set hit tapped in Search or Quick mode; Sets opens on it until he leaves Sets.
@@ -3196,8 +3199,13 @@ export default function BinderApp(props: BinderAppProps) {
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
   // Offline card search: own cards plus card data the service worker has cached (read lazily, per search session).
   const getOfflineSearchCards = useCallback(
-    () => import("@/lib/offline-card-index").then(({ buildOfflineCardIndex }) => buildOfflineCardIndex(collection)),
-    [collection],
+    async () => {
+      const { buildOfflineCardIndex } = await import("@/lib/offline-card-index")
+      const cached = await buildOfflineCardIndex(collection)
+      const current = browserSurface?.nativeConsumer?.read.catalog.map(c => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] })) ?? []
+      return [...current, ...cached.filter(c => !current.some(card => card.id === c.id && card.language === c.language))]
+    },
+    [collection, browserSurface?.nativeConsumer?.read.catalog],
   )
 
   const openCardBrowser = useCallback((
@@ -3213,6 +3221,14 @@ export default function BinderApp(props: BinderAppProps) {
       setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, focusedCard: options.focusedCard, finish: options.finish, nested: false })
     })
   }, [setCardBrowser, openExclusively])
+
+  const openNativeCard = useCallback((card: SearchCardResult) => {
+    openExclusively(() => { setSelectedPokemon(null); setNativeLookup(card) })
+  }, [openExclusively, setNativeLookup, setSelectedPokemon])
+  const hasNativeConsumer = Boolean(browserSurface?.nativeConsumer)
+  const nativeReadOnly = browserSurface?.nativeConsumer ? !browserSurface.nativeConsumer.editingAvailable : readOnlyMode
+  const nativeConsumer: NativeConsumerBinding | undefined = browserSurface?.nativeConsumer
+    ? { ...browserSurface.nativeConsumer, openCard: openNativeCard } : undefined
 
   /** Open every card by an illustrator. From the card detail it stacks one level; otherwise it replaces any overlay. */
   const openIllustratorBrowser = useCallback((name: string, options: { fromDetail?: boolean } = {}) => {
@@ -3393,8 +3409,8 @@ export default function BinderApp(props: BinderAppProps) {
   // The deal check is part of every Quick mode; Show mode (and the price lookup) add the hunt list, bundle and tally.
   const quickCardCheck = useMemo(
     // eslint-disable-next-line react-hooks/refs -- Collection refs are only read when these event handlers run.
-    () => ({ onUndoAvailable: offerQuickUndo, currency: pricingPreferences.currency, fxRates, readOnly: readOnlyMode, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, onChangeCard: handleQuickChangeCard, onRemoveOwned: handleQuickRemoveOwned, huntItems: collection }),
-    [offerQuickUndo, activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, handleQuickChangeCard, handleQuickRemoveOwned, pricingPreferences.currency, readOnlyMode, resolvedCollectionOwnerUserId, user?.id],
+    () => ({ onUndoAvailable: offerQuickUndo, currency: pricingPreferences.currency, fxRates, readOnly: nativeReadOnly, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, onChangeCard: handleQuickChangeCard, onRemoveOwned: handleQuickRemoveOwned, huntItems: collection }),
+    [offerQuickUndo, nativeReadOnly, activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, handleQuickChangeCard, handleQuickRemoveOwned, pricingPreferences.currency, resolvedCollectionOwnerUserId, user?.id],
   )
   // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.
   const quickCardStanding = useMemo(() => ({ getCardState: getQuickCardState, items: collection }), [collection, getQuickCardState])
@@ -3565,7 +3581,7 @@ export default function BinderApp(props: BinderAppProps) {
 
   const renderMainContent = () => renderMainContentView({ nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, nativeDashboard: browserSurface?.surface.state.main === "collection" && !layoutSession ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} compact onOpen={() => { void switchMainView("analytics") }} /> : undefined, layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
-  const renderSearchOverlay = () => renderSearchOverlayView({ history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
+  const renderSearchOverlay = () => renderSearchOverlayView({ nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
   const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
@@ -3698,6 +3714,7 @@ export default function BinderApp(props: BinderAppProps) {
 
       {isQuickModeOpen && (
         <QuickMode
+          nativeConsumer={nativeConsumer}
           offlineBinder={{ collection, scope: { ownerUserId: resolvedCollectionOwnerUserId ?? null, binderId: initialBinderId, isDefault: activeBinder?.isDefault !== false } }}
           history={history}
           onClose={closeQuickMode}
@@ -3810,8 +3827,16 @@ export default function BinderApp(props: BinderAppProps) {
         <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
       ) : null}
 
+      {nativeLookup && hasNativeConsumer && <PokemonCardsBrowser
+        key={`${nativeLookup.id}:${nativeLookup.language}`} nativeConsumer={nativeConsumer} pokemon={null}
+        pricingEnabled={pricingEnabled} highlightCardId={nativeLookup.id}
+        cardDetails={{ card: nativeLookup, finish: "normal", getState: () => ({ owned: false, wanted: false }),
+          onAction: async () => null, onRemoveOwned: () => {}, onJumpToSlot: () => {} }}
+        isDesktop={isDesktopViewport} readOnly={nativeReadOnly} onClose={() => setNativeLookup(null)}
+        formatPrice={priceFormat.label} pricingRegion={pricingPreferences.region} />}
       {cardBrowser ? (
         <PokemonCardsBrowser
+          nativeConsumer={nativeConsumer}
           pricingEnabled={pricingEnabled}
           key={`${cardBrowser.pokemon.id}:${cardBrowser.highlightCardId ?? ""}`}
           pokemon={cardBrowser.pokemon}
@@ -3839,7 +3864,7 @@ export default function BinderApp(props: BinderAppProps) {
           collectionItem={getCollectionItem(cardBrowser.pokemon.id) ?? null}
           ownedElsewhereByCard={allBinders ? ownedElsewhereByCard : undefined}
           isDesktop={isDesktopViewport}
-          readOnly={readOnlyMode}
+          readOnly={nativeReadOnly}
           onClose={closeCardBrowser}
           onWantCard={readOnlyMode ? undefined : (card, isWanted, wanted) => handleBrowseWantCard(cardBrowser.pokemon, card, isWanted, wanted)}
           onAddCard={readOnlyMode ? undefined : (card) => handleBrowseAddCard(cardBrowser.pokemon, card)}

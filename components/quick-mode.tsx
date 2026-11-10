@@ -3,6 +3,7 @@
 // Quick mode: a full-screen, one-handed launcher. One search field (pinned at the bottom, in thumb reach) finds
 // app destinations, Pokémon, cards (offline: the cards on this device) and illustrators. See
 // lib/quick-mode.ts for the pure helpers and docs in AGENTS.md (Quick mode).
+import { nativeCardConsumers, nativeCardState, nativeCardLabel, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import dynamic from "next/dynamic"
 import type { UndoAction } from "@/components/undo-snackbar"
@@ -134,6 +135,7 @@ export interface QuickModePokemonState {
 }
 
 export interface QuickModeProps {
+  nativeConsumer?: NativeConsumerBinding
   offlineBinder?: BinderOfflineSource
   history: BinderHistory
   onClose: () => void
@@ -180,6 +182,7 @@ const sectionTitle = "px-1 pb-1.5 pt-3 text-[11px] font-semibold uppercase track
 const rowClass = "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none active:bg-muted"
 
 function QuickMode({
+  nativeConsumer,
   history,
   onClose,
   onNavigate,
@@ -201,6 +204,7 @@ function QuickMode({
   cardStanding,
   offlineBinder,
 }: QuickModeProps) {
+  const nativeModel = useMemo(() => nativeConsumer ? nativeCardConsumers(nativeConsumer) : null, [nativeConsumer])
   const revisit = useShowRevisit(cardCheck?.revisitKey ?? null)
   const [preparingOffline, setPreparingOffline] = useState(false)
   const [moveSort, setMoveSort] = useState<MomentumSort>("default")
@@ -247,11 +251,17 @@ function QuickMode({
     return trimmed ? visible(matchQuickDestinations(trimmed)).slice(0, 3) : visible(matchQuickDestinations(""))
   }, [hiddenDestinations, showModeOn, trimmed])
   const pokemonResults = useMemo(() => (trimmed ? searchPokemonItems(trimmed, POKEMON_CATALOG, show ? 6 : 5) : []), [show, trimmed])
-  const cardSearch = useCardSearch(query, true, getOfflineCards)
+  const cardSearch = useCardSearch(query, true, getOfflineCards, { includeNonPokemon: Boolean(nativeConsumer) })
   // Wanted cards that match, from the want list on this device: always found, even offline or uncached.
-  const getCardState = cardCheck?.getCardState ?? cardStanding?.getCardState
+  const nativeState = useCallback((card: SearchCardResult, _pokemon: { id: number; name: string }, finish?: CardFinish) => nativeCardState(nativeModel, card, finish), [nativeModel])
+  const getCardState = nativeConsumer ? nativeState : cardCheck?.getCardState ?? cardStanding?.getCardState
   const standingItems = show ? huntItems : cardStanding?.items
   const wantedMatches = useMemo(() => {
+    if (nativeConsumer && trimmed) {
+      const wanted = nativeCardConsumers(nativeConsumer)?.wants.flatMap(w => w.card ? [{ card: w.card, pokemon: { id: w.card.dexIds?.[0] ?? 0, name: w.card.name } }] : []) ?? []
+      const matched = new Set(searchOfflineCards(wanted.map(w => w.card), trimmed).map(c => c.id))
+      return wanted.filter(w => matched.has(w.card.id))
+    }
     if (!getCardState || !trimmed || !standingItems) return []
     const wanted = standingItems.flatMap((item) => (item.wanted_cards ?? []).map((card) => ({
       card: { ...wantedToSearchCard(card, item.pokemon_id), illustrator: card.illustrator },
@@ -259,11 +269,11 @@ function QuickMode({
     })))
     const matched = new Set(searchOfflineCards(wanted.map((entry) => entry.card), trimmed).map((card) => card.id))
     return wanted.filter((entry) => matched.has(entry.card.id))
-  }, [getCardState, standingItems, trimmed])
+  }, [getCardState, standingItems, trimmed, nativeConsumer])
   const cardResults = useMemo(
     () => {
       const seen = new Set<string>()
-      const found = cardSearch.groups.flatMap((group) => group.cards.map((card) => ({ card, pokemon: { id: group.dexId, name: group.name } })))
+      const found = nativeConsumer ? cardSearch.cards.map(card => ({ card, pokemon: { id: card.dexIds[0] ?? 0, name: card.name } })) : cardSearch.groups.flatMap((group) => group.cards.map((card) => ({ card, pokemon: { id: group.dexId, name: group.name } })))
       const unique = [...wantedMatches, ...found].filter(({ card }) => {
         const key = `${card.id}:${card.language ?? "en"}`
         if (seen.has(key)) return false
@@ -278,7 +288,7 @@ function QuickMode({
         .sort((a, b) => rank[a.standing] - rank[b.standing] || a.index - b.index)
         .slice(0, show ? 40 : 10)
     },
-    [show, cardSearch.groups, getCardState, wantedMatches],
+    [show, cardSearch.groups, cardSearch.cards, nativeConsumer, getCardState, wantedMatches],
   )
   const priceLookups = useMemo(
     () => (formatPrice ? cardResults.map(({ card }) => ({ cardId: card.id, language: card.language ?? "en" })) : []),
@@ -298,8 +308,8 @@ function QuickMode({
   const { rememberSearch, rememberCard: saveRecentCard } = history
   const remember = useCallback(() => rememberSearch(trimmed), [rememberSearch, trimmed])
   const rememberCard = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish | null) => {
-    saveRecentCard(toRecentCard(card, pokemon, undefined, finish))
-  }, [saveRecentCard])
+    if (!nativeConsumer || card.dexIds.length) saveRecentCard(toRecentCard(card, pokemon, undefined, finish))
+  }, [saveRecentCard, nativeConsumer])
 
   const pickCard = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish | null) => {
     remember()
@@ -307,8 +317,9 @@ function QuickMode({
     if (cardCheck) {
       setIsBundleOpen(false)
       setChecking({ card, pokemon, finish })
-    } else onSelectCard(card, pokemon)
-  }, [cardCheck, onSelectCard, remember, rememberCard])
+    } else if (nativeConsumer) nativeConsumer.openCard(card)
+    else onSelectCard(card, pokemon)
+  }, [cardCheck, nativeConsumer, onSelectCard, remember, rememberCard])
 
   // A sure match opens its deal check (Back shows the search it read); anything else is typed in for him.
   const focusSearchAfterScanRef = useRef(false)
@@ -372,6 +383,7 @@ function QuickMode({
   // A deal check or bundle is open. On wide screens in Show mode it sits beside the results instead of replacing them.
   const checkView = cardCheck && checking ? (
     <QuickCardCheck
+      nativeConsumer={nativeConsumer}
       key={`${checking.card.id}:${checking.card.language ?? "en"}:${checking.finish ?? "default"}`}
       card={checking.card}
       pokemon={checking.pokemon}
@@ -386,22 +398,22 @@ function QuickMode({
       pricingRegion={pricingRegion}
       isOnline={isOnline}
       readOnly={cardCheck.readOnly}
-      showTools={Boolean(show)}
+      showTools={Boolean(show) && !nativeConsumer}
       initialFinish={checking.finish}
       onBack={() => {
         setChecking(null)
         if (!browsing && trimmed) window.requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
       }}
-      onOpenDetails={(finish) => onSelectCard(checking.card, checking.pokemon, finish)}
+      onOpenDetails={(finish) => nativeConsumer ? nativeConsumer.openCard(checking.card) : onSelectCard(checking.card, checking.pokemon, finish)}
       onRemoveOwned={cardCheck.onRemoveOwned ? () => cardCheck.onRemoveOwned?.(checking.pokemon) : undefined}
       onChangeCard={cardCheck.onChangeCard ? (mode, finish) => cardCheck.onChangeCard?.(mode, checking.card, checking.pokemon, finish) : undefined}
       onUndoAvailable={cardCheck.onUndoAvailable}
-      onAction={(action, finish) => cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
+      onAction={(action, finish) => nativeConsumer ? Promise.resolve(null) : cardCheck.onAction(action, checking.card, checking.pokemon, finish)}
       isInBundle={(key) => bundle.some((entry) => entry.key === key)}
       onAddToBundle={(entry) => updateBundle([...bundle.filter((item) => item.key !== entry.key), entry])}
     />
   ) : null
-  const bundleView = show && isBundleOpen ? (
+  const bundleView = show && !nativeConsumer && isBundleOpen ? (
     <QuickBundle
       entries={bundle}
       destinationName={show.destinationName}
@@ -425,7 +437,7 @@ function QuickMode({
 
   const searchControls = (
     <div className={`holo-panel shrink-0 rounded-3xl border border-border/60 px-3 py-3 ${wideWorkspace ? "mx-3 mb-3" : "mx-3 mb-[calc(var(--safe-bottom)+0.5rem)] mt-2"}`}>
-      {show && bundle.length > 0 && (
+      {show && !nativeConsumer && bundle.length > 0 && (
         <button
           type="button"
           onClick={() => { setChecking(null); setIsBundleOpen(true) }}
@@ -505,7 +517,7 @@ function QuickMode({
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold leading-tight">{preparingOffline ? "Prepare offline" : lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
           </div>
-          {show && <button type="button" onClick={() => setPreparingOffline(value => !value)} className="min-h-10 shrink-0 rounded-full bg-muted px-3 text-xs font-semibold">
+          {show && !nativeConsumer && <button type="button" onClick={() => setPreparingOffline(value => !value)} className="min-h-10 shrink-0 rounded-full bg-muted px-3 text-xs font-semibold">
             {preparingOffline ? "Back" : "Prepare offline"}
           </button>}
           {!isOnline && (
@@ -533,7 +545,7 @@ function QuickMode({
             key={browsing.id}
             pokemon={browsing}
             wantedCards={huntItems?.find((item) => item.pokemon_id === browsing.id)?.wanted_cards ?? []}
-            getCardState={show.getCardState}
+            getCardState={getCardState!}
             getOfflineCards={getOfflineCards}
             currency={show.currency}
             fxRates={show.fxRates}
@@ -544,6 +556,7 @@ function QuickMode({
           />
         ) : show && !trimmed ? (
           <ShowHunt
+            nativeConsumer={nativeConsumer && show?.readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer}
             recentCards={<>
               {show.budgetKey && !show.readOnly && <ShowBudget storageKey={show.budgetKey} currency={show.currency} />}
               <ShowRevisit cards={revisit.cards} error={revisit.error} onRemove={entry => { revisit.remove(entry) }} onOpen={entry => {
@@ -551,7 +564,7 @@ function QuickMode({
               }} />
               {history.status && <p role="status" className="py-1 text-xs text-muted-foreground">{history.status}</p>}
               <RecentSearches history={history} onSearch={value => { setQuery(value); inputRef.current?.focus({ preventScroll: true }) }} />
-              <ShowRecentCards cards={history.cards} shared={history.shared} getCardState={show.getCardState} onPickCard={pickCard} onClear={() => history.clear("card")} />
+              <ShowRecentCards cards={history.cards} shared={history.shared} getCardState={getCardState!} onPickCard={pickCard} onClear={() => history.clear("card")} />
             </>}
             items={huntItems ?? []}
             currency={show.currency}
@@ -638,14 +651,14 @@ function QuickMode({
                   const priceLabel = formatPrice?.(priceSnapshot) ?? null
                   // Outside Show mode only Owned / Wanted are stamped; "Not in binder" on every other row is noise.
                   const shownStanding = standing && (show || standing !== "missing") ? standing : null
-                  const state = shownStanding ? STANDING_BADGES[shownStanding] : standing ? null : getPokemonState?.(pokemon.id) ?? null
+                  const state = nativeConsumer ? { ...STANDING_BADGES[shownStanding ?? "missing"], label: nativeCardLabel(nativeCardState(nativeModel, card)) } : shownStanding ? STANDING_BADGES[shownStanding] : standing ? null : getPokemonState?.(pokemon.id) ?? null
                   return (
                     <button
                       key={`${card.id}:${card.language ?? "en"}`}
                       type="button"
                       className={show ? `${rowClass} min-h-20 border border-border/50 bg-card` : rowClass}
                       data-standing={standing ?? undefined}
-                      aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${shownStanding ? `, ${STANDING_BADGES[shownStanding].label}` : ""}${priceLabel ? `, ${priceLabel}` : ""}`}
+                      aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${nativeConsumer ? `, ${nativeCardLabel(nativeCardState(nativeModel, card))}` : shownStanding ? `, ${STANDING_BADGES[shownStanding].label}` : ""}${priceLabel ? `, ${priceLabel}` : ""}`}
                       onClick={() => pickCard(card, pokemon)}
                     >
                       <span className="trading-card relative w-10 shrink-0 overflow-hidden bg-muted/50">
