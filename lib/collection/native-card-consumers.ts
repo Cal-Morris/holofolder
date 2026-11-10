@@ -59,7 +59,7 @@ export function nativeCardConsumers(binding: Pick<NativeConsumerBinding, "scope"
       wantedIndex: want.index, inventoryRevision: snapshot.inventoryRevision, collectionVersion: collection.version,
       layoutRevision: binder.layoutRevision, slotVersion: slot.version, expectedPublic: publicWant(want.card) }
     return { key: JSON.stringify([want.collectionId, want.slotId, want.index]), destination,
-      collectionName: collection.name, card: card ? { ...card, dexIds: species ? [...species] : [] } : null,
+      collectionName: collection.name, want: want.card, card: card ? { ...card, dexIds: species ? [...species] : [] } : null,
       finish: want.card.card_finish ?? null, occupied: slot.inventoryItemId !== null }
   })
   const allCopies = index.projection.owned.map(copy => {

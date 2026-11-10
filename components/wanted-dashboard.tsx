@@ -33,6 +33,8 @@ import {
   type WantedDashboardPriceBandId,
   type WantedDashboardSort,
   type WantedFilters,
+  readRememberedWantedView,
+  WANTED_VIEW_STORAGE_KEY,
 } from "@/lib/wanted-dashboard"
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
 import { readBinderScope, rememberBinderScope, type BinderScope } from "@/lib/binders/all-binders"
@@ -81,21 +83,7 @@ const BAND_DOT: Record<WantedDashboardPriceBandId, string> = {
   unpriced: "bg-slate-400",
 }
 
-/** Sort and filters are remembered on this device between visits. */
-export const WANTED_VIEW_STORAGE_KEY = "binderdex:wanted-view:v1"
-
-function readRememberedWantedView(): { sort: WantedDashboardSort; filters: WantedFilters } {
-  try {
-    const raw = typeof window === "undefined" ? null : window.localStorage.getItem(WANTED_VIEW_STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as { sort?: unknown; filters?: unknown }
-      return { sort: normalizeWantedSort(parsed.sort), filters: normalizeWantedFilters(parsed.filters) }
-    }
-  } catch {
-    // Unreadable or blocked storage: start from the defaults.
-  }
-  return { sort: "highest", filters: EMPTY_WANTED_FILTERS }
-}
+export { WANTED_VIEW_STORAGE_KEY }
 
 function useRememberedWantedView() {
   // The want list only renders on the client (it is loaded after the binder shell), so reading
