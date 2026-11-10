@@ -22,3 +22,20 @@ test('native browser preview rejects malformed evidence, conflicted tokens and s
     if(nav)Object.defineProperty(globalThis,'navigator',nav);else Reflect.deleteProperty(globalThis,'navigator')
   }
 })
+test('only strict private matching terminal recovery envelope is proof, ambiguous errors remain unknown',async()=>{
+  const original=globalThis.fetch,nav=Object.getOwnPropertyDescriptor(globalThis,'navigator')
+  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true}})
+  const input={...request,planVersion:1,planToken:preview.planToken,operationId:'original-operation',confirmed:true}
+  const rejection={outcome:'rejected',operationId:input.operationId,code:'recovery_plan_conflict',inventoryRevision:2}
+  const envelope={version:1,operation:'recovery.apply',operationId:input.operationId,rejection}
+  try {
+    globalThis.fetch=async()=>Response.json(envelope,{status:409,headers:{'Cache-Control':'private, no-store'}})
+    assert.deepEqual(await sendNativeRecovery('recovery.apply',input,()=>scope),rejection)
+    for(const bad of [{error:{code:'storage_conflict'}},{...envelope,operation:'recovery.apply.v2'},{...envelope,rejection:{...rejection,operationId:'wrong-id'}},{...envelope,rejection:{...rejection,certificate:'private'}},{...envelope,rejection:{...rejection,code:'40001'}}]) {
+      globalThis.fetch=async()=>Response.json(bad,{status:409,headers:{'Cache-Control':'private, no-store'}})
+      await assert.rejects(sendNativeRecovery('recovery.apply',input,()=>scope))
+    }
+    globalThis.fetch=async()=>Response.json(envelope,{status:409})
+    await assert.rejects(sendNativeRecovery('recovery.apply',input,()=>scope))
+  } finally {globalThis.fetch=original;if(nav)Object.defineProperty(globalThis,'navigator',nav);else Reflect.deleteProperty(globalThis,'navigator')}
+})

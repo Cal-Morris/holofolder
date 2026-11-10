@@ -92,6 +92,10 @@ export function storageCommandHarness(id: string) {
               { table: "binders", id: collection, before: { name: "Synthetic storage", is_default: false }, after: { name: "Synthetic storage", is_default: true } }]
               : [{ table: "binder_slots", id: "synthetic-slot-0", before: { status: "collected" }, after: { status: "wishlisted" } }], rootRevisionsAdvance: true })
         }
+        if (key === 'synthetic-proven-stale') {
+          const result={outcome:'rejected',operationId:key,code:'recovery_plan_conflict',inventoryRevision:Number(state.tables.inventory_owner_state[0].inventory_revision)}
+          ledger.set(key,{body,audit,result});return Response.json(result)
+        }
         if (recovery.planToken !== "a".repeat(64)) return Response.json({ code: "40001" }, { status: 409 })
         const revision = Number(state.tables.inventory_owner_state[0].inventory_revision) + 1
         state.tables.inventory_owner_state[0].inventory_revision = revision

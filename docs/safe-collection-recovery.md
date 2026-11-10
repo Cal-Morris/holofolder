@@ -135,3 +135,7 @@ Parent application sequence: resolve #414's genuine Typecheck blocker, review an
 ## Later staged native Activity integration
 
 The [native Activity UI and durable original-intent slice](native-activity-recovery-ui.md) prepares the browser journey through the existing v1/v2 bridge. Older read-only/no-UI statements above describe their historical slices. Public native admission is still unconditional 503; only the local/nonhosted synthetic harness exercises the prepared UI. Legacy 087 Undo remains unchanged. No SQL, grant, hosted execution, conversion or enablement is added by the UI slice.
+
+## Additive native recovery terminal contract
+
+Migration 092 prepares recovery-specific noncommit proof through the existing apply v1/v2 gateway/ledger. 089 command proofs are never inferred for recovery. See [terminal noncommit](native-activity-recovery-ui.md#terminal-noncommit-092) for the strict sanitized HTTP/REST/MCP contract, retained outer locks, explicit discard and fresh-preview requirements. Unknown outcomes remain exact retry only. No admission, hosted application or enabled release is claimed.

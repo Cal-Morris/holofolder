@@ -144,4 +144,12 @@ Normal inventory limits remain 100 commands, 32 collections, 256 selected affect
 
 One existing ledger receipt and one atomic history event cover the batch. Exact original replay precedes mutable reconstruction and cannot recreate a slot or copy after a later edit/recovery. Safe native recovery removes only the proved new slot/acquisition or returns the reused item to Unassigned; changed dependencies, layout or ABA reject. Restoring private asset metadata remains explicitly unsupported. A fresh preview decides support, not the insertion receipt. The original operation, slot and item IDs stay immutable through durable retry; only a separate fresh complete scoped read can acknowledge remote delivery. Public developer read pages cannot supply that snapshot.
 
+
 The staged scanner now composes this existing operation with existing-slot assignments in one explicitly reviewed batch. Append choices create a free slot or exact card target with the selected Unassigned/new Raw copy; no separate slot-creation request is sent. Capture/current-grid/order/copy guards, real IDB commit and fresh complete-read ACK remain required. Capture and manual identity review are device UI, not a separate REST/MCP operation. Production routes remain disabled. See [scan review](/docs/scan-destinations).
+
+### Prepared native recovery rejection
+
+Native recovery remains staged and returns `503 native_operations_staged` before execution. The prepared v1/v2 apply contract declares REST `409 storage_recovery_rejected`, or MCP `isError:true`, only for a committed strict `error.rejection` containing `outcome:"rejected"`, the original `operationId`, known `code` and `inventoryRevision`. Codes are `recovery_plan_conflict` and `recovery_dependency_conflict`. Arbitrary 409/SQL errors, missing receipts, cancellation and billing/access errors are not noncommit proof. Exact accepted/rejected replay requires current authority and precedes mutable plan reconstruction.
+
+In the staged app, durable proof permits a separately fresh complete current owner/session read and explicit **Discard noncommitted recovery**. Discard preserves original request/proof with a distinct discarded state, never accepted/synchronized. **Review new recovery** then needs a new preview and explicit confirmation with a new operation ID. Unknown and accepted requests never gain discard/rebase. The existing legacy Undo contract is unchanged; no private inverse, evidence, certificates or assets are exposed. This preparation is not an enabled capability or release announcement.
+

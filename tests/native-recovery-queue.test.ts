@@ -68,3 +68,59 @@ test('concurrent retries lease one original request, torn-down lease can retry a
   assert.equal(sends,1);release();await first
   assert.equal((await q.read()).recovery![0].synchronized,true)
 })
+const proof={outcome:'rejected' as const,operationId:'synthetic-recovery',code:'recovery_plan_conflict' as const,inventoryRevision:2}
+test('terminal proof survives failed fresh read/reload and needs explicit fresh discard; never acceptance',async()=>{
+  const store=createMemoryStore(),q=createSlotOfflineQueue(store,scope)
+  await q.saveSnapshot(await complete(1));await q.retainRecovery(intent,()=>scope)
+  await assert.rejects(q.replayRecovery(proof.operationId,async()=>proof,async()=>{throw new Error('read-failed')},()=>scope),/read-failed/)
+  assert.deepEqual((await q.read()).recovery![0].rejection,proof)
+  const reload=createSlotOfflineQueue(store,scope)
+  await reload.replayRecovery(proof.operationId,async()=>{throw new Error('never resend terminal')},()=>complete(4),()=>scope)
+  assert.equal((await reload.read()).recovery![0].synchronized,false)
+  await assert.rejects(reload.retainRecovery({...intent,request:{...intent.request,operationId:'new-preview-request'}},()=>scope),/reconciliation/)
+  const stale=await complete(4)
+  await assert.rejects(reload.discardRecovery(proof.operationId,async()=>stale,()=>scope),/fresh-complete/)
+  await reload.discardRecovery(proof.operationId,()=>complete(5),()=>scope)
+  const r=(await reload.read()).recovery![0]
+  assert.equal(r.resolution,'discarded');assert.equal(r.synchronized,false);assert.equal(r.receipt,null)
+  assert.deepEqual(r.intent,intent);assert.deepEqual(r.rejection,proof)
+  await reload.retainRecovery({...intent,request:{...intent.request,operationId:'new-preview-request',planToken:'b'.repeat(64)}},()=>scope)
+  assert.equal((await reload.read()).recovery!.length,2)
+})
+test('unknown/accepted outcomes, forged proofs and IDB abort cannot enable discard',async()=>{
+  const store=createMemoryStore(),q=createSlotOfflineQueue(store,scope)
+  await q.retainRecovery(intent,()=>scope)
+  await assert.rejects(q.discardRecovery(proof.operationId,()=>complete(),()=>scope),/proof-required/)
+  for(const bad of [{...proof,operationId:'other-id'},{...proof,code:'40001'},{...proof,evidence:{}},{...proof,inventoryRevision:-1}]) {
+    await assert.rejects(q.replayRecovery(proof.operationId,async()=>bad,()=>complete(),()=>scope))
+    assert.equal((await q.read()).recovery![0].rejection,undefined)
+  }
+  await q.replayRecovery(proof.operationId,async()=>proof,()=>complete(),()=>scope)
+  const abort=createSlotOfflineQueue({...store,update:async()=>{throw new Error('idb-abort')}},scope)
+  await assert.rejects(abort.discardRecovery(proof.operationId,()=>complete(),()=>scope),/idb-abort/)
+  assert.equal((await q.read()).recovery![0].resolution,undefined)
+})
+test('terminal discard fences concurrent tabs and scope teardown while reading',async()=>{
+  const store=createMemoryStore(),q=createSlotOfflineQueue(store,scope)
+  await q.retainRecovery(intent,()=>scope);await q.replayRecovery(proof.operationId,async()=>proof,()=>complete(),()=>scope)
+  let active:typeof scope|null=scope, release!:()=>void,started!:()=>void
+  const barrier=new Promise<void>(yes=>release=yes),sending=new Promise<void>(yes=>started=yes)
+  const first=q.discardRecovery(proof.operationId,async()=>{started();await barrier;return complete()},()=>active,100)
+  await sending
+  await assert.rejects(q.discardRecovery(proof.operationId,()=>complete(),()=>scope,101),/proof-required/)
+  active=null;release();await assert.rejects(first,/fresh-complete/)
+  const retained=(await q.read()).recovery![0]
+  assert.deepEqual(retained.rejection,proof);assert.equal(retained.resolution,undefined);assert.ok(retained.lease)
+})
+test('aborted proof commit retains unknown original for exact retry; accepted receipt cannot be discarded',async()=>{
+  const store=createMemoryStore(),q=createSlotOfflineQueue(store,scope)
+  await q.retainRecovery(intent,()=>scope)
+  let writes=0
+  const failing=createSlotOfflineQueue({...store,update:async(key,change)=>{if(++writes===2)throw new Error('proof-idb-abort');return store.update(key,change)}},scope)
+  await assert.rejects(failing.replayRecovery(proof.operationId,async original=>{assert.deepEqual(original,intent);return proof},()=>complete(),()=>scope),/proof-idb-abort/)
+  assert.equal((await q.read()).recovery![0].rejection,undefined)
+  await assert.rejects(q.discardRecovery(proof.operationId,()=>complete(),()=>scope),/proof-required/)
+  await q.replayRecovery(proof.operationId,async original=>{assert.deepEqual(original,intent);return receipt},()=>complete(),()=>scope)
+  await assert.rejects(q.discardRecovery(proof.operationId,()=>complete(),()=>scope),/proof-required/)
+  assert.equal((await q.read()).recovery![0].synchronized,true)
+})

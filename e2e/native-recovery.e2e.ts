@@ -210,3 +210,56 @@ test('aborted recovery persistence retries the same confirmed intent before any 
   expect((await stored(page))[0].intent).toEqual(original)
   expect(JSON.parse(sent)).toEqual(original.request)
 })
+
+test('terminal noncommit survives failed read/reload, explicit discard retains proof and new recovery needs preview',async({page,insets})=>{
+  await history(page)
+  let terminal=true,failedRead=false,applies=0
+  const requests:Record<string,unknown>[]=[]
+  await page.route('**/app/e2e-harness/storage/recovery?*',async route=>{
+    const operation=new URL(route.request().url()).searchParams.get('operation')!
+    if(operation==='recovery.apply'){
+      applies++;const request=route.request().postDataJSON();requests.push(request)
+      if(terminal){failedRead=true;return route.fulfill({status:409,headers:{'Cache-Control':'private, no-store'},json:{version:1,operation,operationId:request.operationId,rejection:{outcome:'rejected',operationId:request.operationId,code:'recovery_plan_conflict',inventoryRevision:7}}})}
+    }
+    await route.continue()
+  })
+  await page.route('**/app/e2e-harness/storage/inventory?*',async route=>{if(failedRead)return route.abort('failed');await route.continue()})
+  await page.goto(entry);let dialog=await open(page)
+  await dialog.getByRole('button',{name:'Review recovery',exact:true}).click();await dialog.getByRole('button',{name:'Confirm recovery'}).click()
+  await expect(dialog.getByText(/Recovery did not commit. Review current storage/)).toBeVisible()
+  await expect(dialog.getByRole('button',{name:'Discard noncommitted recovery'})).toHaveCount(0)
+  const original=(await stored(page))[0].intent.request
+  failedRead=false;await page.reload()
+  await page.getByRole('button',{name:'Activity',exact:true}).click();dialog=page.getByRole('dialog',{name:'Collection Activity',exact:true})
+  await expect(dialog.getByRole('button',{name:'Discard noncommitted recovery'})).toHaveCount(0)
+  await dialog.getByRole('button',{name:'Refresh current storage',exact:true}).click()
+  const discard=dialog.getByRole('button',{name:'Discard noncommitted recovery'})
+  await expect(discard).toBeVisible()
+  const h=new Harness(page,insets,true)
+  await h.expectMinTapTarget(discard);await h.expectWithinSafeViewport(discard);await h.expectHittable(discard);await h.expectNoHorizontalOverflow()
+  // Abort the actual atomic resolution commit. The original request and proof survive.
+  await page.evaluate(()=>{
+    const put=IDBObjectStore.prototype.put;let failed=false
+    IDBObjectStore.prototype.put=function(value,key){
+      const r=key===undefined?put.call(this,value):put.call(this,value,key)
+      if(!failed&&value?.recovery?.some((r:{resolution?:string})=>r.resolution==='discarded')){failed=true;this.transaction.abort()}
+      return r
+    }
+  })
+  await discard.click();await expect(dialog.getByRole('alert')).toBeVisible()
+  await expect(dialog.getByText(/Saved request discarded/)).toHaveCount(0)
+  await discard.click();await expect(dialog.getByText(/Saved request discarded/)).toBeVisible()
+  const retained=await page.evaluate(async()=>{
+    const db=await new Promise<IDBDatabase>(yes=>{const r=indexedDB.open('binderdex-offline');r.onsuccess=()=>yes(r.result)})
+    const rows=await new Promise<{recovery?:unknown[]}[]>(yes=>{const r=db.transaction('records').objectStore('records').getAll();r.onsuccess=()=>yes(r.result)})
+    db.close();return rows.find(r=>r.recovery)?.recovery?.[0] as {resolution:string;synchronized:boolean;receipt:unknown;rejection:unknown}
+  })
+  expect(retained.resolution).toBe('discarded');expect(retained.synchronized).toBe(false);expect(retained.receipt).toBeNull();expect(retained.rejection).toBeTruthy();expect(applies).toBe(1)
+  await dialog.getByRole('button',{name:'Review new recovery'}).click()
+  await expect(dialog.getByRole('button',{name:'Confirm recovery'})).toHaveCount(0)
+  terminal=false
+  await dialog.getByRole('button',{name:'Review recovery',exact:true}).click();await dialog.getByRole('button',{name:'Confirm recovery'}).click()
+  await expect.poll(async()=>(await stored(page))[1]?.synchronized).toBe(true)
+  expect(requests[1].operationId).not.toBe(original.operationId)
+  expect((await stored(page))[0].intent.request).toEqual(original)
+})

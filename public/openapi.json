@@ -2213,7 +2213,7 @@
             }
           },
           "409": {
-            "description": "After future admission: storage_command_rejected includes only the bound terminal ledger rejection; ordinary conflicts carry no rejection proof.",
+            "description": "After future admission: only the bound terminal ledger rejection carries proof; ordinary conflicts do not.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5256,7 +5256,7 @@
             }
           },
           "409": {
-            "description": "After future admission: storage_command_rejected includes only the bound terminal ledger rejection; ordinary conflicts carry no rejection proof.",
+            "description": "After future admission: only the bound terminal ledger rejection carries proof; ordinary conflicts do not.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7305,7 +7305,7 @@
       "post": {
         "operationId": "apply_storage_recovery",
         "summary": "Apply storage recovery",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Apply exactly reviewed native version-1 recovery with confirmation, planToken and retry-stable operationId. Current authority and newer/ABA changes remain enforced. No fallback to legacy recovery.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379.  A committed terminal rejection returns REST 409 storage_recovery_rejected or MCP isError with strict error.rejection (outcome, original operationId, code, inventoryRevision). Only recovery_plan_conflict and recovery_dependency_conflict are terminal. Accepted/rejected exact replay precedes mutable plan reconstruction but requires current authority. Preserve unknown requests; status, billing errors and cancellation are not proof. After proof, obtain a fresh complete current owner/session read and explicitly discard, or review a new preview and confirm a new operationId. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Apply exactly reviewed native version-1 recovery with confirmation, planToken and retry-stable operationId. Current authority and newer/ABA changes remain enforced. No fallback to legacy recovery.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery`.",
         "tags": [
           "Collection"
         ],
@@ -7618,38 +7618,107 @@
             }
           },
           "409": {
-            "description": "See the API conventions page.",
+            "description": "After future admission: only the bound terminal ledger rejection carries proof; ordinary conflicts do not.",
             "content": {
               "application/json": {
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "error": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "requestId": {
-                          "type": "string"
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "code",
-                        "message",
-                        "requestId"
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "const": "storage_recovery_rejected"
+                            },
+                            "message": {
+                              "type": "string",
+                              "const": "The original recovery did not commit. Read current storage before explicitly discarding or reviewing a new recovery."
+                            },
+                            "requestId": {
+                              "type": "string"
+                            },
+                            "rejection": {
+                              "type": "object",
+                              "properties": {
+                                "outcome": {
+                                  "type": "string",
+                                  "const": "rejected"
+                                },
+                                "operationId": {
+                                  "type": "string",
+                                  "minLength": 8,
+                                  "maxLength": 100
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "recovery_plan_conflict",
+                                    "recovery_dependency_conflict"
+                                  ]
+                                },
+                                "inventoryRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "outcome",
+                                "operationId",
+                                "code",
+                                "inventoryRevision"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "rejection"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "error"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -8361,7 +8430,7 @@
       "post": {
         "operationId": "apply_storage_recovery_v2",
         "summary": "Apply storage recovery v2",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Apply the exact confirmed version-2 default-creation plan with explicit replacement and stable operationId. Unsupported dependencies and conflicts reject atomically; no legacy fallback.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery_v2`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379.  A committed terminal rejection returns REST 409 storage_recovery_rejected or MCP isError with strict error.rejection (outcome, original operationId, code, inventoryRevision). Only recovery_plan_conflict and recovery_dependency_conflict are terminal. Accepted/rejected exact replay precedes mutable plan reconstruction but requires current authority. Preserve unknown requests; status, billing errors and cancellation are not proof. After proof, obtain a fresh complete current owner/session read and explicitly discard, or review a new preview and confirm a new operationId. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Apply the exact confirmed version-2 default-creation plan with explicit replacement and stable operationId. Unsupported dependencies and conflicts reject atomically; no legacy fallback.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery_v2`.",
         "tags": [
           "Collection"
         ],
@@ -8716,38 +8785,107 @@
             }
           },
           "409": {
-            "description": "See the API conventions page.",
+            "description": "After future admission: only the bound terminal ledger rejection carries proof; ordinary conflicts do not.",
             "content": {
               "application/json": {
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "error": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "requestId": {
-                          "type": "string"
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            },
+                            "requestId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "code",
-                        "message",
-                        "requestId"
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "const": "storage_recovery_rejected"
+                            },
+                            "message": {
+                              "type": "string",
+                              "const": "The original recovery did not commit. Read current storage before explicitly discarding or reviewing a new recovery."
+                            },
+                            "requestId": {
+                              "type": "string"
+                            },
+                            "rejection": {
+                              "type": "object",
+                              "properties": {
+                                "outcome": {
+                                  "type": "string",
+                                  "const": "rejected"
+                                },
+                                "operationId": {
+                                  "type": "string",
+                                  "minLength": 8,
+                                  "maxLength": 100
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "recovery_plan_conflict",
+                                    "recovery_dependency_conflict"
+                                  ]
+                                },
+                                "inventoryRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "outcome",
+                                "operationId",
+                                "code",
+                                "inventoryRevision"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message",
+                            "requestId",
+                            "rejection"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "error"
                       ],
                       "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
