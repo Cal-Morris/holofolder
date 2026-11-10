@@ -1,0 +1,16 @@
+---
+title: Saved collections offline
+description: What saved startup can show and when a connection is required.
+---
+
+The live app continues to open its saved legacy binder offline. Keep the app installed or visit it online first so this device can save the app files and binder data. Pending changes remain on that device until synchronization succeeds.
+
+## Native collection preparation
+
+Native Inventory and Binder/List offline relaunch is currently an internal local-test capability, not an enabled production feature. It can display previously saved copies and pending layout changes from this device, labelled **Cached only**. Layout editing and remote commands are unavailable in that cached startup view. It does not establish current membership or confirm that pending changes reached the server.
+
+The local test requires the same unexpired device account session and saved collection-owner scope. Shared cached collections also need the existing account/owner-matched saved partner access allowance. A connection is required to discover revoked partnerships or other access changes. On reconnect the cached view closes and current account and collection access must be checked before fresh data or commands can be used.
+
+If saved metadata, account evidence or app files are missing, stale or unavailable, reconnect to reopen the collection. Saved pending edits are retained. A first-ever offline visit cannot open an app that has never been cached. Older app shells continue using their legacy startup until updated.
+
+This device-only startup preparation adds no supported REST or MCP endpoint. Native inventory/slot API rollout remains staged. The existing live Activity and legacy Undo features are unchanged.

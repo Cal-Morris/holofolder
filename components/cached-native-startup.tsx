@@ -1,0 +1,69 @@
+"use client"
+
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react"
+import BinderApp from "@/components/binder-app"
+import CollectionNavigationHost from "@/components/collection-navigation/navigation-host"
+import { readBinderStartMarker } from "@/lib/binder-start"
+import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
+import { browserHostCatalog, browserHostDisplayCatalog } from "@/lib/collection/browser-host-catalog"
+import { cachedNativeIdentity, readCachedNativeStartup, readDeviceStartupSession } from "@/lib/collection/native-startup"
+import { getOfflineStore } from "@/lib/offline-store/kv"
+import { createClient } from "@/lib/supabase/client"
+
+/** Cached display is deliberately separate from BrowserCollectionSession's authenticated scope.
+ * Reconnect/auth events unmount it before entering the unchanged checked host path. */
+export default function CachedNativeStartup({ localHarness = false, legacyProps, children }: {
+  localHarness?: boolean
+  legacyProps: ComponentProps<typeof BinderApp>
+  children: (recheckNative: boolean) => ReactNode
+}) {
+  const [saved, setSaved] = useState<Awaited<ReturnType<typeof readCachedNativeStartup>> | null>(null)
+  const [notice, setNotice] = useState("")
+  const [resumeLive, setResumeLive] = useState(false)
+  useEffect(() => {
+    if (!browserHostAdmission(localHarness, "1", false, location.host).admitted || navigator.onLine) return
+    // Old/legacy bootstrap has no native pointer, so it keeps its original startup.
+    try { if (!readBinderStartMarker(localStorage)?.native) return } catch { return }
+    let active = true, established = false, expiry: ReturnType<typeof setTimeout> | undefined
+    const invalidate = () => { active = false; setResumeLive(established && navigator.onLine); setSaved(null); setNotice("Saved storage is paused. Connect to check your account and collection access. Pending edits are retained.") }
+    const client = createClient()
+    const { data: { subscription } } = client.auth.onAuthStateChange(event => { if (event !== "INITIAL_SESSION") invalidate() })
+    window.addEventListener("online", invalidate)
+    window.addEventListener("storage", invalidate)
+    void (async () => {
+      const session = await readDeviceStartupSession(() => client.auth.getSession())
+      if (!active || navigator.onLine) return
+      const identity = cachedNativeIdentity(localStorage, session)
+      const store = getOfflineStore()
+      if (!identity || !store) throw new Error("saved-scope-unavailable")
+      const boot = await readCachedNativeStartup(store, identity, crypto.randomUUID())
+      if (!active || navigator.onLine) return
+      // IDB may outlive the cached identity or its earlier JWT deadline.
+      const current = cachedNativeIdentity(localStorage, session)
+      if (!current || JSON.stringify(current.scope) !== JSON.stringify(identity.scope)) throw new Error("saved-scope-expired")
+      expiry = setTimeout(invalidate, Math.min(2147483647, Math.max(0, current.expiresAt - Date.now())))
+      established = true
+      setSaved(boot)
+    })().catch(() => { if (active) setNotice("Saved native storage is unavailable on this device. Connect to reopen it. Pending edits have not been removed.") })
+    return () => { active = false; clearTimeout(expiry); subscription.unsubscribe(); window.removeEventListener("online", invalidate); window.removeEventListener("storage", invalidate) }
+  }, [localHarness])
+  if (!saved) return <>{notice && <p role="status" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+0.5rem)] z-50 rounded-lg bg-card p-3 text-sm">{notice}</p>}{children(resumeLive)}</>
+  const { read, pending } = saved
+  const catalog = browserHostCatalog(read.catalog)
+  return <CollectionNavigationHost scope={read.scope} read={read} fallbackCollectionId={legacyProps.initialBinderId}
+    readCurrent={async () => { throw new Error("cached-startup-requires-checked-session") }} scrollContainerId="collection-browser-scroll"
+    renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
+      const snapshot = read.evidence.kind === "cached" ? read.evidence.snapshot : null
+      const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)
+      const layout = binder && read.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
+      const display = snapshot && binder && layout ? { inventory: snapshot, binder, catalog: {}, resolveCard: browserHostDisplayCatalog(read.catalog) } : undefined
+      const header = <><p role="status" className="px-4 text-sm">Saved on this device · Cached only. Access will be checked when you reconnect.{pending > 0 ? ` ${pending} pending edit${pending === 1 ? "" : "s"} retained.` : ""}</p>{surface.header}</>
+      return <BinderApp {...legacyProps} key={JSON.stringify([surface.visit, surface.state.main, surface.collection?.collectionId, surface.collection?.state.view])}
+        localBrowserHost={false} initialCollectionOwnerUserId={read.scope.ownerUserId}
+        initialBinderId={binder?.collectionId ?? legacyProps.initialBinderId}
+        initialCollection={surface.state.main === "dex" ? legacyProps.initialCollection : []}
+        initialSettings={{ ...legacyProps.initialSettings, ...(layout ? { binderRows: layout.rows, binderCols: layout.cols } : {}) }}
+        browserHeader={header} browserSurface={{ surface, display, catalog, pending, receive: async () => { throw new Error("cached-startup-read-only") } }}
+        stagedSlotDisplay={surface.state.main === "collection" ? display : undefined} stagedSlotSessionId={read.scope.sessionId} />
+    }} />
+}

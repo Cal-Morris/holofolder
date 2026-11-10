@@ -15,11 +15,13 @@ export interface BinderStartMarker {
   ownerUserId: string
   binderId: string | null
   binders: Binder[]
+  /** Cached display pointer only. Never authenticated scope or a complete read. */
+  native?: { version: 1; deviceId: string; authSessionId: string }
 }
 
 export type LocalBinderStart = OfflineShellState & { binderId: string | null; binders: Binder[] }
 
-function readMarker(storage: StorageLike): BinderStartMarker | null {
+export function readBinderStartMarker(storage: StorageLike): BinderStartMarker | null {
   try {
     const parsed = JSON.parse(storage.getItem(BINDER_START_MARKER_KEY) ?? "null") as Partial<BinderStartMarker> | null
     if (!parsed || typeof parsed.userId !== "string" || typeof parsed.ownerUserId !== "string") return null
@@ -27,6 +29,7 @@ function readMarker(storage: StorageLike): BinderStartMarker | null {
       userId: parsed.userId,
       ownerUserId: parsed.ownerUserId,
       binderId: typeof parsed.binderId === "string" && parsed.binderId ? parsed.binderId : null,
+      native: parsed.native?.version === 1 && typeof parsed.native.deviceId === "string" && typeof parsed.native.authSessionId === "string" ? parsed.native : undefined,
       binders: Array.isArray(parsed.binders) ? parsed.binders.filter((binder): binder is Binder => typeof binder?.id === "string") : [],
     }
   } catch {
@@ -34,9 +37,11 @@ function readMarker(storage: StorageLike): BinderStartMarker | null {
   }
 }
 
-export function writeBinderStartMarker(storage: WritableStorage, marker: BinderStartMarker) {
+export function writeBinderStartMarker(storage: WritableStorage & Partial<StorageLike>, marker: BinderStartMarker) {
   try {
-    storage.setItem(BINDER_START_MARKER_KEY, JSON.stringify(marker))
+    const previous = storage.getItem ? readBinderStartMarker(storage as StorageLike) : null
+    const native = marker.native ?? (previous?.userId === marker.userId && previous.ownerUserId === marker.ownerUserId ? previous.native : undefined)
+    storage.setItem(BINDER_START_MARKER_KEY, JSON.stringify({ ...marker, native }))
   } catch {
     // Quota or private mode: the next start just waits for the server.
   }
@@ -62,7 +67,7 @@ function readSnapshotKey(storage: StorageLike, key: string): { ownerUserId: stri
  * visit, or a link to another binder waits for the server.
  */
 export function readLocalBinderStart(storage: StorageLike, cookie: string, userId: string, requestedBinderId: string | null = null): LocalBinderStart | null {
-  const marker = readMarker(storage)
+  const marker = readBinderStartMarker(storage)
   if (!marker || marker.userId !== userId) return null
   if (marker.ownerUserId !== userId) {
     const access = readBillingCache(storage, userId, marker.ownerUserId)
