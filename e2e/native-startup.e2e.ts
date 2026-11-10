@@ -100,6 +100,11 @@ test("previously cached native pending layout survives genuine page close and of
   await dock.getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(reopened.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await expect(reopened.getByRole("status").filter({ hasText: /^Cached only/ })).toBeVisible()
+  await reopened.evaluate(() => window.dispatchEvent(new CustomEvent("holofolder-membership-lifecycle-v1", { detail: "pause" })))
+  await expect(reopened.getByText(/Saved storage is paused/)).toBeVisible()
+  await expect(reopened.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
+  await expect(reopened.getByRole("dialog")).not.toBeVisible()
+  expect(await queueRecords(reopened)).toEqual(before)
 })
 
 test("offline cached inventory closes before reconnect can reuse stale owner scope", async ({ page, context }, info) => {
