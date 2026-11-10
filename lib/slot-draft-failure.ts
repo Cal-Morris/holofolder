@@ -14,6 +14,7 @@ export function slotDraftFailureMessage(cause: unknown): string {
   if (CHANGED.has(reason)) return "This pocket changed. Close it and try again. Save not confirmed."
   if (reason === "target-mismatch") return "This card doesn't match this pocket's target. Pick a matching card. Save not confirmed."
   if (reason === "occupied-target") return "That target doesn't match the card in this pocket. Move the card to Unassigned first. Save not confirmed."
+  if (reason === "raw-copy-required") return "A graded card can't be removed here. You can take it out of the pocket instead. Nothing was changed."
   if (reason === "catalog-unavailable") return "This card could not be confirmed. Try again when online. Save not confirmed."
   return "Could not save this card. Try again. Save not confirmed."
 }

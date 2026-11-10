@@ -45,6 +45,8 @@ export interface InventoryBrowseRow {
 export interface InventoryBrowseQuery {
   search?: string
   collectionId?: string
+  /** A page of the chosen collection, as its saved layout numbers them. Only meaningful with `collectionId`. */
+  page?: number
   assignment?: "all" | "assigned" | "unassigned" | "unknown"
   condition?: "all" | "raw" | "graded"
   provider?: string

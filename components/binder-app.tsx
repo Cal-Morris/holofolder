@@ -334,7 +334,8 @@ function BinderAppSurface(props: BinderAppProps) {
   const [undoBusy, setUndoBusy] = useState(false)
   const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon; activityEventId?:string; expected?:CollectedPokemon|null; accountId?:string; ownerId?:string|null } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
-  const [nativeLookup, setNativeLookup] = useState<SearchCardResult | null>(null)
+  const [nativeLookup, setNativeLookupState] = useState<{ card: SearchCardResult; finish?: CardFinish } | null>(null)
+  const setNativeLookup = useCallback((card: SearchCardResult | null, finish?: CardFinish) => setNativeLookupState(card ? { card, finish } : null), [])
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; focusedCard?: SearchCardResult; finish?: CardFinish; nested: boolean } | null>(null)
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
   // A set hit tapped in Search or Quick mode; Sets opens on it until he leaves Sets.
@@ -3393,8 +3394,8 @@ function BinderAppSurface(props: BinderAppProps) {
     })
   }, [setCardBrowser, openExclusively])
 
-  const openNativeCard = useCallback((card: SearchCardResult) => {
-    openExclusively(() => { setSelectedPokemon(null); setNativeLookup(card) })
+  const openNativeCard = useCallback((card: SearchCardResult, finish?: CardFinish) => {
+    openExclusively(() => { setSelectedPokemon(null); setNativeLookup(card, finish) })
   }, [openExclusively, setNativeLookup, setSelectedPokemon])
   const hasNativeConsumer = Boolean(browserSurface?.nativeConsumer)
   const nativeReadOnly = browserSurface?.nativeConsumer ? !browserSurface.nativeConsumer.editingAvailable : readOnlyMode
@@ -3419,6 +3420,34 @@ function BinderAppSurface(props: BinderAppProps) {
       setIllustratorBrowser({ name, nested: false })
     })
   }, [openExclusively])
+
+  /**
+   * One card from an illustrator's grid: its own details open above the grid, for exactly that card, and closing
+   * them returns to the grid. A card detail the grid was opened from is closed first so only two levels are open.
+   */
+  const openIllustratorCard = useCallback((card: SearchCardResult) => {
+    setIllustratorBrowser(current => current ? { ...current, nested: false } : current)
+    setSelectedSlotId(null)
+    setSelectedPokemon(null)
+    if (hasNativeConsumer) { setNativeLookup(card); return }
+    const dexId = card.dexIds[0]
+    const pokemon = dexId ? getPokemonSummary(dexId) : null
+    if (pokemon) setCardBrowser({ pokemon: { id: pokemon.id, name: pokemon.name }, highlightCardId: card.id, focusedCard: card, nested: true })
+  }, [hasNativeConsumer, setCardBrowser, setNativeLookup, setSelectedPokemon])
+  /** A pocket's wanted card, opened as its own card in the wanted finish. Its full catalog entry is used when the collection has it. */
+  const openWantedCard = useCallback((want: WantedCard) => {
+    const known = nativeRead?.catalog.find(entry => matchesCatalogCardId(entry.card, want.card_id) && (!want.card_language || entry.card.language === want.card_language))
+    const card: SearchCardResult = known ? { ...known.card, dexIds: [...(known.pokemonIds ?? [])] }
+      : { id: want.card_id, localId: "", name: want.card_name, image: want.card_image, language: want.card_language, set: { id: "", name: want.card_set ?? "" }, dexIds: [] }
+    openNativeCard(card, want.card_finish ?? undefined)
+  }, [nativeRead, openNativeCard])
+  // Owned and wanted marks in the illustrator view come from the signed-in collection when there is one.
+  const illustratorCollection = useMemo(() => {
+    if (!illustratorBrowser || !nativeRead || nativeRead.evidence.kind === "unavailable") return collection
+    const snapshot = nativeRead.evidence.snapshot
+    return [...snapshot.items.flatMap(item => item.identity.kind === "card" ? [{ card_id: item.identity.cardId, status: "collected" }] : []),
+      ...snapshot.binders.flatMap(binder => binder.slots.filter(slot => slot.wantedCards.length > 0).map(slot => ({ wanted_cards: slot.wantedCards.map(want => ({ card_id: want.card_id })) })))]
+  }, [illustratorBrowser, nativeRead, collection])
 
   /** A set hit from Search or Quick mode: open Sets on that set (a fresh Sets view, even if Sets is showing). */
   const openSetFromSearch = useCallback((set: TCGSetSummary) => {
@@ -4026,9 +4055,10 @@ function BinderAppSurface(props: BinderAppProps) {
       ) : null}
 
       {nativeLookup && hasNativeConsumer && <PokemonCardsBrowser
-        key={`${nativeLookup.id}:${nativeLookup.language}`} nativeConsumer={nativeConsumer} pokemon={null}
-        pricingEnabled={pricingEnabled} highlightCardId={nativeLookup.id}
-        cardDetails={{ card: nativeLookup, finish: "normal", getState: () => ({ owned: false, wanted: false }),
+        key={`${nativeLookup.card.id}:${nativeLookup.card.language}:${nativeLookup.finish ?? ""}`} nativeConsumer={nativeConsumer} pokemon={null}
+        pricingEnabled={pricingEnabled} highlightCardId={nativeLookup.card.id}
+        // A want's own finish when it came from a want; otherwise the finish this printing usually comes in.
+        cardDetails={{ card: nativeLookup.card, finish: nativeLookup.finish ?? inferCardFinish(nativeLookup.card.rarity, nativeLookup.card.variants), getState: () => ({ owned: false, wanted: false }),
           onAction: async () => null, onRemoveOwned: () => {}, onJumpToSlot: () => {} }}
         isDesktop={isDesktopViewport} readOnly={nativeReadOnly} onClose={() => setNativeLookup(null)}
         formatPrice={priceFormat.label} pricingRegion={pricingPreferences.region} />}
@@ -4076,17 +4106,18 @@ function BinderAppSurface(props: BinderAppProps) {
           pricingEnabled={pricingEnabled}
           key={illustratorBrowser.name}
           illustrator={illustratorBrowser.name}
-          collection={collection}
+          collection={illustratorCollection}
           isDesktop={isDesktopViewport}
           pricingRegion={pricingPreferences.region}
           formatPrice={priceFormat.label}
+          onOpenCard={openIllustratorCard}
           onClose={closeIllustratorBrowser}
         />
       ) : null}
 
       {selectedDisplaySlot && !editingLayout && <NativeSlotFlow pricing={{ defaultCardLanguage: pricingPreferences.cardLanguage, pricingRegion: pricingPreferences.region, formatAmount: priceFormat.amount }} key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
         picker={slotPickerBoundary(selectedDisplaySlot.id)}
-        host={{ place: slotPlace(selectedDisplaySlot.id),
+        host={{ onOpenWant: hasNativeConsumer ? openWantedCard : undefined,
           // Saved prices for the owner's own cards; a share shows only the figure its owner opted in to.
           pricing: !shareViewToken && !publicIndex && pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount, formatRange: priceFormat.range } : undefined,
           onAllCards: (pokemon, cardId) => openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true }),

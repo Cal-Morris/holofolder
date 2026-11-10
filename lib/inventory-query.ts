@@ -69,7 +69,7 @@ export function buildInventoryBrowseIndex(scope: InventoryBrowseScope, evidence:
 
 function queryKey(query: InventoryBrowseQuery) {
   return JSON.stringify([fold(query.search ?? ""), query.collectionId ?? "", query.assignment ?? "all", query.condition ?? "all",
-    query.provider ?? "", query.grade ?? "", query.sort ?? "name"])
+    query.provider ?? "", query.grade ?? "", query.sort ?? "name", query.collectionId ? query.page ?? 0 : 0])
 }
 function rowKey(row: InventoryBrowseRow, sort: InventoryBrowseQuery["sort"]): string[] {
   const field = sort === "set" ? [row.setName ?? "", row.number ?? ""]
@@ -87,6 +87,7 @@ function orderedInventoryQuery(index: InventoryBrowseIndex, query: InventoryBrow
     const text = fold([row.name, row.cardId, ...row.speciesNames, row.setName, row.setId, row.number].filter(Boolean).join(" "))
     return terms.every(term => text.includes(term))
       && (!query.collectionId || row.location.kind === "assigned" && row.location.intent.collectionId === query.collectionId)
+      && (!query.collectionId || !query.page || row.location.kind === "assigned" && row.location.page === query.page)
       && (!query.assignment || query.assignment === "all" || row.location.kind === query.assignment)
       && (!query.condition || query.condition === "all" || (query.condition === "graded") === row.graded)
       && (!query.provider || row.provider === query.provider) && (!query.grade || row.grade === query.grade)

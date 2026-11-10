@@ -29,6 +29,7 @@ export default function PocketMenu({ slot, place, point, picker, layout, selecte
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
   const [error, setError] = useState<string | null>(null)
+  const [removing, setRemoving] = useState(false)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const card = useNativeSlotAction(picker, onClose)
   const add = useSlotDraftAcceptance<StagedSlotCommandIntent>(layout?.onCommandIntent ?? (() => { throw new Error("inactive-or-unavailable-session") }), onClose)
@@ -66,14 +67,22 @@ export default function PocketMenu({ slot, place, point, picker, layout, selecte
         <p className="break-words">{failure}</p>
         {(add.pending || card.retry) && <button type="button" className="mt-1 min-h-9 rounded-lg border border-border px-2 font-medium" disabled={busy} onClick={() => add.pending ? add.handoff(add.pending) : card.retry?.()}>Try again</button>}
       </div>}
-      <div role="menu" aria-label="Pocket actions" className="grid gap-0.5">
+      {removing ? <section aria-label="Remove card" className="space-y-2 px-2 pb-1">
+        <p className="text-sm font-semibold">Remove {name} from your collection?</p>
+        <p className="text-xs text-muted-foreground">This removes the card itself, and its pocket becomes empty. It can&apos;t be undone with one tap.</p>
+        <div className="flex gap-2">
+          <button type="button" disabled={busy} onClick={() => setRemoving(false)} className="min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium">Keep it</button>
+          <button type="button" disabled={busy} onClick={() => card.run({ kind: "removeOwned" })} className="min-h-11 flex-1 rounded-2xl bg-destructive px-3 text-sm font-semibold text-white disabled:opacity-45">{busy ? "Removing…" : "Remove card"}</button>
+        </div>
+      </section> : <div role="menu" aria-label="Pocket actions" className="grid gap-0.5">
         <button type="button" role="menuitem" className={item} onClick={onOpen}>{slot.item ? "View card" : picker ? "Add a card" : "View details"}</button>
         {picker && slot.item && <button type="button" role="menuitem" className={item} disabled={busy} onClick={() => card.run({ kind: "clear" })}>Take the card out</button>}
+        {picker && slot.item && !slot.item.grading && <button type="button" role="menuitem" className={`${item} text-destructive`} disabled={busy} onClick={() => setRemoving(true)}>Remove from collection</button>}
         {onMove && <button type="button" role="menuitem" className={item} disabled={busy} onClick={onMove}>Move this pocket</button>}
         {layout && <button type="button" role="menuitem" className={item} disabled={busy} onClick={() => insert("before")}>Add a pocket before</button>}
         {layout && <button type="button" role="menuitem" className={item} disabled={busy} onClick={() => insert("after")}>Add a pocket after</button>}
         {onSelect && <button type="button" role="menuitem" className={item} disabled={busy} onClick={onSelect}>{selected ? "Deselect" : "Select"}</button>}
-      </div>
+      </div>}
     </div>
   </div>
 }

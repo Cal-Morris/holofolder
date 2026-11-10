@@ -37,6 +37,7 @@ export function normalizeInventoryViewState(value: unknown): InventoryViewState 
   const oneOf = <T extends string>(v: unknown, values: readonly T[]): T | undefined => values.find(x => x === v)
   return { window: integer(v.window, 25000), query: {
     search: text(q.search), collectionId: text(q.collectionId), provider: text(q.provider), grade: text(q.grade),
+    ...(typeof q.page === "number" && Number.isSafeInteger(q.page) && q.page >= 1 && q.page <= 4096 ? { page: q.page } : {}),
     assignment: oneOf(q.assignment, ["all", "assigned", "unassigned", "unknown"]),
     condition: oneOf(q.condition, ["all", "raw", "graded"]), sort: oneOf(q.sort, ["name", "set", "location", "grading", "id"]),
   } }

@@ -28,7 +28,8 @@ export interface NativeConsumerBinding {
   /** Undefined means All storage, including Unassigned. */
   collectionId?: string
   /** Open this exact printing for lookup, never derive a species destination. */
-  openCard: (card: SearchCardResult) => void
+  /** `finish` is the exact finish to show (a want's own finish); without it the card's usual finish is shown. */
+  openCard: (card: SearchCardResult, finish?: CardFinish) => void
   editingAvailable: boolean
   /** Host rechecks live lifecycle, online state, pending intents and recovery. Null denies editing. */
   admit: () => { scope: CollectionNavigationScope; read: CollectionNavigationRead; context: OperationIntentContext; receive: SlotCommandSink } | null

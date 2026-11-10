@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import { Layers3, MoreHorizontal, Palette, X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import type { BinderDisplaySlot } from "@/lib/binder-display-model"
+import type { WantedCard } from "@/lib/domain/cards"
+import { toCardImageSrc } from "@/lib/card-image-url"
 import type { SlotPickerBoundary } from "@/lib/slot-picker"
 import CardImage from "@/components/card-image"
 import CardImageZoom from "@/components/card-image-zoom"
@@ -19,8 +21,8 @@ export interface CardDetailHost {
   pricing?: NativeCardPricing
   onAllCards?: (pokemon: { id: number; name: string }, cardId: string | null) => void
   onIllustrator?: (name: string) => void
-  /** "Page 3 · Pocket B2". */
-  place?: string
+  /** Open one of this pocket's wanted cards as its own card, in the finish that is wanted. */
+  onOpenWant?: (want: WantedCard) => void
   /** Opens layout editing with this pocket selected; structure is never edited from the card's details. */
   onArrange?: () => void
 }
@@ -37,6 +39,7 @@ export default function SlotDetail({ slot, onClose, picker, host }: { slot: Bind
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
   const [menu, setMenu] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const action = useNativeSlotAction(picker, onClose)
   const editable = Boolean(picker)
   useEffect(() => {
@@ -99,10 +102,25 @@ export default function SlotDetail({ slot, onClose, picker, host }: { slot: Bind
             <span className="font-medium">Take out of this pocket</span>
             <span className="text-xs text-muted-foreground">The card stays in your collection.</span>
           </button>}
+          {canTakeOut && (grade
+            ? <p className="px-3 py-2 text-xs text-muted-foreground">A graded card can&apos;t be removed from your collection here. You can take it out of the pocket.</p>
+            : <button type="button" role="menuitem" disabled={action.busy} onClick={() => { setMenu(false); setRemoving(true) }}
+              className="flex min-h-11 flex-col items-start justify-center rounded-xl px-3 text-left text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50">
+              <span className="font-medium">Remove from collection</span>
+              <span className="text-xs text-muted-foreground">You no longer own this card.</span>
+            </button>)}
           {editable && host?.onArrange && <button type="button" role="menuitem" onClick={host.onArrange} className="flex min-h-11 items-center rounded-xl px-3 text-left text-sm font-medium hover:bg-muted/70">Rearrange pockets</button>}
         </div>}
       </div>
       <div className="-mx-3 -mb-3 mt-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 text-sm [&>*]:shrink-0">
+        {removing && !action.failed && <section aria-label="Remove card" className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3">
+          <p className="text-sm font-semibold">Remove {name} from your collection?</p>
+          <p className="mt-1 text-sm text-muted-foreground">This removes the card itself, and its pocket becomes empty. Other copies you own aren&apos;t affected. It can&apos;t be undone with one tap.</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" disabled={action.busy} onClick={() => setRemoving(false)} className="min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium">Keep it</button>
+            <button type="button" disabled={action.busy} onClick={() => action.run({ kind: "removeOwned" })} className="min-h-11 flex-1 rounded-2xl bg-destructive px-3 text-sm font-semibold text-white disabled:opacity-45">{action.busy ? "Removing…" : "Remove card"}</button>
+          </div>
+        </section>}
         {action.failed && <div role="alert" className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3">
           <p className="break-words text-sm">{action.failed}</p>
           <div className="mt-2 flex gap-2">
@@ -117,12 +135,20 @@ export default function SlotDetail({ slot, onClose, picker, host }: { slot: Bind
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Saved market estimate</p>
           <p className="mt-0.5 text-sm font-bold tabular-nums">{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(slot.card.savedMarketGBP)}</p>
         </section>}
-        {slot.wantedCards.length > 0 && <section aria-label="Wanted here" className="space-y-1 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">{slot.item ? "Wanted upgrade" : "Wanted here"}</p>
-          {slot.wantedCards.map((want, index) => <p key={index} className="break-words text-sm [overflow-wrap:anywhere]">
-            <span className="font-semibold">{want.card_name}</span>
-            <span className="text-muted-foreground">{[want.card_set, want.card_language ? formatCardLanguageLabel(want.card_language) : null, want.card_finish ? formatCardFinishLabel(want.card_finish) : null].filter(Boolean).map(part => ` · ${part}`).join("")}</span>
-          </p>)}
+        {slot.wantedCards.length > 0 && <section aria-label="Wanted here" className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">{slot.item ? "Wanted upgrade" : "Wanted here"}</p>
+          {/* The wanted card's picture first: it is what you look for. Tapping it opens that card. */}
+          <ul className="grid gap-1">{slot.wantedCards.map((want, index) => {
+            const detail = [want.card_set, want.card_language ? formatCardLanguageLabel(want.card_language) : null, want.card_finish ? formatCardFinishLabel(want.card_finish) : null].filter(Boolean).join(" · ")
+            const picture = toCardImageSrc(want.card_image) ?? want.card_image
+            const body = <>
+              <span className="trading-card relative block w-16 shrink-0 overflow-hidden rounded-md border border-amber-400/40 bg-muted">{picture && <CardImage src={picture} alt="" fill sizes="64px" className="object-cover" />}</span>
+              <span className="min-w-0 flex-1 text-left"><span className="block break-words text-sm font-semibold [overflow-wrap:anywhere]">{want.card_name}</span>{detail && <span className="block break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">{detail}</span>}</span>
+            </>
+            return <li key={index} className="min-w-0">{host?.onOpenWant
+              ? <button type="button" aria-label={`Open wanted card ${want.card_name}${detail ? `, ${detail}` : ""}`} onClick={() => host.onOpenWant!(want)} className="flex min-h-11 w-full items-center gap-3 rounded-xl p-1 hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60">{body}</button>
+              : <div className="flex items-center gap-3 p-1">{body}</div>}</li>
+          })}</ul>
         </section>}
         {slot.card?.illustrator && (host?.onIllustrator
           ? <button type="button" onClick={() => host.onIllustrator!(slot.card!.illustrator!)} aria-label={`Illustrator ${slot.card.illustrator}: show all their cards`}
@@ -131,10 +157,7 @@ export default function SlotDetail({ slot, onClose, picker, host }: { slot: Bind
               <span className="min-w-0 flex-1"><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Illustrator</span><span className="block truncate text-sm font-semibold text-primary">{slot.card.illustrator}</span></span>
             </button>
           : <p className="text-xs text-muted-foreground">Illustrated by {slot.card.illustrator}</p>)}
-        {(host?.place || slot.card?.rarity) && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-          {host?.place && <><dt className="text-muted-foreground">In binder</dt><dd className="break-words">{host.place}</dd></>}
-          {slot.card?.rarity && <><dt className="text-muted-foreground">Rarity</dt><dd className="break-words">{slot.card.rarity}</dd></>}
-        </dl>}
+        {slot.card?.rarity && <p className="text-xs text-muted-foreground">{slot.card.rarity}</p>}
         {grade && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 break-words text-xs [overflow-wrap:anywhere]" aria-label="Grading">
           <dt className="text-muted-foreground">Graded by</dt><dd>{grade.provider.kind === "known" ? grade.provider.id.toUpperCase() : grade.provider.name}</dd>
           <dt className="text-muted-foreground">Grade</dt><dd>{grade.grade ?? "Unknown"}{grade.scale ? ` / ${grade.scale}` : ""}</dd>

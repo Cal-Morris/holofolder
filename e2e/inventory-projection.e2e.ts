@@ -28,7 +28,7 @@ test("Inventory storage totals, explicit destinations and saved raw references s
   await page.getByText("Wanted cards by location", { exact: true }).click()
   const wants = page.getByRole("list", { name: "Wanted cards" }).getByRole("listitem")
   await expect(wants).toHaveCount(2)
-  await expect(wants.first()).toContainText("Synthetic Trainer · Language unknown · Finish unknown · Alpha · Page 1 · Slot 1")
+  await expect(wants.first()).toContainText("Synthetic Trainer · Language unknown · Finish unknown · Alpha · Page 1 · Pocket 1")
   await expect(page.getByRole("list", { name: "Wanted cards" })).not.toContainText("alpha-empty")
   expect(batches.filter(b => b.includes("synthetic-snorlax"))).toEqual([["synthetic-snorlax", "synthetic-trainer", "synthetic-energy"]])
   await openInventoryFilters(page)

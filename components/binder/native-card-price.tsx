@@ -4,7 +4,9 @@ import { ChevronDown } from "lucide-react"
 import { useMemo } from "react"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
-import { useCardPrices, getCardPriceKey } from "@/hooks/use-card-prices"
+import { getCardPriceKey } from "@/hooks/use-card-prices"
+import { useInventoryPriceState } from "@/hooks/use-inventory-prices"
+import { applyPriceStaleness } from "@/lib/price-freshness"
 import { formatPriceConfidenceLabel, formatPriceSourceLabel } from "@/lib/card-labels"
 import type { PricedCardFinish } from "@/lib/card-pricing"
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
@@ -19,18 +21,21 @@ export interface NativeCardPricing {
 }
 
 /**
- * The card detail's price block for one exact owned printing: saved prices through the existing price hook (no new
- * pipeline, no automatic paid refresh), region-weighted, for the copy's own finish. Unknown stays "No price".
+ * The card detail's price block for one exact owned printing: saved prices only, read through the existing saved-price
+ * lookup (no new pipeline and no refresh-capable request), region-weighted, for the copy's own finish. Unknown stays
+ * "No price"; a failed read says so.
  */
 export default function NativeCardPrice({ cardId, language, finish, name, setName, localId, pricing }: {
   cardId: string; language: CardLanguage; finish?: CardFinish; name: string; setName?: string; localId?: string; pricing: NativeCardPricing
 }) {
   const lookups = useMemo(() => [{ cardId, language }], [cardId, language])
-  const { pricesByCardId, isLoading } = useCardPrices(lookups, true)
+  const saved = useInventoryPriceState(lookups)
+  const pricesByCardId = useMemo(() => Object.fromEntries(saved.prices.map(price => [getCardPriceKey(price.cardId, price.language), { ...price, ...applyPriceStaleness(price, price.fetchedAt) }])), [saved.prices])
+  const isLoading = saved.status === "loading"
   const snapshot = regionalizeCardPrices(pricesByCardId, pricing.region)[getCardPriceKey(cardId, language)]
   // A finish without its own quote shows no price; only the standard normal/holo fall back to the card's headline price.
   const price = finish ? getRegionalFinishPrices(snapshot, pricing.region)[finish as PricedCardFinish] ?? (finish === "reverse_holo" ? undefined : snapshot) : snapshot
-  const missing = isLoading ? "Loading" : "No price"
+  const missing = isLoading ? "Loading" : saved.status === "unavailable" ? "Unavailable" : "No price"
   const low = pricing.formatAmount(price?.goodGbpAmount, snapshot)
   const market = pricing.formatAmount(price?.marketGbpAmount ?? price?.gbpAmount, snapshot)
   const range = pricing.formatRange(price?.lowGbpAmount, price?.highGbpAmount, snapshot)

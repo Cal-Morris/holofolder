@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import SlabsGallery from "@/components/slabs/slabs-gallery"
 import { slabCollectionCopies } from "@/lib/slabs/collection"
 import { SelectorMenu } from "@/components/collection-navigation/selector-menu"
-import InventoryView from "@/components/inventory/inventory-view"
+import InventoryView, { type InventorySavedState } from "@/components/inventory/inventory-view"
 import { closeAllOverlays, isOverlayHistoryCleanup, runAfterOverlayHistory } from "@/hooks/use-overlay"
 import type { InventoryLocationIntent } from "@/lib/domain/inventory-browse"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
@@ -34,6 +34,8 @@ export interface CollectionNavigationHostProps {
   stagedSlabs?: boolean
   onEditGrading?: (itemId: string) => void
   renderSurface?: (surface: NavigationSurface) => ReactNode
+  /** Why the shown collection may not be the very latest (still updating, offline, or the last update failed). */
+  savedState?: InventorySavedState
   /** Shown as "New binder" in the collection picker. Receives the opener for the collection once it exists. */
   newCollection?: { disabled?: boolean; hint?: string; onSelect: (openCreated: NavigationSurface["openCreated"]) => void }
   fallbackCollectionId?: string | null
@@ -52,7 +54,7 @@ export default function CollectionNavigationHost(props: CollectionNavigationHost
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>
   return <ScopedNavigation key={JSON.stringify([navigationStorageKey(props.scope), props.scope.sessionId])} {...props} scope={props.scope} />
 }
-function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, stagedSlabs = false, onEditGrading, ownership, newCollection }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
+function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, stagedSlabs = false, onEditGrading, ownership, newCollection, savedState }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
   const scrollElement = useCallback(() => {
     const container = scrollContainerId ? document.getElementById(scrollContainerId) : null
     return container?.querySelector<HTMLElement>('[data-testid="view-scroller"], [data-testid="wanted-list"]') ?? container
@@ -219,7 +221,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       if (!alive.current || request.current !== sequence) return
       const location = navigationLocation(scope, latest, intent)
       if (location.kind !== "assigned" || location.page === null || !stateRef.current) {
-        setNotice(location.kind === "unassigned" ? "This copy is now Unassigned." : "This location is unavailable. Your inventory is still open.")
+        setNotice(location.kind === "unassigned" ? "This card isn't in a binder any more." : "That pocket couldn't be found. It may have moved.")
         return
       }
       setFresh({ base: read, value: latest })
@@ -228,9 +230,9 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       next.collections[id] = { ...defaultCollectionView(), page: location.page }
       // navigate validates against latest, not the outgoing evidence, on the next render.
       navigate(next, location.intent, latest)
-    } catch { if (alive.current && request.current === sequence) setNotice("This location could not be refreshed. Your inventory is still open.") }
+    } catch { if (alive.current && request.current === sequence) setNotice("Couldn't open that pocket just now. Try again in a moment.") }
   }
-  if (!visible) return <p role="status">Opening saved view…</p>
+  if (!visible) return <p role="status">Opening…</p>
   const collectionId = visible.collectionId
   const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
   // Compact: enclosed selectors, so the active collection name reads as a control. National Dex and Inventory live in the dock.
@@ -260,14 +262,14 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   const content = <>
     {(notice || safe?.notice) && <p role="status" className={styles.notice}>{notice || safe?.notice}</p>}
     {visible.main === "inventory" ? <InventoryView key={visit} scope={scope} evidence={index.kind === "unavailable" ? { kind: "unavailable" } : currentRead.evidence}
-      ownership={ownership} catalog={currentRead.catalog} layouts={currentRead.layouts} onEditGrading={onEditGrading} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
+      ownership={ownership} savedState={savedState} catalog={currentRead.catalog} layouts={currentRead.layouts} onEditGrading={onEditGrading} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
       : visible.main === "dex" ? <div key="dex">{renderNationalDex()}</div>
       : collectionId && index.kind !== "unavailable" && collectionState.view === "slabs" && stagedSlabs ? <SlabsGallery key={`${destinationKey}:${visit}:${index.key}`} copies={slabCopies}
         name={index.collections.find(c => c.id === collectionId)?.name ?? "Collection"} cached={index.kind === "cached"} search={collectionState.search}
         onSearch={search => collection?.onChange({ search, scroll: 0 })} />
       : collectionId && index.kind !== "unavailable" ? <div key={`${destinationKey}:${visit}`}>{renderCollection({ read: currentRead, collectionId, state: collectionState, highlight,
         onChange: patch => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) })}</div>
-      : <p role="status">Collection unavailable. Open Inventory or National Dex.</p>}
+      : <p role="status">This binder couldn&apos;t be opened. Try Inventory or Browse.</p>}
   </>
   if (renderSurface) return renderSurface({ openCreated, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
     onInventory: () => navigate({ ...visible, main: "inventory" }),

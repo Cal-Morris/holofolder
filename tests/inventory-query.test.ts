@@ -102,7 +102,7 @@ describe("read-only inventory query", () => {
 test("selection names use card, printing and location, never copy IDs, and stay distinct", async () => {
   const rows = (await index()).rows
   const labels = inventorySelectLabels(rows)
-  assert.equal(labels.get("copy-00001"), "Select Charizard, Base Set #4, Alpha · Page 2 · Slot 1")
+  assert.equal(labels.get("copy-00001"), "Select Charizard, Base Set #4, Alpha · Page 2 · Pocket 1")
   for (const label of labels.values()) assert.doesNotMatch(label, /copy-\d/)
   assert.equal(new Set(labels.values()).size, rows.length)
   const twins = inventorySelectLabels([rows[2], { ...rows[2], itemId: "twin" }])
@@ -113,23 +113,23 @@ describe("current storage locations", () => {
   test("page/slot follow stable slot order and explicitly verified grids", () => {
     const snapshot = inventoryBrowseFixture(), id = snapshot.items[0].id
     const initial = resolveInventoryLocation(snapshot, id, inventoryBrowseLayouts)
-    assert.equal(inventoryLocationLabel(initial), "Alpha · Page 2 · Slot 1")
+    assert.equal(inventoryLocationLabel(initial), "Alpha · Page 2 · Pocket 1")
     assert.equal(initial.kind === "assigned" && initial.row, 1)
     const grid = inventoryBrowseLayouts.map(l => ({ ...l, rows: 4, cols: 4 }))
-    assert.equal(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, grid)), "Alpha · Page 1 · Slot 10")
+    assert.equal(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, grid)), "Alpha · Page 1 · Pocket 10")
     snapshot.binders[0].slots.reverse(); snapshot.binders[0].layoutRevision++
     const current = inventoryBrowseLayouts.map(l => ({ ...l, layoutRevision: 2 }))
-    assert.equal(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, current)), "Alpha · Page 1 · Slot 3")
-    assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, inventoryBrowseLayouts)), /layout unknown/)
-    assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, [])), /layout unknown/)
-    assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, current.map(l => ({ ...l, rows: 0 })))), /layout unknown/)
+    assert.equal(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, current)), "Alpha · Page 1 · Pocket 3")
+    assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, inventoryBrowseLayouts)), /Position \d+ in the binder/)
+    assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, [])), /Position \d+ in the binder/)
+    assert.match(inventoryLocationLabel(resolveInventoryLocation(snapshot, id, current.map(l => ({ ...l, rows: 0 })))), /Position \d+ in the binder/)
     assert.deepEqual(initial.kind === "assigned" && initial.intent, { collectionId: "alpha", slotId: "slot-0", itemId: id })
   })
   test("wanted slots get readable binder, page and slot labels, never raw slot IDs", () => {
     const snapshot = inventoryBrowseFixture()
-    assert.equal(slotLocationLabel(snapshot, "alpha", "alpha-empty-1", inventoryBrowseLayouts), "Alpha · Page 1 · Slot 2")
-    assert.equal(slotLocationLabel(snapshot, "alpha", "alpha-empty-1", []), "Alpha · Position 2 · layout unknown")
-    assert.equal(slotLocationLabel(snapshot, "alpha", "missing-slot", inventoryBrowseLayouts), "Location unavailable")
+    assert.equal(slotLocationLabel(snapshot, "alpha", "alpha-empty-1", inventoryBrowseLayouts), "Alpha · Page 1 · Pocket 2")
+    assert.equal(slotLocationLabel(snapshot, "alpha", "alpha-empty-1", []), "Alpha · Position 2 in the binder")
+    assert.equal(slotLocationLabel(snapshot, "alpha", "missing-slot", inventoryBrowseLayouts), "Location unknown")
   })
   test("host re-resolves moved, unassigned and deleted copies without trusting old page or collection", () => {
     const snapshot = inventoryBrowseFixture(), id = snapshot.items[0].id
@@ -138,7 +138,7 @@ describe("current storage locations", () => {
     snapshot.placements[0] = { ...snapshot.placements[0], collectionId: "trades", slotId: "trades-empty-0" }
     snapshot.binders[0].slots[9].inventoryItemId = null
     snapshot.binders[1].slots[0].inventoryItemId = id
-    assert.equal(inventoryLocationLabel(resolveInventoryLocationIntent(snapshot, old.intent, inventoryBrowseLayouts)), "Trades · Page 1 · Slot 1")
+    assert.equal(inventoryLocationLabel(resolveInventoryLocationIntent(snapshot, old.intent, inventoryBrowseLayouts)), "Trades · Page 1 · Pocket 1")
     snapshot.placements.shift(); snapshot.binders[1].slots[0].inventoryItemId = null
     assert.equal(resolveInventoryLocationIntent(snapshot, old.intent, inventoryBrowseLayouts).kind, "unassigned")
     snapshot.items.shift()

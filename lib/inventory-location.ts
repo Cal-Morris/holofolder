@@ -34,7 +34,7 @@ export function resolveInventoryLocation(snapshot: InventorySnapshot, itemId: st
 export function slotLocationLabel(snapshot: InventorySnapshot, collectionId: string, slotId: string,
   layouts: readonly InventoryLayoutEvidence[], complete = true): string {
   const place = locateSlot(snapshot, collectionId, s => s.id === slotId, layouts, complete)
-  return place ? placeLabel(place) : "Location unavailable"
+  return place ? placeLabel(place) : "Location unknown"
 }
 
 /** Host must call this against its latest scoped evidence before navigating, including after a move. */
@@ -43,16 +43,17 @@ export function resolveInventoryLocationIntent(snapshot: InventorySnapshot, inte
   return resolveInventoryLocation(snapshot, intent.itemId, layouts, complete)
 }
 
+/** The binder always; the page and pocket only when they are known for sure (not from a saved copy still catching up). */
 function placeLabel(place: SlotPlace) {
-  return `${place.collectionName} · ${place.page === null
-    ? place.position === null ? "Slot location unavailable" : `Position ${place.position} · layout unknown` : `Page ${place.page} · Slot ${place.slot}`}`
+  if (place.page !== null) return `${place.collectionName} · Page ${place.page} · Pocket ${place.slot}`
+  return place.position === null ? place.collectionName : `${place.collectionName} · Position ${place.position} in the binder`
 }
 
 export function inventoryLocationLabel(location: InventoryBrowseLocation): string {
   switch (location.kind) {
-    case "missing": return "Copy no longer available"
-    case "unknown": return "Location unavailable"
-    case "unassigned": return "Unassigned"
+    case "missing": return "No longer in your collection"
+    case "unknown": return "Location unknown"
+    case "unassigned": return "Not in a binder"
     case "assigned": return placeLabel(location)
   }
 }

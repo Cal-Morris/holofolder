@@ -1196,18 +1196,23 @@ export default function CardSelector({
                         {anyCard && <p className="truncate text-[11px] font-semibold text-foreground sm:text-xs">{card.name}</p>}
                         <p className={`truncate text-[10px] sm:text-xs ${anyCard ? "text-muted-foreground" : "font-semibold text-foreground"}`}>{card.set.name}</p>
                         {!anyCard && card.name.includes("(") && <p className="mt-0.5 text-[10px] text-foreground">{card.name}</p>}
-                        <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums sm:text-[10px]">
-                          <span className="rounded-md bg-muted px-1 py-0.5 text-emerald-600 dark:text-emerald-300">L {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
-                          <span className="rounded-md bg-muted px-1 py-0.5 text-foreground">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>
+                        {/* Both price lines keep their height while loading, loaded or missing, so tiles never jump. */}
+                        <div className="mt-1 grid h-[1.125rem] grid-cols-2 gap-1 text-[9px] font-semibold leading-[1.125rem] tabular-nums sm:h-5 sm:text-[10px] sm:leading-5" data-price-line>
+                          {priceLabels.good || priceLabels.market || !isLoadingPrices ? <>
+                            <span className="truncate rounded-md bg-muted px-1 text-emerald-600 dark:text-emerald-300">L {priceLabels.good ?? "-"}</span>
+                            <span className="truncate rounded-md bg-muted px-1 text-foreground">M {priceLabels.market ?? "-"}</span>
+                          </> : <>
+                            <span aria-hidden="true" className="animate-pulse rounded-md bg-muted/70 motion-reduce:animate-none" />
+                            <span aria-hidden="true" className="animate-pulse rounded-md bg-muted/70 motion-reduce:animate-none" />
+                            <span className="sr-only">Loading price</span>
+                          </>}
                         </div>
-                        {(priceLabels.range || priceLabels.confidence) ? (
-                          <p className="mt-1 truncate text-[9px] text-muted-foreground">
-                            {[
-                              priceLabels.range ? `R ${priceLabels.range}` : null,
-                              priceLabels.confidence,
-                            ].filter(Boolean).join(" · ")}
-                          </p>
-                        ) : null}
+                        <p className="mt-1 h-3 truncate text-[9px] leading-3 text-muted-foreground" data-price-range>
+                          {[
+                            priceLabels.range ? `R ${priceLabels.range}` : null,
+                            priceLabels.confidence,
+                          ].filter(Boolean).join(" · ")}
+                        </p>
                         <div className="mt-1 flex items-center justify-between gap-1">
                           <p className="text-[9px] text-muted-foreground sm:text-[10px]">#{card.localId}</p>
                           <span aria-hidden="true" className={`flex items-center gap-0.5 text-[9px] font-bold uppercase sm:text-[10px] ${intentTextClass}`}>
