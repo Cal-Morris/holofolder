@@ -20,6 +20,7 @@ test.describe("explicit stable-slot picker", () => {
     })
     await page.route("**/app/api/card-prices", route => route.fulfill({ json: { prices: [] } }))
     await page.goto("/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=4")
+    if (page.viewportSize()!.width >= 1024) await expect(page.getByRole("region", { name: "Inside cover", exact: true })).toBeVisible()
   })
   const editSlot = async (dialog: import("@playwright/test").Locator) => {
     const edit = dialog.locator("details").filter({ has: dialog.page().getByText("Edit slot", { exact: true }) })
@@ -220,6 +221,11 @@ test.describe("explicit stable-slot picker", () => {
     await harness.swipeDown(dialog)
     await expect(dialog).toHaveCount(0)
     dialog = await open()
+    // Desktop navigation sits behind the modal backdrop; only the mobile dock remains interactive.
+    if (page.viewportSize()!.width >= 640) {
+      await page.keyboard.press("Escape")
+      await expect(dialog).toHaveCount(0)
+    }
     await page.getByRole("navigation", { name: /^(Main|Binder) navigation$/ }).getByRole("button", { name: "List", exact: true }).click()
     await expect(dialog).toHaveCount(0)
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
