@@ -443,13 +443,13 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     return latest.current.queue.enqueue(draft.intent, latest.current.catalog, fresh.evidence.snapshot, () => valid() && navigator.onLine)
   }
   const creationAvailable = bulkFillAvailable && !queue.record?.legacy.length && read.evidence.kind === "complete"
-  const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"]) => {
+  const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"], grid: { rows: number; cols: number } | null = null) => {
     if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
     const record = await latest.current.queue.queue?.read()
     if (!valid() || !record || record.pending.length || record.legacy.length || record.recovery?.some(recoveryUnresolved)) throw new Error("pending-reconciliation")
     if (creation.current?.intent.request.operationId !== draft.operationId) {
       creation.current = { intent: prepareBinderCreation(draft, read.evidence.snapshot, { source: "app", clientId: deviceId,
-        operationId: draft.operationId, batchId: null, clientOccurredAt: new Date().toISOString() }, crypto.randomUUID(), draft.manifest.entries.map(() => crypto.randomUUID())), open, opened: false }
+        operationId: draft.operationId, batchId: null, clientOccurredAt: new Date().toISOString() }, crypto.randomUUID(), draft.manifest.entries.map(() => crypto.randomUUID()), grid), open, opened: false }
     }
     return latest.current.queue.enqueue(creation.current.intent, latest.current.catalog, read.evidence.snapshot, valid)
   }
@@ -465,6 +465,9 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // The exact creation is consumed at most once in this mounted session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue.record, read])
+  const startCreation = (open: NavigationSurface["openCreated"], currentGrid?: { rows: number; cols: number }) => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId,
+    count: read.evidence.kind === "unavailable" ? 0 : read.evidence.snapshot.collections.length, available: creationAvailable,
+    currentGrid: currentGrid ? { rows: currentGrid.rows, cols: currentGrid.cols } : undefined, create: (draft, grid) => create(draft, open, grid) } })
   const displayable = ready || read.evidence.kind !== "unavailable"
   useLayoutEffect(() => { if (displayable) onDisplay(scope.sessionId) }, [displayable, onDisplay, scope.sessionId])
   // This device's saved copy paints at once and stays read-only (cached evidence) until the read completes.
@@ -477,7 +480,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       inventoryGradingReference(read.evidence.snapshot, itemId)
       setGrading({ snapshot: structuredClone(read.evidence.snapshot), itemId, intent: null })
     } catch { setNotice("This copy needs a current complete inventory read before grading can be edited.") }
-  } : undefined} stagedSlabs scope={navigationScope} fallbackCollectionId={read.defaultCollectionId ?? initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+  } : undefined} newCollection={{ disabled: !creationAvailable, hint: creationAvailable ? undefined : online ? "Available once your latest changes are saved" : "Available when you're back online",
+    onSelect: open => startCreation(open) }} stagedSlabs scope={navigationScope} fallbackCollectionId={read.defaultCollectionId ?? initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
 
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot
@@ -490,8 +494,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, toolbar: surface.header,
           storageMenu: <StorageMenu attention={Boolean(queue.record?.recovery?.some(recoveryUnresolved))} actions={[
             { label: "Backup", onSelect: () => setBackupOpen(true) },
-            { label: "New storage", disabled: !creationAvailable, onSelect: () => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, count: snapshot?.collections.length ?? 0, available: creationAvailable,
-                create: draft => create(draft, surface.openCreated) } }) },
+            { label: "New binder", disabled: !creationAvailable, onSelect: () => startCreation(surface.openCreated, layout) },
             ...(surface.state.main === "collection" && surface.state.collectionId ? [{ label: "Delete collection", disabled: !deletionAvailable, onSelect: () => setDeleting(surface.state.collectionId) }] : []),
             { label: "Refresh storage", disabled: !online, onSelect: () => { void refresh().catch(() => {}) } },
           ]}>
@@ -531,7 +534,11 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
             if (!head || !valid()) return
             void latest.current.queue.queue?.resume(head.intent.request.operationId).then(() => latest.current.queue.refresh()).catch(() => { if (valid()) setNotice("This edit needs reconciliation, or a send is still in progress. The original command is retained.") })
           }}>Retry pending sync</button>}
-          {read.evidence.kind === "complete" && !read.evidence.snapshot.collections.length && <p role="status" className="px-4 text-sm">Create your first storage from Storage, then New storage. It becomes your default collection once current storage confirms it.</p>}
+          {read.evidence.kind === "complete" && !read.evidence.snapshot.collections.length && <div className="mx-4 my-2 rounded-2xl border border-border/60 bg-card/70 p-4 text-center">
+            <p className="text-sm font-semibold">Start your first binder</p>
+            <p className="mt-1 text-sm text-muted-foreground">Pick what it&apos;s for, give it a name and you&apos;re ready to add cards.</p>
+            <button type="button" disabled={!creationAvailable} onClick={() => startCreation(surface.openCreated)} className="mt-3 min-h-11 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-45">New binder</button>
+          </div>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
 
           {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,

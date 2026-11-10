@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
-import { Check, ChevronDown, X } from "lucide-react"
+import { Check, ChevronDown, Plus, X } from "lucide-react"
 import { useOverlay } from "@/hooks/use-overlay"
 import { useMenuAction } from "@/components/collection-navigation/storage-menu"
 
@@ -9,7 +9,9 @@ export interface SelectorOption { value: string; label: string }
 
 /** An enclosed selector: a bordered trigger showing the current value and a chevron, opening a bounded
  * single-choice menu on the shared overlay primitive. `onSelect` runs after the menu and its history entry are gone. */
-export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, options, onSelect, width, className = "", textClassName = "" }: {
+export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, options, onSelect, action, width, className = "", textClassName = "" }: {
+  /** One extra entry under the choices, for making a new one of the things listed (e.g. New binder). */
+  action?: { label: string; hint?: string; disabled?: boolean; onSelect: () => void }
   /** Accessible name of the trigger. */
   label: string
   /** Visible menu heading. */
@@ -53,7 +55,7 @@ export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, opt
   }
   return <div className={`relative ${className}`}>
     <button ref={triggerRef} type="button" aria-label={label} aria-describedby={textId} aria-haspopup="dialog" aria-expanded={open} data-value={value}
-      disabled={options.length === 0} onClick={show}
+      disabled={options.length === 0 && !action} onClick={show}
       className={`flex h-9 w-full min-w-0 items-center gap-1 rounded-lg border border-border bg-muted/50 pl-2.5 pr-1.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60 ${textClassName}`}>
       <span id={textId} className="min-w-0 flex-1 truncate">{valueLabel}</span>
       <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -76,6 +78,13 @@ export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, opt
             </button>
           })}
         </div>
+        {action && <div className="shrink-0 border-t border-border/60 p-1 pt-1.5">
+          <button type="button" disabled={action.disabled} onClick={() => { defer(action.onSelect); close() }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-primary hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-none disabled:opacity-45">
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1"><span className="block">{action.label}</span>{action.hint && <span className="block text-xs font-normal text-muted-foreground">{action.hint}</span>}</span>
+          </button>
+        </div>}
       </div>
     </>}
   </div>

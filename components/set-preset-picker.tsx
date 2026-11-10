@@ -7,6 +7,7 @@ import type { SetChecklist } from "@/lib/domain/binder-presets"
 import type { TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 import { generateSetChecklist, isSetChecklistCustomised, SET_FINISH_FLAGS, verifiedSetFinishes, type SetPresetFinish } from "@/lib/set-preset"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
+import { formatCardLanguageLabel } from "@/lib/card-labels"
 
 const control = "min-h-10 rounded-xl border border-border/60 bg-background px-3 text-base"
 const labels = { normal: "Normal", holo: "Holo", reverse_holo: "Reverse holo", jumbo: "Jumbo" }
@@ -33,7 +34,7 @@ export function SetPresetPicker({ isOnline, initialSet, onChange }: {
       const checklist = generateSetChecklist({ ...nextCatalog, language, finishes: nextFinishes, excludedCardIds: nextExcluded, promos: nextPromos })
       onChange(checklist); setMessage(""); return true
     } catch {
-      setMessage("This catalog selection could not be used. No new checklist was prepared.")
+      setMessage("That selection can't be used. Nothing was changed.")
       return false
     }
   }
@@ -45,44 +46,44 @@ export function SetPresetPicker({ isOnline, initialSet, onChange }: {
     try {
       const params = new URLSearchParams({ language, ...(setId ? { setId: resolveSetSearchAlias(setId) } : { query: resolveSetSearchAlias(query) }) })
       const response = await fetch(`/app/api/tcg-set-slots?${params}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(`Catalog read failed (${response.status})`)
+      if (!response.ok) throw new Error("Couldn't load sets just now. Try again.")
       const data = await response.json() as TCGSetSlotsResponse
       if (sequence !== request.current) return
       if (promo) {
-        if (!Array.isArray(data.cards)) throw new Error("Full promo catalog unavailable")
+        if (!Array.isArray(data.cards)) throw new Error("Those promos couldn't be loaded.")
         setPromoResults(data.cards); return
       }
-      if (!setId) { setSets(data.sets ?? []); if (!data.sets?.length) setMessage("No matching catalog set. Nothing substituted."); return }
-      if (!data.selectedSet || data.selectedSet.id !== resolveSetSearchAlias(setId) || !Array.isArray(data.cards)) throw new Error("Full set catalog unavailable. No checklist generated.")
+      if (!setId) { setSets(data.sets ?? []); if (!data.sets?.length) setMessage("No set found with that name or code."); return }
+      if (!data.selectedSet || data.selectedSet.id !== resolveSetSearchAlias(setId) || !Array.isArray(data.cards)) throw new Error("This set couldn't be loaded in full, so nothing was added.")
       const next = { set: data.selectedSet, cards: data.cards, capturedAt: new Date().toISOString() }
       if (!publish(next, finishes, [], [])) return
       setCatalog(next); setSets([])
-    } catch (error) { if (sequence === request.current) setMessage(error instanceof Error ? error.message : "Catalog unavailable") }
+    } catch (error) { if (sequence === request.current) setMessage(error instanceof Error ? error.message : "Couldn't load sets just now. Try again.") }
     finally { if (sequence === request.current) setLoading(false) }
   }
   return <section aria-label="Set preset scope" className="space-y-3">
-    <p className="text-xs text-muted-foreground">Copy every catalogued card, including Trainers, items, Energy, repeated Pokémon, secrets and subsets. No cards become owned.</p>
-    <div className="flex gap-2"><input aria-label="Find set preset" placeholder="Set name, ID or code" className={`${control} min-w-0 flex-1`} value={query} onChange={e => setQuery(e.target.value)} /><button type="button" className={`${control} text-sm`} disabled={!isOnline || loading || query.trim().length < 2} onClick={() => void load()}>Find set</button></div>
-    <label className="block text-xs">Checklist language<select aria-label="Checklist language" className={`${control} mt-1 w-full`} value={language} onChange={e => {
+    <p className="text-xs text-muted-foreground">Every card in the set gets a pocket, Trainers, Energy and secret rares included.</p>
+    <div className="flex gap-2"><input aria-label="Find set preset" placeholder="Set name or code" className={`${control} min-w-0 flex-1`} value={query} onChange={e => setQuery(e.target.value)} /><button type="button" className={`${control} text-sm`} disabled={!isOnline || loading || query.trim().length < 2} onClick={() => void load()}>Find set</button></div>
+    <label className="block text-xs">Card language<select aria-label="Checklist language" className={`${control} mt-1 w-full`} value={language} onChange={e => {
       request.current++; setLoading(false); setLanguage(e.target.value as CardLanguage); setCatalog(null); setSets([]); setPromos([]); setPromoResults([]); onChange(null)
-    }}>{CARD_LANGUAGES.map(l => <option key={l}>{l}</option>)}</select></label>
-    {initialSet && !catalog && <button type="button" className={`${control} w-full break-words text-sm`} disabled={!isOnline || loading} onClick={() => void load(initialSet.id)}>Load {initialSet.name} checklist</button>}
-    <div aria-label="Matching preset sets" className="space-y-1">{sets.map(s => <button key={s.id} type="button" className={`${control} w-full break-words py-2 text-left text-sm`} disabled={loading} onClick={() => void load(s.id)}>{s.name} · {s.id}</button>)}</div>
+    }}>{CARD_LANGUAGES.map(l => <option key={l} value={l}>{formatCardLanguageLabel(l)}</option>)}</select></label>
+    {initialSet && !catalog && <button type="button" className={`${control} w-full break-words text-sm`} disabled={!isOnline || loading} onClick={() => void load(initialSet.id)}>Use {initialSet.name}</button>}
+    <div aria-label="Matching preset sets" className="space-y-1">{sets.map(s => <button key={s.id} type="button" className={`${control} w-full break-words py-2 text-left text-sm`} disabled={loading} onClick={() => void load(s.id)}>{s.name}</button>)}</div>
     {catalog && <>
-      <p className="break-words text-sm font-semibold">{catalog.set.name} · {catalog.set.id}</p>
-      <fieldset className="space-y-1"><legend className="text-xs font-semibold">Finish scope</legend>
-        <button type="button" className={`${control} w-full text-left text-sm`} aria-pressed={!finishes.length} onClick={() => { if (publish(catalog, [])) setFinishes([]) }}>Base checklist, any finish</button>
-        <p className="text-xs text-muted-foreground">Select verified finishes for a scoped variant checklist. Any finish does not mean Normal. First edition and promo stamps are not supported finish constraints.</p>
+      <p className="break-words text-sm font-semibold">{catalog.set.name} · {catalog.cards.length} cards</p>
+      <fieldset className="space-y-1"><legend className="text-xs font-semibold">Which versions?</legend>
+        <button type="button" className={`${control} w-full text-left text-sm`} aria-pressed={!finishes.length} onClick={() => { if (publish(catalog, [])) setFinishes([]) }}>One of each card, any version</button>
+        <p className="text-xs text-muted-foreground">Or collect specific versions, like every reverse holo.</p>
         {(Object.keys(SET_FINISH_FLAGS) as SetPresetFinish[]).map(f => {
           const count = [...catalog.cards, ...promos].filter(c => c.languageConfirmed === true && c.language === language && verifiedSetFinishes(c).includes(f)).length
           return <button type="button" key={f} aria-pressed={finishes.includes(f)} disabled={!count} className={`${control} w-full text-left text-sm disabled:opacity-50`} onClick={() => {
             const next = finishes.includes(f) ? finishes.filter(x => x !== f) : [...finishes, f]; if (publish(catalog, next)) setFinishes(next)
-          }}>{labels[f]} · {count} verified{!count && " · Unavailable"}</button>
+          }}>{labels[f]} · {count ? `${count} cards` : "none in this set"}</button>
         })}
       </fieldset>
-      <details className="text-xs"><summary className="min-h-10 cursor-pointer py-3">Optional promos and exclusions</summary>
-        <p className="mb-2">Promos are not automatically associated with this set. Load an actual promo set ID, then select cards explicitly.</p>
-        <div className="flex gap-2"><input aria-label="Promo set ID" value={promoQuery} onChange={e => setPromoQuery(e.target.value)} className={`${control} min-w-0 flex-1`} /><button type="button" disabled={!isOnline || loading || !promoQuery.trim()} className={`${control} text-sm`} onClick={() => void load(promoQuery, true)}>Load promos</button></div>
+      <details className="text-xs"><summary className="min-h-10 cursor-pointer py-3">Add promos or leave cards out</summary>
+        <p className="mb-2">Promos aren&apos;t part of a set. Enter the promo set&apos;s code, then pick the cards to add.</p>
+        <div className="flex gap-2"><input aria-label="Promo set ID" placeholder="Promo set code" value={promoQuery} onChange={e => setPromoQuery(e.target.value)} className={`${control} min-w-0 flex-1`} /><button type="button" disabled={!isOnline || loading || !promoQuery.trim()} className={`${control} text-sm`} onClick={() => void load(promoQuery, true)}>Load promos</button></div>
         {promoResults.map(c => <button key={c.id} type="button" disabled={!c.languageConfirmed || c.language !== language || promos.some(p => (p.canonicalId ?? p.id) === (c.canonicalId ?? c.id)) || catalog.cards.some(p => (p.canonicalId ?? p.id) === (c.canonicalId ?? c.id))} className={`${control} mt-1 w-full break-words py-2 text-left text-sm disabled:opacity-40`} onClick={() => { const next = [...promos, c]; if (publish(catalog, finishes, excluded, next)) setPromos(next) }}>Add promo {c.name} #{c.localId}</button>)}
         {promos.map(c => <button key={c.id} type="button" className={`${control} mt-1 w-full break-words text-left text-sm`} onClick={() => { const next = promos.filter(p => p.id !== c.id); const nextExcluded = excluded.filter(id => id !== (c.canonicalId ?? c.id)); if (publish(catalog, finishes, nextExcluded, next)) { setPromos(next); setExcluded(nextExcluded) } }}>Remove promo {c.name}</button>)}
         <div className="mt-2 max-h-52 space-y-1 overflow-y-auto" aria-label="Card exclusions">{catalog.cards.map(c => {
@@ -91,7 +92,7 @@ export function SetPresetPicker({ isOnline, initialSet, onChange }: {
         })}</div>
       </details>
     </>}
-    <p role="status" className="text-xs text-muted-foreground">{loading ? "Reading catalog…" : message || (!isOnline ? "Saved scope remains viewable offline. Connect to load an uncached set or prepare creation." : "Catalog gaps and unsupported finishes remain unavailable.")}</p>
+    <p role="status" className="text-xs text-muted-foreground">{loading ? "Loading…" : message || (!isOnline ? "Connect to the internet to load a set." : "")}</p>
   </section>
 }
 
