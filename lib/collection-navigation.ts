@@ -6,7 +6,7 @@ import { resolveInventoryLocationIntent } from "@/lib/inventory-location"
 export interface CollectionNavigationScope extends InventoryBrowseScope { sessionId: string }
 export type CollectionNavigationFocus = Pick<InventoryLocationIntent, "collectionId" | "slotId"> & { itemId?: string }
 export interface InventoryViewState { query: InventoryBrowseQuery; window: number }
-export interface CollectionViewState { view: "binder" | "list"; page: number; search: string; scroll: number }
+export interface CollectionViewState { view: "binder" | "list" | "slabs"; page: number; search: string; scroll: number }
 export interface CollectionNavigationState {
   main: "inventory" | "collection" | "dex"
   collectionId: string | null
@@ -41,7 +41,7 @@ export function normalizeNavigationState(value: unknown): CollectionNavigationSt
   const v = object(value), collections: Record<string, CollectionViewState> = Object.create(null)
   for (const [id, raw] of Object.entries(object(v.collections)).slice(0, 500)) {
     const c = object(raw)
-    collections[id] = { view: c.view === "list" ? "list" : "binder", page: integer(c.page, 4096, 1), search: text(c.search), scroll: integer(c.scroll, 10000000) }
+    collections[id] = { view: c.view === "slabs" ? "slabs" : c.view === "list" ? "list" : "binder", page: integer(c.page, 4096, 1), search: text(c.search), scroll: integer(c.scroll, 10000000) }
   }
   return { main: v.main === "collection" || v.main === "dex" ? v.main : "inventory", collectionId: typeof v.collectionId === "string" ? text(v.collectionId) : null,
     collections, inventory: { ...normalizeInventoryViewState(v.inventory), scroll: integer(object(v.inventory).scroll, 10000000) }, dexView: v.dexView === "wanted" || v.dexView === "sets" || v.dexView === "pokemon" || v.dexView === "analytics" ? v.dexView : "list", dexScroll: integer(v.dexScroll, 10000000) }
@@ -51,7 +51,7 @@ export function navigationIndex(scope: CollectionNavigationScope, read: Collecti
   return buildInventoryBrowseIndex(scope, matches ? read.evidence : { kind: "unavailable" }, read.catalog, read.layouts)
 }
 /** Explicit links take priority, including old ?binder=&page= links. URL is not authorization. */
-export function resolveNavigation(state: CollectionNavigationState, scope: CollectionNavigationScope, read: CollectionNavigationRead, params?: URLSearchParams) {
+export function resolveNavigation(state: CollectionNavigationState, scope: CollectionNavigationScope, read: CollectionNavigationRead, params?: URLSearchParams, stagedSlabs = false) {
   const next = normalizeNavigationState(state), index = navigationIndex(scope, read)
   let notice = ""
   let highlight: CollectionNavigationFocus | null = null
@@ -61,11 +61,17 @@ export function resolveNavigation(state: CollectionNavigationState, scope: Colle
     if (next.collectionId) {
       const current = next.collections[next.collectionId] ?? defaultCollectionView()
       const targeted = params.has("page") || params.has("slot") || params.has("item")
-      const view = params.get("view") === "list" && !targeted ? "list" : "binder"
+      const view = !targeted && params.get("view") === "slabs" && stagedSlabs ? "slabs" : params.get("view") === "list" && !targeted ? "list" : "binder"
       const page = params.has("page") ? integer(Number(params.get("page")), 4096, 1) : current.page
       const sameDestination = state.main === next.main && state.collectionId === next.collectionId && current.view === view && current.page === page && !params.has("slot") && !params.has("item")
       next.collections[next.collectionId] = { ...current, view, page, search: targeted ? "" : current.search, scroll: sameDestination ? current.scroll : 0 }
-      if (params.get("view") === "slabs") notice = "Slabs view is not available yet. Showing Binder."
+      if (params.get("view") === "slabs" && view !== "slabs") notice = "Slabs view is not available yet. Showing Binder."
+    }
+  }
+  for (const collection of Object.values(next.collections)) {
+    if (collection.view === "slabs" && !stagedSlabs) {
+      collection.view = "binder"; collection.scroll = 0
+      notice = "Slabs view is not available yet. Showing Binder."
     }
   }
   // Missing/inaccessible and uncached collections never restore an old private screen.

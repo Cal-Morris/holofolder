@@ -8,6 +8,8 @@
     "collection-history",
     "native-storage",
     "native-reads",
+    "slabs",
+
     "preset-previews",
     "public-binder-links",
     "slot-selection",

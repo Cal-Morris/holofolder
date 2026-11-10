@@ -1,6 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import SlabsGallery from "@/components/slabs/slabs-gallery"
+import { slabCollectionCopies } from "@/lib/slabs/collection"
 import InventoryView from "@/components/inventory/inventory-view"
 import { closeAllOverlays, isOverlayHistoryCleanup, runAfterOverlayHistory } from "@/hooks/use-overlay"
 import type { InventoryLocationIntent } from "@/lib/domain/inventory-browse"
@@ -22,6 +24,8 @@ export interface NavigationSurface {
 }
 
 export interface CollectionNavigationHostProps {
+  /** Supplied only by the existing loopback-only harness admission, never a production flag. */
+  stagedSlabs?: boolean
   renderSurface?: (surface: NavigationSurface) => ReactNode
   fallbackCollectionId?: string | null
   scrollContainerId?: string
@@ -39,7 +43,7 @@ export default function CollectionNavigationHost(props: CollectionNavigationHost
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>
   return <ScopedNavigation key={JSON.stringify([navigationStorageKey(props.scope), props.scope.sessionId])} {...props} scope={props.scope} />
 }
-function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
+function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, stagedSlabs = false }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
   const scrollElement = useCallback(() => {
     const container = scrollContainerId ? document.getElementById(scrollContainerId) : null
     return container?.querySelector<HTMLElement>('[data-testid="view-scroller"], [data-testid="wanted-list"]') ?? container
@@ -68,7 +72,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     try { saved = JSON.parse(localStorage.getItem(key) ?? "null") } catch { saved = null }
     const remembered = normalizeNavigationState(saved)
     if (!saved && fallbackCollectionId) { remembered.main = "collection"; remembered.collectionId = fallbackCollectionId }
-    const initial = resolveNavigation(remembered, scope, read, new URLSearchParams(location.search))
+    const initial = resolveNavigation(remembered, scope, read, new URLSearchParams(location.search), stagedSlabs)
     queueMicrotask(() => { if (alive.current) { stateRef.current = initial.state; setState(initial.state); setNotice(initial.notice); setHighlight(initial.highlight) } })
     entryId.current = crypto.randomUUID()
     history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: initial.state } }, "")
@@ -85,7 +89,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       entryId.current = entry?.id ?? crypto.randomUUID()
       request.current++; closeAllOverlays(); setHighlight(null)
       const result = resolveNavigation(normalizeNavigationState(entry?.key === key ? entry.state : null), scope, currentRead,
-        entry?.key === key ? undefined : new URLSearchParams(location.search))
+        entry?.key === key ? undefined : new URLSearchParams(location.search), stagedSlabs)
       stateRef.current = result.state; setState(result.state); setNotice(result.notice); setVisit(v => v + 1); persist(result.state)
     }
     const onTraversal = (event: NavigationCurrentEntryChangeEvent) => {
@@ -96,8 +100,8 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     window.navigation?.addEventListener("currententrychange", onTraversal)
     window.addEventListener("popstate", onPop)
     return () => { window.navigation?.removeEventListener("currententrychange", onTraversal); window.removeEventListener("popstate", onPop) }
-  }, [key, scope, currentRead, persist])
-  const safe = state ? resolveNavigation(state, scope, currentRead) : null
+  }, [key, scope, currentRead, persist, stagedSlabs])
+  const safe = state ? resolveNavigation(state, scope, currentRead, undefined, stagedSlabs) : null
   const visible = safe?.state
   const destinationKey = visible ? JSON.stringify([visible.main, visible.collectionId, visible.collections[visible.collectionId ?? ""]?.view]) : "loading"
   useEffect(() => {
@@ -162,7 +166,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
         const outgoing = captureNavigationScroll(stateRef.current, scrollTop())
         history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: outgoing } }, "")
       }
-      const result = resolveNavigation(pendingNavigation.state, scope, pendingNavigation.read)
+      const result = resolveNavigation(pendingNavigation.state, scope, pendingNavigation.read, undefined, stagedSlabs)
       const url = new URL(location.href)
       for (const param of ["binder", "view", "page", "slot", "item"]) url.searchParams.delete(param)
       url.searchParams.set("view", result.state.main === "collection" ? result.state.collections[result.state.collectionId ?? ""]?.view ?? "binder" : result.state.main)
@@ -172,7 +176,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       stateRef.current = result.state; persist(result.state); setState(result.state); setHighlight(pendingNavigation.highlight); setNotice(result.notice); setVisit(v => v + 1)
       setPendingNavigation(null)
     })
-  }, [pendingNavigation, scope, key, persist, scrollTop])
+  }, [pendingNavigation, scope, key, persist, scrollTop, stagedSlabs])
 
   const openLocation = async (intent: InventoryLocationIntent) => {
     const sequence = ++request.current
@@ -200,19 +204,23 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
         {!collectionId && <option value="">No available storage</option>}{index.collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select></label>
       {visible.main === "collection" && <label>View<select aria-label="Collection view" value={collectionState.view} onChange={e => navigate({ ...visible,
-        collections: { ...visible.collections, [collectionId!]: { ...collectionState, view: e.target.value as "binder" | "list", scroll: 0 } } })}>
-        <option value="binder">Binder</option><option value="list">List</option>
+        collections: { ...visible.collections, [collectionId!]: { ...collectionState, view: e.target.value as CollectionViewState["view"], scroll: 0 } } })}>
+        <option value="binder">Binder</option><option value="list">List</option>{stagedSlabs && <option value="slabs">Slabs</option>}
       </select></label>}
       <p>Inventory is what you own and where. Collections are your named storage arrangements.</p>
       <button className="min-h-9 px-2" onClick={() => navigate({ ...visible, main: "dex", dexView: "list" })}>National Dex</button>
     </header>
   const collection = collectionId && index.kind !== "unavailable" ? { read: currentRead, collectionId, state: collectionState, highlight,
     onChange: (patch: Partial<CollectionViewState>) => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) } : null
+  const slabCopies = collectionState.view === "slabs" && stagedSlabs && collectionId ? slabCollectionCopies(scope, currentRead, collectionId) : []
   const content = <>
     {(notice || safe?.notice) && <p role="status" className={styles.notice}>{notice || safe?.notice}</p>}
     {visible.main === "inventory" ? <InventoryView key={visit} scope={scope} evidence={index.kind === "unavailable" ? { kind: "unavailable" } : currentRead.evidence}
       catalog={currentRead.catalog} layouts={currentRead.layouts} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
       : visible.main === "dex" ? <div key="dex">{renderNationalDex()}</div>
+      : collectionId && index.kind !== "unavailable" && collectionState.view === "slabs" && stagedSlabs ? <SlabsGallery key={`${destinationKey}:${visit}:${index.key}`} copies={slabCopies}
+        name={index.collections.find(c => c.id === collectionId)?.name ?? "Collection"} cached={index.kind === "cached"} search={collectionState.search}
+        onSearch={search => collection?.onChange({ search, scroll: 0 })} />
       : collectionId && index.kind !== "unavailable" ? <div key={`${destinationKey}:${visit}`}>{renderCollection({ read: currentRead, collectionId, state: collectionState, highlight,
         onChange: patch => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) })}</div>
       : <p role="status">Collection unavailable. Open Inventory or National Dex.</p>}

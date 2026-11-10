@@ -1,4 +1,5 @@
 import "server-only"
+import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
 import { randomUUID } from "node:crypto"
 import { isSlotContractId } from "@/lib/domain/binder-slots"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
@@ -31,6 +32,7 @@ export async function handleStorageCommand(request: Request, operation: "slots" 
     if (input.operationId !== operationId) throw new DeveloperAccessError("invalid_input", "Operation identity does not match.", 400)
     const forwarded = new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify(input) })
     const receipt = await executeAppStorageRequest(forwarded, operation, localClients)
+    if (isStorageCommandRejection(receipt, operationId)) return Response.json({ version: 1, operationId, rejection: receipt }, { status: 409, headers })
     return Response.json({ version: 1, operationId, receipt }, { headers })
   } catch (error) {
     const response = developerErrorResponse(error, requestId)

@@ -8,8 +8,9 @@ const id = (value: string) => value === "alpha" ? alpha : trades
 const layouts = inventoryBrowseLayouts.map(l => ({ ...l, collectionId: id(l.collectionId) }))
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}`
 // Synthetic remote/auth evidence only. Client shell, SW, page teardown and IDB are real.
-async function inventory(route: Route) {
+async function inventory(route: Route, slab = false) {
   const snapshot = inventoryBrowseFixture(5), url = new URL(route.request().url())
+  if (slab) { snapshot.items[1].grading!.holder = "psa-standard"; snapshot.items[1].grading!.label.variant = "psa-lighthouse" }
   snapshot.ownerUserId = E2E_USER.id
   snapshot.items.forEach(i => { i.ownerUserId = E2E_USER.id })
   snapshot.collections.forEach(c => { c.ownerUserId = E2E_USER.id; c.id = id(c.id) })
@@ -25,7 +26,7 @@ const test = base.extend({ serviceWorkers: "allow" })
 test.beforeEach(async ({ page, context, baseURL }, info) => {
   if (info.project.metadata?.standalone) await emulateStandalone(page, SAFE_AREA)
   await mockBackends(context, context, { signedIn: true, baseURL })
-  await context.route("**/app/e2e-harness/storage/inventory?*", inventory)
+  await context.route("**/app/e2e-harness/storage/inventory?*", route => inventory(route))
   // This startup suite intentionally retains unsent edits through a sender outage.
   await context.route("**/app/e2e-harness/storage/*", route => route.request().method() === "POST"
     ? route.fulfill({ status: 503, json: { error: { code: "storage_unavailable", message: "Synthetic sender outage", requestId: "synthetic-startup-outage" } } })
@@ -210,4 +211,29 @@ test("open cached native display closes at an earlier JWT expiry", async ({ page
   await expect(reopened.getByText(/Cached only. Access will be checked/)).not.toBeVisible()
   await expect(reopened.getByRole("status").filter({ hasText: /Saved storage is paused/ })).toBeVisible()
   expect(await queueRecords(reopened)).toEqual(before)
+})
+
+// #388 uses the same saved owner-wide copies and cached startup, no alternate slab cache.
+test("staged Slabs survives page close and offline cached shell relaunch", async ({ page, context }, info) => {
+  await context.route("**/app/e2e-harness/storage/inventory?*", route => inventory(route, true))
+  await prepare(page)
+  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption(trades)
+  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("slabs")
+  const gallery = page.getByRole("region", { name: "Slabs collection" })
+  await expect(gallery.locator('[data-slab-style="psa-lighthouse"]')).toBeVisible()
+  const before = await queueRecords(page)
+  const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
+  await expect(reopened.getByText(/Cached only. Access will be checked/)).toBeVisible({ timeout: 30000 })
+  await expect(reopened.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("slabs")
+  const saved = reopened.getByRole("region", { name: "Slabs collection" })
+  await expect(saved.locator('[data-slab-style="psa-lighthouse"]')).toBeVisible()
+  await expect(saved.getByRole("status")).toContainText("Saved on this device")
+  await saved.getByRole("button", { name: /Open Charizard, PSA/ }).click()
+  const detail = reopened.getByRole("dialog", { name: "Slab copy details" })
+  await expect(detail).toContainText("PSA · 10")
+  expect(await detail.innerHTML()).not.toMatch(/SYNTHETIC-PRIVATE/)
+  expect(await queueRecords(reopened)).toEqual(before)
+  const h = new Harness(reopened, info.project.metadata?.standalone ? SAFE_AREA : { top: 0, bottom: 0, left: 0, right: 0 }, true)
+  await h.expectWithinSafeViewport(detail)
+  await h.expectNoHorizontalOverflow()
 })

@@ -132,6 +132,24 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // One sender belongs to this session, independent of view/record refreshes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready])
+  const reviewConflict = async (decision?: "keep-remote" | "rebase") => {
+    const q = latest.current.queue.queue, head = (await q?.read())?.pending[0]
+    if (!q || !head?.conflict?.rejected || !valid() || sending.current) return
+    refreshing.current++
+    try {
+      await q.refreshConflict(head.intent.request.operationId, async () => {
+        const fresh = await readCurrentCollectionNavigation(() => valid() ? latest.current.currentScope() : null, localHarness)
+        if (!valid() || fresh.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
+        setRead(fresh)
+        return fresh.evidence.snapshot
+      }, () => valid() ? { deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId } : null)
+      if (!valid()) return
+      if (decision === "keep-remote") await q.reconcile(head.intent.request.operationId, { kind: "keep-remote" }, latest.current.catalog)
+      if (decision === "rebase") await q.rebase(head.intent.request.operationId, crypto.randomUUID(), latest.current.catalog)
+      if (valid()) { await latest.current.queue.refresh(); setNotice(decision ? "Saved edit reviewed." : "Current storage loaded. The saved edit is still retained.") }
+    } catch { if (valid()) setNotice("Could not reconcile this edit. Structural, overlapping or dependent edits need a separately reviewed replacement. The original is retained.") }
+    finally { refreshing.current-- }
+  }
   const receive: SlotCommandSink = async draft => {
     if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     return latest.current.queue.enqueue(draft.intent, catalog)
@@ -144,7 +162,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       return base?.layoutRevision === layout.layoutRevision && projected ? { ...layout, layoutRevision: projected.layoutRevision } : layout
     }) } : !online && read.evidence.kind === "complete" ? { ...read, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : read
   if (!ready) return <p role="status">Opening saved storage…</p>
-  return <CollectionNavigationHost scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+  return <CollectionNavigationHost stagedSlabs={localHarness} scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot
         const binder = snapshot?.binders.find(b => b.collectionId === surface.collection?.collectionId)
@@ -155,11 +173,19 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         return renderSurface({ surface: { ...surface, header: <>
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
           {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
-            {queue.record.pending[0].status === "conflict" ? "Storage changed or this operation ID was already used. Review is required; the original edit is retained."
+            {queue.record.pending[0].status === "conflict" ? "Storage changed. The original edit is retained; confirmed rejections can be reviewed, unknown outcomes need an exact retry."
               : queue.record.pending[0].status === "billing" ? "Sync is paused by billing. Your edit is retained; retry after restoring access."
-              : "Sync was rejected. Your edit is retained; check account access before retrying."}
+              : "Sync is paused. Your edit is retained; check account access before retrying."}
           </p>}
-          {queue.record?.pending[0] && <button type="button" className="min-h-9 px-4 text-sm underline" onClick={() => {
+          {queue.record?.pending[0]?.conflict?.rejected && <div className="px-4 text-sm">
+            <p>This command was not applied. Load current storage to review it. Use current storage cancels this saved edit.</p>
+            <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict() }}>Refresh current storage</button>
+            {queue.record.pending[0].conflict.current && queue.record.pending.length === 1 && <>
+              <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict("keep-remote") }}>Use current storage</button>
+              <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict("rebase") }}>Rebase saved edit</button>
+            </>}
+          </div>}
+          {queue.record?.pending[0] && !queue.record.pending[0].conflict?.rejected && <button type="button" className="min-h-9 px-4 text-sm underline" onClick={() => {
             const head = latest.current.queue.record?.pending[0]
             if (!head || !valid()) return
             void latest.current.queue.queue?.resume(head.intent.request.operationId).then(() => latest.current.queue.refresh()).catch(() => { if (valid()) setNotice("This edit needs reconciliation, or a send is still in progress. The original command is retained.") })

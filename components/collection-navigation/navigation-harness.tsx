@@ -12,6 +12,8 @@ import { navigationIndex } from "@/lib/collection-navigation"
 import { completeInventoryBrowseFixture, inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "@/tests/fixtures/inventory-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 
+import { slabFixture, slabCatalog } from "@/tests/fixtures/slabs"
+
 const DexListView = dynamic(() => import("@/components/dex-list-view"), { ssr: false })
 const catalogResolver: InventoryCatalogResolver = () => undefined
 const noop = () => {}
@@ -50,16 +52,16 @@ function NationalDex() {
     pricesByKey={{}} getPriceKey={() => null} formatPrice={() => null} readOnly onSelectPokemon={noop} onToggleOwned={noop} onAddCard={noop} onAddWanted={noop} onTogglePerfect={noop} /></section>
 }
 /** Local synthetic adapter using the real Inventory, ordered-slot, layout toolbar and missing-Dex list. */
-export default function NavigationHarness() {
+export default function NavigationHarness({ slabs = false }: { slabs?: boolean }) {
   const [snapshot, setSnapshot] = useState<Awaited<ReturnType<typeof completeInventoryBrowseFixture>> | null>(null)
   const [account, setAccount] = useState("synthetic-owner")
   const [mode, setMode] = useState("complete")
-  useEffect(() => { void completeInventoryBrowseFixture(inventoryBrowseFixture(85)).then(setSnapshot) }, [])
+  useEffect(() => { void completeInventoryBrowseFixture(slabs ? slabFixture() : inventoryBrowseFixture(85)).then(setSnapshot) }, [slabs])
   if (!snapshot) return <p role="status">Loading synthetic navigation evidence</p>
   const scope = { sessionId: `synthetic-session-${account}`, accountUserId: account, ownerUserId: account === "synthetic-other" ? account : "synthetic-owner" }
   const read: CollectionNavigationRead = { scope: { sessionId: `synthetic-session-${account}`, accountUserId: account === "synthetic-other" ? "synthetic-owner" : account, ownerUserId: "synthetic-owner" },
     evidence: !snapshot || mode === "unavailable" ? { kind: "unavailable" } : mode === "cached" ? { kind: "cached", snapshot } : { kind: "complete", snapshot },
-    catalog: inventoryBrowseCatalog, layouts: inventoryBrowseLayouts }
+    catalog: slabs ? slabCatalog : inventoryBrowseCatalog, layouts: inventoryBrowseLayouts }
   const fresh = async () => {
     if (mode === "failed") throw new Error("synthetic failed read")
     if (mode !== "moved" || !snapshot) return read
@@ -82,7 +84,7 @@ export default function NavigationHarness() {
         <option value="complete">Complete</option><option value="cached">Cached subset</option><option value="unavailable">Unavailable</option><option value="failed">Fresh read fails</option><option value="moved">Copy moved before open</option>
       </select></label>
     </aside>
-    <CollectionNavigationHost scope={account === "signed-out" ? null : scope} read={read} readCurrent={fresh}
+    <CollectionNavigationHost stagedSlabs={slabs} scope={account === "signed-out" ? null : scope} read={read} readCurrent={fresh}
       renderCollection={context => <CollectionPresentation {...context} />} renderNationalDex={() => <NationalDex />} />
   </>
 }
