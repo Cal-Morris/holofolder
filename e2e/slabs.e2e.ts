@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises"
-import { test, expect, emulateStandalone, mockBackends, Harness, E2E_USER } from "./fixtures"
+import { test, expect, emulateStandalone, mockBackends, Harness, E2E_USER, viewPicker, chooseCollection, chooseView } from "./fixtures"
 import { slabFixture, slabCatalog } from "../tests/fixtures/slabs"
 import { inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
@@ -24,7 +24,7 @@ test("provider gallery uses explicit variants, raw fallback, readable detail and
   const h = new Harness(page, insets, true)
   await h.expectNoHorizontalOverflow()
   await page.getByRole("region", { name: "Slabs collection" }).screenshot({ path: info.outputPath("synthetic-gallery.png"), style: "nav { visibility: hidden !important; }" })
-  const geometry = { viewport: page.viewportSize(), insets, view: await page.getByRole("combobox", { name: "Collection view", exact: true }).boundingBox(),
+  const geometry = { viewport: page.viewportSize(), insets, view: await viewPicker(page).boundingBox(),
     firstCopy: await copy(page, 1).boundingBox(), holder: await copy(page, 1).locator('[data-holder="psa"]').boundingBox() }
   await writeFile(info.outputPath("synthetic-geometry.json"), JSON.stringify(geometry, null, 2))
   await copy(page, 8).click()
@@ -79,24 +79,24 @@ test("view switches, back, reload and new page restore presentation without rewr
   await page.goto(entry)
   await expect(copies(page).getByRole("button")).toHaveCount(15)
   const ids = await copies(page).getByRole("button").evaluateAll(elements => elements.map(e => e.getAttribute("data-item-id")))
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("list")
+  await chooseView(page, "list")
   await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Edit layout", exact: true }).click()
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("slabs")
+  await chooseView(page, "slabs")
   await expect(copies(page).getByRole("button")).toHaveCount(15)
   expect(await copies(page).getByRole("button").evaluateAll(elements => elements.map(e => e.getAttribute("data-item-id")))).toEqual(ids)
   await page.getByRole("searchbox", { name: "Search this collection" }).fill("beckett")
   await expect(copies(page).getByRole("button")).toHaveCount(5)
   await page.reload()
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("slabs")
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "slabs")
   await expect(page.getByRole("searchbox", { name: "Search this collection" })).toHaveValue("beckett")
   const next = await context.newPage()
   await next.goto("/app/e2e-harness/inventory?navigation=1&slabs=1")
-  await expect(next.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("slabs")
+  await expect(viewPicker(next)).toHaveAttribute("data-value", "slabs")
   await next.close()
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("binder")
+  await chooseView(page, "binder")
   await page.goBack()
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("slabs")
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "slabs")
   await expect(page.getByRole("dialog")).not.toBeVisible()
 })
 
@@ -109,15 +109,15 @@ test("cached offline display works with no photo/import and scope changes remove
   await copy(page, 3).click()
   await expect(page.getByRole("dialog")).toContainText("CGC · 10")
   await page.keyboard.press("Escape")
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("list")
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("slabs")
+  await chooseView(page, "list")
+  await chooseView(page, "slabs")
   await copy(page, 1).click()
   await page.getByLabel("Navigation account").evaluate((select: HTMLSelectElement) => { select.value = "synthetic-other"; select.dispatchEvent(new Event("change", { bubbles: true })) })
   await expect(page.getByRole("dialog")).not.toBeVisible()
   await expect(copies(page)).not.toBeVisible()
   await page.getByLabel("Navigation account").selectOption("synthetic-partner")
-  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption("alpha")
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("slabs")
+  await chooseCollection(page, "alpha")
+  await chooseView(page, "slabs")
   await expect(copies(page).getByRole("button")).toHaveCount(15)
   await new Harness(page, insets, true).expectNoHorizontalOverflow()
 })

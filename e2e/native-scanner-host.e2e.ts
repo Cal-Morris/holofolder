@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, collectionPicker } from "./fixtures"
 import type { Page } from "@playwright/test"
 const collection = "22222222-2222-4222-8222-222222222222"
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${collection}`
@@ -350,7 +350,7 @@ test("empty binder without a verified saved grid never gains scan authority", as
     await route.fulfill({ response, json: body })
   })
   await page.goto(entry)
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible()
+  await expect(collectionPicker(page)).toBeVisible()
   await expect(page.getByRole("button", { name: "Scan page", exact: true })).toHaveCount(0)
   expect((await record(page))?.pending).toHaveLength(0)
 })

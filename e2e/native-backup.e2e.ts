@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises"
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, chooseCollection } from "./fixtures"
 import type { Page } from "@playwright/test"
 import { parseBinderBackupV2 } from "../lib/binder-backup-v2"
 const collection = "22222222-2222-4222-8222-222222222222"
@@ -167,7 +167,7 @@ test("navigation target and account teardown invalidate selected-file preview wi
   }
   await select()
   await d.getByRole("button", { name: "Close backup" }).click()
-  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption("33333333-3333-4333-8333-333333333333")
+  await chooseCollection(page, "33333333-3333-4333-8333-333333333333")
   d = await open(page)
   await expect(d.getByRole("region", { name: "Backup preview" })).toHaveCount(0)
   await select()

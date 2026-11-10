@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, storageAction, closeStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, storageAction, closeStorage, viewPicker } from "./fixtures"
 import type { Page } from "@playwright/test"
 
 // Synthetic transport, real native creation, owner-scoped complete reads and durable record.
@@ -44,7 +44,7 @@ test("partner creates Custom under shared owner without changing existing graded
   expect(after.snapshot.placements).toEqual(before.snapshot.placements)
   expect(after.snapshot.binders.filter(b => before.snapshot.binders.some(old => old.collectionId === b.collectionId))).toEqual(before.snapshot.binders)
   expect(after.snapshot.collections.find(c => c.id === request.collectionId)).toMatchObject({ kind: "custom", location: "Synthetic private shelf" })
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("list")
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "list")
 })
 test("retained legacy work arriving during Custom review fences confirmation and survives reload", async ({ page }) => {
   await page.goto(entry)

@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, collectionPicker, viewPicker, chooseCollection, chooseView } from "./fixtures"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
 // Synthetic native storage: two named collections with ordered slots (same evidence shape as browser-host.e2e.ts).
@@ -40,13 +40,13 @@ const brand = (page: import("@playwright/test").Page) => page.getByTestId("app-h
 
 test("native brand and Binder return to the current collection's binder page from Search, Quick mode, Dex and other views", async ({ page, insets }, info) => {
   await page.goto(`${entry}&binder=${alpha}&page=2`)
-  const collection = page.getByRole("combobox", { name: "Collection", exact: true })
-  const view = page.getByRole("combobox", { name: "Collection view", exact: true })
+  const collection = collectionPicker(page)
+  const view = viewPicker(page)
   const pageTwo = page.locator(`[data-slot-id="${slotId(9)}"]`)
   const atAlphaPageTwo = async () => {
     await expect(page.getByRole("dialog")).toHaveCount(0)
-    await expect(collection).toHaveValue(alpha)
-    await expect(view).toHaveValue("binder")
+    await expect(collection).toHaveAttribute("data-value", alpha)
+    await expect(view).toHaveAttribute("data-value", "binder")
     await expect(pageTwo).toBeVisible()
     await expect(page.getByRole("spinbutton", { name: "Binder page number" })).toHaveValue("2")
   }
@@ -102,8 +102,8 @@ test("native brand and Binder return to the current collection's binder page fro
   await atAlphaPageTwo()
 
   // A remembered List presentation: Binder returns to binder pages at the same page.
-  await view.selectOption("list")
-  await expect(view).toHaveValue("list")
+  await chooseView(page, "list")
+  await expect(view).toHaveAttribute("data-value", "list")
   await dock(page).getByRole("button", { name: "Binder", exact: true }).click()
   await atAlphaPageTwo()
 
@@ -123,17 +123,17 @@ test("native brand and Binder return to the current collection's binder page fro
 
 test("native brand returns to the other named collection when that is the current one, and survives reload", async ({ page }) => {
   await page.goto(`${entry}&binder=${alpha}`)
-  const collection = page.getByRole("combobox", { name: "Collection", exact: true })
-  await expect(collection).toHaveValue(alpha)
-  await collection.selectOption(trades)
-  await expect(collection).toHaveValue(trades)
+  const collection = collectionPicker(page)
+  await expect(collection).toHaveAttribute("data-value", alpha)
+  await chooseCollection(page, trades)
+  await expect(collection).toHaveAttribute("data-value", trades)
   await expect(page.locator(`[data-slot-id="${slotId(100)}"]`)).toBeVisible()
   await dock(page).getByRole("button", { name: "Wanted", exact: true }).click()
   await page.reload()
   await expect(dock(page).getByRole("button", { name: "Wanted", exact: true })).toHaveAttribute("aria-pressed", "true")
   await brand(page).click()
-  await expect(collection).toHaveValue(trades)
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("binder")
+  await expect(collection).toHaveAttribute("data-value", trades)
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "binder")
   await expect(page.locator(`[data-slot-id="${slotId(100)}"]`)).toBeVisible()
 })
 
@@ -149,7 +149,7 @@ test("desktop header Binder tab and brand leave the global Dex for the current c
   await header.getByRole("button", { name: "Wanted", exact: true }).click()
   await expect(header.getByRole("button", { name: "Wanted", exact: true })).toHaveAttribute("aria-pressed", "true")
   await header.getByRole("button", { name: "Binder", exact: true }).click()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(alpha)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", alpha)
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible()
   await header.getByRole("button", { name: "Browse", exact: true }).click()
   await expect(header.getByRole("button", { name: "Browse", exact: true })).toHaveAttribute("aria-pressed", "true")

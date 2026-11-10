@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test"
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, collectionPicker, chooseCollection } from "./fixtures"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
 // Synthetic ids, owner and share server. No hosted share or identity writes.
@@ -79,13 +79,13 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
 
 const more = (page: Page) => page.getByRole("button", { name: "More", exact: true })
 const menuItem = (page: Page, name: string) => page.getByRole("menu", { name: "More" }).getByRole("menuitem", { name, exact: true })
-const picker = (page: Page) => page.getByRole("combobox", { name: "Collection", exact: true })
+const picker = (page: Page) => collectionPicker(page)
 
 async function ownerShareFlow(page: Page, insets: { top: number; bottom: number; left: number; right: number }) {
   const server = await shareServer(page)
   const h = new Harness(page, insets, true)
   await page.goto(`/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}&view=binder`)
-  await expect(picker(page)).toHaveValue(alpha)
+  await expect(picker(page)).toHaveAttribute("data-value", alpha)
   await expect.poll(() => server.requests.some(r => r.method === "GET" && r.binderId === alpha)).toBe(true)
 
   // Header: create then copy, bound to the selected native collection.
@@ -139,8 +139,8 @@ async function ownerShareFlow(page: Page, insets: { top: number; bottom: number;
   await expect(settings).toHaveCount(0)
 
   // Switching collection rescopes every action to the new collection, never the previous or a default one.
-  await picker(page).selectOption(trades)
-  await expect(picker(page)).toHaveValue(trades)
+  await chooseCollection(page, trades)
+  await expect(picker(page)).toHaveAttribute("data-value", trades)
   await expect.poll(() => server.requests.some(r => r.method === "GET" && r.binderId === trades)).toBe(true)
   await more(page).click()
   await menuItem(page, "Create share link").click()
@@ -166,9 +166,9 @@ test("a stale share response from the previous collection never lands on the new
   server.shares.set(alpha, { token: "syntheticalpha", is_enabled: true, show_prices: true })
   const release = server.hold(alpha)
   await page.goto(`/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}&view=binder`)
-  await expect(picker(page)).toHaveValue(alpha)
+  await expect(picker(page)).toHaveAttribute("data-value", alpha)
   await expect.poll(() => server.requests.some(r => r.method === "GET" && r.binderId === alpha)).toBe(true)
-  await picker(page).selectOption(trades)
+  await chooseCollection(page, trades)
   await expect.poll(() => server.requests.some(r => r.method === "GET" && r.binderId === trades)).toBe(true)
   release()
   await more(page).click()
@@ -189,7 +189,7 @@ test("share controls need a selected collection and surface server permission de
   await page.keyboard.press("Escape")
 
   await page.goto(`/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}&view=binder`)
-  await expect(picker(page)).toHaveValue(alpha)
+  await expect(picker(page)).toHaveAttribute("data-value", alpha)
   await expect.poll(() => server.requests.some(r => r.method === "GET" && r.binderId === alpha)).toBe(true)
   await more(page).click()
   await menuItem(page, "Create share link").click()

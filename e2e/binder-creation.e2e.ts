@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, storageAction, closeStorage, openStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, storageAction, closeStorage, openStorage, collectionPicker, viewPicker, chooseCollection, chooseView } from "./fixtures"
 import type { Page } from "@playwright/test"
 
 // Synthetic RPC/auth transport. Actual BinderApp, HTTP bridge, complete reads and IndexedDB.
@@ -56,9 +56,9 @@ for (const [mode, count] of [["blank", 0], ["national", 1025], ["generation", 15
   expect(r.snapshot.binders.find(b => b.collectionId === id)?.slots).toHaveLength(count)
   expect(r.snapshot.binders.find(b => b.collectionId === id)?.slots.every(s => s.inventoryItemId === null && s.wantedCards.length === 0)).toBe(true)
   expect(r.snapshot.items).toHaveLength(0); expect(legacy).toBe(0)
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(id)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", id)
   await page.reload()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(id)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", id)
 })
 test("creation device acceptance is pending, lost reply/reload exactly replays and fresh read ACKs", async ({ page }) => {
   const bodies: string[] = []
@@ -78,7 +78,7 @@ test("creation device acceptance is pending, lost reply/reload exactly replays a
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   expect(bodies).toHaveLength(2); expect(bodies[0]).toBe(bodies[1]); expect(fresh).toBe(true)
   // Reload owns navigation, an old creation cannot redirect the new document.
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("22222222-2222-4222-8222-222222222222")
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", "22222222-2222-4222-8222-222222222222")
 })
 for (const status of [402, 403, 409]) test(`creation ${status} retains intent and fences new work without discard/rebase`, async ({ page }) => {
   await page.route("**/app/e2e-harness/storage/creation", route => route.fulfill({ status, json: { error: { code: "synthetic-denial", message: "Synthetic", requestId: "synthetic" } } }))
@@ -161,7 +161,7 @@ test("later user navigation wins while accepted creation waits for fresh complet
   await page.getByRole("menuitem", { name: "National Dex", exact: true }).click()
   release()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("22222222-2222-4222-8222-222222222222")
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", "22222222-2222-4222-8222-222222222222")
   expect(new URL(page.url()).searchParams.get("view")).toBe("dex")
 })
 
@@ -258,7 +258,7 @@ test("two binders from the same preset source retain independent copied species 
     await expect.poll(async () => (await record(page))?.receipts.length).toBe(index + 1)
     const receipt = (await record(page))!.receipts[index]
     ids.push(receipt.intent.request.collectionId)
-    await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(ids[index])
+    await expect(collectionPicker(page)).toHaveAttribute("data-value", ids[index])
   }
   const r = (await record(page))!, copies = ids.map(id => r.snapshot.binders.find(b => b.collectionId === id)!)
   expect(ids[0]).not.toBe(ids[1])
@@ -436,12 +436,12 @@ for (const mode of ["blank", "species"]) test(`custom ${mode} copies targets, pr
   expect(request).toMatchObject({ kind: "custom", defaultPresentation: "list", location, name })
   expect(r.snapshot.items).toHaveLength(0)
   expect(r.snapshot.binders.find(b => b.collectionId === request.collectionId)?.slots).toHaveLength(mode === "blank" ? 0 : 1)
-  const collection = page.getByRole("combobox", { name: "Collection", exact: true }), view = page.getByRole("combobox", { name: "Collection view", exact: true })
-  await expect(collection).toHaveValue(request.collectionId)
-  await expect(view).toHaveValue("list")
-  await view.selectOption("binder"); await expect(view).toHaveValue("binder")
-  await page.reload(); await expect(view).toHaveValue("binder")
-  await view.selectOption("list"); await page.reload(); await expect(view).toHaveValue("list")
+  const collection = collectionPicker(page), view = viewPicker(page)
+  await expect(collection).toHaveAttribute("data-value", request.collectionId)
+  await expect(view).toHaveAttribute("data-value", "list")
+  await chooseView(page, "binder"); await expect(view).toHaveAttribute("data-value", "binder")
+  await page.reload(); await expect(view).toHaveAttribute("data-value", "binder")
+  await chooseView(page, "list"); await page.reload(); await expect(view).toHaveAttribute("data-value", "list")
   expect((await record(page))!.receipts[0].intent).toEqual(r.receipts[0].intent)
 })
 
@@ -492,7 +492,7 @@ for (const finishes of [false, true]) test(`set checklist durable ${finishes ? '
   const saved = (await record(page))!, id = saved.receipts[0].intent.request.collectionId
   const binder = saved.snapshot.binders.find(b => b.collectionId === id) as unknown as { presetManifest: unknown }
   expect(binder.presetManifest).toEqual(manifest)
-  await page.getByRole('combobox', { name: 'Collection', exact: true }).selectOption(id)
+  await chooseCollection(page, id)
   await (await openStorage(page)).getByText('Saved checklist scope', { exact: true }).click()
   await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
   await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)

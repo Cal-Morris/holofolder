@@ -132,6 +132,16 @@ export async function closeStorage(page: Page) {
   if (await close.isVisible()) await close.click()
 }
 
+/** Native collection and view selectors are enclosed menu buttons. `data-value` carries the exact id or view. */
+export const collectionPicker = (page: Page) => page.getByRole("button", { name: "Collection", exact: true })
+export const viewPicker = (page: Page) => page.getByRole("button", { name: "Collection view", exact: true })
+async function choose(page: Page, trigger: Locator, menu: string, value: string) {
+  await trigger.click()
+  await page.getByRole("dialog", { name: menu, exact: true }).locator(`[role="menuitemradio"][data-value="${value}"]`).click()
+}
+export const chooseCollection = (page: Page, id: string) => choose(page, collectionPicker(page), "Choose collection", id)
+export const chooseView = (page: Page, view: string) => choose(page, viewPicker(page), "Choose view", view)
+
 export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
   await page.addInitScript(() => {
     const originalMatchMedia = window.matchMedia.bind(window)

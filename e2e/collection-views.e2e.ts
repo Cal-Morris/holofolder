@@ -1,4 +1,4 @@
-import { test, expect, emulateStandalone, mockBackends, Harness } from "./fixtures"
+import { test, expect, emulateStandalone, mockBackends, Harness, collectionPicker, viewPicker, chooseCollection, chooseView } from "./fixtures"
 
 // Synthetic, local-only host integration. No production API, conversion or saving.
 test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
@@ -53,17 +53,17 @@ test("Inventory location and browser back/forward restore search, scope, window 
 })
 
 test("explicit links override saved view, reload and relaunch restore device-local presentation", async ({ page }) => {
-  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption("alpha")
+  await chooseCollection(page, "alpha")
   await page.getByRole("button", { name: "Next page", exact: true }).click()
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("list")
+  await chooseView(page, "list")
   await page.getByRole("textbox", { name: "Filter collection" }).fill("charizard")
   await page.reload()
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("list")
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "list")
   await expect(page.getByRole("textbox", { name: "Filter collection" })).toHaveValue("charizard")
   await page.goto("/app/e2e-harness/inventory?navigation=1")
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("list")
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "list")
   await page.goto("/app/e2e-harness/inventory?navigation=1&binder=alpha&page=2&view=slabs")
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("binder")
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "binder")
   await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible()
   await expect(page.getByRole("status").filter({ hasText: "Slabs view is not available" })).toBeVisible()
   await page.goto("/app/e2e-harness/inventory?navigation=1&binder=alpha&item=copy-00001&page=99")
@@ -81,7 +81,7 @@ test("fresh current location wins after move and failed refresh leaves Inventory
   await page.getByLabel("Navigation evidence").selectOption("moved")
   await page.locator('[data-item-id="copy-00001"]').click()
   await page.getByRole("button", { name: "Open location", exact: true }).click()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("trades")
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", "trades")
   await expect(page.getByText("Page 1 of 3", { exact: true })).toBeVisible()
   await expect(page.locator('[data-slot-id="trades-empty-0"]')).toHaveAttribute("aria-pressed", "true")
   await dock(page).getByRole("button", { name: "Inventory", exact: true }).click()
@@ -103,7 +103,7 @@ test("scope changes close private overlays, clear stale evidence and never resto
   await expect(page.getByText("Inventory unavailable", { exact: true })).toBeVisible()
   await page.getByLabel("Navigation account").selectOption("synthetic-partner")
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("")
-  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption("alpha")
+  await chooseCollection(page, "alpha")
   await page.getByRole("button", { name: "Edit layout", exact: true }).click()
   await expect(page.getByRole("button", { name: "Done", exact: true })).toBeVisible()
   await dock(page).getByRole("button", { name: "Inventory", exact: true }).click()
@@ -142,7 +142,7 @@ test("cached offline switching, unavailable fallback, missing Dex list and phone
   await expect(page.getByText("Inventory unavailable", { exact: true })).toBeVisible()
   await page.goto("/app/e2e-harness/inventory?navigation=1&binder=deleted")
   await expect(page.getByRole("status").filter({ hasText: "unavailable on this device" })).toBeVisible()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("alpha")
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", "alpha")
 })
 
 
