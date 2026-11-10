@@ -3577,7 +3577,7 @@ export default function BinderApp(props: BinderAppProps) {
   const legacyHeader = renderAppHeader()
   const legacySurface = (
     <BillingContext.Provider value={billing}>
-    <CollectionActivityProvider accountId={readOnlyMode ? null : user?.id ?? null} ownerId={readOnlyMode ? null : resolvedCollectionOwnerUserId} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={localPendingSyncCount} isOnline={isOnline} onRecovered={refreshAfterRecovery} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
+    <CollectionActivityProvider nativeRecovery={browserSurface?.recovery} accountId={browserSurface?.recovery?.scope.actorUserId ?? (readOnlyMode ? null : user?.id ?? null)} ownerId={browserSurface?.recovery?.scope.ownerUserId ?? (readOnlyMode ? null : resolvedCollectionOwnerUserId)} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={browserSurface?.pending ?? localPendingSyncCount} isOnline={isOnline} onRecovered={refreshAfterRecovery} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"

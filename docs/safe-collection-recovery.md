@@ -131,3 +131,7 @@ Parent application sequence: resolve #414's genuine Typecheck blocker, review an
 080 extends only ordinary converted-binder content/placement/layout recovery. [The exact contract and remaining required slices](converted-content-recovery.md) distinguish unchanged conversion provenance from conversion undo, and document local proof plus parent application. No Activity wording or runtime exposure changes.
 
 081 extends only the [documented whole-event converted cascade boundary](converted-cascade-recovery.md). Private signatures/plan version, current authorization, three fresh apply plan reads, immutable linked history and finite bounds remain. It fixes future mapping capture identities without rewriting older collapsed evidence; unsupported auxiliary events still have no token.
+
+## Later staged native Activity integration
+
+The [native Activity UI and durable original-intent slice](native-activity-recovery-ui.md) prepares the browser journey through the existing v1/v2 bridge. Older read-only/no-UI statements above describe their historical slices. Public native admission is still unconditional 503; only the local/nonhosted synthetic harness exercises the prepared UI. Legacy 087 Undo remains unchanged. No SQL, grant, hosted execution, conversion or enablement is added by the UI slice.
