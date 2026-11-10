@@ -1,8 +1,9 @@
-import { isContractRecord, isSlotContractId, isSlotRevision, normalizeBinderSlot } from "@/lib/domain/binder-slots"
+import { isContractRecord, isSlotContractId, isSlotRevision, normalizeBinderSlot, normalizeSlotTarget } from "@/lib/domain/binder-slots"
 import { normalizeGradingRecord, normalizeInventoryIdentity } from "@/lib/domain/inventory"
 import type { GradingRecord, InventoryIdentity } from "@/lib/domain/inventory"
 import type { InventorySelection } from "@/lib/inventory-plans"
 import type { SlotPrecondition } from "@/lib/domain/slot-commands"
+import type { SlotTarget } from "@/lib/domain/binder-slots"
 import type { WantedCard } from "@/lib/domain/cards"
 
 export interface InventorySlotRef { collectionId: string; slot: SlotPrecondition }
@@ -18,7 +19,13 @@ export function isGradingPatch(value: unknown): value is GradingPatch {
     ...fields, label: { variant: labelVariant === undefined ? null : labelVariant, assetIds: [] } }
   return normalizeGradingRecord(probe) !== undefined
 }
+/** Explicit ownership choice; null creates only an empty slot/target. Never auto-selects a grade. */
+export type InsertInventorySelection = Extract<InventorySelection, { kind: "existing" }>
+  | { kind: "new"; itemId: string; identity: InventoryIdentity; grading: GradingRecord | null; acquiredAt: string | null }
+export interface InsertAssignCommand { kind: "insertAssign"; collectionId: string; slotId: string; before: SlotPrecondition | null; target: SlotTarget | null; selection: InsertInventorySelection | null }
+export const INVENTORY_INSERT_LIMITS = { slots: 4096, work: 8192 } as const
 export type InventoryCommand =
+  | InsertAssignCommand
   | { kind: "add"; itemId: string; identity: InventoryIdentity; grading: GradingRecord | null; acquiredAt: string | null }
   | { kind: "patchGrading"; item: InventoryItemRef; patch: GradingPatch }
   | { kind: "edit"; item: InventoryItemRef; grading: GradingRecord | null }
@@ -69,8 +76,22 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
   const checkSlot = (s: unknown) => slot(s) && collections.has(s.collectionId)
   const checkItem = (i: unknown) => item(i) && (i.placement === null || checkSlot(i.placement))
   for (const c of value.commands) {
-    if (!isContractRecord(c, ["kind", "itemId", "identity", "grading", "acquiredAt", "item", "selection", "destination", "occupied", "fulfillWant", "slots", "collectionId", "replacementDefaultCollectionId", "patch"])) return invalid()
-    if (c.kind === "add") {
+    if (!isContractRecord(c, ["kind", "itemId", "identity", "grading", "acquiredAt", "item", "selection", "destination", "occupied", "fulfillWant", "slots", "collectionId", "replacementDefaultCollectionId", "patch", "slotId", "before", "target"])) return invalid()
+    if (c.kind === "insertAssign") {
+      affected += 2
+      if (!exact(c, ["kind", "collectionId", "slotId", "before", "target", "selection"]) || !uuid(c.collectionId) || !collections.has(c.collectionId)
+        || !isSlotContractId(c.slotId) || (c.before !== null && !ref(c.before)) || normalizeSlotTarget(c.target) === undefined) return invalid()
+      const selection = c.selection
+      if (selection !== null) {
+        if (!isContractRecord(selection, ["kind", "inventoryItemId", "itemVersion", "itemId", "identity", "grading", "acquiredAt"])) return invalid()
+        if (selection.kind === "existing") {
+          if (!exact(selection, ["kind", "inventoryItemId", "itemVersion"]) || !isSlotContractId(selection.inventoryItemId) || !isSlotRevision(selection.itemVersion)) return invalid()
+        } else if (selection.kind === "new") {
+          if (!exact(selection, ["kind", "itemId", "identity", "grading", "acquiredAt"])) return invalid()
+          parseInventoryCommand({ operationId: value.operationId, inventoryRevision: value.inventoryRevision, collections: [], commands: [{ ...selection, kind: "add" }] })
+        } else return invalid()
+      }
+    } else if (c.kind === "add") {
       affected += 2
       const identity = normalizeInventoryIdentity(c.identity)
       if (!exact(c, ["kind", "itemId", "identity", "grading", "acquiredAt"]) || !isSlotContractId(c.itemId) || !identity || normalizeGradingRecord(c.grading) === undefined

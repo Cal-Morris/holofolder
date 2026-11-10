@@ -23,6 +23,9 @@ test('native developer help and generated exports state the current staging and 
   expect(markdown).toContain('privateFields')
   expect(markdown).toContain('patchGrading')
   expect(markdown).toContain('expectedPublic')
+  expect(markdown).toContain('insertAssign')
+  expect(markdown).toContain('8,192')
+  await expect(page.getByRole('heading', { name: 'Atomic slot insertion and copy assignment, staged (091)' })).toBeAttached()
   expect(markdown).toContain('private_assets_unverifiable')
   const openapi = await (await request.get('/app/openapi.json')).json()
   const operation = openapi.paths['/storage/slots/commands'].post
@@ -33,6 +36,9 @@ test('native developer help and generated exports state the current staging and 
   const inventory = openapi.paths['/storage/inventory/commands'].post
   expect(JSON.stringify(inventory.requestBody)).toContain('patchGrading')
   expect(JSON.stringify(inventory.requestBody)).toContain('expectedPublic')
+  expect(JSON.stringify(inventory.requestBody)).toContain('insertAssign')
+  expect(inventory.description).toContain('8192')
+  expect(inventory.description).toContain('10s')
   const llms = await request.get('/app/docs/llms.txt')
   expect(await llms.text()).toContain('native-storage')
 

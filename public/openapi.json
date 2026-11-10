@@ -2481,7 +2481,7 @@
       "post": {
         "operationId": "execute_inventory_commands",
         "summary": "Execute inventory commands",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. After future admission, a committed terminal ledger rejection returns REST 409 storage_command_rejected or MCP isError with the same error.rejection: outcome, original operationId, known code and inventoryRevision. Other conflicts/timeouts are not rejection proof. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Atomic owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; patchGrading updates only declared public fields on existing grading; selected-want expectedPublic compares the exact locked slot/index public projection. Hidden certificates/assets/provenance and unrelated wants are retained by migration 090 after original-intent replay lookup. Omitted or replace retains full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_inventory_commands`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. After future admission, a committed terminal ledger rejection returns REST 409 storage_command_rejected or MCP isError with the same error.rejection: outcome, original operationId, known code and inventoryRevision. Other conflicts/timeouts are not rejection proof. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Atomic insertAssign, owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. insertAssign creates one stable slot before an exact existing slot reference or appends with before:null, retaining explicit target:null/free or target intent. selection:null creates no ownership; existing requires an exact Unassigned item/version, new explicitly creates that stable item. It never auto-selects a grade or moves an assigned copy. Maximum 4096 slots and 8192 insertion work rows per request, 100 commands, 256 affected selected entities, 256 KiB ordinary request, 1 MiB ordinary receipt and unchanged 16 MiB/16384 audit bounds and 10s deadline; oversized evidence rejects atomically. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; patchGrading updates only declared public fields on existing grading; selected-want expectedPublic compares the exact locked slot/index public projection. Hidden certificates/assets/provenance and unrelated wants are retained by migration 090 after original-intent replay lookup. Omitted or replace retains full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_inventory_commands`.",
         "tags": [
           "Collection"
         ],
@@ -2559,6 +2559,502 @@
                     "type": "array",
                     "items": {
                       "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "insertAssign"
+                            },
+                            "collectionId": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                            },
+                            "slotId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "before": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    "version": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "inventoryItemId": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "itemVersion": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "placementVersion": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "version",
+                                    "inventoryItemId",
+                                    "itemVersion",
+                                    "placementVersion"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "target": {
+                              "anyOf": [
+                                {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "pokemon"
+                                        },
+                                        "pokemonId": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "pokemonId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "card"
+                                        },
+                                        "cardId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "language": {
+                                          "type": "string",
+                                          "enum": [
+                                            "en",
+                                            "fr",
+                                            "de",
+                                            "es",
+                                            "it",
+                                            "pt-br",
+                                            "ja",
+                                            "ko"
+                                          ]
+                                        },
+                                        "finish": {
+                                          "type": "string",
+                                          "enum": [
+                                            "normal",
+                                            "holo",
+                                            "reverse_holo",
+                                            "double_rare",
+                                            "ultra_rare",
+                                            "illustration_rare",
+                                            "special_illustration_rare",
+                                            "secret_rare",
+                                            "hyper_rare",
+                                            "radiant_rare",
+                                            "ace_spec",
+                                            "amazing_rare",
+                                            "shiny_rare",
+                                            "jumbo"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "cardId"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "selection": {
+                              "anyOf": [
+                                {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "existing"
+                                        },
+                                        "inventoryItemId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "itemVersion": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "inventoryItemId",
+                                        "itemVersion"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "new"
+                                        },
+                                        "itemId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "identity": {
+                                          "oneOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "kind": {
+                                                  "type": "string",
+                                                  "const": "pokemon"
+                                                },
+                                                "pokemonId": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "maximum": 9007199254740991
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "pokemonId"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "kind": {
+                                                  "type": "string",
+                                                  "const": "card"
+                                                },
+                                                "cardId": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200
+                                                },
+                                                "language": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "en",
+                                                    "fr",
+                                                    "de",
+                                                    "es",
+                                                    "it",
+                                                    "pt-br",
+                                                    "ja",
+                                                    "ko"
+                                                  ]
+                                                },
+                                                "finish": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "normal",
+                                                    "holo",
+                                                    "reverse_holo",
+                                                    "double_rare",
+                                                    "ultra_rare",
+                                                    "illustration_rare",
+                                                    "special_illustration_rare",
+                                                    "secret_rare",
+                                                    "hyper_rare",
+                                                    "radiant_rare",
+                                                    "ace_spec",
+                                                    "amazing_rare",
+                                                    "shiny_rare",
+                                                    "jumbo"
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "cardId"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          ]
+                                        },
+                                        "grading": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "provider": {
+                                                  "oneOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "kind": {
+                                                          "type": "string",
+                                                          "const": "known"
+                                                        },
+                                                        "id": {
+                                                          "type": "string",
+                                                          "enum": [
+                                                            "psa",
+                                                            "ace",
+                                                            "cgc",
+                                                            "beckett"
+                                                          ]
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "kind",
+                                                        "id"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "kind": {
+                                                          "type": "string",
+                                                          "const": "custom"
+                                                        },
+                                                        "name": {
+                                                          "type": "string",
+                                                          "minLength": 1,
+                                                          "maxLength": 500
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "kind",
+                                                        "name"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                },
+                                                "grade": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 500
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "scale": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 500
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "designation": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 500
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "subgrades": {
+                                                  "maxItems": 20,
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "name": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 500
+                                                      },
+                                                      "grade": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 500
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "name",
+                                                      "grade"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                },
+                                                "certificate": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 500
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "holder": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 500
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "label": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "variant": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string",
+                                                          "minLength": 1,
+                                                          "maxLength": 500
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "assetIds": {
+                                                      "maxItems": 20,
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "maxLength": 200
+                                                      }
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "variant",
+                                                    "assetIds"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              },
+                                              "required": [
+                                                "provider",
+                                                "grade",
+                                                "scale",
+                                                "designation",
+                                                "subgrades",
+                                                "certificate",
+                                                "holder",
+                                                "label"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "acquiredAt": {
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "itemId",
+                                        "identity",
+                                        "grading",
+                                        "acquiredAt"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "collectionId",
+                            "slotId",
+                            "before",
+                            "target",
+                            "selection"
+                          ],
+                          "additionalProperties": false
+                        },
                         {
                           "type": "object",
                           "properties": {

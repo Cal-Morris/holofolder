@@ -44,7 +44,9 @@ The prepared batch is immutable after first handoff. Failed local persistence re
 
 ## Explicit remaining operation gap
 
-Existing private `SlotOfflineIntent` is either a slot command request or an inventory command request. `InventoryCommand` cannot create a new slot, and `SlotCommand` cannot assign inventory. Consequently **append free slot plus assignment cannot currently be one atomic confirmed scan batch**. The destination select exposes append as unavailable with this reason. This slice does not enqueue a separate structural write, fabricate a new destination ID, save half a page or introduce another transaction format. #362/#383/#369 must provide a shared atomic create-slot-and-assign intent before enabling append from scans. Exact Raw add-and-assign is already represented; it is not this blocker. SQL execution of that path remains unverified here.
+Migration 091 adds `InventoryCommand.insertAssign` inside the existing authoritative inventory transaction, with stable new slot ID, exact existing before-anchor or explicit append, target/free intent and explicit Unassigned/new-copy selection. The canonical strict parser, durable projector and staged REST/MCP registry now represent this atomic intent. See [contract and local proof](atomic-insert-assign.md).
+
+**Scanner append remains unavailable in this slice.** `prepareScanDraft` and the destination review still emit existing-slot assignments; they must consume `insertAssign` through the original confirmed batch and existing #470 host queue. Keep capture scope/layout/order checks, explicit copy review, IDs frozen after first handoff, durable acceptance and fresh complete-read ACK. Do not change the disabled option to claim a save, split insertion from assignment, use a fake existing-slot reference, or broaden Raw creation beside graded-only eligible copies. This precise consumer gap remains #375/#362/#383/#369 work, separate from hosted 091 application and #379 admission.
 
 ## API, help and proof boundaries
 
