@@ -89,15 +89,15 @@ for (const change of ["signout", "account", "owner"] as const) test(`${change} t
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("sending")
   expect((await record(page))?.receipts).toHaveLength(0)
 })
-test("409 pauses exact command for review and denies cancellation or blind replacement", async ({ page }) => {
+test("unclassified 409 retains command for exact retry without cancellation or replacement", async ({ page }) => {
   let sends = 0
   await page.route("**/app/e2e-harness/storage/slots", async route => { sends++; await route.fulfill({ status: 409, json: { error: { code: "storage_conflict", message: "Synthetic conflict", requestId: "synthetic" } } }) })
   await page.goto(entry); await edit(page)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("conflict")
   await page.getByRole("dialog").getByRole("button", { name: "Done", exact: true }).click()
   await page.getByRole("button", { name: "Retry pending sync" }).click()
-  await expect(page.getByText(/This edit needs reconciliation/)).toBeVisible()
-  expect((await record(page))?.receipts).toHaveLength(0); expect(sends).toBe(1)
+  await expect.poll(() => sends).toBe(2)
+  expect((await record(page))?.receipts).toHaveLength(0)
 })
 test("reordered success reply cannot ACK actual IDB; exact operation retry resolves", async ({ page }) => {
   const ids: string[] = []
@@ -160,4 +160,43 @@ test("offline enqueue stays durable then reconnect sends; billing/permanent erro
   await page.getByRole("button", { name: "Retry pending sync" }).click()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   expect(new Set(ids).size).toBe(1)
+})
+
+test("terminal rejection persists through reload and refresh failure, then explicit current-state cancellation", async ({ page, insets }) => {
+  let concurrent = false, rejectRead = false
+  const ids: string[] = []
+  await page.route("**/app/e2e-harness/storage/slots", async route => {
+    const body = route.request().postDataJSON()
+    ids.push(body.operationId)
+    if (!concurrent) {
+      concurrent = true
+      const operationId = "synthetic-concurrent-change"
+      const response = await route.fetch({ headers: { ...route.request().headers(), "x-storage-operation": operationId }, postData: JSON.stringify({ ...body, operationId,
+        commands: [{ kind: "create", ids: ["synthetic-concurrent-slot"], beforeSlotId: null }] }) })
+      expect(response.status()).toBe(200)
+    }
+    const response = await route.fetch()
+    expect(response.status()).toBe(409)
+    rejectRead = true
+    await route.fulfill({ response })
+  })
+  await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
+    if (rejectRead) await route.abort("failed"); else await route.continue()
+  })
+  await page.goto(entry); await edit(page)
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("conflict")
+  await page.reload()
+  await expect(page.getByRole("button", { name: "Refresh current storage" })).toBeVisible()
+  expect((await record(page))?.receipts).toHaveLength(0)
+  await expect(page.getByRole("button", { name: "Use current storage" })).not.toBeVisible()
+  rejectRead = false
+  await page.getByRole("button", { name: "Refresh current storage" }).click()
+  const useCurrent = page.getByRole("button", { name: "Use current storage" })
+  await expect(useCurrent).toBeVisible()
+  const h = new Harness(page, insets, true)
+  await h.expectMinTapTarget(useCurrent); await h.expectHittable(useCurrent); await h.expectNoHorizontalOverflow()
+  await useCurrent.click()
+  await expect.poll(async () => (await record(page))?.receipts[0]?.outcome).toBe("cancelled")
+  expect((await record(page))?.pending).toHaveLength(0)
+  expect(ids).toHaveLength(1)
 })

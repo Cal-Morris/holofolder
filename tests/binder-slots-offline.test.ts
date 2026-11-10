@@ -111,7 +111,7 @@ describe("staged durable slot intent", () => {
     const q = createSlotOfflineQueue(createMemoryStore(), scope)
     await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
     const remote = snapshot(); remote.inventoryRevision++; remote.binders[0].layoutRevision++
-    await q.replay(async () => ({ status: 409, code: "slot_revision_conflict", snapshot: await complete(remote) }), () => scope)
+    await q.replay(async () => ({ status: 409, code: "slot_revision_conflict", rejection: { outcome: "rejected", operationId: "operation-one", code: "slot_revision_conflict", inventoryRevision: remote.inventoryRevision } }), () => scope, 0, catalog, () => complete(remote))
     const state = await q.read()
     assert.equal(state.pending[0].status, "conflict")
     assert.deepEqual(state.pending[0].conflict!.current, remote)
@@ -199,7 +199,7 @@ describe("staged durable slot intent", () => {
     await q.saveSnapshot(await complete(snapshot())); await q.enqueue(edit, catalog)
     const remote = snapshot(); remote.inventoryRevision++; remote.collections[0].version++
     remote.binders[0].slots[1].target = { kind: "pokemon", pokemonId: 1 }; remote.binders[0].slots[1].version++
-    await q.replay(async () => ({ status: 409, code: "slot_revision_conflict", snapshot: await complete(remote) }), () => scope)
+    await q.replay(async () => ({ status: 409, code: "slot_revision_conflict", rejection: { outcome: "rejected", operationId: "operation-one", code: "slot_revision_conflict", inventoryRevision: remote.inventoryRevision } }), () => scope, 0, catalog, () => complete(remote))
     await q.rebase("operation-one", "operation-rebased", catalog)
     const record = await q.read()
     assert.deepEqual(record.receipts[0].intent, edit)
@@ -211,7 +211,7 @@ describe("staged durable slot intent", () => {
     await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
     const remote = snapshot(); remote.inventoryRevision++; remote.collections[0].version++; remote.binders[0].layoutRevision++
     remote.binders[0].slots = remote.binders[0].slots.filter(s => s.id !== "c")
-    await q.replay(async () => ({ status: 409, code: "slot_revision_conflict", snapshot: await complete(remote) }), () => scope)
+    await q.replay(async () => ({ status: 409, code: "slot_revision_conflict", rejection: { outcome: "rejected", operationId: "operation-one", code: "slot_revision_conflict", inventoryRevision: remote.inventoryRevision } }), () => scope, 0, catalog, () => complete(remote))
     const replacement = intent("replacement-intent")
     replacement.request = { ...replacement.request, inventoryRevision: 2, collectionVersion: 2, layoutRevision: 2, commands: [{ kind: "create", ids: ["explicit-new"], beforeSlotId: null }] }
     await q.reconcile("operation-one", { kind: "replace", intent: replacement }, catalog)
@@ -367,4 +367,53 @@ test("a complete read begun before execution cannot ACK by finishing after the r
   const record = await q.read()
   assert.equal(record.pending.length, 1)
   assert.equal(record.receipts.length, 0)
+})
+test("terminal rejection survives failed fresh read/reload, needs current scope and never drops dependent work", async () => {
+  const store = createMemoryStore(), q = createSlotOfflineQueue(store, scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  const rejection = { outcome: "rejected" as const, operationId: "operation-one", code: "slot_revision_conflict", inventoryRevision: 2 }
+  await q.replay(async () => ({ status: 409, rejection }), () => scope, 0, catalog, async () => { throw new Error("offline") })
+  const reopened = createSlotOfflineQueue(store, scope)
+  assert.equal((await reopened.read()).pending[0].conflict?.rejected, true)
+  assert.equal((await reopened.read()).pending[0].conflict?.current, null)
+  await assert.rejects(reopened.reconcile("operation-one", { kind: "keep-remote" }, catalog), /reconciliation/)
+  const remote = snapshot(); remote.inventoryRevision = 2
+  const cached = await complete(remote)
+  await assert.rejects(reopened.refreshConflict("operation-one", async () => cached, () => scope), /fresh-scoped/)
+  await assert.rejects(reopened.refreshConflict("operation-one", () => complete(snapshot()), () => scope), /stale/)
+  let active = true
+  await assert.rejects(reopened.refreshConflict("operation-one", async () => { active = false; return complete(remote) }, () => active ? scope : null), /fresh-scoped/)
+  await reopened.refreshConflict("operation-one", () => complete(remote), () => scope)
+  await reopened.reconcile("operation-one", { kind: "keep-remote" }, catalog)
+  assert.equal((await reopened.read()).receipts[0].outcome, "cancelled")
+  assert.deepEqual((await reopened.read()).receipts[0].intent, intent())
+})
+test("a bare SQL conflict code and supplied snapshot never prove noncommit", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  await q.replay(async () => ({ status: 409, code: "slot_revision_conflict", snapshot: await complete(snapshot()) }), () => scope)
+  assert.equal((await q.read()).pending[0].conflict?.rejected, false)
+  await assert.rejects(q.refreshConflict("operation-one", () => complete(snapshot()), () => scope), /reconciliation/)
+  await assert.rejects(q.reconcile("operation-one", { kind: "keep-remote" }, catalog), /reconciliation/)
+})
+test("terminal review refuses to cancel or rebase a head with dependent queued edits", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  const dependent = intent("operation-dependent")
+  dependent.request = { ...dependent.request, inventoryRevision: 2, collectionVersion: 2, layoutRevision: 2, commands: [{ kind: "create", ids: ["dependent-slot"], beforeSlotId: null }] }
+  await q.enqueue(dependent, catalog)
+  const remote = snapshot(); remote.inventoryRevision = 2
+  await q.replay(async () => ({ status: 409, rejection: { outcome: "rejected", operationId: "operation-one", code: "slot_revision_conflict", inventoryRevision: 2 } }), () => scope, 0, catalog, () => complete(remote))
+  await assert.rejects(q.reconcile("operation-one", { kind: "keep-remote" }, catalog), /reconciliation/)
+  await assert.rejects(q.rebase("operation-one", "operation-new", catalog), /reconciliation/)
+  assert.deepEqual((await q.read()).pending.map(p => p.intent), [intent(), dependent])
+  assert.equal((await q.read()).receipts.length, 0)
+})
+test("unknown conflict may explicitly retry only its unchanged original operation", async () => {
+  const q = createSlotOfflineQueue(createMemoryStore(), scope)
+  await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
+  await q.replay(async () => ({ status: 409, code: "storage_conflict" }), () => scope, 0)
+  await q.resume("operation-one", 1)
+  await q.replay(async sent => { assert.deepEqual(sent, intent()); return { status: 503 } }, () => scope, 1)
+  assert.deepEqual((await q.read()).pending[0].intent, intent())
 })
