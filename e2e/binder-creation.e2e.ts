@@ -259,3 +259,139 @@ test("two binders from the same preset source retain independent copied species 
   expect(r.receipts[0].intent.request.slotIds[0]).not.toBe(r.receipts[1].intent.request.slotIds[0])
   expect(r.snapshot.items).toHaveLength(0)
 })
+
+async function rejectionFixture(context: import("@playwright/test").BrowserContext, baseURL: string) {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `creation-rejection-${crypto.randomUUID()}`, url: baseURL }])
+}
+async function terminal(page: Page) {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    db.close(); return rows.find(r => !!r && typeof r === "object" && "pending" in r && "scope" in r) as unknown as { pending: { intent: Intent; lease: unknown; conflict: { creationProof?: unknown; current?: unknown; rejected: boolean } }[]; creationDiscards?: { intent: Intent; proof: unknown; resolution: string }[]; receipts: unknown[]; snapshot: { inventoryRevision: number; collections: { name: string }[] } }
+  })
+}
+test("093 proof survives historical replay/reload, explicit discard preserves later edit and requires new review/IDs", async ({ page, context, baseURL, insets }) => {
+  await rejectionFixture(context, baseURL!)
+  const bodies: string[] = [], proofs: unknown[] = []
+  let lose = true
+  await page.route("**/app/e2e-harness/storage/creation", async route => {
+    bodies.push(route.request().postData()!)
+    const response = await route.fetch(), body = await response.json()
+    if (body.error?.rejection) proofs.push(body.error.rejection)
+    if (lose) { lose = false; await route.abort("failed") } else await route.fulfill({ response })
+  })
+  await page.goto(entry); await open(page, "generation"); await confirm(page)
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
+  const original = (await record(page))!.pending[0].intent
+  await page.reload()
+  const discard = page.getByRole("button", { name: "Discard rejected creation", exact: true })
+  await expect(discard).toBeVisible()
+  const savedProof = (await terminal(page)).pending[0].conflict.creationProof
+  expect(bodies[0]).toBe(bodies[1]); expect(proofs[0]).toEqual(proofs[1])
+  await page.reload(); await expect(discard).toBeVisible()
+  expect((await terminal(page)).pending[0].conflict.creationProof).toEqual(savedProof)
+  await expect(page.getByRole("button", { name: "Rebase saved edit", exact: true })).toHaveCount(0)
+  const h = new Harness(page, insets, true)
+  await h.expectMinTapTarget(discard); await h.expectWithinSafeViewport(discard); await h.expectNoHorizontalOverflow()
+  await discard.click()
+  await expect.poll(async () => (await terminal(page)).creationDiscards?.length).toBe(1)
+  const discarded = await terminal(page)
+  expect(discarded.pending).toHaveLength(0); expect(discarded.receipts).toHaveLength(0)
+  expect(discarded.creationDiscards![0]).toEqual({ intent: original, proof: savedProof, resolution: "discarded" })
+  expect(discarded.snapshot.collections[0].name).toBe("Synthetic later edit")
+  await open(page); await page.getByRole("button", { name: "Review binder", exact: true }).click()
+  expect((await record(page))?.pending).toHaveLength(0)
+  await page.getByRole("button", { name: "Confirm create binder", exact: true }).click()
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  const next = (await record(page))!.receipts[0].intent
+  expect(next.request.operationId).not.toBe(original.request.operationId)
+  expect(next.request.collectionId).not.toBe(original.request.collectionId)
+  expect((await terminal(page)).creationDiscards![0].proof).toEqual(savedProof)
+})
+for (const mutation of ["family", "delivery", "operation", "proof", "auth", "generic"] as const) test(`actual creation rejects ${mutation} spoof without discard`, async ({ page, context, baseURL }) => {
+  await rejectionFixture(context, baseURL!)
+  await page.route("**/app/e2e-harness/storage/creation", async route => {
+    const response = await route.fetch(), body = await response.json(), headers = { ...response.headers() }
+    if (mutation === "family") headers["x-storage-family"] = "inventory"
+    if (mutation === "delivery") headers["x-storage-delivery"] = "other-delivery"
+    if (mutation === "operation") headers["x-storage-operation"] = "other-operation"
+    if (mutation === "proof") body.error.rejection.operationId = "other-operation"
+    if (mutation === "generic") delete body.error.rejection
+    if (mutation === "auth") {
+      await page.evaluate(() => { const c = new BroadcastChannel("sb-127-auth-token"); c.postMessage({ event: "SIGNED_OUT", session: null }); c.close() })
+      await expect(page.getByRole("button", { name: "New binder", exact: true })).toHaveCount(0)
+    }
+    await route.fulfill({ response, headers, json: body }).catch(() => {})
+  })
+  await page.goto(entry); await open(page); await confirm(page)
+  if (mutation === "auth") await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("sending")
+  else await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
+  await expect(page.getByRole("button", { name: "Discard rejected creation", exact: true })).toHaveCount(0)
+  expect((await terminal(page)).pending[0].conflict?.creationProof).toBeUndefined()
+  expect((await record(page))?.receipts).toHaveLength(0)
+})
+test("creation proof is durable before failed fresh read; IDB discard abort keeps exact proof", async ({ page, context, baseURL }) => {
+  await rejectionFixture(context, baseURL!)
+  let rejected = false, failRead = true
+  await page.route("**/app/e2e-harness/storage/creation", async route => { const response = await route.fetch(); rejected = true; await route.fulfill({ response }) })
+  await page.route("**/app/e2e-harness/storage/inventory?*", async route => { if (rejected && failRead) await route.abort("failed"); else await route.continue() })
+  await page.goto(entry); await open(page); await confirm(page)
+  await page.getByRole("button", { name: "Close new binder", exact: true }).click()
+  const discard = page.getByRole("button", { name: "Discard rejected creation", exact: true })
+  await expect(discard).toBeVisible()
+  const retained = (await terminal(page)).pending[0]
+  await discard.click()
+  await expect(page.getByRole("status").filter({ hasText: "Could not discard" })).toBeVisible()
+  expect((await terminal(page)).pending[0].conflict.creationProof).toEqual(retained.conflict.creationProof)
+  failRead = false
+  await page.reload(); await expect(discard).toBeVisible()
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (this.name === "records" && value?.creationDiscards?.length) { IDBObjectStore.prototype.put = put; throw new Error("synthetic discard IDB abort") }
+      return put.call(this, value, key)
+    }
+  })
+  await discard.click()
+  await expect(page.getByRole("status").filter({ hasText: "Could not discard" })).toBeVisible()
+  expect((await terminal(page)).pending[0].intent).toEqual(retained.intent)
+  expect((await terminal(page)).creationDiscards).toBeUndefined()
+  await discard.click()
+  await expect.poll(async () => (await terminal(page)).creationDiscards?.length).toBe(1)
+  expect((await terminal(page)).creationDiscards![0].proof).toEqual(retained.conflict.creationProof)
+})
+
+for (const race of ["scope", "stale", "lease"] as const) test(`creation discard fences ${race} during separately fresh read`, async ({ page, context, baseURL }) => {
+  await rejectionFixture(context, baseURL!)
+  let original: { snapshot: unknown; evidence: unknown; navigation: unknown } | undefined, inject = false
+  await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
+    const response = await route.fetch(), body = await response.json()
+    original ??= body
+    if (inject) {
+      if (race === "scope") body.scope.ownerUserId = "other-owner"
+      if (race === "stale") Object.assign(body, { snapshot: original!.snapshot, evidence: original!.evidence, navigation: original!.navigation })
+      if (race === "lease") await page.evaluate(async () => {
+        const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+        await new Promise<void>((yes, no) => {
+          const tx = db.transaction("records", "readwrite"), cursor = tx.objectStore("records").openCursor()
+          cursor.onsuccess = () => { const c = cursor.result; if (!c) return; const r = c.value; if (r?.pending?.[0]?.intent?.kind === "creation") { r.pending[0].lease = { id: "synthetic-racing-tab", until: 0 }; c.update(r) }; c.continue() }
+          tx.oncomplete = () => yes(); tx.onerror = tx.onabort = () => no(tx.error)
+        }); db.close()
+      })
+    }
+    await route.fulfill({ response, json: body })
+  })
+  await page.goto(entry); await open(page); await confirm(page)
+  await page.getByRole("button", { name: "Close new binder", exact: true }).click()
+  const discard = page.getByRole("button", { name: "Discard rejected creation", exact: true })
+  await expect(discard).toBeVisible()
+  await expect.poll(async () => !!(await terminal(page)).pending[0].conflict.current).toBe(true)
+  const retained = (await terminal(page)).pending[0]
+  inject = true; await discard.click()
+  await expect(page.getByRole("status").filter({ hasText: "Could not discard" })).toBeVisible()
+  expect((await terminal(page)).pending[0].intent).toEqual(retained.intent)
+  expect((await terminal(page)).pending[0].conflict.creationProof).toEqual(retained.conflict.creationProof)
+  expect((await terminal(page)).creationDiscards).toBeUndefined()
+  inject = false; await discard.click()
+  await expect.poll(async () => (await terminal(page)).creationDiscards?.length).toBe(1)
+})
