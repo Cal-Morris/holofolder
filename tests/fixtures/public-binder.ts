@@ -30,7 +30,7 @@ export function syntheticPublicDatabase(options: { disabled?: boolean; large?: b
     const filters: Record<string, unknown> = {}
     const q = {
       select(p: string) { projection = p; return q }, eq(k: string, v: unknown) { filters[k] = v; return q },
-      in(k: string, v: unknown[]) { filters[k] = v; return q }, contains(k: string, v: unknown) { filters[k] = v; return q },
+      in(k: string, v: unknown[]) { filters[k] = v; return q }, contains(k: string, v: unknown) { filters[k] = typeof v === 'string' ? { contains: JSON.parse(v) } : v; return q },
       order(k: string) { orders.push(k); return q }, range(a: number, b: number) { start = a; end = b; return q }, abortSignal() { return q },
       maybeSingle() { return execute(true) }, then(resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) { return execute(false).then(resolve, reject) },
     }
@@ -45,7 +45,8 @@ export function syntheticPublicDatabase(options: { disabled?: boolean; large?: b
         if (table === 'binders' && options.change === 'metadata') binder.binder_cols = 4
       }
       const contains = (actual: unknown, wanted: unknown): boolean => Array.isArray(wanted) ? Array.isArray(actual) && wanted.every(v => actual.includes(v)) : wanted && typeof wanted === 'object' ? !!actual && typeof actual === 'object' && Object.entries(wanted).every(([k, v]) => contains((actual as Record<string, unknown>)[k], v)) : actual === wanted
-      let values = (tables[table] ?? []).filter(row => Object.entries(filters).every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : typeof value === 'object' ? contains(row[key], value) : row[key] === value))
+      const path = (row: Record<string, unknown>, key: string) => key.split('->').reduce<unknown>((o, k) => o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined, row)
+      let values = (tables[table] ?? []).filter(row => Object.entries(filters).every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : value && typeof value === 'object' && 'contains' in value ? contains(path(row, key), value.contains) : typeof value === 'object' ? contains(row[key], value) : row[key] === value))
       if (orders.length) values = values.toSorted((a, b) => {
         for (const order of orders) {
           const comparison = typeof a[order] === 'number' ? Number(a[order]) - Number(b[order]) : String(a[order]).localeCompare(String(b[order]))

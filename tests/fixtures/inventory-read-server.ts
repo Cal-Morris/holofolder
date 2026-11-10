@@ -43,9 +43,9 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
         const values = filter.slice(4, -1).split(",").map(v => v.replace(/^"|"$/g, ""))
         rows = rows.filter(r => values.includes(String(r[key])))
       }
-      if (filter.startsWith("cs.")) rows = rows.filter(r => {
-        const aliases = (r[key] as { catalog?: { aliasIds?: string[] } })?.catalog?.aliasIds ?? []
-        return JSON.parse(filter.slice(3)).catalog.aliasIds.every((id: string) => aliases.includes(id))
+      if (filter.startsWith("cs.") && key === "external_ids_json->catalog->aliasIds") rows = rows.filter(r => {
+        const aliases = (r.external_ids_json as { catalog?: { aliasIds?: string[] } })?.catalog?.aliasIds ?? []
+        return JSON.parse(filter.slice(3)).every((id: string) => aliases.includes(id))
       })
       if (filter.startsWith("eq.")) rows = rows.filter(r => {
         const value = key === "external_ids_json->catalog->>canonicalId" ? (r.external_ids_json as { catalog?: { canonicalId?: string } })?.catalog?.canonicalId : r[key]

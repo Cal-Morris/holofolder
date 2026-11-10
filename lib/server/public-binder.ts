@@ -150,7 +150,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       })
       // Missing IDs may be recorded catalog aliases. Bound their concurrency and never fuzzy-match.
       await mapWithConcurrency(unique.filter(key => !catalogRows.has(key)), 12, async key => {
-        const result = await run(db.from('tcg_cards').select(projection).contains('external_ids_json', { catalog: { aliasIds: [key] } }).abortSignal(controller.signal).maybeSingle())
+        const result = await run(db.from('tcg_cards').select(projection).contains('external_ids_json->catalog->aliasIds', JSON.stringify([key])).abortSignal(controller.signal).maybeSingle())
         if (result.data) catalogRows.set(key, object(result.data))
       })
       const canonical = [...new Set([...catalogRows.values()].map(row => id(row.id)))]

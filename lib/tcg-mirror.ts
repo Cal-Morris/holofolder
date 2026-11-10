@@ -488,7 +488,7 @@ export async function findMirroredImportCandidates(lookup: ImportLookup): Promis
     const direct = await query.eq("id", lookup.cardId).limit(101)
     if (direct.error) throw direct.error
     if (direct.data?.length) return direct.data.map(card => toSearchCardResult(card, lookup.language)).filter((card): card is SearchCardResult => Boolean(card))
-    query = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).not(`name_json->>${lookup.language}`, "is", null).contains("external_ids_json", { catalog: { aliasIds: [lookup.cardId] } })
+    query = admin.from("tcg_cards").select(CARD_SEARCH_SELECT).not(`name_json->>${lookup.language}`, "is", null).contains("external_ids_json->catalog->aliasIds", JSON.stringify([lookup.cardId]))
   } else if (lookup.tcgplayerId) {
     // readImportLookups restricts the filter value to digits.
     if (!/^\d{1,12}$/.test(lookup.tcgplayerId)) return []

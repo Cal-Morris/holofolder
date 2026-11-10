@@ -85,7 +85,7 @@ test("alias/canonical fallback completion order cannot pick an ambiguous printin
     external_ids_json: { catalog: { aliasIds: ["synthetic-probe"], canonicalId: "synthetic-probe" } },
   }))
   const expected = await readCatalog(f)
-  const delayed = delayedClient(f, url => url.searchParams.has("external_ids_json") ? 8 : 1)
+  const delayed = delayedClient(f, url => url.searchParams.has("external_ids_json->catalog->aliasIds") ? 8 : 1)
   const catalog = await readCatalog(f, delayed.client)
   assert.deepEqual(catalog, expected)
   assert.equal(catalog.length, 501)
