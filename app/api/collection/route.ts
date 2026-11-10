@@ -1,14 +1,17 @@
 import { checkFirstPartyCollectionRecipient } from "@/lib/server/collection-recipient"
-import { withAuditActor, captureAuditOperations } from "@/lib/server/audit-context"
+import { withAuditActor, captureAuditOperations, withLegacyQueueAudit } from "@/lib/server/audit-context"
+import { legacyQueueProtocolResponse } from "@/lib/server/legacy-write-fence"
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getFirstPartyUser } from "@/lib/supabase/session-user"
 import { saveCollectionItem, updateCollectionStatus, deleteCollectionItem } from "@/lib/server/operations/collection"
-async function recordedWrite(actorId:string,run:()=>Promise<Response>) {
+async function recordedWrite(actorId:string,request:NextRequest,run:()=>Promise<Response>) {
+  const unsupported = legacyQueueProtocolResponse(request.headers)
+  if (unsupported) return unsupported
   const operationIds=new Set<string>()
   return withAuditActor(actorId,()=>captureAuditOperations(operationIds,async()=>{
-    const response=await run()
+    const response=await (request.headers.get("X-Holo-Legacy-Queue") === "2" ? withLegacyQueueAudit(run) : run())
     if(response.ok) {
       // Missing history metadata must never turn an accepted edit into a failed write.
       try {
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const checked = await checkRecipient(request, user.id)
   if ("response" in checked) return checked.response
-  return recordedWrite(user.id, () => saveCollectionItem(request, user, false, checked.membership))
+  return recordedWrite(user.id, request, () => saveCollectionItem(request, user, false, checked.membership))
 }
 export async function PATCH(request: NextRequest) {
   const client = await createClient()
@@ -39,7 +42,7 @@ export async function PATCH(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const checked = await checkRecipient(request, user.id)
   if ("response" in checked) return checked.response
-  return recordedWrite(user.id, () => updateCollectionStatus(request, user, checked.membership.ownerUserId))
+  return recordedWrite(user.id, request, () => updateCollectionStatus(request, user, checked.membership.ownerUserId))
 }
 export async function DELETE(request: NextRequest) {
   const client = await createClient()
@@ -47,5 +50,5 @@ export async function DELETE(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const checked = await checkRecipient(request, user.id)
   if ("response" in checked) return checked.response
-  return recordedWrite(user.id, () => deleteCollectionItem(request, user, true, checked.membership.ownerUserId, true))
+  return recordedWrite(user.id, request, () => deleteCollectionItem(request, user, true, checked.membership.ownerUserId, true))
 }
