@@ -127,7 +127,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   // visibleRead always shares read.catalog, so the binder surface keeps its slot display until the catalog or snapshot changes.
   const slotDisplay = useMemo(() => browserHostSlotDisplay(read.catalog), [read.catalog])
   useLayoutEffect(() => { latest.current = { currentScope, queue, catalog } })
-  const refresh = async () => {
+  // The latest routine read, so an edit made while it is in flight waits for it instead of failing.
+  const inFlightRead = useRef<Promise<CollectionNavigationRead> | null>(null)
+  const refresh = () => {
+    const read = readFresh()
+    inFlightRead.current = read
+    return read
+  }
+  const readFresh = async () => {
     if (sending.current) throw new Error("pending-command-read")
     const request = ++sequence.current
     readTransport.current?.abort()
@@ -278,10 +285,13 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     return [...cards, ...cached.filter(c => !cards.some(known => known.id === c.id && known.language === c.language))]
   }
   const receive: SlotCommandSink = async (draft, selected) => {
-    if (refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
+    // A focus or visibility refresh is routine; every fence below still applies to the read it settles on.
+    const current = refreshing.current && inFlightRead.current ? await inFlightRead.current.catch(() => null) : read
+    if (!current || refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     const record = await latest.current.queue.queue?.read()
-    if (!valid() || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
-    return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(catalog, read.catalog, selected), undefined, valid)
+    if (!valid() || current.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
+    const host = current === read ? catalog : browserHostCatalog(current.catalog)
+    return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(host, current.catalog, selected), undefined, valid)
   }
 
   const receiveBulkFill: SlotCommandSink = async draft => {
