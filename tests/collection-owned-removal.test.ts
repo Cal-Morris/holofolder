@@ -128,8 +128,8 @@ test("offline: move then undo collapses into one queued edit that is a no-op for
   try {
     const before = owned()
     const { next, previous } = planOwnedRemoval(before, "to-wanted", NOW)
-    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: next!, base: before })
-    queuePendingCollectionOperation({ type: "upsert", pokemonId: 25, item: previous, base: next })
+    queuePendingCollectionOperation({ origin: { kind: "account", actorUserId: "synthetic-actor", ownerUserId: "synthetic-owner", binderId: "synthetic-binder" }, type: "upsert", pokemonId: 25, item: next!, base: before })
+    queuePendingCollectionOperation({ origin: { kind: "account", actorUserId: "synthetic-actor", ownerUserId: "synthetic-owner", binderId: "synthetic-binder" }, type: "upsert", pokemonId: 25, item: previous, base: next })
 
     const operations = readPendingCollectionOperations()
     assert.equal(operations.length, 1)
