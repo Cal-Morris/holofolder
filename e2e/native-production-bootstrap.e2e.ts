@@ -214,8 +214,8 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
     await page.reload()
     expect(await page.evaluate(() => navigator.onLine)).toBe(true)
     await expect.poll(() => membershipRequests).toBeGreaterThan(0)
-    await expect(page.getByText(/Cached only. Access is being checked/)).toBeVisible()
-    await expect(page.getByText("1 pending edit retained.", { exact: false })).toBeVisible()
+    await expect(page.getByRole("status").filter({ hasText: /^1 pending edit to sync$/ })).toBeVisible()
+    await expect(page.getByText(/Cached only|Access is being checked/)).toHaveCount(0)
     await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(alpha)
     await expect(page.getByRole("button", { name: "Edit layout", exact: true })).not.toBeVisible()
     await expect(page.getByRole("button", { name: "Storage", exact: true })).toHaveCount(0)
@@ -231,7 +231,7 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
     if (outcome === "unavailable") {
       const failed = page.waitForResponse(r => r.url().includes("/rest/v1/partnerships?") && r.status() === 400)
       release(); await failed
-      await expect(page.getByText(/Cached only. Access is being checked/)).toBeVisible()
+      await expect(page.getByRole("status").filter({ hasText: /^1 pending edit to sync$/ })).toBeVisible()
       expect(await savedQueue(page)).toEqual(before)
       expect(sends.length).toBe(sentBefore)
       return
@@ -247,7 +247,7 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
       await page.clock.fastForward(3601_000)
     }
     if (outcome === "recovered" || outcome === "denied") release()
-    await expect(page.getByText(/Cached only. Access is being checked/)).not.toBeVisible()
+    await expect(page.getByRole("status").filter({ hasText: /^1 pending edit to sync$/ })).not.toBeVisible()
     if (outcome === "recovered") {
       await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toBeEnabled()
       // First reconcile the saved command before opening an unrelated creation plan.

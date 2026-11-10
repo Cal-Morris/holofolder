@@ -83,6 +83,23 @@ for (const viewport of [null, { width: 1300, height: 900 }]) test.describe(viewp
     expect(log.slice(0, first).map(s => s.state).filter(s => s !== "other:")).toEqual(["skeleton"])
   })
 
+  test("cached online startup paints the binder with no cache or access-check banner", async ({ page }) => {
+    await routeInventory(page)
+    await page.goto(entry)
+    await expect(slot(page, 0)).toBeVisible({ timeout: 30_000 })
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("binderdex_start_v1") ?? ""), { timeout: 10_000 }).not.toBe("")
+    // Hold the checked membership and inventory reads so only the saved copy can paint.
+    let release!: () => void
+    const held = new Promise<void>(resolve => { release = resolve })
+    await page.route("**/rest/v1/partnerships*", async route => { await held; await route.fallback().catch(() => {}) })
+    await routeInventory(page, 8_000)
+    await page.reload()
+    await expect(page.locator('[data-slot-id][aria-label$=", Owned"]').first()).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText(/Cached only|Access is being checked|Access will be checked|Saved on this device/)).toHaveCount(0)
+    await expect(page.getByTestId("connection-chip")).toHaveCount(0)
+    release()
+  })
+
   test("refocus while starting never shows an account-check page or bounces the binder", async ({ page }) => {
     await routeInventory(page)
     await page.goto(entry)
