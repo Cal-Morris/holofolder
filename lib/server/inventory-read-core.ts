@@ -180,9 +180,23 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
             if (await revision() !== null) conflict()
           }
           if (rootRevision === null) await proveEmpty(false)
-          const meta = await metadata(rev, rootRevision)
-          const sourceCount = await count("binder_legacy_rows")
-          const sourceRows = await readCompleteSnapshotRows(reader("binder_legacy_rows", "legacy_row_id,owner_user_id,collection_id,slot_id,source_row", "legacy_row_id", rev, sourceCount), rev, r => String(r.legacy_row_id))
+          // Metadata, legacy sources and counts/placements are independent reads at one revision, so they overlap.
+          // Each keeps its count-before-pages order and every later fence still follows all three.
+          // All three settle before the first failure (in the original order) is reported, so a retry never races stale reads.
+          const [metaRead, sourceRead, placementRead] = await Promise.allSettled([
+            metadata(rev, rootRevision),
+            (async () => {
+              const sourceCount = await count("binder_legacy_rows")
+              return { sourceCount, sourceRows: await readCompleteSnapshotRows(reader("binder_legacy_rows", "legacy_row_id,owner_user_id,collection_id,slot_id,source_row", "legacy_row_id", rev, sourceCount), rev, r => String(r.legacy_row_id)) }
+            })(),
+            (async () => {
+              const [itemCount, placementCount, slotCount] = await Promise.all([count("inventory_items"), count("inventory_placements"), count("binder_slots")])
+              return { itemCount, placementCount, slotCount, placementRows: await readCompleteSnapshotRows(reader("inventory_placements", "inventory_item_id,owner_user_id,collection_id,slot_id,version", "inventory_item_id", rev, placementCount), rev, r => String(r.inventory_item_id)) }
+            })(),
+          ])
+          const settled = <T>(result: PromiseSettledResult<T>): T => { if (result.status === "rejected") throw result.reason; return result.value }
+          const meta = settled(metaRead), { sourceCount, sourceRows } = settled(sourceRead)
+          const { itemCount, placementCount, slotCount, placementRows } = settled(placementRead)
           const sourceBySlot = new Map(sourceRows.map(r => [r.slot_id, r]))
           if (sourceBySlot.size !== sourceRows.length) return unavailable()
           const sourceForSlot = (slot: Row) => {
@@ -191,8 +205,6 @@ export async function readTrustedInventoryState(db: SupabaseClient, authority: I
             if (source.collection_id !== slot.collection_id) return unavailable()
             return { legacyRowId: source.legacy_row_id, sourceRow: source.source_row }
           }
-          const [itemCount, placementCount, slotCount] = await Promise.all([count("inventory_items"), count("inventory_placements"), count("binder_slots")])
-          const placementRows = await readCompleteSnapshotRows(reader("inventory_placements", "inventory_item_id,owner_user_id,collection_id,slot_id,version", "inventory_item_id", rev, placementCount), rev, r => String(r.inventory_item_id))
           const placements = placementRows.map(r => valid(normalizePlacement({ inventoryItemId: r.inventory_item_id, collectionId: r.collection_id, slotId: r.slot_id, version: r.version })))
           const placementsBySlot = new Map(placements.map(p => [p.slotId, p]))
           if (placementsBySlot.size !== placements.length) return unavailable()
