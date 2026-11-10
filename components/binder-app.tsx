@@ -114,6 +114,7 @@ import NativeStartupRecorder from "@/components/collection-navigation/native-sta
 import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
 import type { BrowserSurfaceBinding } from "@/components/collection-navigation/browser-session"
 import type { ReactNode } from "react"
+const NativeBinderScanner = dynamic(() => import("@/components/binder/native-scanner"), { ssr: false })
 const BrowserCollectionSession = dynamic(() => import("@/components/collection-navigation/browser-session"), { ssr: false })
 
 const NativeCollectionAnalytics = dynamic(() => import("@/components/native-collection-analytics"), { ssr: false })
@@ -3669,6 +3670,16 @@ export default function BinderApp(props: BinderAppProps) {
         <button className="min-h-9 rounded-lg border px-3 text-xs" onClick={() => { void (onBrowserSignOut ?? handleSignOut)() }}>Sign out</button>
       </div></div> : legacyHeader}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
+
+      {browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
+        && activeMainView === "binder" && !legacyReadOnlyMode && !shareViewToken && !editingLayout && stagedSlotDisplay && stagedSlotCatalog && browserSurface.scan
+        && collectionViewFilter === "all" && selectedGen === 0 && <NativeBinderScanner
+          key={`${layoutScopeKey}:${currentBinderPage}`} available={browserSurface.scan.available && browserSurface.scan.rows === settings.binderRows && browserSurface.scan.cols === settings.binderCols} online={browserSurface.scan.online}
+          admission={{ snapshot: stagedSlotDisplay.inventory, catalog: stagedSlotCatalog,
+            view: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId,
+              sessionId: browserSurface.scan.sessionId, rows: browserSurface.scan.rows ?? settings.binderRows, cols: browserSurface.scan.cols ?? settings.binderCols,
+              pageSlotIds: stagedSlotDisplay.binder.slots.slice((currentBinderPage - 1) * slotsPerPage, currentBinderPage * slotsPerPage).map(s => s.id) },
+            detectPage: browserSurface.scan.detectPage, getOfflineCards: browserSurface.scan.getOfflineCards, onCommandIntent: browserSurface.scan.receive }} />}
 
       {browserSurface && activeMainView === "binder" && (browserSurface.surface.state.main === "inventory" || browserSurface.surface.collection?.state.view === "slabs")
         ? <div id="collection-browser-scroll" className="min-h-0 flex-1 overflow-y-auto pb-[var(--dock-clearance)]">{browserSurface.surface.content}</div>

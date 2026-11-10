@@ -7,7 +7,7 @@
 // sure, Quick mode gets the text it read so the search field can finish the job.
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { Camera, Keyboard, Loader2, X } from "lucide-react"
-import { useOverlay } from "@/hooks/use-overlay"
+import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useCameraStream } from "@/hooks/use-camera-stream"
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from "@/lib/camera-frame"
 import { mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
@@ -118,6 +118,8 @@ function QuickCardScannerCamera({ onClose, onResult, isOnline, getOfflineCards, 
   }, [busy, onClose, onReadStarted])
   useOverlay(!managedContainerRef, closeSafely, { containerRef, autoFocus: false })
 
+  const swipe = useSwipeToDismiss(containerRef, closeSafely, !!managedContainerRef)
+
   const beginCapture = useCallback(() => {
     try { onReadStarted?.(); setDestinationError(null); return true }
     catch { setDestinationError("The scan destination changed. Close and reopen the scanner."); return false }
@@ -170,10 +172,14 @@ function QuickCardScannerCamera({ onClose, onResult, isOnline, getOfflineCards, 
   }, [busy, camera.ready, getOfflineCards, isOnline, onResult, onReadStarted, beginCapture])
 
   return (
-    <div ref={containerRef} role="dialog" aria-modal="true" aria-label="Scan a card" className="fixed inset-0 z-[60] bg-black outline-none">
+    <div className={managedContainerRef ? "fixed inset-0 z-40" : "contents"}>
+    {managedContainerRef && <div data-overlay-backdrop className="absolute inset-0 bg-black/55" onClick={closeSafely} />}
+    <div ref={containerRef} role="dialog" aria-modal="true" aria-label="Scan a card" className={managedContainerRef
+      ? "absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg overflow-hidden rounded-2xl bg-black outline-none"
+      : "fixed inset-0 z-[60] bg-black outline-none"}>
       <canvas ref={canvasRef} className="hidden" />
-      <div className="mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-[calc(var(--top-inset)+0.25rem)] text-white">
-        <div className="flex shrink-0 items-center gap-2 py-2">
+      <div className={managedContainerRef ? "mx-auto flex h-full w-full max-w-md flex-col p-3 text-white" : "mx-auto flex h-full w-full max-w-md flex-col px-3 pb-[calc(var(--safe-bottom)+0.75rem)] pt-[calc(var(--top-inset)+0.25rem)] text-white"}>
+        <div data-sheet-grabber {...swipe} className="flex shrink-0 items-center gap-2 py-2">
           <div className="min-w-0 flex-1">
             <p className="text-base font-bold leading-tight">Scan a card</p>
             <p className="truncate text-xs text-white/65">Fill the frame with one card, name and number in view.</p>
@@ -244,6 +250,7 @@ function QuickCardScannerCamera({ onClose, onResult, isOnline, getOfflineCards, 
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }

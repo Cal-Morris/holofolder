@@ -3,6 +3,8 @@ import { fixture } from "./inventory-read-server"
 import { readOwnerInventorySnapshot } from "@/lib/server/inventory-read"
 import { projectSlotIntent } from "@/lib/collection/slot-optimistic"
 import { parseStorageRequest } from "@/lib/server/operations/storage-contract"
+import { browserHostCatalog } from "@/lib/collection/browser-host-catalog"
+import { readInventoryCatalog } from "@/lib/server/inventory-read-catalog"
 import { readAuditHeader } from "@/lib/supabase/audit-header"
 
 // Synthetic PostgREST/ledger only. Handler, trusted bridge, all-stream read and browser IDB are real.
@@ -18,6 +20,17 @@ export function storageCommandHarness(id: string) {
   state.tables.binders[0].binder_rows = 2; state.tables.binders[0].binder_cols = 2
   for (let i = 0; i < 4; i++) state.tables.binder_slots.push({ id: `synthetic-slot-${i}`, owner_user_id: owner, collection_id: collection,
     position: i, target: null, status: null, wanted_cards: [], preset_origin: null, version: 0 })
+  if (id.startsWith("scan-")) {
+    // Synthetic scanner data, unrelated to any real card, owner or catalog provider.
+    const cards = ["energy", "trainer", "snorlax"]
+    state.tables.tcg_sets = [{ id: "synthetic", name_en: "Synthetic scanner set" }]
+    state.tables.tcg_cards = cards.map(kind => ({ id: `synthetic-${kind}`, set_id: "synthetic", local_id: "1",
+      name_en: `Synthetic ${kind}`, name_json: { en: `Synthetic ${kind}` }, external_ids_json: {} }))
+    state.tables.tcg_card_dex_ids = [{ card_id: "synthetic-snorlax", dex_id: 143 }]
+    state.tables.inventory_items = cards.map(kind => ({ id: `synthetic-copy-${kind}`, owner_user_id: owner,
+      identity: { kind: "card", cardId: `synthetic-${kind}`, language: "en" }, grading: null, acquired_at: null, version: 0, legacy_source: null }))
+    for (const slot of state.tables.binder_slots.slice(0, 2)) slot.target = { kind: "pokemon", pokemonId: 143 }
+  }
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
   const originalRpc = state.client.rpc.bind(state.client)
   // Synthetic HTTP response, real Supabase RPC builder and trusted audit context.
@@ -36,14 +49,21 @@ export function storageCommandHarness(id: string) {
         ledger.set(key, { body, audit, result })
         return Response.json(result)
       }
+      const catalog = browserHostCatalog(await readInventoryCatalog(state.client, snapshot, new AbortController().signal, () => {}))
       const next = projectSlotIntent(snapshot, { kind: input.operation, request,
-        context: { source: "app", clientId: null, operationId: key, batchId: key, clientOccurredAt: null } } as Parameters<typeof projectSlotIntent>[1], () => undefined)
+        context: { source: "app", clientId: null, operationId: key, batchId: key, clientOccurredAt: null } } as Parameters<typeof projectSlotIntent>[1], catalog)
       state.tables.inventory_owner_state[0].inventory_revision = next.inventoryRevision
       state.tables.storage_collection_state[0].version = next.collections[0].version
       state.tables.storage_collection_state[0].layout_revision = next.binders[0].layoutRevision
       state.tables.binder_slots = next.binders[0].slots.map((s, position) => ({ id: s.id, owner_user_id: owner, collection_id: collection,
         position, target: s.target, status: s.status, wanted_cards: s.wantedCards, preset_origin: s.presetOrigin, version: s.version }))
-      const result = { inventoryRevision: next.inventoryRevision, changed: next.inventoryRevision !== snapshot.inventoryRevision,
+      state.tables.inventory_items = next.items.map(i => ({ id: i.id, owner_user_id: owner, identity: i.identity,
+        grading: i.grading, acquired_at: i.acquiredAt, version: i.version, legacy_source: null }))
+      state.tables.inventory_placements = next.placements.map(p => ({ inventory_item_id: p.inventoryItemId, owner_user_id: owner,
+        collection_id: p.collectionId, slot_id: p.slotId, version: p.version }))
+      const result = input.operation === "inventory" ? { inventoryRevision: next.inventoryRevision, changed: next.inventoryRevision !== snapshot.inventoryRevision,
+        selectedItemIds: next.placements.filter(p => !snapshot.placements.some(old => old.inventoryItemId === p.inventoryItemId)).map(p => p.inventoryItemId),
+        acquiredItemIds: next.items.filter(i => !snapshot.items.some(old => old.id === i.id)).map(i => i.id) } : { inventoryRevision: next.inventoryRevision, changed: next.inventoryRevision !== snapshot.inventoryRevision,
         collectionVersion: next.collections[0].version, layoutRevision: next.binders[0].layoutRevision, removedSlotIds: [] }
       ledger.set(key, { body, audit, result })
       return Response.json(result)

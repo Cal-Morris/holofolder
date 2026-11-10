@@ -98,11 +98,13 @@ export function prepareScanDraft(snapshot: InventorySnapshot, view: ScanDestinat
       ...(isCardLanguage(choice.card.language) ? { language: choice.card.language } : {}), ...(choice.finish ? { finish: choice.finish } : {}) }
     let selection: { kind: "existing"; inventoryItemId: string; itemVersion: number }
     if (choice.copy === "raw") {
-      // Avoid the catalog selector's grade ambiguity; raw creation is the existing add + exact assign contract.
+      // Existing matching copies keep the command contract authoritative.
       const available = { ...snapshot, items: snapshot.items.filter(i => !copies.has(i.id)) }
-      const raw = pickerChoices(available, identity, resolve).find(c => c.label === "Raw")?.selection
+      const eligible = pickerChoices(available, identity, resolve)
+      const raw = eligible.find(c => c.label === "Raw")?.selection
       if (raw?.kind === "existing") selection = raw
       else {
+        if (eligible.length) return fail("raw-creation-unavailable: choose a recorded copy; creating Raw beside graded-only copies is unsupported")
         const id = crypto.randomUUID()
         commands.push({ kind: "add", itemId: id, identity, grading: null, acquiredAt: null })
         selection = { kind: "existing", inventoryItemId: id, itemVersion: 0 }
