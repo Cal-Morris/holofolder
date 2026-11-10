@@ -39,13 +39,14 @@ test('long reference sections become one level of small, collapsed subject group
   const counts = Object.fromEntries(groups.map(group => [group.name, group.children.length]))
   assert.deepEqual(counts, {
     Binders: 5, Collection: 3, 'History & recovery': 4, Imports: 1,
-    'Sharing & appearance': 8, 'Show purchases': 3, 'Native storage': 7,
+    'Sharing & appearance': 8, 'Show purchases': 3, Inventory: 2, 'Native storage': 10,
     Catalog: 11, Account: 9, Prices: 5, Comparisons: 4, Analytics: 1, 'Deal checks': 2,
   })
   for (const group of groups) {
     assert.ok(group.children.every(child => child.type === 'page'))
     if (group.name !== 'Catalog' && group.name !== 'Account') assert.equal(group.defaultOpen, false)
   }
+  assert.deepEqual(groups.find(group => group.name === 'Inventory')!.children.map(child => child.type === 'page' ? child.url.split('/').at(-1) : '').sort(), ['get-inventory-item', 'list-inventory-items'])
   assert.equal(groups.find(group => group.name === 'Binders')!.children[0].type, 'page')
   assert.ok(groups.find(group => group.name === 'Binders')!.children.some(child => child.type === 'page' && child.url === '/docs/reference/collection/create-binder'))
   assert.ok(groups.find(group => group.name === 'Prices')!.children.some(child => child.type === 'page' && child.url === '/docs/reference/prices-and-insights/get-prices'))
