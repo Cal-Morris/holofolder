@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { adaptLegacyDisplaySlots, buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection } from "@/lib/binder-display-model"
+import { adaptLegacyDisplaySlots, buildSlotDisplay, displaySlotImageUrl, displaySlotPreview, paginateDisplaySlots, resolveDisplaySelection } from "@/lib/binder-display-model"
 import { syntheticSlotDisplaySnapshot } from "@/tests/fixtures/slot-display"
 
 describe("stable binder display", () => {
@@ -108,4 +108,24 @@ test("native National Dex cover reports 653 of 1025 from saved placements", asyn
   binder.slots = Array.from({ length: 1025 }, (_, i) => ({ ...binder.slots[0], id: `synthetic-${i}`,
     inventoryItemId: i < 653 ? `synthetic-copy-${i}` : null, status: i < 653 ? "collected" : null }))
   assert.deepEqual(nativeBinderCoverStats(binder), { collected: 653, total: 1025, percentage: 64, needed: 372, perfect: 0 })
+})
+
+describe("native page-turn image urls", () => {
+  // Synthetic slots; prefetch must request exactly what OrderedSlot's CardImage renders.
+  const owned = { id: "a", target: { kind: "pokemon" as const, pokemonId: 6 }, item: { id: "copy" } as never, card: { name: "Synthetic", image: "https://assets.tcgdex.net/en/base/base1/4/high.webp" }, pokemon: { id: 6, name: "charizard" }, wantedCards: [] }
+  const want = { card_id: "base1-2", card_name: "Synthetic want", card_image: "https://assets.tcgdex.net/en/base/base1/2/high.webp", added_at: "2026-11-10T00:00:00Z" }
+  test("owned printing uses the public asset, not Pokémon artwork", () => {
+    assert.equal(displaySlotImageUrl(owned), "https://assets.holofolder.com/cards/en/base1/4/high.webp")
+  })
+  test("wants keep their dimmed printing outside current, and current shows the owned card", () => {
+    const wanted = { ...owned, wantedCards: [want] }
+    assert.equal(displaySlotImageUrl(wanted, "mixed"), "https://assets.holofolder.com/cards/en/base1/2/high.webp")
+    assert.equal(displaySlotImageUrl(wanted, "current"), "https://assets.holofolder.com/cards/en/base1/4/high.webp")
+  })
+  test("unfilled targets keep the artwork fallback, spacers request nothing", () => {
+    const target = { ...owned, item: null, card: null }
+    assert.equal(displaySlotImageUrl(target), displaySlotPreview(target).image)
+    assert.match(displaySlotImageUrl(target)!, /official-artwork%2F6\.png&w=/)
+    assert.equal(displaySlotImageUrl({ ...target, target: null, pokemon: null }), null)
+  })
 })

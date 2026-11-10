@@ -111,7 +111,7 @@ import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
-import { buildSlotDisplay, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
+import { buildSlotDisplay, displaySlotImageUrl, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
 import CachedNativeStartup from "@/components/cached-native-startup"
@@ -1592,9 +1592,11 @@ function BinderAppSurface(props: BinderAppProps) {
   }, [binderCardDisplay, collectionByPokemonId])
 
   const [slotImages] = useState(() => new BinderSlotImages())
-  const slotImageUrlsForPages = useCallback((pages: number[]) => pages.flatMap((page) =>
-    getPageSlots(page).flatMap((pokemon) => pokemon ? [resolveSlotImageUrl(pokemon.id, getSlotCardImage(pokemon.id))] : []),
-  ), [getPageSlots, getSlotCardImage])
+  // Native pages render OrderedSlot images; the legacy list is empty there and would only fetch unseen artwork.
+  const slotImageUrlsForPages = useCallback((pages: number[]) => pages.flatMap((page) => orderedDisplayPages
+    ? (orderedDisplayPages[page - 1] ?? []).flatMap(slot => { const url = slot && displaySlotImageUrl(slot, binderCardDisplay); return url ? [url] : [] })
+    : getPageSlots(page).flatMap((pokemon) => pokemon ? [resolveSlotImageUrl(pokemon.id, getSlotCardImage(pokemon.id))] : []),
+  ), [binderCardDisplay, getPageSlots, getSlotCardImage, orderedDisplayPages])
   const requestedBinderPage = useRef(currentBinderPage)
   useLayoutEffect(() => {
     requestedBinderPage.current = currentBinderPage
