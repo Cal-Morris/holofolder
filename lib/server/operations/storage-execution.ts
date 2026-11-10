@@ -64,6 +64,8 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
     const { data, error } = await client.rpc("storage_execute_v1", { operation, owner_id: ownerId, request: input }).abortSignal(AbortSignal.timeout(10000))
     if (error) throw storageExecutionError(error)
     if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
+    // A malformed terminal row must never fall through to an accepted receipt projection.
+    if ((operation === "slots" || operation === "inventory") && data && typeof data === "object" && "outcome" in data) throw storageExecutionError(null)
     return normalizeStorageResult(operation, data)
   })
 }

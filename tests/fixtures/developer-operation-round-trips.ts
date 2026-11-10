@@ -41,7 +41,7 @@ async function main() {
    markCollectionStarted()
    return Response.json([{user_id:owner,binder_id:binder,pokemon_id:1,pokemon_name:'Synthetic slot',status:'collected',wanted_cards:[]}])
   }
-  if(url.pathname.endsWith('/storage_collection_state')) {
+  if(url.pathname.endsWith('/storage_collection_state')||url.pathname.endsWith('/inventory_owner_state')) {
    assert.equal(url.searchParams.get('owner_user_id'),'eq.'+owner)
    return Response.json([])
   }
@@ -62,7 +62,9 @@ async function main() {
  assert.equal(calls.length,2,'settings and the owner-scoped binder layout require two parallel reads')
  calls.length=0
  await executeDeveloperOperation(context,'get_collection_analytics',{cardId:'base1-1'})
- assert.equal(calls.length,4,'activity and history remain parallel, bracketed by owner-wide authority fences')
+ assert.equal(calls.length,6,'activity and history remain parallel, bracketed by owner-root and collection authority fences')
+ assert.equal(calls.filter(path=>path.endsWith('/inventory_owner_state')).length,2)
+ assert.equal(calls.filter(path=>path.endsWith('/storage_collection_state')).length,2)
  parallelCollection=true
  let timer:ReturnType<typeof setTimeout>|undefined
  collectionStarted=new Promise<void>((resolve,reject)=>{markCollectionStarted=resolve;timer=setTimeout(()=>reject(new Error('Collection row read must start before binder check resolves')),1000)})

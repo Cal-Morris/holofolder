@@ -1,4 +1,5 @@
-import {knownDeveloperError} from '@/lib/server/developer-access/request'
+import {z} from 'zod'
+import {knownDeveloperError,developerErrorPayload} from '@/lib/server/developer-access/request'
 import type {DeveloperPrincipal} from '@/lib/developer-api/types'
 import {auditDeveloperOperation} from '@/lib/server/developer-access/audit'
 import {McpServer} from '@modelcontextprotocol/server'
@@ -10,6 +11,8 @@ export function createHoloMcpServer(request:Request,requestId:string,principal:D
  const server=new McpServer({name:'Holo Folder',version:'1.0.0'})
  for(const operation of DEVELOPER_OPERATIONS) {
   server.registerTool(operation.name,{description:operation.description,inputSchema:operation.schema,
+   ...(operation.responseSchema?{outputSchema:operation.responseSchema}:{}),
+   ...(operation.errorSchemas?{_meta:{'holofolder.com/errorSchemas':Object.fromEntries(Object.entries(operation.errorSchemas).map(([status,schema])=>[status,z.toJSONSchema(schema!)]))}}:{}),
    annotations:{readOnlyHint:!operation.write,destructiveHint:operation.destructive??(operation.write&&/^(?:update|save|delete|remove|cancel|disconnect|accept|reject|apply)_/.test(operation.name)),idempotentHint:operation.idempotent??(!operation.write||operation.name==='create_binder'||operation.name==='apply_collection_recovery'),openWorldHint:operation.name==='get_listings'||operation.name.startsWith('refresh_')||operation.name==='start_comparison_job'}},async input=>{
    try {
     const maxBytes=operation.maxBytes??(operation.name==='update_appearance'?131072:65536)
@@ -23,7 +26,7 @@ export function createHoloMcpServer(request:Request,requestId:string,principal:D
     const safe=knownDeveloperError(error)
     const known=safe!==null
     auditDeveloperOperation({principal,requestId},operation.name,'failure',known?safe.code:'temporarily_unavailable')
-    const output={error:{code:known?safe.code:'temporarily_unavailable',message:known?safe.message:'This operation is temporarily unavailable.',requestId}}
+    const output=developerErrorPayload(error,requestId)
     return {isError:true,content:[{type:'text' as const,text:JSON.stringify(output)}],structuredContent:output}
    }
   })

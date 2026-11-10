@@ -9,6 +9,8 @@ description: Staged inventory, slot, copied creation and native recovery contrac
 
 The staged command contracts reuse the app's trusted native executor. Five [staged developer reads](/docs/native-reads) declare redacted pages/details with current preconditions. They remain unavailable and always declare `completeSnapshot:false`; they never provide a private planner snapshot or queue acknowledgement. Public binder links never grant access to private owner inventory, certificates, label assets or location.
 
+[Copied preset discovery/preview](/docs/preset-previews) adds separate staged read-only operations requiring `catalog:read` and `binders:read`. They return public preset metadata or detached copied goals, allocate no creation identities and expose no private planning state. Set/master-set durable scope remains unsupported.
+
 ## Credentials and permissions
 
 REST uses a personal API key at `https://app.holofolder.com/app/api/v1`. MCP uses its separately approved OAuth grant at `https://app.holofolder.com/app/mcp`.
@@ -81,13 +83,29 @@ Synthetic inventory request, usable as the same REST `/storage/inventory/command
 
 A committed operation with a lost reply replays its original sanitized receipt after later grading, want or placement edits, without overwriting those edits or adding audit events. Body/owner/trusted-source changes conflict; current membership, scope and paid access are checked again before replay. Retain the original operation and IDs across unknown outcomes. The 10-second executor deadline is unchanged and a timeout does not establish noncommit.
 
-These intents require migration 090 after reviewed 088 and integration with pending 089. They remain staged behind the same unconditional `503 native_operations_staged`. Local SQL proof against 088+090 does not prove combined 089 behavior. Existing native recovery records real inverse evidence; private-label-asset events remain unsupported with `private_assets_unverifiable`, and newer changes conflict. No public Undo or offline queue ACK parity is claimed.
+These intents require migrations 089 and 090, already applied by the parent with retained restore-verified backups. Native tables remain empty, with zero conversions and no hosted native commands. They remain staged behind the same unconditional `503 native_operations_staged`. Local SQL proof against 088+090 does not prove combined 089 behavior. Existing native recovery records real inverse evidence; private-label-asset events remain unsupported with `private_assets_unverifiable`, and newer changes conflict. No public Undo or offline queue ACK parity is claimed.
+
+## Terminal command rejection contract, staged
+
+For `execute_slot_commands` and `execute_inventory_commands` only, a validated committed terminal ledger result becomes REST `409 storage_command_rejected` or MCP `isError:true`. Both return this same safe structured error (synthetic example):
+
+```json
+{"error":{"code":"storage_command_rejected","message":"The original storage command was rejected. Refresh current storage before explicit reconciliation.","requestId":"synthetic-request","rejection":{"outcome":"rejected","operationId":"synthetic-command","code":"slot_revision_conflict","inventoryRevision":12}}}
+```
+
+`rejection.operationId` binds the original submitted ID. `code` is one of `slot_revision_conflict`, `inventory_revision_conflict`, `inventory_collection_conflict`, `slot_conflict`, `item_conflict`, `placement_conflict`, `inventory_want_conflict`, `inventory_copy_choice_required`, `inventory_destination_empty` or `inventory_destination_occupied`. `inventoryRevision` is a nonnegative safe integer from that terminal outcome, not current storage. No original payload or private metadata is returned.
+
+After a confirmed rejection, load fresh complete current storage and explicitly review reconciliation. A generic 409, stale revision, SQL error, timeout, lost reply or absent ledger read does not prove noncommit. Keep the original immutable command, ID, source, credential and recipient for unknown-outcome retry. Current auth, membership and paid access are checked before replay data; changing identity cannot borrow a prior receipt.
+
+OpenAPI declares terminal and ordinary 409 errors separately from accepted 200 receipts. MCP tool discovery advertises accepted receipts in `outputSchema` and status-keyed error schemas in `_meta["holofolder.com/errorSchemas"]`. The SDK skips success-schema validation for `isError`; the server validates the terminal error before serialization. Text and structured MCP error fields match. Other native creation/import/recovery operations and all legacy errors keep their existing contracts. The first-party private HTTP version-1 409 envelope is unchanged.
+
+**This is a staged contract, not enabled behavior.** Valid authorized public calls still return the fixed 503 before execution. Local synthetic transport proof does not satisfy #379 hosted acceptance.
 
 ## Bounds and errors
 
 Ordinary slot/inventory batches allow at most 100 commands and 256 affected work under the canonical planner, with a 256 KiB intent limit. A sole whole-collection deletion has its own 4,096-slot, two-collection, 8 MiB bound. Copied creation allows 4,096 targets under 2 MiB. Native recovery has a 1 MiB request bound. Oversized requests fail as a whole; no truncated page or split batch is reported as complete.
 
-Current authorization/input errors can precede `native_operations_staged`. After future admission, the existing executor maps stale revisions, identity or changed-body replay to `409 storage_conflict`, current membership denial to `403 storage_access_denied`, caps/developer entitlements to 402, malformed constraints to 400 and unsupported recovery to `409 recovery_unsupported`. Unknown backend failures return sanitized `503 storage_unavailable`. REST errors carry `error.code`, `error.message` and `error.requestId`; MCP execution errors use `isError` and the same structured error. MCP schema validation can reject malformed arguments before execution using the SDK's validation error.
+Current authorization/input errors can precede `native_operations_staged`. After future admission, the existing executor maps stale revisions, identity or changed-body replay to `409 storage_conflict`, current membership denial to `403 storage_access_denied`, caps/developer entitlements to 402, malformed constraints to 400 and unsupported recovery to `409 recovery_unsupported`. Unknown backend failures return sanitized `503 storage_unavailable`. REST errors carry `error.code`, `error.message` and `error.requestId`; MCP execution errors use `isError` and the same structured error. Ordinary conflicts are not terminal rejection proof. MCP schema validation can reject malformed arguments before execution using the SDK's validation error.
 
 Native recovery never falls back to the legacy Activity recovery facade. Unsupported or incomplete evidence has no usable plan; newer/ABA changes, dependencies and authority transitions remain conflicts. Version 2 requires one explicit same-owner replacement with its exact current revisions. Copied creation receipts conservatively retain `recoverySupported:false`; use a fresh supported preview, not that receipt, to decide recovery eligibility.
 

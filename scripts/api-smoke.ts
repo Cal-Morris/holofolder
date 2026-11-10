@@ -1,3 +1,4 @@
+import {PRESET_OPERATIONS} from "../lib/developer-api/presets"
 import {NATIVE_READ_OPERATIONS} from "../lib/developer-api/native-read"
 // Real HTTP checks against disposable, explicitly labelled accounts. Never uses a personal collection.
 import {writeFile} from 'node:fs/promises'
@@ -98,6 +99,10 @@ async function main() {
   // Denial is staging proof, never successful native execution/performance coverage.
   for(const operation of NATIVE_READ_OPERATIONS) {
    const input={...(operation.schema.shape.collectionId?{collectionId:defaultBinder}:{}),...(operation.schema.shape.id?{id:'synthetic-native-record'}:{})}
+   assertStagedSmokeResponse(operation.name,await call(operation.name,input,owner,0,'native-staged',503))
+  }
+  for(const operation of PRESET_OPERATIONS) {
+   const input=operation.name==='preview_storage_preset'?{presetId:'blank',version:'1'}:{}
    assertStagedSmokeResponse(operation.name,await call(operation.name,input,owner,0,'native-staged',503))
   }
   // Clearly synthetic owned data exercises nonempty collection lists and pagination.

@@ -1,3 +1,5 @@
+import { PRESET_OPERATIONS } from "@/lib/developer-api/presets"
+import { executePresetOperation } from "./presets"
 import { NATIVE_READ_OPERATIONS } from "@/lib/developer-api/native-read"
 import { executeNativeDeveloperRead } from "./native-developer-read"
 import {readCollectionAudit} from "./audit"
@@ -75,6 +77,7 @@ function sliceEntries<T>(entries:T[],input:Record<string,unknown>,key:(entry:T)=
  return paginateEntries(entries,paramsOf(input),key)
 }
 async function dispatchDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
+ if(PRESET_OPERATIONS.some(op=>op.name===name))return executePresetOperation(context,name,input)
  if(NATIVE_DEVELOPER_OPERATIONS.some(op=>op.name===name))return executeNativeDeveloperOperation(context,name,input)
  if(NATIVE_READ_OPERATIONS.some(op=>op.name===name))return executeNativeDeveloperRead(context,name,input)
  if(requiresPriceCheckUi(name,input))throw new DeveloperAccessError('ui_only','Start sold-comps checks in the Holo Folder app. Saved comparisons remain available through the API.',403)
