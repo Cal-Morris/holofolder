@@ -15,9 +15,9 @@ import type { InventoryReadScope } from "@/lib/collection/inventory-read-transpo
  * Invalidate synchronously in the auth callback before any claims/network await. */
 export function useBrowserCollectionScope(accountId: string | null, ownerUserId: string | null, enabled: boolean) {
   const [lifetime] = useState(() => collectionScopeLifetime<InventoryReadScope>())
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; accessCheck: boolean } | null>(null)
   const [cachedFallbackAllowed, setCachedFallbackAllowed] = useState(true)
-  const [resolved, setResolved] = useState<{ accountId: string; ownerUserId: string; scope: InventoryReadScope } | null>(null)
+  const [resolved, setResolved] = useState<{ accountId: string; ownerUserId: string; scope: InventoryReadScope; partnerPaused: boolean } | null>(null)
   useLayoutEffect(() => {
     return () => { lifetime.invalidate() }
   }, [enabled, accountId, ownerUserId, lifetime])
@@ -42,9 +42,10 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
       }
       const request = kept ? lifetime.recheck() : invalidate()
       if (membershipChangePending()) { if (kept) invalidate(); setCachedFallbackAllowed(false); return }
-      const fail = (message: string, closeFallback: boolean) => {
+      /** accessCheck: the membership or billing read failed; retrying can recover without a reset. */
+      const fail = (message: string, closeFallback: boolean, accessCheck = false) => {
         if (kept) invalidate()
-        setError(message)
+        setError({ message, accessCheck })
         if (closeFallback) setCachedFallbackAllowed(false)
       }
       // Auth callbacks must release the Supabase lock before checking claims.
@@ -60,23 +61,26 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
           fail("inventory_sign_in_required", true)
           return
         }
-        const membership = await resolveCollectionMembership(client, accountId, { strictBilling: true })
+        // A definite billing denial opens the actor's own collection with a new epoch; read errors fail closed.
+        const membership = await resolveCollectionMembership(client, accountId, { strictBilling: true, ownWhenDenied: true }).catch(cause => { throw { cause, accessCheck: true } })
         if (!active || !lifetime.isCurrent(request)) return
         const ownerUserId = membership.ownerUserId
         if (ownerUserId !== accountId) {
           const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: ownerUserId, actor_id: accountId })
           if (!active || !lifetime.isCurrent(request)) return
-          if (accessError || allowed !== true) { fail(accessError?.message ?? "inventory_read_forbidden", true); return }
+          if (accessError) { fail(accessError.message, false, true); return }
+          if (allowed !== true) { fail("inventory_read_forbidden", true); return }
         }
         if (kept && kept.ownerUserId === ownerUserId && kept.authSessionId === data.claims.session_id) { lifetime.establish(request, kept); return }
         const scope = { actorUserId: accountId, ownerUserId, authSessionId: data.claims.session_id, sessionId: crypto.randomUUID() }
         if (!lifetime.establish(request, scope)) return
-        setResolved({ accountId, ownerUserId, scope })
-      }).catch(error => {
+        setResolved({ accountId, ownerUserId, scope, partnerPaused: membership.partnerAccessDenied })
+      }).catch(thrown => {
         if (!active || !lifetime.isCurrent(request)) return
+        const accessCheck = thrown?.accessCheck === true, error = accessCheck ? thrown.cause : thrown
         if (kept && isAuthRetryableFetchError(error)) { lifetime.establish(request, kept); return }
-        fail(error instanceof Error ? error.message : "account_access_check_failed", error instanceof BillingAccessError
-          || error?.status === 401 || error?.status === 403 || error?.code === "42501")
+        const denied = error instanceof BillingAccessError || error?.status === 401 || error?.status === 403 || error?.code === "42501"
+        fail(error instanceof Error || typeof error?.message === "string" ? error.message : "account_access_check_failed", denied, accessCheck && !denied)
       }) })
     }
     let initialized = false
@@ -99,6 +103,7 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
     })
     return () => { active = false; lifetime.invalidate(); unsubscribeMembership(); window.removeEventListener("online", recheck); subscription.unsubscribe(); window.removeEventListener("focus", recheck) }
   }, [enabled, accountId, ownerUserId, lifetime])
-  return { scope: enabled && resolved?.accountId === accountId ? resolved.scope : null,
-    error, cachedFallbackAllowed, currentScope: () => lifetime.current() }
+  const current = enabled && resolved?.accountId === accountId ? resolved : null
+  return { scope: current?.scope ?? null, partnerPaused: current?.partnerPaused === true,
+    error: error?.message ?? null, accessCheckFailed: error?.accessCheck === true, cachedFallbackAllowed, currentScope: () => lifetime.current() }
 }

@@ -27,6 +27,8 @@ export function storageCommandHarness(id: string) {
   if (owner !== actor) {
     state.setActor(actor)
     state.tables.partnerships.push({ id: "synthetic-grading-partnership", owner_user_id: owner, user1_id: owner, user2_id: actor })
+    // Synthetic lapsed owner plan: billing_partner_allowed answers false for this partner.
+    if (id.startsWith("grading-partner-paused-")) state.deny()
   }
   state.tables.binders[0].binder_rows = 2; state.tables.binders[0].binder_cols = 2
   for (let i = 0; i < 4; i++) state.tables.binder_slots.push({ id: `synthetic-slot-${i}`, owner_user_id: owner, collection_id: collection,

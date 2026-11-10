@@ -9,6 +9,9 @@ interface ResolveCollectionOwnerOptions {
   fallbackOnError?: boolean
   /** First-party recipient checks require a working current entitlement authority. */
   strictBilling?: boolean
+  /** A definite partner billing denial opens the actor's own collection, as storage_execute_v1 does.
+   * Read and RPC errors still throw: only a fresh answer can select the actor's own scope. */
+  ownWhenDenied?: boolean
 }
 
 /**
@@ -33,16 +36,17 @@ export async function resolveCollectionMembership(client: AnySupabaseClient, use
     .maybeSingle()
 
   if (error) {
-    if (options.fallbackOnError) return { ownerUserId: userId, memberIds: [userId], partnershipId: null }
+    if (options.fallbackOnError) return { ownerUserId: userId, memberIds: [userId], partnershipId: null, partnerAccessDenied: false }
     throw error
   }
 
   if (partnership?.owner_user_id && typeof client.rpc === "function") {
     const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: partnership.owner_user_id, actor_id: userId })
     if (accessError && (options.strictBilling || !["PGRST202", "42883"].includes(accessError.code))) throw accessError
+    if (!accessError && options.ownWhenDenied && typeof allowed !== "boolean") throw new Error("billing_access_check_unavailable")
     if (!accessError && !allowed) {
-      if (options.strictBilling) throw new BillingAccessError()
-      return { ownerUserId: userId, memberIds: [userId], partnershipId: null }
+      if (options.strictBilling && !options.ownWhenDenied) throw new BillingAccessError()
+      return { ownerUserId: userId, memberIds: [userId], partnershipId: null, partnerAccessDenied: true }
     }
   }
 
@@ -50,6 +54,7 @@ export async function resolveCollectionMembership(client: AnySupabaseClient, use
     ownerUserId: typeof partnership?.owner_user_id === "string" ? partnership.owner_user_id : userId,
     memberIds: [...new Set([userId, partnership?.user1_id, partnership?.user2_id].filter((id): id is string => typeof id === "string"))],
     partnershipId: typeof partnership?.id === "string" ? partnership.id : null,
+    partnerAccessDenied: false,
   }
 }
 

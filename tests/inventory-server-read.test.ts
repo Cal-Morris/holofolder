@@ -51,7 +51,16 @@ test("forged caller owner is never accepted; actor and current partnership bind 
   assert.deepEqual(unlinked.collections, [])
   f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
   f.deny()
-  await assert.rejects(readOwnerInventorySnapshot(f.client), { code: "inventory_read_forbidden" })
+  const before = f.requests.length
+  // A billing-denied partner reads only their own collection, never the shared owner's rows.
+  const paused = await readOwnerInventorySnapshot(f.client)
+  assert.equal(paused.ownerUserId, partner)
+  assert.deepEqual(paused.collections, [])
+  const pausedRequests = f.requests.slice(before)
+  assert.ok(pausedRequests.every(r => r.table !== "inventory_grid_read_v1" && !r.url.search.includes(owner)))
+  f.setActor(owner)
+  await assert.rejects(readOwnerInventorySnapshot(f.client), { code: "inventory_read_forbidden" }, "an owner's own read is never paused into a fallback")
+  f.setActor(partner)
   f.oauth()
   await assert.rejects(readOwnerInventorySnapshot(f.client), { code: "inventory_sign_in_required" })
 })
