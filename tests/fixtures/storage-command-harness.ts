@@ -5,18 +5,24 @@ import { projectSlotIntent } from "@/lib/collection/slot-optimistic"
 import { parseStorageRequest } from "@/lib/server/operations/storage-contract"
 import { browserHostCatalog } from "@/lib/collection/browser-host-catalog"
 import { readInventoryCatalog } from "@/lib/server/inventory-read-catalog"
+import { emptyGradingRecord } from "@/lib/grading/draft"
 import { readAuditHeader } from "@/lib/supabase/audit-header"
 
 // Synthetic PostgREST/ledger only. Handler, trusted bridge, all-stream read and browser IDB are real.
 // This module cannot access configured Supabase: fixture() has its own in-memory HTTP transport.
-const owner = "00000000-0000-4000-8000-0000000000e2"
+const actor = "00000000-0000-4000-8000-0000000000e2"
 const collection = "22222222-2222-4222-8222-222222222222"
 const fixtures = new Map<string, ReturnType<typeof fixture>>()
 export function storageCommandHarness(id: string) {
   let f = fixtures.get(id)
   if (f) return f
+  const owner = id.startsWith("grading-partner-") ? "11111111-1111-4111-8111-111111111111" : actor
   f = fixture(0, owner, "synthetic-e2e-auth-session")
   const state = f
+  if (owner !== actor) {
+    state.setActor(actor)
+    state.tables.partnerships.push({ id: "synthetic-grading-partnership", owner_user_id: owner, user1_id: owner, user2_id: actor })
+  }
   state.tables.binders[0].binder_rows = 2; state.tables.binders[0].binder_cols = 2
   for (let i = 0; i < 4; i++) state.tables.binder_slots.push({ id: `synthetic-slot-${i}`, owner_user_id: owner, collection_id: collection,
     position: i, target: null, status: null, wanted_cards: [], preset_origin: null, version: 0 })
@@ -31,6 +37,21 @@ export function storageCommandHarness(id: string) {
       identity: { kind: "card", cardId: `synthetic-${kind}`, language: "en" }, grading: null, acquired_at: null, version: 0, legacy_source: null }))
     for (const slot of state.tables.binder_slots.slice(0, 2)) slot.target = { kind: "pokemon", pokemonId: 143 }
   }
+
+  if (id.startsWith("grading-")) {
+    state.tables.binder_slots[0].status = "collected"
+    // Synthetic independent copies of the same unknown printing; private evidence must round-trip.
+    for (const [n, provider] of ["psa", "ace", null].entries()) {
+      const itemId = `synthetic-grading-${n}`
+      state.tables.inventory_items.push({ id: itemId, owner_user_id: owner, identity: { kind: "card", cardId: "synthetic-unknown-printing", language: "en", finish: "holo" },
+        grading: provider ? { ...emptyGradingRecord(), provider: { kind: "known", id: provider }, grade: n ? "Legacy / unknown" : "9", certificate: n ? "000-ACE.12" : "00001234",
+          label: { variant: "Synthetic legacy label", assetIds: [`synthetic-private-label-${n}`] } } : null,
+        acquired_at: "2026-01-02T00:00:00Z", version: 2,
+        legacy_source: { unknown: { untouched: [null, "00007", { legacy: true }] } }, untouched_column: "synthetic-private-db-metadata" })
+      if (n === 0) state.tables.inventory_placements.push({ inventory_item_id: itemId, owner_user_id: owner, collection_id: collection, slot_id: "synthetic-slot-0", version: 5 })
+    }
+  }
+
   if (id.startsWith("fill-")) {
     // Synthetic mixed bulk-fill page with separate copies of a repeated printing.
     state.tables.inventory_items.push({ ...state.tables.inventory_items[2], id: "synthetic-copy-snorlax-2" })
@@ -38,6 +59,7 @@ export function storageCommandHarness(id: string) {
     state.tables.inventory_placements.push({ inventory_item_id: "synthetic-copy-trainer", owner_user_id: owner,
       collection_id: collection, slot_id: "synthetic-slot-3", version: 0 })
     state.tables.binder_slots[3].status = "collected"
+
   }
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
   const originalRpc = state.client.rpc.bind(state.client)
@@ -45,7 +67,7 @@ export function storageCommandHarness(id: string) {
   const rpcClient = createClient("https://synthetic.supabase.test", "synthetic-service", { auth: { persistSession: false }, global: { fetch: async (_input, init) => {
     const input = JSON.parse(String(init?.body)), audit = readAuditHeader() ?? ""
     const context = JSON.parse(audit || "null")
-    if (!context || context.actor.userId !== owner || context.source !== "app" || input.owner_id !== owner) return Response.json({ code: "42501" }, { status: 403 })
+    if (!context || context.actor.userId !== actor || context.source !== "app" || input.owner_id !== owner) return Response.json({ code: "42501" }, { status: 403 })
     try {
       const request = parseStorageRequest(input.operation, input.request)
       const key = String(request.operationId), body = JSON.stringify(input)
@@ -87,12 +109,13 @@ export function storageCommandHarness(id: string) {
       state.tables.storage_collection_state[0].layout_revision = next.binders[0].layoutRevision
       state.tables.binder_slots = next.binders[0].slots.map((s, position) => ({ id: s.id, owner_user_id: owner, collection_id: collection,
         position, target: s.target, status: s.status, wanted_cards: s.wantedCards, preset_origin: s.presetOrigin, version: s.version }))
-      state.tables.inventory_items = next.items.map(i => ({ id: i.id, owner_user_id: owner, identity: i.identity,
-        grading: i.grading, acquired_at: i.acquiredAt, version: i.version, legacy_source: null }))
+      state.tables.inventory_items = next.items.map(i => ({ ...state.tables.inventory_items.find(row => row.id === i.id),
+        id: i.id, owner_user_id: owner, identity: i.identity, grading: i.grading, acquired_at: i.acquiredAt, version: i.version, legacy_source: i.legacySource ?? null }))
       state.tables.inventory_placements = next.placements.map(p => ({ inventory_item_id: p.inventoryItemId, owner_user_id: owner,
         collection_id: p.collectionId, slot_id: p.slotId, version: p.version }))
       const result = input.operation === "inventory" ? { inventoryRevision: next.inventoryRevision, changed: next.inventoryRevision !== snapshot.inventoryRevision,
-        selectedItemIds: next.placements.filter(p => !snapshot.placements.some(old => old.inventoryItemId === p.inventoryItemId)).map(p => p.inventoryItemId),
+        selectedItemIds: next.items.filter(i => i.version !== snapshot.items.find(old => old.id === i.id)?.version
+          || next.placements.some(p => p.inventoryItemId === i.id && !snapshot.placements.some(old => old.inventoryItemId === i.id))).map(i => i.id),
         acquiredItemIds: next.items.filter(i => !snapshot.items.some(old => old.id === i.id)).map(i => i.id) } : { inventoryRevision: next.inventoryRevision, changed: next.inventoryRevision !== snapshot.inventoryRevision,
         collectionVersion: next.collections[0].version, layoutRevision: next.binders[0].layoutRevision, removedSlotIds: [] }
       ledger.set(key, { body, audit, result })

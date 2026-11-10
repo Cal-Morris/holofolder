@@ -1,0 +1,16 @@
+---
+title: Manual copy grading (staged)
+description: Private per-copy grading edits and the staged device acceptance boundary.
+---
+
+Manual grading in Inventory is staged and unavailable in the live app. Production storage admission remains denied. This guide describes the authenticated local integration, not an enabled release.
+
+In the staged flow, open **Inventory → owned copy → Edit grading**. Record the provider, grade text, optional certificate, scale, qualifiers, subgrades and the actual holder/label version. Raw clears only that copy’s grading metadata. It does not remove ownership, acquisition or location. Duplicate printings keep independent grades. Unknown and legacy text stays recorded text; no label, grade, authenticity or price is inferred.
+
+**Save on device** closes only after durable device acceptance. **Saved on device · Pending sync.** means the edit is queued, not confirmed saved remotely. The existing sync path confirms an accepted transaction with a fresh complete inventory read. Lost replies retry the same operation, rather than acquiring another copy. A device-storage failure keeps the submitted draft frozen for **Retry saving on device**. Closing before acceptance discards the unsent draft. Closing or changing account after acceptance does not remove queued work.
+
+A complete private owner/partner read is required in the current authenticated session. Cached startup is read-only. While a command is unresolved, review/retry it before opening another grading edit. A confirmed rejection can load current storage for explicit review; **Use current storage** cancels only that known-rejected saved edit. Unknown outcomes require exact retry and cannot be silently cancelled or rewritten. Overlapping item/location changes need a newly reviewed edit.
+
+Certificates, private label asset references and official record links stay private to the permitted owner/partner. Provider links open an external browser page; they do not fetch or verify data. Offline, certificate text/copy remains usable and external lookup needs a connection. Scoped certificate sharing stays off and is not implemented. Uploads, ACE evidence and automatic certificate import remain separate work.
+
+This is an app session/queue binding, with no new REST/MCP operation. The existing staged developer `patchGrading` command edits public grading fields while preserving hidden private fields; it does not accept private certificates/assets or clear grading to Raw. Redacted developer DTOs cannot be used as the complete first-party editor snapshot. Existing API staging responses remain unchanged.
