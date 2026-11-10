@@ -6,12 +6,26 @@ import { legacyReviewEntries } from "@/lib/collection/legacy-review"
 import {
   LEGACY_QUEUE_KEY, LEGACY_QUEUE_SOURCE_KEY, LEGACY_LEASE_MS, failLegacy, freezeLegacyRequest, isRetainedOperation,
   validateLegacyOutcome, legacyToken, makeLegacyOperation, newLegacyEntry, parseLegacyEnvelope, sameLegacySlot, sameLegacyValue, visibleLegacyOrigin,
-  type Claim, type LegacyDeliveryOutcome, type LegacyQueueEnvelope, type RetainedLegacySource, type ReviewToken,
+  type Claim, type DurableLegacyEntry, type LegacyDeliveryOutcome, type LegacyQueueEnvelope, type RetainedLegacySource, type ReviewToken,
 } from "@/lib/collection/legacy-queue-record"
 
 export type LegacySourceObservation = { kind: "local-storage"; raw: string | null } | { kind: "collection-mirror"; retainedValue: unknown }
 export type LegacyReviewToken = ReviewToken & { session: string; origin: CollectionOrigin }
 export type LegacyReviewSelection = { sourceId: string; ordinal: number; input: PendingCollectionOperationInput }
+
+function compatibilityBarrier(entry: DurableLegacyEntry) {
+  return !!entry.operation.compatibilityPause || (entry.settlement?.kind === "known-rejection" && entry.settlement.category === "compatibility")
+}
+function pauseReviewSiblings(envelope: LegacyQueueEnvelope, entry: DurableLegacyEntry) {
+  const epoch = entry.operation.recoverySource?.reviewEpoch
+  if (!epoch) return
+  for (const sibling of envelope.entries) {
+    if (sibling.state === "ready" && sameCollectionOrigin(sibling.operation.origin, entry.operation.origin)
+      && sibling.operation.recoverySource?.reviewEpoch === epoch) {
+      sibling.state = "paused"; sibling.reason = "review_batch_paused"; sibling.revision = envelope.revision + 1
+    }
+  }
+}
 
 function sourceEntries(source: RetainedLegacySource): unknown[] {
   if (source.kind === "local-storage") return decodeQueueArray(source.raw) ?? []
@@ -99,7 +113,12 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
       const envelope = parseLegacyEnvelope(await store.get(LEGACY_QUEUE_KEY))
       if (scope) requireActive(context, scope)
       else if (active()) failLegacy("queue_session_changed")
-      return { token: legacyToken(envelope), entries: envelope.entries.filter(entry => visibleLegacyOrigin(entry.operation.origin, scope)), sources: envelope.sources.filter(source => sourceVisible(source, scope)) }
+      return { token: legacyToken(envelope), entries: envelope.entries.filter(entry => {
+        if (!visibleLegacyOrigin(entry.operation.origin, scope)) return false
+        // Retained requests and original/amendment strings can contain other accounts' evidence.
+        try { return mayDownloadLegacyOriginal(JSON.stringify(entry), scope?.kind === "account" ? scope.actorUserId : null) }
+        catch { return false }
+      }), sources: envelope.sources.filter(source => sourceVisible(source, scope)) }
     },
     async enqueue(input: PendingCollectionOperationInput, expected: { epoch: string; entryRevision: number | null }) {
       input = structuredClone(input); expected = structuredClone(expected)
@@ -143,7 +162,8 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
           || !sameLegacyValue(sources, envelope.sources.filter(source => sourceVisible(source, token.origin))) || !selections.length) failLegacy("queue_changed")
         if (envelope.sources.some(source => sourceEntries(source).some(isLegacyQueueSource))) failLegacy("nested_source_reconciliation_required")
         const selected = new Set<string>(), slots = new Set<number>()
-        const paused = envelope.entries.filter(entry => entry.operation.compatibilityPause).map(entry => entry.operation.binderId ?? null)
+        const paused = envelope.entries.filter(compatibilityBarrier).map(entry => entry.operation.binderId ?? null)
+        if (token.origin.kind === "account" && paused.includes(token.origin.binderId)) failLegacy("source_review_unresolved")
         selections.forEach(({ sourceId, ordinal, input }, index) => {
           const source = envelope.sources.find(source => source.sourceId === sourceId), projection = source && reviewSource(source)
           if (!source || !projection || selected.has(`${sourceId}:${ordinal}`) || slots.has(input.pokemonId)) failLegacy("source_review_unresolved")
@@ -196,9 +216,10 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
         for (const entry of envelope.entries) {
           if (sameCollectionOrigin(entry.operation.origin, scope) && entry.state === "sending" && entry.lease!.until <= now) {
             entry.state = "unknown"; entry.reason = "lease_expired_delivery_unknown"; entry.lease = null; entry.revision = envelope.revision + 1; changed = true
+            pauseReviewSiblings(envelope, entry)
           }
         }
-        if (envelope.entries.some(entry => entry.state !== "completed" && entry.operation.compatibilityPause && entry.operation.binderId === scope.binderId
+        if (envelope.entries.some(entry => entry.state !== "completed" && compatibilityBarrier(entry) && entry.operation.binderId === scope.binderId
           && (!entry.operation.origin || (entry.operation.origin.kind === "account" && entry.operation.origin.ownerUserId === scope.ownerUserId)))) return { result: null, changed }
         const entry = envelope.entries.find((entry, index) => entry.state === "ready" && sameCollectionOrigin(entry.operation.origin, scope)
           && !envelope.entries.slice(0, index).some(previous => previous.state !== "completed" && sameLegacySlot(previous.operation, entry.operation)))
@@ -230,14 +251,7 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
           entry.state = "unknown"; entry.reason = outcome.code
         }
         // A reviewed batch never continues after a failed attempt. Frozen siblings remain untouched.
-        if (outcome.kind !== "acknowledged" && entry.operation.recoverySource) {
-          for (const sibling of envelope.entries) {
-            if (sibling.state === "ready" && sameCollectionOrigin(sibling.operation.origin, entry.operation.origin)
-              && sibling.operation.recoverySource?.reviewEpoch === entry.operation.recoverySource.reviewEpoch) {
-              sibling.state = "paused"; sibling.reason = "review_batch_paused"; sibling.revision = envelope.revision + 1
-            }
-          }
-        }
+        if (outcome.kind !== "acknowledged") pauseReviewSiblings(envelope, entry)
         return { result: true, changed: true }
       })
     },

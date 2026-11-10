@@ -43,6 +43,33 @@ const singleQueue = createLegacyQueue(createIndexedDbStore(indexedDB, `${name}-s
 const input = (pokemonId: number) => ({ origin, type: "delete" as const, pokemonId, binderId: origin.binderId, base: null })
 const api = {
   queue, origin,
+  async reviewRegressions() {
+    const make = (suffix: string) => {
+      const db = createIndexedDbStore(indexedDB, `${name}-${suffix}`)
+      return { db, q: createLegacyQueue(db, () => ({ session, origin })) }
+    }
+    const compatibility = make("compatibility")
+    await compatibility.q.initialize({ getItem: () => null })
+    const { epoch } = (await compatibility.q.read(origin)).token
+    for (const id of [1, 2]) await compatibility.q.enqueue(input(id), { epoch, entryRevision: null })
+    const claim = (await compatibility.q.claim(origin, session, "one", 0))!
+    await compatibility.q.settle(claim, { kind: "known-rejection", category: "compatibility", code: "binder_converted_requires_slot_commands" })
+    const reopened = make("compatibility")
+    const blocked = await reopened.q.claim(origin, session, "two", 1) === null
+    const privacy = make("privacy")
+    const raw = JSON.stringify([{ ...input(10), id: "nested-private", queuedAt: "synthetic", original: { raw: JSON.stringify({ origin: { ...origin, actorUserId: "foreign" }, private: "FOREIGN-SECRET" }) } }])
+    await privacy.q.initialize({ getItem: () => raw })
+    const hidden = !JSON.stringify(await privacy.q.read(origin)).includes("FOREIGN-SECRET")
+    const retained = JSON.stringify(await privacy.db.get(LEGACY_QUEUE_KEY)).includes("FOREIGN-SECRET")
+    const batch = make("review-expiry")
+    await batch.q.initialize({ getItem: () => JSON.stringify([1, 2].map(pokemonId => ({ id: `guest${pokemonId}`, type: "delete", pokemonId, queuedAt: "synthetic", base: null }))) })
+    const view = await batch.q.read(origin)
+    await batch.q.acceptReview(await batch.q.prepareReview(origin), view.sources, [1, 2].map((pokemonId, ordinal) => ({ sourceId: view.sources[0].sourceId, ordinal, input: input(pokemonId) })))
+    await batch.q.claim(origin, session, "one", 0)
+    const paused = await batch.q.claim(origin, session, "two", 60001) === null
+    const states = (await batch.q.read(origin)).entries.map(e => e.state)
+    return { blocked, hidden, retained, paused, states }
+  },
   async singleSeed() {
     await singleQueue.initialize({ getItem: () => null })
     const view = await singleQueue.read(origin)

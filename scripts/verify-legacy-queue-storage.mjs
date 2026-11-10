@@ -82,7 +82,8 @@ try {
   const reviewed = await c.evaluate(() => globalThis.legacyQueueProof.read())
   assert.deepEqual(reviewed.sources[0].accepted, [0])
   assert.equal(reviewed.entries.filter(entry => entry.operation.pokemonId === 99 && entry.state === "ready").length, 1)
-  console.log("PASS Chromium: separate connections, simultaneous initialization/appends, stale same-slot/review/session/token fences, one competing claim/acceptance, abort-after-put enqueue/review/initialization/settlement, clone/transform/write-scope rollback, expiry unknown, old mirror and reload preservation")
+  assert.deepEqual(await c.evaluate(() => globalThis.legacyQueueProof.reviewRegressions()), { blocked: true, hidden: true, retained: true, paused: true, states: ["unknown", "paused"] })
+  console.log("PASS Chromium: separate connections, simultaneous initialization/appends, stale same-slot/review/session/token fences, one competing claim/acceptance, abort-after-put enqueue/review/initialization/settlement, clone/transform/write-scope rollback, expiry unknown, old mirror/reload preservation, compatibility barrier, nested privacy and reviewed expiry")
   await context.close()
 } finally {
   await browser?.close()

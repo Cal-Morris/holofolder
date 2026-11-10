@@ -35,6 +35,8 @@ The focused units exercise transitions, scope/session/revision/request fencing, 
 
 These are synthetic desktop Chromium transaction proofs. No real worker, app sender, production endpoint, installed PWA, physical-device eviction, power loss, network delivery or hosted receipt contract is verified. The native runner's standalone modes are emulations. No full e2e suite is run.
 
+Parent review reproduced three missing boundaries before acceptance: a compatibility rejection did not block later binder claims, nested foreign originals could escape through returned entries despite source filtering, and lease expiry did not pause reviewed-batch siblings. The corrected engine consults retained compatibility outcomes for both claims and review acceptance, checks complete returned entries for nested account privacy, and pauses ready exact-origin/review-epoch siblings in the same expiry transaction. Exact internal evidence and frozen requests remain unchanged. Three regressions first failed, then passed; the real Chromium runner also covers these boundaries, including reopening the compatibility barrier.
+
 ## Coordinated migration blockers
 
 Do not initialize this engine in production until **all legacy writers migrate together**. Subsequent work must hydrate independently of snapshot fallback, retire updated localStorage queue/mirror writes and restore paths, adapt every enqueue/review/settlement caller, and replace immediate/background sends with one claimed sender. It must enforce durable-before-UI/snapshot/notification/send ordering and current session checks after claim commit. The future sender must classify validated responses and preserve PATCH reviewed-base CAS wherever PATCH is used; this engine does not activate or alter that route.

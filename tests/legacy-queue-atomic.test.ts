@@ -7,6 +7,46 @@ import { createMemoryStore } from "../lib/offline-store/kv"
 const origin = { kind: "account" as const, actorUserId: "actor", ownerUserId: "owner", binderId: "binder" }
 const input = (pokemonId: number) => ({ type: "delete" as const, pokemonId, origin, binderId: origin.binderId, base: null })
 const storage = { getItem: () => null }
+
+test("compatibility rejection persists a binder barrier for later work", async () => {
+  const { store, queue } = await setup(), { epoch } = (await queue.read(origin)).token
+  await queue.enqueue(input(1), { epoch, entryRevision: null })
+  await queue.enqueue(input(2), { epoch, entryRevision: null })
+  const claim = (await queue.claim(origin, "session", "one", 0))!
+  await queue.settle(claim, { kind: "known-rejection", category: "compatibility", code: "binder_converted_requires_slot_commands" })
+  const reopened = createLegacyQueue(store, () => ({ session: "session", origin }))
+  assert.equal(await reopened.claim(origin, "session", "two", 1), null)
+  assert.deepEqual((await reopened.read(origin)).entries[0].request, claim.request)
+  await reopened.observeOldSource({ kind: "local-storage", raw: JSON.stringify([{ id: "blocked-review", type: "delete", pokemonId: 3, queuedAt: "synthetic", base: null }]) })
+  const view = await reopened.read(origin), source = view.sources.find(s => s.raw?.includes("blocked-review"))!
+  await assert.rejects(reopened.acceptReview(await reopened.prepareReview(origin), view.sources, [{ sourceId: source.sourceId, ordinal: 0, input: input(3) }]), /source_review_unresolved/)
+  assert.deepEqual((await reopened.read(origin)).sources, view.sources)
+})
+
+test("nested foreign originals and amendments stay stored but cannot escape through entries", async () => {
+  const { store, queue } = await setup()
+  const foreign = JSON.stringify({ origin: { ...origin, actorUserId: "foreign" }, private: "FOREIGN-SECRET" })
+  for (const evidence of [{ original: { raw: foreign } }, { amendments: [foreign] }]) {
+    const raw = JSON.stringify([{ id: crypto.randomUUID(), type: "delete", pokemonId: 10, queuedAt: "synthetic", origin, binderId: origin.binderId, ...evidence }])
+    await queue.observeOldSource({ kind: "local-storage", raw })
+    assert.equal(JSON.stringify(await queue.read(origin)).includes("FOREIGN-SECRET"), false)
+    assert.ok(JSON.stringify(await store.get(LEGACY_QUEUE_KEY)).includes("FOREIGN-SECRET"))
+    assert.ok((await store.get<{ sources: { raw: string | null }[] }>(LEGACY_QUEUE_KEY))!.sources.some(s => s.raw === raw))
+  }
+})
+
+test("expired reviewed sender pauses the rest of its batch atomically", async () => {
+  const { queue } = await setup()
+  await queue.observeOldSource({ kind: "local-storage", raw: JSON.stringify([1, 2].map(pokemonId => ({ id: `guest${pokemonId}`, type: "delete", pokemonId, queuedAt: "synthetic", base: null }))) })
+  const view = await queue.read(origin), source = view.sources.find(s => s.raw?.includes("guest1"))!
+  await queue.acceptReview(await queue.prepareReview(origin), view.sources, [1, 2].map((pokemonId, ordinal) => ({ sourceId: source.sourceId, ordinal, input: input(pokemonId) })))
+  await queue.claim(origin, "session", "one", 0)
+  assert.equal(await queue.claim(origin, "session", "two", 60001), null)
+  const entries = (await queue.read(origin)).entries
+  assert.equal(entries[0].state, "unknown")
+  assert.equal(entries[1].state, "paused")
+  assert.equal(entries[1].reason, "review_batch_paused")
+})
 async function setup() {
   const store = createMemoryStore()
   let session = "session"
