@@ -119,12 +119,12 @@ test.describe("staged stable-slot display", () => {
       await expect(detail).toHaveAttribute("data-slot-id", before[index]!)
       await expect(slots.nth(index)).toHaveAttribute("aria-pressed", "true")
       if (index === 1) {
-        await expect(detail).toContainText("item-b")
+        await expect(detail).not.toContainText("item-b")
         await expect(detail).toContainText("PSA")
         await expect(detail.getByText("9", { exact: true })).toBeVisible()
         await expect(detail.getByText("Holder", { exact: true })).toHaveCount(0)
       }
-      if (index >= 4) await expect(detail).toContainText(index === 6 ? "no target or owned copy" : "no owned copy assigned")
+      if (index >= 4) await expect(detail).toContainText(index === 6 ? "Empty slot" : "Unfilled target")
       await harness.expectWithinSafeViewport(detail)
       await harness.expectMinTapTarget(harness.closeControl(detail))
       const db = (await detail.boundingBox())!, dock = (await harness.dock().boundingBox())!

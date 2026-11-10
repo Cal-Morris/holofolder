@@ -83,7 +83,6 @@ export default function SlotPicker({ boundary }: { boundary: SlotPickerBoundary 
     return match && current && (match.canonicalId ?? match.id) === (current.canonicalId ?? current.id)
   }) : []
   return <div className="space-y-3" data-slot-picker>
-    <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Changes are saved on this device only after acceptance. Sync is separate." : "Internal draft only. Changes are not saved or synced."}</p>
     {error && <p role="alert" className="break-words text-sm text-destructive">{error}</p>}
     {message && <p role={pending ? "alert" : "status"} className="break-words text-sm">{message}</p>}
     {busy && <p role="status">Saving on device…</p>}
@@ -91,9 +90,11 @@ export default function SlotPicker({ boundary }: { boundary: SlotPickerBoundary 
     <fieldset disabled={pending !== null || busy} className="min-w-0 space-y-3">
     {mode === "actions" ? <div className="grid gap-2">
       {!slot.inventoryItemId && <button className={button} onClick={() => setMode("assign")}>Choose card</button>}
+      <details className="rounded-xl border border-border px-3"><summary className="min-h-10 cursor-pointer py-2 text-sm font-medium">Edit slot</summary><div className="grid gap-2 pb-3">
       <button className={button} onClick={() => setMode("target")}>{slot.target ? "Change target" : "Set target"}</button>
       {slot.target && <button className={button} onClick={() => emit({ kind: "target", target: null })}>Remove target</button>}
-      {slot.inventoryItemId && <><button className={button} onClick={() => emit({ kind: "clear" })}>Clear contents</button><p className="text-xs text-muted-foreground">Keeps this slot and target. The owned copy becomes Unassigned.</p></>}
+      {slot.inventoryItemId && <><button className={button} onClick={() => emit({ kind: "clear" })}>Move card to Unassigned</button><p className="text-xs text-muted-foreground">Keeps your card in your collection and leaves this slot empty.</p></>}
+      </div></details>
       {!slot.inventoryItemId && slot.wantedCards.map((w, index) => <button key={index} className={button} onClick={() => { setWant({ index, expected: w }); setQuery(w.card_id); setMode("assign") }}>Fulfill want {index + 1}: {w.card_name}</button>)}
     </div> : <>
       <button className={button} onClick={reset}>Cancel</button>
@@ -110,7 +111,7 @@ export default function SlotPicker({ boundary }: { boundary: SlotPickerBoundary 
         {!selectedFinish && <p>Unknown finish</p>}
         {mode === "target" ? <button className={button} disabled={!ready} onClick={() => target(identity!)}>Set printing target</button> : <div className="grid gap-2">
           {choices.length ? choices.map((c, index) => <button className={button} key={index} disabled={!ready} onClick={() => emit({ kind: "assign", selection: c.selection, fulfillWant: want })}>Select {c.label}{choices.filter(other => other.label === c.label).length > 1 ? `, copy group ${index + 1}` : ""}</button>) : <button className={button} disabled={!ready} onClick={() => emit({ kind: "assign", selection: { kind: "catalog", identity: identity!, newItemId: crypto.randomUUID() }, fulfillWant: want })}>Select Raw</button>}
-          {hasGrade && !choices.some(c => c.label === "Raw") && <p className="text-xs text-muted-foreground">Only recorded graded copies are available. Adding a separate Raw copy here needs the forthcoming authenticated command integration.</p>}
+          {hasGrade && !choices.some(c => c.label === "Raw") && <p className="text-xs text-muted-foreground">Only your recorded graded copies are available here.</p>}
         </div>}
         {placed.length > 0 && <p className="text-xs text-muted-foreground">Already placed in {placed.map(p => snapshot.collections.find(c => c.id === p.collectionId)?.name ?? "another collection").join(", ")}. These copies stay where they are.</p>}
       </div>}

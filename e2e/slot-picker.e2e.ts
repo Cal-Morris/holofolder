@@ -1,8 +1,13 @@
-import { test, expect } from "./fixtures"
+import { test, expect, Harness, mockBackends, emulateStandalone } from "./fixtures"
 import { syntheticSlotPickerSnapshot } from "../tests/fixtures/slot-picker"
 
 test.describe("explicit stable-slot picker", () => {
-  test.use({ signedIn: true })
+  test.use({ signedIn: true, harness: async ({ page, context, standalone, insets, baseURL }, provide) => {
+    if (standalone) await emulateStandalone(page, insets)
+    await mockBackends(page, context, { signedIn: true, baseURL })
+    // These staged specs open their explicit synthetic slot surface, not authenticated startup.
+    await provide(new Harness(page, insets, true))
+  } })
   test.beforeEach(async ({ harness }) => {
     const { page } = harness
     // Entirely synthetic catalog, grades and ownership, with no database executor.
@@ -15,8 +20,40 @@ test.describe("explicit stable-slot picker", () => {
     })
     await page.route("**/app/api/card-prices", route => route.fulfill({ json: { prices: [] } }))
     await page.goto("/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=4")
+    if (page.viewportSize()!.width >= 1024) await expect(page.getByRole("region", { name: "Inside cover", exact: true })).toBeVisible()
   })
+  const editSlot = async (dialog: import("@playwright/test").Locator) => {
+    const edit = dialog.locator("details").filter({ has: dialog.page().getByText("Edit slot", { exact: true }) })
+    if ((await edit.getAttribute("open")) === null) await edit.locator("summary").click()
+  }
   const details = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: /details$/ })
+
+  test("card-first detail keeps slot controls secondary and supports image zoom", async ({ harness }) => {
+    const { page } = harness
+    await page.locator('button[data-slot-id="slot-a"]').click()
+    const dialog = details(page)
+    await expect(dialog.getByRole("heading", { name: "Snorlax A", exact: true })).toBeVisible()
+    await expect(dialog).toContainText("Synthetic set · #1")
+    await expect(dialog).toContainText("English")
+    await expect(dialog).not.toContainText("item-a")
+    await expect(dialog).not.toContainText("acceptance")
+    await expect(dialog.getByRole("button", { name: "Change target", exact: true })).not.toBeVisible()
+    const preview = dialog.getByRole("button", { name: "View Snorlax A full screen" })
+    await expect(preview.getByRole("img")).toBeVisible()
+    await harness.expectWithinSafeViewport(dialog)
+    await harness.expectHittable(preview)
+    await harness.expectNoHorizontalOverflow()
+    console.log("card detail geometry", test.info().project.name, JSON.stringify(await dialog.boundingBox()))
+    await preview.click()
+    const zoom = page.getByRole("dialog", { name: "Snorlax A full screen", exact: true })
+    await expect(zoom).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(zoom).toHaveCount(0)
+    await expect(dialog).toBeVisible()
+    await harness.closeControl(dialog).click()
+    await expect(dialog).toHaveCount(0)
+    await harness.expectScrollUnlocked()
+  })
 
   test("selects non-dex card for only the selected slot with no write transport", async ({ harness }) => {
     const { page } = harness
@@ -30,14 +67,14 @@ test.describe("explicit stable-slot picker", () => {
     await dialog.getByRole("button", { name: "Normal", exact: true }).click()
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
     await expect(dialog).toContainText("Owned copy")
-    await expect(dialog).toContainText("Internal draft only")
+    await expect(dialog).not.toContainText("Internal draft only")
     await expect(page.locator('button[data-slot-id="slot-c"]')).toHaveAccessibleName("Trainer, Owned")
     await harness.expectWithinSafeViewport(dialog)
     await harness.expectNoHorizontalOverflow()
     const box = (await dialog.boundingBox())!, dock = (await harness.dock().boundingBox())!
     expect(box.y + box.height).toBeLessThanOrEqual(dock.y)
     console.log("picker geometry", test.info().project.name, JSON.stringify({ sheet: box, dockTop: dock.y }))
-    for (const action of await dialog.getByRole("button").all()) await harness.expectMinTapTarget(action, 36)
+    for (const action of await dialog.locator("button:visible").all()) await harness.expectMinTapTarget(action, 36)
     expect(writes).toEqual([])
   })
 
@@ -59,22 +96,26 @@ test.describe("explicit stable-slot picker", () => {
     const { page } = harness
     await page.locator('button[data-slot-id="slot-a"]').click()
     const dialog = details(page)
+    await editSlot(dialog)
     await dialog.getByRole("button", { name: "Change target", exact: true }).click()
     await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("pikachu")
     await dialog.getByRole("button", { name: "Target Pokémon: pikachu", exact: true }).click()
     await expect(dialog.getByRole("alert")).toContainText("clear contents first")
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
-    await expect(dialog).toContainText("item-a")
+    await expect(dialog).not.toContainText("item-a")
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
+    await editSlot(dialog)
     await dialog.getByRole("button", { name: "Remove target", exact: true }).click()
-    await expect(dialog).toContainText("item-a")
+    await expect(dialog).not.toContainText("item-a")
     await expect(dialog.getByRole("button", { name: "Set target", exact: true })).toBeVisible()
-    await dialog.getByRole("button", { name: "Clear contents", exact: true }).click()
-    await expect(dialog).toContainText("no target or owned copy")
+    await editSlot(dialog)
+    await dialog.getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
+    await expect(dialog).toContainText("Empty slot")
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("2")
     await harness.closeControl(dialog).click()
     await page.locator('button[data-slot-id="slot-b"]').click()
-    await details(page).getByRole("button", { name: "Clear contents", exact: true }).click()
+    await editSlot(details(page))
+    await details(page).getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
     await expect(details(page)).toContainText("Unfilled target")
     await expect(details(page).getByRole("button", { name: "Remove target", exact: true })).toBeVisible()
   })
@@ -91,7 +132,7 @@ test.describe("explicit stable-slot picker", () => {
     await expect(dialog).toContainText("Already placed in Synthetic binder")
     await expect(dialog).not.toContainText("PRIVATE")
     await dialog.getByRole("button", { name: "Select PSA 9", exact: true }).click()
-    await expect(dialog).toContainText("unassigned-grade")
+    await expect(page.getByLabel("Synthetic latest draft")).toContainText("unassigned-grade")
     await expect(dialog).toContainText("PSA")
     await expect(dialog).not.toContainText("PRIVATE")
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
@@ -153,9 +194,10 @@ test.describe("explicit stable-slot picker", () => {
   test("every sheet dismissal cancels selection above the dock without drafts", async ({ harness }) => {
     const { page } = harness
     const open = async () => {
-      await page.locator('button[data-slot-id="slot-g"]').click()
+      await page.locator('button[data-slot-id="slot-a"]').click()
       const dialog = details(page)
-      await dialog.getByRole("button", { name: "Set target", exact: true }).click()
+      await editSlot(dialog)
+      await dialog.getByRole("button", { name: "Change target", exact: true }).click()
       await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Snorlax")
       await harness.expectWithinSafeViewport(dialog)
       await harness.expectMinTapTarget(harness.closeControl(dialog), 36)
@@ -169,7 +211,7 @@ test.describe("explicit stable-slot picker", () => {
     await page.keyboard.press("Escape")
     await expect(dialog).toHaveCount(0)
     dialog = await open()
-    await page.goBack()
+    await page.evaluate(() => window.history.back())
     await expect(dialog).toHaveCount(0)
     expect(page.url()).toContain("e2e-harness")
     dialog = await open()
@@ -179,7 +221,12 @@ test.describe("explicit stable-slot picker", () => {
     await harness.swipeDown(dialog)
     await expect(dialog).toHaveCount(0)
     dialog = await open()
-    await harness.dock().getByRole("button", { name: "List", exact: true }).click()
+    // Desktop navigation sits behind the modal backdrop; only the mobile dock remains interactive.
+    if (page.viewportSize()!.width >= 640) {
+      await page.keyboard.press("Escape")
+      await expect(dialog).toHaveCount(0)
+    }
+    await page.getByRole("navigation", { name: /^(Main|Binder) navigation$/ }).getByRole("button", { name: "List", exact: true }).click()
     await expect(dialog).toHaveCount(0)
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
     await harness.expectScrollUnlocked()
@@ -195,7 +242,8 @@ test.describe("explicit stable-slot picker", () => {
     await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Energy")
     await dialog.getByRole("button", { name: /^Energy ·/ }).click()
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await dialog.getByRole("button", { name: "Clear contents", exact: true }).click()
+    await editSlot(dialog)
+    await dialog.getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
     await page.unroute("**/app/api/tcg-card-search**")
     const snorlax = syntheticSlotPickerSnapshot().cards[0]
     await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [snorlax] } }))
@@ -205,7 +253,7 @@ test.describe("explicit stable-slot picker", () => {
     await dialog.getByRole("button", { name: /^Snorlax A ·/ }).click()
     await dialog.getByRole("button", { name: "Normal", exact: true }).click()
     await dialog.getByRole("button", { name: "Select Raw", exact: true }).click()
-    await expect(dialog).toContainText("unassigned-a")
+    await expect(page.getByLabel("Synthetic latest draft")).toContainText("unassigned-a")
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("3")
   })
 
@@ -230,7 +278,7 @@ test.describe("explicit stable-slot picker", () => {
     await dialog.getByRole("button", { name: /^Trainer ·/ }).click()
     await dialog.getByRole("button", { name: "Reverse", exact: true }).click()
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await expect(dialog).toContainText("ja · reverse holo")
+    await expect(dialog).toContainText("Japanese · reverse holo")
     expect(requested).toContain("ja")
   })
 
@@ -302,14 +350,15 @@ test.describe("explicit stable-slot picker", () => {
     const { page } = harness
     await page.locator('button[data-slot-id="slot-g"]').click()
     const dialog = details(page)
+    await editSlot(dialog)
     await dialog.getByRole("button", { name: "Set target", exact: true }).click()
     await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Trainer")
     await dialog.getByRole("button", { name: /^Trainer ·/ }).click()
     await dialog.getByRole("button", { name: "Normal", exact: true }).click()
     await dialog.getByRole("button", { name: "Set printing target", exact: true }).click()
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await expect(dialog).toContainText("Unfilled target, no owned copy assigned")
-    await expect(dialog.getByRole("button", { name: "Change target", exact: true })).toBeVisible()
+    await expect(dialog).toContainText("Unfilled target")
+    await expect(dialog.getByRole("button", { name: "Change target", exact: true })).not.toBeVisible()
     await expect(page.locator('button[data-slot-id="slot-g"]')).toHaveAccessibleName("Trainer, Unfilled target")
   })
 
