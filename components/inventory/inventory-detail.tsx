@@ -101,10 +101,10 @@ function Confirm({ binding, itemId, kind, name, placed, onAccepted, onCancel }: 
       {save.pending && <button type="button" className="mt-2 min-h-10 rounded-xl border border-border px-3 text-sm font-medium" disabled={save.busy} onClick={save.retry}>Try again</button>}
     </div>}
     <div className="flex gap-2">
-      <button type="button" className="min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium" disabled={save.busy} onClick={onCancel}>Keep it</button>
+      <button type="button" className="min-h-11 flex-1 rounded-2xl border border-border/70 px-3 text-sm font-medium" disabled={save.busy} onClick={onCancel}>Keep it</button>
       {!save.pending && <button type="button" disabled={save.busy} onClick={() => save.run({ kind: removing ? "removeOwned" : "unassign", itemId })}
         className={`min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold disabled:opacity-45 ${removing ? "bg-destructive text-white" : "bg-primary text-primary-foreground"}`}>
-        {save.busy ? "Saving…" : removing ? "Remove card" : "Take it out"}</button>}
+        {save.busy ? removing ? "Removing…" : "Taking out…" : removing ? "Remove card" : "Take it out"}</button>}
     </div>
   </section>
 }

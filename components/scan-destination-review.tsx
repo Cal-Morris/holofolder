@@ -185,7 +185,7 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
         })}
       </div>
       <footer className="flex shrink-0 gap-2 border-t border-border p-3">
-        <button type="button" className="min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium disabled:opacity-45" disabled={acceptance.busy} onClick={close}>Cancel</button>
+        <button type="button" className="min-h-11 flex-1 rounded-2xl border border-border/70 px-3 text-sm font-medium disabled:opacity-45" disabled={acceptance.busy} onClick={close}>Cancel</button>
         {acceptance.pending ? <button type="button" className="min-h-11 flex-1 rounded-2xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-45" disabled={acceptance.busy || stale} onClick={() => acceptance.handoff(acceptance.pending!)}>Try again</button>
           : <button type="button" className="min-h-11 flex-1 rounded-2xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-45" disabled={!adding.length || locked} onClick={confirm}>
             {acceptance.busy ? "Adding…" : adding.length ? `Add ${adding.length} ${adding.length === 1 ? "card" : "cards"}` : "Choose a card to add"}</button>}

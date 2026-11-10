@@ -71,7 +71,7 @@ export default function PocketMenu({ slot, place, point, picker, layout, selecte
         <p className="text-sm font-semibold">Remove {name} from your collection?</p>
         <p className="text-xs text-muted-foreground">This removes the card itself, and its pocket becomes empty. It can&apos;t be undone with one tap.</p>
         <div className="flex gap-2">
-          <button type="button" disabled={busy} onClick={() => setRemoving(false)} className="min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium">Keep it</button>
+          <button type="button" disabled={busy} onClick={() => setRemoving(false)} className="min-h-11 flex-1 rounded-2xl border border-border/70 px-3 text-sm font-medium">Keep it</button>
           <button type="button" disabled={busy} onClick={() => card.run({ kind: "removeOwned" })} className="min-h-11 flex-1 rounded-2xl bg-destructive px-3 text-sm font-semibold text-white disabled:opacity-45">{busy ? "Removing…" : "Remove card"}</button>
         </div>
       </section> : <div role="menu" aria-label="Pocket actions" className="grid gap-0.5">

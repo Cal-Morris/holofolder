@@ -117,7 +117,7 @@ export default function SlotDetail({ slot, onClose, picker, host }: { slot: Bind
           <p className="text-sm font-semibold">Remove {name} from your collection?</p>
           <p className="mt-1 text-sm text-muted-foreground">This removes the card itself, and its pocket becomes empty. Other copies you own aren&apos;t affected. It can&apos;t be undone with one tap.</p>
           <div className="mt-3 flex gap-2">
-            <button type="button" disabled={action.busy} onClick={() => setRemoving(false)} className="min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium">Keep it</button>
+            <button type="button" disabled={action.busy} onClick={() => setRemoving(false)} className="min-h-11 flex-1 rounded-2xl border border-border/70 px-3 text-sm font-medium">Keep it</button>
             <button type="button" disabled={action.busy} onClick={() => action.run({ kind: "removeOwned" })} className="min-h-11 flex-1 rounded-2xl bg-destructive px-3 text-sm font-semibold text-white disabled:opacity-45">{action.busy ? "Removing…" : "Remove card"}</button>
           </div>
         </section>}

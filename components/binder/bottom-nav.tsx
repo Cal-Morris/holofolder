@@ -9,7 +9,7 @@ import { preloadTabView } from "@/components/binder/lazy-views"
 
 export interface BottomNavContext {
   /** Native storage: Inventory replaces List, and Binder stands for the collection in any presentation (binder pages or List). */
-  inventoryNavigation?: { active: boolean; open: () => void; collectionActive: boolean }
+  inventoryNavigation?: { active: boolean; open: () => void; collectionActive: boolean; /** The binder's own pages are on screen, so its page controls apply. */ binderOpen: boolean }
   activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
   activeJumpPokemonList: PokemonEntry[]
   activeMainView: ActiveMainView

@@ -77,6 +77,26 @@ export function resolveDisplaySelection(slots: readonly BinderDisplaySlot[], slo
   return slots.find(slot => slot.id === slotId) ?? null
 }
 
+/**
+ * The pocket a Pokémon search result opens in a binder: its first needed or wanted pocket, else its first
+ * pocket. Null when the binder has no pocket for it. `cardSpecies` is catalog evidence, never a name guess.
+ */
+export function speciesPocket(input: Pick<SlotDisplayInput, "binder" | "inventory">, pokemonId: number, cardSpecies: (cardId: string) => readonly number[] | undefined) {
+  const items = new Map(input.inventory.items.map(item => [item.id, item]))
+  const species = (identity: SlotTarget | InventoryItem["identity"] | null | undefined) => !identity ? [] : identity.kind === "pokemon" ? [identity.pokemonId] : cardSpecies(identity.cardId) ?? []
+  let first = -1
+  for (const [index, slot] of input.binder.slots.entries()) {
+    const item = slot.inventoryItemId ? items.get(slot.inventoryItemId) ?? null : null
+    if (![...species(slot.target), ...species(item?.identity), ...slot.wantedCards.flatMap(want => cardSpecies(want.card_id) ?? [])].includes(pokemonId)) continue
+    const found = { slotId: slot.id, index, item, want: slot.wantedCards[0] ?? null }
+    if (!item || found.want) return found
+    if (first < 0) first = index
+  }
+  if (first < 0) return null
+  const slot = input.binder.slots[first]
+  return { slotId: slot.id, index: first, item: items.get(slot.inventoryItemId!) ?? null, want: null }
+}
+
 /** Legacy PokemonSlot wishlisted tone, shared so native pockets dim wants the same way. */
 export const WANTED_PREVIEW_TONE = "grayscale saturate-[0.75] brightness-[0.92] contrast-[0.95] opacity-90"
 

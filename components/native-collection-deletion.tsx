@@ -86,7 +86,7 @@ export default function NativeCollectionDeletion({ binding, collectionId, onClos
         {!boundary && (stale || !binding.available) && <p role="alert">{stale ? 'Your collection changed while this was open. Close this and try again.' : 'Your latest changes are still saving. Try again in a moment.'}</p>}
       </div>
       <footer className="flex shrink-0 flex-wrap gap-2 border-t border-border p-3">
-        <button className="min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium" onClick={onClose}>Keep it</button>
+        <button className="min-h-11 flex-1 rounded-2xl border border-border/70 px-3 text-sm font-medium" onClick={onClose}>Keep it</button>
         {!review ? <button className="min-h-11 flex-1 rounded-2xl border border-destructive/50 px-3 text-sm font-semibold text-destructive disabled:opacity-45" disabled={blocked || needsReplacement && !replacement} onClick={() => {
           try { setReview(prepareCollectionDeletion(binding.read, collectionId, needsReplacement ? replacement : null, {
             source: 'app', clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString(),

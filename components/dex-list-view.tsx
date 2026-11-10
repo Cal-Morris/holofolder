@@ -22,6 +22,8 @@ interface DexListViewProps {
   pricesByKey: Record<string, CardPriceSnapshot>
   getPriceKey: (item?: { card_id?: string | null; card_language?: string | null } | null) => string | null
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
+  /** The view's heading. The every-Pokémon list of a signed-in collection is the National Dex. */
+  title?: string
   onSelectPokemon: (pokemon: PokemonSummary) => void
   onToggleOwned: (pokemon: PokemonSummary) => void
   /** Owned slot: offer "Move back to Wanted" / "Remove completely". Falls back to onToggleOwned when absent. */
@@ -99,6 +101,7 @@ export default function DexListView({
   onTogglePerfect,
   onBrowseCards,
   readOnly,
+  title = "List",
 }: DexListViewProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState<DexListFilter>("all")
@@ -174,7 +177,7 @@ export default function DexListView({
       <div className="shrink-0 border-b border-border/45 px-4 py-3">
         <div data-testid="view-heading" data-collapsed={heading.collapsed ? "" : undefined} className={`flex items-center justify-between gap-3 ${heading.collapsed ? "max-sm:hidden" : ""}`}>
           <div className="min-w-0">
-            <h2 className="text-base font-semibold tracking-tight sm:text-lg">List</h2>
+            <h2 className="text-base font-semibold tracking-tight sm:text-lg">{title}</h2>
           </div>
           <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-background/55 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:flex">
             <Search className="h-3.5 w-3.5" />

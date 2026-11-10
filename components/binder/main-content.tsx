@@ -37,6 +37,7 @@ import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSumm
 export interface MainContentContext {
   nativeWanted?: import("react").ReactNode
   nativeAnalytics?: import("react").ReactNode
+  listTitle?: string
   /** Read-only native ownership for the Pokémon-specific views; the legacy collection is empty for native hosts. */
   nativeSpecies?: { bySpecies: Map<number, CollectedPokemon>; rows: CollectedPokemon[] } | null
   layoutToolbar?: import("react").ReactNode
@@ -211,6 +212,7 @@ export function renderMainContentView(ctx: MainContentContext) {
           ctx.nativeAnalytics ?? <CollectionAnalyticsView collection={collection} allBindersCollection={allBindersOwned} pricesByKey={pricesByCardId} ownerId={user ? resolvedCollectionOwnerUserId : null} readOnly={readOnlyMode} isOnline={isOnline} isLoadingPrices={isLoadingPrices} onBrowsePokemon={openCardBrowser} />
         ) : activeMainView === "list" ? (
           <DexListView
+            title={ctx.listTitle}
             pokemonList={filteredPokemonSummaryList}
             collectionByPokemonId={speciesById}
             pricesByKey={pricesByCardId}

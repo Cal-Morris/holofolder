@@ -241,7 +241,8 @@ test.describe("explicit stable-slot picker", () => {
       await bar(page).getByRole("menuitem", { name: "Change what goes here" }).click()
       const dialog = sheet(page, "What goes in this pocket?")
       await expect(dialog).toBeVisible()
-      await harness.expectWithinSafeViewport(dialog)
+      // The sheet itself reaches the bottom edge; its choices sit above the home indicator.
+      await harness.expectWithinSafeViewport(dialog.getByRole("button").last())
       return dialog
     }
     let dialog = await open()

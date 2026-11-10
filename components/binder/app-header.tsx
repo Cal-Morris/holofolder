@@ -134,7 +134,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             <button onClick={isShowModeOn ? openQuickMode : openSearch} aria-label="Search" aria-pressed={isSearchOpen} className="flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground"><SearchIcon className="h-3.5 w-3.5" aria-hidden />Search</button>
           </div>
 
-          {activeMainView === "binder" && binderDimension === "2d" && (
+          {activeMainView === "binder" && binderDimension === "2d" && inventory?.binderOpen !== false && (
             <div data-testid="mobile-header-pager" className="flex shrink-0 items-center">
               <Button variant="ghost" size="icon" className={`h-11 ${ctx.user ? "w-11" : "w-9 md:w-11"}`} onClick={isSpreadLayout ? goToPrevSpread : goToPrevPage} disabled={!canGoToPreviousVisiblePage} aria-label={isSpreadLayout ? "Previous binder spread" : "Previous binder page"}><ChevronLeft className="h-4 w-4" /></Button>
               <input type="number" min={1} max={totalBinderPages} value={pageInputValue} onChange={e => {

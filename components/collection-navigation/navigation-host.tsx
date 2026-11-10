@@ -24,6 +24,8 @@ export interface NavigationSurface {
   onInventory: () => void
   /** Binder/home: the current collection in binder presentation, keeping its remembered page. */
   onBinder: () => void
+  /** Open one pocket of the current collection in its binder: that page, with the pocket's details open. */
+  onSlot: (slotId: string, page: number) => void
   onDex: () => void
   onLegacyView: (view: "wanted" | "sets" | "pokemon" | "analytics", requestedSet?: TCGSetSummary) => void
 }
@@ -67,8 +69,11 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     let saved: unknown
     try { saved = JSON.parse(localStorage.getItem(key) ?? "null") } catch { saved = null }
     const remembered = normalizeNavigationState(saved)
-    if (!saved && fallbackCollectionId) { remembered.main = "collection"; remembered.collectionId = fallbackCollectionId }
     const params = new URLSearchParams(location.search)
+    // Opening the app lands on the binder, not on Inventory because it was the last screen used.
+    // A link that names a view (?view=inventory, also what a reload of that screen carries) still opens it.
+    if (remembered.main === "inventory" && !params.has("view")) remembered.main = "collection"
+    if (!saved && fallbackCollectionId) remembered.collectionId = fallbackCollectionId
     const resolved = resolveNavigation(remembered, scope, read, params, stagedSlabs)
     // Slot and item links resolve only against a complete read. A saved copy paints first, then they resolve once.
     const deferred = read.evidence.kind !== "complete" && (params.has("slot") || params.has("item"))
@@ -187,7 +192,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     })
   }, [persist, key, scrollTop])
   const inventoryChange = useCallback((browse: InventoryViewState) => update(old => ({ ...old, inventory: { ...old.inventory, ...browse } })), [update])
-  const navigate = (next: CollectionNavigationState, locationIntent: InventoryLocationIntent | null = null, latest = currentRead) => {
+  const navigate = (next: CollectionNavigationState, locationIntent: CollectionNavigationFocus | null = null, latest = currentRead) => {
     const sequence = ++request.current
     closeAllOverlays()
     setPendingNavigation({ state: next, highlight: locationIntent, read: latest, sequence })
@@ -278,6 +283,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   if (renderSurface) return renderSurface({ openCreated, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
     onInventory: () => navigate({ ...visible, main: "inventory" }),
     onBinder: () => navigate(collectionId ? { ...visible, main: "collection", collections: { ...visible.collections, [collectionId]: { ...collectionState, view: "binder" } } } : { ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
+    onSlot: (slotId, page) => { if (collectionId) navigate({ ...visible, main: "collection", collections: { ...visible.collections, [collectionId]: { ...collectionState, view: "binder", page, scroll: 0 } } }, { collectionId, slotId, open: true }) },
     onLegacyView: (dexView, requestedSet) => navigate({ ...visible, main: "dex", dexView, requestedSet: requestedSet ?? null }) })
   return <div className={styles.host}><header className={styles.header}>{header}</header>{content}
     <nav aria-label="Collection navigation" className={styles.dock}>

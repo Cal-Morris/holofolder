@@ -1,26 +1,32 @@
-.view { max-width: 72rem; margin-inline: auto; padding: 1rem 1rem calc(var(--dock-clearance) + 1.5rem); color: var(--foreground); }
-.view h1 { font-size: 1.6rem; font-weight: 700; }
+/* Same page frame and title as Wanted: max-w-6xl, p-3 (p-4 from 640px), text-xl bold. */
+.view { max-width: 72rem; margin-inline: auto; padding: .75rem .75rem calc(var(--dock-clearance) + 1.5rem); color: var(--foreground); }
+@media (min-width: 640px) { .view { padding: 1rem 1rem calc(var(--dock-clearance) + 1.5rem); } }
+.view h1 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; letter-spacing: -.025em; }
 .header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .25rem; }
 .add { flex-shrink: 0; min-height: 40px; padding-inline: .85rem; border: 1px solid var(--border); border-radius: .75rem; font-size: .875rem; touch-action: manipulation; }
-.count { margin-bottom: .75rem; font-size: .85rem; color: var(--muted-foreground); }
+.count { font-size: .875rem; color: var(--muted-foreground); }
+.count + .scopes { margin-top: .6rem; }
 .muted { color: var(--muted-foreground); }
-.totals { margin-bottom: .75rem; border-radius: .75rem; background: var(--muted); padding: 0 .85rem; font-size: .85rem; overflow-wrap: anywhere; }
-.totals > summary { display: flex; flex-direction: column; justify-content: center; gap: .1rem; min-height: 44px; padding-block: .55rem; cursor: pointer; list-style: none; }
+/* One quiet line under the count, like Wanted's total. The breakdown opens in place. */
+.totals { margin-block: -.35rem .4rem; font-size: .875rem; overflow-wrap: anywhere; }
+.totals > summary { display: flex; flex-wrap: wrap; align-items: center; column-gap: .6rem; min-height: 36px; cursor: pointer; list-style: none; color: var(--muted-foreground); }
+.totals > summary strong { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
 .totals > summary::-webkit-details-marker { display: none; }
-.totals > summary::after { content: "Details"; font-size: .75rem; color: var(--muted-foreground); }
+.totals > summary::after { content: "Details"; font-size: .8rem; text-decoration: underline; text-underline-offset: 2px; }
 .totals[open] > summary::after { content: "Hide details"; }
-.totals > :not(summary) { margin-bottom: .5rem; }
+.totals > :not(summary) { margin-bottom: .5rem; color: var(--muted-foreground); }
 .totals details summary { min-height: 44px; padding-block: .65rem; cursor: pointer; }
 .wants { display: grid; gap: .35rem; padding-left: 1rem; list-style: disc; }
-.filterToggle { margin-block: .5rem; }
-.filterToggle > summary { display: flex; align-items: center; min-height: 44px; font-size: .875rem; font-weight: 500; cursor: pointer; }
 .selection { position: sticky; bottom: calc(var(--dock-clearance) + .5rem); z-index: 2; display: flex; align-items: center; gap: .5rem; margin-block: .5rem; padding: .5rem .5rem .5rem .75rem; border: 1px solid var(--border); border-radius: .85rem; background: var(--background); box-shadow: 0 8px 24px rgb(0 0 0 / .25); }
 .selection p { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .875rem; }
 .selection button { display: grid; place-items: center; flex-shrink: 0; min-height: 44px; min-width: 44px; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--background); color: inherit; font-size: .875rem; touch-action: manipulation; }
 .row { display: flex; align-items: stretch; gap: .25rem; min-width: 0; }
 .field { display: flex; flex-direction: column; min-width: 0; gap: .25rem; font-size: .8rem; }
 .field input, .field select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--border); border-radius: .6rem; padding: .5rem; background: var(--background); color: inherit; font-size: 16px; text-overflow: ellipsis; }
-.filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .65rem; margin-block: .25rem 1rem; }
+.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem .75rem; margin-top: .6rem; }
+.filters .scopes { margin-bottom: 0; }
+.filters .field { flex: 0 1 11rem; }
+.filters .field select { min-height: 40px; border-radius: .75rem; font-size: .875rem; }
 .list { display: grid; gap: .5rem; list-style: none; padding: 0; }
 .copy { scroll-margin-bottom: calc(var(--dock-clearance) + .5rem); display: flex; gap: .8rem; width: 100%; min-width: 0; text-align: left; border: 1px solid var(--border); border-radius: .85rem; padding: .75rem; background: var(--card); color: inherit; touch-action: manipulation; }
 .copy:active, .pagination button:active, .sheet button:active { transform: scale(.98); }
@@ -30,8 +36,8 @@
 .copyText { display: flex; flex-direction: column; gap: .15rem; min-width: 0; font-size: .8rem; overflow-wrap: anywhere; }
 .copyText strong { font-size: .95rem; }
 .grading { font-weight: 600; }
-.notice { background: var(--muted); padding: 1rem; border-radius: .75rem; margin-block: 1rem; overflow-wrap: anywhere; }
-.notice h2 { font-weight: 600; margin-bottom: .5rem; }
+.notice { padding: 2.5rem 1rem; text-align: center; font-size: .875rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.notice h2 { font-size: 1rem; font-weight: 600; margin-bottom: .25rem; color: var(--foreground); }
 .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .65rem; margin-block: 1rem; font-size: .8rem; }
 .pagination button, .sheet button, .ownership button { min-height: 44px; min-width: 44px; padding: .6rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--background); color: inherit; touch-action: manipulation; }
 .overlay { position: fixed; inset: 0; z-index: 40; }
@@ -66,7 +72,7 @@
 
 .headerActions { display: flex; flex-shrink: 0; gap: .4rem; }
 .add[aria-pressed="true"] { border-color: color-mix(in oklab, var(--primary) 55%, transparent); background: color-mix(in oklab, var(--primary) 14%, transparent); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.4rem), 1fr)); gap: .6rem; list-style: none; padding: 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.4rem), 1fr)); gap: .6rem; margin-top: .75rem; list-style: none; padding: 0; }
 @media (min-width: 640px) { .grid { grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: .8rem; } }
 .tile { position: relative; min-width: 0; }
 .tile .copy { flex-direction: column; gap: .4rem; height: 100%; padding: .35rem; border-radius: .7rem; }

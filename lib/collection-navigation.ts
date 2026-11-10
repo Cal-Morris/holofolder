@@ -5,7 +5,8 @@ import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 
 /** Rotate on authentication/membership lifecycle changes, even if actor/owner later match again. */
 export interface CollectionNavigationScope extends InventoryBrowseScope { sessionId: string }
-export type CollectionNavigationFocus = Pick<InventoryLocationIntent, "collectionId" | "slotId"> & { itemId?: string }
+/** `open` asks the binder to show the pocket's details on arrival, not only its page. */
+export type CollectionNavigationFocus = Pick<InventoryLocationIntent, "collectionId" | "slotId"> & { itemId?: string; open?: boolean }
 export interface InventoryViewState { query: InventoryBrowseQuery; window: number }
 export interface CollectionViewState { view: "binder" | "list" | "slabs"; page: number; search: string; scroll: number }
 export interface CollectionNavigationState {
@@ -53,7 +54,8 @@ export function normalizeNavigationState(value: unknown): CollectionNavigationSt
   const requestedSet = v.main === "dex" && v.dexView === "sets" && text(set.id).trim() && text(set.name).trim()
     ? { id: text(set.id), name: text(set.name) }
     : null
-  return { main: v.main === "collection" || v.main === "dex" ? v.main : "inventory", collectionId: typeof v.collectionId === "string" ? text(v.collectionId) : null,
+  // The binder is home: anything that doesn't name Inventory or the Dex opens the collection.
+  return { main: v.main === "inventory" || v.main === "dex" ? v.main : "collection", collectionId: typeof v.collectionId === "string" ? text(v.collectionId) : null,
     collections, inventory: { ...normalizeInventoryViewState(v.inventory), scroll: integer(object(v.inventory).scroll, 10000000) }, dexView: v.dexView === "wanted" || v.dexView === "sets" || v.dexView === "pokemon" || v.dexView === "analytics" ? v.dexView : "list", dexScroll: integer(v.dexScroll, 10000000), requestedSet }
 }
 // The navigation host asks for the index several times per render. One index is kept per read while its
@@ -106,10 +108,11 @@ export function resolveNavigation(state: CollectionNavigationState, scope: Colle
   // Missing/inaccessible and uncached collections never restore an old private screen.
   if (next.collectionId && !index.collections.some(c => c.id === next.collectionId)) {
     next.collectionId = index.collections[0]?.id ?? null
-    if (next.main === "collection" && !next.collectionId) next.main = "inventory"
     notice = "That collection is unavailable on this device. Showing available storage."
   }
   if (!next.collectionId) next.collectionId = index.collections[0]?.id ?? null
+  // With no binder to open, Inventory is the only place left to land.
+  if (next.main === "collection" && !next.collectionId) next.main = "inventory"
   if (next.inventory.query.collectionId && !index.collections.some(c => c.id === next.inventory.query.collectionId)) {
     next.inventory.query.collectionId = ""; next.inventory.window = 0
     notice ||= "That storage filter is unavailable. Showing all saved storage."

@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { adaptLegacyDisplaySlots, buildSlotDisplay, displaySlotImageUrl, displaySlotPreview, paginateDisplaySlots, resolveDisplaySelection } from "@/lib/binder-display-model"
+import { adaptLegacyDisplaySlots, buildSlotDisplay, displaySlotImageUrl, displaySlotPreview, paginateDisplaySlots, resolveDisplaySelection, speciesPocket } from "@/lib/binder-display-model"
 import { syntheticSlotDisplaySnapshot } from "@/tests/fixtures/slot-display"
 
 describe("stable binder display", () => {
@@ -22,6 +22,18 @@ describe("stable binder display", () => {
     const { slots: entries, ...rest } = binder
     const equivalent = { slots: entries, ...rest }
     assert.deepEqual(buildSlotDisplay(equivalent, inventory, id => catalog[id]).map(s => s.id), slots.map(s => s.id))
+  })
+  test("a Pokémon result opens its needed pocket first, then its first pocket, and nothing it has no pocket for", () => {
+    const { binder, inventory } = syntheticSlotDisplaySnapshot()
+    // Synthetic catalog evidence: only the trainer-less cards name a species.
+    const cardSpecies = (id: string) => ({ "synthetic-snorlax-a": [143], "synthetic-snorlax-b": [143], "synthetic-energy": [25] })[id]
+    assert.deepEqual(speciesPocket({ binder, inventory }, 143, cardSpecies), { slotId: "slot-e", index: 4, item: null, want: null })
+    const filled = { ...binder, slots: binder.slots.filter(slot => slot.id !== "slot-e") }
+    assert.equal(speciesPocket({ binder: filled, inventory }, 143, cardSpecies)?.slotId, "slot-a")
+    // A card pocket with no species target is still found through its card.
+    assert.equal(speciesPocket({ binder, inventory }, 25, cardSpecies)?.slotId, "slot-d")
+    assert.equal(speciesPocket({ binder, inventory }, 6, cardSpecies), null)
+    assert.equal(speciesPocket({ binder, inventory }, 143, () => undefined)?.slotId, "slot-e")
   })
   test("card detail retains human catalog metadata alongside the exact copy reference", () => {
     const { binder, inventory } = syntheticSlotDisplaySnapshot()

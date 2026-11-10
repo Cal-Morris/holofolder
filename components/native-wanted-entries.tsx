@@ -3,7 +3,8 @@
 import Image from "next/image"
 import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
-import { Search, Share2, SlidersHorizontal } from "lucide-react"
+import { Share2 } from "lucide-react"
+import { ListClearButton, ListControls, ListFiltersButton, ListSearch, ListSelect } from "@/components/list-controls"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useInventoryPriceState } from "@/hooks/use-inventory-prices"
 import { applyPriceStaleness } from "@/lib/price-freshness"
@@ -83,24 +84,14 @@ export default function NativeWantedEntries({ binding, card, finish, onCheck, pr
         </div>
         {onShare && entries.length > 0 && <button type="button" onClick={() => onShare(shown)} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-border/60 px-3 text-sm font-medium hover:bg-muted/60"><Share2 className="h-4 w-4" aria-hidden />Share</button>}
       </div>
-      {entries.length > 0 && <div className="flex flex-wrap items-center gap-2">
-        <label className="relative min-w-[10rem] flex-1">
-          <span className="sr-only">Search want list</span>
-          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cards, sets, artists" data-overlay-escape="clear"
-            className="h-11 w-full rounded-2xl border border-border/60 bg-background/85 pl-9 pr-3 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 md:text-sm" />
-        </label>
-        <label className="shrink-0"><span className="sr-only">Sort want list</span>
-          <select aria-label="Sort want list" value={view.sort} onChange={e => setView(v => ({ ...v, sort: e.target.value as WantedDashboardSort }))}
-            className="h-11 max-w-[11rem] rounded-2xl border border-border/60 bg-background/85 px-3 text-base font-medium outline-none md:text-sm">
-            {WANTED_SORTS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select></label>
-        <button type="button" aria-haspopup="dialog" onClick={() => setFiltersOpen(true)} data-testid="wanted-sort-filter"
-          className={`flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border px-3 text-sm font-semibold ${activeFilters ? "border-primary/45 bg-primary/12 text-primary" : "border-border/60 bg-background/85 hover:bg-muted/60"}`}>
-          <SlidersHorizontal className="h-4 w-4" aria-hidden />Filters{activeFilters > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">{activeFilters}</span>}
-        </button>
-        {activeFilters > 0 && <button type="button" onClick={() => setView(v => ({ ...v, filters: EMPTY_WANTED_FILTERS }))} className="h-11 rounded-2xl px-2 text-sm font-medium text-muted-foreground hover:text-foreground">Clear</button>}
-      </div>}
+      {entries.length > 0 && <ListControls>
+        <ListSearch label="Search want list" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cards, sets, artists" data-overlay-escape="clear" />
+        <ListSelect label="Sort want list" value={view.sort} onChange={e => setView(v => ({ ...v, sort: e.target.value as WantedDashboardSort }))}>
+          {WANTED_SORTS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+        </ListSelect>
+        <ListFiltersButton active={activeFilters} aria-haspopup="dialog" onClick={() => setFiltersOpen(true)} data-testid="wanted-sort-filter" />
+        {activeFilters > 0 && <ListClearButton onClick={() => setView(v => ({ ...v, filters: EMPTY_WANTED_FILTERS }))} />}
+      </ListControls>}
       {filtersOpen && <WantedFiltersSheet sort={view.sort} onSortChange={sort => setView(v => ({ ...v, sort }))} filters={view.filters} onFiltersChange={filters => setView(v => ({ ...v, filters }))}
         priceBands={summary.priceBands} sets={summary.setBreakdown} finishes={summary.finishBreakdown} languages={summary.languageBreakdown}
         risingCount={summary.cards.filter(c => getRisingMomentum(c.price) != null).length} dropCount={countWantedPriceDrops(summary.cards)}

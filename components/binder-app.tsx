@@ -114,7 +114,7 @@ import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import type { LayoutSessionStart, LayoutTap } from "@/components/binder/layout-editor"
 import type { WantedDashboardCard } from "@/lib/wanted-dashboard"
 import { pocketPlace } from "@/lib/pocket-labels"
-import { buildSlotDisplay, displaySlotImageUrl, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
+import { buildSlotDisplay, displaySlotImageUrl, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, speciesPocket, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
 import CachedNativeStartup from "@/components/cached-native-startup"
@@ -1259,6 +1259,26 @@ function BinderAppSurface(props: BinderAppProps) {
       else closeSlotDetail()
     })
   }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen, closeSlotDetail])
+  // Arriving from a search result or Quick mode elsewhere in the app: open that pocket once its page is up.
+  const arrivingSlot = browserSurface?.surface.collection?.highlight
+  const arrivingSlotId = arrivingSlot?.open ? arrivingSlot.slotId : null
+  useEffect(() => {
+    if (!arrivingSlotId) return
+    const timer = setTimeout(() => setSelectedSlotId(arrivingSlotId), 0)
+    return () => clearTimeout(timer)
+  }, [arrivingSlotId])
+  // Where a Pokémon lives in the binder being viewed. Collections keep their own pocket order, not dex order.
+  const nativeDisplay = browserSurface?.display, nativeCatalog = browserSurface?.nativeConsumer?.read.catalog, nativeLayouts = browserSurface?.nativeConsumer?.read.layouts
+  const nativePocket = useMemo(() => {
+    const layout = nativeDisplay && nativeLayouts?.find(l => l.collectionId === nativeDisplay.binder.collectionId && l.layoutRevision === nativeDisplay.binder.layoutRevision)
+    if (!nativeDisplay || !nativeCatalog || !layout) return null
+    const cardSpecies = new Map(nativeCatalog.map(c => [c.card.id, c.pokemonIds ?? []]))
+    return (pokemonId: number) => {
+      const pocket = speciesPocket(nativeDisplay, pokemonId, id => cardSpecies.get(id))
+      return pocket && { ...pocket, page: Math.floor(pocket.index / (layout.rows * layout.cols)) + 1, place: pocketPlace(pocket.index, layout.rows, layout.cols) }
+    }
+  }, [nativeDisplay, nativeCatalog, nativeLayouts])
+  const nativeBinderOpen = browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder" && activeMainView === "binder"
 
   const getPageSlots = useCallback((pageNumber: number) => {
     if (pageNumber < 1) {
@@ -2286,6 +2306,18 @@ function BinderAppSurface(props: BinderAppProps) {
   }, [cancelPageNavigation, currentBinderPage, activeMainView])
   const handlePokemonSelect = useCallback((pokemon: PokemonSummary) => {
     if (publicIndex) return openPublicLocation(publicIndex.speciesLocation(pokemon.id))
+    if (browserSurface) {
+      const pocket = nativePocket?.(pokemon.id)
+      setIsSearchOpen(false)
+      if (!pocket) {
+        // No pocket for it in this binder: its cards are the useful place to land.
+        cancelPageNavigation(); closeAllOverlays()
+        return setCardBrowser({ pokemon: { id: pokemon.id, name: pokemon.name }, highlightCardId: null, nested: false })
+      }
+      const page = (nativeBinderOpen ? orderedDisplayPages?.findIndex(slots => slots.some(slot => slot?.id === pocket.slotId)) : undefined) ?? -1
+      // From another view, or when a filter hides the pocket, the host opens the binder on that page.
+      return page < 0 ? browserSurface.surface.onSlot(pocket.slotId, pocket.page) : openPublicLocation({ page: page + 1, slotId: pocket.slotId })
+    }
     cancelPageNavigation()
     viewRequestRef.current += 1
     transitionContent(null, () => {})
@@ -2298,7 +2330,7 @@ function BinderAppSurface(props: BinderAppProps) {
       const targetPage = Math.ceil((idx + 1) / slotsPerPage)
       setCurrentBinderPage(targetPage)
     }
-  }, [pokemonList, slotsPerPage, transitionContent, cancelPageNavigation, publicIndex, openPublicLocation])
+  }, [pokemonList, slotsPerPage, transitionContent, cancelPageNavigation, publicIndex, openPublicLocation, browserSurface, nativePocket, nativeBinderOpen, orderedDisplayPages, setCardBrowser])
 
   const handleWantedSelect = (pokemon: PokemonSummary, card: WantedCard) => {
     if (publicIndex) return openPublicLocation(publicIndex.wantLocation(card))
@@ -2323,6 +2355,21 @@ function BinderAppSurface(props: BinderAppProps) {
   const getSearchResultMeta = useCallback((pokemon: { id: number; name: string }): PokemonSearchResultMeta => {
     if (publicIndex) return publicIndex.searchMeta(pokemon.id)
     const summary = getPokemonSummary(pokemon.id)
+    if (browserSurface) {
+      const pocket = nativePocket?.(pokemon.id)
+      const owned = pocket?.item?.identity.kind === "card" ? nativeDisplay?.resolveCard?.(pocket.item.identity.cardId, pocket.item.identity.language) : undefined
+      return {
+        ...buildPokemonSearchPreview({ pokemonArtwork: summary ? getPokemonArtwork(summary) : getPokemonOfficialArtworkUrl(pokemon.id), cardImage: pocket?.want?.card_image ?? owned?.image, status: pocket?.want ? "wishlisted" : undefined }),
+        stateLabel: pocket?.want ? "Wanted" : pocket?.item ? "Owned" : null,
+        stateToneClass: pocket?.want ? "bg-amber-500/15 text-amber-500" : "bg-emerald-500/15 text-emerald-400",
+        cardLabel: pocket?.want ? `Wanted: ${pocket.want.card_name}` : owned?.name ?? null,
+        locationLabel: pocket?.place ?? null,
+        // The page shortcut only means something while the binder itself is on screen.
+        pageNumber: nativeBinderOpen ? pocket?.page ?? null : null,
+        isSelected: Boolean(pocket && pocket.slotId === selectedSlotId),
+        slotState: pocket?.want ? "wanted" : pocket?.item ? "owned" : "open",
+      }
+    }
     const item = getCollectionItem(pokemon.id)
     const preview = buildPokemonSearchPreview({
       pokemonArtwork: summary ? getPokemonArtwork(summary) : getPokemonOfficialArtworkUrl(pokemon.id),
@@ -2378,7 +2425,7 @@ function BinderAppSurface(props: BinderAppProps) {
       slotState,
       elsewhereLabel: ownedElsewhereLabel(pokemon.id),
     }
-  }, [getCollectionItem, ownedElsewhereLabel, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage, publicIndex])
+  }, [getCollectionItem, ownedElsewhereLabel, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage, publicIndex, browserSurface, nativePocket, nativeDisplay, nativeBinderOpen, selectedSlotId])
 
   const handleJumpBetweenTargets = useCallback((direction: "next" | "prev") => {
     if (publicIndex && orderedDisplaySlots) {
@@ -3795,11 +3842,11 @@ function BinderAppSurface(props: BinderAppProps) {
   )
 
   // Native storage swaps List for Inventory in both the header and the dock.
-  const inventoryNavigation = browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory,
+  const inventoryNavigation = browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory, binderOpen: nativeBinderOpen,
     collectionActive: browserSurface.surface.state.main === "collection" && (activeMainView === "binder" || activeMainView === "list") } : undefined
   const renderAppHeader = () => renderAppHeaderView({ inventoryNavigation, activeBinder: browserSurface ? null : activeBinder, nativeStorage: Boolean(browserSurface), canManageShare, onNationalDex: browserSurface?.surface.onDex, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut: onBrowserSignOut ?? handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode: browserSurface ? legacyReadOnlyMode : readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
-  const renderMainContent = () => renderMainContentView({ nativeSpecies: speciesCollection, nativeWanted: nativeConsumer ? <>
+  const renderMainContent = () => renderMainContentView({ listTitle: browserSurface ? "National Dex" : undefined, nativeSpecies: speciesCollection, nativeWanted: nativeConsumer ? <>
       {wantedShareMessage && <p role="status" className="mx-auto w-full max-w-6xl px-4 pt-2 text-sm">{wantedShareMessage}</p>}
       <NativeWantedEntries presentation="wanted" binding={nativeConsumer} onCheck={nativeConsumer.openCard}
         pricing={pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount } : undefined} onShare={cards => { void handleShareWantedList(cards) }} /></> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
@@ -3909,8 +3956,8 @@ function BinderAppSurface(props: BinderAppProps) {
 
       {/* Glass Navigation */}
       {legacyHeader}
-      {browserSurface && <div className="flex shrink-0 items-center gap-1 px-3 pb-1">
-        {browserSurface.surface.state.main === "dex" && <p className="shrink-0 px-1 text-sm font-semibold">{activeMainView === "analytics" ? "Collection analytics" : "National Dex"}</p>}
+      {/* The same row on every view: binder picker first, that view's tools after. Pages carry their own title. */}
+      {browserSurface && <div className="flex shrink-0 items-center gap-1 px-3 pb-1 sm:px-4 md:px-7">
         {browserSurface.toolbar}
         {browserSurface.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
           && activeMainView === "binder" && !legacyReadOnlyMode && !shareViewToken && !editingLayout && stagedSlotDisplay && stagedSlotCatalog && browserSurface.scan

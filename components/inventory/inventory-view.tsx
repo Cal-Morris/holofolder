@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { Check, X } from "lucide-react"
 import { runAfterOverlayHistory } from "@/hooks/use-overlay"
 import CardImage from "@/components/card-image"
+import { ListClearButton, ListControls, ListFiltersButton, ListSearch, ListSelect } from "@/components/list-controls"
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseScope, InventoryCatalogEvidence,
   InventoryLayoutEvidence, InventoryLocationIntent } from "@/lib/domain/inventory-browse"
 import { buildInventoryBrowseIndex, inventoryGradingLabel, inventorySelectLabels, inventoryWantSlotKey, queryInventory, restoreInventoryWindow,
@@ -60,6 +61,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function InventoryResults({ index, labels, savedState, pricingRegion = "UK", onOpenLocation, onEditGrading, initialBrowseState, onBrowseStateChange, ownership }: Pick<InventoryViewProps, "ownership" | "pricingRegion" | "onEditGrading" | "onOpenLocation" | "initialBrowseState" | "onBrowseStateChange" | "savedState"> & { index: InventoryBrowseIndex; labels?: InventoryLabels }) {
   const [initial] = useState(() => {
     const state = normalizeInventoryViewState(initialBrowseState)
+    if (state.query.assignment === "assigned") state.query.assignment = "all"
     return { query: state.query, ...restoreInventoryWindow(index, state.query, state.window) }
   })
   const [query, setQuery] = useState<InventoryBrowseQuery>(initial.query)
@@ -102,10 +104,13 @@ function InventoryResults({ index, labels, savedState, pricingRegion = "UK", onO
   const projection = useMemo(() => index.projection ? selectInventoryCollection(index.projection, query.collectionId) : null, [index, query.collectionId])
   const { prices, status: priceStatus } = useInventoryPriceState(index.projection?.priceRequests ?? [])
   const valuation = projection ? valueInventoryCollection(projection, prices, pricingRegion) : null
-  const filtersActive = [query.collectionId, query.page, query.assignment !== "all" && query.assignment, query.condition !== "all" && query.condition, query.provider, query.grade].filter(Boolean).length
-  const [filtersOpen, setFiltersOpen] = useState(() => filtersActive > 0 || (query.sort ?? "name") !== "name")
-  const scopeName = query.collectionId ? index.collections.find(c => c.id === query.collectionId)?.name ?? "This collection" : "All collections"
-  const searching = Boolean(query.search?.trim()) || filtersActive > 0
+  // Where a card is belongs to the scope chips. Filters are only about the card itself.
+  const scoped = Boolean(query.collectionId || query.page || query.assignment && query.assignment !== "all")
+  const filtersActive = [query.condition !== "all" && query.condition, query.provider, query.grade].filter(Boolean).length
+  const [filtersOpen, setFiltersOpen] = useState(() => filtersActive > 0)
+  const hasGraded = index.rows.some(r => r.graded)
+  const searching = Boolean(query.search?.trim()) || scoped || filtersActive > 0
+  const pounds = (amount: number) => `£${amount.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   // Pages of the chosen collection that hold at least one card, so a page can be picked directly.
   const scopePages = useMemo(() => query.collectionId ? [...new Set(index.rows.flatMap(r => r.location.kind === "assigned" && r.location.intent.collectionId === query.collectionId && r.location.page ? [r.location.page] : []))].sort((a, b) => a - b) : [],
     [index, query.collectionId])
@@ -123,19 +128,9 @@ function InventoryResults({ index, labels, savedState, pricingRegion = "UK", onO
       <h2>Your cards couldn&apos;t be loaded</h2><p>{savedState === "offline" ? "You're offline and nothing is saved on this device yet. Connect to load your collection." : "Check your connection and try again in a moment. Nothing has been changed."}</p>
     </div> : <>
       <p aria-live="polite" className={styles.count}>{searching ? `${result.total} of ${count} ${count === 1 ? "card" : "cards"}` : `${count} ${count === 1 ? "card" : "cards"}`}{savedLine && <span data-saved-state={savedState ?? "last-saved"}> · {savedLine}</span>}</p>
-      {index.collections.length > 0 && <div role="group" aria-label="Show cards from" className={styles.scopes}>
-        <button type="button" aria-pressed={!query.collectionId && query.assignment !== "unassigned"} onClick={() => change({ collectionId: "", page: undefined, assignment: "all" })}>All collections</button>
-        {index.collections.map(c => <button key={c.id} type="button" aria-pressed={query.collectionId === c.id} onClick={() => change({ collectionId: c.id, page: undefined, assignment: "all" })}>{c.name}</button>)}
-        <button type="button" aria-pressed={!query.collectionId && query.assignment === "unassigned"} onClick={() => change({ collectionId: "", page: undefined, assignment: "unassigned" })}>Not in a binder</button>
-      </div>}
-      {query.collectionId && scopePages.length > 1 && <div role="group" aria-label="Page" className={styles.scopes}>
-        <button type="button" aria-pressed={!query.page} onClick={() => change({ page: undefined })}>All pages</button>
-        {scopePages.map(page => <button key={page} type="button" aria-pressed={query.page === page} onClick={() => change({ page })}>Page {page}</button>)}
-      </div>}
       {projection && valuation && <details aria-label="Collection totals" role="region" className={styles.totals}>
-        <summary><strong>{scopeName}</strong>
-          <span>{valuation.rawPricedCopies ? `Worth about £${valuation.rawTotalGbp.toFixed(2)} · ${valuation.rawPricedCopies} of ${valuation.rawPricedCopies + valuation.rawUnknownCopies} cards priced`
-            : priceStatus === "loading" ? "Loading saved prices…" : priceStatus === "unavailable" ? "Saved prices couldn't be loaded" : "No saved prices yet"}</span></summary>
+        <summary>{valuation.rawPricedCopies ? <span><strong>Worth about {pounds(valuation.rawTotalGbp)}</strong> · {valuation.rawPricedCopies} of {valuation.rawPricedCopies + valuation.rawUnknownCopies} cards priced</span>
+            : <span>{priceStatus === "loading" ? "Loading saved prices…" : priceStatus === "unavailable" ? "Saved prices couldn't be loaded" : "No saved prices yet"}</span>}</summary>
         <p>{projection.owned.length} {projection.owned.length === 1 ? "card" : "cards"} · {projection.wants.length} wanted · {projection.speciesIds.length} Pokémon</p>
         {projection.unknownSpeciesCopies > 0 && <p>{projection.unknownSpeciesCopies} {projection.unknownSpeciesCopies === 1 ? "card isn't" : "cards aren't"} linked to a Pokémon</p>}
         {valuation.gradedUnknownCopies > 0 && <p>{valuation.gradedUnknownCopies} graded {valuation.gradedUnknownCopies === 1 ? "card isn't" : "cards aren't"} valued, so {valuation.gradedUnknownCopies === 1 ? "it's" : "they're"} left out of the total</p>}
@@ -143,36 +138,47 @@ function InventoryResults({ index, labels, savedState, pricingRegion = "UK", onO
         {projection.wants.length > 0 && <details><summary>Wanted cards and where they go</summary><ul aria-label="Wanted cards" className={styles.wants}>{projection.wants.map(w =>
           <li key={JSON.stringify([w.collectionId, w.slotId, w.index])}>{[w.card.card_name, w.card.card_language ? formatCardLanguageLabel(w.card.card_language) : null, w.card.card_finish ? formatCardFinishLabel(w.card.card_finish) : null, index.wantLocations.get(inventoryWantSlotKey(w)) ?? "Location unknown"].filter(Boolean).join(" · ")}</li>)}</ul></details>}
       </details>}
-      <label className={styles.field}><span className="sr-only">Search inventory</span><input type="search" value={query.search ?? ""} onChange={e => change({ search: e.target.value })} placeholder="Search card, Pokémon, set or number" /></label>
-      <details className={styles.filterToggle} open={filtersOpen} onToggle={e => setFiltersOpen(e.currentTarget.open)}>
-        <summary>Filter and sort{filtersActive ? ` · ${filtersActive} active` : ""}</summary>
-        <div className={styles.filters}>
-        <Field label="Where"><select aria-label="Where" value={query.assignment ?? "all"} onChange={e => change({ assignment: e.target.value as InventoryBrowseQuery["assignment"] })}>
-          <option value="all">Anywhere</option><option value="assigned">In a binder</option><option value="unassigned">Not in a binder</option>
-          {index.kind === "cached" && <option value="unknown">Location unknown</option>}
-        </select></Field>
-        <Field label="Condition"><select value={query.condition ?? "all"} onChange={e => change({ condition: e.target.value as InventoryBrowseQuery["condition"] })}>
-          <option value="all">Raw and graded</option><option value="raw">Raw</option><option value="graded">Graded</option>
-        </select></Field>
-        <Field label="Graded by"><select aria-label="Graded by" value={query.provider ?? ""} onChange={e => change({ provider: e.target.value, grade: "" })}>
-          <option value="">Anyone</option>{providers.map(p => <option key={p}>{p}</option>)}
-        </select></Field>
-        <Field label="Grade"><select aria-label="Grade" value={query.grade ?? ""} onChange={e => change({ grade: e.target.value })}>
-          <option value="">All grades</option>{grades.map(g => <option key={g}>{g}</option>)}
-        </select></Field>
-        <Field label="Sort"><select value={query.sort ?? "name"} onChange={e => change({ sort: e.target.value as InventoryBrowseQuery["sort"] })}>
+      {index.collections.length > 0 && <div role="group" aria-label="Show cards from" className={styles.scopes}>
+        <button type="button" aria-pressed={!query.collectionId && query.assignment !== "unassigned" && query.assignment !== "unknown"} onClick={() => change({ collectionId: "", page: undefined, assignment: "all" })}>All collections</button>
+        {index.collections.map(c => <button key={c.id} type="button" aria-pressed={query.collectionId === c.id} onClick={() => change({ collectionId: c.id, page: undefined, assignment: "all" })}>{c.name}</button>)}
+        <button type="button" aria-pressed={!query.collectionId && query.assignment === "unassigned"} onClick={() => change({ collectionId: "", page: undefined, assignment: "unassigned" })}>Not in a binder</button>
+        {index.kind === "cached" && index.rows.some(r => r.location.kind === "unknown") && <button type="button" aria-pressed={!query.collectionId && query.assignment === "unknown"} onClick={() => change({ collectionId: "", page: undefined, assignment: "unknown" })}>Location unknown</button>}
+      </div>}
+      {query.collectionId && scopePages.length > 1 && <div role="group" aria-label="Page" className={styles.scopes}>
+        <button type="button" aria-pressed={!query.page} onClick={() => change({ page: undefined })}>All pages</button>
+        {scopePages.map(page => <button key={page} type="button" aria-pressed={query.page === page} onClick={() => change({ page })}>Page {page}</button>)}
+      </div>}
+      <ListControls>
+        <ListSearch label="Search inventory" value={query.search ?? ""} onChange={e => change({ search: e.target.value })} placeholder="Search card, Pokémon, set or number" />
+        <ListSelect label="Sort" value={query.sort ?? "name"} onChange={e => change({ sort: e.target.value as InventoryBrowseQuery["sort"] })}>
           <option value="name">Card name</option><option value="set">Set / number</option><option value="location">Location</option>
           <option value="grading">Grading</option>{query.sort === "id" && <option value="id">Unsorted</option>}
-        </select></Field>
+        </ListSelect>
+        {/* Raw or graded only matters once there is a graded card to tell apart. */}
+        {(hasGraded || filtersActive > 0) && <ListFiltersButton active={filtersActive} aria-expanded={filtersOpen} onClick={() => setFiltersOpen(open => !open)} />}
+        {filtersActive > 0 && <ListClearButton onClick={() => change({ condition: "all", provider: "", grade: "" })} />}
+      </ListControls>
+      {filtersOpen && (hasGraded || filtersActive > 0) && <div role="group" aria-label="Filters" className={styles.filters}>
+        <div role="group" aria-label="Condition" className={styles.scopes}>
+          {([["all", "Raw and graded"], ["raw", "Raw"], ["graded", "Graded"]] as const).map(([value, label]) =>
+            <button key={value} type="button" aria-pressed={(query.condition ?? "all") === value} onClick={() => change({ condition: value, ...(value === "raw" ? { provider: "", grade: "" } : {}) })}>{label}</button>)}
         </div>
-      </details>
+        {providers.length > 0 && query.condition !== "raw" && <>
+          <Field label="Graded by"><select aria-label="Graded by" value={query.provider ?? ""} onChange={e => change({ provider: e.target.value, grade: "" })}>
+            <option value="">Anyone</option>{providers.map(p => <option key={p}>{p}</option>)}
+          </select></Field>
+          <Field label="Grade"><select aria-label="Grade" value={query.grade ?? ""} onChange={e => change({ grade: e.target.value })}>
+            <option value="">All grades</option>{grades.map(g => <option key={g}>{g}</option>)}
+          </select></Field>
+        </>}
+      </div>}
       {ownership?.available && selecting && <section aria-label="Inventory selection" className={styles.selection}>
         <p aria-live="polite">{bulkIds.length ? `${bulkIds.length} selected` : "Tap cards to select"}</p>
         <button type="button" disabled={!bulkIds.length} onClick={() => setBulkReview(true)}>Move</button>
         {bulkIds.length > 0 && <button type="button" aria-label="Clear selection" onClick={() => setBulkIds([])}><X size={18} aria-hidden /></button>}
       </section>}
       {!result.total ? <div role="status" className={styles.notice}><h2>{count ? "No cards match" : index.kind === "cached" ? "Nothing saved on this device yet" : "No cards yet"}</h2>
-        <p>{count ? "Try another search or filter." : index.kind === "cached" ? "Connect to load your collection. This doesn't mean you own no cards." : "Cards you add to a binder or with Add owned card show up here."}</p></div> : <>
+        <p>{count ? scoped || filtersActive ? "Try another search, or look in a different place." : "Try another search." : index.kind === "cached" ? "Connect to load your collection. This doesn't mean you own no cards." : "Cards you add to a binder or with Add owned card show up here."}</p></div> : <>
         {/* A wall of cards: the art first, then what it is, where it sits and what it is worth. */}
         <ul className={styles.grid} aria-label="Owned copies">{result.rows.map(r => {
           const selectLabel = selectLabels.get(r.itemId)
