@@ -8,7 +8,7 @@ import type { ActiveMainView, CollectionViewFilter } from "@/components/binder/b
 import { preloadTabView } from "@/components/binder/lazy-views"
 
 export interface BottomNavContext {
-  inventoryNavigation?: { active: boolean; open: () => void; collection: () => void }
+  inventoryNavigation?: { active: boolean; open: () => void }
   activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
   activeJumpPokemonList: PokemonEntry[]
   activeMainView: ActiveMainView
@@ -32,6 +32,8 @@ export interface BottomNavContext {
 
 export function renderBottomNavView(ctx: BottomNavContext) {
   const { activeJumpLabel, activeJumpPokemonList, activeMainView, handleJumpToNextNeeded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, switchMainView } = ctx
+  // Native Inventory also renders under the "binder" main view; only one dock tab is ever pressed.
+  const binderActive = !isSearchOpen && !isQuickModeOpen && activeMainView === "binder" && !ctx.inventoryNavigation?.active
   return (
     <nav aria-label="Main navigation" data-dock className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden border-t border-border/40 bg-background pl-[var(--left-inset)] pr-[var(--right-inset)] pb-[var(--dock-inset)] md:hidden">
       <div data-scroll-blur="card" className="mx-auto grid h-[calc(var(--dock-bar)-1px)] w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
@@ -58,15 +60,12 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">Search</span>
           </button>
           <button
-            onClick={() => {
-              if (ctx.inventoryNavigation) ctx.inventoryNavigation.collection()
-              else void switchMainView("binder")
-            }}
+            onClick={() => void switchMainView("binder")}
             aria-label="Binder"
-            aria-pressed={!isSearchOpen && !isQuickModeOpen && activeMainView === "binder"}
+            aria-pressed={binderActive}
             title="Binder"
             className={`flex h-11 flex-col gap-0.5 min-w-0 items-center justify-center rounded-full px-1 transition-colors ${
-                !isSearchOpen && !isQuickModeOpen && activeMainView === "binder" ? "holo-selected text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
+                binderActive ? "holo-selected text-primary [&>svg]:stroke-[2.5] [&>span]:font-semibold" : "text-muted-foreground"
               }`}
           >
             <Grid3X3 className="h-4 w-4" aria-hidden />

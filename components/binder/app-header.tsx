@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { HeaderMoreMenu } from "@/components/header-more-menu"
 import { Button } from "@/components/ui/button"
 import { formatMoney } from "@/lib/regional-price"
@@ -107,7 +108,15 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <span className="truncate text-sm font-semibold">{activeBinder.name}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
             </button>
-          ) : <span className={`min-w-0 flex-1 truncate text-sm font-semibold xl:flex-none ${ctx.user ? "px-1.5" : "md:px-1.5"}`}>{readOnlyMode ? "Shared binder" : "Holo Folder"}</span>}
+          ) : (
+            // Brand is home: back to this scope's binder (a share stays in its own read-only binder).
+            <div className="flex min-w-0 flex-1 xl:flex-none">
+              <button type="button" data-testid="header-brand-home" onClick={() => void switchMainView("binder")} aria-label={`${readOnlyMode ? "Shared binder" : "Holo Folder"}: back to binder`} className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${ctx.user ? "px-1.5" : "md:px-1.5"}`}>
+                <Image src="/app/holofolder-mark.png" alt="" width={20} height={20} unoptimized className="h-5 w-5 shrink-0" />
+                <span className="truncate text-sm font-semibold">{readOnlyMode ? "Shared binder" : "Holo Folder"}</span>
+              </button>
+            </div>
+          )}
 
           <div className="order-last hidden w-full items-center gap-1 border-t border-border/40 pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
             {destinations.map(({ id, label, icon: Icon }) => (
