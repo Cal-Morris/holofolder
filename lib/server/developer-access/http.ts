@@ -21,7 +21,7 @@ export async function handleRestRequest(request:Request,{params}:{params:Promise
   }
   const body=request.method==='GET'?{}:await readDeveloperJson(request,match.operation.maxBytes??(match.operation.name==='update_appearance'?131072:65536))
   const candidate:Record<string,unknown>={...query,...body,...match.params}
-  if(match.operation.schema.shape.idempotencyKey) {
+  if('shape' in match.operation.schema && match.operation.schema.shape.idempotencyKey) {
    const header=request.headers.get('idempotency-key')
    if(header && candidate.idempotencyKey && header!==candidate.idempotencyKey)throw new DeveloperAccessError('invalid_idempotency_key','Idempotency keys in the header and body must match.',400)
    candidate.idempotencyKey=header??candidate.idempotencyKey

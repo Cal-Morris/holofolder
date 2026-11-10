@@ -25,9 +25,9 @@ async function main() {
     calls.push(body)
     if (unknown) throw new DOMException('Synthetic lost COMMIT reply', 'AbortError')
     if (errorCode) return Response.json({ code: errorCode, message: 'synthetic private SQL' }, { status: 400 })
-    if (terminal) return Response.json({ outcome: 'rejected', operationId: f.input.operationId, inventoryRevision: 10, code: 'inventory_revision_conflict' })
-    return Response.json({ changed: true, inventoryRevision: 9, collectionId: f.input.choices.collectionId, collectionVersion: 3, layoutRevision: 3,
-      slotIds: f.input.choices.slotIds, releasedItemIds: ['copy-b'], certificate: 'synthetic-private' })
+    if (terminal) return Response.json({ version: 2, outcome: 'rejected', operationId: f.input.operationId, inventoryRevision: 10, code: 'inventory_revision_conflict' })
+    return Response.json({ version: 2, changed: true, inventoryRevision: 9, collectionId: f.input.choices.collectionId, collectionVersion: 3, layoutRevision: 3,
+      slotIds: f.input.choices.slotIds, releasedItemIds: ['copy-b'] })
   }
   const { prepareAppRawContentRestore, confirmAppRawContentRestore, deliverAppRawContentRestore } = await import('../../lib/server/operations/raw-restore')
   const request = (authSession = scope.authSessionId!) => new Request('https://holofolder.com/app/api/internal-not-admitted', {
@@ -56,5 +56,19 @@ async function main() {
     errorCode = code
     await assert.rejects(deliverAppRawContentRestore(request(), plan), (e: unknown) => !!e && typeof e === 'object' && !('rejection' in e))
   }
+  // The paid/unlimited hint must admit a bounded 1,025-want increase, not impose a separate 1,024 cap.
+  mock.module('../../lib/server/billing', () => ({ getBillingAccess: async () => ({ enforced: true, tier: 'paid', savedCardCount: 0, cardLimit: null }) }))
+  const { createBinderBackupV2 } = await import('@/lib/binder-backup-v2')
+  const large = structuredClone(f.snapshot)
+  large.items = []; large.placements = []
+  large.binders[0].slots = Array.from({ length: 1025 }, (_, n) => ({ ...large.binders[0].slots[0], id: 'synthetic-paid-' + n, inventoryItemId: null, status: null, wantedCards: [] }))
+  current = await f.brand(large)
+  const desired = structuredClone(large)
+  for (const slot of desired.binders[0].slots) slot.wantedCards = [{ card_id: 'synthetic-raw-trainer', card_name: 'Synthetic paid want', added_at: '2020-01-01', wanted_by: [scope.actorUserId] }]
+  const backup = createBinderBackupV2({ snapshot: desired, completeness: 'complete-owner', scope: 'collection', collectionId: f.input.choices.collectionId, layouts: f.input.layouts, partnerUserId: scope.actorUserId })
+  const paidPlan = await prepareAppRawContentRestore(request(), { text: JSON.stringify(backup), operationId: 'synthetic-paid-1025-wants',
+    choices: { ...f.input.choices, slotIds: large.binders[0].slots.map(s => s.id), releaseItemIds: [] } })
+  assert.equal(paidPlan.request.slots.reduce((n, s) => n + s.after.wantedCards.length, 0), 1025)
+
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

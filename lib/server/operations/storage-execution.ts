@@ -1,4 +1,5 @@
-import { isRawRestoreRejection, type RawRestoreCommand } from '@/lib/domain/raw-restore'
+import { isRawRestoreReceipt as isBoundRawRestoreReceipt } from '@/lib/collection/raw-restore-delivery'
+import { RAW_RESTORE_V2_LIMITS, isRawRestoreRejection, type RawRestoreCommand } from '@/lib/domain/raw-restore'
 import { isCreationRejection, isImportRejection } from '@/lib/collection/creation-import-rejection'
 import "server-only"
 import { isRecoveryRejection } from "@/lib/collection/recovery-rejection"
@@ -57,7 +58,7 @@ export async function executeMcpStorageRequest(request: Request, operation: Stor
   const context = await requireMcpContext(request, STORAGE_PERMISSIONS, "write")
   return executeDeveloperStorageOperation(context, operation, input)
 }
-const storageRequestBytes = (operation: StorageOperation) => ["inventory", "backup.arrangement"].includes(operation) ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
+const storageRequestBytes = (operation: StorageOperation) => operation === "backup.restore.raw" ? RAW_RESTORE_V2_LIMITS.bytes : ["inventory", "backup.arrangement"].includes(operation) ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
 // Slots can change wanted cards and release placements; every operation needs both write scopes.
 const STORAGE_PERMISSIONS = ["collection:write", "binders:write"] as const
 
@@ -84,11 +85,12 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
     if (error) throw storageExecutionError(error)
     if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
     if ((operation === "recovery.apply" || operation === "recovery.apply.v2") && isRecoveryRejection(data, operationId)) return { ...data }
-    if (operation === "backup.restore.raw" && isRawRestoreRejection(data, operationId)) return { ...data }
+    if (operation === "backup.restore.raw" && isRawRestoreRejection(data, operationId, (input as RawRestoreCommand).version)) return { ...data }
     if (operation === "collection.create" && isCreationRejection(data, operationId)) return { ...data }
     if (operation === "backup.arrangement" && isImportRejection(data, operationId)) return { ...data }
     // A malformed terminal row must never fall through to an accepted receipt projection.
     if (data && typeof data === "object" && "outcome" in data) throw storageExecutionError(null)
+    if (operation === 'backup.restore.raw' && !isBoundRawRestoreReceipt(data, input as RawRestoreCommand)) throw storageExecutionError(null)
     return normalizeStorageResult(operation, data)
   })
 }

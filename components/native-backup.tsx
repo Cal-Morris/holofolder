@@ -17,6 +17,7 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
   const [preview, setPreview] = useState<ReturnType<typeof inspectNativeBackup> | null>(null)
   const [fileText, setFileText] = useState<string | null>(null)
   const [rawReview, setRawReview] = useState<Awaited<ReturnType<typeof inspectRawRestore>> | null>(null)
+  const [copyPage, setCopyPage] = useState(0), [slotPage, setSlotPage] = useState(0)
   const [releaseConsent, setReleaseConsent] = useState<string[]>([])
   const [command, setCommand] = useState<RawRestoreCommand | null>(null)
   const contextKey = JSON.stringify([binding.available, binding.revisionKey])
@@ -104,24 +105,37 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
         </section>
         {restore && collectionId && fileText && (preview?.scope === "collection" || rawReview) && <section className="space-y-3" aria-label="Bounded raw collection restore">
           <h3 className="font-medium">Restore raw collection content</h3>
-          <p>One current raw collection only, with the same slots, configuration and grid. No new copies, grades, converted data, settings or assets. Matching file IDs do not prove provenance.</p>
+          <p>One current raw collection only, with the same slots, configuration and grid. Copied manifest and each slot origin stay unchanged. Up to 1,025 slots, within the reviewed content budget. No new copies, grades, converted data, settings or assets. Matching file IDs do not prove provenance.</p>
           {!rawReview && <button className={buttonClass} disabled={busy || !binding.available} onClick={() => void run(async active => {
             const review = await inspectRawRestore(latest.current, fileText!, collectionId, active)
-            if (active()) { setRawReview(review); setReleaseConsent([]); setCommand(null) }
+            if (active()) { setRawReview(review); setCopyPage(0); setSlotPage(0); setReleaseConsent([]); setCommand(null) }
           })}>Review raw collection locally</button>}
           {rawReview && <div className="space-y-3 break-words [overflow-wrap:anywhere]">
             <p>Current collection: {collectionId}. Ordered slots and grid stay unchanged. Released copies remain owned in Unassigned.</p>
-            {rawReview.placements.map(p => <p key={p.itemId}>Copy {p.itemId}: {p.from ?? 'Unassigned'} → {p.to ?? 'Unassigned'}</p>)}
-            {rawReview.choices.releaseItemIds.map(id => <label key={id} className="flex min-h-10 items-center gap-2">
-              <input type="checkbox" className="h-5 w-5 shrink-0" disabled={busy || !!command} checked={releaseConsent.includes(id)} onChange={e => setReleaseConsent(values => e.target.checked ? [...values, id] : values.filter(v => v !== id))} />
-              <span>Release copy {id} to Unassigned, keep ownership</span>
-            </label>)}
+            <p>{rawReview.slots.length.toLocaleString()} slots, {rawReview.placements.length.toLocaleString()} involved copies, {rawReview.choices.releaseItemIds.length.toLocaleString()} explicit releases to Unassigned.</p>
+            {rawReview.placements.slice(copyPage * 50, (copyPage + 1) * 50).map(p => <div key={p.itemId} className="space-y-1">
+              <p>Copy {p.itemId}: {p.from ?? 'Unassigned'} → {p.to ?? 'Unassigned'}</p>
+              {rawReview.choices.releaseItemIds.includes(p.itemId) && <label className="flex min-h-10 items-center gap-2">
+                <input type="checkbox" className="h-5 w-5 shrink-0" disabled={busy || !!command} checked={releaseConsent.includes(p.itemId)} onChange={e => setReleaseConsent(values => e.target.checked ? [...values, p.itemId] : values.filter(v => v !== p.itemId))} />
+                <span>Release copy {p.itemId} to Unassigned, keep ownership</span>
+              </label>}
+            </div>)}
+            {rawReview.placements.length > 50 && <nav aria-label="Copy review pages" className="flex flex-wrap items-center gap-2">
+              <button className={buttonClass} disabled={copyPage === 0} onClick={() => setCopyPage(p => p - 1)}>Previous copies</button>
+              <span>Copy page {copyPage + 1} of {Math.ceil(rawReview.placements.length / 50)}</span>
+              <button className={buttonClass} disabled={(copyPage + 1) * 50 >= rawReview.placements.length} onClick={() => setCopyPage(p => p + 1)}>Next copies</button>
+            </nav>}
             <details><summary className="min-h-10 cursor-pointer py-2">Exact targets, status and wanted choices</summary>
-              {rawReview.slots.map((slot, n) => <div key={slot.before.id} className="my-2 rounded-lg border p-2">
-                <p>Slot {n + 1}: {slot.before.id}</p>
+              {rawReview.slots.slice(slotPage * 50, (slotPage + 1) * 50).map((slot, n) => <div key={slot.before.id} className="my-2 rounded-lg border p-2">
+                <p>Slot {slotPage * 50 + n + 1}: {slot.before.id}</p>
                 <p>Before target: {JSON.stringify(slot.before.target)}, status: {slot.before.status ?? 'empty'}, wants: {JSON.stringify(slot.before.wantedCards)}</p>
                 <p>After target: {JSON.stringify(slot.after.target)}, status: {slot.after.status ?? 'empty'}, wants: {JSON.stringify(slot.after.wantedCards)}</p>
               </div>)}
+              {rawReview.slots.length > 50 && <nav aria-label="Slot review pages" className="flex flex-wrap items-center gap-2">
+                <button className={buttonClass} disabled={slotPage === 0} onClick={() => setSlotPage(p => p - 1)}>Previous slots</button>
+                <span>Slot page {slotPage + 1} of {Math.ceil(rawReview.slots.length / 50)}</span>
+                <button className={buttonClass} disabled={(slotPage + 1) * 50 >= rawReview.slots.length} onClick={() => setSlotPage(p => p + 1)}>Next slots</button>
+              </nav>}
             </details>
             <p>Private server review is a separate action. It sends this file and your explicit choices to the authenticated planner. No file cache, server backup store or provider lookup is created. Review makes no collection changes.</p>
             {!command && <button className={buttonClass} disabled={busy || !binding.available || releaseConsent.length !== rawReview.choices.releaseItemIds.length} onClick={() => void run(async active => {

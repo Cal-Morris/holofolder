@@ -1,4 +1,4 @@
-import { parseRawRestoreCommand, isRawRestoreReceipt, RAW_RESTORE_LIMITS } from '@/lib/domain/raw-restore'
+import { parseRawRestoreCommand, isRawRestoreReceipt } from '@/lib/domain/raw-restore'
 import { parseNativeRecoveryRequest } from "@/lib/domain/native-recovery"
 import { parseBackupArrangementCommand, BACKUP_IMPORT_LIMITS } from "@/lib/domain/backup-import-command"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
@@ -64,12 +64,8 @@ export function normalizeStorageResult(operation: StorageOperation, value: unkno
   }
   const result: Record<string, unknown> = { inventoryRevision: revision("inventoryRevision") }
   if (operation === "backup.restore.raw") {
-    if (!isBinderId(row.collectionId) || row.changed !== true || !ids(row.slotIds, RAW_RESTORE_LIMITS.slots)
-      || new Set(row.slotIds).size !== row.slotIds.length || !ids(row.releasedItemIds, RAW_RESTORE_LIMITS.items)) return unavailable()
-    const receipt = { ...result, collectionId: row.collectionId, collectionVersion: revision("collectionVersion"), layoutRevision: revision("layoutRevision"),
-      changed: true, slotIds: [...row.slotIds], releasedItemIds: [...row.releasedItemIds] }
-    if (!isRawRestoreReceipt(receipt)) return unavailable()
-    return { ...receipt }
+    if (!isRawRestoreReceipt(row)) return unavailable()
+    return { ...row, slotIds: [...row.slotIds], releasedItemIds: [...row.releasedItemIds] }
   }
   if (operation === "backup.arrangement") {
     if (!isBinderId(row.collectionId) || row.changed !== true || !ids(row.slotIds, BACKUP_IMPORT_LIMITS.slots)

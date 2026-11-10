@@ -10,7 +10,7 @@ async function record(page: Page) {
     const db = await new Promise<IDBDatabase>((resolve, reject) => { const r = indexedDB.open('binderdex-offline'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error) })
     const rows = await new Promise<unknown[]>((resolve, reject) => { const r = db.transaction('records').objectStore('records').getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error) })
     db.close()
-    return rows.find((r): r is { pending: { intent: { kind: string; request: { operationId: string } }; rawRestoreProof?: { receipt: unknown; rejection: unknown }; base: unknown }[]; receipts: unknown[]; snapshot: { items: { id: string }[]; placements: { inventoryItemId: string }[] } } => !!r && typeof r === 'object' && 'pending' in r && 'scope' in r) ?? null
+    return rows.find((r): r is { pending: { status: string; lease: { until: number } | null; intent: { kind: string; request: { operationId: string } }; rawRestoreProof?: { receipt: unknown; rejection: unknown }; base: unknown }[]; receipts: unknown[]; snapshot: { items: { id: string }[]; placements: { inventoryItemId: string }[] } } => !!r && typeof r === 'object' && 'pending' in r && 'scope' in r) ?? null
   })
 }
 async function inspect(page: Page) {
@@ -83,21 +83,33 @@ test('lost committed reply survives reload as exact intent, fences sinks, retrie
     if (route.request().postDataJSON().action) return route.continue()
     bodies.push(route.request().postData()!)
     const response = await route.fetch()
-    if (dropReply) await route.abort('failed')
-    else await route.fulfill({ response })
+    if (dropReply) {
+      // Model an outage after COMMIT, without racing a second old-page send against reload.
+      await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }))
+      await route.abort('failed')
+    } else await route.fulfill({ response })
   })
   await d.getByRole('button', { name: 'Confirm and save raw restore' }).click()
   await expect.poll(() => bodies.length).toBeGreaterThan(0)
+  await expect.poll(async () => { const p = (await record(page))?.pending[0]; return p?.status === 'unavailable' && p.lease === null }).toBe(true)
   const pending = (await record(page))!.pending[0].intent
   await d.getByRole('button', { name: 'Close backup' }).click()
   await expect(page.getByRole('button', { name: 'New storage', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0)
-  await page.reload()
-  await expect.poll(async () => (await record(page))?.pending[0]?.intent).toEqual(pending)
-  await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0)
   dropReply = false
+  await page.reload()
+  await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0)
+  const retry = page.getByRole('button', { name: 'Retry pending sync', exact: true })
+  await expect.poll(async () => await retry.isVisible() || (await record(page))?.pending.length === 0).toBe(true)
+  if (await retry.isVisible()) await retry.click().catch(async error => { if ((await record(page))?.pending.length) throw error })
   await expect.poll(async () => (await record(page))?.pending.length).toBe(0)
+  const acknowledged = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open('binderdex-offline'); r.onsuccess = () => resolve(r.result) })
+    const rows = await new Promise<import('../lib/collection/slot-offline-queue').SlotOfflineRecord[]>(resolve => { const r = db.transaction('records').objectStore('records').getAll(); r.onsuccess = () => resolve(r.result) })
+    db.close(); return rows.find(r => r.receipts?.length)?.receipts[0].intent
+  })
+  expect(acknowledged).toEqual(pending)
   expect(bodies.length).toBeGreaterThan(1); expect(new Set(bodies).size).toBe(1)
 })
 test('dedicated authenticated rejection needs explicit discard and another current read, keeps original proof', async ({ page, context, baseURL }) => {
@@ -141,4 +153,63 @@ test('a competing current edit invalidates confirmation before enqueue, no refre
   await d.getByRole('button', { name: 'Confirm and save raw restore' }).click()
   await expect(d.getByRole('button', { name: 'Confirm and save raw restore' })).toHaveCount(0)
   expect((await record(page))?.pending.length).toBe(0); expect(plans).toEqual([])
+})
+
+test('1025 copied-Dex actual Backup reviews every paged slot, keeps origin, uses v2 IDB/HTTP and fresh-read ACK', async ({page,context,baseURL,insets}) => {
+  await context.addCookies([{name:'hf-storage-fixture',value:`restore-dex-${crypto.randomUUID()}`,url:baseURL!}])
+  await page.goto(entry)
+  const d=await review(page),h=new Harness(page,insets,true)
+  await expect(d.getByText('1,025 slots, 2 involved copies, 1 explicit releases to Unassigned.')).toBeVisible()
+  await d.getByText('Exact targets, status and wanted choices',{exact:true}).click()
+  await expect(d.getByText('Slot 1: synthetic-slot-0',{exact:true})).toBeVisible()
+  const next=d.getByRole('button',{name:'Next slots',exact:true})
+  for(let n=0;n<20;n++)await next.click()
+  await expect(d.getByText('Slot 1025: synthetic-slot-1024',{exact:true})).toBeVisible()
+  await expect(next).toBeDisabled()
+  await h.expectNoHorizontalOverflow()
+  const confirm=d.getByRole('button',{name:'Confirm and save raw restore'})
+  await confirm.scrollIntoViewIfNeeded();await h.expectHittable(confirm);await h.expectMinTapTarget(confirm);await h.expectWithinSafeViewport(confirm)
+  await confirm.click()
+  await expect.poll(async()=>(await record(page))?.receipts.length).toBe(1)
+  const saved=await page.evaluate(async()=>{
+    const db=await new Promise<IDBDatabase>(resolve=>{const r=indexedDB.open('binderdex-offline');r.onsuccess=()=>resolve(r.result)})
+    const rows=await new Promise<import('../lib/collection/slot-offline-queue').SlotOfflineRecord[]>(resolve=>{const r=db.transaction('records').objectStore('records').getAll();r.onsuccess=()=>resolve(r.result)})
+    db.close();const r=rows.find(r=>r.receipts?.length)
+    if(!r?.snapshot || r.receipts[0].intent.kind !== 'raw-restore' || !r.receipts[0].rawRestoreProof?.receipt)throw new Error('missing restored record')
+    return {version:r.receipts[0].intent.request.version,proofVersion:r.receipts[0].rawRestoreProof.receipt.version,slots:r.snapshot.binders[0].slots.length,
+      firstOrigin:r.snapshot.binders[0].slots[0].presetOrigin,lastOrigin:r.snapshot.binders[0].slots[1024].presetOrigin,manifestEntries:r.snapshot.binders[0].presetManifest?.entries.length}
+  })
+  expect(saved.version).toBe(2);expect(saved.proofVersion).toBe(2);expect(saved.slots).toBe(1025);expect(saved.manifestEntries).toBe(1025)
+  expect(saved.firstOrigin?.entryId).toBe('pokemon-1');expect(saved.lastOrigin).toBeNull()
+})
+
+test('proof persistence failure keeps original IDB intent through reload and replays before fresh ACK', async ({page})=>{
+  await page.goto(entry);const d=await review(page),bodies:string[]=[]
+  page.on('request',r=>{if(r.url().endsWith('/storage/raw-restore')&&!r.postDataJSON().action)bodies.push(r.postData()!)})
+  await page.evaluate(()=>{
+    const put=IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put=function(value,key){
+      if(typeof key==='string'&&key.startsWith('slot-intent:')&&value.pending?.some((p:{rawRestoreProof?:unknown})=>p.rawRestoreProof)) {
+        // Isolate failed proof persistence from a second in-flight send during reload.
+        Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
+        throw new DOMException('Synthetic proof persistence failure','QuotaExceededError')
+      }
+      return put.call(this,value,key)
+    }
+  })
+  await d.getByRole('button',{name:'Confirm and save raw restore'}).click()
+  await expect.poll(()=>bodies.length).toBeGreaterThan(0)
+  await expect.poll(async()=>(await record(page))?.pending.length).toBe(1)
+  await expect.poll(async () => { const p = (await record(page))?.pending[0]; return p?.status === 'unavailable' && p.lease === null }).toBe(true)
+  expect((await record(page))!.pending[0].rawRestoreProof).toBeUndefined()
+  expect((await record(page))!.snapshot.placements).toHaveLength(2)
+  const original=(await record(page))!.pending[0].intent
+  await page.reload()
+  const retry = page.getByRole('button', { name: 'Retry pending sync', exact: true })
+  await expect.poll(async () => await retry.isVisible() || (await record(page))?.pending.length === 0).toBe(true)
+  if (await retry.isVisible()) await retry.click().catch(async error => { if ((await record(page))?.pending.length) throw error })
+  await expect.poll(async()=>(await record(page))?.pending.length).toBe(0)
+  expect(new Set(bodies).size).toBe(1)
+  expect((await record(page))!.snapshot.placements).toHaveLength(1)
+  expect(original.kind).toBe('raw-restore')
 })

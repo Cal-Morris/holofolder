@@ -1,8 +1,10 @@
-import { blankPreset } from '@/lib/binder-creation-draft'
 import { backupContentKey, freezeBackupPlan, hydrateBackupSnapshot, parseBinderBackupV2 } from '@/lib/binder-backup-v2'
 import { isCompleteInventorySnapshot, type CompleteInventorySnapshot } from '@/lib/collection/slot-snapshot'
 import type { InventoryLayoutEvidence } from '@/lib/domain/inventory-browse'
 import { parseRawRestoreCommand, type RawRestorePlanningScope, type RawRestoreCommand } from '@/lib/domain/raw-restore'
+
+export const rawRestoreSavedEntries = (slots: readonly { status: string | null; wantedCards: readonly unknown[] }[]) =>
+  slots.reduce((n, s) => n + Math.max(s.wantedCards.length, s.status === 'wishlisted' ? 1 : 0) + (s.status === 'considering' ? 1 : 0), 0)
 
 /** Trusted current planning evidence comes from the authenticated private complete-read adapter.
  * This does not attest the file's historical origin. Explicit current collection/slot selections
@@ -32,12 +34,11 @@ export function planRawContentRestore(input: {
   if (!collection || !binder || source.id !== collectionId || sourceBinder.collectionId !== collectionId
     || backupContentKey(sourceConfig) !== backupContentKey(currentConfig)
     || backupContentKey(sourceBinder.presetManifest) !== backupContentKey(binder.presetManifest)
-    || binder.presetManifest !== null && backupContentKey(binder.presetManifest) !== backupContentKey(blankPreset())
     || !backup.layouts || backupContentKey(backup.layouts.map(({ layoutRevision: _revision, ...l }) => l)) !== backupContentKey(input.layouts.filter(l => l.collectionId === collectionId).map(({ layoutRevision: _revision, ...l }) => l))
     || backupContentKey(input.choices.slotIds) !== backupContentKey(binder.slots.map(s => s.id))
     || backupContentKey(sourceBinder.slots.map(s => s.id)) !== backupContentKey(input.choices.slotIds)
-    || binder.slots.some(s => s.legacySource != null || s.presetOrigin !== null)
-    || sourceBinder.slots.some(s => s.legacySource != null || s.presetOrigin !== null)) return fail()
+    || binder.slots.some(s => s.legacySource != null)
+    || sourceBinder.slots.some((s, n) => s.legacySource != null || backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots[n].presetOrigin))) return fail()
   const desired = hydrateBackupSnapshot(backup, current.ownerUserId, input.evidence.partnerUserId ?? undefined)
   const desiredIds = new Set(desired.placements.map(p => p.inventoryItemId))
   const touched = new Set([...desiredIds, ...current.placements.filter(p => p.collectionId === collectionId).map(p => p.inventoryItemId)])
@@ -55,9 +56,8 @@ export function planRawContentRestore(input: {
   }
   const releases = items.filter(i => i.placement && !desiredIds.has(i.itemId)).map(i => i.itemId)
   if (backupContentKey([...input.choices.releaseItemIds].sort()) !== backupContentKey(releases)) return fail()
-  const wants = (slots: typeof binder.slots) => slots.reduce((n, s) => n + Math.max(s.wantedCards.length, s.status === 'wishlisted' ? 1 : 0) + (s.status === 'considering' ? 1 : 0), 0)
-  if (wants(desired.binders[0].slots) - wants(binder.slots) > input.savedEntryRemaining) return fail()
-  const request = parseRawRestoreCommand({ version: 1, operationId: input.operationId, inventoryRevision: current.inventoryRevision,
+  if (rawRestoreSavedEntries(desired.binders[0].slots) - rawRestoreSavedEntries(binder.slots) > input.savedEntryRemaining) return fail()
+  const request = parseRawRestoreCommand({ version: 2, manifest: binder.presetManifest, operationId: input.operationId, inventoryRevision: current.inventoryRevision,
     configuration: { name: collection.name, kind: collection.kind, defaultPresentation: collection.defaultPresentation, location: collection.location ?? null,
       rows: input.layouts.find(l => l.collectionId === collectionId)!.rows, cols: input.layouts.find(l => l.collectionId === collectionId)!.cols },
     planning: input.evidence, collection: { collectionId, version: collection.version, layoutRevision: binder.layoutRevision },

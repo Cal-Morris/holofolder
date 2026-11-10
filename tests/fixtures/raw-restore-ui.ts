@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createBinderBackupV2 } from '@/lib/binder-backup-v2'
-import { createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue'
+import { offlineScopeKey, createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue'
 import { createMemoryStore } from '@/lib/offline-store/kv'
 import { sendStorageCommand } from '@/lib/collection/storage-command-browser'
 import { rawRestoreIntent, requestNativeRawRestorePlan } from '@/lib/native-raw-restore'
@@ -57,6 +57,27 @@ async function main() {
     await q.saveSnapshot(p.base)
     return { ...p, store, q, intent: rawRestoreIntent(p.command, queueScope.deviceId) }
   }
+  // A persisted v1 original and its unversioned proof still use the same queue and sender.
+  const legacy = await setup()
+  const { manifest: _manifest, ...legacyBody } = legacy.command as Extract<typeof legacy.command, { version: 2 }>
+  const { readReviewedRawRestoreCommand } = await import('@/lib/collection/raw-restore-delivery')
+  const legacyCommand = readReviewedRawRestoreCommand({ ...legacyBody, version: 1 })
+  const legacyIntent = rawRestoreIntent(legacyCommand, queueScope.deviceId)
+  await legacy.q.enqueue(legacyIntent, () => undefined, legacy.base, () => queueScope, scope.authSessionId)
+  await replay(createSlotOfflineQueue(legacy.store, queueScope))
+  const oldReceipt = (await legacy.q.read()).receipts[0]
+  assert.deepEqual(oldReceipt.intent, legacyIntent)
+  assert.equal(oldReceipt.rawRestoreProof?.receipt?.version, undefined)
+  fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID())
+  // Future command versions fail closed in both reads and atomic updates, without resetting bytes.
+  const unknown = await setup()
+  await unknown.q.enqueue(unknown.intent, () => undefined, unknown.base, () => queueScope, scope.authSessionId)
+  const key = offlineScopeKey(queueScope), bytes = structuredClone(await unknown.store.get<import('@/lib/collection/slot-offline-queue').SlotOfflineRecord>(key))!
+  Object.assign(bytes.pending[0].intent.request, { version: 999 })
+  await unknown.store.set(key, bytes)
+  await assert.rejects(unknown.q.read())
+  await assert.rejects(unknown.q.saveSnapshot(await freshSnapshot()))
+  assert.deepEqual(await unknown.store.get(key), bytes)
   // Generic/file/clone state cannot become a reviewed original command or complete base.
   let f = await setup()
   await assert.rejects(f.q.enqueue(structuredClone(f.intent), () => undefined, f.base, () => queueScope, scope.authSessionId))
