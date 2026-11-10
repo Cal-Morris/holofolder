@@ -18,7 +18,7 @@ type ShellBoot = OfflineBinderBoot & { user: User | null }
  * navigation can't reach the server, so the app opens offline or on a dead card-show Wi-Fi.
  * With several binders it opens the one in `?binder=` if it is saved on this device.
  */
-export default function OfflineAppShell({ localBrowserHost = false }: { localBrowserHost?: boolean }) {
+export default function OfflineAppShell() {
   const [boot, setBoot] = useState<ShellBoot | null>(null)
   const [noticeVisible, setNoticeVisible] = useState(true)
 
@@ -59,12 +59,12 @@ export default function OfflineAppShell({ localBrowserHost = false }: { localBro
 
   const legacyProps = {
     initialUser: boot.user, initialBinders: boot.binders, initialBinderId: boot.binderId, initialCollection: boot.collection,
-    initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode, localBrowserHost,
+    initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode,
   }
   return (
-    <CachedNativeStartup localHarness={localBrowserHost} legacyProps={legacyProps}>
-      {recheckNative => <>
-      <BinderApp {...legacyProps} localBrowserHost={recheckNative} key={boot.binderId ?? "binder"} />
+    <CachedNativeStartup legacyProps={legacyProps}>
+      <>
+      <BinderApp {...legacyProps} key={boot.binderId ?? "binder"} />
       {boot.unavailableBinderName && noticeVisible && (
         <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dock-clearance,5rem)+0.5rem)] z-50 flex justify-center px-3">
           <button
@@ -77,7 +77,7 @@ export default function OfflineAppShell({ localBrowserHost = false }: { localBro
           </button>
         </div>
       )}
-      </>}
+      </>
     </CachedNativeStartup>
   )
 }

@@ -1,9 +1,11 @@
-# Unpublished: Inventory and collection navigation
+# Unpublished: Native collections and saved startup
 
-Draft for #386/#379 only. Do not publish while hidden or deployment pending.
+Draft for #379/#386. Parent owns deployment, verification and publication.
 
-Find every saved copy in Inventory, then open its current collection and slot. Switch a collection between Binder and List without moving cards. National Dex, Wanted, Search and Browse remain within reach.
+Find each saved copy in Inventory and open its current collection and slot. Choose Binder, List or Slabs for a collection. This device remembers your collection, view and search.
 
-This device remembers your view and search. Layout editing is deliberate, and leaving a view ends editing while saved device changes remain queued. Offline views say when only cached copies are available. Slabs will follow when its renderer is ready.
+New storage uses a preview and explicit confirmation. Your first storage becomes the default. Saved device changes remain queued until current storage confirms them. Existing owners are converted by the operator, never automatically by the browser.
 
-Before publication: verify admitted production reads, writes, partner access, offline relaunch, Undo/recovery and supported APIs. Add live help/API links, deployed app SHA and the parent's Framer release/changelog URLs. None exist for this hidden slice yet.
+Previously saved collections can reopen offline as Cached only. Editing requires checked account access and a current complete read. If a refresh fails, saved copies and pending edits stay on the device, with a clear way to retry.
+
+Before publication: server native admission and new-owner initialization, parent-owned conversion, review/merge/deploy, production owner/partner flows and installed-PWA reopen. Add deployed SHA, current help links and Framer release URLs after verification. This draft makes no shipped claim.

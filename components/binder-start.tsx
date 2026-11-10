@@ -24,7 +24,7 @@ type LocalStart = LocalBinderStart & { user: User }
  * remount; a local start then syncs with the server like /app-shell does. Until then, a skeleton.
  * Only the first render races: a later server boot (switching binder, a refresh) always comes from the server.
  */
-export function BinderStart({ serverBoot, localBrowserHost = false }: { serverBoot: Promise<ServerBinderBoot>; localBrowserHost?: boolean }) {
+export function BinderStart({ serverBoot }: { serverBoot: Promise<ServerBinderBoot> }) {
   const [firstBoot] = useState(serverBoot)
   const [start, setStart] = useState<{ source: "local"; boot: LocalStart } | { source: "server" } | null>(null)
 
@@ -76,10 +76,10 @@ export function BinderStart({ serverBoot, localBrowserHost = false }: { serverBo
   if (start?.source === "local" && serverBoot === firstBoot) {
     const { boot } = start
     const legacyProps = { initialUser: boot.user, initialBinders: boot.binders, initialBinderId: boot.binderId, initialCollection: boot.collection,
-      initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode, localBrowserHost }
+      initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode }
     return (
-      <CachedNativeStartup localHarness={localBrowserHost} legacyProps={legacyProps}>
-        {recheckNative => <BinderApp {...legacyProps} localBrowserHost={recheckNative} key={boot.binderId ?? "binder"} />}
+      <CachedNativeStartup legacyProps={legacyProps}>
+        <BinderApp {...legacyProps} key={boot.binderId ?? "binder"} />
       </CachedNativeStartup>
     )
   }

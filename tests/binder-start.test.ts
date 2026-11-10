@@ -98,3 +98,13 @@ test("suspended or unknown partner access never paints a cached shared binder", 
  storage.setItem("holofolder_billing_v1", JSON.stringify({ accountId: "partner", access: { ownerUserId:"owner", source:"free", enforced:true } }))
  assert.equal(readLocalBinderStart(storage, "", "partner"), null)
 })
+
+test("native display pointer can reach IDB startup without a legacy snapshot, never seeds legacy rows", () => {
+  const storage = memoryStorage()
+  writeBinderStartMarker(storage, { ...marker("u1", "u1", "b1"), native: { version: 1, deviceId: "device", authSessionId: "auth" } })
+  const boot = readLocalBinderStart(storage, "", "u1")
+  assert.deepEqual(boot?.collection, [])
+  assert.equal(boot?.collectionOwnerUserId, "u1")
+  assert.equal(readLocalBinderStart(storage, "", "other"), null)
+  assert.equal(readLocalBinderStart(storage, "", "u1", "b2"), null)
+})

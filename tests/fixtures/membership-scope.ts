@@ -26,7 +26,7 @@ async function useRun() {
   const client = {
     auth: {
       onAuthStateChange: (cb: () => void) => { authCallback = cb; return { data: { subscription: { unsubscribe() {} } } } },
-      getClaims: async () => { claimsChecks++; await barrier; return { data: { claims: { sub: claimActor, session_id: claimSession } }, error: null } },
+      getClaims: async () => { claimsChecks++; await barrier; return { data: { claims: { sub: claimActor, role: "authenticated", session_id: claimSession } }, error: null } },
     },
     from: () => ({ select: () => ({ or: () => ({ limit: () => ({ maybeSingle: async () => { membershipChecks++; const data = owner === claimActor ? null : { id: "synthetic-partnership", owner_user_id: owner, user1_id: claimActor, user2_id: owner }; await membershipBarrier; return { data, error: null } } }) }) }) }),
     rpc: async () => ({ data: billing, error: null }),
@@ -63,7 +63,8 @@ async function useRun() {
   assert.equal(hook.currentScope(), null, "claims for another actor cannot authorize the old account")
   claimActor = "synthetic-account"; owner = "other-owner"
   signalMembershipLifecycle("recheck"); await settle()
-  assert.equal(hook.currentScope(), null, "changed membership cannot reuse the old owner")
+  assert.equal(hook.currentScope()!.ownerUserId, owner, "changed membership opens a fresh owner scope")
+  assert.notEqual(hook.currentScope()!.sessionId, initial.sessionId)
   owner = claimActor; claimSession = "fresh-auth-session"
   signalMembershipLifecycle("recheck"); await settle()
   assert.equal(hook.currentScope()!.authSessionId, claimSession)

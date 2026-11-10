@@ -19,7 +19,7 @@ import type { SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
 import { inventoryGradingReference, prepareInventoryGradingIntent } from "@/lib/grading/inventory-edit"
 import CollectionNavigationHost, { type NavigationSurface } from "./navigation-host"
 import { useSlotOfflineQueue } from "@/hooks/use-slot-offline-queue"
-import { readCurrentCollectionNavigation } from "@/lib/collection/inventory-navigation-read"
+import { CollectionNavigationReadError, readCurrentCollectionNavigation } from "@/lib/collection/inventory-navigation-read"
 import { parseNavigationEvidence, sameInventoryReadScope, type InventoryReadScope } from "@/lib/collection/inventory-read-transport"
 import type { CollectionNavigationRead } from "@/lib/collection-navigation"
 import { getOfflineStore } from "@/lib/offline-store/kv"
@@ -98,6 +98,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const creation = useRef<{ intent: Extract<SlotOfflineIntent, { kind: "creation" }>; opened: boolean; open: NavigationSurface["openCreated"] } | null>(null)
 
   const [notice, setNotice] = useState("")
+  const completeReadAvailable = useRef(false)
   const [ready, setReady] = useState(false)
   const [online, setOnline] = useState(true)
   const alive = useRef(false), sequence = useRef(0), refreshing = useRef(0), sending = useRef(false)
@@ -120,9 +121,19 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       const pending = record?.pending.length || record?.recovery?.some(recoveryUnresolved)
       if (!pending) await latest.current.queue.saveSnapshot(fresh.evidence.snapshot, resolver)
       if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
+      completeReadAvailable.current = true
       setRead(fresh); setNotice("")
       await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts })
       return fresh
+    } catch (error) {
+      if (valid() && request === sequence.current) {
+        completeReadAvailable.current = false
+        setRead(previous => previous.evidence.kind === "complete" ? { ...previous, evidence: { kind: "cached", snapshot: previous.evidence.snapshot } } : previous)
+        setNotice(error instanceof CollectionNavigationReadError && ["inventory_not_initialized", "legacy_inventory_incomplete"].includes(error.code)
+          ? "Your native collection is not ready. An administrator must provision the default storage or finish converting this owner. Saved copies and pending edits are retained."
+          : "Could not refresh storage. Showing only saved copies; pending edits are retained. Connect and retry before editing.")
+      }
+      throw error
     } finally { refreshing.current--; if (valid() && request === sequence.current) setReady(true) }
   }
   useEffect(() => {
@@ -137,11 +148,11 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         setRead({ scope: navigationScope, evidence: { kind: "cached", snapshot: record.optimistic }, catalog: safeMetadata?.catalog ?? [], layouts: safeMetadata?.layouts ?? [] })
       }
       cachedFinished = true
-      try { await refresh() } catch { if (valid()) setNotice("Could not refresh storage. Showing only saved copies; pending edits are retained.") }
+      try { await refresh() } catch { /* refresh retains cached state and explains the failure. */ }
     }
     void initial().catch(() => { if (active && valid()) { setNotice("Saved storage could not be opened. Pending edits have not been removed."); setReady(true) } })
     const disconnected = () => setOnline(false)
-    const reconnect = () => { setOnline(navigator.onLine); if (cachedFinished && document.visibilityState !== "hidden") void refresh().catch(() => { if (valid()) setNotice("Storage refresh unavailable. Pending edits are retained.") }) }
+    const reconnect = () => { setOnline(navigator.onLine); if (cachedFinished && document.visibilityState !== "hidden") void refresh().catch(() => {}) }
     queueMicrotask(() => setOnline(navigator.onLine))
     window.addEventListener("offline", disconnected); window.addEventListener("online", reconnect); window.addEventListener("focus", reconnect); document.addEventListener("visibilitychange", reconnect)
     const invalidate = () => { alive.current = false; sequence.current++ }
@@ -157,7 +168,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     const active = () => !controller.signal.aborted && valid()
     const tick = async () => {
       try {
-        if (!active() || sending.current || refreshing.current || (await latest.current.queue.queue?.read())?.recovery?.some(recoveryUnresolved) || !navigator.onLine || document.visibilityState === "hidden") return
+        if (!active() || !completeReadAvailable.current || sending.current || refreshing.current || (await latest.current.queue.queue?.read())?.recovery?.some(recoveryUnresolved) || !navigator.onLine || document.visibilityState === "hidden") return
         const head = (await latest.current.queue.queue?.read())?.pending[0]
         if (!active() || !head || ["blocked", "billing", "conflict"].includes(head.status)
           || head.attempts >= 5 || head.nextAttemptAt > Date.now() || head.lease && head.lease.until > Date.now()) return
@@ -165,6 +176,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         await latest.current.queue.replay(intent => sendStorageCommand(intent, () => active() ? latest.current.currentScope() : null, controller.signal, localHarness), latest.current.catalog, async () => {
           const fresh = await readCurrentCollectionNavigation(() => active() ? latest.current.currentScope() : null, localHarness)
           if (!active() || fresh.evidence.kind !== "complete") throw new Error("inventory_read_scope_changed")
+          completeReadAvailable.current = true
           setRead(fresh)
           await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts })
           if (!active()) throw new Error("inventory_read_scope_changed")
@@ -236,14 +248,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     return [...cards, ...cached.filter(c => !cards.some(known => known.id === c.id && known.language === c.language))]
   }
   const receive: SlotCommandSink = async draft => {
-    if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
+    if (refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     const record = await latest.current.queue.queue?.read()
     if (!valid() || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
     return latest.current.queue.enqueue(draft.intent, catalog, undefined, valid)
   }
 
   const receiveBulkFill: SlotCommandSink = async draft => {
-    if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId || draft.intent.kind !== "inventory") throw new Error("inactive-or-unavailable-session")
+    if (refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId || draft.intent.kind !== "inventory") throw new Error("inactive-or-unavailable-session")
     // #469 adds recovery to this same record; unresolved recovery must fence new work.
     const record: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | undefined = await latest.current.queue.queue?.read()
     if (!valid() || !navigator.onLine || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
@@ -253,7 +265,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   useLayoutEffect(() => {
     consumerAdmission.current = () => {
       const record = latest.current.queue.record
-      if (!valid() || !navigator.onLine || refreshing.current || sending.current || read.evidence.kind !== "complete"
+      if (!valid() || !completeReadAvailable.current || !navigator.onLine || refreshing.current || sending.current || read.evidence.kind !== "complete"
         || !record || record.pending.length || record.legacy.length || record.recovery?.some(recoveryUnresolved)) return null
       return { scope: navigationScope, read, context: { source: "app", clientId: deviceId, operationId: crypto.randomUUID(),
         batchId: null, clientOccurredAt: new Date().toISOString() }, receive }
@@ -372,7 +384,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (!valid() || !navigator.onLine || collectionDeletionEvidence(fresh) !== draft.evidence || fresh.evidence.kind !== "complete") throw new Error("deletion-review-changed")
     return latest.current.queue.enqueue(draft.intent, latest.current.catalog, fresh.evidence.snapshot, () => valid() && navigator.onLine)
   }
-  const creationAvailable = bulkFillAvailable && !queue.record?.legacy.length && read.evidence.kind === "complete" && read.evidence.snapshot.collections.length > 0
+  const creationAvailable = bulkFillAvailable && !queue.record?.legacy.length && read.evidence.kind === "complete"
   const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"]) => {
     if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
     const record = await latest.current.queue.queue?.read()
@@ -404,7 +416,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       inventoryGradingReference(read.evidence.snapshot, itemId)
       setGrading({ snapshot: structuredClone(read.evidence.snapshot), itemId, intent: null })
     } catch { setNotice("This copy needs a current complete inventory read before grading can be edited.") }
-  } : undefined} stagedSlabs={localHarness} scope={navigationScope} fallbackCollectionId={initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+  } : undefined} stagedSlabs scope={navigationScope} fallbackCollectionId={read.defaultCollectionId ?? initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
 
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot
@@ -452,6 +464,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
             if (!head || !valid()) return
             void latest.current.queue.queue?.resume(head.intent.request.operationId).then(() => latest.current.queue.refresh()).catch(() => { if (valid()) setNotice("This edit needs reconciliation, or a send is still in progress. The original command is retained.") })
           }}>Retry pending sync</button>}
+          <button type="button" className="min-h-10 self-start rounded-lg border px-3 text-sm" disabled={!online} onClick={() => { void refresh().catch(() => {}) }}>Refresh storage</button>
+          {read.evidence.kind === "complete" && !read.evidence.snapshot.collections.length && <p role="status" className="px-4 text-sm">Create your first storage with New storage. It becomes your default collection once current storage confirms it.</p>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
 
           {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,

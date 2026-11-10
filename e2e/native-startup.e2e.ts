@@ -6,7 +6,7 @@ const alpha = "22222222-2222-4222-8222-222222222222"
 const trades = "33333333-3333-4333-8333-333333333333"
 const id = (value: string) => value === "alpha" ? alpha : trades
 const layouts = inventoryBrowseLayouts.map(l => ({ ...l, collectionId: id(l.collectionId) }))
-const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}`
+const entry = `/app/e2e-harness?signedIn=1&binder=${alpha}`
 // Synthetic remote/auth evidence only. Client shell, SW, page teardown and IDB are real.
 async function inventory(route: Route, slab = false) {
   const snapshot = inventoryBrowseFixture(5), url = new URL(route.request().url())
@@ -26,9 +26,9 @@ const test = base.extend({ serviceWorkers: "allow" })
 test.beforeEach(async ({ page, context, baseURL }, info) => {
   if (info.project.metadata?.standalone) await emulateStandalone(page, SAFE_AREA)
   await mockBackends(context, context, { signedIn: true, baseURL })
-  await context.route("**/app/e2e-harness/storage/inventory?*", route => inventory(route))
+  await context.route("**/app/api/inventory?*", route => inventory(route))
   // This startup suite intentionally retains unsent edits through a sender outage.
-  await context.route("**/app/e2e-harness/storage/*", route => route.request().method() === "POST"
+  await context.route("**/app/api/binder-slots", route => route.request().method() === "POST"
     ? route.fulfill({ status: 503, json: { error: { code: "storage_unavailable", message: "Synthetic sender outage", requestId: "synthetic-startup-outage" } } })
     : route.fallback())
 })
@@ -115,7 +115,7 @@ test("offline cached inventory closes before reconnect can reuse stale owner sco
   let membershipChecks = 0, staleResponses = 0
   await context.route("**/rest/v1/partnerships*", route => { membershipChecks++; return route.fulfill({ json: [{ id: "synthetic-relinked", owner_user_id: trades, user1_id: E2E_USER.id, user2_id: trades }] }) })
   // Even a well-formed old-owner response matching the new request ID must be rejected.
-  await context.route("**/app/e2e-harness/storage/inventory?*", route => { staleResponses++; return inventory(route) })
+  await context.route("**/app/api/inventory?*", route => { staleResponses++; return inventory(route) })
   await context.unroute("**/rest/v1/**", offlineAbort)
   await context.unroute("**/auth/v1/**", offlineAbort)
   await context.setOffline(false)
@@ -132,7 +132,7 @@ test("offline cached inventory closes before reconnect can reuse stale owner sco
 })
 
 test("cold native startup with shell but no canonical snapshot gives a clear fallback", async ({ page }, info) => {
-  await page.context().route("**/app/e2e-harness/storage/inventory?*", route => route.fulfill({ status: 503, json: { error: "synthetic-unavailable" } }))
+  await page.context().route("**/app/api/inventory?*", route => route.fulfill({ status: 503, json: { error: "synthetic-unavailable" } }))
   await prepare(page)
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
   await expect(reopened.getByRole("status").filter({ hasText: /Saved native storage is unavailable/ })).toBeVisible({ timeout: 30000 })
@@ -229,8 +229,8 @@ test("open cached native display closes at an earlier JWT expiry", async ({ page
 })
 
 // #388 uses the same saved owner-wide copies and cached startup, no alternate slab cache.
-test("staged Slabs survives page close and offline cached shell relaunch", async ({ page, context }, info) => {
-  await context.route("**/app/e2e-harness/storage/inventory?*", route => inventory(route, true))
+test("Slabs survives page close and offline cached shell relaunch", async ({ page, context }, info) => {
+  await context.route("**/app/api/inventory?*", route => inventory(route, true))
   await prepare(page)
   await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption(trades)
   await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("slabs")

@@ -14,3 +14,13 @@ describe("browser host admission", () => {
     assert.deepEqual(browserHostAdmission(true, "1", false, "127.0.0.1:3427"), { admitted: true, evidence: "synthetic-local-only" })
   })
 })
+
+// Synthetic checked scope here represents the hook result, never cached DTO admission.
+test("authenticated host requires the checked scope, synthetic admission never becomes authenticated", () => {
+  const scope = { actorUserId: "actor", ownerUserId: "owner", authSessionId: "auth", sessionId: "lifetime" }
+  assert.deepEqual(browserHostAdmission(false, undefined, true, "holofolder.com", scope), { admitted: true, evidence: "authenticated-session" })
+  assert.equal(browserHostAdmission(false, "1", false, "holofolder.com", { ...scope, authSessionId: "" }).admitted, false)
+  assert.equal(browserHostAdmission(false, "1", false, "holofolder.com", null).admitted, false)
+  assert.deepEqual(browserHostAdmission(true, "1", false, "localhost:3427", scope), { admitted: true, evidence: "synthetic-local-only" })
+  assert.equal(browserHostAdmission(true, "1", true, "holofolder.com", scope).admitted, false)
+})

@@ -103,3 +103,18 @@ test('suspended shared-binder writes pause, while explicit own-binder writes rem
   Object.assign(other, { rpc: async () => ({ data: false, error: null }) })
   await assert.rejects(assertCollectionWriteAccess(other, 'partner', 'shared-binder'), { status: 402 })
 })
+
+test("native bootstrap reads display settings without consulting legacy collection rows", async () => {
+  const { client, calls } = fakeClient({ user_settings: { data: { binder_rows: 3 }, error: null } })
+  const boot = await loadBinderBootstrap(client, "owner", null, "native")
+  assert.deepEqual(boot.collection, [])
+  assert.equal(boot.settings.binderRows, 3)
+  assert.equal(calls.some(c => c.table === "pokemon_collection"), false)
+})
+
+test("strict native membership rejects denied partner billing instead of falling back to own storage", async () => {
+  const { client } = fakeClient({ partnerships: { data: { owner_user_id: "shared-owner" }, error: null } })
+  Object.assign(client, { rpc: async () => ({ data: false, error: null }) })
+  await assert.rejects(() => resolveCollectionOwnerUserId(client, "partner", { strictBilling: true }))
+  assert.equal(await resolveCollectionOwnerUserId(client, "partner"), "partner")
+})

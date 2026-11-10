@@ -27,7 +27,7 @@ export interface NavigationSurface {
 
 export interface CollectionNavigationHostProps {
   ownership?: InventoryOwnershipBinding
-  /** Supplied only by the existing loopback-only harness admission, never a production flag. */
+  /** The host enables the existing Slabs renderer after its own admission. */
   stagedSlabs?: boolean
   onEditGrading?: (itemId: string) => void
   renderSurface?: (surface: NavigationSurface) => ReactNode
@@ -42,7 +42,7 @@ export interface CollectionNavigationHostProps {
     onChange: (patch: Partial<CollectionViewState>) => void }) => ReactNode
   renderNationalDex: () => ReactNode
 }
-/** Shared host; the BinderApp binding remains denied in production until #379. */
+/** Shared navigation for checked authenticated sessions and read-only cached display. */
 export default function CollectionNavigationHost(props: CollectionNavigationHostProps) {
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>
   return <ScopedNavigation key={JSON.stringify([navigationStorageKey(props.scope), props.scope.sessionId])} {...props} scope={props.scope} />

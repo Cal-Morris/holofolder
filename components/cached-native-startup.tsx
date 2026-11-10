@@ -7,7 +7,6 @@ import { closeAllOverlays } from "@/hooks/use-overlay"
 import BinderApp from "@/components/binder-app"
 import CollectionNavigationHost from "@/components/collection-navigation/navigation-host"
 import { readBinderStartMarker } from "@/lib/binder-start"
-import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
 import { browserHostCatalog, browserHostDisplayCatalog } from "@/lib/collection/browser-host-catalog"
 import { cachedNativeIdentity, readCachedNativeStartup, readDeviceStartupSession } from "@/lib/collection/native-startup"
 import { getOfflineStore } from "@/lib/offline-store/kv"
@@ -15,20 +14,18 @@ import { createClient } from "@/lib/supabase/client"
 
 /** Cached display is deliberately separate from BrowserCollectionSession's authenticated scope.
  * Reconnect/auth events unmount it before entering the unchanged checked host path. */
-export default function CachedNativeStartup({ localHarness = false, legacyProps, children }: {
-  localHarness?: boolean
+export default function CachedNativeStartup({ legacyProps, children }: {
   legacyProps: ComponentProps<typeof BinderApp>
-  children: (recheckNative: boolean) => ReactNode
+  children: ReactNode
 }) {
   const [saved, setSaved] = useState<Awaited<ReturnType<typeof readCachedNativeStartup>> | null>(null)
   const [notice, setNotice] = useState("")
-  const [resumeLive, setResumeLive] = useState(false)
   useEffect(() => {
-    if (!browserHostAdmission(localHarness, "1", false, location.host).admitted || navigator.onLine) return
+    if (navigator.onLine) return
     // Old/legacy bootstrap has no native pointer, so it keeps its original startup.
     try { if (!readBinderStartMarker(localStorage)?.native) return } catch { return }
-    let active = true, established = false, expiry: ReturnType<typeof setTimeout> | undefined
-    const invalidate = () => { active = false; setResumeLive(established && navigator.onLine); setSaved(null); setNotice("Saved storage is paused. Connect to check your account and collection access. Pending edits are retained.") }
+    let active = true, expiry: ReturnType<typeof setTimeout> | undefined
+    const invalidate = () => { active = false; setSaved(null); setNotice("Saved storage is paused. Connect to check your account and collection access. Pending edits are retained.") }
     const client = createClient()
     const { data: { subscription } } = client.auth.onAuthStateChange(event => { if (event !== "INITIAL_SESSION") invalidate() })
     const unsubscribeMembership = subscribeMembershipLifecycle(() => { flushSync(() => { invalidate(); closeAllOverlays() }) })
@@ -46,15 +43,14 @@ export default function CachedNativeStartup({ localHarness = false, legacyProps,
       const current = cachedNativeIdentity(localStorage, session)
       if (!current || JSON.stringify(current.scope) !== JSON.stringify(identity.scope)) throw new Error("saved-scope-expired")
       expiry = setTimeout(invalidate, Math.min(2147483647, Math.max(0, current.expiresAt - Date.now())))
-      established = true
       setSaved(boot)
     })().catch(() => { if (active) setNotice("Saved native storage is unavailable on this device. Connect to reopen it. Pending edits have not been removed.") })
     return () => { active = false; unsubscribeMembership(); clearTimeout(expiry); subscription.unsubscribe(); window.removeEventListener("online", invalidate); window.removeEventListener("storage", invalidate) }
-  }, [localHarness])
-  if (!saved) return <>{notice && <p role="status" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+0.5rem)] z-50 rounded-lg bg-card p-3 text-sm">{notice}</p>}{children(resumeLive)}</>
+  }, [])
+  if (!saved) return <>{notice && <p role="status" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+0.5rem)] z-50 rounded-lg bg-card p-3 text-sm">{notice}</p>}{children}</>
   const { read, pending } = saved
   const catalog = browserHostCatalog(read.catalog)
-  return <CollectionNavigationHost stagedSlabs={localHarness} scope={read.scope} read={read} fallbackCollectionId={legacyProps.initialBinderId}
+  return <CollectionNavigationHost stagedSlabs scope={read.scope} read={read} fallbackCollectionId={legacyProps.initialBinderId}
     readCurrent={async () => { throw new Error("cached-startup-requires-checked-session") }} scrollContainerId="collection-browser-scroll"
     renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
       const snapshot = read.evidence.kind === "cached" ? read.evidence.snapshot : null

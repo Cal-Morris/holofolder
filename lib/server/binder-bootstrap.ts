@@ -19,9 +19,10 @@ export interface BinderBootstrap {
  * Loads one binder's collection and the owner's binder settings in parallel for the initial page render.
  * No binder id: every row of the owner (single-binder layout, before migration 039).
  */
-export async function loadBinderBootstrap(client: AnySupabaseClient, ownerUserId: string, binderId: string | null = null): Promise<BinderBootstrap> {
+export async function loadBinderBootstrap(client: AnySupabaseClient, ownerUserId: string, binderId: string | null = null, source: "native" | "legacy" = "legacy"): Promise<BinderBootstrap> {
   const [collectionResult, settingsResult, binderResult] = await Promise.all([
-    loadCollectionRows(client, ownerUserId, binderId),
+    // Native inventory is loaded only by the checked complete-read host, never legacy rows.
+    source === "legacy" ? loadCollectionRows(client, ownerUserId, binderId) : { data: [], error: null },
     client
       .from("user_settings")
       .select("*")
