@@ -1,5 +1,5 @@
 import { projectInventoryCollection, type InventoryCollectionProjection } from "@/lib/collection/inventory-projection"
-import { matchesCatalogCardId } from "@/lib/card-catalog"
+import { indexCatalogCardIds } from "@/lib/card-catalog"
 import { isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
 import { normalizeInventorySnapshot } from "@/lib/domain/inventory"
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseRow, InventoryBrowseScope,
@@ -31,10 +31,12 @@ export function buildInventoryBrowseIndex(scope: InventoryBrowseScope, evidence:
     || evidence.kind === "complete" && !isCompleteInventorySnapshot(evidence.snapshot)) return unavailable
   const snapshot = normalizeInventorySnapshot(evidence.snapshot)
   if (!snapshot) return unavailable
+  // One pass over the catalog, not one per copy: a full binder has hundreds of copies and thousands of printings.
+  const catalogById = indexCatalogCardIds(catalog)
   const rows = snapshot.items.map((item): InventoryBrowseRow => {
     const identity = item.identity
-    const matches = identity.kind === "card" ? catalog.filter(e => matchesCatalogCardId(e.card, identity.cardId)
-      && (!identity.language || e.card.language === identity.language)) : []
+    const matches = identity.kind === "card" ? (catalogById.get(identity.cardId) ?? [])
+      .filter(e => !identity.language || e.card.language === identity.language) : []
     const display = matches.length === 1 ? matches[0] : undefined
     const grading = item.grading
     return { itemId: item.id, name: display?.card.name ?? null, cardId: identity.kind === "card" ? identity.cardId : null,
@@ -47,7 +49,7 @@ export function buildInventoryBrowseIndex(scope: InventoryBrowseScope, evidence:
       location: resolveInventoryLocation(snapshot, item.id, layouts, evidence.kind === "complete") }
   })
   const collections = snapshot.collections.map(c => ({ id: c.id, name: c.name }))
-  const projection = projectInventoryCollection(snapshot, catalog)
+  const projection = projectInventoryCollection(snapshot, catalog, undefined, catalogById)
   const key = JSON.stringify([scope, evidence.kind, snapshot.inventoryRevision,
     snapshot.items.map(i => [i.id, i.version]), snapshot.placements.map(p => [p.inventoryItemId, p.version]),
     snapshot.collections.map(c => [c.id, c.version]),

@@ -1,4 +1,4 @@
-import { matchesCatalogCardId } from "@/lib/card-catalog"
+import { indexCatalogCardIds } from "@/lib/card-catalog"
 import type { CardFinish, WantedCard } from "@/lib/domain/cards"
 import type { InventorySnapshot, Placement } from "@/lib/domain/inventory"
 import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
@@ -29,7 +29,8 @@ export interface InventoryCollectionProjection {
 }
 
 /** Validated owner-scoped snapshots only. No species-keyed compatibility map or mutation destinations. */
-export function projectInventoryCollection(snapshot: InventorySnapshot, catalog: readonly InventoryCatalogEvidence[], collectionId?: string): InventoryCollectionProjection {
+export function projectInventoryCollection(snapshot: InventorySnapshot, catalog: readonly InventoryCatalogEvidence[], collectionId?: string,
+  catalogById: ReadonlyMap<string, readonly InventoryCatalogEvidence[]> = indexCatalogCardIds(catalog)): InventoryCollectionProjection {
   const placements = new Map(snapshot.placements.map(p => [p.inventoryItemId, p]))
   const seen = new Set<string>()
   const owned: InventoryOwnedProjection[] = []
@@ -38,8 +39,8 @@ export function projectInventoryCollection(snapshot: InventorySnapshot, catalog:
     if (item.ownerUserId !== snapshot.ownerUserId || seen.has(item.id) || collectionId && placement?.collectionId !== collectionId) continue
     seen.add(item.id)
     const identity = item.identity
-    const matches = identity.kind === "card" ? catalog.filter(e => matchesCatalogCardId(e.card, identity.cardId)
-      && (!identity.language || e.card.language === identity.language)) : []
+    const matches = identity.kind === "card" ? (catalogById.get(identity.cardId) ?? [])
+      .filter(e => !identity.language || e.card.language === identity.language) : []
     const card = matches.length === 1 ? matches[0] : undefined
     owned.push({ itemId: item.id, placement, graded: item.grading !== null, acquiredAt: item.acquiredAt,
       pokemonIds: identity.kind === "pokemon" ? [identity.pokemonId] : card?.pokemonIds ?? null,
