@@ -96,7 +96,7 @@ test("creation cannot bootstrap a fabricated empty owner or silently drop a set 
   assert.deepEqual((await q.read()).optimistic?.collections, [])
   assert.throws(() => prepareBinderCreation(draft, structuredClone(empty), context, newId, []), /complete/)
   assert.throws(() => prepareBinderCreation({ ...draft, ownerUserId: "other-owner" }, snapshot, context, newId, []), /complete/)
-  assert.throws(() => prepareBinderCreation({ ...draft, setChecklist: {} as never }, snapshot, context, newId, []), /set-checklist/)
+  assert.throws(() => prepareBinderCreation({ ...draft, setChecklist: {} as never }, snapshot, context, newId, []), /Invalid set scope/)
 })
 test("accepted fresh read retains independent exact copied manifest and adds no owned/wanted/grade data", async () => {
   const { q, snapshot, intent } = await setup()

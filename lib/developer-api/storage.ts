@@ -1,3 +1,4 @@
+import { setChecklistScopeSchema } from "@/lib/developer-api/set-checklist"
 import { parseRawRestoreCommand, RAW_RESTORE_LIMITS, RAW_RESTORE_V2_LIMITS, RAW_RESTORE_REJECTION_CODES } from '@/lib/domain/raw-restore'
 import { CREATION_REJECTION_CODES, IMPORT_REJECTION_CODES } from '@/lib/collection/creation-import-rejection'
 import { RECOVERY_REJECTION_CODES } from '@/lib/collection/recovery-rejection'
@@ -96,15 +97,16 @@ export const nativeInventorySchema = z.object({ operationId, inventoryRevision: 
     || ((command.kind === 'assign' || command.kind === 'move') && (command.fulfillWant === null || 'expectedPublic' in command.fulfillWant))),
   'Private-preserving mode supports insertAssign, add, explicit removeOwned, unassign, patchGrading and placement with null or expectedPublic fulfillment. Full grading/wants replacements remain excluded.')
   .refine(input => input.privateFields !== 'preserve' || input.expectedOwnerUserId !== undefined, 'Private-preserving mode requires the original expectedOwnerUserId.')
+const initialManifestSchema = z.object({ source: z.object({ id, version: id }).strict(), name: z.string().min(1).max(200),
+  entries: z.array(z.object({ id, target: identity.nullable() }).strict()).max(4096),
+}).strict()
 export const nativeCreationSchema = z.object({ version: z.literal(1), operationId, inventoryRevision: revision, collectionId,
   name: z.string().min(1).max(40), kind: z.enum(['binder', 'slab', 'custom']), defaultPresentation: z.enum(['binder', 'slabs', 'list']),
   location: z.string().min(1).max(200).nullable(), grid: z.object({ rows: z.number().int().min(1).max(8), cols: z.number().int().min(1).max(8) }).strict().nullable(),
-  manifest: z.object({ source: z.object({ id, version: id }).strict(), name: z.string().min(1).max(200),
-    entries: z.array(z.object({ id, target: identity.nullable() }).strict()).max(4096),
-  }).strict(), slotIds: z.array(id).max(4096),
+  manifest: initialManifestSchema.extend({ setScope: setChecklistScopeSchema.optional() }).strict(), slotIds: z.array(id).max(4096),
 }).strict().refine(canonical(parseCollectionCreation), 'Invalid or oversized copied collection creation.')
 export const nativeArrangementSchema = z.object({ version: z.literal(1), operationId, inventoryRevision: revision, destinationCollectionId: collectionId,
-  collections: z.array(collection).min(1).max(32), emptyDestinationSlots: z.array(slot).max(4096), manifest: nativeCreationSchema.shape.manifest.nullable(),
+  collections: z.array(collection).min(1).max(32), emptyDestinationSlots: z.array(slot).max(4096), manifest: initialManifestSchema.nullable(),
   slots: z.array(z.object({ id, target: identity.nullable(), status: z.enum(['collected', 'finalized', 'considering', 'wishlisted']).nullable(),
     wantedCards: z.array(want).max(100), inventoryItemId: id.nullable(), presetOrigin: z.object({ source: z.object({ id, version: id }).strict(), entryId: id }).strict().nullable(),
   }).strict()).min(1).max(4096),
@@ -120,7 +122,7 @@ export const rawRestoreV1Schema = z.object({ version: z.literal(1), operationId,
   items: z.array(item).max(RAW_RESTORE_LIMITS.items), releaseItemIds: z.array(id).max(RAW_RESTORE_LIMITS.items),
 }).strict().refine(canonical(parseRawRestoreCommand), 'Invalid or unsupported raw content restore.')
 export const rawRestoreV2Schema = z.object({ version: z.literal(2), operationId, inventoryRevision: revision,
-  manifest: nativeCreationSchema.shape.manifest.nullable(),
+  manifest: initialManifestSchema.nullable(),
   planning: z.object({ actorUserId: collectionId, ownerUserId: collectionId, source: z.enum(['app', 'rest', 'mcp']),
     credentialId: id.nullable(), authSessionId: id.nullable(), partnershipId: collectionId.nullable(), partnerUserId: collectionId.nullable() }).strict(), collection, configuration: z.object({ name: z.string().min(1).max(40), kind: z.enum(['binder', 'slab', 'custom']),
     defaultPresentation: z.enum(['binder', 'slabs', 'list']), location: z.string().max(200).nullable(), rows: revision.min(1).max(8), cols: revision.min(1).max(8) }).strict(),
@@ -131,7 +133,7 @@ export const rawRestoreV2Schema = z.object({ version: z.literal(2), operationId,
 }).strict().refine(canonical(parseRawRestoreCommand), 'Invalid or unsupported raw content restore.')
 export const rawRestoreV3Schema = z.object({ version: z.literal(3), operationId, inventoryRevision: revision,
   slotOrder: z.object({ before: z.array(id).min(1).max(RAW_RESTORE_V2_LIMITS.slots), after: z.array(id).min(1).max(RAW_RESTORE_V2_LIMITS.slots) }).strict(),
-  manifest: nativeCreationSchema.shape.manifest.nullable(),
+  manifest: initialManifestSchema.nullable(),
   planning: z.object({ actorUserId: collectionId, ownerUserId: collectionId, source: z.enum(['app', 'rest', 'mcp']),
     credentialId: id.nullable(), authSessionId: id.nullable(), partnershipId: collectionId.nullable(), partnerUserId: collectionId.nullable() }).strict(), collection, configuration: z.object({ name: z.string().min(1).max(40), kind: z.enum(['binder', 'slab', 'custom']),
     defaultPresentation: z.enum(['binder', 'slabs', 'list']), location: z.string().max(200).nullable(), rows: revision.min(1).max(8), cols: revision.min(1).max(8) }).strict(),
@@ -220,7 +222,7 @@ const operations: readonly DeveloperOperation[] = [
     responseSchema: z.object({ ...changed, collectionVersion: revision, layoutRevision: revision, removedSlotIds: z.array(id) }).strict() },
   { name: 'execute_inventory_commands', method: 'POST', path: '/storage/inventory/commands', description: terminalDescription + ' Atomic insertAssign, owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. insertAssign creates one stable slot before an exact existing slot reference or appends with before:null, retaining explicit target:null/free or target intent. selection:null creates no ownership; existing requires an exact Unassigned item/version, new explicitly creates that stable item. It never auto-selects a grade or moves an assigned copy. Maximum 4096 slots and 8192 insertion work rows per request, 100 commands, 256 affected selected entities, 256 KiB ordinary request, 1 MiB ordinary receipt and unchanged 16 MiB/16384 audit bounds and 10s deadline; oversized evidence rejects atomically. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; patchGrading updates only declared public fields on existing grading; selected-want expectedPublic compares the exact locked slot/index public projection. Hidden certificates/assets/provenance and unrelated wants are retained by migration 090 after original-intent replay lookup. Omitted or replace retains full-replacement semantics.', permissions, write: true, schema: nativeInventorySchema, maxBytes: INVENTORY_COLLECTION_DELETE_LIMITS.bytes, errorSchemas: commandErrors,
     responseSchema: z.object({ ...changed, selectedItemIds: z.array(id), acquiredItemIds: z.array(id) }).strict() },
-  { name: 'create_storage_collection', method: 'POST', path: '/storage/collections', description: creationImportTerminalDescription + 'Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.', permissions, write: true, schema: nativeCreationSchema, maxBytes: COLLECTION_CREATION_LIMITS.bytes, errorSchemas: { 409: z.union([developerErrorSchema, creationErrorSchema]) },
+  { name: 'create_storage_collection', method: 'POST', path: '/storage/collections', description: creationImportTerminalDescription + 'Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Migration 101 additionally accepts manifest.setScope, the exact reviewed language, verified finishes, promos, exclusions, coverage warnings and capture time. This is an independent copied initial list; goals remain editable and free slots can be appended. Catalog eligibility is checked at creation, not enforced on later edits. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.', permissions, write: true, schema: nativeCreationSchema, maxBytes: COLLECTION_CREATION_LIMITS.bytes, errorSchemas: { 409: z.union([developerErrorSchema, creationErrorSchema]) },
     responseSchema: z.object({ ...receipt, changed: z.literal(true), collectionId, collectionVersion: revision, layoutRevision: revision, slotIds: z.array(id).max(4096), recoverySupported: z.literal(false) }).strict() },
   { name: 'preview_storage_recovery', method: 'POST', path: '/storage/recovery/preview', description: 'Preview supported native audit evidence using the private native backend, never the legacy Activity facade. Unsupported events return conflicts/unsupported with no usable plan. Default-creation recovery needs explicit v2 replacement.', permissions: recoveryPermissions, write: false, schema: previewSchema, responseSchema: recoveryPreview, maxBytes: 1048576 },
   { name: 'apply_storage_recovery', method: 'POST', path: '/storage/recovery/apply', description: recoveryTerminalDescription + 'Apply exactly reviewed native version-1 recovery with confirmation, planToken and retry-stable operationId. Current authority and newer/ABA changes remain enforced. No fallback to legacy recovery.', permissions: recoveryPermissions, write: true, schema: applySchema, errorSchemas: recoveryErrors, responseSchema: recoveryReceipt, maxBytes: 1048576 },

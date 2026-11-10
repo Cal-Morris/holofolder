@@ -1,3 +1,4 @@
+import { nativeCreationSchema } from "@/lib/developer-api/storage"
 import { z } from "zod"
 import { CARD_LANGUAGES, CARD_FINISHES, SLOT_STATUSES } from "@/lib/domain/cards"
 import type { DeveloperOperation } from "./operations"
@@ -14,7 +15,7 @@ const grading = z.object({ provider: z.discriminatedUnion("kind", [
 subgrades: z.array(z.object({ name: z.string(), grade: z.string() }).strict()), labelVariant: z.string().nullable() }).strict().nullable()
 const placement = z.object({ inventoryItemId: id, collectionId: id, slotId: id, version: revision }).strict()
 export const developerItemSchema = z.object({ id, version: revision, identity, grading, acquiredAt: z.string().nullable(), placement: placement.nullable() }).strict()
-export const developerCollectionSchema = z.object({ id, name: z.string(), kind: z.enum(["binder", "slab", "custom"]),
+export const developerCollectionSchema = z.object({ presetManifest: nativeCreationSchema.shape.manifest.nullable(), id, name: z.string(), kind: z.enum(["binder", "slab", "custom"]),
   defaultPresentation: z.enum(["binder", "slabs", "list"]), version: revision, layoutRevision: revision,
   isDefault: z.boolean().nullable(), sortOrder: revision.nullable(), updatedAt: z.string().nullable(),
   location: z.string().nullable().optional(), slotCount: revision,
@@ -37,7 +38,7 @@ const filter = { collectionId: z.uuid().optional(), cardId: id.optional() }
 export const NATIVE_READ_OPERATIONS: readonly DeveloperOperation[] = [
   { name: "list_inventory_items", method: "GET", path: "/inventory/items", description: "List physical copies with stable IDs, identity, recorded grade and placement. Certificates, private label assets and immutable source evidence are omitted. Pages are scope/filter/revision-bound and never complete snapshots or queue ACKs.", schema: z.object({ ...paging, ...filter, assignment: z.enum(["assigned", "unassigned"]).optional() }).strict(), responseSchema: page(developerItemSchema), permissions: ["collection:read", "binders:read"], write: false, idempotent: true },
   { name: "get_inventory_item", method: "GET", path: "/inventory/items/{id}", description: "Read one physical copy with its current item and placement revisions, using the same redacted private developer projection.", schema: z.object({ id }).strict(), responseSchema: detail(developerItemSchema), permissions: ["collection:read", "binders:read"], write: false, idempotent: true },
-  { name: "list_storage_collections", method: "GET", path: "/storage/collections", description: "Page current native storage metadata, private location, counts and independent collection/layout revisions. Mixed legacy owners fail closed. Copied preset discovery/preview uses the separate preset operations.", schema: z.object(paging).strict(), responseSchema: page(developerCollectionSchema), permissions: ["collection:read", "binders:read"], write: false, idempotent: true },
+  { name: "list_storage_collections", method: "GET", path: "/storage/collections", description: "Page current native storage metadata, the copied initial presetManifest including optional setScope historical evidence, private location, counts and independent collection/layout revisions. Mixed legacy owners fail closed. Copied preset discovery/preview uses the separate preset operations.", schema: z.object(paging).strict(), responseSchema: page(developerCollectionSchema), permissions: ["collection:read", "binders:read"], write: false, idempotent: true },
   { name: "list_storage_slots", method: "GET", path: "/storage/collections/{collectionId}/slots", description: "Page ordered stable slots, current targets and wanted entries with item/placement/collection/layout preconditions. Empty targets are goals, not ownership. Cursor rejects changed revisions, scope or filters.", schema: z.object({ ...paging, collectionId: z.uuid(), cardId: id.optional(), status: z.enum(SLOT_STATUSES).optional() }).strict(), responseSchema: page(developerSlotSchema), permissions: ["collection:read", "binders:read"], write: false, idempotent: true },
   { name: "get_storage_slot", method: "GET", path: "/storage/collections/{collectionId}/slots/{id}", description: "Read one stable slot and all current edit preconditions. Removing a slot must retain its owned copy as Unassigned. No private planning/source/certificate/assets are returned.", schema: z.object({ collectionId: z.uuid(), id }).strict(), responseSchema: detail(developerSlotSchema), permissions: ["collection:read", "binders:read"], write: false, idempotent: true },
 ]

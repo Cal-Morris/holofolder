@@ -31,6 +31,9 @@ export interface SetChecklistInput {
 }
 
 export function generateSetChecklist(input: SetChecklistInput): SetChecklist {
+  return buildSetChecklist(input, false)
+}
+function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: boolean): SetChecklist {
   if (!isSlotContractId(input.set.id) || !isSlotContractId(input.set.name) || !isCardLanguage(input.language)
     || !isSlotContractId(input.capturedAt) || !Number.isFinite(Date.parse(input.capturedAt))) throw new Error("Invalid set scope")
   if (input.finishes.some(f => !Object.hasOwn(SET_FINISH_FLAGS, f)) || new Set(input.finishes).size !== input.finishes.length) throw new Error("Unsupported finish scope")
@@ -60,7 +63,7 @@ export function generateSetChecklist(input: SetChecklistInput): SetChecklist {
     if (!canonical) throw new Error("Unknown exclusion")
     return canonical
   }))].sort()
-  const cards = [...byId.values()].sort((a, b) => Number(promoCardIds.includes(a.cardId)) - Number(promoCardIds.includes(b.cardId))
+  const cards = preserveCapturedOrder ? [...byId.values()] : [...byId.values()].sort((a, b) => Number(promoCardIds.includes(a.cardId)) - Number(promoCardIds.includes(b.cardId))
     || compareCollectorNumbers(a.localId, b.localId) || a.cardId.localeCompare(b.cardId))
   const entries = cards.flatMap((card, index) => {
     if (!card.languageConfirmed || excludedCardIds.includes(card.cardId)) return []
@@ -87,8 +90,9 @@ export function generateSetChecklist(input: SetChecklistInput): SetChecklist {
   return freeze({ manifest, scope })
 }
 
-/** Rebuild and compare derived fields so an untrusted draft cannot detach its scope from its targets. */
-export function parseSetChecklist(value: unknown): SetChecklist {
+/** Rebuild derived fields so evidence cannot detach from targets. Drafts use natural collector
+ * order; persisted manifests retain their captured order, which SQL independently binds to entry IDs. */
+export function parseSetChecklist(value: unknown, preserveCapturedOrder = false): SetChecklist {
   if (!isContractRecord(value, ["manifest", "scope"]) || !isContractRecord(value.scope, ["setId", "setName", "language", "finishes", "capturedAt", "officialCardCount", "cards", "promoCardIds", "excludedCardIds", "warnings"])) throw new Error("Invalid set scope")
   const s = value.scope
   if (!isSlotContractId(s.setId) || !isSlotContractId(s.setName) || !isCardLanguage(s.language) || !isSlotContractId(s.capturedAt)
@@ -105,9 +109,9 @@ export function parseSetChecklist(value: unknown): SetChecklist {
   })
   const promoIds = s.promoCardIds as string[]
   if (promoIds.some(id => !cards.some(c => c.id === id))) throw new Error("Invalid promo scope")
-  const rebuilt = generateSetChecklist({ set: { id: s.setId, name: s.setName, ...(s.officialCardCount === null ? {} : { officialCardCount: s.officialCardCount }) },
+  const rebuilt = buildSetChecklist({ set: { id: s.setId, name: s.setName, ...(s.officialCardCount === null ? {} : { officialCardCount: s.officialCardCount }) },
     cards: cards.filter(c => !promoIds.includes(c.id)), promos: cards.filter(c => promoIds.includes(c.id)), language: s.language,
-    finishes: s.finishes as CardFinish[], excludedCardIds: s.excludedCardIds as string[], capturedAt: s.capturedAt })
+    finishes: s.finishes as CardFinish[], excludedCardIds: s.excludedCardIds as string[], capturedAt: s.capturedAt }, preserveCapturedOrder)
   const manifest = normalizePresetManifest(value.manifest)
   // Canonical serialization also keeps the copied preview stable across offline reopens.
   if (!manifest || stableJson(manifest) !== stableJson(rebuilt.manifest)

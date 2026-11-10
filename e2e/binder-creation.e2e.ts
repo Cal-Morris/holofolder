@@ -44,7 +44,7 @@ for (const [mode, count] of [["blank", 0], ["national", 1025], ["generation", 15
   await h.expectMinTapTarget(dialog.getByRole("button", { name: "Review storage", exact: true }))
   await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow()
   if (mode === "blank") await test.info().attach("creation-layout.json", { contentType: "application/json", body: JSON.stringify({ viewport: page.viewportSize(), insets, sheet: await dialog.boundingBox(), opener: await page.getByRole("button", { name: "New storage", exact: true }).boundingBox(), dock: await h.dock().boundingBox() }) })
-  expect(await dialog.getByRole("combobox", { name: "Starting arrangement" }).locator('option[value="set"]').isDisabled()).toBe(true)
+  expect(await dialog.getByRole("combobox", { name: "Starting arrangement" }).locator('option[value="set"]').isDisabled()).toBe(false)
   if (mode === "blank") {
     await dialog.getByRole("textbox", { name: "Storage name" }).focus(); await page.keyboard.press("Enter")
     expect((await record(page))?.pending).toHaveLength(0)
@@ -443,4 +443,66 @@ for (const mode of ["blank", "species"]) test(`custom ${mode} copies targets, pr
   await page.reload(); await expect(view).toHaveValue("binder")
   await view.selectOption("list"); await page.reload(); await expect(view).toHaveValue("list")
   expect((await record(page))!.receipts[0].intent).toEqual(r.receipts[0].intent)
+})
+
+for (const finishes of [false, true]) test(`set checklist durable ${finishes ? 'verified variants' : 'any finish'} scope survives lost reply, reopen and cached startup`, async ({ page, insets }) => {
+  const { syntheticPresetCards, syntheticPresetSet, syntheticPresetPromo } = await import('../tests/fixtures/set-preset')
+  await page.route('**/app/api/tcg-set-slots**', route => {
+    const url = new URL(route.request().url()), promo = url.searchParams.get('setId') === 'synthetic-promos'
+    return route.fulfill({ json: { sets: [syntheticPresetSet], selectedSet: url.searchParams.has('setId') ? promo ? syntheticPresetPromo.set : syntheticPresetSet : null,
+      cards: promo ? [syntheticPresetPromo] : syntheticPresetCards, slots: [] } })
+  })
+  const bodies: string[] = []
+  await page.route('**/app/e2e-harness/storage/creation', async route => {
+    bodies.push(route.request().postData()!)
+    const response = await route.fetch()
+    if (bodies.length === 1) await route.abort('failed')
+    else await route.fulfill({ response })
+  })
+  await page.goto(entry)
+  const dialog = await open(page, 'set')
+  await dialog.getByLabel('Find set preset').fill('synthetic')
+  await dialog.getByRole('button', { name: 'Find set', exact: true }).click()
+  await dialog.getByRole('button', { name: /Synthetic International/ }).click()
+  if (finishes) {
+    await dialog.getByRole('button', { name: /^Normal ·/ }).click()
+    await dialog.getByRole('button', { name: /^Reverse holo ·/ }).click()
+  }
+  await dialog.getByText('Optional promos and exclusions', { exact: true }).click()
+  await dialog.getByLabel('Promo set ID').fill('synthetic-promos')
+  await dialog.getByRole('button', { name: 'Load promos', exact: true }).click()
+  await dialog.getByRole('button', { name: /^Add promo/ }).click()
+  await dialog.getByRole('button', { name: 'Exclude #2 Synthetic supporter', exact: true }).click()
+  const preview = dialog.getByLabel('Copied set scope')
+  await expect(preview).toContainText('1 selected promos; 1 exclusions')
+  const h = new Harness(page, insets, true)
+  await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow()
+  await h.expectMinTapTarget(dialog.getByRole('button', { name: 'Review storage', exact: true }))
+  await confirm(page)
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable')
+  const original = (await record(page))!.pending[0].intent
+  const manifest = original.request.manifest as unknown as { setScope: { finishes: string[]; language: string; excludedCardIds: string[]; promoCardIds: string[]; capturedAt: string }; entries: unknown[] }
+  expect(manifest.setScope.finishes).toEqual(finishes ? ['normal','reverse_holo'] : [])
+  expect(manifest.setScope.language).toBe('en')
+  expect(manifest.setScope.excludedCardIds).toEqual(['synthetic-set-2'])
+  expect(manifest.setScope.promoCardIds).toEqual(['synthetic-promo-1'])
+  await page.reload()
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  expect(bodies).toHaveLength(2); expect(bodies[0]).toBe(bodies[1])
+  const saved = (await record(page))!, id = saved.receipts[0].intent.request.collectionId
+  const binder = saved.snapshot.binders.find(b => b.collectionId === id) as unknown as { presetManifest: unknown }
+  expect(binder.presetManifest).toEqual(manifest)
+  await page.getByRole('combobox', { name: 'Collection', exact: true }).selectOption(id)
+  await page.getByText('Saved checklist scope', { exact: true }).click()
+  await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
+  await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)
+  await h.expectNoHorizontalOverflow()
+  await page.route('**/app/e2e-harness/storage/inventory?*', route => route.abort('failed'))
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'New storage', exact: true })).toBeDisabled()
+  await page.getByText('Saved checklist scope', { exact: true }).click()
+  await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
+  await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)
+  expect((await record(page))!.snapshot.items).toHaveLength(0)
+  await h.expectNoHorizontalOverflow()
 })

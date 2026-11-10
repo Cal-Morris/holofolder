@@ -35,7 +35,7 @@ Every preview returns `projection: "copied-preset-preview-v1"`, `completeSnapsho
 
 ## Creation and identity boundaries
 
-Copy only `manifest` into the existing immutable creation draft. The outer preview `scope`, exclusions and unknowns are read-time disclosure, not fields persisted by creation. Set/master-set durable scope is therefore still unsupported. The app's internal set-checklist draft is not proof that its evidence survives creation.
+Copy only `manifest` into the existing immutable creation draft. The outer preview `scope`, exclusions and unknowns are read-time disclosure, not fields persisted by creation. This server preview does not generate set/master-set checklists. Separately, migration 101 enables reviewed `manifest.setScope` persistence through `create_storage_collection`, with saved reads returning `presetManifest`. See [Set checklists](/docs/set-checklist-drafts).
 
 Preset entry IDs are provenance labels. They are not collection UUIDs, stable slot IDs or operation IDs. Preview allocates none of those identities and does not return owner attribution. The client must create and retain its operation identity once, then obtain the real current authority/revisions and allocate collection/slot identities once when adapting the draft into the existing canonical creation command. Keep the original command across retries. A preview grants no creation entitlement and is not atomic acceptance, a terminal result, complete planner evidence or a fresh-read queue acknowledgement. See [native storage](/docs/native-storage) and [native reads](/docs/native-reads).
 

@@ -58,7 +58,7 @@ export function BinderCreationPresets({ ownerUserId, onDraft, isOnline, disabled
   }
   return <form aria-label="Preset creation draft" className="mt-3 space-y-3 border-t border-border pt-3" onSubmit={event => {
     event.preventDefault()
-    if (disabled || !isOnline || (mode === "set" && (!setChecklist || nativeCreation))) return
+    if (disabled || !isOnline || (mode === "set" && !setChecklist)) return
     try {
       onDraft(parseBinderCreationDraft({ version: 1, operationId: crypto.randomUUID(), ownerUserId, name, manifest, ...(nativeCreation ? { kind, location: kind === "custom" ? location : null } : {}), ...(mode === "set" && setChecklist ? { setChecklist } : {}) }))
       setMessage(nativeCreation ? "Review the copied targets before confirming." : "Draft prepared only. No binder has been saved.")
@@ -78,7 +78,7 @@ export function BinderCreationPresets({ ownerUserId, onDraft, isOnline, disabled
     </label>}
     <button type="submit" disabled={disabled || !isOnline || !name.trim() || (mode !== "blank" && manifest.entries.length === 0)} className="min-h-11 w-full rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-40">{nativeCreation ? "Review storage" : "Prepare draft"}</button>
     <label className="block text-xs">Preset<select aria-label="Starting arrangement" value={mode} onChange={e => { setMode(e.target.value); setSetChecklist(null); setPreviewPage(0); setQuery(""); setMessage("") }} className={`${control} mt-1 w-full`}>
-      <option value="set" disabled={nativeCreation}>Set / variant checklist{nativeCreation ? " · unavailable" : ""}</option><option value="blank">Blank</option><option value="national">National Dex</option><option value="generation">Generation</option><option value="species">Selected species</option><option value="printings">Selected printings</option>
+      <option value="set">Set / variant checklist</option><option value="blank">Blank</option><option value="national">National Dex</option><option value="generation">Generation</option><option value="species">Selected species</option><option value="printings">Selected printings</option>
     </select></label>
     {mode === "set" && <SetPresetPicker isOnline={isOnline} initialSet={initialSet} onChange={value => { setSetChecklist(value); setPreviewPage(0); setMessage("") }} />}
     {mode === "set" && setChecklist && <SetChecklistScopePreview checklist={setChecklist} />}

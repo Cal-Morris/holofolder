@@ -3,6 +3,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto"
 import type { OperationContext } from "@/lib/developer-api/types"
 import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/permissions"
 import { decodePage } from "@/lib/developer-api/pagination"
+import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { NATIVE_READ_OPERATIONS } from "@/lib/developer-api/native-read"
 import { developerReadAuthority } from "@/lib/server/developer-access/native-read"
 import { readTrustedInventoryState, InventoryReadError } from "@/lib/server/inventory-read-core"
@@ -23,7 +24,7 @@ function project(state: Awaited<ReturnType<typeof readTrustedInventoryState>>) {
   const itemVersions = new Map(s.items.map(i => [i.id, i.version]))
   const collections = s.collections.map(c => {
     const b = s.binders.find(b => b.collectionId === c.id)!, grid = state.navigation.layouts.find(l => l.collectionId === c.id)
-    return { ...state.collectionMetadata[c.id], id: c.id, name: c.name, kind: c.kind, defaultPresentation: c.defaultPresentation, version: c.version,
+    return { ...state.collectionMetadata[c.id], presetManifest: b.presetManifest, id: c.id, name: c.name, kind: c.kind, defaultPresentation: c.defaultPresentation, version: c.version,
       ...(c.location !== undefined ? { location: c.location } : {}), layoutRevision: b.layoutRevision, slotCount: b.slots.length,
       grid: grid ? { rows: grid.rows, cols: grid.cols } : null }
   })
@@ -112,7 +113,8 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
     }
     // Strict response validation rejects accidental private fields, including future domain additions.
     const output = operation.responseSchema!.parse(result)
-    if (Buffer.byteLength(JSON.stringify(output)) > maxResponseBytes) throw new DeveloperAccessError("native_read_too_large", "Read a smaller page. This projection is limited to 1 MiB.", 413)
+    const responseLimit = name === "list_storage_collections" ? COLLECTION_CREATION_LIMITS.bytes + 16 * 1024 : maxResponseBytes
+    if (Buffer.byteLength(JSON.stringify(output)) > responseLimit) throw new DeveloperAccessError("native_read_too_large", "Read a smaller page. This projection exceeds its response byte limit.", 413)
     return output
   } catch (error) {
     if (error instanceof InventoryReadError) throw new DeveloperAccessError(error.code, "Native inventory could not be read consistently. Restart the read.", error.status)
