@@ -436,7 +436,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
             if (!active() || !p || p.lease?.id !== leaseId || p.lease.until <= now + Date.now() - started
               || !sameValue(p.intent, intent) || !sameValue(p.rawRestoreProof, proof)
               || snapshot.inventoryRevision < Math.max((proof.receipt ?? proof.rejection)!.inventoryRevision, record.snapshot!.inventoryRevision)) fail('stale-restore-read')
-            if (intent.request.version === 3 && proof.receipt && snapshot.inventoryRevision === proof.receipt.inventoryRevision) {
+            if ((intent.request.version === 3 || intent.request.version === 4) && proof.receipt && snapshot.inventoryRevision === proof.receipt.inventoryRevision) {
               const binder = snapshot.binders.find(b => b.collectionId === intent.request.collection.collectionId)
               if (!binder || snapshot.collections.find(c => c.id === intent.request.collection.collectionId)?.version !== proof.receipt.collectionVersion
                 || binder.layoutRevision !== proof.receipt.layoutRevision

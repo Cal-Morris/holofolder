@@ -25,9 +25,9 @@ export async function inspectRawRestore(binding: NativeBackupBinding, text: stri
     || binder.slots.length > RAW_RESTORE_V2_LIMITS.slots || backup.items.length > RAW_RESTORE_V2_LIMITS.items
     || backupContentKey(source.slots.map(s => s.id).sort()) !== backupContentKey(binder.slots.map(s => s.id).sort())
     || backupContentKey(source.presetManifest) !== backupContentKey(binder.presetManifest)
-    || [...source.slots, ...binder.slots].some(s => s.legacySource != null)
+    || source.slots.some(s => backupContentKey(s.legacySource ?? null) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.legacySource ?? null))
     || source.slots.some(s => backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.presetOrigin))
-    || backup.items.some(i => i.grading !== null || i.legacySource != null)) return fail()
+    || backup.items.some(i => i.grading !== null)) return fail()
   const { version: _v, ...before } = original, { version: _cv, ownerUserId: _o, ...now } = config
   if (backupContentKey(before) !== backupContentKey(now)
     || !backup.layouts || backupContentKey(backup.layouts.map(({ layoutRevision: _r, ...l }) => l)) !== backupContentKey(read.layouts.filter(l => l.collectionId === collectionId).map(({ layoutRevision: _r, ...l }) => l))) return fail()
@@ -37,8 +37,9 @@ export async function inspectRawRestore(binding: NativeBackupBinding, text: stri
     || 2 * binder.slots.length + involved.size + source.slots.reduce((n, s) => n + s.wantedCards.length, 0) > RAW_RESTORE_V2_LIMITS.work) return fail()
   for (const id of involved) {
     const item = snapshot.items.find(i => i.id === id), fromFile = backup.items.find(i => i.id === id), placement = snapshot.placements.find(p => p.inventoryItemId === id)
-    if (!item || item.grading !== null || item.legacySource != null || placement && placement.collectionId !== collectionId
-      || fromFile && (backupContentKey(fromFile.identity) !== backupContentKey(item.identity) || fromFile.acquiredAt !== item.acquiredAt)) return fail()
+    if (!item || item.grading !== null || item.legacySource != null && !binder.slots.some(s => s.legacySource?.legacyRowId === id
+      && backupContentKey(s.legacySource.sourceRow) === backupContentKey(item.legacySource)) || placement && placement.collectionId !== collectionId
+      || fromFile && (backupContentKey(fromFile.legacySource ?? null) !== backupContentKey(item.legacySource ?? null) || backupContentKey(fromFile.identity) !== backupContentKey(item.identity) || fromFile.acquiredAt !== item.acquiredAt)) return fail()
   }
   const desired = hydrateBackupSnapshot(backup, snapshot.ownerUserId, read.partnerUserId ?? undefined)
   if (rawRestoreV2GraphBytes(snapshot, desired.binders[0]) > RAW_RESTORE_V2_LIMITS.graphBytes) {
@@ -72,7 +73,7 @@ export async function requestNativeRawRestorePlan(binding: NativeBackupBinding, 
     || command.planning.actorUserId !== binding.scope.actorUserId || command.planning.ownerUserId !== binding.scope.ownerUserId
     || command.planning.authSessionId !== binding.scope.authSessionId || command.planning.source !== 'app'
     || backupContentKey(command.slots.map(s => s.after.id)) !== backupContentKey(input.choices.slotIds)
-    || backupContentKey(command.version === 3 ? command.slotOrder.after : command.slots.map(s => s.after.id)) !== backupContentKey(parseBinderBackupV2(input.text).binders[0].slots.map(s => s.id))
+    || backupContentKey((command.version === 3 || command.version === 4) ? command.slotOrder.after : command.slots.map(s => s.after.id)) !== backupContentKey(parseBinderBackupV2(input.text).binders[0].slots.map(s => s.id))
     || backupContentKey(command.releaseItemIds) !== backupContentKey(input.choices.releaseItemIds)) throw new Error('Restore review changed. Nothing has been queued.')
   await binding.assertReady()
   if (!valid()) throw new Error('Restore session changed.')

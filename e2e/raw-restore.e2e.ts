@@ -74,7 +74,8 @@ test('actual Backup reviews explicit releases locally, plans privately, commits 
   expect(saved!.snapshot.placements[0].inventoryItemId).toBe('synthetic-restore-copy-1')
   await h.expectNoHorizontalOverflow()
   const denial = await page.request.post('/app/api/raw-content-restore', { data: { action: 'plan' } })
-  expect(denial.status()).toBe(503); expect(denial.headers()['cache-control']).toBe('private, no-store')
+  expect(denial.status()).toBe(403); expect((await denial.json()).error.code).toBe('storage_origin_denied')
+  expect(denial.headers()['cache-control']).toBe('private, no-store')
 })
 test('lost committed reply survives reload as exact intent, fences sinks, retries same ID and ACKs fresh current state', async ({ page }) => {
   await page.goto(entry); const d = await review(page)
@@ -232,4 +233,16 @@ test('same-ID reorder review shows positions and persists v3 exact orders throug
   expect(saved!.receipts[0].intent.request.version).toBe(3)
   expect(saved!.receipts[0].rawRestoreProof.receipt.slotOrder).toEqual(saved!.receipts[0].intent.request.slotOrder)
   expect(saved!.snapshot.binders[0].slots.map((s: { id: string })=>s.id)).toEqual(saved!.receipts[0].intent.request.slotOrder.after)
+})
+
+for (const reorder of [false,true]) test(`converted collection keeps source evidence through reviewed durable restore, reorder=${reorder}`, async ({ page, context, baseURL, insets }) => {
+  await context.addCookies([{ name: 'hf-storage-fixture', value: `restore-converted-${crypto.randomUUID()}`, url: baseURL! }])
+  await page.goto(entry)
+  const d = await review(page,reorder), h = new Harness(page, insets, true)
+  await expect(d.getByText('Converted binders keep their original conversion evidence.', { exact: false })).toBeVisible()
+  await d.getByRole('button', { name: 'Confirm and save raw restore' }).click()
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  expect((await record(page))?.pending).toHaveLength(0)
+  expect((await record(page))?.receipts[0]).toMatchObject({ intent: { request: { version: 4 } }, rawRestoreProof: { receipt: { version: 4 } } })
+  await h.expectNoHorizontalOverflow()
 })

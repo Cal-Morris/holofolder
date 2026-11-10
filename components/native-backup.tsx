@@ -105,7 +105,7 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
         </section>
         {restore && collectionId && fileText && (preview?.scope === "collection" || rawReview) && <section className="space-y-3" aria-label="Bounded raw collection restore">
           <h3 className="font-medium">Restore raw collection content</h3>
-          <p>One current raw collection only, with the same slots, configuration and grid. Copied manifest and each slot origin stay unchanged. Up to 1,025 slots, within the reviewed content budget. No new copies, grades, converted data, settings or assets. Matching file IDs do not prove provenance.</p>
+          <p>One current raw collection only, with the same slots, configuration and grid. Copied manifest and each slot origin stay unchanged. Up to 1,025 slots, within the reviewed content budget. Converted binders keep their original conversion evidence. No new copies, grades, settings or assets. Matching file IDs do not prove provenance.</p>
           {!rawReview && <button className={buttonClass} disabled={busy || !binding.available} onClick={() => void run(async active => {
             const review = await inspectRawRestore(latest.current, fileText!, collectionId, active)
             if (active()) { setRawReview(review); setCopyPage(0); setSlotPage(0); setReleaseConsent([]); setCommand(null) }

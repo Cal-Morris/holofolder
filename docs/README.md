@@ -64,3 +64,5 @@ Files in `superpowers/plans/` and `superpowers/specs/`, [the rebrand checklist](
 - [Creation/import terminal noncommit (093)](creation-import-terminal-noncommit.md), staged backend proof and separate durable consumer/application gates.
 
 - [Empty-owner first creation (098)](empty-owner-first-creation.md): prerequisite, absent-root retry behavior and private SQL proof.
+
+- [Converted-binder raw contents restore](raw-content-restore.md#existing-converted-binders-100v4): additive 100 contract, immutable conversion evidence and parent-owned hosted/release gates.
