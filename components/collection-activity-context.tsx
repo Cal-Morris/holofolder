@@ -10,13 +10,13 @@ import type { Binder } from "@/lib/binders/model"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 
 const ActivitySheet = dynamic(()=>import("@/components/collection-activity-sheet"), {ssr:false})
-export type ActivityInitialFilter = { pokemonId?: number; itemId?: string }
+export type ActivityInitialFilter = { pokemonId?: number; itemId?: string; operationId?: string }
 const ActivityContext = createContext<((filter:ActivityInitialFilter)=>void) | null>(null)
 
-export function ActivityButton({ pokemonId, onOpen }: {pokemonId?:number; onOpen?:()=>void}) {
+export function ActivityButton({ pokemonId, onOpen, filter, label = "Activity" }: {pokemonId?:number; onOpen?:()=>void; filter?:ActivityInitialFilter; label?:string}) {
   const open = useContext(ActivityContext)
   if (!open) return null
-  return <button type="button" className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted" onClick={()=>{onOpen?.();open({pokemonId})}}><History className="h-4 w-4" aria-hidden />Activity</button>
+  return <button type="button" className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted" onClick={()=>{onOpen?.();open(filter ?? {pokemonId})}}><History className="h-4 w-4" aria-hidden />{label}</button>
 }
 
 export function CollectionActivityProvider({accountId,ownerId,binderId,binders,collection,pendingCount,isOnline,onOpenPokemon,onRecovered,children,nativeRecovery}: {

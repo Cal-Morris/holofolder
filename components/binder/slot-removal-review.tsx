@@ -54,7 +54,7 @@ export default function SlotRemovalReview({ boundary, selection, onClose, embedd
         {slot.wantedCards.length ? <ul>{slot.wantedCards.map((want, i) => <li key={i}>Want to remove: {want.card_name} · {want.card_id} · {want.card_language ?? "Any language"} · {want.card_finish ?? "Any finish"}</li>)}</ul> : <p>No explicit wants</p>}
         <p>{item ? `Copy ${item.id} becomes Unassigned · ${item.identity.kind === "card" ? item.identity.cardId : `Pokémon #${item.identity.pokemonId}, unknown printing`} · ${item.grading ? "Recorded graded copy, metadata retained" : "Raw or unknown grade, metadata retained"}` : "No assigned owned copy"}</p>
       </section>)}
-      <p>Confirmation saves one atomic removal on this device, pending sync. Closing cannot cancel accepted work. After synchronization, open Activity, inspect the recorded removal and choose Review recovery when supported, then confirm its current preview. Recovery may be unavailable or blocked by newer edits. No instant Undo is promised.</p>
+      <p>Confirmation saves one atomic removal on this device, pending sync. Closing cannot cancel accepted work. After synchronization, use Find acknowledged change, open the exact recorded entry and choose Review recovery when supported, then confirm its current preview. Recovery may be unavailable or blocked by newer edits. No instant Undo is promised.</p>
       {!prepared && <button type="button" className={button} onClick={onClose}>Cancel removal</button>}
     </div>
   </>

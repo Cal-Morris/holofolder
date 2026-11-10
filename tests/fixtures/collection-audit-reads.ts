@@ -5,9 +5,13 @@ async function main() {
  process.env.NEXT_PUBLIC_SUPABASE_URL="https://synthetic.supabase.test"
  process.env.SUPABASE_SERVICE_ROLE_KEY="synthetic-key"
  const {readCollectionAudit,isAuditId}=await import("../../lib/server/operations/audit")
- const {matchRestOperation}=await import("../../lib/developer-api/operations")
+ const {matchRestOperation,DEVELOPER_OPERATIONS}=await import("../../lib/developer-api/operations")
  assert.equal(matchRestOperation("GET","/collection/audit")?.operation.name,"list_collection_audit")
  assert.equal(matchRestOperation("GET","/collection/audit/123")?.operation.name,"get_collection_audit")
+ const schema=DEVELOPER_OPERATIONS.find(op=>op.name==='list_collection_audit')!.schema
+ for(const operationId of ['', ' ', ' leading', 'trailing ', 'a'.repeat(201), 'bad\noperation']) assert.equal(schema.safeParse({operationId}).success,false)
+ assert.equal(schema.safeParse({operationId:'synthetic-op',ownerId:'other-owner'}).success,false)
+ assert.equal(schema.safeParse({operationId:'synthetic-op'}).success,true)
  const context:OperationContext={principal:{actorId:"synthetic-partner",credentialId:"synthetic-grant",transport:"rest",permissions:["collection:read"]},ownerUserId:"synthetic-owner",memberIds:[],requestId:"synthetic-request"}
  const rows=Array.from({length:1105},(_,i)=>({id:String(1105-i),actor_kind:"unknown",changes:[]}))
  let missing=false
@@ -47,6 +51,14 @@ async function main() {
  assert.equal(lastUrl!.searchParams.get("actor_user_id"),"eq.synthetic-actor")
  assert.equal(lastUrl!.searchParams.get("action"),"eq.collection_change")
  assert.deepEqual(lastUrl!.searchParams.getAll("recorded_at"),["gte.2026-01-01T00:00:00Z","lte.2026-11-09T23:59:59Z"])
+ const operationPage=await readCollectionAudit(context,{operationId:'synthetic-op',limit:1}) as {nextCursor:string}
+ assert.equal(lastUrl!.searchParams.get('operation_id'),'eq.synthetic-op')
+ assert.equal(lastUrl!.searchParams.get('owner_user_id'),'eq.synthetic-owner')
+ await assert.rejects(readCollectionAudit(context,{operationId:'other-op',limit:1,cursor:operationPage.nextCursor}),/cursor/)
+ const opaque='synthetic,operation.eq.other)'
+ assert.equal(schema.safeParse({operationId:opaque}).success,true)
+ await readCollectionAudit(context,{operationId:opaque})
+ assert.equal(lastUrl!.searchParams.get('operation_id'),'eq.'+opaque)
  const malicious='card,changes.neq.null)' // Synthetic reserved grammar characters, treated as a value.
  await readCollectionAudit(context,{cardId:malicious})
  assert.ok(lastUrl!.searchParams.get("or")!.includes('\\"card_id\\":\\"'+malicious+'\\"'))
