@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { pickerCandidate, pickerChoices, prepareSlotPickerIntent } from "@/lib/slot-picker"
+import { matchingWantIndexes, pickerCandidate, pickerChoices, prepareSlotPickerIntent, speciesSelectorCard } from "@/lib/slot-picker"
 import { syntheticSlotPickerSnapshot } from "@/tests/fixtures/slot-picker"
 import { projectSlotIntent } from "@/lib/collection/slot-optimistic"
 
@@ -140,4 +140,43 @@ test("recorded graded-only groups never offer a fabricated raw copy", () => {
   const choices = pickerChoices(inventory, { kind: "card", cardId: "synthetic-snorlax-a", language: "en", finish: "normal" }, resolve)
   assert.deepEqual(choices.map(c => c.label), ["PSA 9"])
   assert.deepEqual(choices[0].selection, { kind: "existing", inventoryItemId: "unassigned-grade", itemVersion: 1 })
+})
+
+// Synthetic card and wants for the species selector hand-off.
+const synthWant = (over: object = {}) => ({ card_id: "synthetic-snorlax-a", card_name: "Snorlax A", added_at: "2026-11-10T00:00:00.000Z", ...over })
+test("a species selector pick carries only the dex link the list was joined on", () => {
+  const { cards } = setup()
+  const { dexIds: _ignored, ...tcg } = cards[0]
+  const card = speciesSelectorCard({ ...tcg, language: "ja" }, 143)
+  assert.deepEqual(card.dexIds, [143])
+  assert.equal(card.language, "ja")
+  assert.equal(pickerCandidate(card).language, "ja")
+  assert.deepEqual(pickerCandidate(card).pokemonIds, [143])
+})
+test("a want matches only the exact card, language and finish, never by species", () => {
+  const { cards } = setup()
+  const snorlaxA = cards[0], snorlaxB = cards[1]
+  const wants = [synthWant(), synthWant({ card_language: "ja" }), synthWant({ card_finish: "holo" }), synthWant({ card_id: "synthetic-snorlax-b" })]
+  assert.deepEqual(matchingWantIndexes(wants, snorlaxA, "normal"), [0])
+  assert.deepEqual(matchingWantIndexes(wants, { ...snorlaxA, language: "ja" }, "normal"), [0, 1])
+  assert.deepEqual(matchingWantIndexes(wants, snorlaxA, "holo"), [0, 2])
+  // An unknown finish never satisfies a want that names one.
+  assert.deepEqual(matchingWantIndexes(wants, snorlaxA, undefined), [0])
+  assert.deepEqual(matchingWantIndexes(wants, snorlaxB, "normal"), [3])
+  assert.deepEqual(matchingWantIndexes([], snorlaxA, "normal"), [])
+})
+test("fulfilling a matched want keeps the exact want identity and slot versions of a plain assign", () => {
+  const { inventory, cards, scope, resolve } = setup()
+  const slot = inventory.binders[0].slots.find(s => s.id === scope.slotId)!
+  slot.wantedCards = [synthWant()]
+  const identity = { kind: "card" as const, cardId: cards[0].id, language: "en" as const, finish: "normal" as const }
+  const selection = pickerChoices(inventory, identity, resolve)[0].selection
+  const plain = prepareSlotPickerIntent(inventory, scope, { kind: "assign", selection, fulfillWant: null }, context, resolve)
+  const fulfil = prepareSlotPickerIntent(inventory, scope, { kind: "assign", selection, fulfillWant: { index: 0, expected: slot.wantedCards[0] } }, context, resolve)
+  assert.deepEqual(plain.scope, fulfil.scope)
+  const command = (p: typeof plain) => p.intent.kind === "inventory" ? p.intent.request.commands[0] : null
+  assert.equal(command(plain)?.kind, "assign")
+  assert.deepEqual({ ...command(fulfil)!, fulfillWant: null }, command(plain))
+  assert.equal(fulfil.preview.binders[0].slots[6].wantedCards.length, 0)
+  assert.equal(plain.preview.binders[0].slots[6].wantedCards.length, 1)
 })

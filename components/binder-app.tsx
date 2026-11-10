@@ -130,7 +130,7 @@ const NativeCollectionAnalytics = dynamic(() => import("@/components/native-coll
 const CollectionSlotList = dynamic(() => import("@/components/collection-navigation/slot-list"), { ssr: false })
 
 const LayoutToolbar = dynamic(() => import("@/components/binder/layout-editor").then(module => module.LayoutToolbar), { ssr: false })
-const SlotDetail = dynamic(() => import("@/components/binder/slot-detail"), { ssr: false })
+const NativeSlotFlow = dynamic(() => import("@/components/binder/native-slot-flow"), { ssr: false })
 
 interface BinderAppProps {
   /** Minted only by the server-gated loopback harness. Production bootstrap never supplies this. */
@@ -4053,7 +4053,7 @@ function BinderAppSurface(props: BinderAppProps) {
         />
       ) : null}
 
-      {selectedDisplaySlot && <SlotDetail key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
+      {selectedDisplaySlot && <NativeSlotFlow pricing={{ defaultCardLanguage: pricingPreferences.cardLanguage, pricingRegion: pricingPreferences.region, formatAmount: priceFormat.amount }} key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
         onDoneLayout={() => { closeSlotDetail(); setLayoutSession(null) }}
         layout={editingLayout && layoutBoundary ? { ...layoutBoundary, scope: { ...layoutBoundary.scope, slotId: selectedDisplaySlot.id } } : undefined}
         picker={!editingLayout && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: selectedDisplaySlot.id }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent, localDurable: stagedSlotLocalDurable } : undefined} />}
