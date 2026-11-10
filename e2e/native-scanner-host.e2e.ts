@@ -11,15 +11,25 @@ async function record(page: Page) {
     return rows.find((r): r is { pending: { status: string; intent: { request: { operationId: string; commands: unknown[] } } }[]; receipts: unknown[] } => !!r && typeof r === "object" && "pending" in r)
   })
 }
+async function nextSavedPage(page: Page) {
+  const canvas = page.locator("[data-page-turn-ms]")
+  const box = (await canvas.boundingBox())!
+  const touch = await page.context().newCDPSession(page)
+  const x = box.x + box.width * 0.8, y = box.y + box.height * 0.5
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] })
+  await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - 100, y, id: 1 }] })
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+  await touch.detach()
+}
 async function cardReview(page: Page) {
   await page.getByRole("button", { name: "Scan card", exact: true }).click()
   await page.getByRole("button", { name: "Type instead", exact: true }).click()
   await expect(review(page)).toBeVisible()
 }
-async function choose(page: Page, cell: number, card: string, slot: number) {
+async function choose(page: Page, cell: number, card: string, slot: number | "append-free" | "append-card") {
   await page.getByRole("combobox", { name: `Card for cell ${cell}`, exact: true }).selectOption(`synthetic-${card}:en`)
   await page.getByRole("combobox", { name: `Copy for cell ${cell}`, exact: true }).selectOption("raw")
-  await page.getByRole("combobox", { name: `Destination for cell ${cell}`, exact: true }).selectOption(`synthetic-slot-${slot}`)
+  await page.getByRole("combobox", { name: `Destination for cell ${cell}`, exact: true }).selectOption(typeof slot === "number" ? `slot:synthetic-slot-${slot}` : slot)
 }
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets)
@@ -61,9 +71,13 @@ test("lost inventory reply survives modal close/reload and retries exact origina
   await page.route("**/app/e2e-harness/storage/inventory", async route => {
     requests.push(route.request().postData()!)
     const response = await route.fetch()
-    if (requests.length === 1) await route.abort("failed"); else await route.fulfill({ response })
+    if (requests.length === 1) {
+      // Synthetic lost reply in a hidden old tab. Reload owns the next send; in-flight leases have separate coverage.
+      await page.evaluate(() => Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" }))
+      await route.abort("failed")
+    } else await route.fulfill({ response })
   })
-  await page.goto(entry); await cardReview(page); await choose(page, 1, "trainer", 3)
+  await page.goto(entry); await cardReview(page); await choose(page, 1, "trainer", "append-card")
   await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
   await page.reload()
@@ -75,8 +89,8 @@ test("repeated species never preselect first destination; cancel creates no inte
   await page.getByRole("combobox", { name: "Card for cell 1", exact: true }).selectOption("synthetic-snorlax:en")
   const target = page.getByRole("combobox", { name: "Destination for cell 1", exact: true })
   await expect(target).toHaveValue("")
-  await expect(target.locator('option[value="synthetic-slot-0"]')).toHaveCount(1)
-  await expect(target.locator('option[value="synthetic-slot-1"]')).toHaveCount(1)
+  await expect(target.locator('option[value="slot:synthetic-slot-0"]')).toHaveCount(1)
+  await expect(target.locator('option[value="slot:synthetic-slot-1"]')).toHaveCount(1)
   await choose(page, 1, "snorlax", 1)
   await review(page).getByRole("button", { name: "Cancel", exact: true }).click()
   expect((await record(page))?.pending).toHaveLength(0)
@@ -95,7 +109,7 @@ test("cached startup stays read-only and explains reconnect before scanner accep
   expect((await record(page))?.pending).toHaveLength(0)
 })
 for (const change of ["signout", "account", "owner"] as const) test(`${change} teardown discards unconfirmed review without queue writes`, async ({ page }) => {
-  await page.goto(entry); await cardReview(page); await choose(page, 1, "trainer", 3)
+  await page.goto(entry); await cardReview(page); await choose(page, 1, "trainer", "append-card")
   if (change === "owner") await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-membership", owner_user_id: "33333333-3333-4333-8333-333333333333", user1_id: E2E_USER.id, user2_id: "33333333-3333-4333-8333-333333333333" }] }))
   await page.evaluate(({ change, user }) => {
     const channel = new BroadcastChannel("sb-127-auth-token")
@@ -125,7 +139,7 @@ test("inserted free pocket page maps captured IDs and confirms Energy plus train
   await expect(review(page).getByRole("region", { name: "Cell 4", exact: true })).toContainText("synthetic-slot-2")
   await page.getByRole("combobox", { name: "Card for cell 1", exact: true }).selectOption("synthetic-energy:en")
   await page.getByRole("combobox", { name: "Copy for cell 1", exact: true }).selectOption("raw")
-  await page.getByRole("combobox", { name: "Destination for cell 1", exact: true }).selectOption(inserted!)
+  await page.getByRole("combobox", { name: "Destination for cell 1", exact: true }).selectOption(`slot:${inserted}`)
   await choose(page, 4, "trainer", 2)
   expect(bodies).toHaveLength(0)
   await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
@@ -222,7 +236,8 @@ for (const stage of ["page", "card", "review"] as const) test(`actual host ${sta
 test("real IDB abort shows no acceptance and retry persists the same confirmed request", async ({ page }) => {
   let sent = ""
   await page.route("**/app/e2e-harness/storage/inventory", async route => { sent = route.request().postData()!; await route.continue() })
-  await page.goto(entry); await cardReview(page); await choose(page, 1, "energy", 2)
+  await page.goto(`${entry}&scanFixture=1`); await pageReview(page)
+  await choose(page, 1, "energy", "append-free"); await choose(page, 4, "energy", "append-card")
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     let aborted = false
@@ -231,6 +246,7 @@ test("real IDB abort shows no acceptance and retry persists the same confirmed r
       if (value?.pending?.[0]?.intent && !aborted) {
         aborted = true
         sessionStorage.setItem("synthetic-aborted-scan-request", JSON.stringify(value.pending[0].intent.request))
+        sessionStorage.setItem("synthetic-aborted-scan-intent", JSON.stringify(value.pending[0].intent))
         this.transaction.abort()
       }
       return request
@@ -245,37 +261,123 @@ test("real IDB abort shows no acceptance and retry persists the same confirmed r
   await expect(review(page)).toHaveCount(0)
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   expect(JSON.parse(sent)).toEqual(JSON.parse(original!))
+  const originalIntent = await page.evaluate(() => sessionStorage.getItem("synthetic-aborted-scan-intent"))
+  expect(((await record(page))?.receipts[0] as { intent: unknown }).intent).toEqual(JSON.parse(originalIntent!))
 })
 test("duplicate page copies keep distinct IDs through lost reply and exact durable retry", async ({ page }) => {
-  const requests: { operationId: string; commands: { kind: string; itemId?: string; selection?: { inventoryItemId: string } }[] }[] = []
+  const requests: { operationId: string; commands: { kind: string; itemId?: string; slotId?: string; selection?: { inventoryItemId?: string; itemId?: string } }[] }[] = []
   await page.route("**/app/e2e-harness/storage/inventory", async route => {
     requests.push(route.request().postDataJSON())
     const response = await route.fetch()
     if (requests.length === 1) await route.abort("failed"); else await route.fulfill({ response })
   })
   await page.goto(`${entry}&scanFixture=1`); await pageReview(page)
-  await choose(page, 1, "snorlax", 0); await choose(page, 4, "snorlax", 1)
+  await choose(page, 1, "snorlax", 0); await choose(page, 4, "snorlax", "append-card")
   await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
   const original = (await record(page))?.pending[0].intent.request
   await page.reload()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   expect(requests).toHaveLength(2); expect(requests[0]).toEqual(requests[1]); expect(requests[0]).toEqual(original)
-  expect(requests[0].commands.map(c => c.kind)).toEqual(["assign", "add", "assign"])
-  const copies = requests[0].commands.filter(c => c.kind === "assign").map(c => c.selection!.inventoryItemId)
+  expect(requests[0].commands.map(c => c.kind)).toEqual(["assign", "insertAssign"])
+  const copies = requests[0].commands.map(c => c.selection!.inventoryItemId ?? c.selection!.itemId)
   expect(new Set(copies).size).toBe(2)
   expect(copies[0]).toBe("synthetic-copy-snorlax")
-  expect(copies[1]).toBe(requests[0].commands[1].itemId)
-  for (const slot of [0, 1]) await expect(page.locator(`[data-slot-id="synthetic-slot-${slot}"]`)).toContainText("Synthetic snorlax")
+  expect(copies[1]).toBe(requests[0].commands[1].selection!.itemId)
+  await expect(page.locator('[data-slot-id="synthetic-slot-0"]')).toContainText("Synthetic snorlax")
+  await nextSavedPage(page)
+  await expect(page.locator(`[data-slot-id="${requests[0].commands[1].slotId}"]`)).toContainText("Synthetic snorlax")
 })
-test("empty native page explains unsupported append before capture", async ({ page }) => {
+for (const size of [0, 3, 4]) test(`append from ${size === 0 ? "empty" : size === 3 ? "partial" : "full"} page uses one reviewed batch without padding`, async ({ page, context, baseURL, insets }) => {
+  const bodies: { commands: { kind: string; slotId?: string }[] }[] = []
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { bodies.push(route.request().postDataJSON()); await route.continue() })
+  await context.addCookies([{ name: "hf-storage-fixture", value: `scan-${size === 0 ? "empty" : size === 3 ? "partial" : "full"}-${crypto.randomUUID()}`, url: baseURL! }])
+  await page.goto(`${entry}&scanFixture=1`)
+  await pageReview(page)
+  await choose(page, 1, "energy", "append-free")
+  await choose(page, 4, "trainer", size ? 2 : "append-card")
+  const h = new Harness(page, insets, true)
+  await h.expectWithinSafeViewport(review(page)); await h.expectNoHorizontalOverflow()
+  expect(bodies).toHaveLength(0)
+  await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  expect(bodies).toHaveLength(1)
+  expect(bodies[0].commands.map(c => c.kind)).toEqual(["insertAssign", size ? "assign" : "insertAssign"])
+  if (size === 4) {
+    await nextSavedPage(page)
+    await expect(page.locator(`[data-slot-id="${bodies[0].commands[0].slotId}"]`)).toContainText("Synthetic energy")
+  }
+  await expect(page.locator("[data-slot-id]")).toHaveCount(size === 4 ? 1 : size + (size ? 1 : 2))
+  for (const command of bodies[0].commands.filter(c => c.kind === "insertAssign")) expect(command.slotId).toBeTruthy()
+})
+test("append cap refuses the entire confirmed page and cancel leaves no durable intent", async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `scan-cap-${crypto.randomUUID()}`, url: baseURL! }])
+  let sends = 0
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { sends++; await route.continue() })
+  await page.goto(`${entry}&scanFixture=1`); await cardReview(page)
+  await choose(page, 1, "energy", "append-free")
+  await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
+  await expect(review(page).getByRole("alert")).toContainText("smaller page")
+  expect(sends).toBe(0); expect((await record(page))?.pending).toHaveLength(0)
+  await review(page).getByRole("button", { name: "Cancel", exact: true }).click()
+  expect((await record(page))?.pending).toHaveLength(0)
+})
+
+test("append reply cannot ACK a stale complete read and explicit retry keeps the original IDs", async ({ page }) => {
+  let original: unknown, sends = 0, stale = true
+  const requests: string[] = []
   await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
     const response = await route.fetch(), body = await response.json()
-    body.snapshot.binders[0].slots = []; body.evidence.slots = 0; body.evidence.storage[0].slotCount = 0
+    if (!original) original = body
+    await route.fulfill({ response, json: sends && stale ? original : body })
+  })
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { sends++; requests.push(route.request().postData()!); await route.continue() })
+  await page.goto(entry); await cardReview(page); await choose(page, 1, "energy", "append-free")
+  await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
+  expect((await record(page))?.receipts).toHaveLength(0)
+  stale = false
+  await page.getByRole("button", { name: "Retry pending sync", exact: true }).click()
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  expect(requests).toHaveLength(2); expect(requests[0]).toBe(requests[1])
+})
+
+test("empty binder without a verified saved grid never gains scan authority", async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `scan-empty-${crypto.randomUUID()}`, url: baseURL! }])
+  await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
+    const response = await route.fetch(), body = await response.json()
+    body.navigation.layouts = []
     await route.fulfill({ response, json: body })
   })
   await page.goto(entry)
-  await expect(page.getByRole("button", { name: "Scan page", exact: true })).toBeDisabled()
-  await expect(page.getByText("Add free slots in Edit layout before scanning. Append and assign from a scan is unavailable.")).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Scan page", exact: true })).toHaveCount(0)
   expect((await record(page))?.pending).toHaveLength(0)
+})
+
+for (const slotId of ["append-free", "append-card"]) test(`existing destination ${slotId} is distinct from the append action`, async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `scan-destination-collision-${crypto.randomUUID()}`, url: baseURL! }])
+  const commands: { kind: string; destination?: { slot: { id: string } } }[] = []
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { commands.push(...JSON.parse(route.request().postData()!).commands); await route.continue() })
+  await page.goto(entry); await cardReview(page)
+  await page.getByRole("combobox", { name: "Card for cell 1", exact: true }).selectOption("synthetic-energy:en")
+  await page.getByRole("combobox", { name: "Copy for cell 1", exact: true }).selectOption({ label: "Raw, reuse Unassigned or create" })
+  await page.getByRole("combobox", { name: "Destination for cell 1", exact: true }).selectOption({ label: `${slotId} · Free slot` })
+  await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
+  await expect.poll(() => commands.length).toBe(1)
+  expect(commands[0].kind).toBe("assign"); expect(commands[0].destination?.slot.id).toBe(slotId)
+})
+test("recorded copy named raw remains an explicit graded copy", async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `scan-copy-collision-${crypto.randomUUID()}`, url: baseURL! }])
+  const commands: { kind: string; selection?: { kind: string; inventoryItemId?: string } }[] = []
+  await page.route("**/app/e2e-harness/storage/inventory", async route => { commands.push(...JSON.parse(route.request().postData()!).commands); await route.continue() })
+  await page.goto(entry); await cardReview(page)
+  await page.getByRole("combobox", { name: "Card for cell 1", exact: true }).selectOption("synthetic-energy:en")
+  const copies = page.getByRole("combobox", { name: "Copy for cell 1", exact: true })
+  const recorded = (await copies.locator("option").allTextContents()).find(label => label.endsWith(" · raw"))!
+  await copies.selectOption({ label: recorded })
+  await page.getByRole("combobox", { name: "Destination for cell 1", exact: true }).selectOption({ label: "synthetic-slot-2 · Free slot" })
+  await review(page).getByRole("button", { name: "Confirm scan draft" }).click()
+  await expect.poll(() => commands.length).toBe(1)
+  expect(commands[0].kind).toBe("assign"); expect(commands[0].selection).toMatchObject({ kind: "existing", inventoryItemId: "raw" })
 })

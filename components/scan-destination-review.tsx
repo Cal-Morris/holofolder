@@ -58,9 +58,11 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
         const choice = choices[cell.index]
         const card = cell.candidates.find(c => cardKey(c) === choice?.cardId)
         if (!card || !choice || !choice.slotId || !choice.copy) throw new Error("scan-unconfirmed")
-        const copy = choice.copy === "raw" ? "raw" : admission.snapshot.items.find(i => i.id === choice.copy)
+        const copy = choice.copy === "raw" ? "raw" : choice.copy.startsWith("copy:") ? admission.snapshot.items.find(i => i.id === choice.copy.slice(5)) : undefined
         if (!copy) throw new Error("copy-choice-required")
-        return { cellIndex: cell.index, slotId: choice.slotId, card, ...(choice.finish ? { finish: choice.finish as CardFinish } : {}),
+        const append = choice.slotId === "append-free" ? "free" : choice.slotId === "append-card" ? "card" : undefined
+        if (!append && !choice.slotId.startsWith("slot:")) throw new Error("scan-unconfirmed")
+        return { cellIndex: cell.index, slotId: append ? null : choice.slotId.slice(5), ...(append ? { append } : {}), card, ...(choice.finish ? { finish: choice.finish as CardFinish } : {}),
           copy: copy === "raw" ? "raw" : { inventoryItemId: copy.id, itemVersion: copy.version } }
       })
       const prepared = prepareScanDraft(admission.snapshot, admission.view, capture, selected,
@@ -79,7 +81,7 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
         <button className={control} disabled={acceptance.busy} aria-label="Close scan review" onClick={close}>Close</button>
       </header>
       <div className="space-y-3 overflow-y-auto overscroll-contain p-3">
-        <p className="text-sm">Choose the exact card and destination for every occupied cell, or skip it. Occupancy alone never adds ownership.</p>
+        <p className="text-sm">Choose the exact card, copy and destination for every occupied cell, or skip it. Cells are applied in the review order below; appended slots follow the full saved order without padding. Occupancy alone never adds ownership.</p>
         {stale && <p role="alert">The owner, collection, layout or grid changed. Cancel and capture again.</p>}
         {error && <p role="alert" className="break-words">{error}</p>}
         {acceptance.message && <p role="alert">{acceptance.message}</p>}
@@ -107,11 +109,12 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
                     <option value="">Unknown finish</option>{pickerFinishes(card).map(f => <option key={f.finish} value={f.finish}>{f.label}</option>)}
                   </select>
                   <select className={control} aria-label={`Copy for cell ${cell.index + 1}`} value={choice?.copy ?? ""} onChange={e => update(cell.index, { copy: e.target.value })}>
-                    <option value="">Choose copy</option><option value="raw" disabled={rawUnavailable}>{rawUnavailable ? "Raw creation unavailable beside graded-only copies" : "Raw, reuse Unassigned or create"}</option>{copies.map(c => c.selection.kind === "existing" && <option key={c.selection.inventoryItemId} value={c.selection.inventoryItemId}>{c.label} · {c.selection.inventoryItemId}</option>)}
+                    <option value="">Choose copy</option><option value="raw" disabled={rawUnavailable}>{rawUnavailable ? "Raw creation unavailable beside graded-only copies" : "Raw, reuse Unassigned or create"}</option>{copies.map(c => c.selection.kind === "existing" && <option key={c.selection.inventoryItemId} value={`copy:${c.selection.inventoryItemId}`}>{c.label} · {c.selection.inventoryItemId}</option>)}
                   </select>
                   <select className={control} aria-label={`Destination for cell ${cell.index + 1}`} value={choice?.slotId ?? ""} onChange={e => update(cell.index, { slotId: e.target.value })}>
-                    <option value="">Choose destination</option>{scanDestinations(admission.snapshot, admission.view, card, choice?.finish ? choice.finish as CardFinish : undefined).map(s => <option key={s.id} value={s.id}>{s.id}{s.target ? " · Compatible target" : " · Free slot"}{s.id === cell.slotId ? " · Captured cell" : ""}</option>)}
-                    <option disabled>Append unavailable: requires atomic slot creation and assignment</option>
+                    <option value="">Choose destination</option>{scanDestinations(admission.snapshot, admission.view, card, choice?.finish ? choice.finish as CardFinish : undefined).map(s => <option key={s.id} value={`slot:${s.id}`}>{s.id}{s.target ? " · Compatible target" : " · Free slot"}{s.id === cell.slotId ? " · Captured cell" : ""}</option>)}
+                    <option value="append-free">Append new free slot and assign chosen copy</option>
+                    <option value="append-card">Append new card target and assign chosen copy</option>
                   </select>
                 </>}
               </div>}

@@ -11,7 +11,7 @@ const photo = async (page: Page) => {
 const choose = async (page: Page, cell: number, card: string, slot: string) => {
   await page.getByRole("combobox", { name: `Card for cell ${cell}`, exact: true }).selectOption(`${card}:en`)
   await page.getByRole("combobox", { name: `Copy for cell ${cell}`, exact: true }).selectOption("raw")
-  await page.getByRole("combobox", { name: `Destination for cell ${cell}`, exact: true }).selectOption(slot)
+  await page.getByRole("combobox", { name: `Destination for cell ${cell}`, exact: true }).selectOption(`slot:${slot}`)
 }
 
 test.describe("native scan acceptance, synthetic device only", () => {
@@ -125,7 +125,7 @@ test.describe("native scan acceptance, synthetic device only", () => {
     await page.getByRole("combobox", { name: "Card for cell 1", exact: true }).selectOption("synthetic-snorlax-a:en")
     await expect(page.getByRole("combobox", { name: "Destination for cell 1", exact: true })).toHaveValue("")
     await page.getByRole("combobox", { name: "Copy for cell 1", exact: true }).selectOption("raw")
-    await page.getByRole("combobox", { name: "Destination for cell 1", exact: true }).selectOption("slot-b")
+    await page.getByRole("combobox", { name: "Destination for cell 1", exact: true }).selectOption("slot:slot-b")
     await page.getByRole("checkbox", { name: "Skip cell 6" }).check()
     await control(page, "fail")
     await review(page).getByRole("button", { name: "Confirm scan draft" }).click()

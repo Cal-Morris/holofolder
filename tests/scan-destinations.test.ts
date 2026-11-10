@@ -115,3 +115,102 @@ test("explicit recorded graded copy retains exact ID and all private grading fie
   assert.deepEqual(result.preview.items.find(i => i.id === "copy-b")!.grading, grading)
   assert.throws(() => prepareScanDraft(s.snapshot, s.view, s.capture, [{ cellIndex: 0, slotId: "slot-b", card, copy: { inventoryItemId: "copy-b", itemVersion: 2 } }], s.context, s.catalog), /copy-choice-required/)
 })
+
+test("explicit mixed append preserves reviewer order, original slots and one atomic request", () => {
+  const s = setup()
+  s.binder.slots[0].wantedCards = [{ card_id: s.cards[0].id, card_name: "Synthetic want", added_at: "2026-01-01T00:00:00Z" }]
+  s.binder.presetManifest = { source: { id: "synthetic-copy", version: "v1" }, name: "Synthetic copied preset",
+    entries: s.binder.slots.map(slot => ({ id: slot.id, target: slot.target })) }
+  s.binder.slots.forEach(slot => { slot.presetOrigin = { source: { ...s.binder.presetManifest!.source }, entryId: slot.id } })
+  const original = structuredClone(s.binder.slots)
+  const draft = prepareScanDraft(s.snapshot, s.view, s.capture, [
+    { cellIndex: 3, slotId: null, append: "free", card: s.cards[3], copy: "raw" },
+    { cellIndex: 0, slotId: "slot-a", card: s.cards[0], copy: "raw" },
+    { cellIndex: 1, slotId: null, append: "card", card: s.cards[2], copy: "raw" },
+  ], s.context, s.catalog)
+  assert.deepEqual(draft.intent.request.commands.map(c => c.kind), ["insertAssign", "add", "assign", "insertAssign"])
+  const inserts = draft.intent.request.commands.filter(c => c.kind === "insertAssign")
+  assert.equal(inserts.length, 2)
+  assert.equal(inserts[0].before, null); assert.equal(inserts[0].target, null)
+  assert.equal(inserts[1].target?.kind, "card")
+  assert.equal(inserts[0].selection?.kind, "new")
+  assert.deepEqual(draft.preview.binders[0].slots.slice(original.length).map(s => s.id), inserts.map(c => c.slotId))
+  assert.deepEqual(draft.preview.binders[0].slots.slice(1, original.length), original.slice(1))
+  assert.equal(draft.preview.binders[0].layoutRevision, s.binder.layoutRevision + 1)
+  assert.deepEqual(draft.preview.binders[0].presetManifest, s.binder.presetManifest)
+  assert.deepEqual(draft.preview.binders[0].slots[0].wantedCards, original[0].wantedCards)
+  assert.deepEqual(draft.preview.binders[0].slots[0].presetOrigin, original[0].presetOrigin)
+  assert.equal(draft.preview.inventoryRevision, s.snapshot.inventoryRevision + 1)
+  assert.equal(s.snapshot.items.length, 0)
+})
+
+test("empty native binder captures only a genuinely empty complete order and appends no padding", () => {
+  const s = setup()
+  s.binder.slots = []; s.view.pageSlotIds = []
+  const capture = captureScanDestination(s.snapshot, s.view)
+  const result = prepareScanDraft(s.snapshot, s.view, capture,
+    [{ cellIndex: 5, slotId: null, append: "free", card: s.cards[3], copy: "raw" }], s.context, s.catalog)
+  assert.equal(result.preview.binders[0].slots.length, 1)
+  assert.equal(result.preview.binders[0].slots[0].target, null)
+  assert.equal(mapScanCells(capture, [{ index: 5, row: 1, col: 1, occupied: true }])[0].slotId, null)
+})
+
+test("append requires an explicit free/target choice, preserves exact recorded copy and rejects reuse", () => {
+  const s = setup(), card = s.cards[0]
+  s.snapshot.items.push({ id: "recorded", ownerUserId: s.snapshot.ownerUserId, identity: { kind: "card", cardId: card.id, language: "en" }, grading: null, acquiredAt: null, version: 4 })
+  const choice = { cellIndex: 0, slotId: null, append: "free" as const, card, copy: { inventoryItemId: "recorded", itemVersion: 4 } }
+  const result = prepareScanDraft(s.snapshot, s.view, s.capture, [choice], s.context, s.catalog)
+  assert.deepEqual(result.intent.request.commands[0], { kind: "insertAssign", collectionId: s.view.collectionId,
+    slotId: result.preview.binders[0].slots.at(-1)!.id, before: null, target: null, selection: { kind: "existing", inventoryItemId: "recorded", itemVersion: 4 } })
+  assert.throws(() => prepareScanDraft(s.snapshot, s.view, s.capture, [{ ...choice, append: undefined }], s.context, s.catalog), /unconfirmed/)
+  assert.throws(() => prepareScanDraft(s.snapshot, s.view, s.capture, [choice, { ...choice, cellIndex: 1 }], s.context, s.catalog), /duplicate-scan-copy/)
+})
+
+test("append capacity and cumulative order-work refuse the whole batch with smaller-page guidance", () => {
+  for (const count of [4096, 4095, 3000]) {
+    const s = setup()
+    s.binder.slots = Array.from({ length: count }, (_, i) => ({ ...s.binder.slots[3], id: `capacity-${i}` }))
+    s.view.pageSlotIds = s.binder.slots.slice(0, 8).map(s => s.id)
+    const capture = captureScanDestination(s.snapshot, s.view)
+    const choices = Array.from({ length: count === 4096 ? 1 : 3 }, (_, i) => ({ cellIndex: i, slotId: null, append: "free" as const, card: s.cards[3], copy: "raw" as const }))
+    assert.throws(() => prepareScanDraft(s.snapshot, s.view, capture, choices, s.context, s.catalog), /smaller page/)
+    assert.equal(s.binder.slots.length, count); assert.equal(s.snapshot.items.length, 0)
+  }
+})
+
+test("existing-slot acquisition batch above 100 commands refuses without partial projection", () => {
+  const s = setup()
+  s.binder.slots = Array.from({ length: 100 }, (_, i) => ({ ...s.binder.slots[3], id: `command-cap-${i}` }))
+  s.view.rows = 10; s.view.cols = 10; s.view.pageSlotIds = s.binder.slots.map(s => s.id)
+  const capture = captureScanDestination(s.snapshot, s.view)
+  assert.throws(() => prepareScanDraft(s.snapshot, s.view, capture,
+    s.binder.slots.map((slot, cellIndex) => ({ cellIndex, slotId: slot.id, card: s.cards[3], copy: "raw" })), s.context, s.catalog), /smaller page/)
+  assert.equal(s.snapshot.items.length, 0)
+})
+
+test("append retains graded-only Raw refusal and cannot move an assigned copy", () => {
+  const s = setup(), card = s.cards[0]
+  const graded = syntheticSlotPickerSnapshot().inventory.items.find(i => i.grading)!
+  s.snapshot.items.push({ ...graded, id: "graded-copy", identity: { kind: "card", cardId: card.id, language: "en" } })
+  const choice = { cellIndex: 0, slotId: null, append: "card" as const, card, copy: "raw" as const }
+  assert.throws(() => prepareScanDraft(s.snapshot, s.view, s.capture, [choice], s.context, s.catalog), /raw-creation-unavailable/)
+  const item = s.snapshot.items[0]
+  s.binder.slots[0].inventoryItemId = item.id; s.binder.slots[0].status = "collected"
+  s.snapshot.placements.push({ inventoryItemId: item.id, collectionId: s.view.collectionId, slotId: "slot-a", version: 0 })
+  assert.throws(() => prepareScanDraft(s.snapshot, s.view, s.capture,
+    [{ ...choice, copy: { inventoryItemId: item.id, itemVersion: item.version } }], s.context, s.catalog), /copy-choice-required/)
+})
+
+test("append accepts the exact 100-command and 4096-slot boundaries", () => {
+  for (const count of [0, 4095]) {
+    const s = setup()
+    s.binder.slots = Array.from({ length: count }, (_, i) => ({ ...s.binder.slots[3], id: `boundary-${i}` }))
+    s.view.rows = 10; s.view.cols = 10; s.view.pageSlotIds = s.binder.slots.slice(0, 100).map(s => s.id)
+    const capture = captureScanDestination(s.snapshot, s.view)
+    const choices = Array.from({ length: count ? 1 : 100 }, (_, cellIndex) => ({ cellIndex, slotId: null, append: "free" as const, card: s.cards[3], copy: "raw" as const }))
+    const result = prepareScanDraft(s.snapshot, s.view, capture, choices, s.context, s.catalog)
+    assert.equal(result.intent.request.commands.length, choices.length)
+    assert.equal(result.preview.binders[0].slots.length, count + choices.length)
+    assert.equal(new Set(result.preview.placements.map(p => p.inventoryItemId)).size, choices.length)
+  }
+})

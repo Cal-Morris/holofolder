@@ -176,12 +176,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     finally { refreshing.current-- }
   }
   const scanAllowed = useRef(false)
-  useLayoutEffect(() => { scanAllowed.current = online && read.evidence.kind === "complete" && !queue.record?.pending.length })
+  useLayoutEffect(() => { scanAllowed.current = online && read.evidence.kind === "complete" && !!queue.record && !queue.record.pending.length && !queue.record.recovery?.some(r => !r.synchronized) })
   const receiveScan: ScanDestinationAdmission["onCommandIntent"] = async (draft, scanCatalog) => {
     if (!valid() || refreshing.current || !scanAllowed.current || !navigator.onLine
       || draft.scope.ownerUserId !== scope.ownerUserId || draft.intent.kind !== "inventory"
       || read.evidence.kind !== "complete"
       || !read.evidence.snapshot.binders.some(b => b.collectionId === draft.scope.collectionId)) throw new Error("fresh-scoped-read-required")
+    const record = await latest.current.queue.queue?.read()
+    if (!valid() || !scanAllowed.current || !navigator.onLine || !record || record.pending.length || record.recovery?.some(r => !r.synchronized)) throw new Error("fresh-scoped-read-required")
     return latest.current.queue.enqueue(draft.intent, scanCatalog)
   }
   const getOfflineCards = async () => {
@@ -287,7 +289,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
 
           scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
             ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,
-            available: visibleRead.evidence.kind === "complete" && online, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })
+            available: bulkFillAvailable, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })
 
       }} />
     {grading && gradingItem && read.evidence.kind === "complete" && read.evidence.snapshot.inventoryRevision === grading.snapshot.inventoryRevision && <GradingEditor

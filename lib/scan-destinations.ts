@@ -1,7 +1,7 @@
 import { matchesSlotTarget, isSlotRevision } from "@/lib/domain/binder-slots"
 import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
 import type { OperationIntentContext } from "@/lib/domain/audit-context"
-import type { InventoryCommand } from "@/lib/domain/inventory-commands"
+import type { InventoryCommand, InsertInventorySelection } from "@/lib/domain/inventory-commands"
 import type { StagedSlotCommandIntent, SlotLocalAcceptance } from "@/lib/binder-slot-editing"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { CardFinish } from "@/lib/domain/cards"
@@ -27,7 +27,9 @@ export interface ScanDestinationCapture extends ScanDestinationView {
 export interface ScanCell { index: number; row: number; col: number; occupied: boolean }
 export interface ScanChoice {
   cellIndex: number
-  slotId: string
+  slotId: string | null
+  /** Required with null slotId: explicitly append a free slot or this exact card target. */
+  append?: "free" | "card"
   card: SearchCardResult
   finish?: CardFinish
   /** Explicit recorded copy ID, or Raw reuse/create, never an OCR-derived grade. */
@@ -46,9 +48,9 @@ export function captureScanDestination(snapshot: InventorySnapshot, view: ScanDe
   const binder = snapshot.binders.find(b => b.collectionId === view.collectionId)
   if (!binder || snapshot.ownerUserId !== view.ownerUserId || binder.ownerUserId !== view.ownerUserId || !view.sessionId
     || !isSlotRevision(view.rows) || !isSlotRevision(view.cols) || view.rows < 1 || view.cols < 1 || view.rows * view.cols > 100
-    || !view.pageSlotIds.length || view.pageSlotIds.length > view.rows * view.cols || new Set(view.pageSlotIds).size !== view.pageSlotIds.length) return fail("scan-stale")
+    || view.pageSlotIds.length > view.rows * view.cols || new Set(view.pageSlotIds).size !== view.pageSlotIds.length) return fail("scan-stale")
   const orderedSlotIds = binder.slots.map(s => s.id)
-  const offset = orderedSlotIds.indexOf(view.pageSlotIds[0])
+  const offset = orderedSlotIds.length === 0 && view.pageSlotIds.length === 0 ? 0 : orderedSlotIds.indexOf(view.pageSlotIds[0])
   if (offset < 0 || offset % (view.rows * view.cols) !== 0
     || JSON.stringify(orderedSlotIds.slice(offset, offset + view.rows * view.cols)) !== JSON.stringify(view.pageSlotIds)) return fail("scan-stale")
   return structuredClone({ ...view, layoutRevision: binder.layoutRevision, orderedSlotIds })
@@ -80,7 +82,7 @@ export function scanDestinations(snapshot: InventorySnapshot, view: ScanDestinat
 export function prepareScanDraft(snapshot: InventorySnapshot, view: ScanDestinationView, capture: ScanDestinationCapture,
   choices: readonly ScanChoice[], context: OperationIntentContext, catalog: InventoryCatalogResolver) {
   assertScanCurrent(snapshot, view, capture)
-  if (!choices.length || choices.length > 50) return fail("scan-unconfirmed")
+  if (!choices.length || choices.length > 100) return fail("scan-unconfirmed")
   const collection = snapshot.collections.find(c => c.id === view.collectionId) ?? fail("scan-stale")
   const binder = snapshot.binders.find(b => b.collectionId === view.collectionId)!
   const cells = new Set<number>(), slots = new Set<string>(), copies = new Set<string>()
@@ -91,12 +93,13 @@ export function prepareScanDraft(snapshot: InventorySnapshot, view: ScanDestinat
   }
   for (const choice of choices) {
     if (!isSlotRevision(choice.cellIndex) || choice.cellIndex >= capture.rows * capture.cols) return fail("invalid-scan-cell")
-    if (cells.has(choice.cellIndex) || slots.has(choice.slotId)) return fail("duplicate-scan-destination")
-    cells.add(choice.cellIndex); slots.add(choice.slotId)
-    const slot = scanDestinations(snapshot, view, choice.card, choice.finish).find(s => s.id === choice.slotId) ?? fail("target-mismatch")
+    if (cells.has(choice.cellIndex) || (choice.slotId !== null && slots.has(choice.slotId))) return fail("duplicate-scan-destination")
+    cells.add(choice.cellIndex); if (choice.slotId !== null) slots.add(choice.slotId)
+    if (choice.slotId === null && choice.append !== "free" && choice.append !== "card") return fail("scan-unconfirmed")
+    const slot = choice.slotId === null ? null : scanDestinations(snapshot, view, choice.card, choice.finish).find(s => s.id === choice.slotId) ?? fail("target-mismatch")
     const identity = { kind: "card" as const, cardId: choice.card.canonicalId ?? choice.card.id,
       ...(isCardLanguage(choice.card.language) ? { language: choice.card.language } : {}), ...(choice.finish ? { finish: choice.finish } : {}) }
-    let selection: { kind: "existing"; inventoryItemId: string; itemVersion: number }
+    let selection: InsertInventorySelection
     if (choice.copy === "raw") {
       // Existing matching copies keep the command contract authoritative.
       const available = { ...snapshot, items: snapshot.items.filter(i => !copies.has(i.id)) }
@@ -106,8 +109,10 @@ export function prepareScanDraft(snapshot: InventorySnapshot, view: ScanDestinat
       else {
         if (eligible.length) return fail("raw-creation-unavailable: choose a recorded copy; creating Raw beside graded-only copies is unsupported")
         const id = crypto.randomUUID()
-        commands.push({ kind: "add", itemId: id, identity, grading: null, acquiredAt: null })
-        selection = { kind: "existing", inventoryItemId: id, itemVersion: 0 }
+        if (slot) {
+          commands.push({ kind: "add", itemId: id, identity, grading: null, acquiredAt: null })
+          selection = { kind: "existing", inventoryItemId: id, itemVersion: 0 }
+        } else selection = { kind: "new", itemId: id, identity, grading: null, acquiredAt: null }
       }
     } else {
       const selectedCopy = choice.copy
@@ -117,12 +122,21 @@ export function prepareScanDraft(snapshot: InventorySnapshot, view: ScanDestinat
       if (!existing || existing.selection.kind !== "existing" || existing.selection.itemVersion !== choice.copy.itemVersion) return fail("copy-choice-required")
       selection = existing.selection
     }
-    if (copies.has(selection.inventoryItemId)) return fail("duplicate-scan-copy")
-    copies.add(selection.inventoryItemId)
-    commands.push({ kind: "assign", selection, destination: { collectionId: view.collectionId,
+    const copyId = selection.kind === "new" ? selection.itemId : selection.inventoryItemId
+    if (copies.has(copyId)) return fail("duplicate-scan-copy")
+    copies.add(copyId)
+    if (!slot) commands.push({ kind: "insertAssign", collectionId: view.collectionId, slotId: crypto.randomUUID(), before: null,
+      target: choice.append === "card" ? identity : null, selection })
+    else if (selection.kind === "existing") commands.push({ kind: "assign", selection, destination: { collectionId: view.collectionId,
       slot: { id: slot.id, version: slot.version, inventoryItemId: null, itemVersion: null, placementVersion: null } }, occupied: "cancel", fulfillWant: null })
   }
-  const intent = parseSlotIntent({ kind: "inventory", context, request: { operationId: context.operationId, inventoryRevision: snapshot.inventoryRevision,
-    collections: [{ collectionId: collection.id, version: collection.version, layoutRevision: binder.layoutRevision }], commands } })
-  return { scope: { ownerUserId: view.ownerUserId, collectionId: view.collectionId, slotId: null }, intent, catalog: resolve, preview: projectSlotIntent(snapshot, intent, resolve) }
+  try {
+    const intent = parseSlotIntent({ kind: "inventory", context, request: { operationId: context.operationId, inventoryRevision: snapshot.inventoryRevision,
+      collections: [{ collectionId: collection.id, version: collection.version, layoutRevision: binder.layoutRevision }], commands } })
+    return { scope: { ownerUserId: view.ownerUserId, collectionId: view.collectionId, slotId: null }, intent, catalog: resolve, preview: projectSlotIntent(snapshot, intent, resolve) }
+  } catch (cause) {
+    if (cause instanceof Error && /oversized|capacity|evidence|bound|limit/i.test(cause.message))
+      return fail("Scan batch exceeds storage or evidence limits. Review a smaller page or fewer cells; nothing was saved.")
+    throw cause
+  }
 }
