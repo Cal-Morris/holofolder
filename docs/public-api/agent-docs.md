@@ -27,3 +27,5 @@ Native copy/storage/slot read schemas and `native-reads` help are exported by th
 
 
 The existing native command schemas also export optional `privateFields:preserve|replace`. Preserve mode requires `expectedOwnerUserId` and rejects a changed authenticated recipient before SQL, even without a prior receipt. Current help enumerates the safe preserve subset and explicit full-replacement compatibility. Agents must never reconstruct grading/wants from redacted reads or refresh an unknown operation's preconditions/recipient. Grading patches and redacted selected-want fulfilment require transactional executor support; no public admission or queue ACK follows from this preparation.
+
+Copied preset discovery/preview is exported from the shared registry into OpenAPI, generated reference Markdown and LLM indexes, with staged admission and explicit unsupported set/master-set scope. The Presets navigation group classifies both new operations. Preview manifests are detached goals, not ownership, durable creation identities or complete planner/ACK evidence; see `/app/docs/preset-previews`.

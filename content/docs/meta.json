@@ -8,6 +8,7 @@
     "collection-history",
     "native-storage",
     "native-reads",
+    "preset-previews",
     "public-binder-links",
     "slot-selection",
     "scan-destinations",
