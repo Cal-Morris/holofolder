@@ -20,16 +20,18 @@ const sharing:Check=value=>{if(value.share!==null){const share=object(value.shar
 const checks:Check=value=>{object(value.errors);for(const source of ['ebay','soldcomps'])if(value[source]!==null){const result=object(value[source]);object(result.summary);string(result.checkedAt)}}
 const succeeded:Check=value=>assert.equal(value.success,true)
 const id:Check=value=>string(value.id)
+const catalog:Check=value=>{string(value.id);assert.equal(value.game,'pokemon')}
+const catalogPage:Check=(value,input)=>{page(value,input);for(const row of array(value.data))catalog(object(row),input)}
 
 // Every registered operation needs a successful response assertion, including mutations.
 export const API_SMOKE_ASSERTIONS:Record<string,Check>={
  ...Object.fromEntries([...NATIVE_DEVELOPER_OPERATIONS,...NATIVE_READ_OPERATIONS,...PRESET_OPERATIONS].map(operation=>[operation.name,(value:Row)=>{
   assert.ok(operation.responseSchema?.safeParse(value).success,'Invalid native receipt for '+operation.name)
  }])),
- list_cards:page,
- get_card:(value,input)=>{assert.equal(value.id,input.id);string(value.canonicalId);object(value.set);assert.ok(value.image===null||typeof value.image==='string')},
- list_sets:page,get_set:(value,input)=>assert.equal(value.id,input.id),
- list_series:page,get_series:(value,input)=>assert.equal(value.id,input.id),
+ list_cards:catalogPage,
+ get_card:(value,input)=>{catalog(value,input);assert.equal(value.id,input.id);string(value.canonicalId);catalog(object(value.set),input);assert.ok(value.image===null||typeof value.image==='string')},
+ list_sets:catalogPage,get_set:(value,input)=>{catalog(value,input);assert.equal(value.id,input.id)},
+ list_series:catalogPage,get_series:(value,input)=>{catalog(value,input);assert.equal(value.id,input.id)},
  list_languages:value=>assert.ok(array(value.data).includes('en')),
  list_pokemon:page,get_pokemon:(value,input)=>assert.equal(value.id,Number(input.id)),list_illustrators:page,
  list_binders:binders,
@@ -37,9 +39,6 @@ export const API_SMOKE_ASSERTIONS:Record<string,Check>={
  update_binder:(value,input)=>{binders(value,input);assert.equal(object(array(value.binders).find(row=>object(row).id===input.id)).name,input.name)},
  reorder_binders:(value,input)=>{binders(value,input);assert.deepEqual(array(value.binders).map(row=>object(row).id),input.order)},
  delete_binder:(value,input)=>{binders(value,input);assert.equal(value.deletedBinderId,input.id);assert.ok(!array(value.binders).some(row=>object(row).id===input.id))},
- list_collection:(value,input)=>{page(value,input);string(value.absentFingerprint);for(const item of array(value.data))string(object(item).fingerprint)},
- save_collection_item:(value,input)=>{const item=object(value.item);assert.equal(item.pokemon_id,input.pokemonId);assert.equal(item.status,input.status);assert.equal(item.card_id,input.cardId)},
- delete_collection_item:succeeded,
  get_settings:settings,update_settings:settings,
  get_prices:value=>{array(value.prices)},
  refresh_prices:value=>{array(value.prices);for(const key of ['refreshed','cached','unpriced'])assert.ok(Number.isSafeInteger(value[key])&&Number(value[key])>=0)},
@@ -53,10 +52,10 @@ export const API_SMOKE_ASSERTIONS:Record<string,Check>={
  get_collection_audit:value=>{assert.equal(typeof value.id,'string');assert.ok(['unknown','user','system'].includes(String(value.actor_kind)));assert.ok(!('recovery_state' in value));assert.ok(!('command_evidence' in value))},
  preview_collection_recovery:(value,input)=>{assert.equal(value.eventId,input.eventId);assert.equal(value.planVersion,1);assert.equal(typeof value.supported,'boolean');assert.ok(Array.isArray(value.conflicts));assert.ok(Array.isArray(value.unsupported));assert.ok(Array.isArray(value.changes));assert.ok(value.planToken===null||typeof value.planToken==='string'&&/^[a-f0-9]{64}$/.test(value.planToken))},
  apply_collection_recovery:(value,input)=>{assert.equal(value.recoveredEventId,input.eventId);assert.equal(typeof value.eventId,'string');assert.notEqual(value.eventId,value.recoveredEventId)},
- get_collection_analytics:value=>{array(value.activity);array(value.priceHistory);assert.equal(typeof value.historyAvailable,'boolean')},
+ get_legacy_pokemon_analytics:value=>{array(value.activity);array(value.priceHistory);assert.equal(typeof value.historyAvailable,'boolean')},
  resolve_import:value=>{assert.ok(array(value.results).length>0)},
  check_deal:value=>{assert.equal(value.currency,'GBP');assert.ok(value.verdict===null||typeof value.verdict==='object')},
- get_set_slots:(value,input)=>{page(value,input);assert.equal(object(value.selectedSet).id,input.id)},
+ get_pokemon_set_slots:(value,input)=>{page(value,input);assert.equal(object(value.selectedSet).id,input.id)},
  get_listings:value=>{object(value.summary);array(value.listings);string(value.checkedAt)},
  get_identity:identity,update_identity:identity,
  get_binder_identity:binderIdentity,update_binder_identity:binderIdentity,

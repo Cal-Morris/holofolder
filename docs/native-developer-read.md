@@ -1,8 +1,6 @@
-# Trusted native developer reads, staged (#376)
+# Trusted native developer reads (#376, current after #507)
 
-Current server admission: supported native operations now use the existing authenticated bridges. See [the direct-cutover handoff](native-direct-server-handoff.md). The historical slice notes below describe earlier staging and do not define the current fixed-503 policy. Hosted/app acceptance remains separate.
-
-This slice delivers five real shared read operations and their strict projections/pagination in the existing registry/dispatcher and REST/MCP transports. `requireNativeDeveloperAdmission()` is fixed denied with no production override. The implementation is exercised only by isolated synthetic admission tests. No SQL, schema/grant, hosted access/write, conversion, scanner, first-party command/browser session, startup/offline shell or service-worker change belongs to this slice. Migration 087 remains the separate legacy Activity recovery release.
+The five native read operations execute through the authenticated registry/dispatcher and REST/MCP adapters. There is no fixed admission denial or production override. See [the direct server handoff](native-direct-server-handoff.md). This is server admission; app host, onboarding, offline and hosted acceptance are separate proof.
 
 ## Trusted boundary and reused core
 
@@ -18,13 +16,13 @@ The extraction retains real slot positions and binder default/order/update metad
 
 `native-developer-read.ts` builds an explicit allowlist and validates it against strict response schemas before returning anything. It does not spread private domain items/slots/binders into output.
 
-- Copies: stable item ID, item version, recorded card/Pokémon identity, acquired timestamp, primary placement IDs/version or null.
+- Copies: stable physical `inventoryItemId` (the read DTO field is `id`), item version, recorded card/Pokémon identity, acquired timestamp, primary placement IDs/version or null.
 - Collections: stable ID, name, kind, default presentation, private location when recorded, default/order/update metadata, count, collection/layout revisions and known effective grid.
 - Slots: stable ID, collection ID, actual position, target/status/current wanted printings, item reference and current item/placement/collection/layout versions.
 - Grading allowed under both read permissions: recorded provider, grade, scale, designation, holder, subgrades and label variant. No provider verification or certificate entitlement is inferred.
 - Omitted: certificate values/lookup links, private assets/IDs/URLs, immutable source JSON, protected audit deltas and recovery/planning evidence, credential/member secrets, copied preset manifests, want image URLs and member attribution. Public share projection and redaction are untouched and remain separately tested.
 
-Redacted grade/want read models are not lossless replacement-command inputs. Certificate/private-asset-preserving edits and exact fulfilment of a want whose hidden fields participate in the canonical expected-want predicate remain explicit parity gates, not a reason to expose private fields or send guessed nulls. Basic assignment can still use the returned current references with `fulfillWant: null`; this read slice does not change command semantics.
+Redacted grade/want read models are not lossless replacement-command inputs. Use the existing private-preserving command contract for supported grading/want edits and exact fulfilment. Never expose private fields or send guessed nulls. Basic assignment can still use the returned current references with `fulfillWant: null`; this read slice does not change command semantics.
 
 Both `collection:read` and `binders:read` are mandatory, with current owner/partner access and Premium/lifetime entitlement, identically for REST keys and OAuth grants. Location/recorded grade are deliberately authenticated private-read fields; this is not a public share projection or a certificate/private-asset API.
 
@@ -38,10 +36,16 @@ Every detail/page response has `projection: developer-native-v1`, `completeSnaps
 
 ## Proof and remaining gates
 
-`tests/native-developer-read.test.ts` runs separate subprocesses for the real fixed guard and isolated synthetic admission. Both use the actual dispatcher, REST handler and MCP HTTP SDK transport. Synthetic PostgREST/auth responses intercept all traffic and forbid hosted access. The key authorization RPC is exercised; real OAuth issuer verification is replaced with a synthetic verified principal while the actual current-session/grant RPC remains exercised. Tests cover read-only permissions, revocation/permission loss, owner/partner unlink/change, billing loss, independent read races/errors, >1000 paging, malformed/foreign/stale cursors, strict input/output privacy and transport parity. Shared core tests separately retain complete-brand, finite deadline/request/count/source/catalog coverage and public redaction regressions. These are local adapter/contract proofs, not hosted RLS, SQL atomicity, real issuer or enabled rollout proof.
+`tests/native-developer-read.test.ts` runs the actual dispatcher, REST handler and MCP HTTP SDK transport against synthetic dependencies. Synthetic PostgREST/auth responses intercept all traffic and forbid hosted access. The key authorization RPC is exercised; real OAuth issuer verification is replaced with a synthetic verified principal while the actual current-session/grant RPC remains exercised. Tests cover read-only permissions, revocation/permission loss, owner/partner unlink/change, billing loss, independent read races/errors, >1000 paging, malformed/foreign/stale cursors, strict input/output privacy and transport parity. Shared core tests separately retain complete-brand, finite deadline/request/count/source/catalog coverage and public redaction regressions. These are local adapter/contract proofs, not hosted RLS, SQL atomicity, real issuer or enabled rollout proof.
 
 Matching help, generated OpenAPI and derived HTML/Markdown/LLM exports accompany the operations. The affected six-phone docs matrix verifies their presentation and discovery; it does not claim physical installed-PWA or enabled native workflows. Release copy stays unpublished.
 
-#376 remains partial/open: [copied preset discovery/preview](preset-developer-preview.md) now has a separate staged read-only contract; wider consumer/compatibility coverage and command/creation/recovery integration remain tracked alongside sibling #454. Parent owns independent exact-head review, serialized integration/shipping and deployed verification. Sender/replay/fresh-read ACK, offline relaunch, native recovery acceptance, hosted cancellation/load/conversion/old-client acceptance and literal #379 admission are still gates. No marketing publication is authorized here.
+Parent owns issue completion, independent exact-head review, integration and deployed verification. Copied preset discovery/preview is admitted through its own read-only contract. App host/bootstrap/onboarding, sender/replay/fresh-read ACK, offline relaunch, recovery acceptance and hosted timeout/load/conversion/old-client acceptance require their own proof. No marketing publication or hosted write belongs to this contract update.
 
 The cumulative source-byte budget includes catalog direct/alias/canonical, dex-link and set response pages before their metadata is used, even when those rows are absent from the final developer projection. Oversized source pages fail the entire read; no partial DTO page is returned.
+
+## Catalog and species identity
+
+Card IDs are global opaque printing IDs; provider-local IDs are evidence scoped by game and source. Catalog card/set/series projections declare `game:"pokemon"`, the only supported game today. There is no game selector. Copies and card/free targets remain generic, including Trainers and Energy without dex links. `{kind:"pokemon",pokemonId}` continues to mean species, never a printing.
+
+Public species-row CRUD has been retired without aliases. Use the native copy, collection and stable-slot reads above. `get_pokemon_set_slots` at `/pokemon/sets/{id}/slots` groups set printings by National Dex species; its rows are not stable storage slots. Legacy Pokémon analytics is `get_legacy_pokemon_analytics` at `/legacy/pokemon/analytics`, and still fails closed on native/mixed owners. Activity's physical-copy filter is `inventoryItemId`; existing versioned command `itemId` fields remain unchanged.

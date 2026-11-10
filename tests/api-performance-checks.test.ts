@@ -23,7 +23,7 @@ test('the smoke suite has response assertions for every registered operation',as
  const {API_SMOKE_ASSERTIONS,assertSmokeResponse}=await import('../scripts/api-smoke-assertions')
  assert.deepEqual(Object.keys(API_SMOKE_ASSERTIONS).sort(),DEVELOPER_OPERATIONS.map(op=>op.name).sort())
  assert.throws(()=>assertSmokeResponse('list_cards',{data:[],nextCursor:123},{}))
- assert.throws(()=>assertSmokeResponse('save_collection_item',{item:{pokemon_id:1,status:'wishlisted',card_id:'base1-1'}},{pokemonId:1,status:'collected',cardId:'base1-1'}))
+ assert.throws(()=>assertSmokeResponse('get_card',{id:'wrong-printing',game:'pokemon'},{id:'base1-1'}))
  assert.throws(()=>assertSmokeResponse('refresh_price_checks',{ebay:null,soldcomps:null,errors:{ebay:'Unavailable'}},{source:'ebay'}))
  assert.throws(()=>assertSmokeResponse('get_artwork',{id:'synthetic',storage:'r2-private',downloadUrl:'https://assets.holofolder.com/cards/en/base1/1/high.webp'},{id:'synthetic'}))
 })

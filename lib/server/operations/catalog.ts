@@ -1,4 +1,4 @@
-import {readExternalIdentifiers} from '@/lib/developer-api/catalog'
+import {CATALOG_GAME,readExternalIdentifiers} from '@/lib/developer-api/catalog'
 import {developerArtworkReference} from '@/lib/developer-api/image-identity'
 import { cacheLife, cacheTag } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -35,8 +35,8 @@ async function serializeCard(value:unknown,lang:CardLanguage,resolve:DeveloperIm
  const source=cardSource(value,lang)
  const image=await resolve(source)
  const identifiers=readExternalIdentifiers(row.external_ids_json)
- return {id:row.id,canonicalId:metadata.canonicalId??row.id,aliasIds:metadata.aliasIds??[],localId:metadata.localId??row.local_id,name:pickLocalizedText(row.name_json,lang),names:record(row.name_json),language:lang,
-  set:{id:row.set_id,name:pickLocalizedText(set.name_json,lang),officialCardCount:set.official_card_count??null,releaseDate:set.release_date??null},seriesId:row.series_id,
+ return {id:row.id,game:CATALOG_GAME,canonicalId:metadata.canonicalId??row.id,aliasIds:metadata.aliasIds??[],localId:metadata.localId??row.local_id,name:pickLocalizedText(row.name_json,lang),names:record(row.name_json),language:lang,
+  set:{id:row.set_id,game:CATALOG_GAME,name:pickLocalizedText(set.name_json,lang),officialCardCount:set.official_card_count??null,releaseDate:set.release_date??null},seriesId:row.series_id,
   category:text(row.category),rarity:text(row.rarity),hp:typeof row.hp==='number'?row.hp:null,illustrator:text(row.illustrator),types:strings(row.types_json),variants:Object.fromEntries(Object.entries(record(row.variants_json)).filter(([,value])=>typeof value==='boolean')),externalIds:identifiers,details:await sanitizeDeveloperImages(record(row.raw_json),resolve),
   artworkRef:source?developerArtworkReference(source):null,image:image.url,imageAvailability:image.availability,imageLanguage:imageLanguage??null,attribution:ATTRIBUTION}
 }
@@ -104,7 +104,7 @@ export async function listCatalogGroups(kind:'sets'|'series',rawParams:string) {
  const {data,error}=await query
  if(error) throw new Error('Catalog groups unavailable')
  const rows=(data??[]).map(record),visible=rows.slice(0,page.limit)
- return {data:visible.map(row=>({id:row.id,name:pickLocalizedText(row.name_json,lang),names:record(row.name_json),...(kind==='sets'?{seriesId:row.series_id,officialCardCount:row.official_card_count??null,releaseDate:row.release_date??null}:{})})),nextCursor:rows.length>page.limit?encodeCursor(String(record(visible.at(-1)).id),params):null}
+ return {data:visible.map(row=>({id:row.id,game:CATALOG_GAME,name:pickLocalizedText(row.name_json,lang),names:record(row.name_json),...(kind==='sets'?{seriesId:row.series_id,officialCardCount:row.official_card_count??null,releaseDate:row.release_date??null}:{})})),nextCursor:rows.length>page.limit?encodeCursor(String(record(visible.at(-1)).id),params):null}
 }
 
 export async function getCatalogGroup(kind:'tcg_sets'|'tcg_series',id:string) {
@@ -112,5 +112,5 @@ export async function getCatalogGroup(kind:'tcg_sets'|'tcg_series',id:string) {
  cacheLife('hours');cacheTag('tcg-mirror')
  const {data,error}=await createAdminClient().from(kind).select(kind==='tcg_sets'?'id,series_id,name_json,official_card_count,release_date,raw_json':'id,name_json,raw_json').eq('id',id).maybeSingle()
  if(error)throw new Error('Catalog lookup unavailable')
- return data?sanitizeDeveloperImages(data):null
+ return data?sanitizeDeveloperImages({...record(data),game:CATALOG_GAME}):null
 }

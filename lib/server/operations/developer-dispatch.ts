@@ -26,16 +26,13 @@ import {NextRequest} from 'next/server'
 import {createAdminClient} from '@/lib/supabase/admin'
 import type {OperationContext} from '@/lib/developer-api/types'
 import {DeveloperAccessError} from '@/lib/developer-api/permissions'
-import {decodePage,encodeCursor,paginateEntries} from '@/lib/developer-api/pagination'
+import {paginateEntries} from '@/lib/developer-api/pagination'
 import {normalizeCardLanguage,CARD_LANGUAGES} from '@/lib/domain/cards'
 import {collectionFingerprint} from '@/lib/collection/sync'
 import {normalizeCollectionItem} from '@/lib/collection/normalize'
-import {resolveWriteBinderId, BinderAccessError} from '@/lib/server/binders'
-import {isBinderId} from '@/lib/binders/model'
 import {sanitizeDeveloperImages} from '@/lib/server/developer-image-fields'
 import {listCatalogCards,getCatalogCard,listCatalogGroups,getCatalogGroup} from './catalog'
 import {listBinders,createBinder,updateBinder,deleteBinder} from './binders'
-import {saveCollectionItem,deleteCollectionItem} from './collection'
 import {getCollectionSettings,saveCollectionSettings} from './settings'
 import {getMirroredIllustratorDirectory,getMirroredSetDexSlots} from '@/lib/tcg-mirror'
 import {POKEMON_CATALOG} from '@/lib/pokemon-catalog'
@@ -101,19 +98,6 @@ async function dispatchDeveloperOperation(context:OperationContext,name:string,i
   case 'create_binder': return unwrap(await createBinder(operationRequest(input),identity,context.ownerUserId))
   case 'update_binder':case 'reorder_binders': return unwrap(await updateBinder(operationRequest(input,'PATCH'),identity,context.ownerUserId))
   case 'delete_binder': {const request=operationRequest({...input,confirm:input.confirm?'1':'0'},'DELETE');return unwrap(await deleteBinder(request,identity,context.ownerUserId))}
-  case 'list_collection': {
-   if(!isBinderId(input.binderId))throw new BinderAccessError()
-   const admin=createAdminClient(),page=decodePage(params)
-   let query=admin.from('pokemon_collection').select('*').eq('user_id',context.ownerUserId).eq('binder_id',input.binderId).order('pokemon_id').limit(page.limit+1)
-   if(page.after) {if(!/^\d{1,6}$/.test(page.after))throw new DeveloperAccessError('invalid_cursor','Invalid collection cursor.',400);query=query.gt('pokemon_id',Number(page.after))}
-   if(input.status) query=query.eq('status',input.status)
-   // Both reads are owner-scoped; no row is returned until binder access succeeds.
-   const [, {data,error}]=await Promise.all([resolveWriteBinderId(admin,context.ownerUserId,input.binderId),query])
-   if(error)throw new Error('Collection read unavailable')
-   const rows=data??[];return {data:await sanitizeImages(rows.slice(0,page.limit)),nextCursor:rows.length>page.limit?encodeCursor(String(rows[page.limit-1].pokemon_id),params):null,absentFingerprint:collectionFingerprint(null)}
-  }
-  case 'save_collection_item': return sanitizeImages(await unwrap(await saveCollectionItem(operationRequest(input),await actor(context),true,context)))
-  case 'delete_collection_item': return unwrap(await deleteCollectionItem(operationRequest(input,'DELETE'),identity,true,context.ownerUserId))
   case 'get_settings': return unwrap(await getCollectionSettings(operationRequest(input,'GET'),identity,true,context.ownerUserId))
   case 'get_prices': return {prices:await loadSavedCardPrices(normalizeCardPriceLookups(input.cards as unknown[]))}
   case 'update_settings': return unwrap(await saveCollectionSettings(operationRequest(input,'PUT'),identity,true,context.ownerUserId))
@@ -133,7 +117,7 @@ async function dispatchDeveloperOperation(context:OperationContext,name:string,i
   case 'get_collection_audit':return sanitizeImages(await readCollectionAudit(context,input,true))
   case 'preview_collection_recovery':return developerActivityRecovery(context,'preview',input)
   case 'apply_collection_recovery':return developerActivityRecovery(context,'apply',input)
-  case 'get_collection_analytics':return sanitizeImages(await unwrap(await readCollectionAnalytics(operationRequest(input,'GET'),identity,context.ownerUserId)))
+  case 'get_legacy_pokemon_analytics':return sanitizeImages(await unwrap(await readCollectionAnalytics(operationRequest(input,'GET'),identity,context.ownerUserId)))
   case 'resolve_import': {
    let lookups
    try{lookups=readImportLookups(input)}catch{throw new DeveloperAccessError('invalid_import','Use between 1 and 25 valid catalog identities.',400)}
@@ -152,11 +136,11 @@ async function dispatchDeveloperOperation(context:OperationContext,name:string,i
    const verdict=trusted?checkDeal({askingPrice:Number(input.askingPrice),marketPrice:market,confidence,dataAgeDays:getPriceDataAgeDays(price?.updatedAt,Date.now()),isRising:snapshot?Boolean(getRisingMomentum(snapshot,Date.now())):false,thresholds:normalizeDealThresholds(input.thresholds)}):null
    return {currency,region,marketPrice:market,price:price??null,verdict,reason:verdict?null:!rate?'A verified exchange rate is not available.':'A reliable saved market price is not available.'}
   }
-  case 'get_set_slots': {
+  case 'get_pokemon_set_slots': {
    const result=await getMirroredSetDexSlots(String(input.id),normalizeCardLanguage(input.language),undefined,true)
    if(!result.selectedSet)throw new DeveloperAccessError('not_found','Set not found.',404)
    const page=sliceEntries(result.slots,input,slot=>String(slot.dexId).padStart(4,'0'))
-   return sanitizeImages({...page,data:page.data.map(slot=>({dexId:slot.dexId,pokemonName:slot.pokemonName,cardIds:slot.cards.slice(0,100).map(card=>card.id),cardCount:slot.cards.length,hasMoreCards:slot.cards.length>100})),selectedSet:result.selectedSet})
+   return sanitizeImages({...page,data:page.data.map(slot=>({dexId:slot.dexId,pokemonName:slot.pokemonName,cardIds:slot.cards.slice(0,100).map(card=>card.id),cardCount:slot.cards.length,hasMoreCards:slot.cards.length>100})),selectedSet:{...result.selectedSet,game:'pokemon'}})
   }
   case 'get_listings': {
    const result=await loadEbayListingIndicator(String(input.id),input.finish==='reverse_holo'?'reverse':input.finish as 'normal'|'holo'|undefined??null)

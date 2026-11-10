@@ -17,7 +17,7 @@ export async function readCollectionAudit(context: Pick<OperationContext, "owner
   if (detail) query = query.eq("id", String(input.id))
   if (page.after) query = query.lt("id", page.after)
   if (input.collectionId) query = query.contains("affected_entities", { collectionIds: [input.collectionId] })
-  if (input.itemId) query = query.contains("affected_entities", { inventoryItemIds: [input.itemId] })
+  if (input.inventoryItemId) query = query.contains("affected_entities", { inventoryItemIds: [input.inventoryItemId] })
   if (input.slotId) query = query.contains("affected_entities", { slotIds: [input.slotId] })
   // JSON containment reaches retained deltas, including deleted entities and bulk events.
   // Quote JSON operands for PostgREST's logic grammar, never interpolate untrusted syntax.

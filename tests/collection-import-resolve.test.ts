@@ -22,3 +22,15 @@ test("lookup request accepts bounded identities only", () => {
   assert.deepEqual(readImportLookups({ lookups: [lookup] }), [lookup])
   for (const body of [{ lookups: Array(26).fill(lookup) }, { lookups: [{ ...lookup, language: "xx" }] }, { lookups: [{ ...lookup, cardId: "a".repeat(241) }] }, { lookups: [{ ...lookup, tcgplayerId: "1),x" }] }, { lookups: [{ ...lookup, cells: ["private note"] }] }]) assert.throws(() => readImportLookups(body))
 })
+
+test("reviewed aliases cannot cross language, finish, species evidence or an ambiguous printing family", () => {
+  const alias = "synthetic-reviewed-alias"
+  const aliased = { ...candidate, aliasIds: [alias] }
+  const exact = { language: "en", finish: "normal", list: "owned", cardId: alias } as const
+  assert.equal(resolveImportLookup(exact, [aliased]).item?.card_id, candidate.id)
+  for (const conflicting of [{ ...aliased, language: "ja" }, { ...aliased, variants: { holo: true } }, { ...aliased, dexIds: [] }]) {
+    assert.equal(resolveImportLookup(exact, [conflicting]).item, undefined)
+  }
+  assert.equal(resolveImportLookup(exact, [aliased, { ...aliased, id: "unrelated-global-printing" }]).item, undefined)
+  assert.throws(() => readImportLookups({ lookups: [{ ...exact, tcgplayerId: "42" }] }), /namespace/)
+})

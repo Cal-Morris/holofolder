@@ -44,3 +44,9 @@ Run focused `native-production-routes`, `native-developer-operations`, `native-d
 4. Parent owns deployed isolated smoke, external cleanup, acceptance and issue/project closure. These local tests and a PR do not complete release acceptance. This is an internal check, with no customer release or Framer announcement.
 
 Terminal slot/inventory responses have a separate `assertTerminalStorageSmokeResponse` check, bound to the submitted operation ID and the strict declared error schema. An ordinary 409 or accepted receipt cannot pass it. Synthetic real-transport fixtures cover both terminal replay and unknown retry; these errors never count as successful operation/latency coverage. This adds no hosted smoke scenario or authorization to execute native commands.
+
+## Public identity contract (#509)
+
+Smoke coverage follows the current registry, not removed public species-row operations. Catalog assertions require `game:"pokemon"` for cards, sets and series and preserve exact application IDs. Species set grouping is `get_pokemon_set_slots`; legacy history is `get_legacy_pokemon_analytics`. Activity physical-copy filtering uses `inventoryItemId`.
+
+The legacy Activity Undo success scenario seeds its deletion through the retained internal compare-and-set RPC on the disposable account. This is fixture setup, not a public CRUD alias or generic native inventory fixture. The all-operation report still fails on missing admitted native success coverage; this patch does not manufacture successful execution from staged errors. Running this hosted smoke requires parent authorization and cleanup proof; implementation here runs synthetic contract tests only.

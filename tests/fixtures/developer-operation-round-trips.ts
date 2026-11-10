@@ -10,9 +10,6 @@ async function main() {
  mock.module('server-only',()=>({}))
  const actor='00000000-0000-4000-8000-000000000003',owner='00000000-0000-4000-8000-000000000001',binder='00000000-0000-4000-8000-000000000002'
  const calls:string[]=[]
- let parallelCollection=false,binderVisible=true
- let collectionStarted:Promise<void>=Promise.resolve()
- let markCollectionStarted:()=>void=()=>{}
 
  const row={id:binder,owner_user_id:owner,name:'Synthetic binder',is_default:true,sort_order:0,created_at:'2026-01-01T00:00:00Z',updated_at:'2026-01-01T00:00:00Z',binder_rows:4,binder_cols:4,color:null}
  globalThis.fetch=async(input,init)=>{
@@ -30,16 +27,8 @@ async function main() {
    return Response.json([{binder_id:binder,slot_count:7}])
   }
   if(url.pathname.endsWith('/binders')) {
-   if(parallelCollection)await collectionStarted
-   if(!binderVisible)return Response.json([])
    const value=new Headers(init?.headers).get('accept')?.includes('object+json')?row:[row]
    return Response.json(value)
-  }
-  if(url.pathname.endsWith('/pokemon_collection')) {
-   assert.equal(url.searchParams.get('user_id'),'eq.'+owner)
-   assert.equal(url.searchParams.get('binder_id'),'eq.'+binder)
-   markCollectionStarted()
-   return Response.json([{user_id:owner,binder_id:binder,pokemon_id:1,pokemon_name:'Synthetic slot',status:'collected',wanted_cards:[]}])
   }
   if(url.pathname.endsWith('/storage_collection_state')||url.pathname.endsWith('/inventory_owner_state')) {
    assert.equal(url.searchParams.get('owner_user_id'),'eq.'+owner)
@@ -61,20 +50,15 @@ async function main() {
  assert.ok(settings.fingerprint)
  assert.equal(calls.length,2,'settings and the owner-scoped binder layout require two parallel reads')
  calls.length=0
- await executeDeveloperOperation(context,'get_collection_analytics',{cardId:'base1-1'})
+ await executeDeveloperOperation(context,'get_legacy_pokemon_analytics',{cardId:'base1-1'})
  assert.equal(calls.length,6,'activity and history remain parallel, bracketed by owner-root and collection authority fences')
  assert.equal(calls.filter(path=>path.endsWith('/inventory_owner_state')).length,2)
  assert.equal(calls.filter(path=>path.endsWith('/storage_collection_state')).length,2)
- parallelCollection=true
- let timer:ReturnType<typeof setTimeout>|undefined
- collectionStarted=new Promise<void>((resolve,reject)=>{markCollectionStarted=resolve;timer=setTimeout(()=>reject(new Error('Collection row read must start before binder check resolves')),1000)})
- try {
-  const page=await executeDeveloperOperation(context,'list_collection',{binderId:binder}) as {data:Array<{fingerprint:string}>}
-  assert.equal(page.data.length,1);assert.equal(typeof page.data[0].fingerprint,'string')
- } finally {clearTimeout(timer)}
- binderVisible=false
- await assert.rejects(executeDeveloperOperation(context,'list_collection',{binderId:binder}),/Binder not found/,'concurrent row results cannot bypass binder authorization')
- binderVisible=true;parallelCollection=false
+ for(const name of ['list_collection','save_collection_item','delete_collection_item','get_set_slots','get_collection_analytics']) {
+  const before:number=calls.length
+  await assert.rejects(executeDeveloperOperation(context,name,{}),{code:'not_found',status:404})
+  assert.equal(calls.length,before,'retired operations cannot reach internal legacy handlers')
+ }
  for(const transport of ['rest','mcp'] as const) {
   const ctx={...context,principal:{...context.principal,transport}}
   for(const [operation,input] of [['refresh_price_checks',{id:'base1-1',source:'soldcomps'}],['refresh_price_checks',{id:'base1-1'}],['start_comparison_job',{cards:[],confirmed:true}]] as const) {

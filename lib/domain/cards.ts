@@ -91,6 +91,7 @@ export interface CollectedPokemon {
   collected_at: string
 }
 
+/** Global opaque application IDs, shared across games/providers. Provider-local IDs are not aliases. */
 export interface CardCatalogIdentity {
   canonicalId?: string
   aliasIds?: string[]

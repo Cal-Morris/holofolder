@@ -46,8 +46,12 @@ async function main() {
  assert.ok(lastUrl!.searchParams.getAll("or").join().includes("card_id"))
  assert.equal(lastUrl!.searchParams.getAll("or").length,1)
  assert.ok(lastUrl!.searchParams.get("or")!.startsWith("(and(or("))
- await readCollectionAudit(context,{collectionId:"deleted-collection",itemId:"duplicate-copy-b",slotId:"deleted-slot",actorId:"synthetic-actor",action:"collection_change",since:"2026-01-01T00:00:00Z",until:"2026-11-09T23:59:59Z"})
+ await readCollectionAudit(context,{collectionId:"deleted-collection",inventoryItemId:"duplicate-copy-b",slotId:"deleted-slot",actorId:"synthetic-actor",action:"collection_change",since:"2026-01-01T00:00:00Z",until:"2026-11-09T23:59:59Z"})
  assert.deepEqual(lastUrl!.searchParams.getAll("affected_entities"),['cs.{"collectionIds":["deleted-collection"]}','cs.{"inventoryItemIds":["duplicate-copy-b"]}','cs.{"slotIds":["deleted-slot"]}'])
+ const itemPage=await readCollectionAudit(context,{limit:100,inventoryItemId:'duplicate-copy-b'}) as {nextCursor:string}
+ await assert.rejects(readCollectionAudit(context,{limit:100,inventoryItemId:'another-copy',cursor:itemPage.nextCursor}),/cursor/)
+ // Return to the combined filter for the remaining assertions.
+ await readCollectionAudit(context,{actorId:'synthetic-actor',action:'collection_change',since:'2026-01-01T00:00:00Z',until:'2026-11-09T23:59:59Z'})
  assert.equal(lastUrl!.searchParams.get("actor_user_id"),"eq.synthetic-actor")
  assert.equal(lastUrl!.searchParams.get("action"),"eq.collection_change")
  assert.deepEqual(lastUrl!.searchParams.getAll("recorded_at"),["gte.2026-01-01T00:00:00Z","lte.2026-11-09T23:59:59Z"])

@@ -9,9 +9,9 @@ The operation registry in `lib/developer-api/operations.ts` defines the REST sch
 | UI data capability | Shared REST/MCP operations | Verification |
 | --- | --- | --- |
 | Catalog search, card lookup, stored details, canonical aliases, external identifiers | list_cards, get_card | query-bound cursors, strict schemas, nested R2 image regressions |
-| Languages, Pokémon/dex, series, sets, set contents, illustrators | list_languages, list_pokemon, get_pokemon, list_series, get_series, list_sets, get_set, get_set_slots, list_illustrators | real >1000-record pagination, finite route/schema tests |
+| Languages, Pokémon/dex, series, sets, set contents, illustrators | list_languages, list_pokemon, get_pokemon, list_series, get_series, list_sets, get_set, get_pokemon_set_slots, list_illustrators | real >1000-record pagination, finite route/schema tests |
 | Binder creation, renaming, ordering, deletion | list_binders, create_binder, update_binder, reorder_binders, delete_binder | hosted transactional retries and order/ownership checks; existing binder tests |
-| Owned slots, status, wanted printings, assignments and acquisition intents | list_collection, save_collection_item, delete_collection_item | existing normalization/conflict suites, atomic SQL and stale-delete proof |
+| Physical copies, stable storage slots and wants | Native read and command operations below; public legacy species-row CRUD retired | generic card/free targets retain Trainer and Energy support |
 | Collection settings and per-binder layouts | get_settings, update_settings | existing settings/layout fixtures and strict input schemas |
 | Public account identity | get_identity, update_identity | existing identity rules; service-only transaction-local identity delegation |
 | Binder slugs and sharing | get_binder_identity, update_binder_identity, get_sharing, update_sharing | owner-only server guards, existing name reservations/sharing tests |
@@ -19,7 +19,7 @@ The operation registry in `lib/developer-api/operations.ts` defines the REST sch
 | Partners and invitations | list_partners, invite_partner, accept_partner_invite, reject_partner_invite, disconnect_partner | real recipient denial, retry, ownership and disconnect SQL proof; UI uses the same transactional actions |
 | Saved prices, refreshes and comparison evidence | get_prices, refresh_prices, get_price_checks, refresh_price_checks | existing provider confidence, currency, finish and cooldown suites |
 | Background comparison jobs | inspect_comparison_job, start_comparison_job, get_comparison_job, cancel_comparison_job | app-only start denial, seeded inert job read/cancel, existing UI job fixtures and hosted idempotency SQL proof |
-| Activity and historical price evidence | get_collection_analytics, get_price_history | existing analytics tests, 1001 synthetic history records paginated exactly once |
+| Activity and historical price evidence | get_legacy_pokemon_analytics, get_price_history | existing analytics tests, 1001 synthetic history records paginated exactly once |
 | Import identity resolution | resolve_import | existing exact catalog identity resolution and bounded batch schemas |
 | Listings and deal evaluation | get_listings, check_deal | existing listing/deal/FX/confidence suites; no invented prices |
 | Show purchases and undo | list_show_purchases, add_show_purchase, remove_show_purchase | shared row normalization, existing purchase sync tests, idempotent owner-scoped mutations |
@@ -182,7 +182,7 @@ Transactional extension (090): `execute_inventory_commands` now declares public 
 `execute_slot_commands` and `execute_inventory_commands` declare a strict terminal-ledger error contract: REST 409 / MCP `isError`, with `error.code=storage_command_rejected` and only `rejection.outcome`, original `operationId`, known rejection `code` and `inventoryRevision`. Ordinary conflict errors carry no terminal proof. Accepted receipt schemas remain success-only; MCP advertises them as `outputSchema` and error schemas under `_meta["holofolder.com/errorSchemas"]`. Generated OpenAPI and derived Markdown/LLM reference carry the same contract. See [reconciliation](../native-command-reconciliation.md). Public admission remains fixed 503; synthetic transport tests are not hosted acceptance or an enabled feature. No new UI/offline queue contract or SQL is introduced.
 
 Native analytics/dashboard totals are a staged internal presentation over the existing
-fenced complete-read host, not a new admitted API. `get_collection_analytics` remains
+fenced complete-read host, not a new admitted API. `get_legacy_pokemon_analytics` remains
 legacy history: owner-wide native roots (including retained Unassigned copies), converted/mixed storage return 503 `native_analytics_staged`
 before legacy activity is queried; unknown authority fails closed. Saved prices still
 use `get_prices`. See [native analytics boundary](../native-analytics-dashboard.md).
@@ -331,3 +331,9 @@ remain parent-owned gates.
 ## Same-ID reordered raw restore (#365), staged 097
 
 `restore_raw_collection_content` now accepts strict additive v3 `slotOrder.before`/`after`, changed permutations of the same stable IDs only. V1/v2 remain frozen ordered-only contracts. The original command binds content/provenance/items by ID and exact collection/layout/CAS. V3 returns both orders, version 3, advanced layout, and version 3 dedicated rejections through the same REST/MCP operation, scopes and trusted executor. Generated OpenAPI includes all versions. All v2 command/work/private-graph bounds remain simultaneous; there is no acquisition, slot create/delete, grid change or new ownership. First-party device review/sender reuse the existing durable queue. Every production entry stays private/no-store 503; parent owns hosted application/review/enablement and full-restore gaps.
+
+## Current public identity boundary (#509, after #507)
+
+The registry and dispatcher remove public legacy species-row CRUD without compatibility aliases. First-party legacy handlers and frozen data remain internal. `get_pokemon_set_slots` uses `/pokemon/sets/{id}/slots`, explicitly a dex grouping, not stable storage. Legacy species-row history is `get_legacy_pokemon_analytics` at `/legacy/pokemon/analytics`; its native/mixed-owner 503 remains intentional. Native reads/commands are admitted after #507, superseding earlier staged-admission notes above; app and hosted acceptance remain separate.
+
+Catalog card/set/series projections declare `game:"pokemon"`, with global opaque application IDs and source-keyed provider evidence within that game. No other game/selector is implemented. Activity filters physical copies by `inventoryItemId`, not `itemId`. Durable command fields and applied SQL keep their exact existing meanings. See [catalog identity](../card-catalog.md) and [current API conventions](../../content/docs/contracts.mdx). No internal BrowserSession/startup/inventory-core, SQL/migration, hosted write or marketing change is part of this slice.

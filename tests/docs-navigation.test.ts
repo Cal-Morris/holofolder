@@ -38,9 +38,9 @@ test('long reference sections become one level of small, collapsed subject group
   const { groups } = await referencePromise
   const counts = Object.fromEntries(groups.map(group => [group.name, group.children.length]))
   assert.deepEqual(counts, {
-    Binders: 5, Collection: 3, 'History & recovery': 4, Imports: 1,
+    Binders: 5, 'History & recovery': 4, Imports: 1,
     'Sharing & appearance': 8, 'Show purchases': 3, Inventory: 2, Presets: 2, 'Native storage': 12,
-    Catalog: 11, Account: 9, Prices: 5, Comparisons: 4, Analytics: 1, 'Deal checks': 2,
+    Catalog: 11, Account: 9, Prices: 5, Comparisons: 4, 'Legacy Pokémon analytics': 1, 'Deal checks': 2,
   })
   for (const group of groups) {
     assert.ok(group.children.every(child => child.type === 'page'))
@@ -50,6 +50,7 @@ test('long reference sections become one level of small, collapsed subject group
   assert.equal(groups.find(group => group.name === 'Binders')!.children[0].type, 'page')
   assert.ok(groups.find(group => group.name === 'Binders')!.children.some(child => child.type === 'page' && child.url === '/docs/reference/collection/create-binder'))
   assert.ok(groups.find(group => group.name === 'Prices')!.children.some(child => child.type === 'page' && child.url === '/docs/reference/prices-and-insights/get-prices'))
+  assert.deepEqual(groups.find(group => group.name === 'Legacy Pokémon analytics')!.children.map(child => child.type === 'page' ? child.url : ''), ['/docs/reference/prices-and-insights/get-legacy-pokemon-analytics'])
 })
 
 test('unassigned operations remain visible and guide folders are untouched', () => {

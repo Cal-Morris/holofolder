@@ -3,6 +3,18 @@ title: API conventions
 description: Permissions, pagination, errors and image availability.
 ---
 
+## Card, copy and species identity
+
+`cardId` identifies a catalog printing, `inventoryItemId` a physical copy, `slotId` a stable storage slot and `collectionId` a storage collection. Repeated copies keep distinct identities. Existing versioned commands retain their `itemId` fields for physical copies; do not rewrite queued commands or backups to match Activity's `inventoryItemId` query filter.
+
+Catalog card, set and series responses declare `game: "pokemon"`. Only Pokémon TCG is supported today, including Trainers and Energy without National Dex links. No game selector is offered. Internal IDs, canonical IDs and reviewed aliases are globally unique opaque application IDs across games and sources. Keep existing IDs unchanged and pass them back exactly; do not parse them or use a bare provider-local product number as `cardId`.
+
+`externalIds` contains provider-local evidence keyed by source within the record's game. For example, synthetic `tcgplayer:["42"]` and `cardmarket:["42"]` on a `game:"pokemon"` record are different identifiers. Neither is application ID `42`. Future ingestion must allocate collision-free global card/set/series IDs and keep external IDs scoped by game and source before joining or inserting; adding a game field to copies cannot fix a catalog primary-key collision. No other game or provider integration is implied.
+
+`{kind:"pokemon",pokemonId}` deliberately identifies a species. `list_pokemon` and `get_pokemon` remain dedicated species endpoints. `get_pokemon_set_slots` (`GET /pokemon/sets/{id}/slots`) returns dex-grouped Pokémon species, not stable storage slots. Use `list_cards` with a set filter for all set printings, and `list_storage_slots` for actual stable slots.
+
+The public `list_collection`, `save_collection_item` and `delete_collection_item` species-row operations have been removed without aliases. Use [native reads](/docs/native-reads) and [native commands](/docs/native-storage) for copies, slots and wants. Internal browser legacy handlers and frozen rows remain until cutover. `get_legacy_pokemon_analytics` (`GET /legacy/pokemon/analytics`) describes legacy species-row history; native/mixed owners return `503 native_analytics_staged`.
+
 ## Pagination
 
 List and search operations use bounded pages with a maximum of 100 records. Follow the returned cursor for the next page. A page is not the entire dataset, and a cursor belongs to the query that created it.
@@ -39,7 +51,7 @@ Private uploaded binder artwork lives in a separate private R2 bucket. Upload pr
 
 ## Safe writes
 
-Collection updates must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation and comparison jobs require an `Idempotency-Key`; collection edits require a `baseFingerprint` from the previous read. Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.
+Collection updates must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation and comparison jobs require an `Idempotency-Key`; settings replacement requires a `baseFingerprint` from the previous read. Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.
 
 ## Converted binders and saved legacy edits
 
@@ -47,18 +59,18 @@ A legacy collection write to a converted binder returns `409` with code `binder_
 
 The app shows “Saved on this device. Sync needs a compatible client.” These changes have not synced. Keep this device's app data; clearing it can remove saved edits. Reloading this client does not translate the saved edits or enable native writes. Ordinary row-conflict `409` responses still follow their existing merge policy; temporary `503` and network failures still retry.
 
-This protection does not recover missing historical recipient bindings or provide guest-import acceptance or multi-tab durability. Native routes remain staged behind `503`; #363 and #379 are still open gates.
+This protection does not recover missing historical recipient bindings or provide guest-import acceptance or multi-tab durability. Native server routes now use the authenticated bridges; app integration and offline acceptance need separate proof.
 
 The first-party app's `/app/api/collection` adapter accepts `X-Holo-Legacy-Queue: 2` only after authentication and exact recipient checks. Explicit unsupported values return `503`, `collection_queue_upgrade_required`, and `retainOnDevice: true`. Missing headers stay compatible and untagged while the database legacy-write fence is inactive; after its separate operator activation, the database rejects those untagged writes. Recognized database pauses return the same retention-safe 503. Keep the original change on the device, without treating a pause as a successful upload or a row conflict to merge. Older deployments may report the database pause as a retryable 500.
 
 This app-only protocol identifies a supported server code path, not authentication, durable device storage or an idempotency receipt. It adds no REST/MCP header requirement or public operation. Existing authenticated developer principals keep their current source, credential, permission, recipient and conflict checks. Production queue delivery and fence activation require separate verification.
 
-## Staged native storage
+## Native storage
 
-[Native storage contracts](/docs/native-storage) use authenticated execution with exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy. Native developer reads expose a separate redacted projection. Existing collection and Activity Undo operations remain available under their current contract.
+[Native storage contracts](/docs/native-storage) use authenticated execution with exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy. Native developer reads expose a separate redacted projection. Legacy Activity Undo remains available under its existing contract. Public legacy species-row CRUD is retired.
 
-## Native read staging
+## Native reads
 
-[Native developer reads](/docs/native-reads) declare a private redacted copy/storage/slot projection with signed scope/filter/revision-bound cursors. They remain fixed-denied until #379. A response page is never a complete planning snapshot or a fresh-read queue ACK. Existing legacy collection and Activity/Undo contracts stay available.
+[Native developer reads](/docs/native-reads) declare a private redacted copy/storage/slot projection with signed scope/filter/revision-bound cursors. A response page is never a complete planning snapshot or a fresh-read queue ACK. Legacy Activity/Undo remains separate from native recovery.
 
 [Copied preset previews](/docs/preset-previews) provide authenticated discovery and bounded read-only manifests through the same registry/dispatcher. Preset entry IDs are provenance, not slot/collection/operation identities. No private planning state, ownership, autosync or durable set/master-set scope is implied.
