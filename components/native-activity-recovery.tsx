@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { activityChanges, type ActivityEvent } from '@/lib/collection-activity'
 import { recoveryExplanation } from '@/lib/domain/activity-recovery'
-import { nativeRecoveryOperation, type RetainedRecovery } from '@/lib/collection/native-recovery-intent'
+import { nativeRecoveryOperation, type NativeRecoveryIntent, type RetainedRecovery } from '@/lib/collection/native-recovery-intent'
 import { sendNativeRecovery, type NativeRecoveryPreview } from '@/lib/collection/native-recovery-browser'
 import type { createSlotOfflineQueue, SlotOfflineScope } from '@/lib/collection/slot-offline-queue'
 import type { InventoryReadScope } from '@/lib/collection/inventory-read-transport'
@@ -29,6 +29,7 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
   const [error,setError] = useState('')
   const [busy,setBusy] = useState(false)
   const alive = useRef(false), running = useRef(false)
+  const confirmedIntent = useRef<NativeRecoveryIntent | null>(null)
   const latest = useRef(binding)
   useLayoutEffect(()=>{latest.current = binding})
   useEffect(()=>{alive.current=true;void binding.queue?.read().then(r=>{if(alive.current)setSaved(r.recovery?.find(v=>v.intent.request.eventId===event.id) ?? null)}).catch(()=>{if(alive.current)setError('Saved requests could not be opened. Recovery is unavailable.')});return()=>{alive.current=false}},[binding.queue,event.id])
@@ -41,12 +42,14 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
         let retained = saved
         if (!retained) {
           if (!reviewedRequest || !preview?.planToken) return
-          const intent = {operation:nativeRecoveryOperation(true,preview.planVersion) as 'recovery.apply'|'recovery.apply.v2',
+          const intent = confirmedIntent.current ?? {operation:nativeRecoveryOperation(true,preview.planVersion) as 'recovery.apply'|'recovery.apply.v2',
             request:{...reviewedRequest,planVersion:preview.planVersion,planToken:preview.planToken,operationId:crypto.randomUUID(),confirmed:true},
             context:{source:'app' as const,clientId:binding.deviceId,clientOccurredAt:new Date().toISOString()}}
+          // Keep the confirmed identity through a failed local commit.
+          confirmedIntent.current = intent
           // Await the IDB transaction BEFORE acknowledging confirmation or sending anything.
           await binding.queue.retainRecovery(intent,binding.activeQueueScope)
-          retained = (await binding.queue.read()).recovery!.find(r=>r.intent.request.operationId===intent.request.operationId)!
+          retained = { intent, receipt: null, synchronized: false, lease: null }
           if (!current()) return
           setSaved(retained);setPreview(null);setReviewedRequest(null)
           await binding.refresh()
@@ -69,7 +72,7 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
           collections:[{collectionId:target?.id,version:target?.version,layoutRevision:layout?.layoutRevision}]} : {eventId:event.id,restoreUnassignedItemIds:choices}
         const value = await sendNativeRecovery(nativeRecoveryOperation(false,version),request,binding.currentScope,binding.localHarness) as NativeRecoveryPreview
         if (!current()) return
-        setPreview(value);setReviewedRequest(request)
+        confirmedIntent.current=null;setPreview(value);setReviewedRequest(request)
       }
     } catch(e) {if(current())setError(e instanceof Error ? e.message : 'Recovery unavailable. Any confirmed request is retained.')}
     finally {running.current=false;if(alive.current)setBusy(false)}
@@ -89,7 +92,7 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
       {!preview && <button type="button" className={button} disabled={disabled||busy||!binding.queue||defaultCreation&&!replacement} onClick={()=>void run()}>{busy ? 'Checking recovery…' : 'Review recovery'}</button>}
       {preview && <section role="region" aria-label="Review recovery" className="space-y-2 rounded-xl border border-border p-3">
         <p className="font-medium">{preview.planToken ? 'Review the complete recovery' : 'Recovery unavailable'}</p>
-        <div className="flex flex-wrap gap-2">{preview.planToken && <button type="button" className={`${button} bg-primary text-primary-foreground`} disabled={disabled||busy} onClick={()=>void run()}>Confirm recovery</button>}<button type="button" className={button} disabled={busy} onClick={()=>{setPreview(null);setReviewedRequest(null)}}>{preview.planToken ? 'Cancel review' : 'Close review'}</button></div>
+        <div className="flex flex-wrap gap-2">{preview.planToken && <button type="button" className={`${button} bg-primary text-primary-foreground`} disabled={disabled||busy} onClick={()=>void run()}>Confirm recovery</button>}<button type="button" className={button} disabled={busy} onClick={()=>{confirmedIntent.current=null;setPreview(null);setReviewedRequest(null)}}>{preview.planToken ? 'Cancel review' : 'Close review'}</button></div>
         {description.map((c,i)=><div key={i}><p>{c.title}</p>{c.fields.map(f=><p key={f.label}>{f.label}: {f.before} → {f.after}</p>)}</div>)}
         {[...preview.unsupported,...preview.conflicts.map(c=>c.reason)].map((reason,i)=><p key={i}>{recoveryExplanation(reason)} <span className="text-muted-foreground">({reason})</span></p>)}
       </section>}

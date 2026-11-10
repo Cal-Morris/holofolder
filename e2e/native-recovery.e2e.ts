@@ -181,3 +181,32 @@ test('default creation needs explicit nominated replacement and exact fresh prec
   await expect.poll(async()=>(await stored(page))[0]?.synchronized).toBe(true)
   expect(inputs[1].collections).toEqual(inputs[0].collections)
 })
+
+test('aborted recovery persistence retries the same confirmed intent before any apply',async({page})=>{
+  await history(page)
+  let sent=''
+  await page.route('**/app/e2e-harness/storage/recovery?*',async route=>{
+    if(new URL(route.request().url()).searchParams.get('operation')==='recovery.apply')sent=route.request().postData()!
+    await route.continue()
+  })
+  await page.goto(entry);const dialog=await open(page)
+  await dialog.getByRole('button',{name:'Review recovery',exact:true}).click()
+  await page.evaluate(()=>{
+    const original=IDBObjectStore.prototype.put;let aborted=false
+    IDBObjectStore.prototype.put=function(value,key){
+      const request=key===undefined?original.call(this,value):original.call(this,value,key)
+      if(value?.recovery?.[0]?.intent&&!aborted){
+        aborted=true;sessionStorage.setItem('synthetic-aborted-recovery',JSON.stringify(value.recovery[0].intent));this.transaction.abort()
+      }
+      return request
+    }
+  })
+  await dialog.getByRole('button',{name:'Confirm recovery'}).click()
+  await expect(dialog.getByRole('alert')).toBeVisible()
+  expect(await stored(page)).toEqual([]);expect(sent).toBe('')
+  const original=JSON.parse((await page.evaluate(()=>sessionStorage.getItem('synthetic-aborted-recovery')))!)
+  await dialog.getByRole('button',{name:'Confirm recovery'}).click()
+  await expect.poll(async()=>(await stored(page))[0]?.synchronized).toBe(true)
+  expect((await stored(page))[0].intent).toEqual(original)
+  expect(JSON.parse(sent)).toEqual(original.request)
+})
