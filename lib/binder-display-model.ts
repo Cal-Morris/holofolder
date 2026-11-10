@@ -79,8 +79,9 @@ export const WANTED_PREVIEW_TONE = "grayscale saturate-[0.75] brightness-[0.92] 
 export function displaySlotPreview(slot: ReadOnlyDisplaySlot, display: BinderCardDisplay = "mixed") {
   const wanted = display !== "current" && Boolean(slot.wantedCards?.length)
   const wantImage = wanted ? slot.wantedCards![0].card_image : undefined
-  const image = wantImage ?? slot.card?.image ?? (slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null)
-  return { image, isCard: Boolean(wantImage ?? slot.card?.image), tone: wanted ? WANTED_PREVIEW_TONE : slot.item ? "" : "grayscale opacity-45" }
+  const placeholder = slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null
+  const image = wanted ? wantImage ?? placeholder : slot.card?.image ?? placeholder
+  return { image, isCard: wanted ? Boolean(wantImage) : Boolean(slot.card?.image), tone: wanted ? WANTED_PREVIEW_TONE : slot.item ? "" : "grayscale opacity-45" }
 }
 
 export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, "card" | "pokemon" | "target" | "item">) {

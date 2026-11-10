@@ -19,5 +19,12 @@ describe("displaySlotPreview", () => {
     assert.equal(preview.isCard, false)
     assert.equal(preview.tone, WANTED_PREVIEW_TONE)
   })
+  test("missing wanted artwork cannot substitute the owned printing", () => {
+    const preview = displaySlotPreview({ ...owned, wantedCards: [{}] })
+    assert.match(preview.image ?? "", /official-artwork/)
+    assert.notEqual(preview.image, owned.card?.image)
+    assert.equal(preview.isCard, false)
+    assert.equal(displaySlotPreview({ ...owned, wantedCards: [{}] }, "current").image, "owned.webp")
+  })
   test("plain unfilled target keeps existing dimming", () => assert.equal(displaySlotPreview({ ...owned, item: null }).tone, "grayscale opacity-45"))
 })
