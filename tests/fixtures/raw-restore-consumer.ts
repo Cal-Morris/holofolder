@@ -70,5 +70,27 @@ async function main() {
     choices: { ...f.input.choices, slotIds: large.binders[0].slots.map(s => s.id), releaseItemIds: [] } })
   assert.equal(paidPlan.request.slots.reduce((n, s) => n + s.after.wantedCards.length, 0), 1025)
 
+  // Actual streaming HTTP reader and shared REST/MCP schema enforce command and wrapper bytes.
+  const { readDeveloperJson } = await import('@/lib/server/developer-access/request')
+  const { RAW_RESTORE_V2_LIMITS: limits, rawRestoreV2JsonbBytes } = await import('@/lib/domain/raw-restore')
+  const { rawRestoreSchema } = await import('@/lib/developer-api/storage')
+  const boundary = structuredClone(plan.request)
+  boundary.slots[1].after.wantedCards = [{ card_id: 'synthetic-raw-trainer', card_name: '', added_at: '2020-01-01' }]
+  const extra = limits.bytes - rawRestoreV2JsonbBytes(boundary)
+  boundary.slots[1].after.wantedCards[0].card_name = '猫'.repeat(Math.floor(extra / 3)) + 'a'.repeat(extra % 3)
+  const body = JSON.stringify(boundary)
+  const http = (body: string) => new Request('https://holofolder.com/app/api/internal-not-admitted', { method: 'POST', body })
+  assert.deepEqual(rawRestoreSchema.parse(await readDeveloperJson(http(body), limits.bytes)), boundary)
+  const whitespace = ' '.repeat(limits.bytes - Buffer.byteLength(body))
+  await readDeveloperJson(http(body + whitespace), limits.bytes)
+  await assert.rejects(readDeveloperJson(http(body + whitespace + ' '), limits.bytes), (e: unknown) => !!e && typeof e === 'object' && 'code' in e && e.code === 'body_too_large' && !('rejection' in e))
+  const wrapper = JSON.stringify({ action: 'plan', text: body, choices: f.input.choices, operationId: boundary.operationId })
+  assert.ok(Buffer.byteLength(wrapper) < 12582912)
+  await readDeveloperJson(http(wrapper), 12582912)
+  await assert.rejects(readDeveloperJson(http(JSON.stringify({ action: 'plan', text: 'x'.repeat(12582912) })), 12582912))
+  const { storageExecutionError } = await import('@/lib/server/operations/storage-contract')
+  const sizeError = storageExecutionError({ code: '22023', message: 'raw_restore_recovery_envelope_exceeded' })
+  assert.equal(sizeError.code, 'invalid_input'); assert.match(sizeError.message, /2.5 MiB/); assert.equal('rejection' in sizeError, false)
+
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

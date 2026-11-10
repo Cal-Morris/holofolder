@@ -5,8 +5,9 @@ import { isBinderId } from '@/lib/binders/model'
 import { isContractRecord, isSlotContractId, isSlotRevision, normalizeBinderSnapshot } from '@/lib/domain/binder-slots'
 import type { BackupArrangementCommand } from '@/lib/domain/backup-import-command'
 
-export const RAW_RESTORE_V2_LIMITS = { bytes: 4194304, slots: 1025, items: 2050, work: 8192 } as const
+export const RAW_RESTORE_V2_LIMITS = { bytes: 1835008, graphBytes: 2621440, slots: 1025, items: 2050, work: 8192 } as const
 export const RAW_RESTORE_LIMITS = { bytes: 1048576, slots: 256, items: 512, work: 1024 } as const
+export class RawRestoreEnvelopeError extends Error {}
 export interface RawRestorePlanningScope {
   actorUserId: string
   ownerUserId: string
@@ -52,7 +53,8 @@ const invalid = (): never => { throw new Error('Invalid or unsupported raw conte
 export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
   const v2 = !!value && typeof value === 'object' && 'version' in value && value.version === 2
   const limits = v2 ? RAW_RESTORE_V2_LIMITS : RAW_RESTORE_LIMITS
-  if ((v2 ? rawRestoreV2JsonbBytes(value) : new TextEncoder().encode(JSON.stringify(value) ?? '').length) > limits.bytes
+  if (v2 && rawRestoreV2JsonbBytes(value) > limits.bytes) throw new RawRestoreEnvelopeError('Restore command exceeds 1.75 MiB of UTF-8/JSONB text. Preserve any retained device intent.')
+  if ((!v2 && new TextEncoder().encode(JSON.stringify(value) ?? '').length > limits.bytes)
     || !isContractRecord(value, ['version', 'operationId', 'inventoryRevision', 'planning', 'collection', 'configuration', 'slots', 'items', 'releaseItemIds', ...(v2 ? ['manifest'] : [])])
     || Object.keys(value).length !== (v2 ? 10 : 9) || (!v2 && value.version !== 1) || (v2 && !isRawRestoreManifest(value.manifest)) || !isSlotContractId(value.operationId) || value.operationId.length < 8 || value.operationId.length > 100
     || !isSlotRevision(value.inventoryRevision) || !isContractRecord(value.planning, ['actorUserId', 'ownerUserId', 'source', 'credentialId', 'authSessionId', 'partnerUserId', 'partnershipId'])

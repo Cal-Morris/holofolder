@@ -63,3 +63,10 @@ test('strict raw delivery binds original family/delivery/recipient/command/recei
   assert.equal(await readRawRestoreDelivery(response({}, 503), error, command, f.scope, delivery), null)
   assert.equal(await readRawRestoreDelivery(response({}, 409), { ...error, receipt }, command, f.scope, delivery), null)
 })
+
+
+test('local review refuses oversized private before-wants before planning or enqueue', async () => {
+  const f = await setup()
+  f.snapshot.binders[0].slots[0].wantedCards = [{ card_id: 'synthetic-raw-trainer', card_name: 'x'.repeat(2621440), added_at: '2020-01-01' }]
+  await assert.rejects(inspectRawRestore(f.binding, f.input.text, f.input.choices.collectionId, () => true), /2.5 MiB/)
+})

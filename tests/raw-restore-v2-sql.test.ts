@@ -487,77 +487,143 @@ test('095 multibyte JSONB byte edge and prospective old-wants inverse bound refu
     r.slots[1].after.wantedCards=[{card_id:'synthetic-raw-trainer',card_name:'',added_at:'2020-01-01'}]
     const padding=RAW_RESTORE_V2_LIMITS.bytes-rawRestoreV2JsonbBytes(r)
     r.slots[1].after.wantedCards[0].card_name='猫'.repeat(Math.floor(padding/3))+'a'.repeat(padding%3)
-    assert.equal(rawRestoreV2JsonbBytes(r),4194304)
-    assert.equal((await db.query('SELECT octet_length($1::jsonb::text)::int n',[JSON.stringify(r)])).rows[0].n,4194304)
+    assert.equal(rawRestoreV2JsonbBytes(r),RAW_RESTORE_V2_LIMITS.bytes)
+    assert.equal((await db.query('SELECT octet_length($1::jsonb::text)::int n',[JSON.stringify(r)])).rows[0].n,RAW_RESTORE_V2_LIMITS.bytes)
     assert.deepEqual(parseRawRestoreCommand(r),r)
     const over=structuredClone(r);over.slots[1].after.wantedCards[0].card_name+='a'
     assert.throws(()=>parseRawRestoreCommand(over));await fails(db,()=>send(db,over),'22023')
     await db.query('SAVEPOINT byte_edge');const t=performance.now();await send(db,r);await flush(db)
-    console.log(JSON.stringify({synthetic:true,edge:'jsonb4MiB-multibyte',applyDeferredMs:performance.now()-t}))
+    console.log(JSON.stringify({synthetic:true,edge:'jsonb1.75MiB-multibyte',applyDeferredMs:performance.now()-t}))
     await db.query('ROLLBACK TO SAVEPOINT byte_edge; RESET ROLE')
     // Each historical update is separately within 076. Their combined prospective inverse is not.
     const want=[{card_id:'synthetic-raw-trainer',card_name:'x'.repeat(8500000),added_at:'2020-01-01'}]
     for(const id of ['slot-a','slot-b']){await db.query('UPDATE public.binder_slots SET wanted_cards=$1 WHERE id=$2',[JSON.stringify(want),id]);await flush(db)}
     const small=structuredClone(await seedRequestOnly())
     const digest=async()=> (await db.query(`SELECT md5((SELECT jsonb_agg(s ORDER BY id)::text FROM public.binder_slots s WHERE owner_user_id=$1)) hash,(SELECT count(*)::int FROM public.collection_activity WHERE owner_user_id=$1) events,(SELECT count(*)::int FROM public.developer_idempotency WHERE actor_id=$2) ledger`,[owner,partner])).rows[0]
-    const before=await digest();await fails(db,()=>send(db,small),'P0001');assert.deepEqual(await digest(),before)
+    const before=await digest();await fails(db,()=>send(db,small),'22023');assert.deepEqual(await digest(),before)
   }finally{await db.query('ROLLBACK');await db.end()}
 })
 async function seedRequestOnly(){return planRawContentRestore((await rawRestoreFixture()).input).request}
 
-// Run after genuine083 in this same suite. Committed fixtures live only in the disposable fresh DB.
-test('095 populated-history work8192 and JSONB4MiB edges include real COMMIT and committed native inverse', {skip:!enabled,timeout:60000},async()=>{
-  const db=await connect('holofolder_fresh_raw095')
+async function stateDigest(db: Client) {
+  await db.query('RESET ROLE')
+  const result: Record<string, unknown> = {}
+  for (const table of ['inventory_items','binder_slots','inventory_placements','inventory_owner_state','storage_collection_state','collection_activity','developer_idempotency']) {
+    const where=table==='developer_idempotency'?'actor_id IN ($1,$2)':'owner_user_id=$1'
+    result[table]=(await db.query(`SELECT count(*)::int n,md5(coalesce(string_agg(hash,'' ORDER BY hash),'')) digest FROM (SELECT md5(to_jsonb(t)::text) hash FROM public.${table} t WHERE ${where}) rows`,table==='developer_idempotency'?[owner,partner]:[owner])).rows[0]
+  }
+  return result
+}
+
+// Independent byte model over actual private rows, checked against the real recorder below.
+async function prospectiveBytes(db: Client, r: RawRestoreCommand) {
+  await db.query('RESET ROLE')
+  const rows = async (table: string) => (await db.query(`SELECT collection_audit_private.state('${table}',to_jsonb(t)) s FROM public.${table} t WHERE owner_user_id=$1`,[owner])).rows.map(v=>v.s)
+  const slots=await rows('binder_slots'), placements=await rows('inventory_placements'), roots=await rows('storage_collection_state'), owners=await rows('inventory_owner_state')
+  const graph=r.slots.map(p=>{const before=slots.find(s=>s.id===p.before.id);return {table:'binder_slots',id:before.id,before,after:{...before,target:p.after.target,status:p.after.status,wanted_cards:p.after.wantedCards,version:before.version+1}}})
+  for(const ref of r.items){const before=placements.find(p=>p.inventory_item_id===ref.itemId)??null,slot=r.slots.find(p=>p.after.inventoryItemId===ref.itemId)
+    graph.push({table:'inventory_placements',id:ref.itemId,before,after:slot?{inventory_item_id:ref.itemId,owner_user_id:owner,collection_id:collection,slot_id:slot.after.id,version:before?before.version+1:0}:null})}
+  const root=roots.find(v=>v.collection_id===collection),o=owners[0]
+  graph.push({table:'storage_collection_state',id:collection,before:root,after:{...root,version:root.version+1}},
+    {table:'inventory_owner_state',id:owner,before:o,after:{...o,inventory_revision:o.inventory_revision+1}})
+  const {rawRestoreV2JsonbBytes}=await import('@/lib/domain/raw-restore')
+  return rawRestoreV2JsonbBytes(graph)
+}
+
+// Run after genuine083 in this same suite. Every seed and COMMIT is disposable synthetic data.
+test('095 populated-history maximum combined command, before/after wants and duplicated-manifest graphs commit and recover', {skip:!enabled,timeout:180000},async()=>{
+  const db=await connect('holofolder_fresh_raw095'),runId=crypto.randomUUID()
   const {createBinderBackupV2}=await import('@/lib/binder-backup-v2')
-  const {rawRestoreV2JsonbBytes,parseRawRestoreCommand}=await import('@/lib/domain/raw-restore')
+  const {rawRestoreV2JsonbBytes,parseRawRestoreCommand,RAW_RESTORE_V2_LIMITS:limits}=await import('@/lib/domain/raw-restore')
+  const {rawRestoreV2GraphBytes}=await import('@/lib/raw-restore-envelope')
   try{
     await db.query("BEGIN; SET LOCAL statement_timeout='10s'")
-    for(const edge of ['work8192','jsonb4MiB'] as const){
-      const current=await complete(db),desired=structuredClone(current.snapshot),f=await rawRestoreFixture()
-      assert.equal(current.snapshot.binders[0].slots.length,1025,'run genuine083 proof first in the disposable fresh DB')
-      const desiredCount=edge==='work8192'?4092:1025
+    for(const edge of ['work8192','command1.75MiB-graph2.5MiB','before-wants2.5MiB','duplicated-manifest2.5MiB','sparse-before-wants2.5MiB'] as const){
+      await db.query('RESET ROLE')
+      // Reset only synthetic byte padding between independent cases, preserving populated history.
+      await db.query("UPDATE public.binder_slots SET wanted_cards=$1,version=version+1 WHERE collection_id=$2",[JSON.stringify([{card_id:'synthetic-dex-trainer',card_name:'Synthetic trainer',added_at:'2020-01-01',wanted_by:[owner,partner]}]),collection])
+      await db.query("UPDATE public.storage_collection_state SET preset_manifest=jsonb_set(preset_manifest,'{name}','\"National Dex\"'),version=version+1 WHERE collection_id=$1",[collection]);await flush(db)
+      if(edge==='command1.75MiB-graph2.5MiB'){
+        await db.query("UPDATE public.binder_slots SET wanted_cards='[]',version=version+1 WHERE collection_id=$1 AND id<>'synthetic-dex-1000'",[collection]);await flush(db)
+      }
+      let current=await complete(db)
+      const desired=structuredClone(current.snapshot),f=await rawRestoreFixture()
+      assert.equal(current.snapshot.binders[0].slots.length,1025)
+      const desiredCount=edge==='sparse-before-wants2.5MiB'?0:4092
+      const desiredGroup=current.snapshot.placements[0].inventoryItemId.startsWith('synthetic-a-')?'b':'a'
       let remaining=desiredCount
       for(const [n,slot] of desired.binders[0].slots.entries()){
-        slot.inventoryItemId='synthetic-a-'+n
+        slot.inventoryItemId='synthetic-'+desiredGroup+'-'+n
         const count=Math.min(remaining,100);remaining-=count
         slot.wantedCards=Array.from({length:count},()=>({card_id:'synthetic-dex-trainer',card_name:'Synthetic edge want',added_at:'2020-01-01',wanted_by:[owner,partner]}))
       }
       desired.placements=desired.binders[0].slots.map(s=>({inventoryItemId:s.inventoryItemId!,collectionId:collection,slotId:s.id,version:0}))
       const backup=createBinderBackupV2({snapshot:desired,completeness:'complete-owner',scope:'collection',collectionId:collection,layouts:current.layouts,partnerUserId:partner})
       const request=structuredClone(planRawContentRestore({...f.input,text:JSON.stringify(backup),current:current.snapshot,layouts:current.layouts,savedEntryRemaining:8192,
-        operationId:'synthetic-populated-'+edge,choices:{collectionId:collection,slotIds:current.snapshot.binders[0].slots.map(s=>s.id),releaseItemIds:current.snapshot.placements.map(p=>p.inventoryItemId).sort(),restoreContent:true}}).request)
-      assert.equal(request.items.length,2050)
-      if(edge==='jsonb4MiB'){
-        const want=request.slots[0].after.wantedCards[0];want.card_name=''
-        const pad=4194304-rawRestoreV2JsonbBytes(request)
-        want.card_name='猫'.repeat(Math.floor(pad/3))+'a'.repeat(pad%3)
-        assert.equal(rawRestoreV2JsonbBytes(request),4194304);parseRawRestoreCommand(request)
-      }else assert.equal(2*request.slots.length+request.items.length+desiredCount,8192)
+        operationId:'synthetic-populated-'+edge+'-'+runId,choices:{collectionId:collection,slotIds:current.snapshot.binders[0].slots.map(s=>s.id),releaseItemIds:current.snapshot.placements.map(p=>p.inventoryItemId).sort(),restoreContent:true}}).request)
+      const refresh=async()=>{
+        current=await complete(db);request.inventoryRevision=current.snapshot.inventoryRevision;request.collection.version=current.snapshot.collections[0].version
+        for(const p of request.slots)p.before=beforeRef(current.snapshot,p.before.id)
+        for(const ref of request.items)if(ref.placement)ref.placement.slot=beforeRef(current.snapshot,ref.placement.slot.id)
+      }
+      const pad=(bytes:number)=>'猫'.repeat(Math.floor(bytes/3))+'a'.repeat(bytes%3)
+      if(edge==='duplicated-manifest2.5MiB' && request.version===2){
+        const extra=Math.floor((limits.graphBytes-await prospectiveBytes(db,request))/2)
+        request.manifest!.name+=pad(extra)
+        await db.query('UPDATE public.storage_collection_state SET preset_manifest=$1,version=version+1 WHERE collection_id=$2',[JSON.stringify(request.manifest),collection]);await flush(db);await refresh()
+      }
+      if(edge!=='work8192'){
+        // Both JSON strings and the exact complete graph saturate the cap, including old wants.
+        for(let attempt=0;attempt<4;attempt++){
+          if(edge==='command1.75MiB-graph2.5MiB'){
+            const want=request.slots[0].after.wantedCards[0]
+            want.card_name='';want.card_name=pad(limits.bytes-rawRestoreV2JsonbBytes(request))
+          }
+          const delta=limits.graphBytes-await prospectiveBytes(db,request)
+          if(delta===0)break
+          const slot=current.snapshot.binders[0].slots[1000],wants=structuredClone(slot.wantedCards)
+          const name=wants[0].card_name
+          wants[0].card_name=delta>=0?name+'a'.repeat(delta):name.slice(0,name.length+delta)
+          await db.query('UPDATE public.binder_slots SET wanted_cards=$1,version=version+1 WHERE id=$2',[JSON.stringify(wants),slot.id]);await flush(db);await refresh()
+        }
+        assert.equal(await prospectiveBytes(db,request),limits.graphBytes)
+      }
+      assert.equal(request.items.length,2050);assert.equal(2*request.slots.length+request.items.length+desiredCount,4100+desiredCount)
+      parseRawRestoreCommand(request)
+      if(edge==='command1.75MiB-graph2.5MiB')assert.equal(rawRestoreV2JsonbBytes(request),limits.bytes)
+      const expectedBytes=await prospectiveBytes(db,request)
+      assert.ok(rawRestoreV2GraphBytes(current.snapshot,{...desired.binders[0],slots:desired.binders[0].slots.map((s,n)=>({...s,wantedCards:request.slots[n].after.wantedCards}))})>=expectedBytes)
       const historyBefore=Number((await db.query('SELECT count(*)::int n FROM public.collection_activity WHERE owner_user_id=$1',[owner])).rows[0].n)
       assert.ok(historyBefore>500)
-      const t=performance.now();const receipt=await send(db,request);const applyMs=performance.now()-t,d0=performance.now();await flush(db);const deferredMs=performance.now()-d0
+      // Above-limit current state must refuse before writes, without even a terminal ledger row.
+      if(edge!=='work8192'){
+        await db.query('SAVEPOINT oversized_before')
+        await db.query("UPDATE public.binder_slots SET wanted_cards=jsonb_set(wanted_cards,'{0,card_name}',to_jsonb((wanted_cards->0->>'card_name')||'a')) WHERE id=$1",[current.snapshot.binders[0].slots[1000].id]);await flush(db)
+        const before=await stateDigest(db);await fails(db,()=>send(db,request),'22023');assert.deepEqual(await stateDigest(db),before)
+        await db.query('ROLLBACK TO SAVEPOINT oversized_before; RESET ROLE')
+      }
+      if(edge==='work8192'){
+        const old=structuredClone(request),want=old.slots[0].after.wantedCards[0];want.card_name='';want.card_name=pad(4194304-rawRestoreV2JsonbBytes(old))
+        assert.equal(rawRestoreV2JsonbBytes(old),4194304);assert.throws(()=>parseRawRestoreCommand(old))
+        const before=await stateDigest(db);await fails(db,()=>send(db,old),'22023');assert.deepEqual(await stateDigest(db),before)
+      }
+      // Commit padding/history first so the measured command starts in its own real transaction.
+      await db.query('COMMIT');await db.query("BEGIN; SET LOCAL statement_timeout='10s'")
+      const t=performance.now(),receipt=await send(db,request),applyMs=performance.now()-t,d0=performance.now();await flush(db);const deferredMs=performance.now()-d0
       const c0=performance.now();await db.query('COMMIT');const commitMs=performance.now()-c0;await db.query("BEGIN; SET LOCAL statement_timeout='10s'")
       const event=(await db.query('SELECT id,jsonb_array_length(recovery_state) entities,octet_length(recovery_state::text) bytes FROM public.collection_activity WHERE owner_user_id=$1 AND operation_id=$2',[owner,request.operationId])).rows[0]
-      const p0=performance.now(),preview=await send(db,{eventId:String(event.id),operationId:'synthetic-preview-'+edge,restoreUnassignedItemIds:[]},partner,'app',null,'recovery.preview'),previewMs=performance.now()-p0
+      assert.equal(event.bytes,expectedBytes);assert.equal(event.entities,3077)
+      const p0=performance.now(),preview=await send(db,{eventId:String(event.id),operationId:'synthetic-preview-'+edge+'-'+runId,restoreUnassignedItemIds:[]},partner,'app',null,'recovery.preview'),previewMs=performance.now()-p0
       assert.equal(preview.supported,true);assert.deepEqual(preview.conflicts,[])
-      console.log(JSON.stringify({synthetic:true,phase:'committed-forward-and-preview',edge,historyBefore,applyMs,deferredMs,commitMs,previewMs,auditEntities:event.entities,auditJsonbBytes:event.bytes}))
+      console.log(JSON.stringify({synthetic:true,phase:'committed-forward-and-preview',edge,historyBefore,applyMs,deferredMs,commitMs,previewMs,auditJsonbBytes:event.bytes}))
       const i0=performance.now()
-      try {
-        await send(db,{eventId:String(event.id),operationId:'synthetic-inverse-'+edge,restoreUnassignedItemIds:[],confirmed:true,planVersion:1,planToken:preview.planToken},partner,'app',null,'recovery.apply');await flush(db);await db.query('COMMIT')
-      } catch (error) {
-        await db.query('ROLLBACK'); await db.query('BEGIN')
-        const retained=await complete(db)
-        assert.deepEqual(retained.snapshot.placements.map(p=>[p.inventoryItemId,p.slotId]),desired.placements.map(p=>[p.inventoryItemId,p.slotId]).sort((a,b)=>a[0].localeCompare(b[0])))
-        const failedInverse=(await db.query('SELECT count(*)::int n FROM public.collection_activity WHERE owner_user_id=$1 AND operation_id=$2',[owner,'synthetic-inverse-'+edge])).rows[0].n
-        assert.equal(failedInverse,0)
-        console.log(JSON.stringify({synthetic:true,blockingGate:edge,inverseElapsedMs:performance.now()-i0,forwardRemainsCommitted:true,failedInverseEvents:failedInverse,sqlstate:(error as {code?:string}).code}))
-        throw error
-      }
+      await send(db,{eventId:String(event.id),operationId:'synthetic-inverse-'+edge+'-'+runId,restoreUnassignedItemIds:[],confirmed:true,planVersion:1,planToken:preview.planToken},partner,'app',null,'recovery.apply');await flush(db);await db.query('COMMIT')
       const inverseCommitMs=performance.now()-i0;await db.query("BEGIN; SET LOCAL statement_timeout='10s'")
       const recovered=await complete(db)
       assert.deepEqual(recovered.snapshot.placements.map(p=>[p.inventoryItemId,p.slotId]),current.snapshot.placements.map(p=>[p.inventoryItemId,p.slotId]))
       assert.deepEqual(recovered.snapshot.items,current.snapshot.items)
       assert.deepEqual(recovered.snapshot.binders[0].slots.map(s=>[s.id,s.target,s.status,s.wantedCards,s.presetOrigin]),current.snapshot.binders[0].slots.map(s=>[s.id,s.target,s.status,s.wantedCards,s.presetOrigin]))
+      assert.deepEqual(recovered.snapshot.binders[0].presetManifest,current.snapshot.binders[0].presetManifest)
       assert.deepEqual(await send(db,request),receipt)
       console.log(JSON.stringify({synthetic:true,edge,slots:1025,refs:2050,wants:desiredCount,historyBefore,commandWireBytes:Buffer.byteLength(JSON.stringify(request)),commandJsonbBytes:rawRestoreV2JsonbBytes(request),auditEntities:event.entities,auditJsonbBytes:event.bytes,applyMs,deferredMs,commitMs,previewMs,inverseCommitMs}))
     }

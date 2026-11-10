@@ -1,7 +1,7 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { isContractRecord, isSlotContractId } from '@/lib/domain/binder-slots'
-import { parseRawRestoreCommand, isRawRestoreRejection } from '@/lib/domain/raw-restore'
+import { RawRestoreEnvelopeError, parseRawRestoreCommand, isRawRestoreRejection } from '@/lib/domain/raw-restore'
 import { prepareAppRawContentRestore, confirmAppRawContentRestore, deliverAppRawContentRestore } from '@/lib/server/operations/raw-restore'
 import { requireAppearanceOrigin } from '@/lib/server/binder-appearance'
 import { readDeveloperJson, developerErrorResponse } from '@/lib/server/developer-access/request'
@@ -43,7 +43,7 @@ export async function handleRawRestore(request: Request, clients?: Parameters<ty
     if (isRawRestoreRejection(result, operationId)) throw new StorageRestoreRejectedError(result)
     return Response.json({ version: 1, operationId, receipt: result }, { headers })
   } catch (error) {
-    const response = developerErrorResponse(error, requestId)
+    const response = developerErrorResponse(error instanceof RawRestoreEnvelopeError ? new DeveloperAccessError('invalid_input', error.message, 400) : error, requestId)
     headers.forEach((value, key) => response.headers.set(key, value))
     return response
   }

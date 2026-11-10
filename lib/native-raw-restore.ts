@@ -1,8 +1,9 @@
+import { rawRestoreV2GraphBytes } from '@/lib/raw-restore-envelope'
 import { readReviewedRawRestoreCommand } from '@/lib/collection/raw-restore-delivery'
 import { appPath } from '@/lib/app-path'
-import { backupContentKey, freezeBackupPlan, parseBinderBackupV2 } from '@/lib/binder-backup-v2'
+import { backupContentKey, freezeBackupPlan, hydrateBackupSnapshot, parseBinderBackupV2 } from '@/lib/binder-backup-v2'
 import { readNativeBackup, type NativeBackupBinding } from '@/lib/native-backup'
-import { RAW_RESTORE_V2_LIMITS, type RawRestoreCommand } from '@/lib/domain/raw-restore'
+import { RawRestoreEnvelopeError, RAW_RESTORE_V2_LIMITS, type RawRestoreCommand } from '@/lib/domain/raw-restore'
 import { sameInventoryReadScope } from '@/lib/collection/inventory-read-transport'
 import { isContractRecord } from '@/lib/domain/binder-slots'
 import type { SlotOfflineIntent } from '@/lib/collection/slot-optimistic'
@@ -38,6 +39,10 @@ export async function inspectRawRestore(binding: NativeBackupBinding, text: stri
     const item = snapshot.items.find(i => i.id === id), fromFile = backup.items.find(i => i.id === id), placement = snapshot.placements.find(p => p.inventoryItemId === id)
     if (!item || item.grading !== null || item.legacySource != null || placement && placement.collectionId !== collectionId
       || fromFile && (backupContentKey(fromFile.identity) !== backupContentKey(item.identity) || fromFile.acquiredAt !== item.acquiredAt)) return fail()
+  }
+  const desired = hydrateBackupSnapshot(backup, snapshot.ownerUserId, read.partnerUserId ?? undefined)
+  if (rawRestoreV2GraphBytes(snapshot, desired.binders[0]) > RAW_RESTORE_V2_LIMITS.graphBytes) {
+    throw new RawRestoreEnvelopeError('Restore private before/after recovery graph exceeds 2.5 MiB. Nothing has been queued.')
   }
   assertCurrent()
   return { base: snapshot, choices: { collectionId, slotIds: binder.slots.map(s => s.id), restoreContent: true as const,

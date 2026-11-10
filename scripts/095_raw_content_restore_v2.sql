@@ -22,7 +22,7 @@ BEGIN
    FROM public.partnerships WHERE owner_user_id=owner_id FOR SHARE;
  IF NOT public.inventory_object_v1(request,ARRAY['version','operationId','inventoryRevision','planning','collection','configuration','slots','items','releaseItemIds','manifest'])
    OR request->'version' IS DISTINCT FROM '2'::jsonb OR NOT public.inventory_id_v1(request->'operationId')
-   OR length(request->>'operationId') NOT BETWEEN 8 AND 100 OR octet_length(request::text)>4194304
+   OR length(request->>'operationId') NOT BETWEEN 8 AND 100 OR octet_length(request::text)>1835008
    OR NOT public.inventory_revision_v1(request->'inventoryRevision')
    OR NOT public.inventory_object_v1(request->'planning',ARRAY['actorUserId','ownerUserId','source','credentialId','authSessionId','partnerUserId','partnershipId'])
    OR NOT public.inventory_object_v1(request->'collection',ARRAY['collectionId','version','layoutRevision'])
@@ -176,8 +176,8 @@ BEGIN
        collection_audit_private.state('inventory_owner_state',to_jsonb(o)||jsonb_build_object('inventory_revision',revision+1))
        FROM public.inventory_owner_state o WHERE o.owner_user_id=owner_id)
    SELECT jsonb_agg(jsonb_build_object('table',tbl,'id',id,'before',b,'after',a) ORDER BY tbl,id) INTO prospective FROM graph WHERE b IS DISTINCT FROM a;
-   IF jsonb_array_length(prospective)>16384 OR octet_length(prospective::text)>16777216 THEN
-     RAISE EXCEPTION 'audit_evidence_too_large'; END IF;
+   IF jsonb_array_length(prospective)>3077 OR octet_length(prospective::text)>2621440 THEN
+     RAISE EXCEPTION 'raw_restore_recovery_envelope_exceeded' USING ERRCODE='22023'; END IF;
    saved_before:=public.slot_saved_count_v1(owner_id);
    DELETE FROM public.inventory_placements WHERE owner_user_id=owner_id AND collection_id=collection;
    UPDATE public.binder_slots s SET target=nullif(v->'after'->'target','null'),status=v->'after'->>'status',wanted_cards=v->'after'->'wantedCards',version=s.version+1,updated_at=clock_timestamp()

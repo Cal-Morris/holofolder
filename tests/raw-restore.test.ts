@@ -106,3 +106,36 @@ test('v2 copied1025 manifests and edited targets preserve exact per-slot origins
   assert.equal(rawRestoreSchema.safeParse(original).success,true)
   assert.equal(rawRestoreV1Schema.safeParse(original).success,true)
 })
+
+test('v2 byte admission budgets UTF-8/JSONB separators and refuses the old 4-MiB envelope', async () => {
+  const { RAW_RESTORE_V2_LIMITS: limits, rawRestoreV2JsonbBytes } = await import('@/lib/domain/raw-restore')
+  const { rawRestoreV2Schema } = await import('@/lib/developer-api/storage')
+  const r = structuredClone(planRawContentRestore((await rawRestoreFixture()).input).request)
+  r.slots[1].after.wantedCards = [{ card_id: 'synthetic-raw-trainer', card_name: '', added_at: '2020-01-01' }]
+  const pad = limits.bytes - rawRestoreV2JsonbBytes(r)
+  r.slots[1].after.wantedCards[0].card_name = '猫'.repeat(Math.floor(pad / 3)) + 'a'.repeat(pad % 3)
+  assert.equal(rawRestoreV2JsonbBytes(r), limits.bytes)
+  assert.ok(Buffer.byteLength(JSON.stringify(r)) < limits.bytes)
+  assert.deepEqual(parseRawRestoreCommand(r), r)
+  assert.equal(rawRestoreV2Schema.safeParse(r).success, true)
+  r.slots[1].after.wantedCards[0].card_name += 'a'
+  assert.throws(() => parseRawRestoreCommand(r), /1.75 MiB/)
+  assert.equal(rawRestoreV2Schema.safeParse(r).success, false)
+})
+
+test('trusted planning refuses complete old-wants recovery graphs', async () => {
+  const { RAW_RESTORE_V2_LIMITS: limits } = await import('@/lib/domain/raw-restore')
+  const f = await rawRestoreFixture()
+  const old = structuredClone(f.snapshot)
+  old.binders[0].slots[0].wantedCards = [{ card_id: 'synthetic-raw-trainer', card_name: '猫'.repeat(limits.graphBytes / 3), added_at: '2020-01-01' }]
+  const current = await f.brand(old)
+  assert.throws(() => planRawContentRestore({ ...f.input, current }), /2.5 MiB/)
+})
+
+test('trusted planning budgets both manifest roots even when the command fits 1.75 MiB', async () => {
+  const f = await rawRestoreFixture(true), snapshot = structuredClone(f.snapshot), backup = JSON.parse(f.input.text)
+  snapshot.binders[0].presetManifest!.name = 'x'.repeat(1600000)
+  backup.binders[0].presetManifest = snapshot.binders[0].presetManifest
+  const current = await f.brand(snapshot)
+  assert.throws(() => planRawContentRestore({ ...f.input, current, text: JSON.stringify(backup) }), /2.5 MiB/)
+})

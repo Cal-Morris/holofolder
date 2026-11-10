@@ -78,6 +78,16 @@ async function main() {
   await assert.rejects(unknown.q.read())
   await assert.rejects(unknown.q.saveSnapshot(await freshSnapshot()))
   assert.deepEqual(await unknown.store.get(key), bytes)
+  // A previously admitted 4-MiB v2 intent is unsupported now, but remains byte-for-byte durable.
+  const oldV2 = await setup()
+  await oldV2.q.enqueue(oldV2.intent, () => undefined, oldV2.base, () => queueScope, scope.authSessionId)
+  const oldBytes = structuredClone(await oldV2.store.get<import('@/lib/collection/slot-offline-queue').SlotOfflineRecord>(key))!
+  const oldCommand = oldBytes.pending[0].intent.request as import('@/lib/domain/raw-restore').RawRestoreCommand
+  oldCommand.slots[0].after.wantedCards = [{ card_id: 'synthetic-card', card_name: 'x'.repeat(3 * 1024 * 1024), added_at: '2020-01-01' }]
+  await oldV2.store.set(key, oldBytes)
+  await assert.rejects(oldV2.q.read())
+  await assert.rejects(oldV2.q.saveSnapshot(await freshSnapshot()))
+  assert.deepEqual(await oldV2.store.get(key), oldBytes)
   // Generic/file/clone state cannot become a reviewed original command or complete base.
   let f = await setup()
   await assert.rejects(f.q.enqueue(structuredClone(f.intent), () => undefined, f.base, () => queueScope, scope.authSessionId))

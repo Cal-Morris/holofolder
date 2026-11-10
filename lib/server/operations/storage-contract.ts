@@ -1,4 +1,4 @@
-import { parseRawRestoreCommand, isRawRestoreReceipt } from '@/lib/domain/raw-restore'
+import { RawRestoreEnvelopeError, parseRawRestoreCommand, isRawRestoreReceipt } from '@/lib/domain/raw-restore'
 import { parseNativeRecoveryRequest } from "@/lib/domain/native-recovery"
 import { parseBackupArrangementCommand, BACKUP_IMPORT_LIMITS } from "@/lib/domain/backup-import-command"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
@@ -21,7 +21,10 @@ export function parseStorageRequest(operation: StorageOperation, input: unknown)
     if (operation === "inventory") return parseInventoryCommand(input)
     if (operation === "slots") return parseSlotCommand(input)
     return parseNativeRecoveryRequest(operation, input)
-  } catch { return invalid() }
+  } catch (error) {
+    if (error instanceof RawRestoreEnvelopeError) throw new DeveloperAccessError("invalid_input", error.message, 400)
+    return invalid()
+  }
 }
 
 export function storageExecutionError(error: unknown): DeveloperAccessError {
@@ -34,6 +37,7 @@ export function storageExecutionError(error: unknown): DeveloperAccessError {
   if (code === "40001" || code === "23505") return new DeveloperAccessError("storage_conflict", "Storage changed or the operation ID was already used. Refresh and review before retrying.", 409)
   if (code === "42501") return new DeveloperAccessError("storage_access_denied", "This operation is not allowed for the current collection.", 403)
   if (code === "HF402") return new DeveloperAccessError("premium_required", "API and MCP access require a Premium subscription or lifetime access.", 402)
+  if (code === "22023" && message === "raw_restore_recovery_envelope_exceeded") return new DeveloperAccessError("invalid_input", "Restore private before/after recovery graph exceeds 2.5 MiB. Retain the original intent until explicitly reconciled.", 400)
   if (code === "22023" || code === "23514") return new DeveloperAccessError("invalid_input", "The storage request does not satisfy current constraints.", 400)
   if (code === "0A000") return new DeveloperAccessError("recovery_unsupported", "This event cannot be recovered automatically.", 409)
   return new DeveloperAccessError("storage_unavailable", "Storage execution is temporarily unavailable.", 503)

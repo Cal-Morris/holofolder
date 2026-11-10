@@ -1,7 +1,8 @@
+import { rawRestoreV2GraphBytes } from '@/lib/raw-restore-envelope'
 import { backupContentKey, freezeBackupPlan, hydrateBackupSnapshot, parseBinderBackupV2 } from '@/lib/binder-backup-v2'
 import { isCompleteInventorySnapshot, type CompleteInventorySnapshot } from '@/lib/collection/slot-snapshot'
 import type { InventoryLayoutEvidence } from '@/lib/domain/inventory-browse'
-import { parseRawRestoreCommand, type RawRestorePlanningScope, type RawRestoreCommand } from '@/lib/domain/raw-restore'
+import { RawRestoreEnvelopeError, RAW_RESTORE_V2_LIMITS, parseRawRestoreCommand, type RawRestorePlanningScope, type RawRestoreCommand } from '@/lib/domain/raw-restore'
 
 export const rawRestoreSavedEntries = (slots: readonly { status: string | null; wantedCards: readonly unknown[] }[]) =>
   slots.reduce((n, s) => n + Math.max(s.wantedCards.length, s.status === 'wishlisted' ? 1 : 0) + (s.status === 'considering' ? 1 : 0), 0)
@@ -67,6 +68,9 @@ export function planRawContentRestore(input: {
       return { before: { id: s.id, version: s.version, inventoryItemId: s.inventoryItemId, itemVersion: ref?.itemVersion ?? null,
         placementVersion: ref?.placement?.slot.placementVersion ?? null }, after }
     }), items, releaseItemIds: releases })
+  if (rawRestoreV2GraphBytes(current, desired.binders[0]) > RAW_RESTORE_V2_LIMITS.graphBytes) {
+    throw new RawRestoreEnvelopeError('Restore private before/after recovery graph exceeds 2.5 MiB. Nothing has been queued.')
+  }
   return freezeBackupPlan({ request, precondition: backupContentKey(current),
     placements: items.map(i => ({ itemId: i.itemId, from: i.placement?.slot.id ?? null, to: desired.placements.find(p => p.inventoryItemId === i.itemId)?.slotId ?? null })),
     scope: structuredClone(input.evidence) })
