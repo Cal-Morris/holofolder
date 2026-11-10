@@ -14,13 +14,15 @@ async function record(page: Page): Promise<SlotOfflineRecord> {
     db.close(); return rows.find(r => !!r && typeof r === "object" && "pending" in r) as SlotOfflineRecord
   })
 }
+// Checkbox names are collector-facing, so tests find a copy's checkbox through its row's data-item-id.
+const pick = (page: Page, id: string) => page.getByRole("listitem").filter({ has: page.locator(`[data-item-id="${id}"]`) }).getByRole("checkbox")
 async function inventory(page: Page) {
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Inventory", exact: true })).toBeVisible()
 }
 async function open(page: Page) { await page.goto(entry); await inventory(page); await expect(page.getByRole("button", { name: "Add owned card", exact: true })).toBeVisible() }
 async function select(page: Page, ids = [first, second]) {
-  for (const id of ids) await page.getByRole("checkbox", { name: `Select copy ${id}`, exact: true }).check()
+  for (const id of ids) await pick(page, id).check()
   await page.getByRole("button", { name: "Move / Unassign selected", exact: true }).click()
   return page.getByRole("dialog", { name: "Review selected raw copies" })
 }
@@ -45,7 +47,9 @@ test("explicit bulk mapping cancels, moves and unassigns all copies, exact Activ
   await page.route("**/app/e2e-harness/storage/inventory", async route => { bodies.push(route.request().postDataJSON()); await route.continue() })
   await open(page)
   const before = (await record(page)).snapshot!
-  await expect(page.getByRole("checkbox", { name: "Select copy synthetic-raw-copy-2", exact: true })).toBeDisabled()
+  await expect(pick(page, "synthetic-raw-copy-2")).toBeDisabled()
+  await expect(pick(page, first)).not.toHaveAccessibleName(/synthetic-raw-copy/)
+  await expect(pick(page, first)).toHaveAccessibleName(/^Select .+, .+/)
   let d = await moveReview(page)
   await expect(d).toContainText("From Synthetic storage, slot synthetic-slot-0 to Synthetic storage, slot synthetic-slot-1")
   await expect(d).toContainText("From Unassigned to Synthetic second storage, slot synthetic-other-slot")
@@ -94,9 +98,9 @@ test("selection crosses explicit pages and filters, clear resets all, overlay di
   await expect(page.getByLabel("Inventory selection", { exact: true })).toHaveCount(0)
   await openInventoryFilters(page)
   await page.getByRole("combobox", { name: "Sort", exact: true }).selectOption("id")
-  await page.getByRole("checkbox", { name: "Select copy synthetic-bulk-00", exact: true }).check()
+  await pick(page, "synthetic-bulk-00").check()
   await page.getByRole("button", { name: "Next copies" }).click()
-  await page.getByRole("checkbox", { name: `Select copy ${first}`, exact: true }).check()
+  await pick(page, first).check()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("no matching synthetic card")
   await expect(page.getByLabel("Inventory selection", { exact: true })).toContainText("2 selected")
   await page.getByRole("button", { name: "Move / Unassign selected" }).click()
@@ -159,7 +163,7 @@ for (const changed of ["revision", "membership", "session", "incomplete"] as con
 test("bulk sheet dismisses with shared back, backdrop, swipe and dock without dispatch", async ({ page, insets }) => {
   await open(page)
   const h = new Harness(page, insets, true)
-  await page.getByRole("checkbox", { name: `Select copy ${first}`, exact: true }).check()
+  await pick(page, first).check()
   const opener = page.getByRole("button", { name: "Move / Unassign selected" })
   const d = page.getByRole("dialog", { name: "Review selected raw copies" })
   for (const method of ["back", "backdrop", "swipe"] as const) {

@@ -4,7 +4,7 @@ import { isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
 import { normalizeInventorySnapshot } from "@/lib/domain/inventory"
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseRow, InventoryBrowseScope,
   InventoryCatalogEvidence, InventoryLayoutEvidence } from "@/lib/domain/inventory-browse"
-import { resolveInventoryLocation, slotLocationLabel } from "@/lib/inventory-location"
+import { inventoryLocationLabel, resolveInventoryLocation, slotLocationLabel } from "@/lib/inventory-location"
 
 export interface InventoryBrowseIndex {
   projection: InventoryCollectionProjection | null
@@ -116,6 +116,17 @@ export function restoreInventoryWindow(index: InventoryBrowseIndex, query: Inven
   return { cursor: cursors.at(-1) ?? null, previous: cursors.slice(0, -1) }
 }
 
+/** Screen-reader names for selection checkboxes: card, printing and location, never internal IDs.
+ * Identical copies on one page get "copy N" so every name stays distinct. */
+export function inventorySelectLabels(rows: readonly InventoryBrowseRow[]): Map<string, string> {
+  const labels = rows.map(r => `Select ${r.name ?? (r.speciesNames.join(", ") || "unknown card")}, ${r.setName ?? "set unknown"}${r.number ? ` #${r.number}` : ""}, ${inventoryLocationLabel(r.location)}`)
+  const totals = new Map<string, number>(), seen = new Map<string, number>()
+  for (const label of labels) totals.set(label, (totals.get(label) ?? 0) + 1)
+  return new Map(rows.map((r, i) => {
+    const n = (seen.get(labels[i]) ?? 0) + 1; seen.set(labels[i], n)
+    return [r.itemId, totals.get(labels[i])! > 1 ? `${labels[i]}, copy ${n}` : labels[i]]
+  }))
+}
 export function inventoryGradingLabel(row: InventoryBrowseRow) {
   return row.graded ? `${row.provider} · ${row.grade ?? "Grade unknown"}${row.scale ? ` · Scale ${row.scale}` : ""}` : "Raw"
 }

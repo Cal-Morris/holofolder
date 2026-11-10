@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { buildInventoryBrowseIndex, queryInventory, inventoryGradingLabel, type InventoryBrowseCursor } from "@/lib/inventory-query"
+import { buildInventoryBrowseIndex, queryInventory, inventoryGradingLabel, inventorySelectLabels, type InventoryBrowseCursor } from "@/lib/inventory-query"
 import { inventoryLocationLabel, resolveInventoryLocation, resolveInventoryLocationIntent, slotLocationLabel } from "@/lib/inventory-location"
 import { canShowInventoryHarness } from "@/lib/inventory-harness-gate"
 import type { InventoryBrowseQuery } from "@/lib/domain/inventory-browse"
@@ -97,6 +97,16 @@ describe("read-only inventory query", () => {
     const unbranded = structuredClone(snapshot)
     assert.equal(buildInventoryBrowseIndex(scope, { kind: "complete", snapshot: unbranded }, [], []).kind, "unavailable")
   })
+})
+
+test("selection names use card, printing and location, never copy IDs, and stay distinct", async () => {
+  const rows = (await index()).rows
+  const labels = inventorySelectLabels(rows)
+  assert.equal(labels.get("copy-00001"), "Select Charizard, Base Set #4, Alpha · Page 2 · Slot 1")
+  for (const label of labels.values()) assert.doesNotMatch(label, /copy-\d/)
+  assert.equal(new Set(labels.values()).size, rows.length)
+  const twins = inventorySelectLabels([rows[2], { ...rows[2], itemId: "twin" }])
+  assert.deepEqual([...twins.values()].map(l => l.slice(-6)), ["copy 1", "copy 2"])
 })
 
 describe("current storage locations", () => {
