@@ -65,7 +65,7 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
     do {
       check()
       let query = db.from("tcg_cards").select("id,series_id,set_id,local_id,name_en,name_json,image_languages_json,external_ids_json").order("id").limit(500)
-      query = canonical ? query.eq("external_ids_json->catalog->>canonicalId", id) : query.contains("external_ids_json", { catalog: { aliasIds: [id] } })
+      query = canonical ? query.eq("external_ids_json->catalog->>canonicalId", id) : query.contains("external_ids_json->catalog->aliasIds", JSON.stringify([id]))
       if (after !== null) query = query.gt("id", after)
       const response = await query.abortSignal(signal)
       if (response.error || !Array.isArray(response.data) || response.data.length > 500) throw new Error("inventory_read_unavailable")

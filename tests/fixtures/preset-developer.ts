@@ -171,7 +171,7 @@ async function main() {
   reset()
   let requests = 0
   race = (table, url) => {
-    if (table !== "tcg_cards" || !url.searchParams.has("external_ids_json")) return
+    if (table !== "tcg_cards" || !url.searchParams.has("external_ids_json->catalog->aliasIds")) return
     requests++
     const after = Number(url.searchParams.get("id")?.slice(3) ?? 0)
     return Response.json(Array.from({ length: 10 }, (_, n) => ({ id: String(after + n + 1).padStart(6, "0"), external_ids_json: { catalog: { aliasIds: [printing.cardId] } } })))
