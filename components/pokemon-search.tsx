@@ -232,13 +232,7 @@ export default function PokemonSearch({
       return
     }
 
-    setSelectedIndex((prev) => {
-      if (visibleResults.length === 0) {
-        return -1
-      }
-
-      return Math.min(prev, visibleResults.length - 1)
-    })
+    setSelectedIndex(-1)
   }, [visibleResults, query])
 
   const handleSelectPokemon = useCallback(

@@ -123,3 +123,17 @@ test("desktop search reaches the final Pokémon without overflow", async ({ page
   await new Harness(page, insets, true).expectNoHorizontalOverflow()
   if (shots) await page.screenshot({ path: `${shots}/desktop-final.png` })
 })
+
+test("changing a query clears a keyboard selection beyond the new rendered chunk", async ({ page }, info) => {
+  test.skip(info.project.name !== "browser-390x844", "Keyboard state is viewport independent")
+  const { dialog, rows } = await openSearch(page)
+  const input = dialog.getByRole("textbox")
+  for (let i = 0; i < 61; i++) await input.press("ArrowDown")
+  await expect(rows.nth(60)).toHaveClass(/bg-primary\/20/)
+  await input.fill("an")
+  await expect(rows).toHaveCount(40)
+  await input.press("Enter")
+  await expect(dialog).toBeVisible()
+  await input.press("ArrowDown")
+  await expect(rows.first()).toHaveClass(/bg-primary\/20/)
+})
