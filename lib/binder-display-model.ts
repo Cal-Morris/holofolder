@@ -2,7 +2,8 @@ import { normalizeBinderSnapshot, type BinderSnapshot, type SlotTarget } from "@
 import { normalizeInventorySnapshot, type InventoryItem, type InventorySnapshot } from "@/lib/domain/inventory"
 import type { CardLanguage, CollectedPokemon, WantedCard } from "@/lib/domain/cards"
 import { isBinderGridSize } from "@/lib/binder-layout"
-import { getPokemonSummary } from "@/lib/pokemon-catalog"
+import { getOfficialArtworkUrl, getPokemonSummary } from "@/lib/pokemon-catalog"
+import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 
 export interface DisplayCatalogCard { name: string; image?: string; localId?: string; set?: { name: string }; rarity?: string; illustrator?: string }
 /** Ephemeral read model. The item is a reference, never slot-local ownership. */
@@ -23,6 +24,8 @@ export interface ReadOnlyDisplaySlot {
   item: { grading: { grade: string | null } | null } | null
   card: DisplayCatalogCard | null
   pokemon: { id: number; name: string } | null
+  /** Private owner wants only; public projections omit them. */
+  wantedCards?: readonly Pick<WantedCard, "card_image">[]
 }
 export interface SlotDisplayInput {
   binder: BinderSnapshot
@@ -67,6 +70,17 @@ export function paginateDisplaySlots(slots: readonly BinderDisplaySlot[], rows: 
 
 export function resolveDisplaySelection(slots: readonly BinderDisplaySlot[], slotId: string | null | undefined) {
   return slots.find(slot => slot.id === slotId) ?? null
+}
+
+/** Legacy PokemonSlot wishlisted tone, shared so native pockets dim wants the same way. */
+export const WANTED_PREVIEW_TONE = "grayscale saturate-[0.75] brightness-[0.92] contrast-[0.95] opacity-90"
+
+/** Like legacy getBinderDisplayCard: outside "current", a want previews its printing dimmed. Owned copies without wants stay full colour. */
+export function displaySlotPreview(slot: ReadOnlyDisplaySlot, display: BinderCardDisplay = "mixed") {
+  const wanted = display !== "current" && Boolean(slot.wantedCards?.length)
+  const wantImage = wanted ? slot.wantedCards![0].card_image : undefined
+  const image = wantImage ?? slot.card?.image ?? (slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null)
+  return { image, isCard: Boolean(wantImage ?? slot.card?.image), tone: wanted ? WANTED_PREVIEW_TONE : slot.item ? "" : "grayscale opacity-45" }
 }
 
 export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, "card" | "pokemon" | "target" | "item">) {
