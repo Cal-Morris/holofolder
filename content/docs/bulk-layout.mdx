@@ -13,7 +13,7 @@ Insert a number of free slots or a whole current-grid page at an exact saved anc
 
 The private durable session says **Saved on device · Pending sync** only after a local storage transaction accepts the complete group. That does not mean a server has saved it. A changed layout needs review. Changed selected copies block the whole group until you clear selection and choose again. Failed local saves retain the original group for retry. **Done** exits editing without discarding accepted device edits.
 
-Creating new copies from ordered catalog selections, bulk clear/remove with safe Undo, cross-storage moves, public sync and rollout remain unavailable in this slice.
+Creating new copies from ordered catalog selections, bulk clear contents, cross-storage moves, public sync and rollout remain unavailable in this slice. Slot removal has a separate private consequence review below.
 
 The local-only test host now exercises server command delivery as well as device saving. **Retry pending sync** preserves the original operation ID and request after a lost connection. A server receipt alone does not clear Pending sync: the session must read the complete current inventory after that reply. Billing and access failures pause the edit; conflicts retain it for review. An unknown outcome cannot be discarded or replaced to force a save.
 
@@ -49,3 +49,25 @@ confirmed IDs and versions. Once accepted on device, closing the review does not
 cancel pending sync. A server reply must be followed by a fresh complete read
 before the saved request is acknowledged. There is no bulk Undo promise here.
 This is still private preparation, not an enabled production or public API feature.
+
+### Slot removal, private review
+
+In **Edit layout**, select one saved slot and choose **Remove selected slot**,
+or explicitly select several pockets and choose **Remove selected slots**.
+Review the exact slots, targets and explicit wants that will disappear, and the
+owned copies that will become **Unassigned**, then choose **Confirm slot removal**.
+Every owned copy keeps its identity, grading and source metadata in Inventory.
+Remaining pockets keep their order and current goals; the original preset stays
+recorded independently. This does not delete a whole collection or remove ownership.
+
+A removal is one bounded atomic request. Each selected slot and each assigned
+copy uses one of the existing 256 work units. An unsupported group is rejected
+whole, never split or silently shortened. Cancel saves nothing. **Retry same removal**
+keeps the exact reviewed request after a device-storage failure. Device saving is
+separate from sync and the fresh complete read that acknowledges it.
+
+After synchronization, open **Activity** and inspect the recorded edit. Use
+**Review recovery** when supported, review the current consequences, then confirm.
+Newer edits, current permissions or unavailable history may block recovery.
+This flow does not promise instant Undo or automatically identify a matching
+Activity entry. Slot removal remains private preparation with production admission disabled.
