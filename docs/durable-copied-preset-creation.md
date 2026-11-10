@@ -22,9 +22,9 @@ A matching private receipt must identify the exact collection and ordered slot I
 
 ## Remaining 093 consumer gate
 
-This checkout does not contain the separately reviewed creation/import terminal rejection proof contract. Backend [PR #478](https://github.com/Cal-Morris/holofolder/pull/478), head `b9fc24580de94e77f6da939bcf968b0128262856`, was observed open with no submitted reviews during implementation. It is not this PR base. Every creation failure, including HTTP 400/402/403/409, remains an unresolved exact intent. Status codes do not prove noncommit; there is no cancellation, rebase, replacement, proof fabrication or parallel guard/ledger. Billing/auth failures pause with the original intent retained and explicit retry. Unknown outcomes retain bounded retry/backoff.
+Parent integration includes the reviewed 093 creation/import terminal rejection contract from [PR #478](https://github.com/Cal-Morris/holofolder/pull/478). Its backend migration is applied; this device consumer does not yet interpret or persist its creation proofs. Every creation failure, including HTTP 400/402/403/409, remains an unresolved exact intent. Status codes do not prove noncommit; there is no cancellation, rebase, replacement, proof fabrication or parallel guard/ledger. Billing/auth failures pause with the original intent retained and explicit retry. Unknown outcomes retain bounded retry/backoff.
 
-After parent reviews the 093 source, integrate its **shared** strict creation rejection guard and authoritative serialization, persist matching terminal proof in this same atomic record, obtain a post-proof fresh complete scoped read, and permit only explicit discard under that proof and current-session/lease fences. Do not treat this slice as that integration or as enablement evidence. Existing slot/inventory terminal proof and Activity Undo remain separate and unchanged.
+The next consumer slice must integrate its **shared** strict creation rejection guard and authoritative serialization, persist matching terminal proof in this same atomic record, obtain a post-proof fresh complete scoped read, and permit only explicit discard under that proof and current-session/lease fences. Do not treat this slice as that integration or as enablement evidence. Existing slot/inventory terminal proof and Activity Undo remain separate and unchanged.
 
 ## API/help and release
 

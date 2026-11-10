@@ -62,3 +62,7 @@ Recovery remains bounded by the existing inverse planner: private label assets p
 ## Terminal command response contract
 
 The [terminal reconciliation contract](native-command-reconciliation.md#terminal-contract) closes the 089 serialization gap for the two slot/inventory command operations only. The shared dispatcher turns validated ID-bound terminal data into a typed error; the shared formatter produces REST 409 and MCP `isError` with the same `error.rejection` fields. Registry error schemas, generated OpenAPI/reference/Markdown/LLM exports and MCP error-schema metadata now declare that boundary. Accepted receipt schemas and the first-party version-1 envelope are preserved. Exact-head synthetic transports and SDK output-schema checks cover this staged behavior; no SQL or hosted command is part of this slice. Fixed 503 admission and remaining #376/#379 acceptance stay open.
+
+## Terminal creation and import outcomes (093)
+
+The staged [093 contract](creation-import-terminal-noncommit.md) adds dedicated engine noncommit predicates and permanent accepted/rejected replay for native creation and arrangement import. Ordinary SQL/HTTP conflicts remain unknown. Both original namespaces, digest construction and accepted receipts are preserved; current authority precedes replay. REST/MCP errors are declared separately from accepted output schemas. Hosted application, creation/import durable consumer integration and #379 admission remain separate parent-owned gates; native production requests still return fixed 503.
