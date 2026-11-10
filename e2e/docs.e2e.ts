@@ -57,3 +57,38 @@ test('sticky docs navigation stays below the status bar and resource groups appe
   expect(drawer!.y).toBeGreaterThanOrEqual(info.project.metadata.standalone ? SAFE_AREA.top : 0)
   expect(drawer!.y + drawer!.height).toBeLessThanOrEqual(page.viewportSize()!.height - (info.project.metadata.standalone ? SAFE_AREA.bottom : 0))
 })
+
+test('reference sidebar has compact subject groups and preserves saved operation links', async ({ page }) => {
+  await page.goto('/app/docs/api-keys')
+  await page.getByRole('button', { name: 'Open Sidebar', exact: true }).click()
+  const sidebar = page.locator('#nd-sidebar-mobile')
+  for (const name of ['Binders', 'Collection', 'History & recovery', 'Imports', 'Sharing & appearance', 'Show purchases', 'Native storage', 'Prices', 'Comparisons', 'Analytics', 'Deal checks']) {
+    await expect(sidebar.getByRole('button', { name, exact: true })).toHaveAttribute('aria-expanded', 'false')
+  }
+  await expect(sidebar.getByRole('button', { name: 'Prices and insights', exact: true })).toHaveCount(0)
+  await sidebar.getByRole('button', { name: 'Binders', exact: true }).click()
+  await sidebar.getByRole('link', { name: /Create binder/ }).click()
+  await expect(page).toHaveURL(/\/app\/docs\/reference\/collection\/create-binder$/)
+  await expect(page.getByRole('heading', { name: 'Create binder', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Open Sidebar', exact: true }).click()
+  await expect(sidebar.getByRole('button', { name: 'Binders', exact: true })).toHaveAttribute('aria-expanded', 'true')
+  await sidebar.getByRole('button', { name: 'Prices', exact: true }).click()
+  await sidebar.getByRole('link', { name: /Get prices/ }).click()
+  await expect(page).toHaveURL(/\/app\/docs\/reference\/prices-and-insights\/get-prices$/)
+  await expect(page.getByRole('heading', { name: 'Get prices', exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('desktop reference sidebar uses the same subject groups', async ({ page }, info) => {
+  test.skip(info.project.name !== 'browser-390x844')
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/app/docs/reference/collection/create-binder')
+  const sidebar = page.locator('#nd-sidebar')
+  await expect(sidebar.getByRole('button', { name: 'Binders', exact: true })).toHaveAttribute('aria-expanded', 'true')
+  await expect(sidebar.getByRole('button', { name: 'History & recovery', exact: true })).toHaveAttribute('aria-expanded', 'false')
+  await sidebar.getByRole('button', { name: 'History & recovery', exact: true }).click()
+  await sidebar.getByRole('link', { name: /Preview collection recovery/ }).click()
+  await expect(page).toHaveURL(/\/app\/docs\/reference\/collection\/preview-collection-recovery$/)
+  await expect(page.getByRole('heading', { name: 'Preview collection recovery', exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
