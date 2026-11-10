@@ -25,6 +25,8 @@ export async function executeAppStorageRequest(request: Request, operation: Stor
   const { user, client: session } = localClients
     ? await checkedLocalStorageUser(request, localClients.session)
     : await requireDeveloperSettingsUser(request, true)
+  const expectedActor = request.headers.get("X-Binder-Actor")
+  if (expectedActor !== null && expectedActor !== user.id) throw new DeveloperAccessError("storage_session_changed", "The signed-in account changed.", 403)
   const expectedSession = request.headers.get("X-Binder-Auth-Session")
   if (expectedSession !== null) {
     const claims = await session.auth.getClaims()

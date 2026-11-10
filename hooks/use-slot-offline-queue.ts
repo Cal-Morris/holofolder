@@ -15,7 +15,7 @@ function sessionLifetime() {
 
 /** Shared durable adapter. The actual browser host binds it behind denied production admission; the admitted host supplies its sender.
  * Remount on session changes, including unlink/relink to the same owner. */
-export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string) {
+export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, authSessionId?: string) {
   const { deviceId, workspaceId, accountId, ownerUserId } = scope
   const session = useMemo(() => {
     const store = getOfflineStore()
@@ -55,7 +55,7 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string) 
     async enqueue(intent: SlotOfflineIntent, catalog: InventoryCatalogResolver, planningBase?: InventorySnapshot, isCurrent: () => boolean = () => true) {
       if (!active() || !session.queue) throw new Error("inactive-or-unavailable-session")
       const token = session.token()
-      await session.queue.enqueue(intent, catalog, planningBase, () => active(token) && isCurrent() ? session.scope : null)
+      await session.queue.enqueue(intent, catalog, planningBase, () => active(token) && isCurrent() ? session.scope : null, authSessionId)
       // Commit is irreversible acceptance even when a later read/notification fails.
       let refreshError: string | null = null
       if (active(token)) {

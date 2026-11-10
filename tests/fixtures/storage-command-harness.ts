@@ -101,6 +101,7 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[4].status = "collected"
   }
 
+  let creationRejected = false
   const ledger = new Map<string, { body: string; audit: string; result: unknown }>()
   const originalRpc = state.client.rpc.bind(state.client)
   // Synthetic HTTP response, real Supabase RPC builder and trusted audit context.
@@ -142,6 +143,17 @@ export function storageCommandHarness(id: string) {
       const snapshot = await readOwnerInventorySnapshot(state.client)
       if (request.inventoryRevision !== snapshot.inventoryRevision) {
         const result = { outcome: "rejected", operationId: key, code: input.operation === "slots" ? "slot_revision_conflict" : "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision }
+        ledger.set(key, { body, audit, result })
+        return Response.json(result)
+      }
+      if (input.operation === "collection.create" && id.startsWith("creation-rejection-") && !creationRejected) {
+        creationRejected = true
+        // Synthetic concurrent edit, retained in the same lifetime ledger before a later fresh read.
+        state.tables.inventory_owner_state[0].inventory_revision = snapshot.inventoryRevision + 1
+        state.tables.binders[0].name = "Synthetic later edit"
+        const result = { outcome: "rejected", operationId: key, code: "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision + 1 }
+        // A later legitimate edit makes the ledger proof historical, never a planning base.
+        state.tables.inventory_owner_state[0].inventory_revision = snapshot.inventoryRevision + 2
         ledger.set(key, { body, audit, result })
         return Response.json(result)
       }
