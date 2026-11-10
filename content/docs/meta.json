@@ -1,4 +1,22 @@
 {
   "title": "Developers",
-  "pages": ["---Get started---", "index", "api-keys", "contracts", "collection-history", "public-binder-links", "slot-selection", "scan-destinations", "bulk-layout", "set-checklist-drafts", "native-offline-startup", "---AI & agents---", "mcp", "...agents", "---API explorer---", "...reference"]
+  "pages": [
+    "---Get started---",
+    "index",
+    "api-keys",
+    "contracts",
+    "collection-history",
+    "native-storage",
+    "public-binder-links",
+    "slot-selection",
+    "scan-destinations",
+    "bulk-layout",
+    "set-checklist-drafts",
+    "native-offline-startup",
+    "---AI & agents---",
+    "mcp",
+    "...agents",
+    "---API explorer---",
+    "...reference"
+  ]
 }

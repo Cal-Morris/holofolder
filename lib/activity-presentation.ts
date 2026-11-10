@@ -61,3 +61,12 @@ export function activityDay(value:string,now=new Date()) {
   const yesterday=new Date(now);yesterday.setDate(now.getDate()-1)
   return date.toDateString()===yesterday.toDateString() ? 'Yesterday' : date.toLocaleDateString(undefined,{day:'numeric',month:'long',...(date.getFullYear()!==now.getFullYear()?{year:'numeric'}:{})})
 }
+
+export function activityReceipt(event:ActivityEvent) {
+  const changes=readableActivityChanges(event)
+  return {
+    changes,
+    hasDetails:changes.length>1 || changes.some(change=>change.fields.length>0),
+    canUndo:event.format_version===1 && event.action!=='recovery.apply' && event.changes.length>0 && event.changes.every(change=>change.table==='pokemon_collection'),
+  }
+}

@@ -45,3 +45,17 @@ test('UI-only job starts require an asserted 403 and cannot pass with an arbitra
  assert.equal(summarizeApiPerformance([{...denied,assertionsPassed:false}]).find(row=>row.operation===denied.operation)?.verified,false)
  assert.equal(summarizeApiPerformance([{...denied,operation:'list_cards'}]).find(row=>row.operation==='list_cards')?.verified,false)
 })
+
+test('native staged errors cannot pass receipt assertions or successful performance coverage',async()=>{
+ const {assertSmokeResponse,assertStagedSmokeResponse}=await import('../scripts/api-smoke-assertions')
+ for(const operation of DEVELOPER_OPERATIONS.filter(op=>op.admission==='staged')) {
+  const denied={error:{code:'native_operations_staged',message:'Not admitted',requestId:'synthetic-staged-request'}}
+  assert.doesNotThrow(()=>assertStagedSmokeResponse(operation.name,denied))
+  assert.throws(()=>assertSmokeResponse(operation.name,denied,{}))
+  assert.throws(()=>assertSmokeResponse(operation.name,{inventoryRevision:1,privateEvidence:'synthetic'},{}))
+  assert.throws(()=>assertStagedSmokeResponse(operation.name,{error:{...denied.error,code:'temporarily_unavailable'}}))
+  const sample:ApiPerformanceSample={operation:operation.name,phase:'first',status:503,expectedStatus:503,assertionsPassed:true,clientMs:1,serverMs:null,authMs:null,operationMs:null,bytes:1}
+  const row=summarizeApiPerformance([sample]).find(row=>row.operation===operation.name)!
+  assert.equal(row.verified,false);assert.equal(row.medianMs,null)
+ }
+})

@@ -1,4 +1,6 @@
 import {readCollectionAudit} from "./audit"
+import {executeNativeDeveloperOperation} from './native-developer'
+import {NATIVE_DEVELOPER_OPERATIONS} from '@/lib/developer-api/storage'
 import {developerActivityRecovery} from './activity-recovery'
 import {withAuditActor} from "@/lib/server/audit-context"
 import {requiresPriceCheckUi} from '@/lib/developer-api/price-check-policy'
@@ -71,6 +73,7 @@ function sliceEntries<T>(entries:T[],input:Record<string,unknown>,key:(entry:T)=
  return paginateEntries(entries,paramsOf(input),key)
 }
 async function dispatchDeveloperOperation(context:OperationContext,name:string,input:Record<string,unknown>):Promise<unknown> {
+ if(NATIVE_DEVELOPER_OPERATIONS.some(op=>op.name===name))return executeNativeDeveloperOperation(context,name,input)
  if(requiresPriceCheckUi(name,input))throw new DeveloperAccessError('ui_only','Start sold-comps checks in the Holo Folder app. Saved comparisons remain available through the API.',403)
  const params=paramsOf(input),identity={id:context.principal.actorId}
  switch(name) {

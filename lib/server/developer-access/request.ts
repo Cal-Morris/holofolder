@@ -7,7 +7,7 @@ export function bearerCredential(request: Request): string | null {
  const value = request.headers.get('authorization')
  return value && /^Bearer [A-Za-z0-9._~-]+$/i.test(value) ? value.slice(7) : null
 }
-export async function readDeveloperJson(request: Request, maxBytes=65536): Promise<Record<string, unknown>> {
+export async function readDeveloperJson(request: Request, maxBytes=65536, measureBytes?: (size:number)=>void): Promise<Record<string, unknown>> {
  const reader=request.body?.getReader()
  if(!reader) throw new DeveloperAccessError('invalid_json','Provide a valid JSON object.',400)
  let size=0
@@ -18,6 +18,7 @@ export async function readDeveloperJson(request: Request, maxBytes=65536): Promi
    chunks.push(value)
   }
  } finally {reader.releaseLock()}
+ measureBytes?.(size)
  try {
   const body:unknown=JSON.parse(Buffer.concat(chunks).toString('utf8'))
   if(!body || typeof body!=='object' || Array.isArray(body)) throw new Error()

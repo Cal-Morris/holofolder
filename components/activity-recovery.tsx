@@ -8,7 +8,7 @@ import { readableActivityChanges } from '@/lib/activity-presentation'
 import { recoveryExplanation, type RecoveryPreview, type RecoveryReceipt } from '@/lib/domain/activity-recovery'
 import { readRecoveryRequest, recoveryRequestKey, saveRecoveryRequest } from '@/lib/activity-recovery-request'
 
-export function ActivityRecovery({event,scope,disabled,onRecovered,onOpenEvent,onInvalidScope}:{event:ActivityEvent;scope:ActivityScope;disabled:boolean;onRecovered:()=>Promise<void>;onOpenEvent:(id:string)=>void;onInvalidScope:()=>void}) {
+export function ActivityRecovery({event,scope,disabled,undone,onRecovered,onInvalidScope}:{event:ActivityEvent;undone:boolean;scope:ActivityScope;disabled:boolean;onRecovered:()=>Promise<void>;onInvalidScope:()=>void}) {
   const router=useRouter()
   const [preview,setPreview]=useState<RecoveryPreview|null>(null)
   const [request,setRequest]=useState(()=>readRecoveryRequest(localStorage,scope,event.id))
@@ -62,15 +62,16 @@ export function ActivityRecovery({event,scope,disabled,onRecovered,onOpenEvent,o
   }
   const changes=preview ? readableActivityChanges({...event,changes:preview.changes,before_state:null,after_state:null}) : []
   const button='inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium disabled:opacity-50'
-  if(receipt) return <div className="mt-2 rounded-xl bg-muted/60 p-3 text-xs" role="status">
-    <p>{verified ? 'Change undone' : 'Undo saved. Refresh the collection to finish checking it.'}</p>
+  if(receipt) return <div className={verified ? "col-start-2 row-start-1 py-2 text-xs text-muted-foreground" : "col-span-2 mt-2 rounded-xl bg-muted/60 p-3 text-xs"} role="status">
+    <p>{verified ? 'Undone' : 'Undo saved. Refresh the collection to finish checking it.'}</p>
     {error && <p className="mt-1 text-destructive">{error}</p>}
-    {verified ? <button type="button" className={button} onClick={()=>onOpenEvent(receipt.eventId)}>View undo in activity</button> : <button type="button" className={button} disabled={busy||disabled} onClick={()=>void run(true)}>Retry verification</button>}
+    {!verified && <button type="button" className={button} disabled={busy||disabled} onClick={()=>void run(true)}>Retry verification</button>}
   </div>
-  return <div className={preview ? 'mt-1 w-full' : 'mt-1'}>
-    {!preview && <button type="button" disabled={disabled||busy} className={`${button} text-primary hover:bg-muted`} onClick={()=>void run(!!request)}><RotateCcw className="h-3.5 w-3.5" aria-hidden/>{busy ? 'Checking…' : request ? 'Retry Undo' : 'Undo'}</button>}
-    {error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
-    {preview && <div className="mt-2 rounded-xl border border-border p-3 text-xs" role="region" aria-label="Review Undo">
+  if(undone && !request) return <p className="col-start-2 row-start-1 py-2 text-xs text-muted-foreground" role="status">Undone</p>
+  return <>
+    {!preview && <button type="button" disabled={disabled||busy} className={`${button} col-start-2 row-start-1 self-start text-primary hover:bg-muted`} onClick={()=>void run(!!request)}><RotateCcw className="h-3.5 w-3.5" aria-hidden/>{busy ? 'Checking…' : request ? 'Retry Undo' : 'Undo'}</button>}
+    {error && <p role="alert" className="col-span-2 mt-1 text-xs text-destructive">{error}</p>}
+    {preview && <div className="col-span-2 mt-2 min-w-0 rounded-xl border border-border p-3 text-xs wrap-anywhere" role="region" aria-label="Review Undo">
       <p className="font-medium">{preview.planToken ? 'Undo this change?' : 'Cannot undo this change'}</p>
       {preview.planToken ? <>
         <ul className="mt-2 space-y-2">{changes.slice(0,10).map((c,i)=><li key={i}><p>{c.title}</p>{c.subtitle && <p className="text-muted-foreground">{c.subtitle}</p>}{c.fields.map(f=><p key={f.label} className="text-muted-foreground">{f.label}: {f.before} → {f.after}</p>)}</li>)}</ul>
@@ -78,5 +79,5 @@ export function ActivityRecovery({event,scope,disabled,onRecovered,onOpenEvent,o
         <div className="mt-2 flex gap-2"><button type="button" disabled={disabled||busy} className={`${button} bg-primary text-primary-foreground`} onClick={()=>void run(true)}>{busy ? 'Undoing…' : request ? 'Retry Undo' : 'Undo this change'}</button><button type="button" disabled={busy||!!request} className={button} onClick={()=>setPreview(null)}>Cancel</button></div>
       </> : <><p className="mt-2 text-muted-foreground">{recoveryExplanation(preview.conflicts[0]?.reason ?? preview.unsupported[0] ?? '')}</p><button type="button" className={button} onClick={()=>setPreview(null)}>Close</button></>}
     </div>}
-  </div>
+  </>
 }
