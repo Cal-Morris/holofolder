@@ -80,13 +80,13 @@ test('terminal errors are strict, bounded and declared only on command and nativ
   assert.equal(storageCommandErrorSchema.safeParse(value).success, true)
   assert.equal(storageCommandErrorSchema.safeParse({ ...value, private: true }).success, false)
   for (const op of DEVELOPER_OPERATIONS) {
-    const terminal = ['execute_slot_commands', 'execute_inventory_commands', 'apply_storage_recovery', 'apply_storage_recovery_v2', 'create_storage_collection', 'import_storage_arrangement'].includes(op.name)
+    const terminal = ['execute_slot_commands', 'execute_inventory_commands', 'apply_storage_recovery', 'apply_storage_recovery_v2', 'create_storage_collection', 'import_storage_arrangement', 'restore_raw_collection_content'].includes(op.name)
     assert.equal(Boolean(op.errorSchemas?.[409]), terminal)
     if (!terminal) continue
     const documented = spec.paths[op.path as keyof typeof spec.paths] as unknown as Record<string, { responses: Record<string, { content: { 'application/json': { schema: unknown } } }> }>
     assert.deepEqual(documented.post.responses['409'].content['application/json'].schema, z.toJSONSchema(op.errorSchemas![409]!))
     const markdown = formatEndpointMarkdown({ title: op.name, url: '/docs/reference/collection/' + op.name.replaceAll('_', '-'), method: op.method, path: op.path, operation: documented.post })
-    assert.match(markdown, op.name.startsWith('apply_storage_recovery') ? /storage_recovery_rejected/ : op.name === 'create_storage_collection' ? /storage_creation_rejected/ : op.name === 'import_storage_arrangement' ? /storage_import_rejected/ : /storage_command_rejected/)
+    assert.match(markdown, op.name.startsWith('apply_storage_recovery') ? /storage_recovery_rejected/ : op.name === 'create_storage_collection' ? /storage_creation_rejected/ : op.name === 'restore_raw_collection_content' ? /storage_restore_rejected/ : op.name === 'import_storage_arrangement' ? /storage_import_rejected/ : /storage_command_rejected/)
     assert.match(markdown, /holofolder.com\/errorSchemas/)
     assert.match(markdown, /inventoryRevision/)
   }

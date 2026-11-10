@@ -88,3 +88,34 @@ test("new first-party creation path remains unconditionally staged", async () =>
   assert.equal(response.headers.get("cache-control"), "private, no-store")
   assert.deepEqual(await response.json(), { error: "storage_operations_staged" })
 })
+
+test("creation proof binds authoritative error, delivery, family, operation and active original auth scope", async () => {
+  const old = globalThis.fetch
+  const { blankPreset } = await import("@/lib/binder-creation-draft")
+  const creation: SlotOfflineIntent = { kind: "creation", context: intent.context, request: { version: 1, operationId: intent.request.operationId,
+    inventoryRevision: 1, collectionId: "33333333-3333-4333-8333-333333333333", name: "Synthetic blank", kind: "binder", defaultPresentation: "binder", grid: null, location: null, manifest: blankPreset(), slotIds: [] } }
+  try {
+    for (const mutation of ["valid", "delivery", "family", "operation", "requestId", "code", "proof", "cache", "owner", "auth", "epoch", "actor", "abort"] as const) {
+      let current = scope
+      const controller = new AbortController()
+      globalThis.fetch = async (_url, init) => {
+        const sent = new Headers(init?.headers)
+        const headers = { "cache-control": mutation === "cache" ? "public" : "private, no-store", "X-Storage-Delivery": mutation === "delivery" ? "wrong-delivery" : sent.get("X-Storage-Delivery")!,
+          "X-Storage-Family": mutation === "family" ? "inventory" : "collection.create", "X-Storage-Operation": mutation === "operation" ? "wrong-operation" : creation.request.operationId, "X-Request-Id": "synthetic-request" }
+        if (mutation === "owner") current = { ...scope, ownerUserId: "other-owner" }
+        if (mutation === "auth") current = { ...scope, authSessionId: "other-auth" }
+        if (mutation === "epoch") current = { ...scope, sessionId: "other-epoch" }
+        if (mutation === "actor") current = { ...scope, actorUserId: "other-actor" }
+        if (mutation === "abort") controller.abort()
+        return Response.json({ error: { code: mutation === "code" ? "storage_conflict" : "storage_creation_rejected", message: "Synthetic rejection",
+          requestId: mutation === "requestId" ? "wrong-request" : "synthetic-request", rejection: { outcome: "rejected", operationId: mutation === "proof" ? "wrong-operation" : creation.request.operationId, code: "inventory_revision_conflict", inventoryRevision: 2 } } }, { status: 409, headers })
+      }
+      const result = await sendStorageCommand(creation, () => current, controller.signal)
+      assert.equal(!!result.creationProof, mutation === "valid", mutation)
+      if (result.creationProof) {
+        assert.deepEqual(result.creationProof.intent, creation)
+        assert.deepEqual(result.creationProof.scope, { accountId: scope.actorUserId, ownerUserId: scope.ownerUserId, authSessionId: scope.authSessionId })
+      }
+    }
+  } finally { globalThis.fetch = old }
+})

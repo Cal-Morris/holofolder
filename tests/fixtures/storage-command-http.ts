@@ -47,6 +47,25 @@ for (const extra of [{ actor: owner }, { source: "app" }, { context: {} }, { ver
   assert.equal(bad.status, 400)
 }
 
+// Creation reuses 093 authoritative errors, including original historical replay after later edits.
+const creation = { version: 1, operationId: "synthetic-http-creation", inventoryRevision: 7,
+  collectionId: "33333333-3333-4333-8333-333333333333", name: "Synthetic", kind: "binder", defaultPresentation: "binder", grid: null, location: null,
+  manifest: { version: 1, presetId: "blank", presetVersion: 1, name: "Blank", entries: [] }, slotIds: [] }
+const createRequest = () => new Request("http://localhost:3529/app/e2e-harness/storage/creation", { method: "POST", headers: {
+  origin: "http://localhost:3529", "content-type": "application/json", "X-Binder-Owner": owner, "X-Binder-Actor": owner,
+  "X-Binder-Auth-Session": "synthetic-e2e-auth-session", "X-Storage-Operation": creation.operationId, "X-Storage-Delivery": "synthetic-delivery" }, body: JSON.stringify(creation) })
+const { blankPreset } = await import("../../lib/binder-creation-draft")
+Object.assign(creation, { manifest: blankPreset() })
+const creationReply = await handleStorageCommand(createRequest(), "collection.create", { session: client, admin: client })
+assert.equal(creationReply.status, 409, await creationReply.clone().text())
+assert.equal(creationReply.headers.get("X-Storage-Delivery"), "synthetic-delivery")
+assert.equal(creationReply.headers.get("X-Storage-Family"), "collection.create")
+const creationError = await creationReply.json()
+assert.equal(creationError.error.code, "storage_creation_rejected")
+assert.deepEqual(creationError.error.rejection, { outcome: "rejected", operationId: creation.operationId, code: "inventory_revision_conflict", inventoryRevision: 8 })
+const creationReplay = await handleStorageCommand(createRequest(), "collection.create", { session: client, admin: client })
+assert.deepEqual((await creationReplay.json()).error.rejection, creationError.error.rejection)
+
 process.env.HOLOFOLDER_E2E = "1"
 delete process.env.VERCEL
 process.env.VERCEL_ENV = "production"

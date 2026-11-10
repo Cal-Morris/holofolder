@@ -1,3 +1,4 @@
+import { isRawRestoreRejection, type RawRestoreCommand } from '@/lib/domain/raw-restore'
 import { isCreationRejection, isImportRejection } from '@/lib/collection/creation-import-rejection'
 import "server-only"
 import { isRecoveryRejection } from "@/lib/collection/recovery-rejection"
@@ -24,6 +25,8 @@ export async function executeAppStorageRequest(request: Request, operation: Stor
   const { user, client: session } = localClients
     ? await checkedLocalStorageUser(request, localClients.session)
     : await requireDeveloperSettingsUser(request, true)
+  const expectedActor = request.headers.get("X-Binder-Actor")
+  if (expectedActor !== null && expectedActor !== user.id) throw new DeveloperAccessError("storage_session_changed", "The signed-in account changed.", 403)
   const expectedSession = request.headers.get("X-Binder-Auth-Session")
   if (expectedSession !== null) {
     const claims = await session.auth.getClaims()
@@ -35,6 +38,13 @@ export async function executeAppStorageRequest(request: Request, operation: Stor
   const membership = await resolveCollectionMembership(client, user.id)
   requireExpectedAppearanceOwner(request, membership.ownerUserId)
   const input = parseStorageRequest(operation, await readDeveloperJson(request, storageRequestBytes(operation)))
+  if (operation === 'backup.restore.raw') {
+    const planning = (input as RawRestoreCommand).planning
+    if (!expectedSession || planning.authSessionId !== expectedSession || planning.actorUserId !== user.id
+      || planning.ownerUserId !== membership.ownerUserId || planning.source !== 'app' || planning.credentialId !== null) {
+      throw new DeveloperAccessError('storage_session_changed', 'Review restore in the original authenticated session.', 403)
+    }
+  }
   return withAuditActor(user.id, () => executeStorageRpc(operation, membership.ownerUserId, input, client))
 }
 
@@ -56,6 +66,13 @@ export async function executeDeveloperStorageOperation(context: OperationContext
   requirePermissions(context.principal.permissions, STORAGE_PERMISSIONS)
   if (!["rest", "mcp"].includes(context.principal.transport)) throw new DeveloperAccessError("storage_access_denied", "Invalid storage transport.", 403)
   const parsed = parseStorageRequest(operation, input)
+  if (operation === 'backup.restore.raw') {
+    const p = (parsed as RawRestoreCommand).planning
+    if (p.actorUserId !== context.principal.actorId || p.ownerUserId !== context.ownerUserId
+      || p.source !== context.principal.transport || p.credentialId !== context.principal.credentialId || p.authSessionId !== null) {
+      throw new DeveloperAccessError('storage_access_denied', 'Review restore using the original authenticated credential and owner.', 403)
+    }
+  }
   const { createAdminClient } = await import("@/lib/supabase/admin")
   return withAuditActor(context.principal.actorId, () => executeStorageRpc(operation, context.ownerUserId, parsed, createAdminClient()), context)
 }
@@ -67,6 +84,7 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
     if (error) throw storageExecutionError(error)
     if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
     if ((operation === "recovery.apply" || operation === "recovery.apply.v2") && isRecoveryRejection(data, operationId)) return { ...data }
+    if (operation === "backup.restore.raw" && isRawRestoreRejection(data, operationId)) return { ...data }
     if (operation === "collection.create" && isCreationRejection(data, operationId)) return { ...data }
     if (operation === "backup.arrangement" && isImportRejection(data, operationId)) return { ...data }
     // A malformed terminal row must never fall through to an accepted receipt projection.
