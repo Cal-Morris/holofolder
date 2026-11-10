@@ -340,14 +340,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const ownershipReady = useRef(false)
   const ownershipRevision = useRef<number | null>(null)
   useLayoutEffect(() => {
-    ownershipReady.current = bulkFillAvailable && !queue.record?.legacy.length
+    ownershipReady.current = bulkFillAvailable && !queue.record?.legacy.length && (!creation.current || creation.current.opened)
     ownershipRevision.current = read.evidence.kind === "complete" ? read.evidence.snapshot.inventoryRevision : null
   })
   const ownership: InventoryOwnershipBinding | undefined = read.evidence.kind === "complete" ? {
-    snapshot: read.evidence.snapshot, catalog, available: bulkFillAvailable && !queue.record?.legacy.length,
+    snapshot: read.evidence.snapshot, catalog, available: bulkFillAvailable && !queue.record?.legacy.length && (!creation.current || creation.current.opened),
     receive: async (intent, selectedCatalog) => {
       if (!valid() || !ownershipReady.current || refreshing.current || sending.current || !navigator.onLine
-        || intent.request.inventoryRevision !== ownershipRevision.current) throw new Error("fresh-scoped-read-required")
+        || intent.request.inventoryRevision !== ownershipRevision.current || creation.current && !creation.current.opened) throw new Error("fresh-scoped-read-required")
       const record = await latest.current.queue.queue?.read()
       if (!valid() || !ownershipReady.current || !navigator.onLine || !record || record.pending.length || record.legacy.length
         || record.recovery?.some(recoveryUnresolved) || record.snapshot?.inventoryRevision !== intent.request.inventoryRevision) throw new Error("pending-reconciliation")
@@ -358,7 +358,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       if (!valid() || !ownershipReady.current || sending.current || refreshing.current || !navigator.onLine || !current
         || current.pending.length || current.legacy.length || current.recovery?.some(recoveryUnresolved)
         || current.snapshot?.inventoryRevision !== intent.request.inventoryRevision) throw new Error("pending-reconciliation")
-      return latest.current.queue.enqueue(intent, selectedCatalog, fresh.evidence.snapshot, () => valid() && navigator.onLine && ownershipReady.current)
+      return latest.current.queue.enqueue(intent, selectedCatalog, fresh.evidence.snapshot, () => valid() && navigator.onLine && ownershipReady.current && (!creation.current || creation.current.opened))
     },
   } : undefined
 

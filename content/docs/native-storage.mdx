@@ -222,8 +222,37 @@ no new API operation. Native production admission remains closed with 503.
 After a separately fresh complete ACK, expand **Review synchronized changes**.
 **Find acknowledged change** looks up
 that exact operation's Activity event. Recovery requires a supported current
-engine preview; missing history never promises Undo. Bulk actions and selected
-graded-copy ownership management remain outside this raw preparation.
+engine preview; missing history never promises Undo. Selected graded-copy ownership
+management remains outside this raw preparation.
+
+### Selected raw copies, staged
+
+Individually select raw copies on the current Inventory page. Selection persists
+across pages and filters; the count includes selected copies hidden by filters.
+**Clear selection** clears all selected IDs. No unseen or matching copy is selected
+implicitly. **Move / Unassign selected** opens the ordered review. Move requires
+an explicitly chosen distinct compatible **empty** saved slot for every copy.
+Occupied bulk destinations are unavailable; use the individual copy review for
+its explicit displacement/swap choices. Unassign requires every selected copy to
+be placed and retains its identity, metadata and ownership, plus former slot goals.
+
+One existing inventory command request contains the entire selection, bounded by
+100 commands, 256 work units, 32 collections and 262144 UTF-8 request bytes.
+A placed-copy move costs three work units, an Unassigned assignment or Unassign
+two. Unsupported/oversized selections fail as a whole before queue handoff;
+there is no truncation, chunking or sequence of writes presented as atomic.
+Confirmation refreshes current complete authorized storage and checks exact
+references and pending work through the existing durable sink. Unknown replies
+retain the original operation ID and request. Fresh complete ACK and exact Activity
+linkage are the same as individual actions; recovery is conditional, not local Undo.
+
+Developer composition remains staged `POST /app/api/v1/storage/inventory/commands`
+or MCP `execute_inventory_commands`: put explicit `move`/existing-copy `assign`
+or `unassign` commands in one request, with exact collection/layout/item/placement/
+slot references, `privateFields:"preserve"`, `occupied:"cancel"` for placement and
+`fulfillWant:null`. Do not reconstruct private copy metadata from browse rows.
+This is a device selection/review affordance, with no new endpoint or contract.
+Production native admission still returns 503.
 
 
 ### Prepared collection deletion review

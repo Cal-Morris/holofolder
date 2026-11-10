@@ -146,6 +146,10 @@ export function storageCommandHarness(id: string) {
       state.tables.binder_slots.find(s => s.id === "synthetic-other-slot")!.status = "collected"
     }
   }
+  if (id.startsWith("raw-bulk-")) {
+    // Synthetic pagination fixture, distinct physical IDs with identical printing metadata.
+    for (let n = 0; n < 43; n++) state.tables.inventory_items.push({ ...structuredClone(state.tables.inventory_items[1]), id: `synthetic-bulk-${String(n).padStart(2, "0")}` })
+  }
   if (id.startsWith("delete-")) {
     seedSlotRemoval(state.tables, owner)
     state.tables.binders[0].is_default = !id.startsWith("delete-secondary-")

@@ -16,6 +16,7 @@ import type { PricingRegion } from "@/lib/pricing-region"
 import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import styles from "./inventory.module.css"
 
+const InventoryBulkReview = dynamic(() => import("./inventory-ownership").then(module => module.InventoryBulkReview), { ssr: false })
 const InventoryAddOwned = dynamic(() => import("./inventory-ownership").then(module => module.InventoryAddOwned), { ssr: false })
 const InventoryDetail = dynamic(() => import("./inventory-detail"), { ssr: false })
 export interface InventoryViewProps {
@@ -52,6 +53,8 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
   const [previous, setPrevious] = useState<(InventoryBrowseCursor | null)[]>(initial.previous)
   useEffect(() => { onBrowseStateChange?.({ query, window: previous.length }) }, [query, previous.length, onBrowseStateChange])
   const [selected, setSelected] = useState<string | null>(null)
+  const [bulkIds, setBulkIds] = useState<string[]>([])
+  const [bulkReview, setBulkReview] = useState(false)
   const [adding, setAdding] = useState(false)
   const pendingInspect = useRef<string | null>(null)
   useEffect(() => {
@@ -100,6 +103,12 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
         {projection.wants.length > 0 && <details><summary>Explicit wants by destination</summary><ul aria-label="Explicit wants">{projection.wants.map(w =>
           <li key={JSON.stringify([w.collectionId, w.slotId, w.index])}>{w.card.card_name} · {w.card.card_language ?? "Language unknown"} · {w.card.card_finish ?? "Finish unknown"} · Slot {w.slotId}</li>)}</ul></details>}
       </section>}
+      {ownership?.available && <section aria-label="Inventory selection" className={styles.ownership}>
+        <p aria-live="polite">{bulkIds.length} selected across pages and filters. Only individually selected raw copies are included.</p>
+        <div className={styles.actions}><button type="button" disabled={!bulkIds.length} onClick={() => setBulkReview(true)}>Move / Unassign selected</button>
+        <button type="button" disabled={!bulkIds.length} onClick={() => setBulkIds([])}>Clear selection</button></div>
+        <p>Graded copies can be inspected individually; bulk ownership actions support raw copies only.</p>
+      </section>}
       <Field label="Search inventory"><input type="search" value={query.search ?? ""} onChange={e => change({ search: e.target.value })} placeholder="Card, Pokémon, set or number" /></Field>
       <div className={styles.filters}>
         <Field label="Storage"><select value={query.collectionId ?? ""} onChange={e => change({ collectionId: e.target.value })}>
@@ -128,6 +137,7 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
         <ul className={styles.list} aria-label="Owned copies">{result.rows.map(r => {
           const value = valuation?.copies.find(c => c.itemId === r.itemId)
           return <li key={r.itemId}>
+          {ownership?.available && <label className={styles.bulkSelect}><input type="checkbox" aria-label={`Select copy ${r.itemId}`} disabled={r.graded} checked={bulkIds.includes(r.itemId)} onChange={e => setBulkIds(ids => e.target.checked ? [...ids, r.itemId] : ids.filter(id => id !== r.itemId))} />Select raw copy</label>}
           <button type="button" className={styles.copy} data-item-id={r.itemId} onClick={() => setSelected(r.itemId)}>
             <span className={styles.art}>{r.image ? <CardImage src={r.image} alt="" sizes="56px" width={56} height={78} /> : <span>Image<br />unknown</span>}</span>
             <span className={styles.copyText}><strong>{r.name ?? (r.speciesNames.length ? r.speciesNames.join(", ") : "Unknown card")}</strong>
@@ -148,6 +158,7 @@ function InventoryResults({ index, pricingRegion = "UK", onOpenLocation, onEditG
         </nav>
       </>}
     </>}
+    {bulkReview && ownership?.available && <InventoryBulkReview binding={ownership} itemIds={bulkIds} onClose={() => setBulkReview(false)} onAccepted={() => { setBulkReview(false); setBulkIds([]) }} />}
     {adding && ownership?.available && index.kind === "complete" && <InventoryAddOwned binding={ownership} onClose={() => setAdding(false)} onInspect={id => { pendingInspect.current = id; setAdding(false) }} />}
     {row && <InventoryDetail row={row} ownership={ownership} onEditGrading={onEditGrading ? () => { pendingGrading.current = row.itemId; setSelected(null) } : undefined} cached={index.kind === "cached"} onClose={() => setSelected(null)} onOpenLocation={onOpenLocation ? intent => { pendingLocation.current = intent; setSelected(null) } : undefined} />}
   </section>
