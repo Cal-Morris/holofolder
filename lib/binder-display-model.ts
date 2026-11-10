@@ -4,6 +4,7 @@ import type { CardLanguage, CollectedPokemon, WantedCard } from "@/lib/domain/ca
 import { isBinderGridSize } from "@/lib/binder-layout"
 import { getOfficialArtworkUrl, getPokemonSummary } from "@/lib/pokemon-catalog"
 import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
+import { toCardImageSrc } from "@/lib/card-image-url"
 
 export interface DisplayCatalogCard { name: string; image?: string; localId?: string; set?: { name: string }; rarity?: string; illustrator?: string }
 /** Ephemeral read model. The item is a reference, never slot-local ownership. */
@@ -82,6 +83,12 @@ export function displaySlotPreview(slot: ReadOnlyDisplaySlot, display: BinderCar
   const placeholder = slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null
   const image = wanted ? wantImage ?? placeholder : slot.card?.image ?? placeholder
   return { image, isCard: wanted ? Boolean(wantImage) : Boolean(slot.card?.image), tone: wanted ? WANTED_PREVIEW_TONE : slot.item ? "" : "grayscale opacity-45" }
+}
+
+/** The exact URL OrderedSlot's CardImage requests, so page-turn prefetch warms what the pocket shows. */
+export function displaySlotImageUrl(slot: ReadOnlyDisplaySlot, display?: BinderCardDisplay) {
+  const { image } = displaySlotPreview(slot, display)
+  return image ? toCardImageSrc(image) ?? image : null
 }
 
 export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, "card" | "pokemon" | "target" | "item">) {
