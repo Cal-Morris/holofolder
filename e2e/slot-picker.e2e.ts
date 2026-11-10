@@ -382,7 +382,7 @@ test.describe("explicit stable-slot picker", () => {
     await expect(dialog.getByText("Unfilled target")).toHaveCount(0)
     // Wanted mode and "mark owned without card" are legacy collection writes, so a native pocket never shows them.
     await expect(dialog.getByRole("group", { name: "Picker mode" })).toHaveCount(0)
-    await expect(dialog.getByRole("heading", { name: /Add card for snorlax/ })).toHaveCount(1)
+    await expect(dialog.getByRole("heading", { name: /Add card for Snorlax/ })).toHaveCount(1)
     await harness.expectWithinSafeViewport(dialog)
     await harness.expectMinTapTarget(harness.closeControl(dialog), 36)
     await harness.expectHittable(harness.closeControl(dialog))

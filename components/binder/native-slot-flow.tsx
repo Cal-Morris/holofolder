@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ComponentProps } from "react"
+import { useEffect, useState, type ComponentProps } from "react"
 import SlotDetail from "@/components/binder/slot-detail"
 import { CardSelector } from "@/components/binder/lazy-views"
 import type { SlotPickerFlow } from "@/components/binder/slot-picker"
@@ -8,6 +8,7 @@ import type { CardFinish } from "@/lib/domain/cards"
 import type { PricingRegion } from "@/lib/pricing-region"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import { speciesSelectorCard } from "@/lib/slot-picker"
+import { formatPokemonDisplayName } from "@/lib/pokemon-catalog"
 
 type Stage = { kind: "detail" | "pick" | "search" | "edit" } | { kind: "chosen"; card: SearchCardResult; finish?: CardFinish }
 type SelectorPricing = Pick<ComponentProps<typeof CardSelector>, "defaultCardLanguage" | "formatAmount"> & { pricingRegion: PricingRegion }
@@ -24,9 +25,17 @@ const unusedLegacySelect = () => {}
 export default function NativeSlotFlow({ pricing, ...detail }: ComponentProps<typeof SlotDetail> & { pricing: SelectorPricing }) {
   const { slot, picker, layout, onClose } = detail
   const [stage, setStage] = useState<Stage>(() => picker && !layout && !slot.item ? { kind: slot.pokemon ? "pick" : "search" } : { kind: "detail" })
-  if (stage.kind === "pick" && slot.pokemon && !slot.item) {
+  // Same rule as the editable detail sheet: losing the connection ends the selection instead of leaving it open.
+  const selecting = stage.kind === "pick"
+  useEffect(() => {
+    if (!selecting) return
+    window.addEventListener("offline", onClose)
+    return () => window.removeEventListener("offline", onClose)
+  }, [selecting, onClose])
+  // The selector is only ever shown while this pocket is still editable; otherwise the read-only detail takes over.
+  if (stage.kind === "pick" && picker && !layout && slot.pokemon && !slot.item) {
     const pokemonId = slot.pokemon.id
-    return <CardSelector pokemonId={pokemonId} pokemonName={slot.pokemon.name} onSelect={unusedLegacySelect} onClose={onClose}
+    return <CardSelector pokemonId={pokemonId} pokemonName={formatPokemonDisplayName(slot.pokemon.name)} onSelect={unusedLegacySelect} onClose={onClose}
       selectedWantedCardId={slot.wantedCards[0]?.card_id} {...pricing}
       native={{ onPick: (card, finish) => setStage({ kind: "chosen", card: speciesSelectorCard(card, pokemonId), finish }), onEditSlot: () => setStage({ kind: "edit" }) }} />
   }
