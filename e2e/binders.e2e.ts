@@ -14,14 +14,13 @@ async function snap(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path: `${dir}/binders-${name}.png` })
 }
 
-/** In-memory /app/api/binders plus per-binder collection reads and writes. */
+/** In-memory /app/api/binders plus per-binder collection reads. */
 class FakeBinders {
   binders: FakeBinder[] = [
     { id: MY_BINDER, name: "My binder", sortOrder: 0, isDefault: true, slotCount: 2 },
     { id: TRADES, name: "Trades", sortOrder: 1, isDefault: false, slotCount: 1 },
   ]
   requests: Array<{ method: string; body: unknown; query: string }> = []
-  collectionWrites: Array<{ pokemonId: number; binderId: unknown }> = []
 
   list(ownerUserId: string) {
     return [...this.binders]
@@ -34,13 +33,6 @@ class FakeBinders {
       const binder = new URL(route.request().url()).searchParams.get("binder_id")
       const rows = binder === `eq.${TRADES}` ? SEEDED_COLLECTION.filter((row) => row.pokemon_id === 4) : SEEDED_COLLECTION
       return route.fulfill({ json: rows })
-    })
-    await page.route("**/app/api/collection**", async (route) => {
-      const request = route.request()
-      const body = request.method() === "POST" ? request.postDataJSON() : null
-      if (body) this.collectionWrites.push({ pokemonId: body.pokemonId, binderId: body.binderId })
-      const base = SEEDED_COLLECTION.find((row) => row.pokemon_id === body?.pokemonId) ?? SEEDED_COLLECTION[0]
-      return route.fulfill({ json: { item: { ...base, card_finish: body?.cardFinish ?? base.card_finish } } })
     })
     await page.route("**/app/api/binders**", (route) => this.handle(route, ownerUserId))
   }
@@ -179,7 +171,7 @@ test.describe("multiple binders", () => {
     expect(fake.requests.find((request) => request.method === "POST")?.body).toEqual({ name: "Holos" })
   })
 
-  test("a partner sees the owner's binders and edits land in the binder on screen", async ({ harness }) => {
+  test("a partner sees the owner's binders", async ({ harness }) => {
     const { page } = harness
     const fake = new FakeBinders()
     await fake.install(page, "00000000-0000-4000-8000-0000000000e3")
@@ -189,13 +181,5 @@ test.describe("multiple binders", () => {
     const sheet = await openSwitcher(harness)
     await expect(sheet.getByText("A partner shares them all.", { exact: false })).toBeVisible()
     await expect(sheet.getByRole("listitem")).toHaveCount(2)
-    await page.keyboard.press("Escape")
-
-    await slot(page, 4).click()
-    const detail = page.getByRole("dialog", { name: /details$/i })
-    await expect(detail).toBeVisible()
-    await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
-    await detail.getByRole("button", { name: "Holo", exact: true }).click()
-    await expect.poll(() => fake.collectionWrites.at(-1)).toEqual({ pokemonId: 4, binderId: TRADES })
   })
 })

@@ -35,13 +35,12 @@ async function goOffline(page: Page) {
   await session.send("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
 }
 
-/** First online visit: wait until the worker controls the page, the offline shell is cached and the collection is saved locally. */
+/** First online visit: wait until the worker controls the page, and the offline shell is cached. */
 async function visitOnlineAndPrepare(harness: Harness, timeout = 30_000) {
   await harness.open()
   const { page } = harness
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
   await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app/app-shell"))), { timeout }).toBe(true)
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pokemon_collection_snapshot_v1")?.includes("base1-44") ?? false), { timeout }).toBe(true)
 }
 
 async function expectBinderFromLocalData(harness: Harness) {

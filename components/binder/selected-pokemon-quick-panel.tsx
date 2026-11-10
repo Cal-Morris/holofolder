@@ -21,7 +21,7 @@ import type { PointerEvent as ReactPointerEvent, RefObject } from "react"
 import type { QuickPanelPosition } from "@/components/binder/binder-app-model"
 import type { RegionalCardPriceSnapshot } from "@/lib/regional-price"
 import type { CardPriceSnapshot, SupportedCurrency } from "@/hooks/use-card-prices"
-import type { CollectedPokemon, WantedCard } from "@/hooks/use-collection"
+import type { CollectedPokemon, WantedCard } from "@/lib/domain/cards"
 import type { BinderCardDisplay, SelectedSlotDisplayCard } from "@/lib/selected-slot-card-display"
 import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
 
@@ -44,7 +44,6 @@ export interface SelectedPokemonQuickPanelContext {
   handleClearWantedCard: (pokemonId: number, card: WantedCard) => Promise<void>
   handleSelectedCardFinishChange: (finish: "normal" | "holo" | "reverse_holo" | "double_rare" | "ultra_rare" | "illustration_rare" | "special_illustration_rare" | "secret_rare" | "hyper_rare" | "radiant_rare" | "ace_spec" | "amazing_rare" | "shiny_rare" | "jumbo") => Promise<void>
   handleToggleFavoriteSelectedPokemon: () => Promise<void>
-  isCollectionLoading: boolean
   isDesktopViewport: boolean
   pricingEnabled: boolean
   isLoadingPrices: boolean
@@ -89,7 +88,7 @@ export interface SelectedPokemonQuickPanelContext {
 }
 
 export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPanelContext) {
-  const { selectedComparisonMarketGbp, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards } = ctx
+  const { selectedComparisonMarketGbp, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards } = ctx
   if (!selectedPokemon || isSearchOpen || typeof document === "undefined") {
     return null
   }
@@ -155,8 +154,8 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
       <p className="break-words text-sm font-semibold">{card.card_name}</p>
       <p className="mb-2 text-xs text-muted-foreground">{[card.card_set, formatCardLanguageLabel(card.card_language), formatCardFinishLabel(card.card_finish)].filter(Boolean).join(" · ")}</p>
       <div className="grid gap-1.5">
-        <Button onClick={() => handleChangeWantedCard(card)} disabled={isCollectionLoading} variant="secondary" className="min-h-10 h-auto whitespace-normal py-2 text-xs">Change wanted card</Button>
-        <Button onClick={() => void handleClearWantedCard(selectedPokemon.id, card)} disabled={isCollectionLoading} variant="outline" className="min-h-10 h-auto whitespace-normal py-2 text-xs text-destructive">Remove from want list</Button>
+        <Button onClick={() => handleChangeWantedCard(card)} variant="secondary" className="min-h-10 h-auto whitespace-normal py-2 text-xs">Change wanted card</Button>
+        <Button onClick={() => void handleClearWantedCard(selectedPokemon.id, card)} variant="outline" className="min-h-10 h-auto whitespace-normal py-2 text-xs text-destructive">Remove from want list</Button>
       </div>
     </div>
   )
@@ -361,11 +360,11 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
               <section aria-label="Owned card" className="rounded-2xl border border-border/60 p-2.5">
                 <p className="mb-2 text-xs font-semibold">{collected ? `Owned card${collectionItem?.card_name ? `: ${collectionItem.card_name}` : ""}` : "Owned card"}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={handleOpenCardSelector} disabled={isCollectionLoading} className="min-h-11 h-auto whitespace-normal px-2 py-2 text-xs">{collected ? "Change owned card" : "Add owned card"}</Button>
-                  {collected && <Button onClick={() => requestOwnedRemoval({ id: selectedPokemon.id, name: selectedPokemon.name })} disabled={isCollectionLoading} variant="outline" className="min-h-11 h-auto whitespace-normal px-2 py-2 text-xs text-destructive">Remove owned card</Button>}
+                  <Button onClick={handleOpenCardSelector} className="min-h-11 h-auto whitespace-normal px-2 py-2 text-xs">{collected ? "Change owned card" : "Add owned card"}</Button>
+                  {collected && <Button onClick={() => requestOwnedRemoval({ id: selectedPokemon.id, name: selectedPokemon.name })} variant="outline" className="min-h-11 h-auto whitespace-normal px-2 py-2 text-xs text-destructive">Remove owned card</Button>}
                 </div>
               </section>
-              <Button onClick={handleOpenWishlistSelector} disabled={isCollectionLoading} variant="outline" className="min-h-11 h-auto whitespace-normal py-2 text-xs"><Heart className="h-3.5 w-3.5" />{selectedWantedCards.length ? "Add another wanted card" : "Add wanted card"}</Button>
+              <Button onClick={handleOpenWishlistSelector} variant="outline" className="min-h-11 h-auto whitespace-normal py-2 text-xs"><Heart className="h-3.5 w-3.5" />{selectedWantedCards.length ? "Add another wanted card" : "Add wanted card"}</Button>
               {otherWanted.length > 0 && <details className="rounded-2xl border border-border/60 p-2.5">
                 <summary className="min-h-9 cursor-pointer text-xs font-semibold">{primaryWanted ? "Other wanted cards" : "Wanted cards"} ({otherWanted.length})</summary>
                 <div className="mt-2 space-y-2">{otherWanted.map(renderWantedActions)}</div>
@@ -464,7 +463,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                       key={finishOption.id}
                       type="button"
                       onClick={() => handleSelectedCardFinishChange(finishOption.id)}
-                      disabled={isCollectionLoading || isActive}
+                      disabled={isActive}
                       aria-pressed={isActive}
                       aria-label={finishPriceLabel ? `${finishOption.label}, ${finishPriceLabel}` : undefined}
                       className={`h-9 shrink-0 rounded-xl border px-3 text-[11px] font-semibold transition-colors disabled:pointer-events-none ${
@@ -494,7 +493,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       onClick={handleOpenSelectedSlotScanner}
-                      disabled={isCollectionLoading}
+                     
                       variant="outline"
                       size="sm"
                       className="h-9 shrink-0 rounded-xl gap-1 !border-0 bg-background/55 px-3 text-xs text-muted-foreground shadow-none hover:bg-background/75 hover:text-foreground dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
@@ -505,7 +504,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                     {!collected && (
                       <Button
                         onClick={handleQuickCollectSelectedPokemon}
-                        disabled={isCollectionLoading}
+                       
                         variant="outline"
                         size="sm"
                         className="h-9 shrink-0 rounded-xl !border-0 bg-background/55 px-3 text-xs text-muted-foreground shadow-none hover:bg-background/75 hover:text-foreground dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
@@ -516,7 +515,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                     {collected && selectedPokemonHasAssignedCard && (
                       <Button
                         onClick={handleToggleFavoriteSelectedPokemon}
-                        disabled={isCollectionLoading}
+                       
                         variant={selectedPokemonIsFavorite ? "default" : "outline"}
                         size="sm"
                         className={selectedPokemonIsFavorite

@@ -7,7 +7,7 @@ import { createPortal } from "react-dom"
 import type { CardSelectorMode } from "@/components/card-selector"
 import type { PokemonSummary } from "@/lib/pokemon-catalog"
 import type { Dispatch, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from "react"
-import type { CollectedPokemon } from "@/hooks/use-collection"
+import type { CollectedPokemon } from "@/lib/domain/cards"
 
 export interface MobileSlotActionBarContext {
   closeMobileActions: () => void

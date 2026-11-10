@@ -17,7 +17,7 @@ Exact-printing recognition is heuristic. Similarity, confidence, the gap to the 
 | Slot sweep | English cards with images for the Pokémon expected in that pocket | Match several frames and assign the printing only when acceptance checks pass |
 | Whole-page sweep / uploaded page photo | Expected Pokémon at each occupied pocket | Detect the grid and occupancy, crop pockets, then run visual matching and OCR reranking |
 
-UI orchestration lives in [quick-card-scanner](../components/quick-card-scanner.tsx), [card-selector](../components/card-selector.tsx), [page-scanner](../components/page-scanner.tsx) and [binder-app](../components/binder-app.tsx). Camera acquisition is shared through [use-camera-stream](../hooks/use-camera-stream.ts); guided captures use [camera-frame](../lib/camera-frame.ts).
+UI orchestration lives in [quick-card-scanner](../components/quick-card-scanner.tsx), [card-selector](../components/card-selector.tsx), and [native-page-scanner](../components/native-page-scanner.tsx). Camera acquisition is shared through [use-camera-stream](../hooks/use-camera-stream.ts); guided captures use [camera-frame](../lib/camera-frame.ts).
 
 ## Shared OCR reader
 
@@ -121,4 +121,4 @@ Slot sweep captures eight frames with 360 ms gaps. Whole-page sweep samples 16 f
 
 ## Tests
 
-Unit coverage is in `tests/card-scan-*.test.ts`, `tests/card-image-match.test.ts` and `tests/binder-page-scan-aggregate.test.ts`. Browser coverage includes [show-scan](../e2e/show-scan.e2e.ts) and [page-scanner](../e2e/page-scanner.e2e.ts). See [testing](testing.md) for focused execution and the six mobile browser/standalone projects.
+Unit coverage is in `tests/card-scan-*.test.ts`, `tests/card-image-match.test.ts` and `tests/binder-page-grid-geometry.test.ts`. Browser coverage includes [show-scan](../e2e/show-scan.e2e.ts) and [page-scanner](../e2e/page-scanner.e2e.ts). See [testing](testing.md) for focused execution and the six mobile browser/standalone projects.

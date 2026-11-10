@@ -15,13 +15,8 @@ description: Change holofolder offline behaviour, including the service worker (
   - Images are cache-first, capped at 1,500 entries with the oldest evicted first.
   - Warm-up handles up to 500 URLs, 4 at a time (`BINDERDEX_WARM_CACHE` message).
 - **`app/app-shell/` and `components/offline-app-shell.tsx`**: a static shell that boots `BinderApp` from on-device data only (session from the cookie, collection snapshot, stored settings). The pure logic is in `lib/offline-shell.ts`.
-- **`lib/collection/offline-queue.ts`**:
-  - The localStorage snapshot `pokemon_collection_snapshot_v1` and pending ops `pokemon_collection_pending_ops_v1`. localStorage is the synchronous first read.
-  - Snapshots and queued ops carry a `binderId`. A snapshot is only applied to the binder it was saved for, and queued ops flush to their own binder (ops without one go to the default binder). Switching binders needs a connection for now.
-  - `hooks/use-collection.ts` flushes the queue when online, and polls or listens via Realtime.
-- **`lib/collection/sync.ts`**: the conflict model for queued writes.
-  - Each edit stores its base row, and `/api/collection` does compare-and-set on `baseFingerprint`, answering `409` with the current row.
-  - The client does a three-way merge: owned printing and status, wanted-card set merge, delete vs change.
+- **`lib/collection/slot-offline-queue.ts`** (with `hooks/use-slot-offline-queue.ts`): the native storage command queue in IndexedDB. Commands replay exactly when back online (`lib/collection/storage-command-browser.ts`), then a fresh inventory read confirms them.
+- Signed-out guests are read-only and queue nothing. The old localStorage collection queue (`pokemon_collection_pending_ops_v1`) and its IndexedDB mirror are gone; old snapshots (`pokemon_collection_snapshot_v1*`) are only still read by the startup paths in `lib/offline-shell.ts` and `lib/binder-start.ts`.
   - Retries use exponential backoff with jitter (max 5 min). A hard 4xx rolls the edit back with a notice.
   - Queued edits are re-applied over any freshly loaded collection.
 - **`lib/offline-store/`** (IndexedDB `binderdex-offline`):
@@ -43,7 +38,7 @@ description: Change holofolder offline behaviour, including the service worker (
 
 ## Steps
 
-1. Keep the logic pure and in `lib/` where possible, and unit-test it (`tests/offline-*.test.ts`, `tests/collection-offline-queue.test.ts`, `tests/collection-sync.test.ts`).
+1. Keep the logic pure and in `lib/` where possible, and unit-test it (`tests/offline-*.test.ts`, `tests/binder-slots-offline.test.ts`).
 2. For worker changes, test in a production build (`bun run build && bunx next start -p <your port>`). Service workers don't behave like this in `next dev`.
 3. Add or extend e2e with the real worker. Follow `e2e/offline.e2e.ts`, `e2e/offline-store.e2e.ts` and `e2e/offline-writes.e2e.ts`:
    - `serviceWorkers: "allow"`, with context-level mocks

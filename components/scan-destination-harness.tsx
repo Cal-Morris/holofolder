@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
-import PageScanner from "@/components/page-scanner"
+import NativePageScanner from "@/components/native-page-scanner"
 import QuickCardScanner from "@/components/quick-card-scanner"
 import { useSlotOfflineQueue } from "@/hooks/use-slot-offline-queue"
 import { syntheticSlotPickerSnapshot } from "@/tests/fixtures/slot-picker"
@@ -68,7 +68,7 @@ export default function ScanDestinationHarness() {
     <p>Pending: <output aria-label="Pending scan count">{queue.record?.pending.length ?? 0}</output></p>
     <output aria-label="Scan attempts" className="block break-all">{attempts.join(",")}</output>
     <ul>{snapshot.binders[0].slots.map(s => <li key={s.id}>{s.id}: {s.inventoryItemId ?? "empty"}</li>)}</ul>
-    {opened === "page" && <PageScanner nativeAdmission={{ ...admission, getOfflineCards, detectPage: async (_file, rows, cols) => {
+    {opened === "page" && <NativePageScanner admission={{ ...admission, getOfflineCards, detectPage: async (_file, rows, cols) => {
       if (deferred.current) await new Promise<void>(resolve => window.addEventListener("synthetic-scan-release", () => resolve(), { once: true }))
       // Deliberately shuffled detector order, actual row/column coordinates.
       return [{ index: 5, row: Math.floor(5 / cols), col: 5 % cols, occupied: true }, { index: 0, row: 0, col: 0, occupied: rows > 0 }]

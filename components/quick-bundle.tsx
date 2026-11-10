@@ -7,19 +7,16 @@ import { useBillingContext } from "@/hooks/use-billing"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft, ShoppingBag, Trash2, X } from "lucide-react"
 import ShowBudget from "@/components/show-budget"
-import { useShowSession } from "@/hooks/use-show-session"
 import { checkBundle, parseAskingPrice, readDealThresholds } from "@/lib/deal-check"
 import { requestCardPriceCheck } from "@/lib/card-price-check-client"
 import type { CardPriceCheck, CardPriceChecks, PriceCheckSource } from "@/lib/card-price-checks"
 import { buildBundlePriceGuide } from "@/lib/bundle-price-guide"
 import { PriceCheckRecords } from "@/components/price-check-records"
 import { DealPriceScale } from "@/components/deal-price-scale"
-import { splitBundlePrice } from "@/lib/show-session"
 import { formatMoney } from "@/lib/regional-price"
 import { formatCardNumber } from "@/lib/pokemon-card-browse"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import type { DisplayCurrency } from "@/lib/pricing-region"
-import type { UndoAction } from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 import type { QuickCardState, QuickBundleEntry, QuickCardAction } from "@/components/quick-card-check"
 
@@ -35,11 +32,10 @@ export interface QuickBundleProps {
   onRemove: (key: string) => void
   onClear: () => void
   onSoldCheck: (key: string, check: CardPriceCheck) => void
-  onUndoAvailable: (action: UndoAction) => void
-  onAction: (action: QuickCardAction, entry: QuickBundleEntry) => Promise<(() => Promise<void>) | null>
+  onAction: (action: QuickCardAction, entry: QuickBundleEntry) => Promise<void>
 }
 
-export default function QuickBundle({ nativeConsumer, budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck, onUndoAvailable }: QuickBundleProps) {
+export default function QuickBundle({ nativeConsumer, budgetKey, entries, destinationName = "this binder", getCardState, currency, readOnly = false, onBack, onRemove, onClear, onAction, onSoldCheck }: QuickBundleProps) {
   const nativeModel = useMemo(() => nativeConsumer ? nativeCardConsumers(nativeConsumer) : null, [nativeConsumer])
   const comparisonOnly = Boolean(nativeConsumer) || readOnly
   const billing = useBillingContext()
@@ -53,7 +49,6 @@ export default function QuickBundle({ nativeConsumer, budgetKey, entries, destin
   const alreadyOwned = states.some(state => state?.owned)
   const [input, setInput] = useState("")
   const [thresholds] = useState(() => readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
-  const { logPurchases, removePurchases } = useShowSession()
   const moneyCurrency = entries[0]?.currency ?? currency
   const money = useCallback((amount: number) => formatMoney(amount, moneyCurrency), [moneyCurrency])
   const askingTotal = parseAskingPrice(input)
@@ -79,7 +74,7 @@ export default function QuickBundle({ nativeConsumer, budgetKey, entries, destin
   async function checkPrices() {
     if (nativeConsumer) return
     if (!premium) { billing?.upgrade(); return }
-    if (checking || busy) return
+    if (checking) return
     if (!navigator.onLine) { setError("Connect to the internet to check prices."); return }
     setError(null)
     setChecking(true)
@@ -110,53 +105,10 @@ export default function QuickBundle({ nativeConsumer, budgetKey, entries, destin
     await Promise.all([worker(), worker()])
     if (!abort.signal.aborted) setChecking(false)
   }
-  const [busy, setBusy] = useState(false)
-
-  const buyAll = async (bundleId: string) => {
-    if (comparisonOnly || busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned) return
-    setBusy(true)
-    const reverts: Array<() => Promise<void>> = []
-    try {
-      const bought = [...pricedEntries]
-      for (const entry of bought) {
-        const revert = await onAction("bought", entry)
-        if (!revert) {
-          throw new Error("A card could not be added")
-        }
-        reverts.push(revert)
-      }
-      const prices = askingTotal ? splitBundlePrice(askingTotal, bought.map((entry) => entry.marketPrice)) : []
-      const ids = askingTotal
-        ? logPurchases(bought.map((entry, index) => ({
-          cardId: entry.card.id,
-          cardName: entry.card.name,
-          language: entry.card.language ?? "en",
-          finish: entry.finish,
-          price: prices[index],
-          marketPrice: entry.marketPrice,
-          currency: moneyCurrency,
-          bundleId,
-        })))
-        : []
-      navigator.vibrate?.([12, 40, 12])
-      onClear()
-      setInput("")
-      onUndoAvailable({
-        message: `Bought ${bought.length} card${bought.length === 1 ? "" : "s"}${askingTotal ? ` for ${money(askingTotal)}` : ""}`,
-        run: async () => {
-          // Undo in reverse so cards for the same Pokémon unwind to where they started.
-          for (const revert of [...reverts].reverse()) await revert()
-          removePurchases(ids)
-        },
-      })
-    } catch {
-      for (const revert of [...reverts].reverse()) {
-        try { await revert() } catch { /* Keep unwinding the other cards. */ }
-      }
-      setError("Could not buy the bundle. Check your binder and try again.")
-    } finally {
-      setBusy(false)
-    }
+  const buyAll = async () => {
+    if (comparisonOnly || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned) return
+    // Only guests reach Buy here (native hosts are read-only); the host asks them to join.
+    await onAction("bought", pricedEntries[0])
   }
 
   const verdictEmptyText = nativeConsumer && !guide.complete
@@ -224,7 +176,7 @@ export default function QuickBundle({ nativeConsumer, budgetKey, entries, destin
           {entries.length === 0 && <li className="px-1 py-4 text-center text-sm text-muted-foreground">Add cards with Bundle on each card&apos;s check.</li>}
         </ul>
 
-        {!nativeConsumer && <><button type="button" onClick={() => void checkPrices()} disabled={checking || busy || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{!premium ? "Unlock bundle comparisons" : checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
+        {!nativeConsumer && <><button type="button" onClick={() => void checkPrices()} disabled={checking || entries.length === 0} className="min-h-14 rounded-2xl border border-primary/40 bg-primary/10 px-4 text-base font-semibold disabled:opacity-50">{!premium ? "Unlock bundle comparisons" : checking ? "Checking bundle prices…" : "Check bundle prices"}</button>
         <p className="text-[11px] text-muted-foreground">Checks each English card and finish, reuses saved results until you refresh them on the card. {guide.items.filter(item => item.source === "sold").length} of {entries.length} use qualified sold evidence.</p></>}
         {nativeConsumer && <p className="text-[11px] text-muted-foreground">Saved price evidence only. No provider checks, purchase recording or ownership changes. Each selected entry counts once, including repeated printings.</p>}
         {error ? <p role="status" className="text-xs text-muted-foreground">{error}</p> : null}
@@ -239,8 +191,8 @@ export default function QuickBundle({ nativeConsumer, budgetKey, entries, destin
         {!comparisonOnly && (
           <button
             type="button"
-            disabled={busy || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned}
-            onClick={() => void buyAll(`b-${Date.now().toString(36)}`)}
+            disabled={entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned}
+            onClick={() => void buyAll()}
             className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
           >
             <ShoppingBag className="h-5 w-5" aria-hidden />Bought bundle

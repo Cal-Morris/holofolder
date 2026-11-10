@@ -17,14 +17,14 @@ const E2E_USER_ID = "00000000-0000-4000-8000-0000000000e2"
 const E2E_PARTNER_OWNER_ID = "00000000-0000-4000-8000-0000000000e3"
 const E2E_BINDER_IDS = ["e2e00000-0000-4000-8000-000000000001", "e2e00000-0000-4000-8000-000000000002", "e2e00000-0000-4000-8000-000000000004"] as const
 
-export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ durableQueue?: string; browserHost?: string; signedIn?: string; cardArtwork?: string; readOnly?: string; sharePrices?: string; binders?: string; binder?: string; partner?: string; slots?: string; rows?: string; cols?: string }> }) {
+export default async function E2EHarnessPage({ searchParams }: { searchParams: Promise<{ browserHost?: string; signedIn?: string; cardArtwork?: string; readOnly?: string; sharePrices?: string; binders?: string; binder?: string; partner?: string; slots?: string; rows?: string; cols?: string }> }) {
   if (process.env.HOLOFOLDER_E2E !== "1") {
     notFound()
   }
 
   await connection()
 
-  const { durableQueue, browserHost, signedIn, cardArtwork, readOnly, sharePrices, binders: withBinders, binder, partner, slots, rows, cols } = await searchParams
+  const { browserHost, signedIn, cardArtwork, readOnly, sharePrices, binders: withBinders, binder, partner, slots, rows, cols } = await searchParams
   const isSignedIn = signedIn === "1"
   const ownerUserId = partner === "1" ? E2E_PARTNER_OWNER_ID : E2E_USER_ID
   // ?binders=1: the owner has two binders ("My binder" and "Trades"); ?binder=<id> opens one.
@@ -58,7 +58,6 @@ export default async function E2EHarnessPage({ searchParams }: { searchParams: P
   const HarnessApp = slots === "durable" ? SlotDurableSessionHarness : slots === "picker" ? SlotPickerHarness : BinderApp
   return (
     <HarnessApp
-      stagedDurableQueue={durableQueue === "1" && canShowInventoryHarness(process.env.HOLOFOLDER_E2E, Boolean(process.env.VERCEL), (await headers()).get("host"))}
       localBrowserHost={browserHost === "1" && canShowInventoryHarness(process.env.HOLOFOLDER_E2E, Boolean(process.env.VERCEL), (await headers()).get("host"))}
       key={activeBinderId ?? "single"}
       stagedSlotDisplay={slots ? syntheticSlotDisplaySnapshot(slots === "empty") : undefined}

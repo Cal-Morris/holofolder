@@ -4,7 +4,6 @@ import Image from "next/image"
 import { HeaderMoreMenu } from "@/components/header-more-menu"
 import { Button } from "@/components/ui/button"
 import { formatMoney } from "@/lib/regional-price"
-import { offlineChipLabel, syncingChipLabel } from "@/lib/connection-chip"
 import { ChevronDown, ChevronLeft, ChevronRight, Grid3X3, Heart, Layers3, Link2, ListChecks, Loader2, LogIn, LogOut, Moon, Paintbrush, Search as SearchIcon, Settings, SlidersHorizontal, Sparkles, Sun, Ticket, Users } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
 import type { ShowSessionSummary } from "@/lib/show-session"
@@ -54,7 +53,6 @@ export interface AppHeaderContext {
   isShowModeOn: boolean
   isSpreadLayout: boolean
   lastBrowseViewRef: RefObject<"sets" | "pokemon">
-  localPendingSyncCount: number
   onJoin: () => void
   openExclusively: (open: () => void) => void
   openQuickMode: () => void
@@ -87,7 +85,7 @@ export interface AppHeaderContext {
 }
 
 export function renderAppHeaderView(ctx: AppHeaderContext) {
-  const { activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderDimension, canGoToNextVisiblePage, canGoToPreviousVisiblePage, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, localPendingSyncCount, onJoin, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages } = ctx
+  const { activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderDimension, canGoToNextVisiblePage, canGoToPreviousVisiblePage, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, onJoin, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages } = ctx
   const inventory = ctx.inventoryNavigation
   const destinations = [
     { id: "binder", label: "Binder", icon: Grid3X3 },
@@ -102,8 +100,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
   const showStatus = showTally.count > 0 && showTally.currency
     ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}`
     : null
-  const syncStatus = !isOnline ? offlineChipLabel(ctx.user ? localPendingSyncCount : 0)
-    : ctx.user && localPendingSyncCount > 0 ? syncingChipLabel(localPendingSyncCount) : null
+  const syncStatus = !isOnline ? "Offline · using saved cards and prices" : null
   return (
     <nav ref={shellNavRef} aria-label="Binder navigation" data-testid="app-header" className={`sticky top-0 z-40 mb-1 shrink-0 border-b pt-[var(--top-inset)] ${isShowModeOn ? "border-amber-400/40 bg-amber-50 dark:bg-amber-950" : "border-border/40 bg-background"}`}>
       <div data-scroll-blur="card" className="pl-[var(--left-inset)] pr-[var(--right-inset)] sm:px-4">

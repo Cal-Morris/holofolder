@@ -29,7 +29,6 @@ export interface MobileNavMenuContext {
   isMobileSpreadPreview: boolean
   pricingEnabled: boolean
   isPriceMode: boolean
-  isScanningPage: boolean
   isSearchOpen: boolean
   readOnlyMode: boolean
   selectedGen: number
@@ -42,7 +41,7 @@ export interface MobileNavMenuContext {
 }
 
 export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
-  const { activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen } = ctx
+  const { activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isSearchOpen, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen } = ctx
   return (
     isMobileNavExpanded && !isSearchOpen && (
       <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/45" onClick={closeControlsSheet}>
@@ -178,10 +177,10 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
               )}
               <button
                 onClick={() => { closeControlsSheet(); handlePhotoButtonClick() }}
-                disabled={isScanningPage || isFilteredBinderLayout || currentPagePokemon.length === 0}
+                disabled={isFilteredBinderLayout || currentPagePokemon.length === 0}
                 className="h-11 rounded-2xl border md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs md:hover:bg-muted dark:md:bg-transparent border-border/60 bg-background/62 px-3 text-sm font-semibold text-muted-foreground transition-[background-color,border-color,color,opacity] disabled:opacity-45 dark:border-border/40 dark:bg-muted/35"
               >
-                <span>{isScanningPage ? "Scanning" : "Scan page"}</span>
+                <span>Scan page</span>
                 <Camera aria-hidden="true" className="hidden h-3.5 w-3.5 md:block" />
               </button>
             </div>

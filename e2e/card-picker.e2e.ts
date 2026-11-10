@@ -109,11 +109,6 @@ test.describe("card picker layout", () => {
     await harness.expectMinTapTarget(reverse, 36)
     await harness.expectWithinSafeViewport(reverse)
     await harness.expectNoHorizontalOverflow()
-    const saved = page.waitForRequest(request => request.url().includes("/app/api/collection") && request.method() === "POST")
-    await reverse.click()
-    const request = await saved
-    expect(request.postDataJSON()).toMatchObject({ cardId: "30th-007", cardFinish: "reverse_holo" })
-    await expect(selector).toHaveCount(0)
   })
 
   test("keeps unpriced Normal and suggests the most expensive quoted variant", async ({ harness }) => {

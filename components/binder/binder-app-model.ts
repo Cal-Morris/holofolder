@@ -1,6 +1,6 @@
 import { buildCollectionAnalytics } from "@/lib/collection-analytics"
 import { type CardPriceSnapshot, getCardPriceKey, type SupportedCurrency } from "@/hooks/use-card-prices"
-import type { CardFinish, CardLanguage, SlotStatus, WantedCard, CollectedPokemon } from "@/hooks/use-collection"
+import type { CardFinish, CardLanguage, SlotStatus, WantedCard, CollectedPokemon } from "@/lib/domain/cards"
 import { peekCardsForPokemon } from "@/hooks/use-tcgdex"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import { toCardImageSrc } from "@/lib/card-image-url"

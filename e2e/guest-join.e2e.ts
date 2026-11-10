@@ -83,3 +83,38 @@ test("guest header fits desktop navigation", async ({ harness, page }, info) => 
   await harness.expectHittable(join)
   await harness.expectNoHorizontalOverflow()
 })
+
+test("guest edits ask to create an account and leave the collection alone", async ({ harness, page }) => {
+  const writes: string[] = []
+  page.on("request", request => { if (request.method() !== "GET" && new URL(request.url()).pathname.startsWith("/app/api/collection")) writes.push(request.url()) })
+  const signup = page.getByRole("dialog", { name: "Create account", exact: true })
+  const openDetail = async (dexId: number, name: RegExp) => {
+    await page.locator(`button[data-dex-id="${dexId}"]`).first().click()
+    const detail = page.getByRole("dialog", { name })
+    await expect(detail).toBeVisible()
+    return detail
+  }
+  const expectSignup = async () => {
+    await expect(signup).toBeVisible()
+    await expect(page.getByRole("dialog")).toHaveCount(1)
+    await harness.closeControl(signup).click()
+    await expect(signup).toHaveCount(0)
+  }
+
+  await (await openDetail(2, /ivysaur details/i)).getByRole("button", { name: "Add owned card", exact: true }).click()
+  await expectSignup()
+  await (await openDetail(1, /bulbasaur details/i)).getByRole("button", { name: "Remove owned card", exact: true }).click()
+  await expectSignup()
+
+  await harness.dock().getByRole("button", { name: "List", exact: true }).click()
+  await page.getByRole("button", { name: "Add card for ivysaur", exact: true }).click()
+  await expectSignup()
+
+  await harness.dock().getByRole("button", { name: "Binder", exact: true }).click()
+  await expect((await openDetail(2, /ivysaur details/i)).getByRole("button", { name: "Add owned card", exact: true })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect((await openDetail(1, /bulbasaur details/i)).getByRole("button", { name: "Change owned card", exact: true })).toBeVisible()
+  expect(writes).toEqual([])
+  const keys = await page.evaluate(() => Object.keys(localStorage))
+  expect(keys.filter(key => key.startsWith("pokemon_collection") || key.startsWith("binderdex_legacy"))).toEqual([])
+})

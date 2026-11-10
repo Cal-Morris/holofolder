@@ -11,8 +11,9 @@ test("analytics preserves phone dock and honestly separates completion from pric
   const page = harness.page
   await harness.open()
   await openAnalytics(page)
-  await expect(page.getByText("0 / 1025", { exact: true })).toBeVisible()
-  await expect(page.getByText("0 of 0 owned cards priced", { exact: false })).toBeVisible()
+  // A guest sees the harness's two seeded owned Pokémon, read-only.
+  await expect(page.getByText("2 / 1025", { exact: true })).toBeVisible()
+  await expect(page.getByText(/of 2 owned cards priced/).first()).toBeVisible()
   await expect(page.getByText("Sign in to record private history.", { exact: true })).toBeVisible()
   const geometry = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }))
   expect(geometry.scroll).toBeLessThanOrEqual(geometry.width)
