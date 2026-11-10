@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, SUPABASE_URL, Harness, storageAction, closeStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, SUPABASE_URL, Harness, storageAction, closeStorage, collectionPicker, viewPicker, chooseView, chooseCollection } from "./fixtures"
 import type { Route } from "@playwright/test"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
@@ -40,17 +40,17 @@ test("production host uses the native default, device view and explicit link wit
   const legacyWrites: string[] = []
   page.on("request", r => { if (r.method() !== "GET" && /\/api\/collection|\/rest\/v1\/pokemon_collection/.test(r.url())) legacyWrites.push(r.url()) })
   await page.goto(entry)
-  const select = page.getByRole("combobox", { name: "Collection", exact: true })
-  await expect(select).toHaveValue(trades)
-  await select.selectOption(alpha)
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("list")
+  const select = collectionPicker(page)
+  await expect(select).toHaveAttribute("data-value", trades)
+  await chooseCollection(page, alpha)
+  await chooseView(page, "list")
   await page.getByRole("searchbox", { name: "Filter collection" }).fill("charizard")
   await page.reload()
-  await expect(select).toHaveValue(alpha)
+  await expect(select).toHaveAttribute("data-value", alpha)
   await expect(page.getByRole("searchbox", { name: "Filter collection" })).toHaveValue("charizard")
   await page.goto(`${entry}&binder=${trades}&view=binder`)
-  await expect(select).toHaveValue(trades)
-  await expect(page.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("binder")
+  await expect(select).toHaveAttribute("data-value", trades)
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "binder")
   const h = new Harness(page, insets, true)
   await h.expectNoHorizontalOverflow()
   for (const name of ["Inventory", "Binder", "Search"]) {
@@ -75,8 +75,8 @@ test("fresh browser shows the server collection, refocus neither restarts the re
   for (let i = 0; i < 3; i++) { await refocus(); await page.waitForTimeout(200) }
   expect(requests, "a slow first read is not restarted by refocus").toBe(1)
   release()
-  const select = page.getByRole("combobox", { name: "Collection", exact: true })
-  await expect(select).toHaveValue(trades)
+  const select = collectionPicker(page)
+  await expect(select).toHaveAttribute("data-value", trades)
   await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible()
   // Collection first: the old staging rows stay out of the page.
   await expect(page.getByText("Inventory is what you own and where", { exact: false })).toHaveCount(0)
@@ -87,7 +87,7 @@ test("fresh browser shows the server collection, refocus neither restarts the re
   const h = new Harness(page, insets, true)
   await h.expectNoHorizontalOverflow()
   for (const name of ["Storage", "Collection"]) {
-    const control = page.getByRole(name === "Storage" ? "button" : "combobox", { name, exact: true })
+    const control = page.getByRole("button", { name, exact: true })
     await h.expectMinTapTarget(control); await h.expectWithinSafeViewport(control); await h.expectHittable(control)
   }
   await page.evaluate(() => {
@@ -101,7 +101,7 @@ test("fresh browser shows the server collection, refocus neither restarts the re
   expect(await page.evaluate(() => (window as unknown as { syntheticSeen: { blanked: boolean } }).syntheticSeen.blanked), "refocus after load keeps the collection on screen").toBe(false)
   await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible()
   await page.reload()
-  await expect(select).toHaveValue(trades)
+  await expect(select).toHaveAttribute("data-value", trades)
   await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible()
 })
 
@@ -111,7 +111,7 @@ test("failed complete refresh retains the view, disables new edits and can recov
   await page.route("**/app/api/inventory?*", route => route.fulfill({ status: 503, json: { error: "inventory_read_unavailable" } }))
   await (await storageAction(page, "Refresh storage")).click()
   await expect(page.getByRole("status").filter({ hasText: "Could not refresh storage" })).toBeVisible()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", trades)
   await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
   await page.route("**/app/api/inventory?*", route => inventory(route))
   await (await storageAction(page, "Refresh storage")).click()
@@ -171,9 +171,9 @@ test("untouched revision-zero owner can review and persist the existing first st
   await expect(dialog).toContainText("Creation pending sync")
   await expect.poll(() => sent.length).toBe(1)
   expect(sent[0]).toMatchObject({ version: 1, inventoryRevision: 0, name: "My first binder", manifest: { entries: [] } })
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("")
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", "")
   finish()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue((sent[0] as { collectionId: string }).collectionId)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", (sent[0] as { collectionId: string }).collectionId)
   await expect(dialog).not.toBeVisible()
 })
 
@@ -216,7 +216,7 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
     await expect.poll(() => membershipRequests).toBeGreaterThan(0)
     await expect(page.getByRole("status").filter({ hasText: /^1 pending edit to sync$/ })).toBeVisible()
     await expect(page.getByText(/Cached only|Access is being checked/)).toHaveCount(0)
-    await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(alpha)
+    await expect(collectionPicker(page)).toHaveAttribute("data-value", alpha)
     await expect(page.getByRole("button", { name: "Edit layout", exact: true })).not.toBeVisible()
     await expect(page.getByRole("button", { name: "Storage", exact: true })).toHaveCount(0)
     expect(await savedQueue(page)).toEqual(before)
@@ -255,7 +255,7 @@ for (const outcome of ["recovered", "account", "membership", "denied", "unavaila
       // Unavailable commands do not auto-retry, and a checked read cannot ACK them.
       expect(await savedQueue(page)).toEqual(before)
     } else {
-      await expect(page.getByRole("combobox", { name: "Collection", exact: true })).not.toBeVisible()
+      await expect(collectionPicker(page)).not.toBeVisible()
       expect(await savedQueue(page)).toEqual(before)
       release()
     }
@@ -274,12 +274,12 @@ test("focus during startup keeps the single inventory read and it finishes openi
   await expect.poll(() => requests).toBeGreaterThan(0)
   await page.evaluate(() => { window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("focus")) })
   release()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", trades)
   expect(requests).toBe(1)
   expect(failed).toEqual([])
   await expect(await storageAction(page, "New storage")).toBeEnabled(); await closeStorage(page)
   await page.clock.fastForward(46_000)
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(trades)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", trades)
   expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBeNull()
 })
 

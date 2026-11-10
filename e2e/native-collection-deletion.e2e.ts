@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, openStorage } from './fixtures'
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, openStorage, collectionPicker } from "./fixtures"
 import type { Page } from '@playwright/test'
 import type { SlotOfflineRecord } from '../lib/collection/slot-offline-queue'
 
@@ -63,7 +63,7 @@ test('explicit default replacement and exact consequences retain duplicate raw, 
   expect((await record(page)).snapshot!.items).toEqual(before.items)
   expect((await record(page)).snapshot!.placements).toHaveLength(0)
   expect((await record(page)).snapshot!.collections.map(c => c.id)).toEqual([remaining])
-  await expect(page.getByRole('combobox', { name: 'Collection', exact: true })).toHaveValue(remaining)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", remaining)
   await expect(button(page, 'Undo')).toHaveCount(0)
 })
 for (const [kind, size] of [['dex', 1025], ['max', 4096]] as const) test(`${size} targets remain one atomic deletion with all preview pages accessible`, async ({ page, context, baseURL }) => {

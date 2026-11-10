@@ -7,20 +7,26 @@ import { useActivityOpener } from "@/components/collection-activity-context"
 
 export interface StorageMenuAction { label: string; disabled?: boolean; onSelect: () => void }
 
-/** Secondary storage actions, out of the way of the collection. An action runs after the menu has closed
- * and its history entry is gone, so the dialog it opens owns Back. */
-export function StorageMenu({ actions, children, attention = false }: { actions: StorageMenuAction[]; children?: ReactNode; attention?: boolean }) {
-  const [open, setOpen] = useState(false)
+/** Returns a function that queues an action, then runs it once the menu is closed and its history entry is gone. */
+export function useMenuAction(open: boolean) {
   const [pending, setPending] = useState<{ run: () => void } | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const openActivity = useActivityOpener()
-  const close = () => setOpen(false)
-  useOverlay(open, close, { containerRef: menuRef })
   useEffect(() => {
     if (open || !pending) return
     runAfterOverlayHistory(pending.run)
     queueMicrotask(() => setPending(null))
   }, [open, pending])
+  return (run: () => void) => setPending({ run })
+}
+
+/** Secondary storage actions, out of the way of the collection. An action runs after the menu has closed
+ * and its history entry is gone, so the dialog it opens owns Back. */
+export function StorageMenu({ actions, children, attention = false }: { actions: StorageMenuAction[]; children?: ReactNode; attention?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const openActivity = useActivityOpener()
+  const close = () => setOpen(false)
+  useOverlay(open, close, { containerRef: menuRef })
+  const defer = useMenuAction(open)
   const items: StorageMenuAction[] = [...(openActivity ? [{ label: "Activity", onSelect: () => openActivity({}) }] : []), ...actions]
   return <div className="relative shrink-0">
     <button type="button" aria-label="Storage" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(current => !current)}
@@ -36,7 +42,7 @@ export function StorageMenu({ actions, children, attention = false }: { actions:
           <button type="button" onClick={close} aria-label="Close storage" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex min-h-0 flex-col gap-1 overflow-y-auto overscroll-contain p-1 text-sm">
-          {items.map(item => <button key={item.label} type="button" disabled={item.disabled} onClick={() => { setPending({ run: item.onSelect }); close() }}
+          {items.map(item => <button key={item.label} type="button" disabled={item.disabled} onClick={() => { defer(item.onSelect); close() }}
             className="flex min-h-11 w-full items-center rounded-xl px-3 text-left font-medium hover:bg-muted/70 disabled:opacity-40">{item.label}</button>)}
           {children}
         </div>

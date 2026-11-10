@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import SlabsGallery from "@/components/slabs/slabs-gallery"
 import { slabCollectionCopies } from "@/lib/slabs/collection"
+import { SelectorMenu } from "@/components/collection-navigation/selector-menu"
 import InventoryView from "@/components/inventory/inventory-view"
 import { closeAllOverlays, isOverlayHistoryCleanup, runAfterOverlayHistory } from "@/hooks/use-overlay"
 import type { InventoryLocationIntent } from "@/lib/domain/inventory-browse"
@@ -230,15 +231,17 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   if (!visible) return <p role="status">Opening saved view…</p>
   const collectionId = visible.collectionId
   const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
-  // Compact: the collection picker reads as the page title; National Dex and Inventory live in the dock.
-  const header = <div className="flex min-w-0 flex-1 items-center gap-1">
-      <select aria-label="Collection" className="h-9 min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 text-sm font-semibold" value={collectionId ?? ""} onChange={e => navigate({ ...visible, main: "collection", collectionId: e.target.value })}>
-        {!collectionId && <option value="">No storage yet</option>}{index.collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
-      {visible.main === "collection" && <select aria-label="Collection view" className="h-9 shrink-0 rounded-lg bg-transparent px-1 text-xs font-medium text-muted-foreground" value={collectionState.view} onChange={e => navigate({ ...visible,
-        collections: { ...visible.collections, [collectionId!]: { ...collectionState, view: e.target.value as CollectionViewState["view"], scroll: 0 } } })}>
-        <option value="binder">Binder</option><option value="list">List</option>{stagedSlabs && <option value="slabs">Slabs</option>}
-      </select>}
+  // Compact: enclosed selectors, so the active collection name reads as a control. National Dex and Inventory live in the dock.
+  const viewLabels: Record<CollectionViewState["view"], string> = { binder: "Binder", list: "List", slabs: "Slabs" }
+  const views: CollectionViewState["view"][] = stagedSlabs ? ["binder", "list", "slabs"] : ["binder", "list"]
+  const viewOptions = views.map(value => ({ value, label: viewLabels[value] }))
+  const header = <div className="flex min-w-0 flex-1 items-center gap-1.5">
+      <SelectorMenu label="Collection" heading="Collection" menuLabel="Choose collection" width={288} className="min-w-0 max-w-[20rem] shrink" textClassName="text-sm font-semibold"
+        value={collectionId ?? ""} valueLabel={index.collections.find(c => c.id === collectionId)?.name ?? "No storage yet"} options={index.collections.map(c => ({ value: c.id, label: c.name }))}
+        onSelect={id => navigate({ ...visible, main: "collection", collectionId: id })} />
+      {visible.main === "collection" && <SelectorMenu label="Collection view" heading="View" menuLabel="Choose view" width={192} className="shrink-0" textClassName="text-xs font-medium"
+        value={collectionState.view} valueLabel={viewLabels[collectionState.view] ?? collectionState.view} options={viewOptions}
+        onSelect={view => navigate({ ...visible, collections: { ...visible.collections, [collectionId!]: { ...collectionState, view: view as CollectionViewState["view"], scroll: 0 } } })} />}
     </div>
   const collection = collectionId && index.kind !== "unavailable" ? { read: currentRead, collectionId, state: collectionState, highlight,
     onChange: (patch: Partial<CollectionViewState>) => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) } : null

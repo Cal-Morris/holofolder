@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import type { TestInfo } from "@playwright/test"
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, collectionPicker, viewPicker, chooseCollection, chooseView } from "./fixtures"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
 const alpha = "22222222-2222-4222-8222-222222222222"
@@ -40,15 +40,15 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
 
 async function checkToolbar(page: import("@playwright/test").Page, insets: { top: number; bottom: number; left: number; right: number }, info: TestInfo, name: string) {
   await page.goto(`/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}&view=binder`)
-  const picker = page.getByRole("combobox", { name: "Collection", exact: true })
-  const view = page.getByRole("combobox", { name: "Collection view", exact: true })
+  const picker = collectionPicker(page)
+  const view = viewPicker(page)
   const edit = page.getByRole("button", { name: "Edit layout", exact: true })
-  await expect(picker).toHaveValue(alpha)
+  await expect(picker).toHaveAttribute("data-value", alpha)
   await expect(edit).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
   const sample = () => page.evaluate(() => {
     const elements = [document.body, document.querySelector('[data-testid="app-header"]'), document.querySelector('[data-testid="app-header"] span.truncate'),
-      document.querySelector('select[aria-label="Collection"]'), document.querySelector('select[aria-label="Collection view"]'),
+      document.querySelector('button[aria-label="Collection"]'), document.querySelector('button[aria-label="Collection view"]'),
       ...Array.from(document.querySelectorAll("button")).filter(e => ["Show"].includes(e.textContent?.trim() ?? "") || ["Edit layout", "Scan page", "Scan card", "Storage"].includes(e.getAttribute("aria-label") ?? ""))]
     return elements.filter((e): e is HTMLElement => e instanceof HTMLElement).map(e => {
       const s = getComputedStyle(e), r = e.getBoundingClientRect()
@@ -85,15 +85,15 @@ async function checkToolbar(page: import("@playwright/test").Page, insets: { top
   await expect(page.getByTestId("main-content").getByRole("button", { name: "Edit layout", exact: true })).toHaveCount(0)
   const h = new Harness(page, insets, true)
   await h.expectNoHorizontalOverflow()
-  // Native select labels must stay bounded even with a realistic long collection name.
+  // Selector labels must stay bounded even with a realistic long collection name.
   await page.route("**/app/e2e-harness/storage/inventory?*", route => {
     const snapshot = syntheticSnapshot()
     snapshot.collections[0].name = "Japanese illustration rares and special art favourites"
     return fulfillInventory(route, inventoryBrowseCatalog, snapshot)
   })
   await page.reload()
-  await expect(picker).toHaveValue(alpha)
-  await expect(picker.locator("option").first()).toHaveText("Japanese illustration rares and special art favourites")
+  await expect(picker).toHaveAttribute("data-value", alpha)
+  await expect(picker).toContainText("Japanese illustration rares and special art favourites")
   await expect(edit).toBeVisible()
   await h.expectNoHorizontalOverflow()
   for (const theme of ["light", "dark"]) {
@@ -114,10 +114,10 @@ async function checkToolbar(page: import("@playwright/test").Page, insets: { top
   await expect(done).toBeVisible()
   await done.click()
   await expect(edit).toBeVisible()
-  await view.selectOption("list")
-  await expect(view).toHaveValue("list")
-  await picker.selectOption(trades)
-  await expect(picker).toHaveValue(trades)
+  await chooseView(page, "list")
+  await expect(view).toHaveAttribute("data-value", "list")
+  await chooseCollection(page, trades)
+  await expect(picker).toHaveAttribute("data-value", trades)
   await h.expectNoHorizontalOverflow()
 }
 

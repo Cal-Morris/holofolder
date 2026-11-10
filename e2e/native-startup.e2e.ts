@@ -1,5 +1,5 @@
 import { test as base, expect, type Page, type Route } from "@playwright/test"
-import { mockBackends, emulateStandalone, SAFE_AREA, E2E_USER, Harness } from "./fixtures"
+import { mockBackends, emulateStandalone, SAFE_AREA, E2E_USER, Harness, collectionPicker, viewPicker, chooseCollection, chooseView } from "./fixtures"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
 const alpha = "22222222-2222-4222-8222-222222222222"
@@ -34,7 +34,7 @@ test.beforeEach(async ({ page, context, baseURL }, info) => {
 })
 async function prepare(page: Page) {
   await page.goto(entry)
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible()
+  await expect(collectionPicker(page)).toBeVisible()
   await expect.poll(() => page.evaluate(async () => Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/app/app-shell"))
     && Boolean(JSON.parse(localStorage.getItem("binderdex_start_v1") ?? "null")?.native)), { timeout: 60000 }).toBe(true)
 }
@@ -79,7 +79,7 @@ test("previously cached native pending layout survives genuine page close and of
   await expect(reopened.getByText(/Access will be checked|Saved on this device · Cached only/)).toHaveCount(0)
   await expect(reopened.getByRole("button", { name: "Edit layout", exact: true })).not.toBeVisible()
   await expect(reopened.getByRole("button", { name: "Done", exact: true })).not.toBeVisible()
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(alpha)
+  await expect(collectionPicker(reopened)).toHaveAttribute("data-value", alpha)
   expect(await queueRecords(reopened)).toEqual(before)
   const standalone = Boolean(info.project.metadata?.standalone), h = new Harness(reopened, standalone ? SAFE_AREA : { top: 0, bottom: 0, left: 0, right: 0 }, true)
   await h.expectNoHorizontalOverflow()
@@ -110,7 +110,7 @@ test("offline cached inventory closes before reconnect can reuse stale owner sco
   await prepare(page)
   const before = await queueRecords(page)
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(collectionPicker(reopened)).toBeVisible({ timeout: 30000 })
   await expect(reopened.getByTestId("connection-chip")).toContainText("Offline")
   let membershipChecks = 0, staleResponses = 0
   await context.route("**/rest/v1/partnerships*", route => { membershipChecks++; return route.fulfill({ json: [{ id: "synthetic-relinked", owner_user_id: trades, user1_id: E2E_USER.id, user2_id: trades }] }) })
@@ -122,7 +122,7 @@ test("offline cached inventory closes before reconnect can reuse stale owner sco
   const cdp = await context.newCDPSession(reopened)
   await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
   await reopened.evaluate(() => window.dispatchEvent(new Event("online")))
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).not.toBeVisible()
+  await expect(collectionPicker(reopened)).not.toBeVisible()
   await expect(reopened.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   await expect(reopened.getByRole("status").filter({ hasText: /Saved storage is paused/ })).toBeVisible()
   await expect.poll(() => membershipChecks).toBeGreaterThan(0)
@@ -171,7 +171,7 @@ test("expired cached JWT refuses native relaunch without deleting saved intent",
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
   // Checked JWT rejection can finish before the cached reader; both refusal paths stay closed.
   await expect(reopened.getByRole("status").filter({ hasText: /Saved native storage is unavailable|Saved storage is paused/ })).toBeVisible({ timeout: 30000 })
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).not.toBeVisible()
+  await expect(collectionPicker(reopened)).not.toBeVisible()
   await expect(reopened.getByText(/Cached only/)).not.toBeVisible()
   await expect(reopened.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   expect(await queueRecords(reopened)).toEqual(before)
@@ -181,14 +181,14 @@ test("cached auth account change closes the old private surface immediately", as
   await prepare(page)
   const before = await queueRecords(page)
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(collectionPicker(reopened)).toBeVisible({ timeout: 30000 })
   await expect(reopened.getByTestId("connection-chip")).toContainText("Offline")
   await reopened.evaluate(user => {
     const channel = new BroadcastChannel("sb-127-auth-token")
     channel.postMessage({ event: "SIGNED_IN", session: { user: { ...user, id: "55555555-5555-4555-8555-555555555555" } } })
     channel.close()
   }, E2E_USER)
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).not.toBeVisible()
+  await expect(collectionPicker(reopened)).not.toBeVisible()
   await expect(reopened.getByRole("status").filter({ hasText: /Saved storage is paused/ })).toBeVisible()
   expect(await queueRecords(reopened)).toEqual(before)
 })
@@ -225,10 +225,10 @@ test("open cached native display closes at an earlier JWT expiry", async ({ page
   session.access_token = `e30.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.synthetic-earlier-expiry`
   await context.addCookies([{ ...cookie, value: `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}` }])
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone), "/app", now)
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(collectionPicker(reopened)).toBeVisible({ timeout: 30000 })
   await expect(reopened.getByTestId("connection-chip")).toContainText("Offline")
   await reopened.clock.fastForward(65000)
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).not.toBeVisible()
+  await expect(collectionPicker(reopened)).not.toBeVisible()
   await expect(reopened.getByRole("status").filter({ hasText: /Saved storage is paused/ })).toBeVisible()
   expect(await queueRecords(reopened)).toEqual(before)
 })
@@ -237,15 +237,15 @@ test("open cached native display closes at an earlier JWT expiry", async ({ page
 test("Slabs survives page close and offline cached shell relaunch", async ({ page, context }, info) => {
   await context.route("**/app/api/inventory?*", route => inventory(route, true))
   await prepare(page)
-  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption(trades)
-  await page.getByRole("combobox", { name: "Collection view", exact: true }).selectOption("slabs")
+  await chooseCollection(page, trades)
+  await chooseView(page, "slabs")
   const gallery = page.getByRole("region", { name: "Slabs collection" })
   await expect(gallery.locator('[data-slab-style="psa-lighthouse"]')).toBeVisible()
   const before = await queueRecords(page)
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
-  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(collectionPicker(reopened)).toBeVisible({ timeout: 30000 })
   await expect(reopened.getByTestId("connection-chip")).toContainText("Offline")
-  await expect(reopened.getByRole("combobox", { name: "Collection view", exact: true })).toHaveValue("slabs")
+  await expect(viewPicker(reopened)).toHaveAttribute("data-value", "slabs")
   const saved = reopened.getByRole("region", { name: "Slabs collection" })
   await expect(saved.locator('[data-slab-style="psa-lighthouse"]')).toBeVisible()
   await expect(saved.getByRole("status")).toContainText("Saved on this device")

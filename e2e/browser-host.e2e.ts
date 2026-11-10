@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, collectionPicker, viewPicker, chooseCollection } from "./fixtures"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
 const alpha = "22222222-2222-4222-8222-222222222222"
@@ -50,8 +50,8 @@ for (const source of ["Search", "Quick mode"]) test(`actual host ${source} opens
       : { sets: params.has("query") ? [set] : [], selectedSet: null, slots: [] } })
   })
   await page.goto(`${entry}&binder=${alpha}&page=2`)
-  const collection = page.getByRole("combobox", { name: "Collection", exact: true })
-  await expect(collection).toHaveValue(alpha)
+  const collection = collectionPicker(page)
+  await expect(collection).toHaveAttribute("data-value", alpha)
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible()
   await nav(page).getByRole("button", { name: "Search", exact: true }).click()
   if (source === "Quick mode") await page.getByRole("button", { name: "Quick mode", exact: true }).click()
@@ -67,12 +67,12 @@ for (const source of ["Search", "Quick mode"]) test(`actual host ${source} opens
   await expect(page.getByRole("group", { name: "Set checklist" })).toBeVisible()
   await h.expectNoHorizontalOverflow()
   await page.goBack()
-  await expect(collection).toHaveValue(alpha)
+  await expect(collection).toHaveAttribute("data-value", alpha)
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible()
   await page.goForward()
   await expect(selected).toBeVisible()
   await nav(page).getByRole("button", { name: "Binder", exact: true }).click()
-  await expect(collection).toHaveValue(alpha)
+  await expect(collection).toHaveAttribute("data-value", alpha)
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible()
 })
 
@@ -82,7 +82,7 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
   await page.locator('[data-item-id="copy-00001"]').click()
   await page.getByRole("button", { name: "Open location", exact: true }).click()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(alpha)
+  await expect(collectionPicker(page)).toHaveAttribute("data-value", alpha)
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toHaveAttribute("aria-pressed", "true")
   await page.goBack()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("base set")
@@ -102,7 +102,7 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
   await nav(page).getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(page.getByRole("dialog")).not.toBeVisible()
   await page.goto(`${entry}&binder=${alpha}&slot=${slotId(11)}&view=slabs`)
-  await expect(page.getByRole("combobox", { name: "Collection view" })).toHaveValue("binder")
+  await expect(viewPicker(page)).toHaveAttribute("data-value", "binder")
   await expect(page.getByRole("status").filter({ hasText: "Slabs view is not available" })).toBeVisible()
   await expect(page.locator(`[data-slot-id="${slotId(11)}"]`)).toBeVisible()
   await page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
@@ -123,7 +123,7 @@ test("online startup 503 resets once and reports the second failure", async ({ p
 
 test("pending real IDB edits survive Edit layout teardown, view changes and failed refresh", async ({ page }) => {
   await page.goto(`${entry}&binder=${alpha}`)
-  await expect(page.getByRole("combobox", {name:"Collection", exact:true})).toBeVisible()
+  await expect(collectionPicker(page)).toBeVisible()
   await expect(page.getByRole("button", {name:"Edit layout", exact:true})).toBeVisible()
   await page.getByRole("button", { name: "Edit layout", exact: true }).click()
   await expect(page.getByRole("button", { name: "Done", exact: true })).toBeVisible()
@@ -272,7 +272,7 @@ test("actual host displays recorded languages and leaves ambiguous aliases unkno
   await page.goto(`${entry}&binder=${alpha}`)
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toHaveAttribute("aria-label", /Charizard/)
   await expect(page.locator(`[data-slot-id="${slotId(0)}"]`)).toHaveAttribute("aria-label", /Synthetic Japanese title/)
-  await page.getByRole("combobox", { name: "Collection", exact: true }).selectOption(trades)
+  await chooseCollection(page, trades)
   await expect(page.locator(`[data-slot-id="${slotId(109)}"]`)).toHaveAttribute("aria-label", /Synthetic Japanese title/)
   await page.unroute("**/app/e2e-harness/storage/inventory?*")
   const conflicting = { ...en, card: { ...en.card, id: "synthetic-conflicting", aliasIds: ["base1-4"], name: "Synthetic ambiguous title" } }

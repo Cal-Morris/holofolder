@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, closeStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, closeStorage, collectionPicker } from "./fixtures"
 import type { Page, Route } from "@playwright/test"
 import { CHECKED_STARTUP_TIMEOUT_MS, CHECKED_STARTUP_TIMEOUT_ERROR } from "../lib/startup-cache-reset"
 import { SERVICE_WORKER_URL } from "../lib/service-worker-registration"
@@ -197,7 +197,7 @@ test("cached view cannot hide a stalled checked account handoff indefinitely", a
   await page.goto(entry); await ready(page)
   await context.route("**/rest/v1/partnerships*", async () => { /* Synthetic stalled membership check. */ })
   await page.reload()
-  await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toBeVisible()
+  await expect(collectionPicker(page)).toBeVisible()
   await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toContainText(CHECKED_STARTUP_TIMEOUT_ERROR, { timeout: CHECKED_STARTUP_TIMEOUT_MS * 2 + 10_000 })
   await expect(page.getByRole("button", { name: "Retry opening storage", exact: true })).toBeVisible()
   expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBe("1")
