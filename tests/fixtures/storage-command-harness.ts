@@ -177,6 +177,15 @@ export function storageCommandHarness(id: string) {
       state.tables.binder_slots[n].status = 'collected'
     }
   }
+  if (id.startsWith('restore-dex-')) {
+    const source = { id: 'synthetic-national-dex', version: '1' }
+    const entries = Array.from({ length: 1025 }, (_, n) => ({ id: `pokemon-${n+1}`, target: { kind: 'pokemon', pokemonId: n+1 } }))
+    state.tables.storage_collection_state[0].preset_manifest = { source, name: 'Synthetic National Dex', entries }
+    state.tables.binder_slots = entries.map((entry, n) => ({ id: `synthetic-slot-${n}`, owner_user_id: owner, collection_id: collection,
+      position: n, target: n < 2 ? null : entry.target, status: n < 2 ? 'collected' : null, wanted_cards: [],
+      preset_origin: n === 1024 ? null : { source, entryId: entry.id }, version: 0 }))
+  }
+
   let removedRaw: { item: Record<string, unknown>; placement?: Record<string, unknown> } | null = null
 
   let creationRejected = false
@@ -239,7 +248,7 @@ export function storageCommandHarness(id: string) {
       }
       const snapshot = await readOwnerInventorySnapshot(state.client)
       if (request.inventoryRevision !== snapshot.inventoryRevision) {
-        const result = { outcome: "rejected", operationId: key, code: input.operation === "slots" ? "slot_revision_conflict" : "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision }
+        const result = { ...(input.operation === 'backup.restore.raw' && 'version' in request && request.version === 2 ? { version: 2 } : {}), outcome: "rejected", operationId: key, code: input.operation === "slots" ? "slot_revision_conflict" : "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision }
         ledger.set(key, { body, audit, result })
         return Response.json(result)
       }
@@ -248,7 +257,7 @@ export function storageCommandHarness(id: string) {
         const current = snapshot.collections.find(c => c.id === command.collection.collectionId)!, binder = snapshot.binders.find(b => b.collectionId === current.id)!
         const stored = state.tables.binders.find(c => c.id === current.id)!
         const reject = (code: string) => {
-          const result = { outcome: 'rejected', operationId: key, code, inventoryRevision: snapshot.inventoryRevision }
+          const result = { ...(command.version === 2 ? { version: 2 } : {}), outcome: 'rejected', operationId: key, code, inventoryRevision: snapshot.inventoryRevision }
           ledger.set(key, { body, audit, result }); return Response.json(result)
         }
         if (command.inventoryRevision !== snapshot.inventoryRevision) return reject('inventory_revision_conflict')
@@ -272,7 +281,7 @@ export function storageCommandHarness(id: string) {
         }
         state.tables.inventory_owner_state[0].inventory_revision = snapshot.inventoryRevision + 1
         state.tables.storage_collection_state.find(c => c.collection_id === current.id)!.version = current.version + 1
-        const result = { changed: true, inventoryRevision: snapshot.inventoryRevision + 1, collectionId: current.id,
+        const result = { ...(command.version === 2 ? { version: 2 } : {}), changed: true, inventoryRevision: snapshot.inventoryRevision + 1, collectionId: current.id,
           collectionVersion: current.version + 1, layoutRevision: binder.layoutRevision, slotIds: command.slots.map(s => s.after.id), releasedItemIds: command.releaseItemIds }
         ledger.set(key, { body, audit, result }); return Response.json(result)
       }

@@ -1,7 +1,8 @@
+import { RAW_RESTORE_V2_LIMITS } from '@/lib/domain/raw-restore'
 import { resolveCollectionMembership } from '@/lib/server/collection-owner'
 import 'server-only'
-import { backupContentKey } from '@/lib/binder-backup-v2'
-import { planRawContentRestore, type RawContentRestorePlan } from '@/lib/raw-restore-plan'
+import { backupContentKey, parseBinderBackupV2 } from '@/lib/binder-backup-v2'
+import { rawRestoreSavedEntries, planRawContentRestore, type RawContentRestorePlan } from '@/lib/raw-restore-plan'
 import { readOwnerInventoryState } from '@/lib/server/inventory-read'
 import { requireDeveloperSettingsUser } from '@/lib/server/developer-access/first-party'
 import { requireExpectedAppearanceOwner } from '@/lib/server/binder-appearance'
@@ -26,7 +27,10 @@ export async function prepareAppRawContentRestore(request: Request, input: Pick<
   if (savedEntryRemaining === undefined) {
     const { getBillingAccess } = await import('@/lib/server/billing')
     const access = await getBillingAccess(read.snapshot.ownerUserId, localClients?.admin)
-    savedEntryRemaining = !access.enforced || access.tier === 'paid' ? 1024 : Math.max(0, (access.cardLimit ?? 0) - access.savedCardCount)
+    const desiredSlots = parseBinderBackupV2(input.text).binders[0]?.slots ?? []
+    const currentSlots = read.snapshot.binders.find(b => b.collectionId === input.choices.collectionId)?.slots ?? []
+    const wantedIncrease = Math.min(RAW_RESTORE_V2_LIMITS.work, Math.max(0, rawRestoreSavedEntries(desiredSlots) - rawRestoreSavedEntries(currentSlots)))
+    savedEntryRemaining = !access.enforced || access.tier === 'paid' ? wantedIncrease : Math.max(0, (access.cardLimit ?? 0) - access.savedCardCount)
   }
   return planRawContentRestore({ ...input, savedEntryRemaining, current: read.snapshot, layouts: read.navigation.layouts, evidence: scope, currentScope: scope })
 }

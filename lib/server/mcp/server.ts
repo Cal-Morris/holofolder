@@ -13,7 +13,7 @@ export function createHoloMcpServer(request:Request,requestId:string,principal:D
   server.registerTool(operation.name,{description:operation.description,inputSchema:operation.schema,
    ...(operation.responseSchema?{outputSchema:operation.responseSchema}:{}),
    ...(operation.errorSchemas?{_meta:{'holofolder.com/errorSchemas':Object.fromEntries(Object.entries(operation.errorSchemas).map(([status,schema])=>[status,z.toJSONSchema(schema!)]))}}:{}),
-   annotations:{readOnlyHint:!operation.write,destructiveHint:operation.destructive??(operation.write&&/^(?:update|save|delete|remove|cancel|disconnect|accept|reject|apply)_/.test(operation.name)),idempotentHint:operation.idempotent??(!operation.write||operation.name==='create_binder'||operation.name==='apply_collection_recovery'),openWorldHint:operation.name==='get_listings'||operation.name.startsWith('refresh_')||operation.name==='start_comparison_job'}},async input=>{
+   annotations:{readOnlyHint:!operation.write,destructiveHint:operation.destructive??(operation.write&&/^(?:update|save|delete|remove|cancel|disconnect|accept|reject|apply)_/.test(operation.name)),idempotentHint:operation.idempotent??(!operation.write||operation.name==='create_binder'||operation.name==='apply_collection_recovery'),openWorldHint:operation.name==='get_listings'||operation.name.startsWith('refresh_')||operation.name==='start_comparison_job'}},async (input:Record<string,unknown>)=>{
    try {
     const maxBytes=operation.maxBytes??(operation.name==='update_appearance'?131072:65536)
     if(Buffer.byteLength(JSON.stringify(input))>maxBytes)throw new DeveloperAccessError('body_too_large',`Tool arguments must be at most ${maxBytes/1024} KiB.`,413)

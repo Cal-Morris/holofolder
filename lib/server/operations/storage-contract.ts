@@ -1,4 +1,4 @@
-import { parseRawRestoreCommand, isRawRestoreReceipt, RAW_RESTORE_LIMITS } from '@/lib/domain/raw-restore'
+import { RawRestoreEnvelopeError, parseRawRestoreCommand, isRawRestoreReceipt } from '@/lib/domain/raw-restore'
 import { parseNativeRecoveryRequest } from "@/lib/domain/native-recovery"
 import { parseBackupArrangementCommand, BACKUP_IMPORT_LIMITS } from "@/lib/domain/backup-import-command"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
@@ -21,7 +21,10 @@ export function parseStorageRequest(operation: StorageOperation, input: unknown)
     if (operation === "inventory") return parseInventoryCommand(input)
     if (operation === "slots") return parseSlotCommand(input)
     return parseNativeRecoveryRequest(operation, input)
-  } catch { return invalid() }
+  } catch (error) {
+    if (error instanceof RawRestoreEnvelopeError) throw new DeveloperAccessError("invalid_input", error.message, 400)
+    return invalid()
+  }
 }
 
 export function storageExecutionError(error: unknown): DeveloperAccessError {
@@ -34,6 +37,7 @@ export function storageExecutionError(error: unknown): DeveloperAccessError {
   if (code === "40001" || code === "23505") return new DeveloperAccessError("storage_conflict", "Storage changed or the operation ID was already used. Refresh and review before retrying.", 409)
   if (code === "42501") return new DeveloperAccessError("storage_access_denied", "This operation is not allowed for the current collection.", 403)
   if (code === "HF402") return new DeveloperAccessError("premium_required", "API and MCP access require a Premium subscription or lifetime access.", 402)
+  if (code === "22023" && message === "raw_restore_recovery_envelope_exceeded") return new DeveloperAccessError("invalid_input", "Restore private before/after recovery graph exceeds 2.5 MiB. Retain the original intent until explicitly reconciled.", 400)
   if (code === "22023" || code === "23514") return new DeveloperAccessError("invalid_input", "The storage request does not satisfy current constraints.", 400)
   if (code === "0A000") return new DeveloperAccessError("recovery_unsupported", "This event cannot be recovered automatically.", 409)
   return new DeveloperAccessError("storage_unavailable", "Storage execution is temporarily unavailable.", 503)
@@ -64,12 +68,8 @@ export function normalizeStorageResult(operation: StorageOperation, value: unkno
   }
   const result: Record<string, unknown> = { inventoryRevision: revision("inventoryRevision") }
   if (operation === "backup.restore.raw") {
-    if (!isBinderId(row.collectionId) || row.changed !== true || !ids(row.slotIds, RAW_RESTORE_LIMITS.slots)
-      || new Set(row.slotIds).size !== row.slotIds.length || !ids(row.releasedItemIds, RAW_RESTORE_LIMITS.items)) return unavailable()
-    const receipt = { ...result, collectionId: row.collectionId, collectionVersion: revision("collectionVersion"), layoutRevision: revision("layoutRevision"),
-      changed: true, slotIds: [...row.slotIds], releasedItemIds: [...row.releasedItemIds] }
-    if (!isRawRestoreReceipt(receipt)) return unavailable()
-    return { ...receipt }
+    if (!isRawRestoreReceipt(row)) return unavailable()
+    return { ...row, slotIds: [...row.slotIds], releasedItemIds: [...row.releasedItemIds] }
   }
   if (operation === "backup.arrangement") {
     if (!isBinderId(row.collectionId) || row.changed !== true || !ids(row.slotIds, BACKUP_IMPORT_LIMITS.slots)

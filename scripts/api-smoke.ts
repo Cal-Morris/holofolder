@@ -138,6 +138,7 @@ async function main() {
   const settings=await read('get_settings',{binderId:defaultBinder})
   const settingsInput={...record(settings.settings),binderId:defaultBinder,baseFingerprint:settings.fingerprint}
   const settingsSchema=DEVELOPER_OPERATIONS.find(op=>op.name==='update_settings')!.schema
+  assert.ok('shape' in settingsSchema)
   await call('update_settings',Object.fromEntries(Object.keys(settingsSchema.shape).map(key=>[key,record(settingsInput)[key]])))
   await read('get_identity');await call('update_identity',{username:label,displayName:'Synthetic performance fixture'})
   await read('get_binder_identity',{binderId})

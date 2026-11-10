@@ -4,9 +4,15 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { Client } from 'pg'
 import { rawRestoreFixture, rawOwner as owner, rawPartner as partner, rawCollection as collection } from './fixtures/raw-restore'
-import { planRawContentRestore } from '@/lib/raw-restore-plan'
+import { planRawContentRestore as planLatestRawContentRestore } from '@/lib/raw-restore-plan'
 import { normalizeStorageResult } from '@/lib/server/operations/storage-contract'
 import type { RawRestoreCommand } from '@/lib/domain/raw-restore'
+
+const planRawContentRestore = (input: Parameters<typeof planLatestRawContentRestore>[0]) => {
+  const plan = planLatestRawContentRestore(input)
+  const { manifest: _manifest, ...request } = plan.request as Extract<RawRestoreCommand, { version: 2 }>
+  return { ...plan, request: { ...request, version: 1 as const } }
+}
 
 const enabled = process.env.RAW_RESTORE_TEST_SOCKET
 const config = { host: '/Users/cal/.local/share/holofolder/raw-restore-094-local/s', port: 55594, user: 'restore094', database: 'preserve094' }

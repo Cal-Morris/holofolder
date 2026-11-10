@@ -25,7 +25,7 @@
       "post": {
         "operationId": "restore_raw_collection_content",
         "summary": "Restore raw collection content",
-        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Bounded explicit same-owner raw content reconciliation of one existing collection, identical ordered stable slot IDs, no copied manifest/configuration change. At most 256 slots, 512 existing raw copies, 1024 work units and 1 MiB. Current actor/owner/session or credential and partner preconditions are required, file IDs never prove provenance. Exact item/slot/placement/content/layout versions bind review. Explicit releases retain ownership in Unassigned; copies placed elsewhere cannot move. No acquisition, metadata replacement, graded/converted copies, multi-collection/settings/assets/CSV restore. Lifetime exact accepted/rejected replay precedes mutable reconstruction after current authority checks. Only committed dedicated inventory/collection/content predicate rejection yields REST409 storage_restore_rejected or MCP isError with error.rejection. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Arbitrary conflicts, cancellation and failed COMMIT remain unknown; retain original intent and require a fresh complete read plus explicit reconciliation.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `restore_raw_collection_content`.",
+        "description": "STAGED, not admitted: valid authorized requests return 503 native_operations_staged until #379. Bounded explicit same-owner raw content reconciliation of one existing collection, identical ordered stable slot IDs, no copied manifest/configuration change. Version 1 retains 256 slots, 512 raw-copy refs, 1024 work units and 1 MiB with null origins. Version 2 carries the exact current copied manifest and per-slot origins, with at most 1025 slots/manifest entries, 2050 distinct raw-copy refs, 100 wants/slot, 8192 work units (2S+I+W) and 1.75 MiB UTF-8/JSONB command text plus a 2.5 MiB complete prospective private audit/inverse graph (both slot states and duplicated manifest roots, including existing wants). SQL independently refuses oversized graphs before writes with invalid_input, never a terminal rejection proof. Receipts and dedicated rejections carry version:2 only for v2. Unsupported command versions return invalid_input and fail closed; they never authorize resetting retained device records. These provisional bounds are staged, not a production full-Dex availability claim. Current actor/owner/session or credential and partner preconditions are required, file IDs never prove provenance. Exact item/slot/placement/content/layout versions bind review. Explicit releases retain ownership in Unassigned; copies placed elsewhere cannot move. No acquisition, metadata replacement, graded/converted copies, multi-collection/settings/assets/CSV restore. Lifetime exact accepted/rejected replay precedes mutable reconstruction after current authority checks. Only committed dedicated inventory/collection/content predicate rejection yields REST409 storage_restore_rejected or MCP isError with error.rejection. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Arbitrary conflicts, cancellation and failed COMMIT remain unknown; retain original intent and require a fresh complete read plus explicit reconciliation.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `restore_raw_collection_content`.",
         "tags": [
           "Collection"
         ],
@@ -36,506 +36,661 @@
         ],
         "parameters": [],
         "x-admission": "staged",
-        "x-max-body-bytes": 1048576,
+        "x-max-body-bytes": 1835008,
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                  "version": {
-                    "type": "number",
-                    "const": 1
-                  },
-                  "operationId": {
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 100
-                  },
-                  "inventoryRevision": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "planning": {
+                "anyOf": [
+                  {
                     "type": "object",
                     "properties": {
-                      "actorUserId": {
-                        "type": "string",
-                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                      },
-                      "ownerUserId": {
-                        "type": "string",
-                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                      },
-                      "source": {
-                        "type": "string",
-                        "enum": [
-                          "app",
-                          "rest",
-                          "mcp"
-                        ]
-                      },
-                      "credentialId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 200
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "authSessionId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 200
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "partnershipId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "partnerUserId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "actorUserId",
-                      "ownerUserId",
-                      "source",
-                      "credentialId",
-                      "authSessionId",
-                      "partnershipId",
-                      "partnerUserId"
-                    ],
-                    "additionalProperties": false
-                  },
-                  "collection": {
-                    "type": "object",
-                    "properties": {
-                      "collectionId": {
-                        "type": "string",
-                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                      },
                       "version": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "operationId": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 100
+                      },
+                      "inventoryRevision": {
                         "type": "integer",
                         "minimum": 0,
                         "maximum": 9007199254740991
                       },
-                      "layoutRevision": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 9007199254740991
-                      }
-                    },
-                    "required": [
-                      "collectionId",
-                      "version",
-                      "layoutRevision"
-                    ],
-                    "additionalProperties": false
-                  },
-                  "configuration": {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 40
-                      },
-                      "kind": {
-                        "type": "string",
-                        "enum": [
-                          "binder",
-                          "slab",
-                          "custom"
-                        ]
-                      },
-                      "defaultPresentation": {
-                        "type": "string",
-                        "enum": [
-                          "binder",
-                          "slabs",
-                          "list"
-                        ]
-                      },
-                      "location": {
-                        "anyOf": [
-                          {
+                      "planning": {
+                        "type": "object",
+                        "properties": {
+                          "actorUserId": {
                             "type": "string",
-                            "maxLength": 200
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
                           },
-                          {
-                            "type": "null"
+                          "ownerUserId": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "app",
+                              "rest",
+                              "mcp"
+                            ]
+                          },
+                          "credentialId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "authSessionId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "partnershipId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "partnerUserId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
-                        ]
+                        },
+                        "required": [
+                          "actorUserId",
+                          "ownerUserId",
+                          "source",
+                          "credentialId",
+                          "authSessionId",
+                          "partnershipId",
+                          "partnerUserId"
+                        ],
+                        "additionalProperties": false
                       },
-                      "rows": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 8
+                      "collection": {
+                        "type": "object",
+                        "properties": {
+                          "collectionId": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                          },
+                          "version": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "layoutRevision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "collectionId",
+                          "version",
+                          "layoutRevision"
+                        ],
+                        "additionalProperties": false
                       },
-                      "cols": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 8
-                      }
-                    },
-                    "required": [
-                      "name",
-                      "kind",
-                      "defaultPresentation",
-                      "location",
-                      "rows",
-                      "cols"
-                    ],
-                    "additionalProperties": false
-                  },
-                  "slots": {
-                    "minItems": 1,
-                    "maxItems": 256,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "before": {
+                      "configuration": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 40
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "binder",
+                              "slab",
+                              "custom"
+                            ]
+                          },
+                          "defaultPresentation": {
+                            "type": "string",
+                            "enum": [
+                              "binder",
+                              "slabs",
+                              "list"
+                            ]
+                          },
+                          "location": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "rows": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 8
+                          },
+                          "cols": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 8
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "kind",
+                          "defaultPresentation",
+                          "location",
+                          "rows",
+                          "cols"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "slots": {
+                        "minItems": 1,
+                        "maxItems": 256,
+                        "type": "array",
+                        "items": {
                           "type": "object",
                           "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 200
-                            },
-                            "version": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
-                            },
-                            "inventoryItemId": {
-                              "anyOf": [
-                                {
+                            "before": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
                                   "type": "string",
                                   "minLength": 1,
                                   "maxLength": 200
                                 },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "itemVersion": {
-                              "anyOf": [
-                                {
+                                "version": {
                                   "type": "integer",
                                   "minimum": 0,
                                   "maximum": 9007199254740991
                                 },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "placementVersion": {
-                              "anyOf": [
-                                {
-                                  "type": "integer",
-                                  "minimum": 0,
-                                  "maximum": 9007199254740991
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "version",
-                            "inventoryItemId",
-                            "itemVersion",
-                            "placementVersion"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "after": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 200
-                            },
-                            "target": {
-                              "anyOf": [
-                                {
-                                  "oneOf": [
+                                "inventoryItemId": {
+                                  "anyOf": [
                                     {
-                                      "type": "object",
-                                      "properties": {
-                                        "kind": {
-                                          "type": "string",
-                                          "const": "pokemon"
-                                        },
-                                        "pokemonId": {
-                                          "type": "integer",
-                                          "minimum": 1,
-                                          "maximum": 9007199254740991
-                                        }
-                                      },
-                                      "required": [
-                                        "kind",
-                                        "pokemonId"
-                                      ],
-                                      "additionalProperties": false
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
                                     },
                                     {
-                                      "type": "object",
-                                      "properties": {
-                                        "kind": {
-                                          "type": "string",
-                                          "const": "card"
-                                        },
-                                        "cardId": {
-                                          "type": "string",
-                                          "minLength": 1,
-                                          "maxLength": 200
-                                        },
-                                        "language": {
-                                          "type": "string",
-                                          "enum": [
-                                            "en",
-                                            "fr",
-                                            "de",
-                                            "es",
-                                            "it",
-                                            "pt-br",
-                                            "ja",
-                                            "ko"
-                                          ]
-                                        },
-                                        "finish": {
-                                          "type": "string",
-                                          "enum": [
-                                            "normal",
-                                            "holo",
-                                            "reverse_holo",
-                                            "double_rare",
-                                            "ultra_rare",
-                                            "illustration_rare",
-                                            "special_illustration_rare",
-                                            "secret_rare",
-                                            "hyper_rare",
-                                            "radiant_rare",
-                                            "ace_spec",
-                                            "amazing_rare",
-                                            "shiny_rare",
-                                            "jumbo"
-                                          ]
-                                        }
-                                      },
-                                      "required": [
-                                        "kind",
-                                        "cardId"
-                                      ],
-                                      "additionalProperties": false
+                                      "type": "null"
                                     }
                                   ]
                                 },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "status": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "collected",
-                                    "finalized",
-                                    "considering",
-                                    "wishlisted"
+                                "itemVersion": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
                                   ]
                                 },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "wantedCards": {
-                              "maxItems": 100,
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "card_id": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 200
-                                  },
-                                  "card_name": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "added_at": {
-                                    "type": "string"
-                                  },
-                                  "card_language": {
-                                    "type": "string",
-                                    "enum": [
-                                      "en",
-                                      "fr",
-                                      "de",
-                                      "es",
-                                      "it",
-                                      "pt-br",
-                                      "ja",
-                                      "ko"
-                                    ]
-                                  },
-                                  "card_finish": {
-                                    "type": "string",
-                                    "enum": [
-                                      "normal",
-                                      "holo",
-                                      "reverse_holo",
-                                      "double_rare",
-                                      "ultra_rare",
-                                      "illustration_rare",
-                                      "special_illustration_rare",
-                                      "secret_rare",
-                                      "hyper_rare",
-                                      "radiant_rare",
-                                      "ace_spec",
-                                      "amazing_rare",
-                                      "shiny_rare",
-                                      "jumbo"
-                                    ]
-                                  },
-                                  "card_image": {
-                                    "type": "string"
-                                  },
-                                  "card_set": {
-                                    "type": "string"
-                                  },
-                                  "rarity": {
-                                    "type": "string"
-                                  },
-                                  "local_id": {
-                                    "type": "string"
-                                  },
-                                  "illustrator": {
-                                    "type": "string"
-                                  },
-                                  "set_total": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 9007199254740991
-                                  },
-                                  "wanted_by": {
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string",
-                                      "format": "uuid",
-                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                "placementVersion": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
                                     }
-                                  }
-                                },
-                                "required": [
-                                  "card_id",
-                                  "card_name",
-                                  "added_at"
-                                ],
-                                "additionalProperties": false
-                              }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "version",
+                                "inventoryItemId",
+                                "itemVersion",
+                                "placementVersion"
+                              ],
+                              "additionalProperties": false
                             },
-                            "inventoryItemId": {
-                              "anyOf": [
-                                {
+                            "after": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
                                   "type": "string",
                                   "minLength": 1,
                                   "maxLength": 200
                                 },
-                                {
+                                "target": {
+                                  "anyOf": [
+                                    {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "pokemon"
+                                            },
+                                            "pokemonId": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "pokemonId"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "card"
+                                            },
+                                            "cardId": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            "language": {
+                                              "type": "string",
+                                              "enum": [
+                                                "en",
+                                                "fr",
+                                                "de",
+                                                "es",
+                                                "it",
+                                                "pt-br",
+                                                "ja",
+                                                "ko"
+                                              ]
+                                            },
+                                            "finish": {
+                                              "type": "string",
+                                              "enum": [
+                                                "normal",
+                                                "holo",
+                                                "reverse_holo",
+                                                "double_rare",
+                                                "ultra_rare",
+                                                "illustration_rare",
+                                                "special_illustration_rare",
+                                                "secret_rare",
+                                                "hyper_rare",
+                                                "radiant_rare",
+                                                "ace_spec",
+                                                "amazing_rare",
+                                                "shiny_rare",
+                                                "jumbo"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "cardId"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "status": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "collected",
+                                        "finalized",
+                                        "considering",
+                                        "wishlisted"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "wantedCards": {
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "card_id": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "card_name": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "added_at": {
+                                        "type": "string"
+                                      },
+                                      "card_language": {
+                                        "type": "string",
+                                        "enum": [
+                                          "en",
+                                          "fr",
+                                          "de",
+                                          "es",
+                                          "it",
+                                          "pt-br",
+                                          "ja",
+                                          "ko"
+                                        ]
+                                      },
+                                      "card_finish": {
+                                        "type": "string",
+                                        "enum": [
+                                          "normal",
+                                          "holo",
+                                          "reverse_holo",
+                                          "double_rare",
+                                          "ultra_rare",
+                                          "illustration_rare",
+                                          "special_illustration_rare",
+                                          "secret_rare",
+                                          "hyper_rare",
+                                          "radiant_rare",
+                                          "ace_spec",
+                                          "amazing_rare",
+                                          "shiny_rare",
+                                          "jumbo"
+                                        ]
+                                      },
+                                      "card_image": {
+                                        "type": "string"
+                                      },
+                                      "card_set": {
+                                        "type": "string"
+                                      },
+                                      "rarity": {
+                                        "type": "string"
+                                      },
+                                      "local_id": {
+                                        "type": "string"
+                                      },
+                                      "illustrator": {
+                                        "type": "string"
+                                      },
+                                      "set_total": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "wanted_by": {
+                                        "maxItems": 2,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "card_id",
+                                      "card_name",
+                                      "added_at"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "inventoryItemId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "presetOrigin": {
                                   "type": "null"
                                 }
-                              ]
-                            },
-                            "presetOrigin": {
-                              "type": "null"
+                              },
+                              "required": [
+                                "id",
+                                "target",
+                                "status",
+                                "wantedCards",
+                                "inventoryItemId",
+                                "presetOrigin"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
-                            "id",
-                            "target",
-                            "status",
-                            "wantedCards",
-                            "inventoryItemId",
-                            "presetOrigin"
+                            "before",
+                            "after"
                           ],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "before",
-                        "after"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "items": {
-                    "maxItems": 512,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "itemId": {
+                      "items": {
+                        "maxItems": 512,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "itemId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "itemVersion": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "placement": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "collectionId": {
+                                      "type": "string",
+                                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                                    },
+                                    "slot": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "version": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "inventoryItemId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "itemVersion": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer",
+                                              "minimum": 0,
+                                              "maximum": 9007199254740991
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "placementVersion": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer",
+                                              "minimum": 0,
+                                              "maximum": 9007199254740991
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "version",
+                                        "inventoryItemId",
+                                        "itemVersion",
+                                        "placementVersion"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "collectionId",
+                                    "slot"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "itemId",
+                            "itemVersion",
+                            "placement"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "releaseItemIds": {
+                        "maxItems": 512,
+                        "type": "array",
+                        "items": {
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 200
-                        },
-                        "itemVersion": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
-                        "placement": {
-                          "anyOf": [
-                            {
-                              "type": "object",
-                              "properties": {
-                                "collectionId": {
-                                  "type": "string",
-                                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "operationId",
+                      "inventoryRevision",
+                      "planning",
+                      "collection",
+                      "configuration",
+                      "slots",
+                      "items",
+                      "releaseItemIds"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "operationId": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 100
+                      },
+                      "inventoryRevision": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "manifest": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "version": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
                                 },
-                                "slot": {
+                                "required": [
+                                  "id",
+                                  "version"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "entries": {
+                                "maxItems": 4096,
+                                "type": "array",
+                                "items": {
                                   "type": "object",
                                   "properties": {
                                     "id": {
@@ -543,41 +698,81 @@
                                       "minLength": 1,
                                       "maxLength": 200
                                     },
-                                    "version": {
-                                      "type": "integer",
-                                      "minimum": 0,
-                                      "maximum": 9007199254740991
-                                    },
-                                    "inventoryItemId": {
+                                    "target": {
                                       "anyOf": [
                                         {
-                                          "type": "string",
-                                          "minLength": 1,
-                                          "maxLength": 200
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "itemVersion": {
-                                      "anyOf": [
-                                        {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "placementVersion": {
-                                      "anyOf": [
-                                        {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
+                                          "oneOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "kind": {
+                                                  "type": "string",
+                                                  "const": "pokemon"
+                                                },
+                                                "pokemonId": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "maximum": 9007199254740991
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "pokemonId"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "kind": {
+                                                  "type": "string",
+                                                  "const": "card"
+                                                },
+                                                "cardId": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200
+                                                },
+                                                "language": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "en",
+                                                    "fr",
+                                                    "de",
+                                                    "es",
+                                                    "it",
+                                                    "pt-br",
+                                                    "ja",
+                                                    "ko"
+                                                  ]
+                                                },
+                                                "finish": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "normal",
+                                                    "holo",
+                                                    "reverse_holo",
+                                                    "double_rare",
+                                                    "ultra_rare",
+                                                    "illustration_rare",
+                                                    "special_illustration_rare",
+                                                    "secret_rare",
+                                                    "hyper_rare",
+                                                    "radiant_rare",
+                                                    "ace_spec",
+                                                    "amazing_rare",
+                                                    "shiny_rare",
+                                                    "jumbo"
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "cardId"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          ]
                                         },
                                         {
                                           "type": "null"
@@ -587,56 +782,646 @@
                                   },
                                   "required": [
                                     "id",
-                                    "version",
-                                    "inventoryItemId",
-                                    "itemVersion",
-                                    "placementVersion"
+                                    "target"
                                   ],
                                   "additionalProperties": false
                                 }
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "name",
+                              "entries"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "planning": {
+                        "type": "object",
+                        "properties": {
+                          "actorUserId": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                          },
+                          "ownerUserId": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "app",
+                              "rest",
+                              "mcp"
+                            ]
+                          },
+                          "credentialId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "authSessionId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "partnershipId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "partnerUserId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "actorUserId",
+                          "ownerUserId",
+                          "source",
+                          "credentialId",
+                          "authSessionId",
+                          "partnershipId",
+                          "partnerUserId"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "collection": {
+                        "type": "object",
+                        "properties": {
+                          "collectionId": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                          },
+                          "version": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "layoutRevision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "collectionId",
+                          "version",
+                          "layoutRevision"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "configuration": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 40
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "binder",
+                              "slab",
+                              "custom"
+                            ]
+                          },
+                          "defaultPresentation": {
+                            "type": "string",
+                            "enum": [
+                              "binder",
+                              "slabs",
+                              "list"
+                            ]
+                          },
+                          "location": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "rows": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 8
+                          },
+                          "cols": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 8
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "kind",
+                          "defaultPresentation",
+                          "location",
+                          "rows",
+                          "cols"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "slots": {
+                        "minItems": 1,
+                        "maxItems": 1025,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "before": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "version": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "inventoryItemId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "itemVersion": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "placementVersion": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
                               },
                               "required": [
-                                "collectionId",
-                                "slot"
+                                "id",
+                                "version",
+                                "inventoryItemId",
+                                "itemVersion",
+                                "placementVersion"
                               ],
                               "additionalProperties": false
                             },
-                            {
-                              "type": "null"
+                            "after": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "target": {
+                                  "anyOf": [
+                                    {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "pokemon"
+                                            },
+                                            "pokemonId": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "pokemonId"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "card"
+                                            },
+                                            "cardId": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            "language": {
+                                              "type": "string",
+                                              "enum": [
+                                                "en",
+                                                "fr",
+                                                "de",
+                                                "es",
+                                                "it",
+                                                "pt-br",
+                                                "ja",
+                                                "ko"
+                                              ]
+                                            },
+                                            "finish": {
+                                              "type": "string",
+                                              "enum": [
+                                                "normal",
+                                                "holo",
+                                                "reverse_holo",
+                                                "double_rare",
+                                                "ultra_rare",
+                                                "illustration_rare",
+                                                "special_illustration_rare",
+                                                "secret_rare",
+                                                "hyper_rare",
+                                                "radiant_rare",
+                                                "ace_spec",
+                                                "amazing_rare",
+                                                "shiny_rare",
+                                                "jumbo"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "cardId"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "status": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "collected",
+                                        "finalized",
+                                        "considering",
+                                        "wishlisted"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "wantedCards": {
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "card_id": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "card_name": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "added_at": {
+                                        "type": "string"
+                                      },
+                                      "card_language": {
+                                        "type": "string",
+                                        "enum": [
+                                          "en",
+                                          "fr",
+                                          "de",
+                                          "es",
+                                          "it",
+                                          "pt-br",
+                                          "ja",
+                                          "ko"
+                                        ]
+                                      },
+                                      "card_finish": {
+                                        "type": "string",
+                                        "enum": [
+                                          "normal",
+                                          "holo",
+                                          "reverse_holo",
+                                          "double_rare",
+                                          "ultra_rare",
+                                          "illustration_rare",
+                                          "special_illustration_rare",
+                                          "secret_rare",
+                                          "hyper_rare",
+                                          "radiant_rare",
+                                          "ace_spec",
+                                          "amazing_rare",
+                                          "shiny_rare",
+                                          "jumbo"
+                                        ]
+                                      },
+                                      "card_image": {
+                                        "type": "string"
+                                      },
+                                      "card_set": {
+                                        "type": "string"
+                                      },
+                                      "rarity": {
+                                        "type": "string"
+                                      },
+                                      "local_id": {
+                                        "type": "string"
+                                      },
+                                      "illustrator": {
+                                        "type": "string"
+                                      },
+                                      "set_total": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "wanted_by": {
+                                        "maxItems": 2,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "format": "uuid",
+                                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "card_id",
+                                      "card_name",
+                                      "added_at"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "inventoryItemId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "presetOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            "version": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "version"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "entryId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "entryId"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "target",
+                                "status",
+                                "wantedCards",
+                                "inventoryItemId",
+                                "presetOrigin"
+                              ],
+                              "additionalProperties": false
                             }
-                          ]
+                          },
+                          "required": [
+                            "before",
+                            "after"
+                          ],
+                          "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "itemId",
-                        "itemVersion",
-                        "placement"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "releaseItemIds": {
-                    "maxItems": 512,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 200
-                    }
+                      "items": {
+                        "maxItems": 2050,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "itemId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "itemVersion": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "placement": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "collectionId": {
+                                      "type": "string",
+                                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                                    },
+                                    "slot": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "version": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "inventoryItemId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "itemVersion": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer",
+                                              "minimum": 0,
+                                              "maximum": 9007199254740991
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "placementVersion": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer",
+                                              "minimum": 0,
+                                              "maximum": 9007199254740991
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "version",
+                                        "inventoryItemId",
+                                        "itemVersion",
+                                        "placementVersion"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "collectionId",
+                                    "slot"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "itemId",
+                            "itemVersion",
+                            "placement"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "releaseItemIds": {
+                        "maxItems": 2050,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "operationId",
+                      "inventoryRevision",
+                      "manifest",
+                      "planning",
+                      "collection",
+                      "configuration",
+                      "slots",
+                      "items",
+                      "releaseItemIds"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "version",
-                  "operationId",
-                  "inventoryRevision",
-                  "planning",
-                  "collection",
-                  "configuration",
-                  "slots",
-                  "items",
-                  "releaseItemIds"
                 ],
-                "additionalProperties": false
+                "properties": {},
+                "required": []
               }
             }
           }
@@ -648,60 +1433,125 @@
               "application/json": {
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "inventoryRevision": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 9007199254740991
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "inventoryRevision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "changed": {
+                          "type": "boolean",
+                          "const": true
+                        },
+                        "collectionId": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                        },
+                        "collectionVersion": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "layoutRevision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "slotIds": {
+                          "maxItems": 256,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          }
+                        },
+                        "releasedItemIds": {
+                          "maxItems": 512,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          }
+                        }
+                      },
+                      "required": [
+                        "inventoryRevision",
+                        "changed",
+                        "collectionId",
+                        "collectionVersion",
+                        "layoutRevision",
+                        "slotIds",
+                        "releasedItemIds"
+                      ],
+                      "additionalProperties": false
                     },
-                    "changed": {
-                      "type": "boolean",
-                      "const": true
-                    },
-                    "collectionId": {
-                      "type": "string",
-                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                    },
-                    "collectionVersion": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 9007199254740991
-                    },
-                    "layoutRevision": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 9007199254740991
-                    },
-                    "slotIds": {
-                      "maxItems": 256,
-                      "type": "array",
-                      "items": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
-                      }
-                    },
-                    "releasedItemIds": {
-                      "maxItems": 512,
-                      "type": "array",
-                      "items": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
-                      }
+                    {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "number",
+                          "const": 2
+                        },
+                        "inventoryRevision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "changed": {
+                          "type": "boolean",
+                          "const": true
+                        },
+                        "collectionId": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                        },
+                        "collectionVersion": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "layoutRevision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "slotIds": {
+                          "maxItems": 1025,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          }
+                        },
+                        "releasedItemIds": {
+                          "maxItems": 2050,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          }
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "inventoryRevision",
+                        "changed",
+                        "collectionId",
+                        "collectionVersion",
+                        "layoutRevision",
+                        "slotIds",
+                        "releasedItemIds"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "inventoryRevision",
-                    "changed",
-                    "collectionId",
-                    "collectionVersion",
-                    "layoutRevision",
-                    "slotIds",
-                    "releasedItemIds"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -945,38 +1795,81 @@
                               "type": "string"
                             },
                             "rejection": {
-                              "type": "object",
-                              "properties": {
-                                "outcome": {
-                                  "type": "string",
-                                  "const": "rejected"
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "outcome": {
+                                      "type": "string",
+                                      "const": "rejected"
+                                    },
+                                    "operationId": {
+                                      "type": "string",
+                                      "minLength": 8,
+                                      "maxLength": 100
+                                    },
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "inventory_revision_conflict",
+                                        "raw_restore_collection_conflict",
+                                        "raw_restore_content_conflict"
+                                      ]
+                                    },
+                                    "inventoryRevision": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "outcome",
+                                    "operationId",
+                                    "code",
+                                    "inventoryRevision"
+                                  ],
+                                  "additionalProperties": false
                                 },
-                                "operationId": {
-                                  "type": "string",
-                                  "minLength": 8,
-                                  "maxLength": 100
-                                },
-                                "code": {
-                                  "type": "string",
-                                  "enum": [
-                                    "inventory_revision_conflict",
-                                    "raw_restore_collection_conflict",
-                                    "raw_restore_content_conflict"
-                                  ]
-                                },
-                                "inventoryRevision": {
-                                  "type": "integer",
-                                  "minimum": 0,
-                                  "maximum": 9007199254740991
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "version": {
+                                      "type": "number",
+                                      "const": 2
+                                    },
+                                    "outcome": {
+                                      "type": "string",
+                                      "const": "rejected"
+                                    },
+                                    "operationId": {
+                                      "type": "string",
+                                      "minLength": 8,
+                                      "maxLength": 100
+                                    },
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "inventory_revision_conflict",
+                                        "raw_restore_collection_conflict",
+                                        "raw_restore_content_conflict"
+                                      ]
+                                    },
+                                    "inventoryRevision": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "version",
+                                    "outcome",
+                                    "operationId",
+                                    "code",
+                                    "inventoryRevision"
+                                  ],
+                                  "additionalProperties": false
                                 }
-                              },
-                              "required": [
-                                "outcome",
-                                "operationId",
-                                "code",
-                                "inventoryRevision"
-                              ],
-                              "additionalProperties": false
+                              ]
                             }
                           },
                           "required": [

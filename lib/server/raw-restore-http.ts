@@ -1,7 +1,7 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { isContractRecord, isSlotContractId } from '@/lib/domain/binder-slots'
-import { parseRawRestoreCommand, isRawRestoreRejection } from '@/lib/domain/raw-restore'
+import { RawRestoreEnvelopeError, parseRawRestoreCommand, isRawRestoreRejection } from '@/lib/domain/raw-restore'
 import { prepareAppRawContentRestore, confirmAppRawContentRestore, deliverAppRawContentRestore } from '@/lib/server/operations/raw-restore'
 import { requireAppearanceOrigin } from '@/lib/server/binder-appearance'
 import { readDeveloperJson, developerErrorResponse } from '@/lib/server/developer-access/request'
@@ -35,6 +35,7 @@ export async function handleRawRestore(request: Request, clients?: Parameters<ty
       await confirmAppRawContentRestore(request, plan, clients, true)
       return Response.json({ version: 1, operationId, request: plan.request }, { headers })
     }
+    if (input.version !== 1 && input.version !== 2) throw new DeveloperAccessError('invalid_input', 'Supported raw restore command versions are 1 and 2. Preserve existing device records.', 400)
     const command = parseRawRestoreCommand(input)
     if (command.operationId !== operationId) throw new DeveloperAccessError('invalid_input', 'Operation identity changed.', 400)
     // Original delivery reaches the lifetime ledger before any mutable reconstruction.
@@ -42,7 +43,7 @@ export async function handleRawRestore(request: Request, clients?: Parameters<ty
     if (isRawRestoreRejection(result, operationId)) throw new StorageRestoreRejectedError(result)
     return Response.json({ version: 1, operationId, receipt: result }, { headers })
   } catch (error) {
-    const response = developerErrorResponse(error, requestId)
+    const response = developerErrorResponse(error instanceof RawRestoreEnvelopeError ? new DeveloperAccessError('invalid_input', error.message, 400) : error, requestId)
     headers.forEach((value, key) => response.headers.set(key, value))
     return response
   }

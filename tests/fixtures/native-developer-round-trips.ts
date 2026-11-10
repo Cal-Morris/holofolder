@@ -64,16 +64,16 @@ async function main() {
         supported: false, unsupported: ['synthetic unsupported dependency'], conflicts: [], changes: privatePreview ? [{ certificate: 'private' }] : [],
         restoreUnassignedItemIds: [], rootRevisionsAdvance: true, planToken: null }
       else if (operation.includes('apply')) result = { inventoryRevision: 2, eventId: '13', recoveredEventId: request.eventId, collections: [] }
-      else if (operation === 'backup.restore.raw') result = { inventoryRevision: 9, changed: true, collectionId: request.collection.collectionId, collectionVersion: 3, layoutRevision: 3, slotIds: request.slots.map((s: { after: { id: string } }) => s.after.id), releasedItemIds: request.releaseItemIds, certificate: 'private' }
+      else if (operation === 'backup.restore.raw') result = { ...(request.version === 2 ? {version:2}:{}), inventoryRevision: 9, changed: true, collectionId: request.collection.collectionId, collectionVersion: 3, layoutRevision: 3, slotIds: request.slots.map((s: { after: { id: string } }) => s.after.id), releasedItemIds: request.releaseItemIds }
       else if (operation === 'backup.arrangement') result = { inventoryRevision: 2, changed: true, collectionId: request.destinationCollectionId, collectionVersion: 1, layoutRevision: 1, slotIds: request.slots.map((s: { id: string }) => s.id), addedItemIds: [], removedEmptySlotIds: [], evidence: 'private' }
       else if (operation === 'collection.create') result = { inventoryRevision: 2, changed: true, collectionId: request.collectionId,
         collectionVersion: 0, layoutRevision: 0, slotIds: request.slotIds, recoverySupported: false, evidence: { certificate: 'private' } }
       else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
       else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
       if (forged !== undefined) return Response.json(forged)
-      if (terminal && ['collection.create', 'backup.arrangement', 'backup.restore.raw'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'inventory_revision_conflict', inventoryRevision: 2 }
+      if (terminal && ['collection.create', 'backup.arrangement', 'backup.restore.raw'].includes(operation)) result = { ...(operation === 'backup.restore.raw' && request.version === 2 ? {version:2}:{}), outcome: 'rejected', operationId: request.operationId, code: 'inventory_revision_conflict', inventoryRevision: 2 }
       if (terminal && operation.includes('apply')) result = { outcome: 'rejected', operationId: request.operationId, code: 'recovery_plan_conflict', inventoryRevision: 2 }
-      if (terminal && ['slots', 'inventory'].includes(operation)) result = { outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
+      if (terminal && ['slots', 'inventory'].includes(operation)) result = { ...(operation === 'backup.restore.raw' && request.version === 2 ? {version:2}:{}), outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
       // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
       if (request.operationId) {
         const ledgerKey = currentActor + ':' + request.operationId
@@ -133,7 +133,8 @@ async function main() {
   const { z } = await import('zod')
   for (const op of NATIVE_DEVELOPER_OPERATIONS) {
     const tool = tools.find((tool: { name: string }) => tool.name === op.name)
-    assert.deepEqual(tool.outputSchema, z.toJSONSchema(op.responseSchema!), 'discovery advertises the exact accepted receipt')
+    const expectedOutput = z.toJSONSchema(op.responseSchema!)
+    assert.deepEqual(tool.outputSchema, 'anyOf' in expectedOutput ? { ...expectedOutput, type: 'object' } : expectedOutput, 'discovery advertises the exact accepted receipt')
     if (op.errorSchemas) assert.deepEqual(tool._meta['holofolder.com/errorSchemas']['409'], z.toJSONSchema(op.errorSchemas[409]!))
   }
   const paddedLegacy = await handleMcpRequest(new Request('https://synthetic.test/app/mcp', { method: 'POST', headers: { authorization: 'Bearer synthetic-oauth', 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_collection_recovery', arguments: { eventId: '12' } } }) + ' '.repeat(131072) }))
