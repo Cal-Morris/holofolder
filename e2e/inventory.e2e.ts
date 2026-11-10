@@ -1,4 +1,4 @@
-import { test, expect, emulateStandalone, mockBackends, Harness } from "./fixtures"
+import { test, expect, emulateStandalone, mockBackends, Harness, openInventoryFilters } from "./fixtures"
 
 // Synthetic owned-copy evidence only. This route never binds an account or production API.
 test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
@@ -19,6 +19,7 @@ test("distinct copies, filters, known/unknown metadata, privacy and keyboard loc
   await expect(page.locator("body")).not.toContainText("SYNTHETIC-PRIVATE")
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
   await expect(rows).toHaveCount(3)
+  await openInventoryFilters(page)
   await page.getByRole("combobox", { name: "Storage", exact: true }).selectOption("alpha")
   await expect(rows).toHaveCount(1)
   await page.getByRole("combobox", { name: "Storage", exact: true }).selectOption("")
@@ -102,6 +103,7 @@ test("cached offline, empty and unavailable distinctions, owner and linked partn
   await context.setOffline(true)
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
   await expect(page.getByRole("list", { name: "Owned copies" }).getByRole("button")).toHaveCount(3)
+  await openInventoryFilters(page)
   await page.getByRole("combobox", { name: "Assignment", exact: true }).selectOption("unassigned")
   await expect(page.getByText("No matching copies", { exact: true })).toBeVisible()
   await context.setOffline(false)
@@ -132,6 +134,7 @@ test("cached offline, empty and unavailable distinctions, owner and linked partn
 test("window pagination beyond 1000, reset on query and new evidence", async ({ page }) => {
   await page.getByLabel("Harness evidence").selectOption("large")
   await expect(page.getByText("1205 owned copies · 1205 matching", { exact: true })).toBeVisible()
+  await openInventoryFilters(page)
   await page.getByRole("combobox", { name: "Sort", exact: true }).selectOption("id")
   const list = page.getByRole("list", { name: "Owned copies" })
   const ids = new Set<string>()

@@ -1,4 +1,4 @@
-import { test, expect, emulateStandalone, mockBackends, Harness, collectionPicker, viewPicker, chooseCollection, chooseView } from "./fixtures"
+import { test, expect, emulateStandalone, mockBackends, Harness, collectionPicker, viewPicker, chooseCollection, chooseView, openInventoryFilters } from "./fixtures"
 
 // Synthetic, local-only host integration. No production API, conversion or saving.
 test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
@@ -12,6 +12,7 @@ const dock = (page: import("@playwright/test").Page) => page.getByRole("navigati
 test("Inventory location and browser back/forward restore search, scope, window and scroll", async ({ page, insets }) => {
   const h = new Harness(page, insets, false)
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
+  await openInventoryFilters(page)
   await page.getByRole("combobox", { name: "Storage", exact: true }).selectOption("alpha")
   const copy = page.locator('[data-item-id="copy-00001"]')
   await copy.evaluate(element => element.scrollIntoView({ block: "center", behavior: "instant" }))

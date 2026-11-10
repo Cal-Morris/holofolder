@@ -1,4 +1,4 @@
-import { test, expect, emulateStandalone, mockBackends, Harness } from "./fixtures"
+import { test, expect, emulateStandalone, mockBackends, Harness, openInventoryFilters } from "./fixtures"
 import { inventoryProjectionPrices } from "../tests/fixtures/inventory-browse"
 
 // Synthetic mixed copies and saved quotes, no providers, DB or production routes.
@@ -16,7 +16,7 @@ test("Inventory storage totals, explicit destinations and saved raw references s
   await expect(page.getByText("5 owned copies · 5 matching", { exact: true })).toBeVisible()
   await page.getByRole("combobox", { name: "Harness evidence" }).selectOption("projection")
   const totals = page.getByRole("region", { name: "Storage totals" })
-  await expect(totals).toContainText("6 owned copies · 2 explicit wants · 1 known species")
+  await expect(totals).toContainText("6 owned copies · 2 wanted · 1 Pokémon")
   await expect(totals).toContainText("Saved raw value: £25.00 · 4 priced · 1 raw unpriced")
   await expect(totals).toContainText("1 graded value unknown, excluded from raw total")
   const list = page.getByRole("list", { name: "Owned copies" })
@@ -24,11 +24,16 @@ test("Inventory storage totals, explicit destinations and saved raw references s
   await expect(list.getByText("Synthetic Trainer", { exact: true })).toBeVisible()
   await expect(list.getByText("Synthetic Energy", { exact: true })).toBeVisible()
   await expect(list.getByText(/Raw reference, not graded value: £10.00/)).toBeVisible()
-  await page.getByText("Explicit wants by destination", { exact: true }).click()
-  await expect(page.getByRole("list", { name: "Explicit wants" }).getByRole("listitem")).toHaveCount(2)
+  await totals.locator("summary").first().click()
+  await page.getByText("Wanted cards by location", { exact: true }).click()
+  const wants = page.getByRole("list", { name: "Wanted cards" }).getByRole("listitem")
+  await expect(wants).toHaveCount(2)
+  await expect(wants.first()).toContainText("Synthetic Trainer · Language unknown · Finish unknown · Alpha · Page 1 · Slot 1")
+  await expect(page.getByRole("list", { name: "Wanted cards" })).not.toContainText("alpha-empty")
   expect(batches.filter(b => b.includes("synthetic-snorlax"))).toEqual([["synthetic-snorlax", "synthetic-trainer", "synthetic-energy"]])
+  await openInventoryFilters(page)
   await page.getByRole("combobox", { name: "Storage", exact: true }).selectOption("alpha")
-  await expect(totals).toContainText("1 owned copy · 2 explicit wants · 1 known species")
+  await expect(totals).toContainText("1 owned copy · 2 wanted · 1 Pokémon")
   await expect(totals).toContainText("Saved raw value: £10.00 · 1 priced")
   await expect(list.getByRole("button")).toHaveCount(1)
   await page.context().setOffline(true)

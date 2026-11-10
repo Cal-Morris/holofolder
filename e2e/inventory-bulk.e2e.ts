@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, openStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, openStorage, openInventoryFilters } from "./fixtures"
 import type { Page } from "@playwright/test"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
 
@@ -62,7 +62,7 @@ test("explicit bulk mapping cancels, moves and unassigns all copies, exact Activ
   await confirm(page, 1)
   expect(bodies).toHaveLength(1); expect(bodies[0].commands).toHaveLength(2)
   expect((await record(page)).snapshot!.items).toEqual(before.items)
-  await expect(page.getByLabel("Inventory selection", { exact: true })).toContainText("0 selected")
+  await expect(page.getByLabel("Inventory selection", { exact: true })).toHaveCount(0)
   d = await select(page)
   await d.getByRole("button", { name: "Review bulk Unassign" }).click()
   await confirm(page, 2)
@@ -91,6 +91,8 @@ test("explicit bulk mapping cancels, moves and unassigns all copies, exact Activ
 test("selection crosses explicit pages and filters, clear resets all, overlay dismissal never dispatches", async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: "hf-storage-fixture", value: `raw-bulk-${crypto.randomUUID()}`, url: baseURL! }])
   await open(page)
+  await expect(page.getByLabel("Inventory selection", { exact: true })).toHaveCount(0)
+  await openInventoryFilters(page)
   await page.getByRole("combobox", { name: "Sort", exact: true }).selectOption("id")
   await page.getByRole("checkbox", { name: "Select copy synthetic-bulk-00", exact: true }).check()
   await page.getByRole("button", { name: "Next copies" }).click()
@@ -107,7 +109,7 @@ test("selection crosses explicit pages and filters, clear resets all, overlay di
   d = page.getByRole("dialog", { name: "Review selected raw copies" })
   await d.getByRole("button", { name: "Close bulk review" }).click()
   await page.getByRole("button", { name: "Clear selection" }).click()
-  await expect(page.getByLabel("Inventory selection", { exact: true })).toContainText("0 selected")
+  await expect(page.getByLabel("Inventory selection", { exact: true })).toHaveCount(0)
   expect((await record(page)).pending).toHaveLength(0)
 })
 test("lost bulk reply retains original bytes and ID through cached reload until a fresh complete ACK", async ({ page }) => {
