@@ -6,8 +6,10 @@ import { parseSlotIntent, projectSlotIntent, type SlotOfflineIntent } from '@/li
 
 /** Shared private draft sink for picker and layout preparation, not a transport or acceptance receipt. */
 export interface StagedSlotCommandIntent {
-  scope: { ownerUserId: string; collectionId: string; slotId: string | null };
-  intent: Exclude<SlotOfflineIntent, { kind: 'creation' | 'raw-restore' }>;
+  /** Normalized selected printing facts, never a resolver or remote authority. */
+  localCatalog?: readonly import("@/lib/domain/inventory-browse").InventoryCatalogEvidence[]
+  scope: { ownerUserId: string; collectionId: string; slotId: string | null }
+  intent: Exclude<SlotOfflineIntent, { kind: "creation" | "raw-restore" }>
 }
 /** Resolves at local transaction commit, never at remote execution or audit success. */
 export interface SlotLocalAcceptance {
