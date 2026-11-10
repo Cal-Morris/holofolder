@@ -169,7 +169,10 @@ test("expired cached JWT refuses native relaunch without deleting saved intent",
   session.access_token = `e30.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.synthetic-expired`
   await context.addCookies([{ ...cookie, value: `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}` }])
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))
-  await expect(reopened.getByRole("status").filter({ hasText: /Saved native storage is unavailable/ })).toBeVisible({ timeout: 30000 })
+  // Checked JWT rejection can finish before the cached reader; both refusal paths stay closed.
+  await expect(reopened.getByRole("status").filter({ hasText: /Saved native storage is unavailable|Saved storage is paused/ })).toBeVisible({ timeout: 30000 })
+  await expect(reopened.getByRole("combobox", { name: "Collection", exact: true })).not.toBeVisible()
+  await expect(reopened.getByText(/Cached only/)).not.toBeVisible()
   await expect(reopened.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   expect(await queueRecords(reopened)).toEqual(before)
 })

@@ -34,7 +34,7 @@ This consistency proof relies on all accepted inventory mutations atomically inc
 
 ## Honest states, retry and errors
 
-An absent owner state is `inventory_not_initialized`, not a manufactured empty inventory. An initialized owner with zero inventory or zero collections can return a complete empty state. Every actual binder must have slot-authoritative storage state; missing/legacy state, including mixed legacy/new owners, returns `legacy_inventory_incomplete`. No conversion or legacy-row fallback occurs. Existing legacy app flows remain responsible for those owners. Missing schema, denied table reads, malformed data, inconsistent references and missing count support fail closed.
+An absent owner state may return genuine complete revision zero only after exact owner-scoped counts prove no binders, legacy `pokemon_collection` rows, storage state, inventory items, slots, placements or source mappings. Root absence is fenced separately from revision zero through final publication; concurrent creation conflicts/retries. Claims, server session, membership, billing and freshness checks remain mandatory. Failed, denied, missing-table or missing-count queries cannot prove absence. Any existing residue returns `inventory_not_initialized`; GET never provisions or mutates rows. First creation requires parent-owned migration 098: 093 currently denies a missing root before 083's original insert can run. The trusted locked creation wrapper must establish the proven-empty root while preserving 093 terminal/replay rules. A complete empty read does not prove this backend prerequisite is available. An initialized owner with zero inventory or zero collections can return a complete empty state. Every actual binder must have slot-authoritative storage state; missing/legacy state, including mixed legacy/new owners, returns `legacy_inventory_incomplete`. No conversion or legacy-row fallback occurs. Existing legacy app flows remain responsible for those owners. Missing schema, denied table reads, malformed data, inconsistent references and missing count support fail closed.
 
 `InventoryReadError` exposes only a fixed code/status, never raw PostgREST messages or private values:
 
@@ -42,7 +42,7 @@ An absent owner state is `inventory_not_initialized`, not a manufactured empty i
 | --- | --- | --- |
 | `inventory_sign_in_required` | 401 | establish a current first-party session |
 | `inventory_read_forbidden` | 403 | restore actual owner/partner policy access; do not retry as another owner |
-| `inventory_not_initialized` | 503 | no new-model state; retain legacy authority/pending intent |
+| `inventory_not_initialized` | 503 | absent root with existing residue; parent conversion required, retain pending intent |
 | `legacy_inventory_incomplete` | 503 | owner-wide bootstrap/conversion compatibility gate, retain pending intent |
 | `inventory_read_conflict` | 409 | entire snapshot changed; reread current owner state |
 | `inventory_read_deadline` | 503 | bounded deadline expired; retain intent and retry later |

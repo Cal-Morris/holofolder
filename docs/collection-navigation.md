@@ -52,7 +52,7 @@ The local-only existing Inventory harness adds `?navigation=1`; the same E2E plu
 
 ## Parent-owned release gates
 
-Server endpoint admission and new-owner initialization, operator conversion, review/merge/deploy and production verification remain parent-owned. The browser does not convert existing owners. No old-client coexistence or zero-downtime rollout is required for this direct cutover.
+Server endpoint admission, operator conversion, review/merge/deploy and production verification remain parent-owned. The browser does not convert existing owners. No old-client coexistence or zero-downtime rollout is required for this direct cutover.
 
 ## Verification
 

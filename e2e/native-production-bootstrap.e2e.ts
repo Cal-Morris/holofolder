@@ -14,7 +14,7 @@ async function inventory(route: Route, owner = E2E_USER.id, empty = false, creat
   snapshot.collections.forEach(c => { c.ownerUserId = owner; c.id = id(c.id) })
   snapshot.binders.forEach(b => { b.ownerUserId = owner; b.collectionId = id(b.collectionId); b.slots.forEach(s => { s.ownerUserId = owner; s.collectionId = b.collectionId }) })
   snapshot.placements.forEach(p => { p.collectionId = id(p.collectionId) })
-  if (empty) { snapshot.items = []; snapshot.collections = []; snapshot.binders = []; snapshot.placements = [] }
+  if (empty) { snapshot.inventoryRevision = 0; snapshot.items = []; snapshot.collections = []; snapshot.binders = []; snapshot.placements = [] }
   if (created) {
     snapshot.inventoryRevision = 2
     snapshot.collections = [{ id: created.collectionId, ownerUserId: owner, name: created.name, kind: "binder", defaultPresentation: "binder", version: 0 }]
@@ -99,7 +99,8 @@ test("membership pause closes the old private lifetime, recheck resolves the new
 })
 
 
-test("initialized empty owner can review and persist the existing first storage command", async ({ page }) => {
+// Synthetic creation response only; parent 098 remains a hosted first-creation prerequisite.
+test("untouched revision-zero owner can review and persist the existing first storage command", async ({ page }) => {
   let created: { collectionId: string; name: string } | undefined
   let finish!: () => void
   const held = new Promise<void>(resolve => { finish = resolve })
@@ -124,9 +125,93 @@ test("initialized empty owner can review and persist the existing first storage 
   await dialog.getByRole("button", { name: "Confirm create storage", exact: true }).click()
   await expect(dialog).toContainText("Creation pending sync")
   await expect.poll(() => sent.length).toBe(1)
-  expect(sent[0]).toMatchObject({ version: 1, inventoryRevision: 1, name: "My first binder", manifest: { entries: [] } })
+  expect(sent[0]).toMatchObject({ version: 1, inventoryRevision: 0, name: "My first binder", manifest: { entries: [] } })
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue("")
   finish()
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue((sent[0] as { collectionId: string }).collectionId)
   await expect(dialog).not.toBeVisible()
 })
+
+
+async function savedQueue(page: import("@playwright/test").Page) {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    return new Promise<unknown[]>((yes, no) => {
+      const r = db.transaction("records").objectStore("records").getAll()
+      r.onsuccess = () => { db.close(); yes(r.result.filter(v => v?.version === 1 && Array.isArray(v.pending))) }
+      r.onerror = () => no(r.error)
+    })
+  })
+}
+
+for (const outcome of ["recovered", "account", "membership", "denied", "unavailable", "expired"] as const)
+  test(`online stalled membership shows saved read-only storage then ${outcome}`, async ({ page, insets }) => {
+    const sends: string[] = []
+    page.on("request", r => { if (r.method() !== "GET" && /\/api\/(collection|binder-slots|inventory|storage-collections)/.test(r.url())) sends.push(r.url()) })
+    await page.route("**/app/api/binder-slots", route => route.fulfill({ status: 503, json: { error: { code: "storage_unavailable", message: "Synthetic sender outage", requestId: "synthetic-online-startup" } } }))
+    await page.goto(`${entry}&binder=${alpha}`)
+    await page.getByRole("button", { name: "Edit layout", exact: true }).click()
+    await page.getByRole("region", { name: "Layout editing", exact: true }).getByRole("button", { name: "Append free slot", exact: true }).click()
+    await expect.poll(async () => (await savedQueue(page)).some(row => (row as { pending: { status: string }[] }).pending.some(p => p.status === "unavailable"))).toBe(true)
+    await expect.poll(() => page.evaluate(() => Boolean(JSON.parse(localStorage.getItem("binderdex_start_v1") ?? "null")?.native))).toBe(true)
+    const before = await savedQueue(page)
+    let release!: () => void, membershipRequests = 0
+    const held = new Promise<void>(resolve => { release = resolve })
+    await page.route("**/rest/v1/partnerships?*", async route => {
+      membershipRequests++
+      await held
+      if (outcome === "unavailable") await route.fulfill({ status: 400, json: { code: "PGRST000", message: "Synthetic database connection failure" } })
+      else if (outcome === "denied") await route.fulfill({ status: 403, json: { code: "42501", message: "Synthetic membership denial" } })
+      else await route.fulfill({ json: null })
+    })
+    const sentBefore = sends.length
+    if (outcome === "expired") await page.clock.install()
+    await page.reload()
+    expect(await page.evaluate(() => navigator.onLine)).toBe(true)
+    await expect.poll(() => membershipRequests).toBeGreaterThan(0)
+    await expect(page.getByText(/Cached only. Access is being checked/)).toBeVisible()
+    await expect(page.getByText("1 pending edit retained.", { exact: false })).toBeVisible()
+    await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveValue(alpha)
+    await expect(page.getByRole("button", { name: "Edit layout", exact: true })).not.toBeVisible()
+    await expect(page.getByRole("button", { name: "New storage", exact: true })).not.toBeVisible()
+    expect(await savedQueue(page)).toEqual(before)
+    expect(sends.length).toBe(sentBefore)
+    const h = new Harness(page, insets, true)
+    await h.expectNoHorizontalOverflow()
+    const dock = page.getByRole("navigation", { name: "Main navigation", exact: true })
+    for (const name of ["Binder", "Inventory"]) {
+      const control = dock.getByRole("button", { name, exact: true })
+      await h.expectMinTapTarget(control); await h.expectWithinSafeViewport(control); await h.expectHittable(control)
+    }
+    if (outcome === "unavailable") {
+      const failed = page.waitForResponse(r => r.url().includes("/rest/v1/partnerships?") && r.status() === 400)
+      release(); await failed
+      await expect(page.getByText(/Cached only. Access is being checked/)).toBeVisible()
+      expect(await savedQueue(page)).toEqual(before)
+      expect(sends.length).toBe(sentBefore)
+      return
+    }
+    if (outcome === "account") await page.evaluate(user => {
+      const channel = new BroadcastChannel("sb-127-auth-token")
+      channel.postMessage({ event: "SIGNED_IN", session: { user: { ...user, id: "55555555-5555-4555-8555-555555555555" } } })
+      channel.close()
+    }, E2E_USER)
+    if (outcome === "membership") await page.evaluate(() => window.dispatchEvent(new CustomEvent("holofolder-membership-lifecycle-v1", { detail: "pause" })))
+    if (outcome === "expired") {
+      // Advance the existing expiry timer, without changing cached evidence or queue bytes.
+      await page.clock.fastForward(3601_000)
+    }
+    if (outcome === "recovered" || outcome === "denied") release()
+    await expect(page.getByText(/Cached only. Access is being checked/)).not.toBeVisible()
+    if (outcome === "recovered") {
+      await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toBeEnabled()
+      // First reconcile the saved command before opening an unrelated creation plan.
+      await expect(page.getByRole("button", { name: "New storage", exact: true })).toBeDisabled()
+      // Unavailable commands do not auto-retry, and a checked read cannot ACK them.
+      expect(await savedQueue(page)).toEqual(before)
+    } else {
+      await expect(page.getByRole("combobox", { name: "Collection", exact: true })).not.toBeVisible()
+      expect(await savedQueue(page)).toEqual(before)
+      release()
+    }
+  })

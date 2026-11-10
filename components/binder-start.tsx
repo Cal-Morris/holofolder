@@ -4,7 +4,6 @@ import { Suspense, use, useEffect, useState, type ComponentProps } from "react"
 import { useRouter } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 import { readDeviceStartupSession } from "@/lib/collection/native-startup"
-import CachedNativeStartup from "@/components/cached-native-startup"
 import BinderApp from "@/components/binder-app"
 import { BinderSkeleton } from "@/components/binder-skeleton"
 import { readLocalBinderStart, writeBinderStartMarker, type LocalBinderStart } from "@/lib/binder-start"
@@ -78,9 +77,7 @@ export function BinderStart({ serverBoot }: { serverBoot: Promise<ServerBinderBo
     const legacyProps = { initialUser: boot.user, initialBinders: boot.binders, initialBinderId: boot.binderId, initialCollection: boot.collection,
       initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode }
     return (
-      <CachedNativeStartup legacyProps={legacyProps}>
-        <BinderApp {...legacyProps} key={boot.binderId ?? "binder"} />
-      </CachedNativeStartup>
+      <BinderApp {...legacyProps} key={boot.binderId ?? "binder"} />
     )
   }
 

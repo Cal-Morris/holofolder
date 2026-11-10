@@ -46,7 +46,9 @@ test("handler auth resolves owner/partner/unlinked actors, never caller identity
   const response = await handleInventoryCompleteRead(request(), linked.client)
   assert.deepEqual((await response.json()).scope, { ...scope, actorUserId: partner })
   linked.tables.partnerships = []
-  assert.equal((await handleInventoryCompleteRead(request(), linked.client)).status, 503)
+  const unlinked = await handleInventoryCompleteRead(request(), linked.client)
+  assert.equal(unlinked.status, 200)
+  assert.equal((await unlinked.json()).snapshot.ownerUserId, partner)
   assert.equal((await handleInventoryCompleteRead(request(`requestId=a&sessionId=b&ownerUserId=${owner}`), linked.client)).status, 400)
   for (const query of ["requestId=a", "requestId=a&requestId=b&sessionId=c", "requestId=a&sessionId=b&actorUserId=forged"]) {
     assert.equal((await handleInventoryCompleteRead(request(query), linked.client)).status, 400)
@@ -288,4 +290,106 @@ test('same private complete read carries a unique known default, unknown metadat
       if (result.status === 'complete') assert.equal(result.defaultCollectionId, collection)
     }
   })
+})
+
+
+function untouchedOwner() {
+  const f = fixture(0)
+  f.tables.inventory_owner_state = []
+  f.tables.binders = []
+  f.tables.storage_collection_state = []
+  return f
+}
+
+test("untouched authenticated owner reconstructs genuine complete revision zero without any GET writes", async () => {
+  const f = untouchedOwner(), before = structuredClone(f.tables)
+  const response = await handleInventoryCompleteRead(request(), f.client)
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.deepEqual(body.snapshot, { ownerUserId: owner, inventoryRevision: 0, items: [], placements: [], collections: [], binders: [] })
+  assert.deepEqual(body.evidence, { inventoryRevision: 0, items: 0, placements: 0, collections: 0, binders: 0, slots: 0, storage: [] })
+  await withFetch(async set => {
+    set(async (input, init) => handleInventoryCompleteRead(new Request(new URL(String(input), "https://synthetic.test"), init), f.client))
+    const result = await fetchCurrentInventorySnapshot(() => scope)
+    assert.equal(result.status, "complete")
+    if (result.status === "complete") assert.ok(isCompleteInventorySnapshot(result.snapshot))
+  })
+  assert.deepEqual(f.tables, before)
+  assert.ok(f.requests.every(r => r.method === "GET" || r.method === "HEAD" || r.table === "billing_partner_allowed" || r.table === "inventory_grid_read_v1"))
+  const legacy = f.requests.filter(r => r.table === "pokemon_collection")
+  assert.ok(legacy.length >= 2)
+  assert.ok(legacy.every(r => r.method === "HEAD" && r.url.searchParams.get("user_id") === `eq.${owner}`))
+})
+
+for (const table of ["binders", "pokemon_collection", "storage_collection_state", "inventory_items", "binder_slots", "inventory_placements", "binder_legacy_rows"]) {
+  test(`absent root with existing legacy/nonempty/orphan ${table} refuses complete empty`, async () => {
+    const f = untouchedOwner()
+    f.tables[table] = [{ [table === "pokemon_collection" ? "user_id" : "owner_user_id"]: owner, id: "synthetic-residue" }]
+    const response = await handleInventoryCompleteRead(request(), f.client)
+    assert.equal(response.status, 503)
+    assert.equal("snapshot" in await response.json(), false)
+  })
+  for (const mode of ["denied", "missing", "count", "network"])
+    test(`empty-owner proof refuses ${mode} query on ${table}`, async () => {
+      const f = untouchedOwner()
+      f.intercept(name => {
+        if (name !== table) return
+        if (mode === "network") throw new Error("synthetic-network-failure")
+        if (mode === "count") return new Response(null, { status: 200 })
+        return Response.json({ code: mode === "denied" ? "42501" : "42P01" }, { status: mode === "denied" ? 403 : 404 })
+      })
+      if (mode === "network") {
+        const { readOwnerInventoryState } = await import("../lib/server/inventory-read")
+        await assert.rejects(readOwnerInventoryState(f.client, { timeoutMs: 25 }), { code: "inventory_read_deadline" })
+        return
+      }
+      const response = await handleInventoryCompleteRead(request(), f.client)
+      assert.equal(response.status, 503)
+      assert.equal("snapshot" in await response.json(), false)
+    })
+}
+
+test("empty-owner scope/auth/billing failures never reconstruct a complete read", async () => {
+  for (const mode of ["claims", "session", "billing", "membership", "scope"]) {
+    const f = untouchedOwner()
+    if (mode === "claims") f.oauth()
+    if (mode === "session") f.client.auth.getUser = async () => ({ data: { user: null }, error: new Error("synthetic revoked") }) as never
+    if (mode === "billing") f.deny()
+    f.intercept(table => {
+      if (mode === "membership" && table === "partnerships") return Response.json({ code: "42501" }, { status: 403 })
+      if (mode === "scope" && table === "pokemon_collection") f.setActor(collection)
+    })
+    const response = await handleInventoryCompleteRead(request(), f.client)
+    assert.ok(response.status >= 400, mode)
+    assert.equal("snapshot" in await response.json(), false)
+  }
+})
+
+test("concurrent first creation including a revision-zero root conflicts before complete branding", async () => {
+  for (const revision of [0, 1]) {
+    const f = untouchedOwner()
+    let checks = 0
+    f.intercept(table => {
+      if (table !== "inventory_owner_state" || ++checks !== 4) return
+      f.tables.inventory_owner_state = [{ owner_user_id: owner, inventory_revision: revision }]
+      f.tables.binders = [{ id: collection, owner_user_id: owner, name: "Synthetic first", binder_rows: null, binder_cols: null, updated_at: null }]
+      f.tables.storage_collection_state = [{ collection_id: collection, owner_user_id: owner, kind: "binder", default_presentation: "binder", version: 0, layout_revision: 0, authority: "slots", preset_manifest: null, location: null }]
+    })
+    const { readOwnerInventoryState } = await import("../lib/server/inventory-read")
+    await assert.rejects(readOwnerInventoryState(f.client, { attempts: 1 }), { code: "inventory_read_conflict" })
+    const fresh = await readOwnerInventoryState(f.client)
+    assert.equal(fresh.snapshot.collections[0].id, collection)
+    assert.equal(fresh.snapshot.inventoryRevision, revision)
+  }
+})
+
+test("late legacy residue before the final absent-root fence conflicts rather than publishing empty", async () => {
+  const f = untouchedOwner()
+  let legacyChecks = 0
+  f.intercept(table => {
+    if (table === "pokemon_collection" && ++legacyChecks > 1) f.tables.pokemon_collection = [{ user_id: owner, pokemon_id: 25 }]
+  })
+  const response = await handleInventoryCompleteRead(request(), f.client)
+  assert.equal(response.status, 503)
+  assert.equal("snapshot" in await response.json(), false)
 })

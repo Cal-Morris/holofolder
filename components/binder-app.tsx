@@ -113,6 +113,7 @@ import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { buildSlotDisplay, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
+import CachedNativeStartup from "@/components/cached-native-startup"
 import NativeStartupRecorder from "@/components/collection-navigation/native-startup-recorder"
 import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
 import type { BrowserSurfaceBinding } from "@/components/collection-navigation/browser-session"
@@ -167,11 +168,14 @@ export default function BinderApp(props: BinderAppProps) {
   const scope = browserScope.scope
   const admission = browserHostAdmission(Boolean(props.localBrowserHost), "1", false, host, scope)
   const waiting = <main className="flex min-h-dvh flex-col gap-3 bg-background px-4 pb-[var(--dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+1rem)] text-foreground">
-    <p role="status">Checking your account and collection access. Saved copies and pending edits are retained.</p>
+    <p role="status">{browserScope.cachedFallbackAllowed
+      ? "Checking your account and collection access. Saved copies and pending edits are retained."
+      : "Saved storage is paused. Connect to check your account and collection access. Pending edits are retained."}</p>
     <button type="button" className="min-h-10 self-start rounded-lg border px-3" onClick={() => window.location.reload()}>Try again</button>
     <a className="flex min-h-10 items-center self-start underline" href={appPath("/auth/logout")}>Sign out</a>
   </main>
-  if (!scope || !admission.admitted) return waiting
+  if (!scope || !admission.admitted) return browserScope.cachedFallbackAllowed
+    ? <CachedNativeStartup legacyProps={props} whileChecking>{waiting}</CachedNativeStartup> : waiting
   return <BrowserCollectionSession scope={scope} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null}
     localHarness={admission.evidence === "synthetic-local-only"} renderFallback={() => <p role="status">Device storage is unavailable. Enable storage and reopen the app. Pending edits have not been removed.</p>}
     renderSurface={binding => {

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import { readDeviceStartupSession } from "@/lib/collection/native-startup"
-import CachedNativeStartup from "@/components/cached-native-startup"
 import BinderApp from "@/components/binder-app"
 import { BinderSkeleton } from "@/components/binder-skeleton"
 import { createClient } from "@/lib/supabase/client"
@@ -62,8 +61,7 @@ export default function OfflineAppShell() {
     initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode,
   }
   return (
-    <CachedNativeStartup legacyProps={legacyProps}>
-      <>
+    <>
       <BinderApp {...legacyProps} key={boot.binderId ?? "binder"} />
       {boot.unavailableBinderName && noticeVisible && (
         <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dock-clearance,5rem)+0.5rem)] z-50 flex justify-center px-3">
@@ -77,7 +75,6 @@ export default function OfflineAppShell() {
           </button>
         </div>
       )}
-      </>
-    </CachedNativeStartup>
+    </>
   )
 }

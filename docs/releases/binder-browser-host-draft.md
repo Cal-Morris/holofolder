@@ -8,4 +8,4 @@ New storage uses a preview and explicit confirmation. Your first storage becomes
 
 Previously saved collections can reopen offline as Cached only. Editing requires checked account access and a current complete read. If a refresh fails, saved copies and pending edits stay on the device, with a clear way to retry.
 
-Before publication: server native admission and new-owner initialization, parent-owned conversion, review/merge/deploy, production owner/partner flows and installed-PWA reopen. Add deployed SHA, current help links and Framer release URLs after verification. This draft makes no shipped claim.
+Before publication: server native admission and proven-empty new-owner production verification and migration 098 first-creation verification, parent-owned conversion, review/merge/deploy, production owner/partner flows and installed-PWA reopen. Add deployed SHA, current help links and Framer release URLs after verification. This draft makes no shipped claim.

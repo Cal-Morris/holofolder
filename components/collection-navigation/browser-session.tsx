@@ -130,7 +130,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         completeReadAvailable.current = false
         setRead(previous => previous.evidence.kind === "complete" ? { ...previous, evidence: { kind: "cached", snapshot: previous.evidence.snapshot } } : previous)
         setNotice(error instanceof CollectionNavigationReadError && ["inventory_not_initialized", "legacy_inventory_incomplete"].includes(error.code)
-          ? "Your native collection is not ready. An administrator must provision the default storage or finish converting this owner. Saved copies and pending edits are retained."
+          ? "Your native collection is not ready. An administrator must finish converting existing collection data. Saved copies and pending edits are retained."
           : "Could not refresh storage. Showing only saved copies; pending edits are retained. Connect and retry before editing.")
       }
       throw error
