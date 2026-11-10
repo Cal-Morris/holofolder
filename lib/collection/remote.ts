@@ -48,14 +48,16 @@ export function getCollectionRequestBody(item: CollectedPokemon, binderId: strin
   }
 }
 
-/** A failed /app/api/collection write. `status` is null for network errors; on 409, `serverItem` is the current row. */
+/** A failed /app/api/collection write. `status` is null for network errors; on row-conflict 409, `serverItem` is the current row. Compatibility 409 has no row. */
 export class CollectionWriteError extends Error {
   status: number | null
+  code: string | null
   serverItem: CollectedPokemon | null
 
-  constructor(message: string, status: number | null, serverItem: CollectedPokemon | null = null) {
+  constructor(message: string, status: number | null, serverItem: CollectedPokemon | null = null, code: string | null = null) {
     super(message)
     this.name = "CollectionWriteError"
+    this.code = code
     this.status = status
     this.serverItem = serverItem
   }
@@ -81,6 +83,9 @@ async function sendCollectionWrite(input: string, init: RequestInit) {
 
 async function toWriteError(response: Response, fallback: string) {
   const payload = await readJsonResponse(response)
+  // An interrupted/unreadable error body is not proof of a row conflict or an absent row.
+  if (!payload || typeof payload !== "object") return new CollectionWriteError(fallback, null)
+  const code = typeof payload?.code === "string" ? payload.code : null
   const message = payload?.error || `${fallback} (${response.status})`
   const serverItem = response.status === 409
     ? (payload?.item ? normalizeCollectionItem(payload.item) : null)
@@ -89,9 +94,11 @@ async function toWriteError(response: Response, fallback: string) {
     return new CollectionWriteError(
       "The database is missing pokemon_collection.status. Run scripts/008_add_collection_status.sql against Supabase, then retry.",
       response.status,
+      null,
+      code,
     )
   }
-  return new CollectionWriteError(message, response.status, serverItem)
+  return new CollectionWriteError(message, response.status, serverItem, code)
 }
 
 export async function saveRemoteCollectionItem(item: CollectedPokemon, options: RemoteWriteOptions = {}) {

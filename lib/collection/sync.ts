@@ -127,7 +127,7 @@ export function resolveConflict(edit: PendingEdit, serverItem: CollectedPokemon 
   return { action: "write", item: merged, base: serverItem }
 }
 
-export type WriteFailureKind = "retry" | "conflict" | "hard" | "paused"
+export type WriteFailureKind = "retry" | "conflict" | "hard" | "paused" | "compatibility"
 
 /**
  * Network errors, timeouts, 5xx, 401 (session refresh), 408 and 429 are retried with backoff. 409 is a conflict.
@@ -137,6 +137,7 @@ export function classifyWriteFailure(error: unknown): WriteFailureKind {
   const status = typeof (error as { status?: unknown } | null)?.status === "number" ? (error as { status: number }).status : null
   if (status === null) return "retry"
   if (status === 402) return "paused"
+  if (status === 409 && (error as { code?: unknown }).code === "binder_converted_requires_slot_commands") return "compatibility"
   if (status === 409) return "conflict"
   if (status === 401 || status === 408 || status === 429 || status >= 500) return "retry"
   if (status >= 400) return "hard"

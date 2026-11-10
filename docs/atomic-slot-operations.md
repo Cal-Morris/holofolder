@@ -105,3 +105,9 @@ Prepared-head evidence: 1,213 unit-suite entries pass; nine focused cases pass i
 
 
 081 retains checked item ID/version evidence for 074 slot removal through the existing command-evidence channel. This enables [whole-event mapped-source recovery](converted-cascade-recovery.md) without deleting/reacquiring inventory or changing the forward command limits. Staged routes/executors remain denied.
+
+### Legacy client compatibility pause
+
+The legacy client preserves the structured `binder_converted_requires_slot_commands` code on HTTP 409, which has no current legacy item. It pauses the existing queue record instead of resolving a row conflict, rolling back, acknowledging or removing it. The record retains original intent and recoverable raw JSON bytes in its compatibility metadata, through reload and unrelated queue persistence. Further legacy intent for that binder is retained without replay. Billing pauses remain separate; ordinary row 409 and temporary 503/network behavior is unchanged. No native translation, operation-ID replacement, recipient inference or routing to another owner is performed.
+
+This is client protection only. Missing historical recipient binding, guest acceptance and multi-tab durability remain #363/#379 gaps; native routes retain their hard 503 boundary.

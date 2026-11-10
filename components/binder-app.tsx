@@ -3665,10 +3665,12 @@ export default function BinderApp(props: BinderAppProps) {
             role="status"
             data-testid="connection-chip"
             data-connection="online"
-            data-sync-status={syncNotice ? "rolled-back" : syncStatus}
+            data-sync-status={syncStatus === "compatibility" ? "compatibility" : syncNotice ? "rolled-back" : syncStatus}
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300"
           >
-            {syncNotice ? (
+            {syncStatus === "compatibility" ? (
+              <span>{syncingChipLabel(localPendingSyncCount, syncStatus)}</span>
+            ) : syncNotice ? (
               <>
                 <span>{syncNotice}</span>
                 <button type="button" onClick={dismissSyncNotice} className="underline underline-offset-2">
