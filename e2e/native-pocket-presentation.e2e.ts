@@ -58,9 +58,6 @@ for (const desktop of [false, true]) test(`native pocket presentation ${desktop 
   const unfilledCard = page.getByRole("button", { name: "Charizard, Unfilled target", exact: true })
   const free = page.getByRole("button", { name: "Free slot, Empty spacer", exact: true }).first()
   await expect(species.locator("img")).toHaveAttribute("src", /official-artwork/)
-  await expect(species).toContainText("Owned")
-  await expect(unfilled).toContainText("Unfilled target")
-  await expect(free).toContainText("Free slot")
   await expect(free.locator("img")).toHaveCount(0)
   const measurements = []
   for (const pocket of [owned, unfilledCard]) {
@@ -89,6 +86,11 @@ for (const desktop of [false, true]) test(`native pocket presentation ${desktop 
     expect(geometry.captionWidth).toBeLessThanOrEqual(1)
   }
   for (const pocket of [owned, species, unfilled, unfilledCard, free]) {
+    const caption = pocket.locator(":scope > span")
+    await expect(caption).toHaveClass("sr-only")
+    const captionBox = await caption.boundingBox()
+    expect(captionBox?.width).toBeLessThanOrEqual(1)
+    expect(captionBox?.height).toBeLessThanOrEqual(1)
     await h.expectMinTapTarget(pocket)
     await h.expectWithinSafeViewport(pocket)
     await h.expectHittable(pocket)

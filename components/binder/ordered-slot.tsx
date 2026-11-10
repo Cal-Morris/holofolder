@@ -23,7 +23,7 @@ export function OrderedSlot({ slot, selected, onSelect, imageSizes, glareStyle, 
     className={`relative h-full min-h-9 w-full min-w-9 overflow-hidden text-white active:scale-[0.98] ${hasCardImage ? "bg-transparent" : "border border-white/25 bg-white/10 shadow-inner"} ${selected ? "border-primary ring-2 ring-primary" : hasCardImage ? "ring-1 ring-black/5 dark:ring-white/6" : ""}`}
     style={{ borderRadius: TRADING_CARD_CORNER_RADIUS }}>
     {image && <CardImage key={`${slot.id}:${image}`} src={image} alt="" fill sizes={imageSizes} className={`object-contain ${hasCardImage ? "" : "p-[3px]"} ${slot.item ? "" : "grayscale opacity-45"}`} draggable={false} />}
-    <span className={hasCardImage ? "sr-only" : "absolute inset-x-0 bottom-0 bg-black/75 px-1 py-1 text-[10px] leading-tight"}>
+    <span className="sr-only">
       <span className="block truncate">{slot.card?.name ?? slot.pokemon?.name ?? (slot.target?.kind === "pokemon" ? `Pokémon ${slot.target.pokemonId}` : "Free slot")}</span>
       <span className="block truncate">{slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}</span>
       {slot.item?.grading && <span className="block truncate">Recorded grade: {slot.item.grading.grade ?? "Unknown"}</span>}
