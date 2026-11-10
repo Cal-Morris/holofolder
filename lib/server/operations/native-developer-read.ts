@@ -3,6 +3,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto"
 import type { OperationContext } from "@/lib/developer-api/types"
 import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/permissions"
 import { decodePage } from "@/lib/developer-api/pagination"
+import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { NATIVE_READ_OPERATIONS } from "@/lib/developer-api/native-read"
 import { developerReadAuthority } from "@/lib/server/developer-access/native-read"
 import { readTrustedInventoryState, InventoryReadError } from "@/lib/server/inventory-read-core"
@@ -112,7 +113,8 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
     }
     // Strict response validation rejects accidental private fields, including future domain additions.
     const output = operation.responseSchema!.parse(result)
-    if (Buffer.byteLength(JSON.stringify(output)) > maxResponseBytes) throw new DeveloperAccessError("native_read_too_large", "Read a smaller page. This projection is limited to 1 MiB.", 413)
+    const responseLimit = name === "list_storage_collections" ? COLLECTION_CREATION_LIMITS.bytes + 16 * 1024 : maxResponseBytes
+    if (Buffer.byteLength(JSON.stringify(output)) > responseLimit) throw new DeveloperAccessError("native_read_too_large", "Read a smaller page. This projection exceeds its response byte limit.", 413)
     return output
   } catch (error) {
     if (error instanceof InventoryReadError) throw new DeveloperAccessError(error.code, "Native inventory could not be read consistently. Restart the read.", error.status)

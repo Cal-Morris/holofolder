@@ -125,6 +125,23 @@ async function main() {
     const list = (await call(transport, "list_storage_collections", {})).result
     assert.deepEqual(list.data[0].presetManifest, copiedManifest)
   }
+  // A single accepted copied manifest must remain readable even with the smallest page.
+  reset(0)
+  const largeManifest = { source: { id: "synthetic-large-preset", version: "1" }, name: "Synthetic large preset",
+    entries: Array.from({ length: 4096 }, (_, n) => ({ id: `synthetic-entry-${n}-`.padEnd(200, "x"), target: { kind: "card" as const, cardId: "synthetic-energy", language: "en" as const } })) }
+  const { parseCollectionCreation, COLLECTION_CREATION_LIMITS } = await import("../../lib/domain/storage-creation")
+  const acceptedCreation = parseCollectionCreation({ version: 1, operationId: "synthetic-large-creation", inventoryRevision: 7, collectionId: collection,
+    name: "Synthetic large preset", kind: "binder", defaultPresentation: "binder", location: null, grid: null,
+    manifest: largeManifest, slotIds: largeManifest.entries.map((_, n) => `synthetic-slot-${n}`) })
+  assert.ok(Buffer.byteLength(JSON.stringify(acceptedCreation)) < COLLECTION_CREATION_LIMITS.bytes)
+  f.tables.storage_collection_state[0].preset_manifest = largeManifest
+  for (const transport of ["rest", "mcp"] as const) {
+    const large = await call(transport, "list_storage_collections", { limit: 1 })
+    assert.equal(large.status, 200)
+    assert.deepEqual(large.result.data[0].presetManifest, largeManifest)
+    assert.ok(Buffer.byteLength(JSON.stringify(large.result)) > 1024 * 1024)
+    assert.ok(Buffer.byteLength(JSON.stringify(large.raw)) < 4.5 * 1024 * 1024, "actual transport envelope remains bounded")
+  }
   // Slot continuations preserve persisted positions over the full >1000-slot stream.
   reset()
   let slotPage = await read("list_storage_slots", { collectionId: collection, limit: 100 })

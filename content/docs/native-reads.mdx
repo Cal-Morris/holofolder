@@ -36,3 +36,5 @@ The REST/MCP `get_legacy_pokemon_analytics` operation describes legacy history. 
 App host integration, offline relaunch, conversion and hosted production proof are separate release work. This API reference does not claim those acceptance checks have passed.
 
 Saved collection metadata now includes `presetManifest`, the independent copied initial list. With migration 101 its optional `setScope` preserves reviewed language, verified finish families, promo/exclusion selections and captured coverage evidence. It is historical disclosure, not enforced membership; current targets are in slot reads. No private source/certificate/asset evidence is added. See [Set checklists](/docs/set-checklist-drafts).
+
+Collection metadata pages include the saved initial manifest. Their response budget matches the 2 MiB creation limit plus 16 KiB of framing; use a smaller page if several large manifests exceed it. Other native reads retain the 1 MiB response limit.
