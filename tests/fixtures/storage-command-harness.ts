@@ -30,6 +30,28 @@ export function storageCommandHarness(id: string) {
       const key = String(request.operationId), body = JSON.stringify(input)
       const previous = ledger.get(key)
       if (previous) return previous.body === body && previous.audit === audit ? Response.json(previous.result) : Response.json({ code: "23505" }, { status: 409 })
+      if (input.operation.startsWith("recovery.")) {
+        const recovery = request as Record<string, unknown>
+        // Synthetic event engine, NOT SQL correctness proof. Real parser/bridge/auth/read/IDB.
+        const version = input.operation.endsWith(".v2") ? 2 : 1
+        if (input.operation.startsWith("recovery.preview")) {
+          const unsupported = recovery.eventId === "102" ? ["private_assets_unverifiable"] : []
+          const conflicts = recovery.eventId === "103" ? [{ reason: "slot_version_changed", entity: "synthetic-slot-0" }] : []
+          return Response.json({ planVersion: version, eventId: recovery.eventId, supported: !unsupported.length, unsupported, conflicts,
+            planToken: unsupported.length || conflicts.length ? null : "a".repeat(64), restoreUnassignedItemIds: recovery.restoreUnassignedItemIds,
+            changes: version === 2 ? [{ table: "binders", id: "synthetic-original-default", before: { name: "Synthetic original default", is_default: true }, after: null },
+              { table: "binders", id: collection, before: { name: "Synthetic storage", is_default: false }, after: { name: "Synthetic storage", is_default: true } }]
+              : [{ table: "binder_slots", id: "synthetic-slot-0", before: { status: "collected" }, after: { status: "wishlisted" } }], rootRevisionsAdvance: true })
+        }
+        if (recovery.planToken !== "a".repeat(64)) return Response.json({ code: "40001" }, { status: 409 })
+        const revision = Number(state.tables.inventory_owner_state[0].inventory_revision) + 1
+        state.tables.inventory_owner_state[0].inventory_revision = revision
+        state.tables.binder_slots[0].status = "wishlisted"
+        const result = { inventoryRevision: revision, eventId: "201", recoveredEventId: recovery.eventId,
+          collections: [{ collectionId: collection, version: state.tables.storage_collection_state[0].version, layoutRevision: state.tables.storage_collection_state[0].layout_revision }] }
+        ledger.set(key, { body, audit, result })
+        return Response.json(result)
+      }
       const snapshot = await readOwnerInventorySnapshot(state.client)
       if (request.inventoryRevision !== snapshot.inventoryRevision) {
         const result = { outcome: "rejected", operationId: key, code: input.operation === "slots" ? "slot_revision_conflict" : "inventory_revision_conflict", inventoryRevision: snapshot.inventoryRevision }

@@ -4,14 +4,18 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { useOverlay, useSwipeToDismiss, runAfterOverlayHistory } from "@/hooks/use-overlay"
-import { activityActor, activityCacheKey, activityTime, parseActivityPage, readActivityCache, sameActivityScope, writeActivityCache, type ActivityEvent, type ActivityScope } from "@/lib/collection-activity"
+import { activityChanges, activityActor, activityCacheKey, activityTime, parseActivityPage, readActivityCache, sameActivityScope, writeActivityCache, type ActivityEvent, type ActivityScope } from "@/lib/collection-activity"
 import { activitySummary, activityReceipt, activityDay } from "@/lib/activity-presentation"
+import { NativeActivityRecovery, type NativeRecoveryBinding } from "@/components/native-activity-recovery"
+import { isNativeRecoveryEvent } from "@/lib/collection/native-recovery-intent"
 import { ActivityRecovery } from "@/components/activity-recovery"
 import type { ActivityInitialFilter } from "@/components/collection-activity-context"
 import type { Binder } from "@/lib/binders/model"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 
 interface Props {
+  nativeRecovery?: NativeRecoveryBinding
+  onSelectEvent?: (id:string)=>void
   scope:ActivityScope|null; initialFilter:ActivityInitialFilter; binderId:string|null; binders:readonly Binder[]; collection:readonly CollectedPokemon[]
   pendingCount:number; isOnline:boolean; onRecovered:()=>Promise<void>; onClose:()=>void; onInvalidScope:()=>void; onVerify:()=>void; onOpenPokemon:(id:number)=>void
 }
@@ -25,6 +29,11 @@ export default function CollectionActivitySheet(props:Props) {
   const [filters,setFilters] = useState(()=>new URLSearchParams({limit:'50',...(binderId ? {collectionId:binderId} : {}),...(initialFilter.pokemonId ? {pokemonId:String(initialFilter.pokemonId)} : {}),...(initialFilter.itemId ? {itemId:initialFilter.itemId} : {})}).toString())
   const [showFilters,setShowFilters] = useState(false)
   const [revision,setRevision] = useState(0)
+  useEffect(()=>{
+    const updated=()=>setRevision(v=>v+1)
+    window.addEventListener('holofolder-activity-updated',updated)
+    return()=>window.removeEventListener('holofolder-activity-updated',updated)
+  },[])
   const apply = (event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault()
     const data = new FormData(event.currentTarget)
@@ -54,7 +63,7 @@ export default function CollectionActivitySheet(props:Props) {
           <label className="col-span-2 text-xs">Action<select name="action" defaultValue={selected.get('action') ?? ''} className={control}><option value="">All changes</option><option value="collection_item">Cards and wanted lists</option><option value="collection_change">Collections and settings</option><option value="legacy">Older recorded changes</option></select></label>
           <button type="submit" className="col-span-2 min-h-10 rounded-lg bg-primary px-3 font-medium text-primary-foreground">Apply filters</button>
         </form>}
-        {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
+        {scope ? <ActivityResults key={`${filters}:${revision}`} {...props} scope={scope} query={filters} onSelectEvent={id=>setFilters(new URLSearchParams({id}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
       </div>
     </section>
   </div>,document.body)
@@ -113,11 +122,14 @@ function ActivityPageView({scope,pageQuery,isOnline,onInvalidScope,onNext,...pro
   </>
 }
 
-function ActivityEntry({event,day,undone,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,onRecovered,onInvalidScope}:Props & {event:ActivityEvent;day?:string;undone:boolean}) {
+function ActivityEntry({event,day,undone,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,onRecovered,onInvalidScope,nativeRecovery,onSelectEvent}:Props & {event:ActivityEvent;day?:string;undone:boolean}) {
   const [expanded,setExpanded] = useState(false)
   const [count,setCount] = useState(10)
   const summary=activitySummary(event,binders)
-  const {changes,hasDetails,canUndo}=activityReceipt(event)
+  const receipt=activityReceipt(event)
+  const changes=nativeRecovery ? activityChanges(event).map(c=>({...c,subtitle:''})) : receipt.changes
+  const hasDetails=nativeRecovery ? changes.length>0 : receipt.hasDetails
+  const canUndo=receipt.canUndo
   const first=event.changes[0]
   const state=first?.after ?? first?.before
   const pokemonId=event.pokemon_id ?? (typeof state?.pokemon_id==='number' ? state.pokemon_id : null)
@@ -132,7 +144,10 @@ function ActivityEntry({event,day,undone,binders,collection,binderId,isOnline,pe
         {summary.subtitle && <p className="mt-1 text-xs text-muted-foreground">{summary.subtitle}</p>}
         <p className="mt-1 text-xs text-muted-foreground">{person.startsWith('Account ') ? 'Previous member' : person} · <time dateTime={event.recorded_at}>{new Date(event.recorded_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></p>
       </div>
-      {scope && canUndo && <ActivityRecovery undone={undone} event={event} scope={scope} disabled={!isOnline||pendingCount>0} onRecovered={onRecovered} onInvalidScope={onInvalidScope}/>}
+      {scope && !nativeRecovery && canUndo && <ActivityRecovery undone={undone} event={event} scope={scope} disabled={!isOnline||pendingCount>0} onRecovered={onRecovered} onInvalidScope={onInvalidScope}/>}
+      {nativeRecovery && isNativeRecoveryEvent(event) && <NativeActivityRecovery event={event} binding={nativeRecovery} disabled={!isOnline||pendingCount>0}/>}
+      {nativeRecovery && !isNativeRecoveryEvent(event) && <p className="col-span-2 mt-2 text-xs text-muted-foreground">Recovery is unavailable for this kind of change in this view. Open its original collection view to use supported Undo.</p>}
+      {event.recovery_of_event_id && <p className="col-span-2 mt-2 text-xs text-muted-foreground"><button type="button" className="min-h-10 underline" onClick={()=>onSelectEvent?.(event.recovery_of_event_id!)}>Open original entry {event.recovery_of_event_id}</button></p>}
       {hasDetails && <div className="col-span-2 min-w-0">
         <button type="button" aria-expanded={expanded} className="mt-1 min-h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted" onClick={()=>setExpanded(v=>!v)}>{expanded ? 'Hide changes' : summary.count>1 ? `View ${summary.count} changes` : 'View changes'}</button>
         {expanded && <div className="mt-2 space-y-3 border-t border-border/60 pt-3 text-xs wrap-anywhere">

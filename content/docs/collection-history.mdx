@@ -60,3 +60,9 @@ After reviewing the preview, apply that exact token with explicit confirmation a
 Apply returns `{ "eventId": "<new undo entry>", "recoveredEventId": "123" }`. After an unknown outcome, retry the same request, account and owner. Never generate another operation ID to retry. A later edit invalidates the reviewed token (`409`); current permission or allowance checks can also reject recovery. Rejected recovery leaves the collection and history unchanged. No acquisition notification or sharing token is replayed.
 
 The history recorder requires migration 076; linked recovery reads require 077 and the supported recovery command requires 087. Missing schema returns a temporary-unavailability response. Private certificates, label assets, uploaded artwork references and share tokens are excluded from public history and recovery responses.
+
+## Native storage recovery is still staged
+
+The native storage host has a prepared Activity review flow, but native recovery is **not enabled**. Its first-party route and registered native REST/MCP operations return `503 native_operations_staged`. The ordinary card and wanted-row Undo described above remains the supported capability.
+
+The prepared native flow reviews safe changes and explicit conflict reasons online. It requires specific review for restoring a removed copy as Unassigned or nominating a replacement default collection. Private label artwork that cannot be verified remains unavailable. Confirmed native requests would be retained in the existing device queue, with exact retry after unknown results and a new complete current-state read before synchronization. There is no offline optimistic restoration, automatic new request, or inferred successful Undo. Backend/public transport and rollout acceptance remain tracked in #396/#379; this preparation is not a release announcement.

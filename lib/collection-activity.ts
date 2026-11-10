@@ -52,7 +52,7 @@ export function activityEntityName(event: Pick<ActivityEvent,'pokemon_name'|'cha
 export function activityEntityKind(table:string) {
   return ({inventory_items:'Owned item',inventory_placements:'Placement',binder_slots:'Slot',binders:'Collection',pokemon_collection:'Legacy collection row',user_settings:'Settings',binder_appearances:'Appearance',binder_shares:'Sharing'} as Record<string,string>)[table] ?? 'Recorded entity'
 }
-const labels: Record<string,string> = {card_id:'Card printing',card_name:'Card name',card_set:'Set',card_finish:'Finish',card_language:'Language',status:'Ownership / wanted status',wanted_cards:'Wanted cards',grade:'Grade',grading_company:'Grading company',slot_id:'Slot',binder_id:'Collection',collection_id:'Collection',inventory_item_id:'Owned item',target:'Target',sort_order:'Order',position:'Position',slot_index:'Slot order'}
+const labels: Record<string,string> = {is_default:'Default collection',card_id:'Card printing',card_name:'Card name',card_set:'Set',card_finish:'Finish',card_language:'Language',status:'Ownership / wanted status',wanted_cards:'Wanted cards',grade:'Grade',grading_company:'Grading company',slot_id:'Slot',binder_id:'Collection',collection_id:'Collection',inventory_item_id:'Owned item',target:'Target',sort_order:'Order',position:'Position',slot_index:'Slot order'}
 function display(value: unknown): string {
   if (value === null || value === undefined) return 'None'
   if (Array.isArray(value)) return value.length ? value.map(display).join(', ') : 'None'
