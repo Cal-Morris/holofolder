@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { buildBinderSharePath, buildBinderShareUrl, publicCollectionItems } from "../lib/binder-share"
+import { buildBinderSharePath, buildBinderShareUrl, publicCollectionItems, shareManagementTarget, type NativeShareSelection } from "../lib/binder-share"
 
 test("buildBinderSharePath builds the read-only share route", () => {
   assert.equal(buildBinderSharePath("abc123"), "/app/share/abc123")
@@ -30,4 +30,39 @@ test("public collection data excludes database metadata and partner identities",
   assert.equal("user_id" in result[0], false)
   assert.equal("private_note" in result[0], false)
   assert.equal("wanted_by" in result[0].wanted_cards[0], false)
+})
+
+// Synthetic ids only.
+const snapshot = (owner: string) => ({ ownerUserId: owner, inventoryRevision: 1, items: [], placements: [], binders: [],
+  collections: [{ id: "binder-a", ownerUserId: owner, name: "Synthetic A", kind: "binder", defaultPresentation: "binder", version: 1 }, { id: "binder-b", ownerUserId: owner, name: "Synthetic B", kind: "binder", defaultPresentation: "binder", version: 1 }] })
+const native = (patch: Partial<NativeShareSelection> = {}): NativeShareSelection => ({ accountUserId: "partner", ownerUserId: "owner", collectionId: "binder-b",
+  evidence: { kind: "complete", snapshot: snapshot("owner") } as unknown as NativeShareSelection["evidence"], ...patch })
+const target = (overrides: Partial<Parameters<typeof shareManagementTarget>[0]> = {}) => shareManagementTarget({ userId: "partner", ownerUserId: "owner", publicView: false, legacyBinderId: "binder-a", legacyWritable: false, native: native(), ...overrides })
+
+test("native owners and partners manage the selected collection's link, not the legacy boot binder", () => {
+  assert.deepEqual(target(), { binderId: "binder-b", name: "Synthetic B" })
+  assert.deepEqual(target({ userId: "owner", native: native({ accountUserId: "owner" }) }), { binderId: "binder-b", name: "Synthetic B" })
+  assert.deepEqual(target({ native: native({ collectionId: "binder-a" }) }), { binderId: "binder-a", name: "Synthetic A" })
+})
+
+test("share management never infers a default binder or crosses actor, owner or collection scope", () => {
+  assert.equal(target({ native: null }), null, "Inventory or National Dex: no collection selected")
+  assert.equal(target({ native: native({ collectionId: "unknown" }) }), null)
+  assert.equal(target({ native: native({ accountUserId: "previous-account" }) }), null, "stale read for another account")
+  assert.equal(target({ native: native({ ownerUserId: "other-owner" }) }), null)
+  assert.equal(target({ ownerUserId: "other-owner" }), null)
+  assert.equal(target({ native: native({ evidence: { kind: "complete", snapshot: snapshot("other-owner") } as unknown as NativeShareSelection["evidence"] }) }), null)
+})
+
+test("cached, unavailable, signed-out and public views get no owner share controls", () => {
+  assert.equal(target({ native: native({ evidence: { kind: "cached", snapshot: snapshot("owner") } as unknown as NativeShareSelection["evidence"] }) }), null)
+  assert.equal(target({ native: native({ evidence: { kind: "unavailable" } }) }), null)
+  assert.equal(target({ userId: null }), null)
+  assert.equal(target({ publicView: true }), null)
+  assert.equal(target({ publicView: true, native: undefined, legacyWritable: true }), null)
+})
+
+test("legacy writable binders keep their own share target", () => {
+  assert.deepEqual(target({ native: undefined, legacyWritable: true }), { binderId: "binder-a" })
+  assert.equal(target({ native: undefined, legacyWritable: false }), null)
 })

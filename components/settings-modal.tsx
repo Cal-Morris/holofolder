@@ -72,6 +72,8 @@ interface SettingsModalProps {
   pwaStatusMessage: string | null
   onInstallApp: () => void
   isReadOnlyView: boolean
+  /** Owner/partner may manage the public link; independent of read-only collection editing. Defaults to !isReadOnlyView. */
+  canManageShare?: boolean
   isAccountReadOnly?: boolean
   sharePath: string | null
   shareShowPrices: boolean
@@ -127,6 +129,7 @@ export default function SettingsModal({
   onInstallApp,
   isReadOnlyView,
   isAccountReadOnly = isReadOnlyView,
+  canManageShare = !isReadOnlyView,
   sharePath,
   shareShowPrices,
   onShareShowPricesChange,
@@ -152,9 +155,9 @@ export default function SettingsModal({
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage))
   const [activeTab, setActiveTab] = useState<SettingsTabId>("binder")
   const visibleSettingsTabs = SETTINGS_TABS.filter(tab =>
-    tab.id === "account" ? !isAccountReadOnly : tab.id === "share" ? !isReadOnlyView : true)
+    tab.id === "account" ? !isAccountReadOnly : tab.id === "share" ? !isReadOnlyView || canManageShare : true)
   const effectiveActiveTab: SettingsTabId =
-    (activeTab === "share" && isReadOnlyView) || (activeTab === "account" && isAccountReadOnly) ? "binder" : activeTab
+    (activeTab === "share" && isReadOnlyView && !canManageShare) || (activeTab === "account" && isAccountReadOnly) ? "binder" : activeTab
 
   useEffect(() => {
     if (isOpen) {
@@ -551,9 +554,9 @@ export default function SettingsModal({
             </div>
           )}
 
-          {effectiveActiveTab === "share" && !isReadOnlyView && isSignedIn && <PublicNameSettings binderId={binderId} binderName={binderName} isOnline={isOnline} onSaved={onPublicIdentityChange} />}
+          {effectiveActiveTab === "share" && canManageShare && isSignedIn && <PublicNameSettings binderId={binderId} binderName={binderName} isOnline={isOnline} onSaved={onPublicIdentityChange} />}
 
-          {effectiveActiveTab === "share" && !isReadOnlyView && (
+          {effectiveActiveTab === "share" && canManageShare && (
             <div className="pt-4 border-t border-border space-y-4">
               <div className="flex items-center gap-2">
                 <Link2 className="w-4 h-4 text-primary" />
