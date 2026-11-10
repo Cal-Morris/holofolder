@@ -84,3 +84,9 @@ grading editor (parent lane), destructive clear/remove and stale-safe Undo,
 maximum-workload/real partner evidence, rollout/conversion and production access.
 Help: `content/docs/bulk-layout.mdx`. Unpublished copy:
 `docs/releases/bulk-slot-fill-draft.md`. No live feature/Framer claim is made.
+
+## Parent integration and review
+
+The parent merged current main through #469/#472, retaining recovery, scanner, analytics, current API contracts and the unresolved-recovery fence. Independent source review found one copied-preset bug: a spacer edited into a current target remained excluded because provenance was treated as the current constraint. A failing regression reproduced it; the minimal fix requires the current target to remain null for spacer classification. The test proves manual/automatic fill and projected placement while preserving the original manifest, and independent re-review approved it.
+
+The combined bulk-fill/recovery/analytics UI passed 150 phone cases across all six profiles. After the pure eligibility correction, all 1,563 unit cases passed with 38 explicit SQL-gated skips; typecheck, lint55 and the final production build/docs CSS passed. Native HTTP/catalog authority remains synthetic. This does not establish hosted partner/audit/recovery or physical installed-PWA proof. #370/#369/#379 remain open.

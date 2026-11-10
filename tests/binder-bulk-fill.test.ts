@@ -106,3 +106,20 @@ test("explicit skipped destinations do not consume mutation commands or silently
   assert.equal(preview.ready, true)
   assert.equal(prepareBulkFillIntent(snapshot, scope, selection, choices, context, catalog).intent.request.commands.length, 1)
 })
+
+test("a target edited from a copied spacer uses its current target for manual and automatic fill", () => {
+  const { snapshot, scope, catalog } = setup()
+  const binder = snapshot.binders[0], slot = binder.slots[6]
+  const source = { id: "synthetic", version: "1" }
+  binder.presetManifest = { source, name: "Synthetic", entries: [{ id: "original-gap", target: null }] }
+  slot.presetOrigin = { source, entryId: "original-gap" }
+  slot.target = { kind: "pokemon", pokemonId: 143 }
+  const selection = captureBulkSelection(snapshot, scope, [slot.id])
+  assert.equal(isFillSpacer(binder, slot), false)
+  const choices = automaticBulkFillChoices(snapshot, scope, selection, catalog)
+  assert.deepEqual(choices, { [slot.id]: "unassigned-a" })
+  assert.equal(previewBulkFill(snapshot, scope, selection, choices, catalog).ready, true)
+  const draft = prepareBulkFillIntent(snapshot, scope, selection, { [slot.id]: "unassigned-a" }, context, catalog)
+  assert.equal(projectSlotIntent(snapshot, draft.intent, catalog).placements.find(p => p.slotId === slot.id)?.inventoryItemId, "unassigned-a")
+  assert.equal(binder.presetManifest.entries[0].target, null)
+})

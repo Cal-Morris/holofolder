@@ -13,7 +13,7 @@ const smaller = "Choose a smaller selection, at most 100 copies within the comma
 /** Only copied preset entries identify deliberate spacers. Plain empty free pockets remain explicit manual destinations. */
 export function isFillSpacer(binder: BinderSnapshot, slot: BinderSlot) {
   const origin = slot.presetOrigin, manifest = binder.presetManifest
-  return Boolean(origin && manifest && origin.source.id === manifest.source.id && origin.source.version === manifest.source.version
+  return Boolean(slot.target === null && origin && manifest && origin.source.id === manifest.source.id && origin.source.version === manifest.source.version
     && manifest.entries.some(e => e.id === origin.entryId && e.target === null))
 }
 function copyReason(snapshot: InventorySnapshot, slot: BinderSlot, itemId: string, catalog: InventoryCatalogResolver) {
