@@ -7,6 +7,22 @@ async function read(): Promise<CollectionNavigationRead> {
   return { scope, evidence: { kind: "complete", snapshot: await completeInventoryBrowseFixture() }, catalog: inventoryBrowseCatalog, layouts: inventoryBrowseLayouts }
 }
 describe("device-local collection navigation", () => {
+  test("retains only an exact Sets destination through normalization, scroll capture and history", async () => {
+    const set = { id: "synthetic-set", name: "Synthetic Search Set", injected: "PRIVATE" }
+    const input = { main: "dex", dexView: "sets", collectionId: "alpha", collections: { alpha: { ...defaultCollectionView(), page: 2, search: "saved" } }, requestedSet: set }
+    const state = captureNavigationScroll(normalizeNavigationState(input), 120)
+    const restored = resolveNavigation(JSON.parse(JSON.stringify(state)), scope, await read()).state
+    assert.deepEqual(restored.requestedSet, { id: set.id, name: set.name })
+    assert.equal(restored.collections.alpha.page, 2)
+    assert.equal(restored.collections.alpha.search, "saved")
+    assert.equal(restored.dexScroll, 120)
+    assert.doesNotMatch(JSON.stringify(restored), /PRIVATE/)
+    for (const requestedSet of [null, [], { id: "", name: "Set" }, { id: "set", name: " " }, { id: 1, name: "Set" }]) {
+      assert.equal(normalizeNavigationState({ ...input, requestedSet }).requestedSet, null)
+    }
+    assert.equal(normalizeNavigationState({ ...input, main: "collection" }).requestedSet, null)
+    assert.equal(normalizeNavigationState({ ...input, dexView: "wanted" }).requestedSet, null)
+  })
   test("restores only meaningful presentation, drops all transient and untrusted fields", () => {
     const input = { main: "collection", collectionId: "alpha", collections: { alpha: { view: "list", page: 2, search: "charizard", scroll: 832, editing: true, selected: ["slot-0"] } },
       inventory: { query: { search: "base set", collectionId: "alpha", sort: "id", condition: "bad", certificate: "PRIVATE" }, window: 2, scroll: 400, cursor: "FORGED" }, overlay: "detail", drag: true }

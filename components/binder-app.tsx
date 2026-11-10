@@ -317,7 +317,10 @@ function BinderAppSurface(props: BinderAppProps) {
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; focusedCard?: SearchCardResult; finish?: CardFinish; nested: boolean } | null>(null)
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
   // A set hit tapped in Search or Quick mode; Sets opens on it until he leaves Sets.
-  const [setViewRequest, setSetViewRequest] = useState<{ set: TCGSetSummary; key: number } | null>(null)
+  const [setViewRequest, setSetViewRequest] = useState<{ set: TCGSetSummary; key: number } | null>(() => {
+    const set = browserSurface?.surface.state.requestedSet
+    return set ? { set, key: 0 } : null
+  })
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const transitionContent = useNavigationTransition(prefersReducedMotion)
   usePressFeedback()
@@ -3324,10 +3327,14 @@ function BinderAppSurface(props: BinderAppProps) {
 
   /** A set hit from Search or Quick mode: open Sets on that set (a fresh Sets view, even if Sets is showing). */
   const openSetFromSearch = useCallback((set: TCGSetSummary) => {
+    if (browserSurface) {
+      browserSurface.surface.onLegacyView("sets", set)
+      return
+    }
     setSetViewRequest((current) => ({ set, key: (current?.key ?? 0) + 1 }))
     setIsQuickModeOpen(false)
     void switchMainView("sets")
-  }, [switchMainView])
+  }, [browserSurface, switchMainView])
 
   const openSearch = useCallback(() => {
     trackGoogleEvent("search_opened", { surface: "search" })

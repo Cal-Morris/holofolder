@@ -1,6 +1,7 @@
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseScope, InventoryCatalogEvidence, InventoryLayoutEvidence, InventoryLocationIntent } from "@/lib/domain/inventory-browse"
 import { buildInventoryBrowseIndex } from "@/lib/inventory-query"
 import { resolveInventoryLocationIntent } from "@/lib/inventory-location"
+import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 
 /** Rotate on authentication/membership lifecycle changes, even if actor/owner later match again. */
 export interface CollectionNavigationScope extends InventoryBrowseScope { sessionId: string }
@@ -14,6 +15,8 @@ export interface CollectionNavigationState {
   inventory: InventoryViewState & { scroll: number }
   dexView?: "list" | "wanted" | "sets" | "pokemon" | "analytics"
   dexScroll: number
+  /** Exact Sets destination retained across surface remounts and history traversal. */
+  requestedSet?: TCGSetSummary | null
 }
 /** Private in-memory host result, NEVER a JSON transport. The host authenticates both scope fields. */
 export interface CollectionNavigationRead {
@@ -45,8 +48,12 @@ export function normalizeNavigationState(value: unknown): CollectionNavigationSt
     const c = object(raw)
     collections[id] = { view: c.view === "slabs" ? "slabs" : c.view === "list" ? "list" : "binder", page: integer(c.page, 4096, 1), search: text(c.search), scroll: integer(c.scroll, 10000000) }
   }
+  const set = object(v.requestedSet)
+  const requestedSet = v.main === "dex" && v.dexView === "sets" && text(set.id).trim() && text(set.name).trim()
+    ? { id: text(set.id), name: text(set.name) }
+    : null
   return { main: v.main === "collection" || v.main === "dex" ? v.main : "inventory", collectionId: typeof v.collectionId === "string" ? text(v.collectionId) : null,
-    collections, inventory: { ...normalizeInventoryViewState(v.inventory), scroll: integer(object(v.inventory).scroll, 10000000) }, dexView: v.dexView === "wanted" || v.dexView === "sets" || v.dexView === "pokemon" || v.dexView === "analytics" ? v.dexView : "list", dexScroll: integer(v.dexScroll, 10000000) }
+    collections, inventory: { ...normalizeInventoryViewState(v.inventory), scroll: integer(object(v.inventory).scroll, 10000000) }, dexView: v.dexView === "wanted" || v.dexView === "sets" || v.dexView === "pokemon" || v.dexView === "analytics" ? v.dexView : "list", dexScroll: integer(v.dexScroll, 10000000), requestedSet }
 }
 export function navigationIndex(scope: CollectionNavigationScope, read: CollectionNavigationRead) {
   const matches = Boolean(scope.sessionId) && read.scope.sessionId === scope.sessionId && read.scope.accountUserId === scope.accountUserId && read.scope.ownerUserId === scope.ownerUserId
