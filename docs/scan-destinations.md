@@ -1,6 +1,6 @@
 # Staged scanner destination acceptance
 
-Related: #375, #357, #366, #369, #382. This includes the actual BinderApp/BrowserCollectionSession host binding behind the existing non-hosted loopback harness, not enabled production native storage. Runtime routes remain hard 503, executors denied and conversion closed. No hosted reads/writes, SQL, grants or public API are added.
+Related: #375, #357, #366, #369, #382. This includes the actual BinderApp/BrowserCollectionSession host binding behind the existing non-hosted loopback harness, not enabled production native storage. Runtime routes remain hard 503 and conversion closed. Prototype SQL executors remain runtime-denied; the service-only gateway retains its existing authority and admission checks. No hosted reads/writes, SQL, grants or public API are added.
 
 ## Wired flows
 
@@ -99,3 +99,7 @@ Native capture previously reused a fullscreen camera dialog `(0,0,viewport width
 | standalone-430x932 | (8,346,414,498) | (8,89,414,755) | (8,482,414,362) |
 
 No full e2e, camera hardware, real recognition/provider, cold service worker/PWA, authoritative SQL execution, hosted data, enabled production, independent review, merge/deployment or publication proof. #375 stays open; parent reviews and ships.
+
+## Parent combined-main verification
+
+After GitHub reported the branch seven commits behind main, the parent merged current main and retained native analytics, terminal response contracts and preset documentation. Independent source review at `393422bc1251bfdcd6aae99aae07aa7d275d3915` found no blocker and passed 86 focused cases. The combined candidate passed 1,540 unit tests with 37 explicit SQL-gated skips, full typecheck, production build/docs CSS and lint with 55 existing warnings. `E2E_PORT=3586 bunx playwright test e2e/native-scanner-host.e2e.ts e2e/native-analytics.e2e.ts --project='*'` passed all 126 cases across the six phone profiles. This rechecks scanner/analytics coexistence and real IndexedDB acceptance with synthetic transport/catalog/capture evidence. It does not add hardware, hosted SQL, cold service-worker or enabled-product proof. The known legacy Show exclusions above remain unverified. #375 and #379 remain open.
