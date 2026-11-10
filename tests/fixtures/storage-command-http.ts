@@ -39,5 +39,18 @@ for (const extra of [{ actor: owner }, { source: "app" }, { context: {} }, { ver
   assert.equal(bad.status, 400)
 }
 
+process.env.HOLOFOLDER_E2E = "1"
+delete process.env.VERCEL
+process.env.VERCEL_ENV = "production"
+const { GET, POST } = await import("../../app/e2e-harness/storage/[kind]/route")
+const cookie = "hf-storage-fixture=synthetic-env-only-proof"
+const deniedPost = await POST(request({ cookie }), { params: Promise.resolve({ kind: "slots" }) })
+assert.equal(deniedPost.status, 503, "VERCEL_ENV alone must deny the synthetic executor")
+const deniedGet = await GET(new Request("http://localhost:3529/app/e2e-harness/storage/inventory?requestId=synthetic-env-read&sessionId=epoch", { headers: { cookie } }), { params: Promise.resolve({ kind: "inventory" }) })
+assert.equal(deniedGet.status, 503, "VERCEL_ENV alone must deny synthetic complete reads")
+delete process.env.VERCEL_ENV
+const allowed = await POST(request({ cookie }), { params: Promise.resolve({ kind: "slots" }) })
+assert.equal(allowed.status, 200, "explicit non-hosted loopback harness stays usable")
+
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })
