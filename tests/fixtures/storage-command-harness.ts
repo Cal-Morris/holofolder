@@ -138,9 +138,10 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[0].target = { kind: "pokemon", pokemonId: 143 }
     state.tables.binder_slots[0].status = "collected"
     state.tables.binder_slots[2].target = { kind: "pokemon", pokemonId: 25 }
-    if (id.startsWith("raw-occupied-grade-")) {
+    if (id.startsWith("raw-occupied-grade-") || id.startsWith("raw-graded-placement-")) {
       const graded = state.tables.inventory_items.find(i => i.id === "synthetic-raw-copy-2")!
       graded.grading = { ...emptyGradingRecord(), certificate: "SYNTHETIC-PRIVATE-CERT", label: { variant: "SYNTHETIC-LABEL", assetIds: ["synthetic-private-asset"] } }
+      if (id.startsWith("raw-graded-placement-")) graded.grading = { ...graded.grading as object, provider: { kind: "custom", name: "Synthetic custom provider" }, grade: "09.5", scale: "Synthetic scale", designation: "Synthetic qualifier", subgrades: [{ name: "Centering", grade: "09" }], holder: "Synthetic holder" }
       state.tables.inventory_placements.push({ inventory_item_id: graded.id, owner_user_id: owner,
         collection_id: other, slot_id: "synthetic-other-slot", version: 4 })
       state.tables.binder_slots.find(s => s.id === "synthetic-other-slot")!.status = "collected"

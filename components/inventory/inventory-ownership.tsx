@@ -96,7 +96,7 @@ export function InventoryCopyActions({ binding, itemId, onAccepted }: { binding:
   const [occupied, setOccupied] = useState<"" | "unassign" | "swap">("")
   const review = useActionReview(binding, onAccepted)
   const item = binding.snapshot.items.find(i => i.id === itemId)
-  if (!item || item.grading !== null) return null
+  if (!item) return null
   const ref = inventoryActionItemRef(binding.snapshot, itemId)
   const destinations = inventoryActionDestinations(binding.snapshot, itemId, binding.catalog)
   const selectedDestination = destinations.find(d => d.slot.id === destination)
@@ -104,14 +104,14 @@ export function InventoryCopyActions({ binding, itemId, onAccepted }: { binding:
   const command = review.draft?.intent.request.commands[0]
   const source = ref.placement
   const location = source ? `${binding.snapshot.collections.find(c => c.id === source.collectionId)?.name ?? "Storage"}, slot ${source.slot.id}` : "Unassigned"
-  return <section aria-label="Raw copy ownership" className={styles.ownership}>
+  return <section aria-label={item.grading ? "Graded copy placement" : "Raw copy ownership"} className={styles.ownership}>
     {review.error && <p role="alert">{review.error}</p>}
     {command ? <Confirmation review={review} details={command.kind === "removeOwned" ? <p>After sync, open Activity to review recovery of this exact copy and its saved metadata. Recovery checks current versions; if the former slot is occupied, explicitly choose Unassigned. Recovery may be unavailable if history or current permissions cannot be verified.</p> : undefined}>
       {(command.kind === "assign" || command.kind === "move") && review.draft ? <CopyPlacementReview draft={review.draft} /> : <>
       <h3>{command.kind === "removeOwned" ? "Remove this owned copy?" : command.kind === "unassign" ? "Keep this copy Unassigned?" : "Place this exact copy?"}</h3>
       <p>Copy {itemId} · {location}</p>
       {command.kind === "removeOwned" ? <p>Ownership decreases by one. {source ? "Its placement is cleared. The former slot, target, wants and order remain." : "No storage slot changes."} Other copies stay unchanged.</p>
-        : <p>Ownership stays unchanged. The former slot becomes unfilled; its target, wants and order remain.</p>}
+        : <p>Ownership stays unchanged. The former slot becomes unfilled; its target, wants and order remain. Identity, grading, certificate, private label assets, acquisition and source metadata stay unchanged.</p>}
       </>}
     </Confirmation> : <fieldset disabled={!binding.available} className={styles.actions}>
       {placing ? <>
@@ -137,7 +137,7 @@ export function InventoryCopyActions({ binding, itemId, onAccepted }: { binding:
       </> : <>
         <button type="button" onClick={() => setPlacing(true)}>{source ? "Move copy" : "Assign copy"}</button>
         {source && <button type="button" onClick={() => review.review({ kind: "unassign", itemId })}>Unassign copy</button>}
-        <button type="button" onClick={() => review.review({ kind: "removeOwned", itemId })}>Remove owned copy</button>
+        {item.grading === null ? <button type="button" onClick={() => review.review({ kind: "removeOwned", itemId })}>Remove owned copy</button> : <p>Graded removal is unavailable because recovery cannot verify private label assets. Assign, move and unassign retain every grading and private field.</p>}
       </>}
     </fieldset>}
   </section>
@@ -213,7 +213,7 @@ export function InventoryBulkReview({ binding, itemIds, onClose, onAccepted }: {
           <p>One atomic request for all {itemIds.length} copies. Ownership, identity, grading, acquisition and source metadata stay unchanged. Former slots become unfilled; targets, explicit wants, provenance and order remain. No want is fulfilled.</p>
           <p>After sync and a fresh complete read, use Find acknowledged change for this exact Activity event. Recovery needs a supported preview and current permission and version checks. There is no instant Undo.</p>
         </Confirmation> : <fieldset disabled={!binding.available} className={styles.actions}>
-          <p>Only these explicitly selected copies are included, in selection order. Choose a different empty saved slot for every copy to move, or unassign all placed copies. Graded ownership actions are unavailable; inspect graded copies individually.</p>
+          <p>Only these explicitly selected copies are included, in selection order. Choose a different empty saved slot for every copy to move, or unassign all placed copies. Graded bulk actions are unavailable; place graded copies individually.</p>
           {itemIds.map((id, index) => <label key={id} className={styles.field}>{index + 1}. Copy {id} · {location(binding.snapshot, id)}
             <select aria-label={`Empty destination for ${id}`} value={mapping[id] ?? ""} onChange={e => setMapping(m => ({ ...m, [id]: e.target.value }))}>
               <option value="">Choose an empty destination</option>

@@ -192,14 +192,14 @@ Retain the original immutable command and recipient scope after any unknown outc
 
 The production first-party restore route remains unconditional private/no-store 503, as do the staged REST/MCP operation and native admission. The actual internal HTTP/IDB/read flow is exercised only in a loopback synthetic harness. Broader #365/#363 acceptance, hosted/device proof, integration and #379 admission remain separate parent gates.
 
-## Raw ownership management preparation
+## Inventory ownership management preparation
 
 The prepared native Inventory flow offers **Add owned card** as a distinct raw
 copy in **Unassigned**. If that printing is already owned, inspect a recorded copy
 or deliberately add another raw copy. Existing graded copies are never relabelled
 or reused as raw. Missing printing, language and finish metadata remain unknown.
 
-From an exact raw copy, **Assign copy** or **Move copy** asks you to select a
+From an exact raw or already graded copy, **Assign copy** or **Move copy** asks you to select a
 compatible stable slot. An occupied destination requires an explicit choice:
 **Move occupied copy to Unassigned**, or **Swap copies** when the selected copy
 has a source slot and both copies match their resulting targets. Nothing is
@@ -208,7 +208,9 @@ locations, and the retained slot targets and explicit wants before confirming.
 A recorded graded destination copy retains its private metadata; unsupported
 choices stay unavailable. No copy is acquired or removed and no want is fulfilled.
 Cancel leaves both copies in place. **Unassign copy** retains ownership and leaves its
-former slot's target and wants intact. **Remove owned copy** separately previews
+former slot's target and wants intact. Every grading field, certificate, private
+label asset reference, acquisition date and source record remains unchanged.
+**Remove owned copy** is raw-only and separately previews
 which copy and placement are removed, the ownership decrement and the unchanged
 slot goals and other copies. After sync, Activity provides version-checked recovery
 where supported; explicitly restoring as Unassigned avoids displacing a newer
@@ -222,8 +224,10 @@ no new API operation. Native production admission remains closed with 503.
 After a separately fresh complete ACK, expand **Review synchronized changes**.
 **Find acknowledged change** looks up
 that exact operation's Activity event. Recovery requires a supported current
-engine preview; missing history never promises Undo. Selected graded-copy ownership
-management remains outside this raw preparation.
+engine preview; missing history never promises Undo. Graded removal stays blocked
+because existing recovery cannot verify private label assets. Graded creation
+and bulk actions remain unavailable. Individual placement reuses the existing
+commands without sending replacement grading or private fields.
 
 ### Selected raw copies, staged
 

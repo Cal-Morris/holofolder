@@ -1,4 +1,4 @@
-# Raw Inventory ownership actions, staged
+# Inventory ownership actions, staged
 
 Related: #383/#385. This is current native app preparation, not enabled production behavior. Production native admission and first-party inventory writes stay fixed private/no-store 503. No schema, grants, conversion, queue protocol or executor change is included.
 
@@ -17,7 +17,7 @@ Previews use `parseSlotIntent` and `projectSlotIntent`. Confirmation retains the
 
 The destination reference includes the exact occupied copy and its item/placement/slot versions. The source reference and both collection/layout versions remain mandatory. Review names both physical IDs, recorded printing/language/finish/Raw or provider-grade, exact before/after collection and stable slot, retained targets and explicit wants. Displacement retains the occupied copy as Unassigned; swap puts it in the selected copy's former slot. Neither path creates/removes ownership, changes private grading/certificate/acquisition/source metadata, removes targets, changes order/provenance or fulfills wants (`fulfillWant:null`). Unknown printing remains unknown and can enter only a free slot unless catalog evidence proves the target match.
 
-A graded destination copy is supported only through these existing exact-ref commands and the accepting projector, with no metadata reconstruction or grade edit. A selected graded copy still has no ownership action UI. Swap is absent for Unassigned sources or incompatible reverse targets; incomplete references and unsupported projector decisions fail closed. A new pending deletion, raw restore, creation, recovery or ordinary command fences this same sink/queue. Account/session/owner/membership and revision changes invalidate review before dispatch or conflict at the authoritative server; retries keep original intent rather than rebasing.
+A graded destination copy is supported only through these existing exact-ref commands and the accepting projector, with no metadata reconstruction or grade edit. Selected graded copies use the same individual assign/move/unassign review, including compatible occupied decisions. Every item field is retained, including custom providers, grade/scale/designation/subgrades, certificate, holder, label variant/private asset IDs, acquisition and immutable source. Commands send exact references, never replacement grading. Swap is absent for Unassigned sources or incompatible reverse targets; incomplete references and unsupported projector decisions fail closed. A new pending deletion, raw restore, creation, recovery or ordinary command fences this same sink/queue. Account/session/owner/membership and revision changes invalidate review before dispatch or conflict at the authoritative server; retries keep original intent rather than rebasing.
 
 After a strict reply and separately fresh complete ACK, expand **Review synchronized changes** and use the shared **Find acknowledged change** control. This compact disclosure keeps the short standalone viewport usable after ACK. It looks up the exact operation, then the exact Activity event. Missing, ambiguous, stale or unsupported history never invents an event or inverse. Recovery is offered only by the existing engine preview and current permission/version checks, with no guaranteed Undo.
 
@@ -25,7 +25,7 @@ After a strict reply and separately fresh complete ACK, expand **Review synchron
 
 After synchronized removal, the existing Activity entry owns recovery preview and confirmation. The existing private event payload preserves the original item ID, metadata and placement; current permission, version, dependency, billing and plan-token checks still apply. A newer placement must never be displaced: Activity can explicitly restore the removed item as Unassigned. Unsupported/incomplete history is reported by that existing recovery boundary. This slice adds no local inverse, new restore operation, or instant Undo promise.
 
-Graded-copy ownership management, occupied bulk destinations and new arbitrary unknown-printing creation are outside this raw slice. Unknown existing printing identities can be retained/moved/unassigned/removed without replacing them with guessed catalog cards. Complete current scope, hosted admission, conversion/old-client and independent production proof remain parent rollout gates. Creation proof from #481 must be retained when integrating this additive BrowserSession binding.
+Graded removal remains blocked, including asset-free graded copies in this bounded UI slice: migration 077 rejects inventory-item inverses with private label assets as `private_assets_unverifiable`. Placement changes do not delete or rewrite inventory items, so no private-asset recovery extension is needed. Graded creation, graded bulk actions, occupied bulk destinations and new arbitrary unknown-printing creation remain outside this slice. Unknown existing printing identities can be retained/moved/unassigned/removed without replacing them with guessed catalog cards. Complete current scope, hosted admission, conversion/old-client and independent production proof remain parent rollout gates. Creation proof from #481 must be retained when integrating this additive BrowserSession binding.
 
 ## API composition
 
@@ -54,7 +54,7 @@ claimed.
 
 ## Explicit raw multiselect, staged #383/#385
 
-Inventory retains only individually checked distinct raw IDs, in selection order, across current pages and filters. The selected count includes hidden selections; Clear selection clears all of them. There is no select-all or implicit unseen selection. Graded rows explain the raw-only ownership boundary and remain individually inspectable.
+Inventory retains only individually checked distinct raw IDs, in selection order, across current pages and filters. The selected count includes hidden selections; Clear selection clears all of them. There is no select-all or implicit unseen selection. Graded rows retain disabled bulk selection and can be placed individually.
 
 Bulk review maps every selected copy explicitly to a distinct compatible empty saved slot, or unassigns every selected placed copy. It composes the per-copy planner against one base, then parses and projects the combined request once. Occupied destinations cannot be selected, even if another selected copy would leave them empty. #493's individual displacement/swap choices remain intact. Unknown identities retain original metadata and enter only free slots unless catalog evidence proves compatibility. The same complete references and no-inferred-want/acquisition semantics apply.
 
@@ -69,3 +69,18 @@ All commands use the same operation and durable receipt. Unknown results retain 
 | One action per copy | One bounded combined request, whole-selection rejection | Preserve atomic intent without protocol changes |
 
 No new motion is introduced. Shared swipe/history/focus/backdrop dismissal is reused. Synthetic six-phone loopback tests are browser/IDB/HTTP/fresh-read evidence, not hosted SQL, provider, physical-device or production-enable evidence. Parent owns release, issue/project state and whole acceptance; #383/#385/#379 remain open.
+
+
+## Exact graded-copy placement, staged #383/#385
+
+Existing `assign` with an exact Unassigned selection, `move` and `unassign` accept graded items. Migration 075 locks the selected item and exact placement, matches forward and reverse targets and writes placements/slots only; inventory-item grading updates belong exclusively to `edit`. The atomic projector likewise retains the original items. All occupied decisions, complete reads, durable admission, sender/replay/fresh ACK and exact Activity lookup use the existing flow. Native admission remains fixed503 and conversions remain zero.
+
+Focused synthetic preservation cases cover known and custom providers and all private fields, compatible graded-to-graded swaps/displacement, unknown identity, and blocked removal/bulk. Six-phone component/host cases cover graded review/cancel, assign/move/unassign, private-field retention, lost reply/cached reload/exact replay, separately fresh ACK and exact Activity event selection. SQL is inspected, not executed or changed by this slice. Full e2e, hosted SQL/audit, physical-device proof, independent review, enablement and release remain parent gates. No provider renderer or restore/recipient/legacy queue changes. Unpublished copy: `docs/releases/graded-inventory-placement-draft.md`.
+
+| Before | After | Why |
+| --- | --- | --- |
+| Graded detail hides all placement actions | Same exact-copy placement review as raw copies | Reuse supported contracts and retain private metadata |
+| Graded removal has no UI | Explicit unavailable explanation, no removal command | Existing inverse cannot verify private assets |
+| Bulk relies on the individual raw-only guard | Explicit raw-only bulk admission | Keep the selected-copy expansion bounded |
+
+No layout or motion primitives changed; shared dismissal, dock clearance and sticky confirmation remain. Missing grade/identity data and custom provider text are exercised without publishing private certificate or asset values in review.
