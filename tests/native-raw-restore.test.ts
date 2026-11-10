@@ -30,7 +30,7 @@ test('unsupported files and stale scope cannot enter raw review', async () => {
     { scope: 'all-inventory' }, { layouts: [{ ...b.layouts[0], cols: 4 }] },
     { collections: [{ ...b.collections[0], name: 'Changed config' }] },
     { items: b.items.map((i: object) => ({ ...i, grading: emptyGradingRecord() })) },
-    { binders: b.binders.map((v: { slots: object[] }) => ({ ...v, slots: v.slots.slice().reverse() })) },
+    { binders: b.binders.map((v: { slots: object[] }) => ({ ...v, slots: v.slots.slice(1) })) },
     { binders: b.binders.map((v: object) => ({ ...v, presetManifest: null })) },
   ]) await assert.rejects(inspectRawRestore(f.binding, JSON.stringify({ ...b, ...patch }), f.input.choices.collectionId, () => true))
   await assert.rejects(inspectRawRestore(f.binding, f.input.text, f.input.choices.collectionId, () => false))

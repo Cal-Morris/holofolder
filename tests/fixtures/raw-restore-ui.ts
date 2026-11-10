@@ -36,13 +36,14 @@ async function main() {
   const currentScope = () => scope
   const readCurrent = () => readCurrentCollectionNavigation(currentScope, true)
   const binding: NativeBackupBinding = { scope, currentScope, available: true, revisionKey: 'synthetic', assertReady: async () => {}, readCurrent }
-  const prepare = async () => {
+  const prepare = async (reorder = process.argv.includes('--reorder')) => {
     const read = await readCurrent()
     assert.equal(read.evidence.kind, 'complete'); if (read.evidence.kind !== 'complete') throw new Error('fixture')
     const desired = structuredClone(read.evidence.snapshot)
     desired.binders[0].slots[0].inventoryItemId = 'synthetic-restore-copy-1'
     desired.binders[0].slots[1].inventoryItemId = null; desired.binders[0].slots[1].status = null
     desired.placements = [{ inventoryItemId: 'synthetic-restore-copy-1', collectionId, slotId: 'synthetic-slot-0', version: 1 }]
+    if (reorder) desired.binders[0].slots.reverse()
     const backup = createBinderBackupV2({ snapshot: desired, completeness: 'complete-owner', scope: 'collection', collectionId, layouts: [...read.layouts] })
     const input = { text: JSON.stringify(backup), operationId: crypto.randomUUID(), choices: { collectionId,
       slotIds: read.evidence.snapshot.binders[0].slots.map(s => s.id), releaseItemIds: ['synthetic-restore-copy-0'], restoreContent: true as const } }
@@ -52,13 +53,13 @@ async function main() {
   const freshSnapshot = async () => { const r = await readCurrent(); if (r.evidence.kind !== 'complete') throw new Error('incomplete'); return r.evidence.snapshot }
   const send = (intent: SlotOfflineIntent) => sendStorageCommand(intent, currentScope, new AbortController().signal, true)
   const replay = (q: ReturnType<typeof createSlotOfflineQueue>, reader = freshSnapshot, authSessionId = scope.authSessionId) => q.replay(send, () => queueScope, Date.now(), () => undefined, reader, authSessionId)
-  const setup = async () => {
-    const p = await prepare(), store = createMemoryStore(), q = createSlotOfflineQueue(store, queueScope)
+  const setup = async (reorder = process.argv.includes('--reorder')) => {
+    const p = await prepare(reorder), store = createMemoryStore(), q = createSlotOfflineQueue(store, queueScope)
     await q.saveSnapshot(p.base)
     return { ...p, store, q, intent: rawRestoreIntent(p.command, queueScope.deviceId) }
   }
   // A persisted v1 original and its unversioned proof still use the same queue and sender.
-  const legacy = await setup()
+  const legacy = await setup(false)
   const { manifest: _manifest, ...legacyBody } = legacy.command as Extract<typeof legacy.command, { version: 2 }>
   const { readReviewedRawRestoreCommand } = await import('@/lib/collection/raw-restore-delivery')
   const legacyCommand = readReviewedRawRestoreCommand({ ...legacyBody, version: 1 })
@@ -79,7 +80,7 @@ async function main() {
   await assert.rejects(unknown.q.saveSnapshot(await freshSnapshot()))
   assert.deepEqual(await unknown.store.get(key), bytes)
   // A previously admitted 4-MiB v2 intent is unsupported now, but remains byte-for-byte durable.
-  const oldV2 = await setup()
+  const oldV2 = await setup(false)
   await oldV2.q.enqueue(oldV2.intent, () => undefined, oldV2.base, () => queueScope, scope.authSessionId)
   const oldBytes = structuredClone(await oldV2.store.get<import('@/lib/collection/slot-offline-queue').SlotOfflineRecord>(key))!
   const oldCommand = oldBytes.pending[0].intent.request as import('@/lib/domain/raw-restore').RawRestoreCommand
@@ -120,6 +121,22 @@ async function main() {
   await f.q.resume(f.command.operationId); await replay(f.q)
   assert.equal(sends, beforeSend + 1, 'accepted proof resumes read without another apply')
   assert.equal((await f.q.read()).pending.length, 0)
+  if (process.argv.includes('--reorder')) {
+    fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
+    await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)
+    let receiptPositions: unknown[] = []
+    await replay(f.q, async () => {
+      receiptPositions = fixture.tables.binder_slots.map(s => s.position)
+      fixture.tables.binder_slots.forEach((s, n) => { s.position = n })
+      return freshSnapshot()
+    })
+    const pending = await f.q.read()
+    assert.equal(pending.pending.length, 1); assert.ok(pending.pending[0].rawRestoreProof?.receipt)
+    fixture.tables.binder_slots.forEach((s, n) => { s.position = receiptPositions[n] })
+    const delivered = sends
+    await f.q.resume(f.command.operationId); await replay(f.q)
+    assert.equal((await f.q.read()).pending.length, 0); assert.equal(sends, delivered)
+  }
   // Malformed HTTP proof cannot ACK, and another authenticated session cannot replay it.
   fixture = storageCommandHarness('restore-ui-' + crypto.randomUUID()); f = await setup()
   await f.q.enqueue(f.intent, () => undefined, f.base, () => queueScope, scope.authSessionId)

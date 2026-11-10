@@ -64,16 +64,16 @@ async function main() {
         supported: false, unsupported: ['synthetic unsupported dependency'], conflicts: [], changes: privatePreview ? [{ certificate: 'private' }] : [],
         restoreUnassignedItemIds: [], rootRevisionsAdvance: true, planToken: null }
       else if (operation.includes('apply')) result = { inventoryRevision: 2, eventId: '13', recoveredEventId: request.eventId, collections: [] }
-      else if (operation === 'backup.restore.raw') result = { ...(request.version === 2 ? {version:2}:{}), inventoryRevision: 9, changed: true, collectionId: request.collection.collectionId, collectionVersion: 3, layoutRevision: 3, slotIds: request.slots.map((s: { after: { id: string } }) => s.after.id), releasedItemIds: request.releaseItemIds }
+      else if (operation === 'backup.restore.raw') result = { ...(request.version !== 1 ? {version:request.version}:{}), inventoryRevision: 9, changed: true, collectionId: request.collection.collectionId, collectionVersion: 3, layoutRevision: request.version === 3 ? 4 : 3, ...(request.version === 3 ? {slotOrder:request.slotOrder}:{}), slotIds: request.version === 3 ? request.slotOrder.after : request.slots.map((s: { after: { id: string } }) => s.after.id), releasedItemIds: request.releaseItemIds }
       else if (operation === 'backup.arrangement') result = { inventoryRevision: 2, changed: true, collectionId: request.destinationCollectionId, collectionVersion: 1, layoutRevision: 1, slotIds: request.slots.map((s: { id: string }) => s.id), addedItemIds: [], removedEmptySlotIds: [], evidence: 'private' }
       else if (operation === 'collection.create') result = { inventoryRevision: 2, changed: true, collectionId: request.collectionId,
         collectionVersion: 0, layoutRevision: 0, slotIds: request.slotIds, recoverySupported: false, evidence: { certificate: 'private' } }
       else if (operation === 'slots') result = { inventoryRevision: 2, changed: true, collectionVersion: 1, layoutRevision: 1, removedSlotIds: [], evidence: 'private' }
       else result = { inventoryRevision: 2, changed: true, selectedItemIds: ['synthetic-copy'], acquiredItemIds: [], evidence: 'private' }
       if (forged !== undefined) return Response.json(forged)
-      if (terminal && ['collection.create', 'backup.arrangement', 'backup.restore.raw'].includes(operation)) result = { ...(operation === 'backup.restore.raw' && request.version === 2 ? {version:2}:{}), outcome: 'rejected', operationId: request.operationId, code: 'inventory_revision_conflict', inventoryRevision: 2 }
+      if (terminal && ['collection.create', 'backup.arrangement', 'backup.restore.raw'].includes(operation)) result = { ...(operation === 'backup.restore.raw' && request.version !== 1 ? {version:request.version}:{}), outcome: 'rejected', operationId: request.operationId, code: 'inventory_revision_conflict', inventoryRevision: 2 }
       if (terminal && operation.includes('apply')) result = { outcome: 'rejected', operationId: request.operationId, code: 'recovery_plan_conflict', inventoryRevision: 2 }
-      if (terminal && ['slots', 'inventory'].includes(operation)) result = { ...(operation === 'backup.restore.raw' && request.version === 2 ? {version:2}:{}), outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
+      if (terminal && ['slots', 'inventory'].includes(operation)) result = { ...(operation === 'backup.restore.raw' && request.version !== 1 ? {version:request.version}:{}), outcome: 'rejected', operationId: request.operationId, code: 'slot_revision_conflict', inventoryRevision: 2 }
       // Emulates the backend ledger only to prove exact forwarding/replay through both transports.
       if (request.operationId) {
         const ledgerKey = currentActor + ':' + request.operationId
@@ -171,8 +171,16 @@ async function main() {
         }
       }
     }
+    const reordered = { ...raw, version: 3, operationId: 'synthetic-v3-' + transport,
+      slotOrder: { before: raw.slots.map(p => p.before.id), after: raw.slots.map(p => p.after.id).reverse() } }
+    const v3 = await call(transport, 'restore_raw_collection_content', reordered)
     if (wired) {
-      const value = { ...raw, operationId: 'synthetic-restore-terminal-' + transport }
+      assert.equal(v3.result.version, 3, JSON.stringify(v3.raw))
+      assert.deepEqual(v3.result.slotOrder, reordered.slotOrder)
+      assert.deepEqual((await call(transport, 'restore_raw_collection_content', reordered)).result, v3.result)
+    } else assertStagedSmokeResponse('restore_raw_collection_content', v3.result)
+    if (wired) {
+      const value = { ...reordered, operationId: 'synthetic-restore-terminal-' + transport }
       terminal = true
       const rejected = await call(transport, 'restore_raw_collection_content', value)
       assertTerminalStorageSmokeResponse('restore_raw_collection_content', rejected.result, value)

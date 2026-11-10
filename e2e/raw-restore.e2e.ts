@@ -13,7 +13,7 @@ async function record(page: Page) {
     return rows.find((r): r is { pending: { status: string; lease: { until: number } | null; intent: { kind: string; request: { operationId: string } }; rawRestoreProof?: { receipt: unknown; rejection: unknown }; base: unknown }[]; receipts: unknown[]; snapshot: { items: { id: string }[]; placements: { inventoryItemId: string }[] } } => !!r && typeof r === 'object' && 'pending' in r && 'scope' in r) ?? null
   })
 }
-async function inspect(page: Page) {
+async function inspect(page: Page, reorder = false) {
   await page.getByRole('button', { name: 'Backup', exact: true }).click()
   const d = dialog(page)
   await d.getByRole('combobox', { name: 'Export scope' }).selectOption('collection')
@@ -25,6 +25,7 @@ async function inspect(page: Page) {
   b.binders[0].slots[1].inventoryItemId = null; b.binders[0].slots[1].status = null
   b.placements = [{ ...b.placements[1], slotId: 'synthetic-slot-0' }]
   b.items = b.items.filter(i => i.id === 'synthetic-restore-copy-1')
+  if (reorder) b.binders[0].slots.reverse()
   const before = await record(page), posts: string[] = []
   const listener = (request: import('@playwright/test').Request) => { if (request.method() !== 'GET') posts.push(request.url()) }
   page.on('request', listener)
@@ -37,8 +38,8 @@ async function inspect(page: Page) {
   page.off('request', listener)
   return d
 }
-async function review(page: Page) {
-  const d = await inspect(page)
+async function review(page: Page, reorder = false) {
+  const d = await inspect(page, reorder)
   const send = d.getByRole('button', { name: 'Send private file for restore review' })
   await expect(send).toBeDisabled()
   await d.getByRole('checkbox', { name: 'Release copy synthetic-restore-copy-0 to Unassigned, keep ownership' }).check()
@@ -69,8 +70,8 @@ test('actual Backup reviews explicit releases locally, plans privately, commits 
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   expect(durableAtDelivery).toBe(true)
   const saved = (await record(page))!
-  expect(saved.pending).toHaveLength(0); expect(saved.snapshot.items).toHaveLength(2); expect(saved.snapshot.placements).toHaveLength(1)
-  expect(saved.snapshot.placements[0].inventoryItemId).toBe('synthetic-restore-copy-1')
+  expect(saved!.pending).toHaveLength(0); expect(saved!.snapshot.items).toHaveLength(2); expect(saved!.snapshot.placements).toHaveLength(1)
+  expect(saved!.snapshot.placements[0].inventoryItemId).toBe('synthetic-restore-copy-1')
   await h.expectNoHorizontalOverflow()
   const denial = await page.request.post('/app/api/raw-content-restore', { data: { action: 'plan' } })
   expect(denial.status()).toBe(503); expect(denial.headers()['cache-control']).toBe('private, no-store')
@@ -161,10 +162,10 @@ test('1025 copied-Dex actual Backup reviews every paged slot, keeps origin, uses
   const d=await review(page),h=new Harness(page,insets,true)
   await expect(d.getByText('1,025 slots, 2 involved copies, 1 explicit releases to Unassigned.')).toBeVisible()
   await d.getByText('Exact targets, status and wanted choices',{exact:true}).click()
-  await expect(d.getByText('Slot 1: synthetic-slot-0',{exact:true})).toBeVisible()
+  await expect(d.getByText('Slot 1: synthetic-slot-0, position 1 → 1',{exact:true})).toBeVisible()
   const next=d.getByRole('button',{name:'Next slots',exact:true})
   for(let n=0;n<20;n++)await next.click()
-  await expect(d.getByText('Slot 1025: synthetic-slot-1024',{exact:true})).toBeVisible()
+  await expect(d.getByText('Slot 1025: synthetic-slot-1024, position 1025 → 1025',{exact:true})).toBeVisible()
   await expect(next).toBeDisabled()
   await h.expectNoHorizontalOverflow()
   const confirm=d.getByRole('button',{name:'Confirm and save raw restore'})
@@ -212,4 +213,23 @@ test('proof persistence failure keeps original IDB intent through reload and rep
   expect(new Set(bodies).size).toBe(1)
   expect((await record(page))!.snapshot.placements).toHaveLength(1)
   expect(original.kind).toBe('raw-restore')
+})
+
+test('same-ID reorder review shows positions and persists v3 exact orders through fresh read ACK', async ({ page, insets }) => {
+  await page.goto(entry)
+  const d = await review(page, true), h = new Harness(page, insets, true)
+  await d.getByText('Exact targets, status and wanted choices', { exact: true }).click()
+  await expect(d.getByText('Slot 1: synthetic-slot-0, position 1 → 4', { exact: true })).toBeVisible()
+  await h.expectNoHorizontalOverflow()
+  await d.getByRole('button', { name: 'Confirm and save raw restore' }).click()
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  const saved = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>(resolve => { const r=indexedDB.open('binderdex-offline');r.onsuccess=()=>resolve(r.result) })
+    const rows=await new Promise<{ scope?: unknown; pending: unknown[]; receipts: { intent: { request: { version: number; slotOrder: { after: string[] } } }; rawRestoreProof: { receipt: { slotOrder: unknown } } }[]; snapshot: { binders: { slots: { id: string }[] }[] } }[]>(resolve=>{const r=db.transaction('records').objectStore('records').getAll();r.onsuccess=()=>resolve(r.result)})
+    db.close();return rows.find(r=>r.scope&&r.receipts?.length)
+  })
+  expect(saved!.pending).toHaveLength(0)
+  expect(saved!.receipts[0].intent.request.version).toBe(3)
+  expect(saved!.receipts[0].rawRestoreProof.receipt.slotOrder).toEqual(saved!.receipts[0].intent.request.slotOrder)
+  expect(saved!.snapshot.binders[0].slots.map((s: { id: string })=>s.id)).toEqual(saved!.receipts[0].intent.request.slotOrder.after)
 })

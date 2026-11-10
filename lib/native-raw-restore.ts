@@ -19,14 +19,14 @@ export async function inspectRawRestore(binding: NativeBackupBinding, text: stri
   const { read, snapshot, assertCurrent } = await readNativeBackup(binding, active)
   const backup = parseBinderBackupV2(text), source = backup.binders[0], binder = snapshot.binders.find(b => b.collectionId === collectionId)
   const config = snapshot.collections.find(c => c.id === collectionId), original = backup.collections[0]
-  const fail = (): never => { throw new Error('Only one matching raw collection with the same ordered slots, configuration and grid can be reviewed.') }
+  const fail = (): never => { throw new Error('Only one matching raw collection with the same stable slot IDs, configuration and grid can be reviewed.') }
   if (backup.scope !== 'collection' || backup.collections.length !== 1 || backup.binders.length !== 1 || backup.appearance.length
     || !binder || !config || original.id !== collectionId || source.collectionId !== collectionId
     || binder.slots.length > RAW_RESTORE_V2_LIMITS.slots || backup.items.length > RAW_RESTORE_V2_LIMITS.items
-    || backupContentKey(source.slots.map(s => s.id)) !== backupContentKey(binder.slots.map(s => s.id))
+    || backupContentKey(source.slots.map(s => s.id).sort()) !== backupContentKey(binder.slots.map(s => s.id).sort())
     || backupContentKey(source.presetManifest) !== backupContentKey(binder.presetManifest)
     || [...source.slots, ...binder.slots].some(s => s.legacySource != null)
-    || source.slots.some((s, n) => backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots[n].presetOrigin))
+    || source.slots.some(s => backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.presetOrigin))
     || backup.items.some(i => i.grading !== null || i.legacySource != null)) return fail()
   const { version: _v, ...before } = original, { version: _cv, ownerUserId: _o, ...now } = config
   if (backupContentKey(before) !== backupContentKey(now)
@@ -45,9 +45,9 @@ export async function inspectRawRestore(binding: NativeBackupBinding, text: stri
     throw new RawRestoreEnvelopeError('Restore private before/after recovery graph exceeds 2.5 MiB. Nothing has been queued.')
   }
   assertCurrent()
-  return { base: snapshot, choices: { collectionId, slotIds: binder.slots.map(s => s.id), restoreContent: true as const,
+  return { slotOrder: { before: binder.slots.map(s => s.id), after: source.slots.map(s => s.id) }, base: snapshot, choices: { collectionId, slotIds: binder.slots.map(s => s.id), restoreContent: true as const,
     releaseItemIds: [...involved].filter(id => snapshot.placements.some(p => p.inventoryItemId === id) && !desiredIds.has(id)).sort() },
-    slots: binder.slots.map((slot, n) => ({ before: slot, after: source.slots[n] })),
+    slots: binder.slots.map(slot => ({ before: slot, after: source.slots.find(s => s.id === slot.id)! })),
     placements: [...involved].map(itemId => ({ itemId, from: snapshot.placements.find(p => p.inventoryItemId === itemId)?.slotId ?? null,
       to: backup.placements.find(p => p.inventoryItemId === itemId)?.slotId ?? null })) }
 }
@@ -72,6 +72,7 @@ export async function requestNativeRawRestorePlan(binding: NativeBackupBinding, 
     || command.planning.actorUserId !== binding.scope.actorUserId || command.planning.ownerUserId !== binding.scope.ownerUserId
     || command.planning.authSessionId !== binding.scope.authSessionId || command.planning.source !== 'app'
     || backupContentKey(command.slots.map(s => s.after.id)) !== backupContentKey(input.choices.slotIds)
+    || backupContentKey(command.version === 3 ? command.slotOrder.after : command.slots.map(s => s.after.id)) !== backupContentKey(parseBinderBackupV2(input.text).binders[0].slots.map(s => s.id))
     || backupContentKey(command.releaseItemIds) !== backupContentKey(input.choices.releaseItemIds)) throw new Error('Restore review changed. Nothing has been queued.')
   await binding.assertReady()
   if (!valid()) throw new Error('Restore session changed.')
