@@ -3,17 +3,17 @@
 import { useEffect, useState } from "react"
 import { normalizeFetchedCardPrice, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { isCardLanguage } from "@/lib/domain/cards"
-import { SAVED_PRICES_WITHOUT_HISTORY_MAX_CARDS, getCardPriceKey, type CardPriceLookup } from "@/lib/card-pricing"
+import { SAVED_PRICE_SUMMARY_MAX_CARDS, getCardPriceKey, type CardPriceLookup } from "@/lib/card-pricing"
 import { mapWithConcurrency } from "@/lib/card-db-sync-concurrency"
 
 /** Groups of saved-price GETs in flight at once. */
 export const SAVED_INVENTORY_PRICE_CONCURRENCY = 4
 
-/** Existing saved-evidence GET only. Never POST, refresh, provider lookup or paid comparison. History is left
- * out (no consumer of these prices reads it). A failed or malformed group leaves only its own cards unpriced (#570). */
+/** Existing saved-evidence GET only. Never POST, refresh, provider lookup or paid comparison. Summary fields only
+ * (see SAVED_PRICE_SUMMARY_COLUMNS). A failed or malformed group leaves only its own cards unpriced (#570). */
 export async function readSavedInventoryPrices(requests: readonly CardPriceLookup[], signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<CardPriceSnapshot[]> {
   const unique = [...new Map(requests.map(r => [getCardPriceKey(r.cardId, r.language), r])).values()]
-  const size = SAVED_PRICES_WITHOUT_HISTORY_MAX_CARDS
+  const size = SAVED_PRICE_SUMMARY_MAX_CARDS
   const batches = Array.from({ length: Math.ceil(unique.length / size) }, (_, i) => unique.slice(i * size, (i + 1) * size))
   const groups = await mapWithConcurrency(batches, SAVED_INVENTORY_PRICE_CONCURRENCY, async batch => {
     if (signal.aborted) return []
@@ -28,7 +28,7 @@ export async function readSavedInventoryPrices(requests: readonly CardPriceLooku
 }
 
 async function readSavedPriceGroup(batch: readonly CardPriceLookup[], signal: AbortSignal, fetcher: typeof fetch) {
-  const response = await fetcher(`/app/api/card-prices?cards=${encodeURIComponent(JSON.stringify(batch))}&history=0`, { signal, cache: "no-store" })
+  const response = await fetcher(`/app/api/card-prices?cards=${encodeURIComponent(JSON.stringify(batch))}&fields=summary`, { signal, cache: "no-store" })
   if (!response.ok) throw new Error("saved_inventory_prices_unavailable")
   const payload = await response.json()
   if (!Array.isArray(payload?.prices)) throw new Error("saved_inventory_prices_unavailable")

@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { loadSavedCardPrices, SAVED_PRICE_COLUMNS_WITHOUT_HISTORY } from "../lib/card-pricing"
+import { loadSavedCardPrices, SAVED_PRICE_SUMMARY_COLUMNS } from "../lib/card-pricing"
 
 /** Synthetic card_prices table and PostgREST-shaped query recorder. No hosted reads. */
 function syntheticPrices(rows: Record<string, unknown>[]) {
@@ -28,18 +28,18 @@ const row = (cardId: string, language = "en") => ({ card_id: cardId, language, g
 test("saved prices query once per language and 200 card IDs, in parallel", async () => {
   const lookups = [...Array.from({ length: 450 }, (_, i) => ({ cardId: `synthetic-${i}`, language: "en" as const })), { cardId: "synthetic-1", language: "fr" as const }]
   const { db, calls } = syntheticPrices([...lookups.map(l => row(l.cardId, l.language)), row("synthetic-2", "fr")])
-  const prices = await loadSavedCardPrices(lookups, { db, history: false })
+  const prices = await loadSavedCardPrices(lookups, { db, summary: true })
   assert.deepEqual(calls.map(c => [c.language, c.ids.length]), [["en", 200], ["en", 200], ["en", 50], ["fr", 1]])
   assert.equal(prices.length, 451)
   assert.ok(!prices.some(p => p.cardId === "synthetic-2" && p.language === "fr"), "unrequested pair dropped")
 })
 
-test("history is left out of the query and the snapshot only when asked", async () => {
+test("summary reads select only consumer columns and omit history; full reads keep everything", async () => {
   const lookups = [{ cardId: "synthetic-1", language: "en" as const }]
   const without = syntheticPrices([row("synthetic-1")])
-  const [lean] = await loadSavedCardPrices(lookups, { db: without.db, history: false })
-  assert.equal(without.calls[0].projection, SAVED_PRICE_COLUMNS_WITHOUT_HISTORY)
-  assert.ok(!SAVED_PRICE_COLUMNS_WITHOUT_HISTORY.split(",").includes("history_points"))
+  const [lean] = await loadSavedCardPrices(lookups, { db: without.db, summary: true })
+  assert.equal(without.calls[0].projection, SAVED_PRICE_SUMMARY_COLUMNS)
+  for (const column of ["history_points", "trend_points", "buy_signal", "fx_date", "fetched_at"]) assert.ok(!SAVED_PRICE_SUMMARY_COLUMNS.split(",").includes(column), column)
   assert.equal(lean.historyPoints, undefined)
   assert.equal(lean.marketGbpAmount, 5)
   const full = syntheticPrices([row("synthetic-1")])

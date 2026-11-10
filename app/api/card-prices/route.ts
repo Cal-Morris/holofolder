@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { SAVED_PRICES_WITHOUT_HISTORY_MAX_CARDS, loadSavedCardPrices, loadDisplayFxRates, normalizeCardPriceLookups, refreshCardPriceLookups } from "@/lib/card-pricing"
+import { SAVED_PRICE_SUMMARY_MAX_CARDS, loadSavedCardPrices, loadDisplayFxRates, normalizeCardPriceLookups, refreshCardPriceLookups } from "@/lib/card-pricing"
 
 const MAX_CARD_IDS = 200
 
@@ -33,16 +33,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Download existing evidence, including finish quotes, without provider calls. Full evidence (with history)
- * allows 25 cards; `history=0` leaves history out and allows SAVED_PRICES_WITHOUT_HISTORY_MAX_CARDS. */
+/** Download existing evidence without provider calls. Full evidence (with history) allows 25 cards;
+ * `fields=summary` returns only SAVED_PRICE_SUMMARY_COLUMNS and allows SAVED_PRICE_SUMMARY_MAX_CARDS. */
 export async function GET(request: NextRequest) {
   const headers = { "Cache-Control": "no-store" }
   try {
     const cards = JSON.parse(request.nextUrl.searchParams.get("cards") ?? "[]")
-    const history = request.nextUrl.searchParams.get("history") !== "0"
-    const max = history ? 25 : SAVED_PRICES_WITHOUT_HISTORY_MAX_CARDS
+    const summary = request.nextUrl.searchParams.get("fields") === "summary"
+    const max = summary ? SAVED_PRICE_SUMMARY_MAX_CARDS : 25
     if (!Array.isArray(cards) || cards.length > max) return NextResponse.json({ error: `Request at most ${max} cards.` }, { status: 400, headers })
-    const prices = await loadSavedCardPrices(normalizeCardPriceLookups(cards), { history })
+    const prices = await loadSavedCardPrices(normalizeCardPriceLookups(cards), { summary })
     return NextResponse.json({ prices }, { headers })
   } catch {
     return NextResponse.json({ error: "Saved prices are unavailable." }, { status: 503, headers })

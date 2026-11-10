@@ -3,14 +3,14 @@ import assert from "node:assert/strict"
 import { readSavedInventoryPrices, SAVED_INVENTORY_PRICE_CONCURRENCY } from "@/hooks/use-inventory-prices"
 import { inventoryProjectionPrices } from "./fixtures/inventory-browse"
 
-test("saved inventory reader fetches distinct identities once, GET only without history, <=100 per group, a few in flight", async () => {
+test("saved inventory reader fetches distinct identities once, GET only, summary fields, <=100 per group, a few in flight", async () => {
   const sizes: number[] = []
   let inFlight = 0, peak = 0
   const requests = Array.from({ length: 655 }, (_, i) => ({ cardId: `synthetic-${i}`, language: "en" as const }))
   const fetcher: typeof fetch = async (input, init) => {
     const url = new URL(String(input), "https://synthetic.invalid")
     assert.equal(url.pathname, "/app/api/card-prices")
-    assert.equal(url.searchParams.get("history"), "0")
+    assert.equal(url.searchParams.get("fields"), "summary")
     assert.equal(init?.method, undefined)
     assert.equal(init?.cache, "no-store")
     const cards = JSON.parse(url.searchParams.get("cards")!)

@@ -261,18 +261,20 @@ export function normalizeCardPriceLookups(values: unknown[]): CardPriceLookup[] 
   return [...byKey.values()]
 }
 
-/** Every card_prices column except history_points, which only the card detail evidence view reads. */
-export const SAVED_PRICE_COLUMNS_WITHOUT_HISTORY = "card_id,language,gbp_amount,market_gbp_amount,good_gbp_amount,low_gbp_amount,high_gbp_amount,confidence,source_prices,trend_points,buy_signal,original_amount,original_currency,source,variant_label,source_updated_at,fx_date,fetched_at,finish_prices"
+/** Columns the saved-only summary consumers (Inventory, native analytics, Quick check) render or compute from:
+ * headline amounts, range, confidence, source evidence and finish quotes (which carry their own trend and signal).
+ * history_points, root trend_points / buy_signal, fx_date and fetched_at stay server-side. */
+export const SAVED_PRICE_SUMMARY_COLUMNS = "card_id,language,gbp_amount,market_gbp_amount,good_gbp_amount,low_gbp_amount,high_gbp_amount,confidence,source_prices,original_amount,original_currency,source,variant_label,source_updated_at,finish_prices"
 const SAVED_PRICE_QUERY_IDS = 200
-/** Cards per history-free saved-price GET. 100 lookups encode to ~7 KB of URL; 200 would near Vercel's 14 KB cap. */
-export const SAVED_PRICES_WITHOUT_HISTORY_MAX_CARDS = 100
+/** Cards per summary saved-price GET. 100 lookups encode to ~7 KB of URL; 200 would near Vercel's 14 KB cap. */
+export const SAVED_PRICE_SUMMARY_MAX_CARDS = 100
 
 /** Saved server evidence only. Never refreshes a provider. One query per language and 200 card IDs (PK is
- * card_id, language), so each returns at most 200 rows, below PostgREST's 1000-row cap. Without history,
- * snapshots carry no historyPoints at all (unknown, not empty). */
-export async function loadSavedCardPrices(lookups: CardPriceLookup[], options: { history?: boolean; db?: Pick<ReturnType<typeof createAdminClient>, "from"> } = {}): Promise<CardPriceSnapshot[]> {
+ * card_id, language), so each returns at most 200 rows, below PostgREST's 1000-row cap. A summary read
+ * selects SAVED_PRICE_SUMMARY_COLUMNS and its snapshots carry no historyPoints (unknown, not empty). */
+export async function loadSavedCardPrices(lookups: CardPriceLookup[], options: { summary?: boolean; db?: Pick<ReturnType<typeof createAdminClient>, "from"> } = {}): Promise<CardPriceSnapshot[]> {
   const requested = normalizeCardPriceLookups(lookups)
-  const history = options.history !== false
+  const summary = options.summary === true
   const db = options.db ?? (await import("@/lib/supabase/admin")).createAdminClient()
   const byLanguage = new Map<string, string[]>()
   for (const { cardId, language } of requested) byLanguage.set(language, [...(byLanguage.get(language) ?? []), cardId])
@@ -280,14 +282,14 @@ export async function loadSavedCardPrices(lookups: CardPriceLookup[], options: {
     (_, i) => ({ language, ids: ids.slice(i * SAVED_PRICE_QUERY_IDS, (i + 1) * SAVED_PRICE_QUERY_IDS) })))
   const keys = new Set(requested.map(card => getCardPriceKey(card.cardId, card.language)))
   const pages = await Promise.all(queries.map(async ({ language, ids }) => {
-    const { data, error } = await db.from("card_prices").select(history ? "*" : SAVED_PRICE_COLUMNS_WITHOUT_HISTORY)
+    const { data, error } = await db.from("card_prices").select(summary ? SAVED_PRICE_SUMMARY_COLUMNS : "*")
       .eq("language", language).in("card_id", ids)
     if (error) throw new Error("Saved prices are unavailable")
     return (data ?? []) as unknown as CardPriceRow[]
   }))
   return pages.flat().filter(row => keys.has(getCardPriceKey(row.card_id, row.language))).map(row => {
     const snapshot = rowToSnapshot(row)
-    if (!history) delete snapshot.historyPoints
+    if (summary) delete snapshot.historyPoints
     return snapshot
   })
 }
