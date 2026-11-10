@@ -41,21 +41,22 @@ test('native recovery versions, replacement scope and immutable creation IDs are
   for (const change of [{ slotIds: [] }, { version: 2 }, { ownerUserId: collectionId }, { name: ' needs normalization ' }, { defaultPresentation: 'slabs' }]) {
     assert.equal(schema('create_storage_collection').safeParse({ ...creation, ...change }).success, false)
   }
-  // No paged developer adapter is admitted by this slice, no legacy read is substituted.
-  for (const path of ['/storage/inventory', '/storage/collections', '/storage/slots']) assert.equal(matchRestOperation('GET', path), null)
+  // Reads have their own staged adapter; no legacy read alias is substituted.
+  for (const path of ['/storage/inventory', '/storage/slots']) assert.equal(matchRestOperation('GET', path), null)
+  assert.equal(matchRestOperation('GET', '/storage/collections')?.operation.admission, 'staged')
 })
 
 test('generated native references and agent Markdown preserve staging, scopes and actual receipt schemas', () => {
   const paths = spec.paths as Record<string, Record<string, { 'x-admission'?: string; responses: Record<string, { description: string; content?: unknown }> }>>
   for (const op of DEVELOPER_OPERATIONS.filter(op => op.admission === 'staged')) {
-    const documented = paths[op.path].post
+    const documented = paths[op.path][op.method.toLowerCase()]
     assert.equal(documented['x-admission'], 'staged')
     assert.match(documented.responses['503'].description, /native_operations_staged/)
     assert.match(documented.responses['200'].description, /Currently returns 503/)
     assert.ok(documented.responses['200'].content)
     assert.ok(documented.responses['403'].content)
     assert.equal(op.idempotent, true)
-    const markdown = formatEndpointMarkdown({ title: op.name, url: '/docs/reference/collection/' + op.name.replaceAll('_', '-'), method: 'POST', path: op.path, operation: documented })
+    const markdown = formatEndpointMarkdown({ title: op.name, url: '/docs/reference/collection/' + op.name.replaceAll('_', '-'), method: op.method, path: op.path, operation: documented })
     assert.match(markdown, /"x-admission": "staged"/)
     assert.match(markdown, /native_operations_staged/)
   }

@@ -8,7 +8,7 @@ import { formatPokemonDisplayName, getPokemonById } from "@/lib/pokemon-catalog"
 
 type Row = Record<string, unknown>
 /** Public mirror only. No owner filter, private cache key, upstream lookup or sync. */
-export async function readInventoryCatalog(db: SupabaseClient, snapshot: InventorySnapshot, signal: AbortSignal, check: () => void): Promise<InventoryCatalogEvidence[]> {
+export async function readInventoryCatalog(db: SupabaseClient, snapshot: InventorySnapshot, signal: AbortSignal, check: () => void, accountBytes?: (value: unknown) => void): Promise<InventoryCatalogEvidence[]> {
   const ids = [...new Set([
     ...snapshot.items.flatMap(i => i.identity.kind === "card" ? [i.identity.cardId] : []),
     ...snapshot.binders.flatMap(b => b.slots.flatMap(s => [s.target?.kind === "card" ? s.target.cardId : null, ...s.wantedCards.map(w => w.card_id)])),
@@ -24,6 +24,7 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
         if (after !== null) query = query.gt(pageKey, after)
         const response = await query.abortSignal(signal)
         if (response.error || !Array.isArray(response.data) || response.data.length > 500) throw new Error("inventory_read_unavailable")
+        accountBytes?.(response.data)
         const page = response.data as unknown as Row[]
         for (const row of page) {
           if (!values.slice(i, i + 100).includes(String(row[key])) || !isSlotContractId(row[pageKey]) || seen.has(String(row[pageKey]))) throw new Error("inventory_read_unavailable")
@@ -46,6 +47,7 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
         if (after !== null) query = query.gt("id", after)
         const response = await query.abortSignal(signal)
         if (response.error || !Array.isArray(response.data) || response.data.length > 500) throw new Error("inventory_read_unavailable")
+        accountBytes?.(response.data)
         const page = response.data as unknown as Row[]
         for (const row of page) {
           const metadata = readCatalogMetadata(row.external_ids_json)
@@ -67,6 +69,7 @@ export async function readInventoryCatalog(db: SupabaseClient, snapshot: Invento
       const response = await db.from("tcg_card_dex_ids").select("card_id,dex_id").in("card_id", cardIds.slice(i, i + 100))
         .order("card_id").order("dex_id").range(offset, offset + 499).abortSignal(signal)
       if (response.error || !Array.isArray(response.data)) throw new Error("inventory_read_unavailable")
+      accountBytes?.(response.data)
       links.push(...response.data as unknown as Row[])
       if (response.data.length < 500) break
       offset += 500

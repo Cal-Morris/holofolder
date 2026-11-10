@@ -42,3 +42,7 @@ Collection updates must protect against overwriting a newer edit. Duplicate retr
 ## Staged native storage
 
 [Native storage contracts](/docs/native-storage) declare their fixed 503 admission, exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy or expose developer inventory reads. Existing collection and Activity Undo operations remain available under their current contract.
+
+## Native read staging
+
+[Native developer reads](/docs/native-reads) declare a private redacted copy/storage/slot projection with signed scope/filter/revision-bound cursors. They remain fixed-denied until #379. A response page is never a complete planning snapshot or a fresh-read queue ACK. Existing legacy collection and Activity/Undo contracts stay available.

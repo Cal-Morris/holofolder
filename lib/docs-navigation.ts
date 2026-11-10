@@ -13,6 +13,7 @@ const referenceGroups = {
     { name: 'Imports', path: /^\/imports\// },
     { name: 'Sharing & appearance', path: /^\/(binders\/\{binderId\}\/(identity|sharing)|appearance|artwork)(\/|$)/ },
     { name: 'Show purchases', path: /^\/show-purchases(\/|$)/ },
+    { name: 'Inventory', path: /^\/inventory\// },
     { name: 'Native storage', path: /^\/storage\// },
   ],
   'reference/prices-and-insights': [

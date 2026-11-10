@@ -18,7 +18,7 @@ async function main() {
   paths[op.path]??={};paths[op.path][op.method.toLowerCase()]={operationId:op.name,summary,description,tags:[group],security:[{apiKey:[]}],parameters,
    ...(op.admission?{'x-admission':op.admission}:{}),...(op.maxBytes?{'x-max-body-bytes':op.maxBytes}:{}),
    ...(op.method==='GET'?{}:{requestBody:{required:true,content:{'application/json':{schema:{...schema,properties,required}}}}}),responses:Object.fromEntries([200,400,401,402,403,404,409,413,422,429,503].map(status=>[String(status),{
-    description:status===200?(op.admission==='staged'?'Receipt contract after future admission only. Currently returns 503.':'Success'):status===503&&op.admission==='staged'?'native_operations_staged: valid authorized requests are denied until #379. Execution is not enabled.':'See the API conventions page.',
+    description:status===200?(op.admission==='staged'?(op.method==='GET'?'Read projection contract after future admission only. Currently returns 503.':'Receipt contract after future admission only. Currently returns 503.'):'Success'):status===503&&op.admission==='staged'?'native_operations_staged: valid authorized requests are denied until #379. Execution is not enabled.':'See the API conventions page.',
     ...(status===200&&op.responseSchema?{content:{'application/json':{schema:z.toJSONSchema(op.responseSchema)}}}:{}),
     ...(status!==200&&op.admission?{content:{'application/json':{schema:z.toJSONSchema(z.object({error:z.object({code:z.string(),message:z.string(),requestId:z.string()}).strict()}).strict())}}}:{}),
    }]))}
