@@ -84,7 +84,8 @@ export function assertStagedSmokeResponse(operation:string,value:unknown) {
  assert.deepEqual(Object.keys(body),['error'])
  assert.deepEqual(Object.keys(error).sort(),['code','message','requestId'])
  assert.equal(error.code,'native_operations_staged')
- string(error.message);string(error.requestId)
+ assert.equal(error.message,'Native storage operations are not enabled. Complete developer reads and rollout acceptance under #379 are still required.')
+ string(error.requestId);assert.ok(String(error.requestId).trim().length>0,'Missing request ID')
 }
 
 /** Terminal rejection is an error outcome, never successful execution coverage or an inferred conflict. */
@@ -93,4 +94,17 @@ export function assertTerminalStorageSmokeResponse(operation:string,value:unknow
  assert.ok(registered?.errorSchemas?.[409], 'Operation has no terminal rejection contract')
  const parsed=storageCommandErrorSchema.parse(value)
  assert.equal(parsed.error.rejection.operationId,input.operationId,'Terminal proof must bind the original operation ID')
+}
+
+/** Called before a sample is marked passed or persisted, including staged error-body checks. */
+export function assertSmokeHttpResponse(operation:string,status:number,value:unknown,input:Row,expectedStatus:number,scenario:string) {
+ assert.ok(API_SMOKE_ASSERTIONS[operation],'Missing response assertion for '+operation)
+ assert.equal(status,expectedStatus,`Unexpected HTTP status for ${operation}`)
+ const staged=[...NATIVE_DEVELOPER_OPERATIONS,...NATIVE_READ_OPERATIONS,...PRESET_OPERATIONS].some(op=>op.name===operation&&op.admission==='staged')
+ if(staged) {
+  assert.equal(scenario,'native-staged','Native smoke is denial-only')
+  assert.equal(expectedStatus,503,'Native smoke requires fixed 503 admission')
+  assertStagedSmokeResponse(operation,value)
+ } else if(expectedStatus<400)assertSmokeResponse(operation,value,input)
+ else {const error=object(object(value).error);string(error.code)}
 }

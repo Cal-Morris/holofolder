@@ -1,12 +1,11 @@
-import {PRESET_OPERATIONS} from "../lib/developer-api/presets"
-import {NATIVE_READ_OPERATIONS} from "../lib/developer-api/native-read"
 // Real HTTP checks against disposable, explicitly labelled accounts. Never uses a personal collection.
 import {writeFile} from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import {AwsClient} from 'aws4fetch'
 import {getPrivateArtworkConfig} from '../lib/server/binder-artwork-r2'
 import {getR2BucketEndpoint} from '../lib/card-image-r2'
-import {assertSmokeResponse,assertStagedSmokeResponse} from './api-smoke-assertions'
+import {API_SMOKE_ASSERTIONS,assertSmokeHttpResponse} from './api-smoke-assertions'
+import {stagedSmokeInputs,validateStagedSmokeInputs} from './api-smoke-staged'
 import {randomUUID} from 'node:crypto'
 import {Client} from 'pg'
 import {createAdminClient} from '../lib/supabase/admin'
@@ -14,7 +13,7 @@ import {createDeveloperKey} from '../lib/server/developer-access/key-secret'
 import {DEVELOPER_OPERATIONS} from '../lib/developer-api/operations'
 import {DEVELOPER_PERMISSIONS} from '../lib/developer-api/permissions'
 import {defaultBinderDesign} from '../lib/binder-design'
-import {readServerTiming,summarizeApiPerformance,type ApiPerformanceSample} from '../lib/developer-api/performance-checks'
+import {apiSmokeExitCode,readServerTiming,summarizeApiPerformance,summarizeApiSmokeCoverage,type ApiPerformanceSample} from '../lib/developer-api/performance-checks'
 import {loadProjectEnvFiles} from '../lib/load-project-env'
 
 const record=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
@@ -22,6 +21,9 @@ const arg=(name:string)=>{const i=process.argv.indexOf(name);return i<0?undefine
 
 async function main() {
  if(!process.argv.includes('--isolated-fixtures'))throw new Error('Pass --isolated-fixtures to create and clean up disposable performance accounts.')
+ const stagedInputs=stagedSmokeInputs(randomUUID(),randomUUID())
+ const stagedOperations=validateStagedSmokeInputs(stagedInputs)
+ for(const op of DEVELOPER_OPERATIONS)assert.equal(typeof API_SMOKE_ASSERTIONS[op.name],'function','Missing response assertion for '+op.name)
  await loadProjectEnvFiles()
  const base=arg('--base-url')??'https://app.holofolder.com/app/api/v1'
  const target=new URL(base)
@@ -39,7 +41,7 @@ async function main() {
  let activeJob:string|null=null
  const windows=new Map<string,{minute:number;requests:number}>()
  async function persist() {
-  await writeFile(output,JSON.stringify({runId,base,measuredAt:new Date().toISOString(),samples,operations:summarizeApiPerformance(samples),failures,cleanup},null,2))
+  await writeFile(output,JSON.stringify({runId,base,measuredAt:new Date().toISOString(),samples,operations:summarizeApiPerformance(samples),coverage:summarizeApiSmokeCoverage(samples),failures,cleanup},null,2))
  }
  async function fixture() {
   const email=`${label}-${actors.length}@example.invalid`
@@ -78,10 +80,8 @@ async function main() {
   samples.push(sample)
   let result:Record<string,unknown>={}
   try {
-   assert.equal(response.status,expectedStatus,`Unexpected HTTP status for ${name}`)
    result=record(JSON.parse(new TextDecoder().decode(bytes)))
-   if(expectedStatus<400)assertSmokeResponse(name,result,parsed)
-   else {const error=record(result.error);assert.equal(typeof error.code,'string','Expected a structured API error')}
+   assertSmokeHttpResponse(name,response.status,result,parsed,expectedStatus,scenario)
    sample.assertionsPassed=true
   } catch(error) {sample.assertionsPassed=false;throw error}
   finally {console.log(JSON.stringify(sample));await persist()}
@@ -97,13 +97,8 @@ async function main() {
   const owner=await fixture(),partner=await fixture()
   const defaultBinder=(await db.query('SELECT public.ensure_default_binder($1) id',[owner.id])).rows[0].id as string
   // Denial is staging proof, never successful native execution/performance coverage.
-  for(const operation of NATIVE_READ_OPERATIONS) {
-   const input={...(operation.schema.shape.collectionId?{collectionId:defaultBinder}:{}),...(operation.schema.shape.id?{id:'synthetic-native-record'}:{})}
-   assertStagedSmokeResponse(operation.name,await call(operation.name,input,owner,0,'native-staged',503))
-  }
-  for(const operation of PRESET_OPERATIONS) {
-   const input=operation.name==='preview_storage_preset'?{presetId:'blank',version:'1'}:{}
-   assertStagedSmokeResponse(operation.name,await call(operation.name,input,owner,0,'native-staged',503))
+  for(const operation of stagedOperations) {
+   await call(operation.name,stagedInputs[operation.name],owner,0,'native-staged',503)
   }
   // Clearly synthetic owned data exercises nonempty collection lists and pagination.
   await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) SELECT $1,$2,n,'Synthetic performance slot '||n,'considering' FROM generate_series(1,1010) n",[owner.id,defaultBinder])
@@ -225,10 +220,11 @@ async function main() {
   cleanup.users=actors.length>0&&(await db.query('SELECT count(*)::int n FROM auth.users WHERE id=ANY($1::uuid[])',[actors.map(actor=>actor.id)])).rows[0].n===0
   await persist();await db.end()
  }
- const summary=summarizeApiPerformance(samples)
- console.log(JSON.stringify({event:'coverage',verified:summary.filter(row=>row.verified).length,total:summary.length,cleanup}))
- if(failures.length||summary.some(row=>!row.verified)||!cleanup.users)process.exitCode=1
- else if(cleanup.artwork.length){console.error('Delete only the disposable private object keys in cleanup.artwork using the Cloudflare account connection.');process.exitCode=2}
- if(process.argv.includes('--strict-performance')&&summary.some(row=>row.targetMet===false))process.exitCode=1
+ const coverage=summarizeApiSmokeCoverage(samples)
+ console.log(JSON.stringify({event:'coverage',successVerified:coverage.filter(row=>row.successVerified).length,
+  stagedDenialVerified:coverage.filter(row=>row.stagedDenialVerified).length,uncovered:coverage.filter(row=>row.coverage==='uncovered').length,
+  total:coverage.length,nativeExecutionVerified:false,cleanup}))
+ process.exitCode=apiSmokeExitCode(samples,failures,cleanup,process.argv.includes('--strict-performance'))
+ if(cleanup.artwork.length)console.error('Delete only the disposable private object keys in cleanup.artwork using the Cloudflare account connection.')
 }
 if(import.meta.main)main().catch(()=>{console.error('Performance setup failed; inspect the output cleanup state.');process.exitCode=1})

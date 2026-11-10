@@ -8,7 +8,8 @@ import { inventoryGradingLabel } from "@/lib/inventory-query"
 import { inventoryLocationLabel } from "@/lib/inventory-location"
 import styles from "./inventory.module.css"
 
-export default function InventoryDetail({ row, cached, onClose, onOpenLocation }: {
+export default function InventoryDetail({ row, cached, onClose, onOpenLocation, onEditGrading }: {
+  onEditGrading?: () => void
   row: InventoryBrowseRow; cached: boolean; onClose: () => void; onOpenLocation?: (intent: InventoryLocationIntent) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -23,6 +24,7 @@ export default function InventoryDetail({ row, cached, onClose, onOpenLocation }
       <div className={styles.sheetBody}>
         {row.location.kind === "assigned" && onOpenLocation && <button type="button" className={styles.openLocation}
           onClick={() => { if (row.location.kind === "assigned") onOpenLocation({ ...row.location.intent }) }}>Open location</button>}
+        {onEditGrading && row.cardId && <button type="button" className={styles.openLocation} onClick={onEditGrading}>Edit grading</button>}
         <h3>{row.name ?? (row.speciesNames.join(", ") || "Unknown card")}</h3>
         <p>{row.setName ?? "Set unknown"} · {row.number ? `#${row.number}` : "Number unknown"}</p>
         <p>{row.language ?? "Language unknown"} · {row.finish ?? "Finish unknown"}</p>
