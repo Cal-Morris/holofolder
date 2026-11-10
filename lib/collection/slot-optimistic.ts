@@ -86,6 +86,7 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
   } else {
     const used = new Set<string>()
     for (const c of intent.request.commands) {
+      if (c.kind === "patchGrading" || ("fulfillWant" in c && c.fulfillWant && "expectedPublic" in c.fulfillWant)) return fail("server-only-private-patch")
       const before = structuredClone(state)
       const refs: InventorySlotRef[] = []
       if ("item" in c) { checkItem(c.item); if (c.item.placement) refs.push(c.item.placement) }
@@ -120,6 +121,7 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
           }
         }
         if (c.fulfillWant) {
+          if (!("expected" in c.fulfillWant)) return fail("server-only-private-patch")
           const slot = state.binders.find(b => b.collectionId === c.destination.collectionId)!.slots.find(s => s.id === c.destination.slot.id)!
           if (!sameValue(slot.wantedCards[c.fulfillWant.index], c.fulfillWant.expected)) return fail("wanted-conflict")
           const assigned = state.items.find(i => i.id === slot.inventoryItemId)!

@@ -7,9 +7,20 @@ import type { WantedCard } from "@/lib/domain/cards"
 
 export interface InventorySlotRef { collectionId: string; slot: SlotPrecondition }
 export interface InventoryItemRef { itemId: string; itemVersion: number; placement: InventorySlotRef | null }
-export type SelectedWant = { index: number; expected: WantedCard } | null
+export type PublicWantedCard = Omit<WantedCard, "wanted_by" | "card_image">
+export type SelectedWant = { index: number; expected: WantedCard } | { index: number; expectedPublic: PublicWantedCard } | null
+/** Public fields only. Omission preserves; null clears nullable fields. Existing graded copies only. */
+export type GradingPatch = Partial<Pick<GradingRecord, "provider" | "grade" | "scale" | "designation" | "subgrades" | "holder">> & { labelVariant?: string | null }
+export function isGradingPatch(value: unknown): value is GradingPatch {
+  if (!isContractRecord(value, ["provider", "grade", "scale", "designation", "subgrades", "holder", "labelVariant"]) || !Object.keys(value).length) return false
+  const { labelVariant, ...fields } = value
+  const probe = { provider: { kind: "known", id: "psa" }, grade: null, scale: null, designation: null, subgrades: [], certificate: null, holder: null,
+    ...fields, label: { variant: labelVariant === undefined ? null : labelVariant, assetIds: [] } }
+  return normalizeGradingRecord(probe) !== undefined
+}
 export type InventoryCommand =
   | { kind: "add"; itemId: string; identity: InventoryIdentity; grading: GradingRecord | null; acquiredAt: string | null }
+  | { kind: "patchGrading"; item: InventoryItemRef; patch: GradingPatch }
   | { kind: "edit"; item: InventoryItemRef; grading: GradingRecord | null }
   | { kind: "removeOwned" | "unassign"; item: InventoryItemRef }
   | { kind: "assign"; selection: InventorySelection; destination: InventorySlotRef; occupied: "cancel" | "unassign"; fulfillWant: SelectedWant }
@@ -58,12 +69,15 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
   const checkSlot = (s: unknown) => slot(s) && collections.has(s.collectionId)
   const checkItem = (i: unknown) => item(i) && (i.placement === null || checkSlot(i.placement))
   for (const c of value.commands) {
-    if (!isContractRecord(c, ["kind", "itemId", "identity", "grading", "acquiredAt", "item", "selection", "destination", "occupied", "fulfillWant", "slots", "collectionId", "replacementDefaultCollectionId"])) return invalid()
+    if (!isContractRecord(c, ["kind", "itemId", "identity", "grading", "acquiredAt", "item", "selection", "destination", "occupied", "fulfillWant", "slots", "collectionId", "replacementDefaultCollectionId", "patch"])) return invalid()
     if (c.kind === "add") {
       affected += 2
       const identity = normalizeInventoryIdentity(c.identity)
       if (!exact(c, ["kind", "itemId", "identity", "grading", "acquiredAt"]) || !isSlotContractId(c.itemId) || !identity || normalizeGradingRecord(c.grading) === undefined
         || (identity.kind === "pokemon" && c.grading !== null) || (c.acquiredAt !== null && (typeof c.acquiredAt !== "string" || !Number.isFinite(Date.parse(c.acquiredAt))))) return invalid()
+    } else if (c.kind === "patchGrading") {
+      affected += 2
+      if (!exact(c, ["kind", "item", "patch"]) || !checkItem(c.item) || !isGradingPatch(c.patch)) return invalid()
     } else if (c.kind === "edit" || c.kind === "removeOwned" || c.kind === "unassign") {
       affected += 2
       if (!exact(c, c.kind === "edit" ? ["kind", "item", "grading"] : ["kind", "item"]) || !checkItem(c.item)
@@ -81,9 +95,13 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
         } else if (s.kind !== "catalog" || !exact(s, ["kind", "identity", "newItemId"]) || normalizeInventoryIdentity(s.identity)?.kind !== "card" || !isSlotContractId(s.newItemId)) return invalid()
       }
       if (c.fulfillWant !== null) {
-        if (!isContractRecord(c.fulfillWant, ["index", "expected"]) || !isSlotRevision(c.fulfillWant.index) || c.fulfillWant.index >= 100) return invalid()
+        if (!isContractRecord(c.fulfillWant, ["index", "expected", "expectedPublic"]) || !isSlotRevision(c.fulfillWant.index) || c.fulfillWant.index >= 100) return invalid()
+        const publicOnly = "expectedPublic" in c.fulfillWant
+        if (!exact(c.fulfillWant, ["index", publicOnly ? "expectedPublic" : "expected"])) return invalid()
+        const expected = publicOnly ? c.fulfillWant.expectedPublic : c.fulfillWant.expected
+        if (publicOnly && (!isContractRecord(expected, ["card_id", "card_name", "added_at", "card_language", "card_finish", "card_set", "rarity", "local_id", "illustrator", "set_total"]))) return invalid()
         if (!normalizeBinderSlot({ id: "validation", ownerUserId: "validation", collectionId: "validation", target: null,
-          inventoryItemId: null, wantedCards: [c.fulfillWant.expected], status: null, version: 0, presetOrigin: null })) return invalid()
+          inventoryItemId: null, wantedCards: [expected], status: null, version: 0, presetOrigin: null })) return invalid()
       }
     } else if (c.kind === "removeSlots") {
       if (!exact(c, ["kind", "slots"]) || !Array.isArray(c.slots) || !c.slots.length || !c.slots.every(checkSlot)) return invalid()

@@ -185,6 +185,20 @@ async function main() {
         currentOwner = owner
       } else assert.equal(lost.result.error.code, 'native_operations_staged')
     }
+    for (const [index, commands] of [
+      [{ kind: 'patchGrading', item: placedItem, patch: { grade: null, labelVariant: 'Synthetic new label' } }],
+      [{ ...safeInventory.commands[0], fulfillWant: { index: 1, expectedPublic: { card_id: 'synthetic-card', card_name: 'Synthetic', added_at: '2020-01-01' } } }],
+    ].entries()) {
+      const originalIntent = { ...safeInventory, commands, operationId: 'synthetic-transactional-patch-' + transport + '-' + index }
+      const supplied = { ...originalIntent, privateFields: 'preserve', expectedOwnerUserId: owner }
+      const result = await call(transport, 'execute_inventory_commands', supplied)
+      if (wired) {
+        assert.equal(result.result.error, undefined)
+        assert.deepEqual(calls.at(-1)?.request, originalIntent, 'both transports forward original public intent, never reconstructed private JSON')
+        const replay = await call(transport, 'execute_inventory_commands', supplied)
+        assert.deepEqual(replay.result, result.result)
+      } else assert.equal(result.result.error.code, 'native_operations_staged')
+    }
     const unsupported = [
       ['execute_inventory_commands', { ...safeInventory, commands: [{ kind: 'edit', item: placedItem, grading: null }] }],
       ['execute_inventory_commands', { ...safeInventory, commands: [{ ...safeInventory.commands[0], fulfillWant: { index: 0, expected: { card_id: 'synthetic-card', card_name: 'Synthetic', added_at: '2020-01-01' } } }] }],
