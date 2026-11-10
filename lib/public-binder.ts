@@ -8,12 +8,13 @@ export interface PublicDisplaySlot {
   /** cardId is the public canonical catalog printing, present only when the catalog resolves it. */
   target: { kind: 'pokemon'; pokemonId: number } | { kind: 'card'; cardId?: string; language?: CardLanguage; finish?: CardFinish } | null
   item: { grading: { grade: string | null } | null } | null
-  card: (DisplayCatalogCard & { id?: string; language?: CardLanguage }) | null
+  /** id, language and catalog species links are public catalog data, present only when the catalog resolves the printing. */
+  card: (DisplayCatalogCard & { id?: string; language?: CardLanguage; pokemonIds?: number[] }) | null
   pokemon: { id: number; name: string } | null
   recordedProvider?: string
   marketGBP?: number
   /** Stored wants in order, display name and artwork only. Omitted when the slot has none. */
-  wantedCards?: { card_name: string; card_image?: string; card_id?: string; card_language?: CardLanguage }[]
+  wantedCards?: { card_name: string; card_image?: string; card_id?: string; card_language?: CardLanguage; pokemonIds?: number[] }[]
 }
 export interface PublicBinder {
   kind: 'native' | 'legacy'

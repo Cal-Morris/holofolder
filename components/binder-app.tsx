@@ -119,6 +119,7 @@ import { BinderSkeleton } from "@/components/binder-skeleton"
 import NativeStartupRecorder from "@/components/collection-navigation/native-startup-recorder"
 import { browserHostAdmission } from "@/lib/collection/browser-host-admission"
 import type { BrowserSurfaceBinding } from "@/components/collection-navigation/browser-session"
+import type { PublicReadIndex } from "@/lib/public-binder-display"
 import type { ReactNode } from "react"
 const NativeBinderScanner = dynamic(() => import("@/components/binder/native-scanner"), { ssr: false })
 const BrowserCollectionSession = dynamic(() => import("@/components/collection-navigation/browser-session"), { ssr: false })
@@ -138,8 +139,10 @@ interface BinderAppProps {
   browserSurface?: BrowserSurfaceBinding
   browserHeader?: ReactNode
   onBrowserSignOut?: () => Promise<void>
-  /** Internal staged read-only injection. Never supplied by production bootstrap or share routes. */
+  /** Staged read-only injection: the session-less public share adapter or internal harnesses. Never the owner bootstrap. */
   stagedSlotDisplay?: SlotDisplayInput
+  /** Public share navigation built from the public projection alone. Only used with stagedSlotDisplay and no browser session. */
+  publicIndex?: PublicReadIndex
   /** Internal owner-only draft sink. No production caller or transport is enabled. */
   onStagedSlotCommandIntent?: SlotCommandSink
   stagedSlotSessionId?: string
@@ -268,6 +271,7 @@ function BinderAppSurface(props: BinderAppProps) {
   initialBinders = [],
   initialBinderId = null,
 } = props
+  const publicIndex = stagedSlotDisplay && !browserSurface ? props.publicIndex : undefined
   const readOnlyMode = legacyReadOnlyMode || Boolean(stagedSlotDisplay) || Boolean(browserSurface)
   const accountSettingsReadOnly = legacyReadOnlyMode || Boolean(shareViewToken) || (Boolean(stagedSlotDisplay) && !browserSurface)
   const router = useRouter()
@@ -1209,8 +1213,15 @@ function BinderAppSurface(props: BinderAppProps) {
     boundary={layoutBoundary} bulk={browserSurface ? { collapsible: true, pageIndex: currentBinderPage - 1, rows: settings.binderRows, cols: settings.binderCols, sessionKey: layoutSession?.id ?? "browse", onPageChange: pageIndex => setCurrentBinderPage(pageIndex + 1) } : undefined} onToggle={() => { closeSlotDetail(); setLayoutSession(editingLayout ? null : { scope: layoutScopeKey, id: crypto.randomUUID() }) }} /> : undefined
   const getDisplayPageSlots = orderedDisplayPages ? (page: number) => orderedDisplayPages[page - 1] ?? Array.from({ length: slotsPerPage }, () => null) : undefined
 
+  // A share's search/jump destination opens after the page or view change that would otherwise close it.
+  const pendingPublicSlotRef = useRef<string | null>(null)
   useEffect(() => {
-    queueMicrotask(closeSlotDetail)
+    queueMicrotask(() => {
+      const pending = pendingPublicSlotRef.current
+      pendingPublicSlotRef.current = null
+      if (pending) setSelectedSlotId(pending)
+      else closeSlotDetail()
+    })
   }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen, closeSlotDetail])
 
   const getPageSlots = useCallback((pageNumber: number) => {
@@ -1289,14 +1300,14 @@ function BinderAppSurface(props: BinderAppProps) {
     [filteredTrackedCards],
   )
   const wantedCardEntries = useMemo(
-    () => collection.flatMap((item) =>
+    () => publicIndex ? publicIndex.wantEntries : collection.flatMap((item) =>
       (item.wanted_cards ?? []).map((card) => ({
         pokemonId: item.pokemon_id,
         pokemonName: item.pokemon_name,
         card,
       })),
     ),
-    [collection],
+    [collection, publicIndex],
   )
   const wantedPriceLookups = useMemo<CardPriceLookup[]>(
     () => wantedCardEntries.map(({ card }) => ({ cardId: card.card_id, language: card.card_language ?? "en" })),
@@ -2225,7 +2236,18 @@ function BinderAppSurface(props: BinderAppProps) {
     setIsSyncingLocalCollection(false)
   }
 
+  // A share opens the exact pocket: species results go to its first needed/wanted pocket, wants to their own pocket.
+  const openPublicLocation = useCallback((location: { page: number; slotId: string } | null) => {
+    cancelPageNavigation()
+    setIsSearchOpen(false)
+    setActiveMainView("binder")
+    if (!location) return
+    if (location.page !== currentBinderPage || activeMainView !== "binder") pendingPublicSlotRef.current = location.slotId
+    setCurrentBinderPage(location.page)
+    setSelectedSlotId(location.slotId)
+  }, [cancelPageNavigation, currentBinderPage, activeMainView])
   const handlePokemonSelect = useCallback((pokemon: PokemonSummary) => {
+    if (publicIndex) return openPublicLocation(publicIndex.speciesLocation(pokemon.id))
     cancelPageNavigation()
     viewRequestRef.current += 1
     transitionContent(null, () => {})
@@ -2238,9 +2260,10 @@ function BinderAppSurface(props: BinderAppProps) {
       const targetPage = Math.ceil((idx + 1) / slotsPerPage)
       setCurrentBinderPage(targetPage)
     }
-  }, [pokemonList, slotsPerPage, transitionContent, cancelPageNavigation])
+  }, [pokemonList, slotsPerPage, transitionContent, cancelPageNavigation, publicIndex, openPublicLocation])
 
   const handleWantedSelect = (pokemon: PokemonSummary, card: WantedCard) => {
+    if (publicIndex) return openPublicLocation(publicIndex.wantLocation(card))
     handlePokemonSelect(pokemon)
     setWantedDetail({ pokemonId: pokemon.id, card })
   }
@@ -2260,6 +2283,7 @@ function BinderAppSurface(props: BinderAppProps) {
   }, [handlePokemonSelect])
 
   const getSearchResultMeta = useCallback((pokemon: { id: number; name: string }): PokemonSearchResultMeta => {
+    if (publicIndex) return publicIndex.searchMeta(pokemon.id)
     const summary = getPokemonSummary(pokemon.id)
     const item = getCollectionItem(pokemon.id)
     const preview = buildPokemonSearchPreview({
@@ -2316,9 +2340,15 @@ function BinderAppSurface(props: BinderAppProps) {
       slotState,
       elsewhereLabel: ownedElsewhereLabel(pokemon.id),
     }
-  }, [getCollectionItem, ownedElsewhereLabel, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage])
+  }, [getCollectionItem, ownedElsewhereLabel, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage, publicIndex])
 
   const handleJumpBetweenTargets = useCallback((direction: "next" | "prev") => {
+    if (publicIndex && orderedDisplaySlots) {
+      const selected = orderedDisplaySlots.findIndex(slot => slot.id === selectedSlotId)
+      const from = selected >= 0 ? selected : (currentBinderPage - 1) * slotsPerPage - (direction === "next" ? 1 : 0)
+      const filter = collectionViewFilter === "favorite" || collectionViewFilter === "upgradeable" || collectionViewFilter === "wanted" ? collectionViewFilter : "needed"
+      return openPublicLocation(publicIndex.jump(filter, from, direction))
+    }
     if (activeJumpPokemonList.length === 0 || generationFilteredPokemonList.length === 0) return
 
     const anchorId = selectedPokemon?.id ?? currentPagePokemon[0]?.id
@@ -2345,7 +2375,7 @@ function BinderAppSurface(props: BinderAppProps) {
     if (summary) {
       handlePokemonSelect(summary)
     }
-  }, [activeJumpPokemonList, currentPagePokemon, generationFilteredPokemonList, handlePokemonSelect, selectedPokemon])
+  }, [activeJumpPokemonList, currentPagePokemon, generationFilteredPokemonList, handlePokemonSelect, selectedPokemon, publicIndex, orderedDisplaySlots, selectedSlotId, currentBinderPage, slotsPerPage, collectionViewFilter, openPublicLocation])
 
   const handleJumpToNextNeeded = useCallback(() => {
     handleJumpBetweenTargets("next")
@@ -3328,6 +3358,8 @@ function BinderAppSurface(props: BinderAppProps) {
   const nativeSpecies = useMemo(() => nativeSpeciesView && nativeScope && nativeRead
     ? nativeSpeciesCollection({ scope: nativeScope, read: nativeRead, collectionId: nativeCollectionId }) : null,
   [nativeSpeciesView, nativeScope, nativeRead, nativeCollectionId])
+  // Shares have no browser session: species views use the public index, same shape as nativeSpeciesCollection.
+  const speciesCollection = nativeSpecies ?? (publicIndex && nativeSpeciesView ? publicIndex.species : null)
 
   /** Open every card by an illustrator. From the card detail it stacks one level; otherwise it replaces any overlay. */
   const openIllustratorBrowser = useCallback((name: string, options: { fromDetail?: boolean } = {}) => {
@@ -3425,9 +3457,10 @@ function BinderAppSurface(props: BinderAppProps) {
 
   // Quick mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
   const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => {
+    if (publicIndex) return publicIndex.quickState(card, pokemon.id, finish)
     const state = resolveQuickCardState(card, getCollectionItem(pokemon.id), finish, allBinders, initialBinderId)
     return { ...state, otherBindersIncomplete: binders.length > 1 && state.otherBindersIncomplete }
-  }, [allBinders, binders.length, getCollectionItem, initialBinderId])
+  }, [allBinders, binders.length, getCollectionItem, initialBinderId, publicIndex])
   const handleQuickCardAction = useCallback(async (
     action: QuickCardAction,
     card: SearchCardResult,
@@ -3656,6 +3689,7 @@ function BinderAppSurface(props: BinderAppProps) {
 
   const jumpToWantedPokemonPage = (pokemon: PokemonSummary | null) => {
     if (!pokemon) return
+    if (publicIndex) return handlePokemonSelect(pokemon)
     const pokemonIndex = pokemonList.findIndex((entry) => entry.id === pokemon.id)
     if (pokemonIndex < 0) return
 
@@ -3682,9 +3716,9 @@ function BinderAppSurface(props: BinderAppProps) {
 
   const renderAppHeader = () => renderAppHeaderView({ activeBinder: browserSurface ? null : activeBinder, nativeStorage: Boolean(browserSurface), onNationalDex: browserSurface?.surface.onDex, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut: onBrowserSignOut ?? handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode: browserSurface ? legacyReadOnlyMode : readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
-  const renderMainContent = () => renderMainContentView({ nativeSpecies, nativeWanted: nativeConsumer ? <NativeWantedEntries presentation="wanted" binding={nativeConsumer} onCheck={nativeConsumer.openCard} /> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
+  const renderMainContent = () => renderMainContentView({ nativeSpecies: speciesCollection, nativeWanted: nativeConsumer ? <NativeWantedEntries presentation="wanted" binding={nativeConsumer} onCheck={nativeConsumer.openCard} /> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
-  const renderSearchOverlay = () => renderSearchOverlayView({ nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
+  const renderSearchOverlay = () => renderSearchOverlayView({ nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon: publicIndex ? publicIndex.pageSpecies(currentBinderPage) : currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
   const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 

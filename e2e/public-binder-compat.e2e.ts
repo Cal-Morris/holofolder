@@ -65,7 +65,8 @@ for (const path of PATHS) {
     const api: string[] = []
     page.on('request', r => {
       if (r.method() !== 'GET' && r.method() !== 'HEAD') writes.push(`${r.method()} ${r.url()}`)
-      if (/\/app\/api\/(?!card-image-proxy)/.test(r.url())) api.push(r.url())
+      // Only public catalog reads (card search, sets, illustrators) and images; never account, collection, storage or price APIs.
+      if (/\/app\/api\/(?!card-image-proxy|tcg-card-search|tcg-set-slots|tcg-illustrators|tcgdex-cache)/.test(r.url())) api.push(r.url())
     })
     const phone = await open(page, request, path, standalone, insets, 'wanted=1&prices=1&rows=1&cols=3')
     const html = await phone.response.text()
@@ -113,10 +114,35 @@ for (const path of PATHS) {
     await pageNumber.fill('1')
     await pageNumber.press('Enter')
     await expect(current).toHaveAttribute('data-binder-page', '1')
-    // Familiar app controls: Search with Quick mode, Show mode, Join now, all without an account.
+    // Search is indexed from this share's pockets: true counts, real destinations, nothing from a dex-order guess.
     await page.getByRole('button', { name: 'Search', exact: true }).click()
-    await expect(page.getByRole('dialog', { name: 'Search Pokemon' })).toBeVisible()
+    const search = page.getByRole('dialog', { name: 'Search Pokemon' })
+    await expect(search.getByRole('button', { name: /^Needed\s*1$/ })).toBeVisible()
+    await expect(search.getByRole('button', { name: /^Wanted\s*1$/ })).toBeVisible()
+    await expect(search.getByRole('button', { name: /^Missing/ })).toHaveCount(0)
+    await expect(search.getByText('Not in binder').first()).toBeVisible()
+    await search.getByRole('textbox').first().fill('snorlax')
+    await expect(search).toContainText('Page 1 • A1')
+    await search.getByRole('button', { name: /snorlax/i }).first().click()
+    await expect(page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })).toBeVisible()
     await page.keyboard.press('Escape')
+    // Next needed goes pocket by pocket and opens the exact unfilled target on its page.
+    await page.getByRole('button', { name: 'Next needed' }).click()
+    await expect(current).toHaveAttribute('data-binder-page', '3')
+    await expect(page.getByRole('dialog', { name: 'snorlax, Unfilled target details' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    // Wanted lists every stored want separately and opens its own pocket; no private assignment is shown.
+    await page.getByRole('button', { name: 'Wanted', exact: true }).click()
+    const wants = page.getByRole('list', { name: 'Wanted cards' }).getByRole('listitem')
+    await expect(wants).toHaveCount(3)
+    await expect(page.getByTestId('main-content')).not.toContainText('Wanted by')
+    await page.getByRole('button', { name: 'Open Synthetic Trainer' }).click()
+    await expect(current).toHaveAttribute('data-binder-page', '3')
+    await expect(page.getByRole('dialog', { name: 'snorlax, Unfilled target details' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await pageNumber.fill('1')
+    await pageNumber.press('Enter')
+    await expect(current).toHaveAttribute('data-binder-page', '1')
     await page.getByRole('button', { name: 'More' }).click()
     await expect(page.getByRole('menuitem', { name: 'Show mode' })).toBeVisible()
     await page.keyboard.press('Escape')

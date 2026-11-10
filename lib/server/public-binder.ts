@@ -136,7 +136,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     const catalogRows = new Map<string, Row>()
     const catalogLinks = new Map<string, number[]>()
     const priceLookups = new Map<number, { cardId: string; language: string }>()
-    const catalog = new Map<string, { name: string; image?: string; ref: { id: string; language?: CardLanguage }; candidate: Extract<SlotTargetCandidate, { kind: 'card' }> }>()
+    const catalog = new Map<string, { name: string; image?: string; ref: { id: string; language?: CardLanguage; pokemonIds?: number[] }; candidate: Extract<SlotTargetCandidate, { kind: 'card' }> }>()
     async function preloadCatalog(ids: string[]) {
       const unique = [...new Set(ids)]
       const projection = 'id,name_en,series_id,set_id,local_id,image_languages_json,external_ids_json'
@@ -186,7 +186,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         ? buildTcgdexAssetImageUrl(String(lang), row.series_id, row.set_id, row.local_id, 'high', 'webp') : undefined
       const value = { name: typeof row.name_en === 'string' && row.name_en.trim() ? row.name_en : 'Unknown card', ...(image ? { image } : {}),
         // Public catalog reference: the canonical printing and the requested language, never the stored alias.
-        ref: { id: canonical, ...(isCardLanguage(language) ? { language } : {}) },
+        ref: { id: canonical, ...(isCardLanguage(language) ? { language } : {}), ...(pokemonIds.length ? { pokemonIds: [...pokemonIds] } : {}) },
         candidate: { kind: 'card' as const, id: canonical, ...(metadata.canonicalId ? { canonicalId: metadata.canonicalId } : {}), ...(metadata.aliasIds ? { aliasIds: metadata.aliasIds } : {}), pokemonIds } }
       catalog.set(cacheKey, value)
       return value
@@ -203,7 +203,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         const name = found?.name ?? label(want.card_name)
         if (!name) return []
         const image = found?.image ?? wantImage(want.card_image)
-        return [{ card_name: name, ...(image ? { card_image: image } : {}), ...(found ? { card_id: found.ref.id, ...(found.ref.language ? { card_language: found.ref.language } : {}) } : {}) }]
+        return [{ card_name: name, ...(image ? { card_image: image } : {}), ...(found ? { card_id: found.ref.id, ...(found.ref.language ? { card_language: found.ref.language } : {}), ...(found.ref.pokemonIds ? { pokemonIds: found.ref.pokemonIds } : {}) } : {}) }]
       })
     }
     const withWants = (list: PublicWant[]) => list.length ? { wantedCards: list } : {}
